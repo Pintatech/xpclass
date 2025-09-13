@@ -1,0 +1,43 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(find:*)",
+      "Read(/C:\\Users\\Pinta\\Downloads\\momtek\\src\\hooks/**)",
+      "Read(/C:\\Users\\Pinta\\Downloads\\momtek\\src\\components\\exercises/**)",
+      "Read(/C:\\Users\\Pinta\\Downloads\\momtek\\src\\components\\study/**)",
+      "Read(/C:\\Users\\Pinta\\Downloads\\momtek\\src\\components\\study/**)",
+      "Read(/C:\\Users\\Pinta\\Downloads\\momtek\\src\\components\\exercises/**)",
+      "Read(/C:\\Users\\Pinta\\Downloads\\momtek\\src\\components\\exercises/**)",
+      "Read(/C:\\Users\\Pinta\\Downloads\\momtek\\src\\components\\exercises/**)",
+      "Read(/C:\\Users\\Pinta\\Downloads\\momtek\\src\\supabase/**)",
+      "Read(/C:\\Users\\Pinta\\Downloads\\momtek\\src\\components\\exercises/**)",
+      "Read(/C:\\Users\\Pinta\\Downloads\\momtek\\src\\components\\exercises/**)",
+      "Read(/C:\\Users\\Pinta\\Downloads\\momtek\\src\\components\\exercises/**)",
+      "Read(/C:\\Users\\Pinta\\Downloads\\momtek\\src\\components\\exercises/**)",
+      "Read(/C:\\Users\\Pinta\\Downloads\\momtek\\src\\components\\exercises/**)",
+      "Read(/C:\\Users\\Pinta\\Downloads\\momtek\\src\\components\\exercises/**)",
+      "Read(/C:\\Users\\Pinta\\Downloads\\momtek\\src\\components\\study/**)",
+      "Read(/C:\\Users\\Pinta\\Downloads\\momtek\\src\\hooks/**)",
+      "Read(/C:\\Users\\Pinta\\Downloads\\momtek\\src\\hooks/**)",
+      "Read(/C:\\Users\\Pinta\\Downloads\\momtek\\src\\hooks/**)",
+      "Read(/C:\\Users\\Pinta\\Downloads\\momtek\\src\\supabase/**)",
+      "Read(/C:\\Users\\Pinta\\Downloads\\momtek\\src\\hooks/**)",
+      "Read(/C:\\Users\\Pinta\\Downloads\\momtek\\src\\hooks/**)",
+      "Read(/C:\\Users\\Pinta\\Downloads\\momtek\\src\\components\\study/**)",
+      "Read(/C:\\Users\\Pinta\\Downloads\\momtek\\src\\components\\study/**)",
+      "Read(/C:\\Users\\Pinta\\Downloads\\momtek\\src\\supabase/**)",
+      "Read(/C:\\Users\\Pinta\\Downloads\\momtek\\src\\supabase/**)",
+      "Read(/C:\\Users\\Pinta\\Downloads\\momtek\\src\\supabase/**)",
+      "Read(/C:\\Users\\Pinta\\Downloads\\momtek\\src\\supabase/**)",
+      "Read(/C:\\Users\\Pinta\\Downloads\\momtek\\src\\components\\study/**)",
+      "Read(/C:\\Users\\Pinta\\Downloads\\momtek\\src\\components\\study/**)",
+      "Read(/C:\\Users\\Pinta\\Downloads\\momtek\\src\\components\\study/**)",
+      "Read(/C:\\Users\\Pinta\\Downloads\\momtek\\src\\components\\study/**)",
+      "Read(/C:\\Users\\Pinta\\Downloads\\momtek\\src\\components\\study/**)",
+      "Read(/C:\\Users\\Pinta\\Downloads\\momtek\\src\\components\\study/**)",
+      "Bash(npm run dev:*)"
+    ],
+    "deny": [],
+    "ask": []
+  }
+}
