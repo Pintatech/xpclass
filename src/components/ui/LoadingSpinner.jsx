@@ -7,7 +7,7 @@ const LoadingSpinner = ({ size = 'md', text = 'Đang tải...' }) => {
   }
 
   return (
-    <div className="flex flex-col items-center justify-center min-h-screen bg-gradient-to-br from-blue-50 via-white to-purple-50">
+    <div className="flex flex-col items-center justify-center min-h-screen ">
       <div className={`${sizeClasses[size]} animate-spin rounded-full border-4 border-gray-200 border-t-primary-600`}></div>
       {text && (
         <p className="mt-4 text-gray-600 font-medium">{text}</p>

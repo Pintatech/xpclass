@@ -100,9 +100,9 @@ const TopNavigation = () => {
 
             {/* Profile & Settings */}
             <div className="flex items-center space-x-2">
-              <button className="p-2 rounded-lg text-gray-600 hover:text-primary-600 hover:bg-gray-100 transition-colors">
+              <Link to="/profile" className="p-2 rounded-lg text-gray-600 hover:text-primary-600 hover:bg-gray-100 transition-colors">
                 <User size={20} />
-              </button>
+              </Link>
               <button className="p-2 rounded-lg text-gray-600 hover:text-primary-600 hover:bg-gray-100 transition-colors">
                 <Settings size={20} />
               </button>

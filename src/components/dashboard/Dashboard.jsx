@@ -89,14 +89,29 @@ const Dashboard = () => {
               </div>
             </div>
 
-            {/* Welcome text - moved closer to top */}
+            {/* Welcome text with avatar - moved closer to top */}
             <div className="text-white -mt-16">
-              <h5 className="text-2xl md:text-3xl font-bold mb-2 drop-shadow-lg">
-                Chào {profile?.full_name || 'Học viên'}! 👋
-              </h5>
-              <p className="text-base md:text-lg opacity-90 drop-shadow-md max-w-2xl">
-                {getGreetingMessage()}
-              </p>
+              <div className="flex items-center space-x-4 mb-4">
+                <div className="w-16 h-16 bg-white/20 backdrop-blur-sm rounded-full flex items-center justify-center text-2xl font-bold overflow-hidden border-2 border-white/30">
+                  {profile?.avatar_url ? (
+                    profile.avatar_url.startsWith('http') ? (
+                      <img src={profile.avatar_url} alt="Avatar" className="w-full h-full object-cover" />
+                    ) : (
+                      profile.avatar_url
+                    )
+                  ) : (
+                    profile?.full_name?.[0]?.toUpperCase() || profile?.email?.[0]?.toUpperCase() || 'U'
+                  )}
+                </div>
+                <div>
+                  <h5 className="text-2xl md:text-3xl font-bold drop-shadow-lg">
+                    Chào {profile?.full_name || 'Học viên'}! 👋
+                  </h5>
+                  <p className="text-base md:text-lg opacity-90 drop-shadow-md max-w-2xl">
+                    {getGreetingMessage()}
+                  </p>
+                </div>
+              </div>
             </div>
           </div>
         </div>

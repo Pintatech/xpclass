@@ -26,7 +26,10 @@ import {
   Globe,
   Dice6,
   Dumbbell,
-  MessageCircle
+  MessageCircle,
+  ChevronRight,
+  List,
+  Grid
 } from 'lucide-react'
 
 const SessionList = () => {
@@ -39,6 +42,10 @@ const SessionList = () => {
   const [sessionProgress, setSessionProgress] = useState({})
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState(null)
+  const [viewMode, setViewMode] = useState('list') // 'list' or 'grid'
+  const [sidebarOpen, setSidebarOpen] = useState(true)
+  const [levels, setLevels] = useState([])
+  const [units, setUnits] = useState([])
   const { user } = useAuth()
 
   useEffect(() => {
@@ -52,7 +59,23 @@ const SessionList = () => {
       setLoading(true)
       setError(null)
 
-      // Fetch level info
+      // Fetch all levels for sidebar
+      const { data: allLevels, error: levelsError } = await supabase
+        .from('levels')
+        .select('*')
+        .order('level_number')
+
+      if (levelsError) throw levelsError
+
+      // Fetch all units for sidebar
+      const { data: allUnits, error: unitsError } = await supabase
+        .from('units')
+        .select('*')
+        .order('unit_number')
+
+      if (unitsError) throw unitsError
+
+      // Fetch current level info
       const { data: levelData, error: levelError } = await supabase
         .from('levels')
         .select('*')
@@ -61,7 +84,7 @@ const SessionList = () => {
 
       if (levelError) throw levelError
 
-      // Fetch unit info
+      // Fetch current unit info
       const { data: unitData, error: unitError } = await supabase
         .from('units')
         .select('*')
@@ -162,6 +185,8 @@ const SessionList = () => {
       setUnit(unitData)
       setSessions(sessionsData || [])
       setSessionProgress(progressMap)
+      setLevels(allLevels || [])
+      setUnits(allUnits || [])
     } catch (err) {
       console.error('Error fetching sessions:', err)
       setError('Không thể tải danh sách session')
@@ -296,7 +321,8 @@ const SessionList = () => {
           audio_flashcard: '/study/audio-flashcard',
           snake_ladder: '/study/snake-ladder',
           two_player: '/study/two-player-game',
-          sentence_pronunciation: '/study/sentence-pronunciation'
+          sentence_pronunciation: '/study/sentence-pronunciation',
+          multiple_choice: '/study/multiple-choice'
         }
         const exercisePath = paths[exercise.exercise_type] || '/study/flashcard'
         navigate(`${exercisePath}?exerciseId=${exercise.id}&sessionId=${session.id}`)
@@ -392,6 +418,84 @@ const SessionList = () => {
     )
   }
 
+  const renderSessionListItem = (session, index) => {
+    const { status, canAccess } = getSessionStatus(session, index)
+    const isCompleted = status === 'completed'
+    const progress = sessionProgress[session.id]
+    const theme = getThemeColors(unit?.color_theme || level?.color_theme)
+    const isLocked = !canAccess
+    const sessionNumber = session.session_number || index + 1
+    const sessionImageUrl = getSessionImageUrl(sessionNumber)
+    const sessionGrayImageUrl = getSessionGrayImageUrl(sessionNumber)
+
+    return (
+      <div
+        key={session.id}
+        onClick={() => !isLocked && handleSessionClick(session)}
+        className={`flex items-center p-4 rounded-lg border transition-all duration-200 ${
+          isLocked 
+            ? 'opacity-60 cursor-not-allowed bg-gray-50' 
+            : 'cursor-pointer hover:shadow-md hover:bg-gray-50'
+        } ${isCompleted ? 'border-green-200 bg-green-50' : 'border-gray-200'}`}
+      >
+        {/* Session Icon */}
+        <div className="flex-shrink-0 w-12 h-12 mr-4">
+          <div className={`w-full h-full rounded-lg flex items-center justify-center ${
+            isCompleted ? 'bg-green-100' : 'bg-gray-100'
+          }`}>
+            <img 
+              src={isCompleted ? sessionImageUrl : sessionGrayImageUrl} 
+              alt="" 
+              className="w-8 h-8" 
+            />
+          </div>
+        </div>
+
+        {/* Session Info */}
+        <div className="flex-1 min-w-0">
+          <div className="flex items-center justify-between">
+            <h3 className="text-lg font-semibold text-gray-900 truncate">
+              {session.title}
+            </h3>
+            <div className="flex items-center space-x-2">
+              {isCompleted && (
+                <CheckCircle className="w-5 h-5 text-green-600" />
+              )}
+              {isLocked && (
+                <Lock className="w-4 h-4 text-gray-400" />
+              )}
+            </div>
+          </div>
+          
+          <div className="mt-1 flex items-center space-x-4 text-sm text-gray-600">
+            <span>Session {sessionNumber}</span>
+            {progress && (
+              <>
+                <span>{progress.progress_percentage || 0}% hoàn thành</span>
+                <span>{progress.xp_earned || 0} XP</span>
+              </>
+            )}
+          </div>
+
+          {/* Progress Bar */}
+          {progress && (
+            <div className="mt-2 w-full bg-gray-200 rounded-full h-2">
+              <div 
+                className="bg-green-500 h-2 rounded-full transition-all duration-300"
+                style={{ width: `${progress.progress_percentage || 0}%` }}
+              ></div>
+            </div>
+          )}
+        </div>
+
+        {/* Arrow */}
+        {!isLocked && (
+          <ChevronRight className="w-5 h-5 text-gray-400 ml-4" />
+        )}
+      </div>
+    )
+  }
+
   if (loading) {
     return (
       <div className="flex justify-center items-center min-h-64">
@@ -425,197 +529,195 @@ const SessionList = () => {
   const theme = getThemeColors(unit.color_theme || level.color_theme)
 
   return (
-    <div className="space-y-8">
-      {/* Header */}
-      <div className="flex items-center justify-between">
-        <div className="flex items-center space-x-4">
-          <Button
-            variant="ghost"
-            size="sm"
-            onClick={() => navigate(`/study/level/${levelId}`)}
-          >
-            <ArrowLeft className="w-4 h-4 mr-2" />
-            Quay lại
-          </Button>
-          <div>
-            <h1 className="text-3xl font-bold text-gray-900">{unit.title}</h1>
-            <p className="text-gray-600">{unit.description}</p>
+    <div className="flex h-screen bg-gray-50">
+      {/* Sidebar */}
+      <div className={`${sidebarOpen ? 'w-80' : 'w-16'} transition-all duration-300 bg-white border-r border-gray-200 flex flex-col`}>
+        {/* Sidebar Header */}
+        <div className="p-4 border-b border-gray-200">
+          <div className="flex items-center justify-between">
+            {sidebarOpen && (
+              <h2 className="text-lg font-semibold text-gray-900">Nội dung học</h2>
+            )}
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={() => setSidebarOpen(!sidebarOpen)}
+            >
+              <ArrowLeft className={`w-4 h-4 transition-transform ${sidebarOpen ? 'rotate-0' : 'rotate-180'}`} />
+            </Button>
           </div>
         </div>
-      </div>
 
-      {/* Breadcrumb */}
-      <div className="flex items-center space-x-2 text-sm text-gray-600">
-        <Link to="/study" className="hover:text-primary-600">{level.title}</Link>
-        <ArrowRight className="w-4 h-4" />
-        <span className="text-gray-900 font-medium">{unit.title}</span>
-      </div>
-
-      {/* Unit progress summary */}
-      <Card className={`bg-gradient-to-r from-${unit.color_theme || level.color_theme}-50 to-${unit.color_theme || level.color_theme}-100 border-${unit.color_theme || level.color_theme}-200`}>
-        <Card.Content className="p-6">
-          <div className="grid grid-cols-3 gap-6 text-center">
-            <div>
-              <div className={`text-2xl font-bold ${theme.text}`}>
-                {Object.values(sessionProgress).filter(p => p.status === 'completed').length}
-              </div>
-              <div className="text-sm text-gray-600">Sessions hoàn thành</div>
-            </div>
-            <div>
-              <div className={`text-2xl font-bold ${theme.text}`}>
-                {Object.values(sessionProgress).reduce((total, p) => total + (p.xp_earned || 0), 0)}
-              </div>
-              <div className="text-sm text-gray-600">XP đã kiếm</div>
-            </div>
-            <div>
-              <div className={`text-2xl font-bold ${theme.text}`}>
-                {Math.round(Object.values(sessionProgress).reduce((total, p) => total + (p.progress_percentage || 0), 0) / Math.max(sessions.length, 1))}%
-              </div>
-              <div className="text-sm text-gray-600">Tổng tiến độ</div>
-            </div>
-          </div>
-        </Card.Content>
-      </Card>
-
-      {/* Sessions grid */}
-      <div className="relative">
-        {/* Create ordered sessions array: left column (1,2,5,6) and right column (3,4,7,8) */}
-        {(() => {
-          const leftColumnSessions = []
-          const rightColumnSessions = []
-
-          // Sort sessions by session_number to ensure correct order
-          const sortedSessions = [...sessions].sort((a, b) => (a.session_number || 0) - (b.session_number || 0))
-
-          // Arrange sessions according to the specified layout
-          sortedSessions.forEach((session, index) => {
-            const sessionNum = session.session_number || (index + 1)
-            if ([1, 2, 5, 6].includes(sessionNum)) {
-              leftColumnSessions.push({ session, originalIndex: index })
-            } else if ([3, 4, 7, 8].includes(sessionNum)) {
-              rightColumnSessions.push({ session, originalIndex: index })
-            }
-          })
-
-          return (
-            <div className="space-y-12 relative">
-
-              {/* First row: Session 1 only */}
-              {leftColumnSessions.find(({ session }) => (session.session_number || 0) === 1) && (
-                <div className="flex justify-start relative" style={{ zIndex: 1 }}>
-                  <div className="w-32 h-32 relative">
-                    {renderSessionCard(leftColumnSessions.find(({ session }) => (session.session_number || 0) === 1).session, leftColumnSessions.find(({ session }) => (session.session_number || 0) === 1).originalIndex)}
-                    {/* Connection line down to session 2 */}
-                    <div className="absolute top-full left-1/2 transform -translate-x-1/2 w-0.5 h-12 border-l-2 border-dashed border-blue-400"></div>
+        {/* Sidebar Content */}
+        <div className="flex-1 overflow-y-auto">
+          {levels.map((levelItem) => (
+            <div key={levelItem.id} className="border-b border-gray-100">
+              <div className="p-3">
+                <Link
+                  to={`/study/level/${levelItem.id}`}
+                  className={`flex items-center space-x-3 p-2 rounded-lg transition-colors ${
+                    levelItem.id === levelId 
+                      ? 'bg-blue-100 text-blue-700' 
+                      : 'hover:bg-gray-100'
+                  }`}
+                >
+                  <div className={`w-8 h-8 rounded-lg flex items-center justify-center text-sm font-bold ${
+                    levelItem.id === levelId 
+                      ? 'bg-blue-200' 
+                      : 'bg-gray-200'
+                  }`}>
+                    {levelItem.level_number}
                   </div>
-                </div>
-              )}
-
-              {/* Second row: Sessions 2 and 3 */}
-              {(() => {
-                const session2 = leftColumnSessions.find(({ session }) => (session.session_number || 0) === 2)
-                const session3 = rightColumnSessions.find(({ session }) => (session.session_number || 0) === 3)
-
-                if (session2 || session3) {
-                  return (
-                    <div className="flex justify-between relative" style={{ zIndex: 1 }}>
-                      <div className="w-32 h-32 relative">
-                        {session2 && renderSessionCard(session2.session, session2.originalIndex)}
-                        {/* Connection line to right (session 3) */}
-                        {session2 && session3 && (
-                          <div className="absolute top-1/2 left-full transform -translate-y-1/2 h-0.5 w-full border-t-2 border-dashed border-blue-400"></div>
-                        )}
-                      </div>
-                      <div className="w-32 h-32 relative">
-                        {session3 && renderSessionCard(session3.session, session3.originalIndex)}
-                        {/* Connection line down to session 4 */}
-                        {session3 && (
-                          <div className="absolute top-full left-1/2 transform -translate-x-1/2 w-0.5 h-12 border-l-2 border-dashed border-blue-400"></div>
-                        )}
-                      </div>
+                  {sidebarOpen && (
+                    <div className="flex-1 min-w-0">
+                      <div className="font-medium truncate">{levelItem.title}</div>
+                      <div className="text-xs text-gray-500 truncate">{levelItem.difficulty_label}</div>
                     </div>
-                  )
-                }
-                return null
-              })()}
+                  )}
+                </Link>
+              </div>
 
-              {/* Third row: Sessions 4 and 5 */}
-              {(() => {
-                const session4 = rightColumnSessions.find(({ session }) => (session.session_number || 0) === 4)
-                const session5 = leftColumnSessions.find(({ session }) => (session.session_number || 0) === 5)
-
-                if (session4 || session5) {
-                  return (
-                    <div className="flex justify-between relative" style={{ zIndex: 1 }}>
-                      <div className="w-32 h-32 relative">
-                        {session5 && renderSessionCard(session5.session, session5.originalIndex)}
-                        {/* Connection line to right (session 4) */}
-                        {session5 && session4 && (
-                          <div className="absolute top-1/2 left-full transform -translate-y-1/2 h-0.5 w-full border-t-2 border-dashed border-blue-400"></div>
-                        )}
-                        {/* Connection line down to session 6 */}
-                        {session5 && (
-                          <div className="absolute top-full left-1/2 transform -translate-x-1/2 w-0.5 h-12 border-l-2 border-dashed border-blue-400"></div>
-                        )}
-                      </div>
-                      <div className="w-32 h-32 relative">
-                        {session4 && renderSessionCard(session4.session, session4.originalIndex)}
-                      </div>
-                    </div>
-                  )
-                }
-                return null
-              })()}
-
-              {/* Fourth row: Sessions 6 and 7 */}
-              {(() => {
-                const session6 = leftColumnSessions.find(({ session }) => (session.session_number || 0) === 6)
-                const session7 = rightColumnSessions.find(({ session }) => (session.session_number || 0) === 7)
-
-                if (session6 || session7) {
-                  return (
-                    <div className="flex justify-between relative" style={{ zIndex: 1 }}>
-                      <div className="w-32 h-32 relative">
-                        {session6 && renderSessionCard(session6.session, session6.originalIndex)}
-                        {/* Connection line to right (session 7) */}
-                        {session6 && session7 && (
-                          <div className="absolute top-1/2 left-full transform -translate-y-1/2 h-0.5 w-full border-t-2 border-dashed border-blue-400"></div>
-                        )}
-                      </div>
-                      <div className="w-32 h-32 relative">
-                        {session7 && renderSessionCard(session7.session, session7.originalIndex)}
-                        {/* Connection line down to session 8 */}
-                        {session7 && (
-                          <div className="absolute top-full left-1/2 transform -translate-x-1/2 w-0.5 h-12 border-l-2 border-dashed border-blue-400"></div>
-                        )}
-                      </div>
-                    </div>
-                  )
-                }
-                return null
-              })()}
-
-              {/* Fifth row: Session 8 only */}
-              {rightColumnSessions.find(({ session }) => (session.session_number || 0) === 8) && (
-                <div className="flex justify-end relative" style={{ zIndex: 1 }}>
-                  <div className="w-32 h-32 relative">
-                    {renderSessionCard(rightColumnSessions.find(({ session }) => (session.session_number || 0) === 8).session, rightColumnSessions.find(({ session }) => (session.session_number || 0) === 8).originalIndex)}
-                  </div>
+              {/* Units for this level */}
+              {levelItem.id === levelId && sidebarOpen && (
+                <div className="ml-6 space-y-1 pb-3">
+                  {units
+                    .filter(unitItem => unitItem.level_id === levelItem.id)
+                    .map((unitItem) => (
+                      <Link
+                        key={unitItem.id}
+                        to={`/study/level/${levelItem.id}/unit/${unitItem.id}`}
+                        className={`flex items-center space-x-3 p-2 rounded-lg transition-colors ${
+                          unitItem.id === unitId 
+                            ? 'bg-green-100 text-green-700' 
+                            : 'hover:bg-gray-50'
+                        }`}
+                      >
+                        <div className={`w-6 h-6 rounded flex items-center justify-center text-xs font-bold ${
+                          unitItem.id === unitId 
+                            ? 'bg-green-200' 
+                            : 'bg-gray-200'
+                        }`}>
+                          {unitItem.unit_number}
+                        </div>
+                        <div className="flex-1 min-w-0">
+                          <div className="font-medium truncate text-sm">{unitItem.title}</div>
+                          <div className="text-xs text-gray-500 truncate">{unitItem.description}</div>
+                        </div>
+                      </Link>
+                    ))}
                 </div>
               )}
             </div>
-          )
-        })()}
+          ))}
+        </div>
       </div>
 
-      {/* Empty state */}
-      {sessions.length === 0 && (
-        <div className="text-center py-12">
-          <BookOpen className="w-16 h-16 text-gray-400 mx-auto mb-4" />
-          <h3 className="text-lg font-medium text-gray-900 mb-2">Chưa có session nào</h3>
-          <p className="text-gray-600">Các session học tập sẽ sớm được cập nhật!</p>
+      {/* Main Content */}
+      <div className="flex-1 flex flex-col overflow-hidden">
+        {/* Header */}
+        <div className="bg-white border-b border-gray-200 p-6">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center space-x-4">
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => navigate(`/study/level/${levelId}`)}
+              >
+                <ArrowLeft className="w-4 h-4 mr-2" />
+                Quay lại
+              </Button>
+              <div>
+                <h1 className="text-3xl font-bold text-gray-900">{unit?.title}</h1>
+                <p className="text-gray-600">{unit?.description}</p>
+              </div>
+            </div>
+
+            {/* View Toggle */}
+            <div className="flex items-center space-x-2">
+              <Button
+                variant={viewMode === 'list' ? 'default' : 'ghost'}
+                size="sm"
+                onClick={() => setViewMode('list')}
+              >
+                <List className="w-4 h-4" />
+              </Button>
+              <Button
+                variant={viewMode === 'grid' ? 'default' : 'ghost'}
+                size="sm"
+                onClick={() => setViewMode('grid')}
+              >
+                <Grid className="w-4 h-4" />
+              </Button>
+            </div>
+          </div>
+
+          {/* Breadcrumb */}
+          <div className="flex items-center space-x-2 text-sm text-gray-600 mt-2">
+            <Link to="/study" className="hover:text-primary-600">{level?.title}</Link>
+            <ArrowRight className="w-4 h-4" />
+            <span className="text-gray-900 font-medium">{unit?.title}</span>
+          </div>
         </div>
-      )}
+
+        {/* Content Area */}
+        <div className="flex-1 overflow-y-auto p-6">
+          {/* Unit progress summary */}
+          <Card className={`mb-6 bg-gradient-to-r from-${unit?.color_theme || level?.color_theme}-50 to-${unit?.color_theme || level?.color_theme}-100 border-${unit?.color_theme || level?.color_theme}-200`}>
+            <Card.Content className="p-6">
+              <div className="grid grid-cols-3 gap-6 text-center">
+                <div>
+                  <div className={`text-2xl font-bold ${theme.text}`}>
+                    {Object.values(sessionProgress).filter(p => p.status === 'completed').length}
+                  </div>
+                  <div className="text-sm text-gray-600">Sessions hoàn thành</div>
+                </div>
+                <div>
+                  <div className={`text-2xl font-bold ${theme.text}`}>
+                    {Object.values(sessionProgress).reduce((total, p) => total + (p.xp_earned || 0), 0)}
+                  </div>
+                  <div className="text-sm text-gray-600">XP đã kiếm</div>
+                </div>
+                <div>
+                  <div className={`text-2xl font-bold ${theme.text}`}>
+                    {Math.round(Object.values(sessionProgress).reduce((total, p) => total + (p.progress_percentage || 0), 0) / Math.max(sessions.length, 1))}%
+                  </div>
+                  <div className="text-sm text-gray-600">Tổng tiến độ</div>
+                </div>
+              </div>
+            </Card.Content>
+          </Card>
+
+          {/* Sessions List/Grid */}
+          {viewMode === 'list' ? (
+            <div className="space-y-4">
+              {sessions
+                .sort((a, b) => (a.session_number || 0) - (b.session_number || 0))
+                .map((session, index) => renderSessionListItem(session, index))
+              }
+            </div>
+          ) : (
+            <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6">
+              {sessions
+                .sort((a, b) => (a.session_number || 0) - (b.session_number || 0))
+                .map((session, index) => (
+                  <div key={session.id} className="w-32 h-32">
+                    {renderSessionCard(session, index)}
+                  </div>
+                ))
+              }
+            </div>
+          )}
+
+          {/* Empty state */}
+          {sessions.length === 0 && (
+            <div className="text-center py-12">
+              <BookOpen className="w-16 h-16 text-gray-400 mx-auto mb-4" />
+              <h3 className="text-lg font-medium text-gray-900 mb-2">Chưa có session nào</h3>
+              <p className="text-gray-600">Các session học tập sẽ sớm được cập nhật!</p>
+            </div>
+          )}
+        </div>
+      </div>
     </div>
   )
 }

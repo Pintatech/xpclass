@@ -1,17 +1,20 @@
 import React, { useState, useEffect } from 'react'
 import { supabase } from '../../supabase/client'
-import { 
-  Plus, 
-  Edit, 
-  Trash2, 
-  Play, 
-  Volume2, 
-  Image, 
+import {
+  Plus,
+  Edit,
+  Trash2,
+  Play,
+  Volume2,
+  Image,
   Video,
   BookOpen,
   Mic,
   Search,
-  Filter
+  Filter,
+  HelpCircle,
+  Copy,
+  X
 } from 'lucide-react'
 
 const ExerciseManagement = () => {
@@ -29,6 +32,7 @@ const ExerciseManagement = () => {
     'flashcard': { icon: BookOpen, label: 'Flashcard', color: 'blue' },
     'audio_flashcard': { icon: Volume2, label: 'Audio Flashcard', color: 'purple' },
     'sentence_pronunciation': { icon: Mic, label: 'Sentence Pronunciation', color: 'emerald' },
+    'multiple_choice': { icon: HelpCircle, label: 'Multiple Choice', color: 'orange' },
   }
 
   useEffect(() => {
@@ -373,7 +377,7 @@ const ExerciseForm = ({ exercise, sessions, exerciseTypes, onSave, onCancel }) =
   const [formData, setFormData] = useState({
     session_id: exercise?.session_id || '',
     title: exercise?.title || '',
-    exercise_type: exercise?.exercise_type || 'combined_learning',
+    exercise_type: exercise?.exercise_type || 'multiple_choice',
     content: exercise?.content || {},
     difficulty_level: exercise?.difficulty_level || 1,
     xp_reward: exercise?.xp_reward || 10,
@@ -632,13 +636,19 @@ const ExerciseForm = ({ exercise, sessions, exerciseTypes, onSave, onCancel }) =
               )}
               
               {formData.exercise_type === 'flashcard' && (
-                <FlashcardEditor 
+                <FlashcardEditor
                   cards={formData.content.cards || []}
                   onCardsChange={(cards) => handleContentChange('cards', cards)}
                 />
               )}
-              
-              
+
+              {formData.exercise_type === 'multiple_choice' && (
+                <MultipleChoiceEditor
+                  questions={formData.content.questions || []}
+                  onQuestionsChange={(questions) => handleContentChange('questions', questions)}
+                />
+              )}
+
               {formData.exercise_type === 'sentence_pronunciation' && (
                 <div className="space-y-4 p-4 border border-gray-200 rounded-lg">
                   <div>
@@ -718,7 +728,7 @@ const ExerciseForm = ({ exercise, sessions, exerciseTypes, onSave, onCancel }) =
               
               
               {/* Generic JSON editor for other types */}
-              {!['combined_learning', 'flashcard', 'sentence_pronunciation'].includes(formData.exercise_type) && (
+              {!['combined_learning', 'flashcard', 'sentence_pronunciation', 'multiple_choice'].includes(formData.exercise_type) && (
                 <textarea
                   value={JSON.stringify(formData.content, null, 2)}
                   onChange={(e) => {
@@ -920,6 +930,521 @@ const FlashcardEditor = ({ cards, onCardsChange }) => {
       {localCards.length > 0 && (
         <div className="text-sm text-gray-600 text-center">
           Tổng cộng {localCards.length} card(s)
+        </div>
+      )}
+    </div>
+  )
+}
+
+// Enhanced Multiple Choice Editor Component
+const MultipleChoiceEditor = ({ questions, onQuestionsChange }) => {
+  const [localQuestions, setLocalQuestions] = useState(questions || [])
+  const [bulkImportMode, setBulkImportMode] = useState(false)
+  const [bulkText, setBulkText] = useState('')
+
+  React.useEffect(() => {
+    setLocalQuestions(questions || [])
+  }, [questions])
+
+  const addQuestion = () => {
+    const newQuestion = {
+      id: `q${Date.now()}`,
+      question: '',
+      options: ['', '', '', ''],
+      correct_answer: 0,
+      explanation: '',
+      option_explanations: { 0: '', 1: '', 2: '', 3: '' }
+    }
+    const updatedQuestions = [...localQuestions, newQuestion]
+    setLocalQuestions(updatedQuestions)
+    onQuestionsChange(updatedQuestions)
+  }
+
+  const duplicateQuestion = (index) => {
+    const questionToDuplicate = { ...localQuestions[index] }
+    questionToDuplicate.id = `q${Date.now()}`
+    questionToDuplicate.question = `${questionToDuplicate.question} (Copy)`
+    const updatedQuestions = [...localQuestions]
+    updatedQuestions.splice(index + 1, 0, questionToDuplicate)
+    setLocalQuestions(updatedQuestions)
+    onQuestionsChange(updatedQuestions)
+  }
+
+  const moveQuestion = (index, direction) => {
+    const newIndex = direction === 'up' ? index - 1 : index + 1
+    if (newIndex < 0 || newIndex >= localQuestions.length) return
+
+    const updatedQuestions = [...localQuestions]
+    const temp = updatedQuestions[index]
+    updatedQuestions[index] = updatedQuestions[newIndex]
+    updatedQuestions[newIndex] = temp
+    setLocalQuestions(updatedQuestions)
+    onQuestionsChange(updatedQuestions)
+  }
+
+  const updateQuestion = (index, field, value) => {
+    const updatedQuestions = localQuestions.map((question, i) =>
+      i === index ? { ...question, [field]: value } : question
+    )
+    setLocalQuestions(updatedQuestions)
+    onQuestionsChange(updatedQuestions)
+  }
+
+  const updateOption = (questionIndex, optionIndex, value) => {
+    const updatedQuestions = localQuestions.map((question, i) => {
+      if (i === questionIndex) {
+        const newOptions = [...question.options]
+        newOptions[optionIndex] = value
+        return { ...question, options: newOptions }
+      }
+      return question
+    })
+    setLocalQuestions(updatedQuestions)
+    onQuestionsChange(updatedQuestions)
+  }
+
+  const removeQuestion = (index) => {
+    const updatedQuestions = localQuestions.filter((_, i) => i !== index)
+    setLocalQuestions(updatedQuestions)
+    onQuestionsChange(updatedQuestions)
+  }
+
+  const addMultipleOptions = (questionIndex) => {
+    const updatedQuestions = localQuestions.map((question, i) => {
+      if (i === questionIndex) {
+        return { ...question, options: [...question.options, '', ''] }
+      }
+      return question
+    })
+    setLocalQuestions(updatedQuestions)
+    onQuestionsChange(updatedQuestions)
+  }
+
+  const removeOption = (questionIndex, optionIndex) => {
+    const updatedQuestions = localQuestions.map((question, i) => {
+      if (i === questionIndex && question.options.length > 2) {
+        const newOptions = question.options.filter((_, oi) => oi !== optionIndex)
+        return {
+          ...question,
+          options: newOptions,
+          correct_answer: question.correct_answer > optionIndex ? question.correct_answer - 1 : question.correct_answer
+        }
+      }
+      return question
+    })
+    setLocalQuestions(updatedQuestions)
+    onQuestionsChange(updatedQuestions)
+  }
+
+  const processBulkImport = () => {
+    try {
+      // First, try to detect if this is Moodle Cloze format
+      if (bulkText.includes('{1:MCV:') || bulkText.includes('{1:MULTICHOICE:') || bulkText.includes('{=')) {
+        processMoodleCloze()
+        return
+      }
+
+      // Original simple format processing
+      const lines = bulkText.split('\n').filter(line => line.trim())
+      const newQuestions = []
+
+      let currentQuestion = null
+      let optionCounter = 0
+
+      lines.forEach((line, index) => {
+        const trimmedLine = line.trim()
+
+        // Question line (starts with Q: or number.)
+        if (trimmedLine.match(/^(Q:|Question|\d+[\.):])/i)) {
+          if (currentQuestion) {
+            newQuestions.push(currentQuestion)
+          }
+          currentQuestion = {
+            id: `q${Date.now()}_${index}`,
+            question: trimmedLine.replace(/^(Q:|Question|\d+[\.):])\s*/i, ''),
+            options: [],
+            correct_answer: 0,
+            explanation: '',
+            option_explanations: {}
+          }
+          optionCounter = 0
+        }
+        // Answer options (A:, B:, C:, D: or 1., 2., 3., 4.)
+        else if (trimmedLine.match(/^[A-Za-z][\.):]|^\d+[\.)]/)) {
+          if (currentQuestion) {
+            const optionText = trimmedLine.replace(/^[A-Za-z\d][\.):]?\s*/, '')
+            // Check if this is marked as correct (contains *)
+            if (optionText.includes('*') || trimmedLine.includes('*')) {
+              currentQuestion.correct_answer = optionCounter
+              currentQuestion.options.push(optionText.replace('*', '').trim())
+            } else {
+              currentQuestion.options.push(optionText)
+            }
+            optionCounter++
+          }
+        }
+        // Explanation line (starts with Explanation:)
+        else if (trimmedLine.match(/^(Explanation|Answer):/i)) {
+          if (currentQuestion) {
+            currentQuestion.explanation = trimmedLine.replace(/^(Explanation|Answer):\s*/i, '')
+          }
+        }
+      })
+
+      if (currentQuestion) {
+        newQuestions.push(currentQuestion)
+      }
+
+      if (newQuestions.length > 0) {
+        const updatedQuestions = [...localQuestions, ...newQuestions]
+        setLocalQuestions(updatedQuestions)
+        onQuestionsChange(updatedQuestions)
+        setBulkText('')
+        setBulkImportMode(false)
+        alert(`Successfully imported ${newQuestions.length} questions!`)
+      }
+    } catch (error) {
+      alert('Error processing bulk import. Please check your format.')
+    }
+  }
+
+  const processMoodleCloze = () => {
+    try {
+      const newQuestions = []
+
+      // Split by question patterns (Question X - ID) - more specific regex
+      const questionBlocks = bulkText.split(/(?=Question\s+\d+\s*-\s*[a-zA-Z0-9]+)/i).filter(block => block.trim())
+
+      questionBlocks.forEach((block, blockIndex) => {
+        const lines = block.trim().split('\n')
+        let questionText = ''
+        let options = []
+        let correctAnswer = 0
+        let explanation = ''
+
+        // Find the cloze pattern in the entire block
+        const clozeMatch = block.match(/\{1:MCV:([^}]+)\}/s)
+        if (!clozeMatch) return
+
+        // Extract question text (everything before the cloze and after question header)
+        const beforeCloze = block.substring(0, block.indexOf('{1:MCV:'))
+        const questionLines = beforeCloze.split('\n').filter(line => {
+          const trimmed = line.trim()
+          return trimmed &&
+                 !trimmed.match(/^Question\s+\d+\s*-/i) &&
+                 !trimmed.match(/^Which choice completes/i)
+        })
+
+        // Join question text and replace blank with proper format
+        questionText = questionLines.join(' ')
+          .replace(/\s+/g, ' ')
+          .replace(/______/g, '______')
+          .trim()
+
+        // If question text has a blank, use it as is, otherwise add "Which choice completes the text?"
+        if (!questionText.includes('______')) {
+          questionText += ' Which choice completes the text so that it conforms to the conventions of Standard English?'
+        }
+
+        // Parse cloze options from the matched content
+        const optionsContent = clozeMatch[1]
+        const rawOptions = optionsContent.split('~').filter(opt => opt.trim())
+        const optionExplanations = {}
+
+        rawOptions.forEach((option, index) => {
+          if (!option.trim()) return
+
+          const isCorrect = option.startsWith('=')
+          const cleanOption = option.replace(/^=/, '')
+
+          // Split by # to separate option text from explanation
+          const parts = cleanOption.split('#')
+          const optionText = parts[0].trim()
+          const optionExplanation = parts.length > 1 ? parts.slice(1).join('#').trim() : ''
+
+          if (optionText) {
+            options.push(optionText)
+
+            // Store explanation for this specific option
+            optionExplanations[options.length - 1] = optionExplanation || `This is option ${String.fromCharCode(65 + options.length - 1)}.`
+
+            if (isCorrect) {
+              correctAnswer = options.length - 1
+            }
+          }
+        })
+
+        // Create question if we have valid data
+        if (questionText && options.length >= 2) {
+          newQuestions.push({
+            id: `q${Date.now()}_${blockIndex}`,
+            question: questionText,
+            options: options,
+            correct_answer: correctAnswer,
+            explanation: optionExplanations[correctAnswer] || `The correct answer is: ${options[correctAnswer]}`,
+            option_explanations: optionExplanations // Store all explanations
+          })
+        }
+      })
+
+      if (newQuestions.length > 0) {
+        const updatedQuestions = [...localQuestions, ...newQuestions]
+        setLocalQuestions(updatedQuestions)
+        onQuestionsChange(updatedQuestions)
+        setBulkText('')
+        setBulkImportMode(false)
+        alert(`Successfully imported ${newQuestions.length} Moodle Cloze questions!`)
+      } else {
+        alert('No valid Moodle Cloze questions found. Please check the format.')
+      }
+    } catch (error) {
+      console.error('Moodle Cloze parsing error:', error)
+      alert('Error parsing Moodle Cloze format. Please check your format or try the simple format instead.')
+    }
+  }
+
+  const exportQuestions = () => {
+    const exportText = localQuestions.map((q, index) => {
+      let text = `Q${index + 1}: ${q.question}\n`
+      q.options.forEach((option, oi) => {
+        const letter = String.fromCharCode(65 + oi)
+        const isCorrect = q.correct_answer === oi ? ' *' : ''
+        text += `${letter}: ${option}${isCorrect}\n`
+      })
+      if (q.explanation) {
+        text += `Explanation: ${q.explanation}\n`
+      }
+      text += '\n'
+      return text
+    }).join('')
+
+    navigator.clipboard.writeText(exportText)
+    alert('Questions copied to clipboard!')
+  }
+
+  return (
+    <div className="space-y-4 p-4 border border-gray-200 rounded-lg">
+      <div className="flex justify-between items-center">
+        <h3 className="text-lg font-medium text-gray-900">Multiple Choice Questions</h3>
+        <div className="flex gap-2">
+          <button
+            type="button"
+            onClick={() => setBulkImportMode(!bulkImportMode)}
+            className="flex items-center gap-2 px-3 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 text-sm"
+          >
+            <Plus className="w-4 h-4" />
+            Bulk Import
+          </button>
+          {localQuestions.length > 0 && (
+            <button
+              type="button"
+              onClick={exportQuestions}
+              className="flex items-center gap-2 px-3 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 text-sm"
+            >
+              <Copy className="w-4 h-4" />
+              Export
+            </button>
+          )}
+          <button
+            type="button"
+            onClick={addQuestion}
+            className="flex items-center gap-2 px-3 py-2 bg-orange-600 text-white rounded-lg hover:bg-orange-700 text-sm"
+          >
+            <Plus className="w-4 h-4" />
+            Add Question
+          </button>
+        </div>
+      </div>
+
+      {/* Bulk Import Mode */}
+      {bulkImportMode && (
+        <div className="p-4 bg-blue-50 border border-blue-200 rounded-lg">
+          <h4 className="font-medium text-blue-900 mb-2">Bulk Import Questions</h4>
+          <p className="text-sm text-blue-700 mb-3">
+            Format: Q1: Question text / A: Option 1 * / B: Option 2 / C: Option 3 / D: Option 4 / Explanation: Text
+            <br />
+            (Add * after correct answer)
+          </p>
+          <textarea
+            value={bulkText}
+            onChange={(e) => setBulkText(e.target.value)}
+            className="w-full p-3 border border-blue-300 rounded-lg h-40 font-mono text-sm"
+            placeholder={`Q1: What does "Hello" mean in Vietnamese?
+A: Xin chào *
+B: Tạm biệt
+C: Cảm ơn
+D: Xin lỗi
+Explanation: Hello means Xin chào in Vietnamese.
+
+Q2: How do you say "Good morning"?
+A: Chào buổi tối
+B: Chào buổi sáng *
+C: Chào buổi chiều
+D: Tạm biệt
+Explanation: Good morning is Chào buổi sáng.`}
+          />
+          <div className="flex justify-end gap-2 mt-3">
+            <button
+              type="button"
+              onClick={() => setBulkImportMode(false)}
+              className="px-3 py-2 bg-gray-500 text-white rounded-lg hover:bg-gray-600 text-sm"
+            >
+              Cancel
+            </button>
+            <button
+              type="button"
+              onClick={processBulkImport}
+              className="px-3 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 text-sm"
+            >
+              Import Questions
+            </button>
+          </div>
+        </div>
+      )}
+
+      {localQuestions.length === 0 && !bulkImportMode && (
+        <div className="text-center py-8 text-gray-500">
+          <HelpCircle className="w-12 h-12 mx-auto mb-2 text-gray-400" />
+          <p>No questions yet. Click "Add Question" or "Bulk Import" to start.</p>
+        </div>
+      )}
+
+      <div className="space-y-6">
+        {localQuestions.map((question, index) => (
+          <div key={question.id} className="border border-gray-200 rounded-lg p-4 bg-orange-50">
+            <div className="flex justify-between items-center mb-3">
+              <h4 className="font-medium text-gray-900">Question {index + 1}</h4>
+              <div className="flex gap-2">
+                <button
+                  type="button"
+                  onClick={() => moveQuestion(index, 'up')}
+                  disabled={index === 0}
+                  className="p-1 text-gray-500 hover:text-gray-700 disabled:opacity-50"
+                  title="Move up"
+                >
+                  ↑
+                </button>
+                <button
+                  type="button"
+                  onClick={() => moveQuestion(index, 'down')}
+                  disabled={index === localQuestions.length - 1}
+                  className="p-1 text-gray-500 hover:text-gray-700 disabled:opacity-50"
+                  title="Move down"
+                >
+                  ↓
+                </button>
+                <button
+                  type="button"
+                  onClick={() => duplicateQuestion(index)}
+                  className="p-1 text-blue-600 hover:text-blue-800"
+                  title="Duplicate"
+                >
+                  <Copy className="w-4 h-4" />
+                </button>
+                <button
+                  type="button"
+                  onClick={() => removeQuestion(index)}
+                  className="p-1 text-red-600 hover:text-red-800"
+                  title="Delete"
+                >
+                  <Trash2 className="w-4 h-4" />
+                </button>
+              </div>
+            </div>
+
+            {/* Question Text */}
+            <div className="mb-4">
+              <label className="block text-sm font-medium text-gray-700 mb-1">
+                Question Text
+              </label>
+              <textarea
+                value={question.question}
+                onChange={(e) => updateQuestion(index, 'question', e.target.value)}
+                className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500"
+                placeholder="What does 'Hello' mean in Vietnamese?"
+                rows="2"
+              />
+            </div>
+
+            {/* Options */}
+            <div className="mb-4">
+              <div className="flex justify-between items-center mb-2">
+                <label className="block text-sm font-medium text-gray-700">
+                  Answer Options
+                </label>
+                <button
+                  type="button"
+                  onClick={() => addMultipleOptions(index)}
+                  className="text-sm text-blue-600 hover:text-blue-800"
+                >
+                  + Add 2 more options
+                </button>
+              </div>
+              <div className="space-y-2">
+                {question.options.map((option, optionIndex) => (
+                  <div key={optionIndex} className="flex items-center gap-2">
+                    <input
+                      type="radio"
+                      name={`question-${index}-correct`}
+                      checked={question.correct_answer === optionIndex}
+                      onChange={() => updateQuestion(index, 'correct_answer', optionIndex)}
+                      className="text-orange-600"
+                    />
+                    <span className="text-sm font-medium text-gray-600 w-8">
+                      {String.fromCharCode(65 + optionIndex)}:
+                    </span>
+                    <input
+                      type="text"
+                      value={option}
+                      onChange={(e) => updateOption(index, optionIndex, e.target.value)}
+                      className={`flex-1 p-2 border rounded-lg focus:ring-2 focus:ring-orange-500 ${
+                        question.correct_answer === optionIndex
+                          ? 'border-green-500 bg-green-50'
+                          : 'border-gray-300'
+                      }`}
+                      placeholder={`Option ${String.fromCharCode(65 + optionIndex)}`}
+                    />
+                    {question.options.length > 2 && (
+                      <button
+                        type="button"
+                        onClick={() => removeOption(index, optionIndex)}
+                        className="p-1 text-red-600 hover:text-red-800"
+                        title="Remove option"
+                      >
+                        <X className="w-4 h-4" />
+                      </button>
+                    )}
+                  </div>
+                ))}
+              </div>
+              <p className="text-xs text-gray-500 mt-1">
+                Select the radio button to mark the correct answer. Green highlight = correct answer.
+              </p>
+            </div>
+
+            {/* Explanation */}
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">
+                Explanation (shown after answer)
+              </label>
+              <textarea
+                value={question.explanation}
+                onChange={(e) => updateQuestion(index, 'explanation', e.target.value)}
+                className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500"
+                placeholder="Explain why this is the correct answer..."
+                rows="2"
+              />
+            </div>
+          </div>
+        ))}
+      </div>
+
+      {localQuestions.length > 0 && (
+        <div className="text-sm text-gray-600 text-center p-3 bg-gray-50 rounded">
+          <strong>Total: {localQuestions.length} question(s)</strong>
+          <div className="text-xs mt-1">
+            Estimated time: {Math.ceil(localQuestions.length * 0.5)} minutes
+          </div>
         </div>
       )}
     </div>

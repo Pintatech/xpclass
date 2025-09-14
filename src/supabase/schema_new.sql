@@ -73,9 +73,9 @@ create table public.exercises (
   id uuid default uuid_generate_v4() primary key,
   session_id uuid references public.sessions(id) on delete cascade,
   title text not null,
-  exercise_type text not null check (exercise_type in ('flashcard', 'pronunciation', 'audio_flashcard', 'video', 'quiz', 'listening', 'speaking')),
+  exercise_type text not null check (exercise_type in ('flashcard', 'pronunciation', 'audio_flashcard', 'video', 'quiz', 'multiple_choice', 'listening', 'speaking')),
   content jsonb not null, -- exercise-specific content
-  image_url text, -- optional image for the exercise
+  image_urls text[], -- optional images for the exercise
   difficulty_level integer default 1 check (difficulty_level between 1 and 5),
   xp_reward integer default 10,
   order_index integer not null,
@@ -157,6 +157,20 @@ create table public.session_progress (
   unique(user_id, session_id)
 );
 
+-- QUESTION ATTEMPTS table - Track individual question attempts for retry functionality
+create table public.question_attempts (
+  id uuid default uuid_generate_v4() primary key,
+  user_id uuid references public.users(id) on delete cascade,
+  exercise_id uuid references public.exercises(id) on delete cascade,
+  question_id text not null, -- identifier for specific question within exercise
+  selected_answer text,
+  correct_answer text,
+  is_correct boolean not null,
+  attempt_number integer default 1,
+  response_time integer, -- in milliseconds
+  created_at timestamp with time zone default now(),
+  updated_at timestamp with time zone default now()
+);
 
 -- Achievements table (unchanged)
 create table public.achievements (
@@ -205,6 +219,7 @@ alter table public.user_progress enable row level security;
 alter table public.level_progress enable row level security;
 alter table public.unit_progress enable row level security;
 alter table public.session_progress enable row level security;
+alter table public.question_attempts enable row level security;
 alter table public.achievements enable row level security;
 alter table public.user_achievements enable row level security;
 alter table public.game_sessions enable row level security;
@@ -227,6 +242,7 @@ create policy "Users manage own progress" on public.user_progress for all using 
 create policy "Users manage own level progress" on public.level_progress for all using (auth.uid() = user_id);
 create policy "Users manage own unit progress" on public.unit_progress for all using (auth.uid() = user_id);
 create policy "Users manage own session progress" on public.session_progress for all using (auth.uid() = user_id);
+create policy "Users manage own question attempts" on public.question_attempts for all using (auth.uid() = user_id);
 
 
 -- Functions and Triggers
@@ -248,6 +264,7 @@ create trigger update_user_progress_updated_at before update on public.user_prog
 create trigger update_level_progress_updated_at before update on public.level_progress for each row execute procedure public.update_updated_at_column();
 create trigger update_unit_progress_updated_at before update on public.unit_progress for each row execute procedure public.update_updated_at_column();
 create trigger update_session_progress_updated_at before update on public.session_progress for each row execute procedure public.update_updated_at_column();
+create trigger update_question_attempts_updated_at before update on public.question_attempts for each row execute procedure public.update_updated_at_column();
 
 -- Sample data for testing
 INSERT INTO public.levels (id, title, description, level_number, difficulty_label, color_theme, unlock_requirement) VALUES
@@ -269,4 +286,5 @@ INSERT INTO public.sessions (id, unit_id, title, description, session_number, se
 INSERT INTO public.exercises (id, session_id, title, exercise_type, content, difficulty_level, xp_reward, order_index) VALUES
 ('550e8400-e29b-41d4-a716-446655440031', '550e8400-e29b-41d4-a716-446655440021', 'Flashcard chào hỏi', 'flashcard', '{"cards": [{"front": "Hello", "back": "Xin chào", "pronunciation": "/həˈloʊ/"}, {"front": "Good morning", "back": "Chào buổi sáng", "pronunciation": "/ɡʊd ˈmɔːrnɪŋ/"}]}', 1, 10, 1),
 ('550e8400-e29b-41d4-a716-446655440032', '550e8400-e29b-41d4-a716-446655440021', 'Luyện phát âm chào hỏi', 'pronunciation', '{"words": [{"text": "Hello", "pronunciation": "/həˈloʊ/"}, {"text": "Hi", "pronunciation": "/haɪ/"}]}', 2, 15, 2),
-('550e8400-e29b-41d4-a716-446655440033', '550e8400-e29b-41d4-a716-446655440022', 'Flashcard Tuổi tác 2', 'flashcard', '{"cards": [{"front": "How old are you?", "back": "Bạn bao nhiêu tuổi?", "pronunciation": "/haʊ oʊld ɑːr juː/", "example": "How old are you? I am 25 years old."}]}', 2, 20, 1);
+('550e8400-e29b-41d4-a716-446655440033', '550e8400-e29b-41d4-a716-446655440022', 'Flashcard Tuổi tác 2', 'flashcard', '{"cards": [{"front": "How old are you?", "back": "Bạn bao nhiêu tuổi?", "pronunciation": "/haʊ oʊld ɑːr juː/", "example": "How old are you? I am 25 years old."}]}', 2, 20, 1),
+('550e8400-e29b-41d4-a716-446655440034', '550e8400-e29b-41d4-a716-446655440021', 'Trắc nghiệm chào hỏi', 'multiple_choice', '{"questions": [{"id": "q1", "question": "What does \"Hello\" mean in Vietnamese?", "options": ["Xin chào", "Tạm biệt", "Cảm ơn", "Xin lỗi"], "correct_answer": 0, "explanation": "Hello means Xin chào in Vietnamese. It is the most common greeting used in both formal and informal situations."}, {"id": "q2", "question": "How do you say \"Good morning\" in Vietnamese?", "options": ["Chào buổi tối", "Chào buổi chiều", "Chào buổi sáng", "Tạm biệt"], "correct_answer": 2, "explanation": "Good morning is Chào buổi sáng in Vietnamese. Buổi sáng specifically means morning time."}]}', 1, 15, 3);

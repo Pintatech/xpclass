@@ -8,6 +8,7 @@ import CombinedLearningWrapper from '../exercises/CombinedLearningWrapper'
 import AudioFlashcardExercise from '../exercises/AudioFlashcardExercise'
 import SentencePronunciationWrapper from '../exercises/SentencePronunciationWrapper'
 import VocabSessionWrapper from '../exercises/VocabSessionWrapper'
+import MultipleChoiceExercise from '../exercises/MultipleChoiceExercise'
 
 const StudyModule = () => {
   return (
@@ -26,6 +27,7 @@ const StudyModule = () => {
       <Route path="audio-flashcard" element={<AudioFlashcardExercise />} />
       <Route path="sentence-pronunciation" element={<SentencePronunciationWrapper />} />
       <Route path="vocab-session" element={<VocabSessionWrapper />} />
+      <Route path="multiple-choice" element={<MultipleChoiceExercise />} />
     </Routes>
   )
 }

@@ -8,6 +8,7 @@ import RegisterPage from './components/auth/RegisterPage'
 import StudyModule from './components/study/StudyModule'
 import Leaderboard from './components/leaderboard/Leaderboard'
 import Progress from './components/progress/Progress'
+import Profile from './components/profile/Profile'
 import AdminDashboard from './components/admin/AdminDashboard'
 import ProtectedRoute from './components/auth/ProtectedRoute'
 
@@ -29,6 +30,7 @@ function App() {
               <Route path="study/*" element={<StudyModule />} />
               <Route path="leaderboard" element={<Leaderboard />} />
               <Route path="progress" element={<Progress />} />
+              <Route path="profile" element={<Profile />} />
               <Route path="admin/*" element={
                 <ProtectedRoute requireAdmin>
                   <AdminDashboard />

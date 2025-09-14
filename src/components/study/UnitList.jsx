@@ -28,6 +28,9 @@ const UnitList = () => {
   const [userStats, setUserStats] = useState({ xp: 0, streak: 0 })
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState(null)
+  const [sidebarOpen, setSidebarOpen] = useState(true)
+  const [levels, setLevels] = useState([])
+  const [allUnits, setAllUnits] = useState([])
   const { user } = useAuth()
 
   useEffect(() => {
@@ -41,14 +44,18 @@ const UnitList = () => {
       setLoading(true)
       setError(null)
 
-      // Fetch level info
-      const { data: levelData, error: levelError } = await supabase
-        .from('levels')
-        .select('*')
-        .eq('id', levelId)
-        .single()
+      // Fetch all data in parallel
+      const [levelResult, allLevelsResult, allUnitsResult] = await Promise.all([
+        supabase.from('levels').select('*').eq('id', levelId).single(),
+        supabase.from('levels').select('*').order('level_number'),
+        supabase.from('units').select('*').order('unit_number')
+      ])
 
-      if (levelError) throw levelError
+      if (levelResult.error) throw levelResult.error
+      if (allLevelsResult.error) throw allLevelsResult.error
+      if (allUnitsResult.error) throw allUnitsResult.error
+
+      const levelData = levelResult.data
 
       // Fetch user stats (XP and streak)
       const { data: userData, error: userError } = await supabase
@@ -163,6 +170,8 @@ const UnitList = () => {
       setLevel(levelData)
       setUnits(unitsData || [])
       setUnitProgress(progressMap)
+      setLevels(allLevelsResult.data || [])
+      setAllUnits(allUnitsResult.data || [])
     } catch (err) {
       console.error('Error fetching units:', err)
       setError('Không thể tải danh sách unit')
@@ -343,89 +352,170 @@ const UnitList = () => {
   const theme = getThemeColors(level.color_theme)
 
   return (
-    <div className="space-y-8">
-      {/* Header with Level Image */}
-      <div className="relative -mx-4 md:-mx-6 lg:-mx-8 -mt-6 md:-mt-6 lg:-mt-6 -mb-4 md:-mb-6 lg:-mb-8">
-        {/* Level Image */}
-        <div className="relative h-64 md:h-80 overflow-hidden">
-          {level.thumbnail_url ? (
-            <img 
-              src={level.thumbnail_url} 
-              alt={level.title}
-              className="w-full h-full object-cover"
-            />
-          ) : (
-            <div className={`w-full h-full bg-gradient-to-br ${theme.bg} flex items-center justify-center`}>
-              <div className="text-center text-white">
-                <BookOpen className="w-16 h-16 mx-auto mb-4 opacity-80" />
-                <h1 className="text-4xl font-bold">{level.title}</h1>
+    <div className="flex h-screen bg-gray-50">
+      {/* Sidebar */}
+      <div className={`${sidebarOpen ? 'w-80' : 'w-16'} transition-all duration-300 bg-white border-r border-gray-200 flex flex-col`}>
+        {/* Sidebar Header */}
+        <div className="p-4 border-b border-gray-200">
+          <div className="flex items-center justify-between">
+            {sidebarOpen && (
+              <h2 className="text-lg font-semibold text-gray-900">Nội dung học</h2>
+            )}
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={() => setSidebarOpen(!sidebarOpen)}
+            >
+              <ArrowLeft className={`w-4 h-4 transition-transform ${sidebarOpen ? 'rotate-0' : 'rotate-180'}`} />
+            </Button>
+          </div>
+        </div>
+
+        {/* Sidebar Content */}
+        <div className="flex-1 overflow-y-auto">
+          {levels.map((levelItem) => (
+            <div key={levelItem.id} className="border-b border-gray-100">
+              <div className="p-3">
+                <Link
+                  to={`/study/level/${levelItem.id}`}
+                  className={`flex items-center space-x-3 p-2 rounded-lg transition-colors ${
+                    levelItem.id === levelId
+                      ? 'bg-blue-100 text-blue-700'
+                      : 'hover:bg-gray-100'
+                  }`}
+                >
+                  <div className={`w-8 h-8 rounded-lg flex items-center justify-center text-sm font-bold ${
+                    levelItem.id === levelId
+                      ? 'bg-blue-200'
+                      : 'bg-gray-200'
+                  }`}>
+                    {levelItem.level_number}
+                  </div>
+                  {sidebarOpen && (
+                    <div className="flex-1 min-w-0">
+                      <div className="font-medium truncate">{levelItem.title}</div>
+                      <div className="text-xs text-gray-500 truncate">{levelItem.difficulty_label}</div>
+                    </div>
+                  )}
+                </Link>
+              </div>
+
+              {/* Units for this level */}
+              {levelItem.id === levelId && sidebarOpen && (
+                <div className="ml-6 space-y-1 pb-3">
+                  {allUnits
+                    .filter(unitItem => unitItem.level_id === levelItem.id)
+                    .map((unitItem) => (
+                      <Link
+                        key={unitItem.id}
+                        to={`/study/level/${levelItem.id}/unit/${unitItem.id}`}
+                        className={`flex items-center space-x-3 p-2 rounded-lg transition-colors hover:bg-gray-50`}
+                      >
+                        <div className={`w-6 h-6 rounded flex items-center justify-center text-xs font-bold bg-gray-200`}>
+                          {unitItem.unit_number}
+                        </div>
+                        <div className="flex-1 min-w-0">
+                          <div className="font-medium truncate text-sm">{unitItem.title}</div>
+                          <div className="text-xs text-gray-500 truncate">{unitItem.description}</div>
+                        </div>
+                      </Link>
+                    ))}
+                </div>
+              )}
+            </div>
+          ))}
+        </div>
+      </div>
+
+      {/* Main Content */}
+      <div className="flex-1 flex flex-col overflow-hidden">
+        {/* Header */}
+        <div className="bg-white border-b border-gray-200 p-6">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center space-x-4">
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => navigate('/study')}
+              >
+                <ArrowLeft className="w-4 h-4 mr-2" />
+                Quay lại
+              </Button>
+              <div>
+                <h1 className="text-3xl font-bold text-gray-900">{level?.title}</h1>
+                <p className="text-gray-600">{level?.description}</p>
               </div>
             </div>
-          )}
-          
-          {/* Dark overlay for better text readability */}
-          <div className="absolute inset-0 bg-black/30" />
-          
-          {/* Content overlay */}
-          <div className="absolute inset-0 flex flex-col justify-between p-6">
+
             {/* XP and Streak stats */}
-            <div className="flex justify-between">
-              <div className="bg-white/90 backdrop-blur-sm rounded-full px-4 py-3 flex items-center space-x-2">
+            <div className="flex items-center space-x-4">
+              <div className="bg-orange-100 rounded-full px-4 py-2 flex items-center space-x-2">
                 <Flame className="w-5 h-5 text-orange-500" />
-                <span className="font-bold text-gray-800">{userStats.streak} </span>
+                <span className="font-bold text-gray-800">{userStats.streak}</span>
               </div>
-              <div className="bg-white/90 backdrop-blur-sm rounded-full px-4 py-3 flex items-center space-x-2">
+              <div className="bg-yellow-100 rounded-full px-4 py-2 flex items-center space-x-2">
                 <Star className="w-5 h-5 text-yellow-500" />
                 <span className="font-bold text-gray-800">{userStats.xp}</span>
               </div>
             </div>
-
-            {/* Level title and description */}
-            <div className="text-white">
-              <h1 className="text-4xl md:text-5xl font-bold mb-2 drop-shadow-lg">
-                {level.title}
-              </h1>
-              <p className="text-lg md:text-xl opacity-90 drop-shadow-md max-w-2xl">
-                {level.description}
-              </p>
-            </div>
           </div>
         </div>
-      </div>
 
-      {/* Level progress summary */}
-      <Card className={`bg-gradient-to-r from-${level.color_theme}-50 to-${level.color_theme}-100 border-${level.color_theme}-200`}>
-        <Card.Content className="p-6">
-          <div className="grid grid-cols-2 gap-6 text-center">
-            <div>
-              <div className={`text-2xl font-bold ${theme.text}`}>
-                {Object.values(unitProgress).filter(p => p.status === 'completed').length}
+        {/* Content Area */}
+        <div className="flex-1 overflow-y-auto p-6">
+          {/* Hero Image Section */}
+          {level?.thumbnail_url && (
+            <div className="mb-6 relative h-48 rounded-xl overflow-hidden">
+              <img
+                src={level.thumbnail_url}
+                alt={level.title}
+                className="w-full h-full object-cover"
+              />
+              <div className="absolute inset-0 bg-black/30" />
+              <div className="absolute inset-0 flex items-center justify-center">
+                <div className="text-center text-white">
+                  <h2 className="text-3xl font-bold drop-shadow-lg">{level.title}</h2>
+                  <p className="text-lg opacity-90 drop-shadow-md">{level.description}</p>
+                </div>
               </div>
-              <div className="text-sm text-gray-600">Units hoàn thành</div>
             </div>
-            <div>
-              <div className={`text-2xl font-bold ${theme.text}`}>
-                {Math.round(Object.values(unitProgress).reduce((total, p) => total + (p.progress_percentage || 0), 0) / Math.max(units.length, 1))}%
+          )}
+
+          {/* Level progress summary */}
+          <Card className={`mb-6 bg-gradient-to-r from-${level.color_theme}-50 to-${level.color_theme}-100 border-${level.color_theme}-200`}>
+            <Card.Content className="p-6">
+              <div className="grid grid-cols-2 gap-6 text-center">
+                <div>
+                  <div className={`text-2xl font-bold ${theme.text}`}>
+                    {Object.values(unitProgress).filter(p => p.status === 'completed').length}
+                  </div>
+                  <div className="text-sm text-gray-600">Units hoàn thành</div>
+                </div>
+                <div>
+                  <div className={`text-2xl font-bold ${theme.text}`}>
+                    {Math.round(Object.values(unitProgress).reduce((total, p) => total + (p.progress_percentage || 0), 0) / Math.max(units.length, 1))}%
+                  </div>
+                  <div className="text-sm text-gray-600">Tổng tiến độ</div>
+                </div>
               </div>
-              <div className="text-sm text-gray-600">Tổng tiến độ</div>
-            </div>
+            </Card.Content>
+          </Card>
+
+          {/* Units grid */}
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+            {units.map((unit, index) => renderUnitCard(unit, index))}
           </div>
-        </Card.Content>
-      </Card>
 
-      {/* Units grid */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-        {units.map((unit, index) => renderUnitCard(unit, index))}
-      </div>
-
-      {/* Empty state */}
-      {units.length === 0 && (
-        <div className="text-center py-12">
-          <BookOpen className="w-16 h-16 text-gray-400 mx-auto mb-4" />
-          <h3 className="text-lg font-medium text-gray-900 mb-2">Chưa có unit nào</h3>
-          <p className="text-gray-600">Các unit học tập sẽ sớm được cập nhật!</p>
+          {/* Empty state */}
+          {units.length === 0 && (
+            <div className="text-center py-12">
+              <BookOpen className="w-16 h-16 text-gray-400 mx-auto mb-4" />
+              <h3 className="text-lg font-medium text-gray-900 mb-2">Chưa có unit nào</h3>
+              <p className="text-gray-600">Các unit học tập sẽ sớm được cập nhật!</p>
+            </div>
+          )}
         </div>
-      )}
+      </div>
     </div>
   )
 }

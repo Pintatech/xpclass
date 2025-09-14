@@ -159,6 +159,7 @@ const CombinedLearningWrapper = () => {
         flashcard: '/study/flashcard',
         audio_flashcard: '/study/audio-flashcard',
         sentence_pronunciation: '/study/sentence-pronunciation',
+        multiple_choice: '/study/multiple-choice',
       };
       
       const exercisePath = paths[nextExercise.exercise_type] || '/study/flashcard';

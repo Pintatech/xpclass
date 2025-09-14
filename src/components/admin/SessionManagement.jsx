@@ -165,11 +165,11 @@ const SessionManagement = () => {
     : units;
 
   const sessionTypes = [
-    { value: 'content', label: 'Content' },
+    { value: 'mixed', label: 'Mixed' },
     { value: 'vocabulary', label: 'Vocabulary' },
     { value: 'grammar', label: 'Grammar' },
     { value: 'pronunciation', label: 'Pronunciation' },
-    { value: 'mixed', label: 'Mixed' }
+    { value: 'listening', label: 'Listening' }
   ];
 
   return (
@@ -328,7 +328,7 @@ const SessionManagement = () => {
                         <div className="font-medium text-gray-900">{session.title}</div>
                         <div className="text-sm text-gray-600">{session.description}</div>
                         <span className={`inline-flex mt-1 px-2 py-1 text-xs font-semibold rounded-full ${
-                          session.session_type === 'content' 
+                          session.session_type === 'mixed'
                             ? 'bg-blue-100 text-blue-800'
                             : session.session_type === 'vocabulary'
                             ? 'bg-green-100 text-green-800'
@@ -336,7 +336,9 @@ const SessionManagement = () => {
                             ? 'bg-yellow-100 text-yellow-800'
                             : session.session_type === 'pronunciation'
                             ? 'bg-red-100 text-red-800'
-                            : 'bg-purple-100 text-purple-800'
+                            : session.session_type === 'listening'
+                            ? 'bg-purple-100 text-purple-800'
+                            : 'bg-gray-100 text-gray-800'
                         }`}>
                           {session.session_type}
                         </span>
@@ -428,11 +430,11 @@ const SessionModal = ({ session, units, levels, sessionTypes, onSave, onCancel, 
     title: session?.title || '',
     description: session?.description || '',
     session_number: session?.session_number || '',
-    session_type: session?.session_type || 'content',
+    session_type: session?.session_type || 'mixed',
     difficulty_level: session?.difficulty_level || 1,
     xp_reward: session?.xp_reward || 50,
     estimated_duration: session?.estimated_duration || '',
-    image_url: session?.image_url || ''
+    thumbnail_url: session?.thumbnail_url || ''
   });
   const [errors, setErrors] = useState({});
   const [selectedLevel, setSelectedLevel] = useState('');
@@ -644,15 +646,15 @@ const SessionModal = ({ session, units, levels, sessionTypes, onSave, onCancel, 
             </label>
             <input
               type="url"
-              value={formData.image_url}
-              onChange={(e) => handleInputChange('image_url', e.target.value)}
+              value={formData.thumbnail_url}
+              onChange={(e) => handleInputChange('thumbnail_url', e.target.value)}
               className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500"
               placeholder="https://example.com/image.jpg"
             />
-            {formData.image_url && (
+            {formData.thumbnail_url && (
               <div className="mt-2">
-                <img 
-                  src={formData.image_url} 
+                <img
+                  src={formData.thumbnail_url} 
                   alt="Preview" 
                   className="w-20 h-20 object-cover rounded-lg border"
                   onError={(e) => {

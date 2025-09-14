@@ -153,7 +153,8 @@ const FlashcardExercise = () => {
         combined_learning: '/study/combined-learning',
         flashcard: '/study/flashcard',
         audio_flashcard: '/study/audio-flashcard',
-        sentence_pronunciation: '/study/sentence-pronunciation'
+        sentence_pronunciation: '/study/sentence-pronunciation',
+        multiple_choice: '/study/multiple-choice'
       }
       const exercisePath = paths[nextExercise.exercise_type] || '/study/flashcard'
       navigate(`${exercisePath}?exerciseId=${nextExercise.id}&sessionId=${sessionId}`)

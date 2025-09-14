@@ -65,7 +65,7 @@ create table public.exercises (
   title text not null,
   exercise_type text not null check (exercise_type in ('flashcard', 'pronunciation', 'audio_flashcard', 'video')),
   content jsonb not null, -- exercise-specific content
-  image_url text, -- optional image for the exercise
+  image_urls text[], -- optional images for the exercise
   difficulty_level integer default 1 check (difficulty_level between 1 and 5),
   xp_reward integer default 10,
   order_index integer not null,
