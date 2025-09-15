@@ -113,10 +113,8 @@ const ExerciseList = () => {
 
   const getExerciseIcon = (exerciseType) => {
     const icons = {
-      combined_learning: Image,
       flashcard: BookOpen,
       audio_flashcard: Volume2,
-      sentence_pronunciation: Mic,
       multiple_choice: HelpCircle,
     }
     return icons[exerciseType] || BookOpen
@@ -124,10 +122,8 @@ const ExerciseList = () => {
 
   const getExerciseColor = (exerciseType) => {
     const colors = {
-      combined_learning: 'text-violet-600 bg-violet-100',
       flashcard: 'text-blue-600 bg-blue-100',
       audio_flashcard: 'text-green-600 bg-green-100',
-      sentence_pronunciation: 'text-emerald-600 bg-emerald-100',
       multiple_choice: 'text-orange-600 bg-orange-100',
     }
     return colors[exerciseType] || 'text-gray-600 bg-gray-100'
@@ -135,10 +131,8 @@ const ExerciseList = () => {
 
   const getExerciseTypeLabel = (exerciseType) => {
     const labels = {
-      combined_learning: 'Word Pronunciation',
       flashcard: 'Flashcard',
       audio_flashcard: 'Audio Flashcard',
-      sentence_pronunciation: 'Sentence Pronunciation',
       multiple_choice: 'Multiple Choice',
     }
     return labels[exerciseType] || exerciseType
@@ -191,10 +185,8 @@ const ExerciseList = () => {
   const getExercisePath = (exercise) => {
     // Map exercise types to their corresponding paths
     const paths = {
-      combined_learning: '/study/combined-learning',
       flashcard: '/study/flashcard',
       audio_flashcard: '/study/audio-flashcard',
-      sentence_pronunciation: '/study/sentence-pronunciation',
       multiple_choice: '/study/multiple-choice',
     }
 

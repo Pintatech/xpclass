@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react'
 import { supabase } from '../../supabase/client'
+import { parseFlashcardsFromCSV, generateCSVTemplate } from '../../utils/csvParser'
 import {
   Plus,
   Edit,
@@ -14,7 +15,9 @@ import {
   Filter,
   HelpCircle,
   Copy,
-  X
+  X,
+  Upload,
+  Download
 } from 'lucide-react'
 
 const ExerciseManagement = () => {
@@ -28,10 +31,8 @@ const ExerciseManagement = () => {
 
   // Exercise Types với icons - Only types with actual dedicated components
   const exerciseTypes = {
-    'combined_learning': { icon: Image, label: 'Word Pronunciation', color: 'violet' },
     'flashcard': { icon: BookOpen, label: 'Flashcard', color: 'blue' },
     'audio_flashcard': { icon: Volume2, label: 'Audio Flashcard', color: 'purple' },
-    'sentence_pronunciation': { icon: Mic, label: 'Sentence Pronunciation', color: 'emerald' },
     'multiple_choice': { icon: HelpCircle, label: 'Multiple Choice', color: 'orange' },
   }
 
@@ -649,86 +650,10 @@ const ExerciseForm = ({ exercise, sessions, exerciseTypes, onSave, onCancel }) =
                 />
               )}
 
-              {formData.exercise_type === 'sentence_pronunciation' && (
-                <div className="space-y-4 p-4 border border-gray-200 rounded-lg">
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">
-                      Video URL
-                    </label>
-                    <input
-                      type="url"
-                      placeholder="https://example.com/video.mp4"
-                      value={formData.content.videoUrl || ''}
-                      onChange={(e) => handleContentChange('videoUrl', e.target.value)}
-                      className="w-full p-2 border border-gray-300 rounded-lg"
-                    />
-                  </div>
-                  
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">
-                      Sentences with Words (format: sentence | words)
-                    </label>
-                    <textarea
-                      placeholder="Hello, how are you today? | Hello, how, are, you, today&#10;Nice to meet you. | Nice, to, meet, you&#10;Have a great day! | Have, great, day"
-                      value={formData.content.sentencesWithWordsText || ''}
-                      onChange={(e) => {
-                        const sentencesWithWordsText = e.target.value
-                        const sentences = sentencesWithWordsText.split('\n').filter(line => line.trim()).map(line => {
-                          const [sentenceText, wordsText] = line.split('|').map(part => part.trim())
-                          const words = wordsText ? wordsText.split(',').filter(word => word.trim()).map(word => ({ 
-                            text: word.trim(), 
-                            lang: 'en-US' 
-                          })) : []
-                          
-                          return {
-                            text: sentenceText || '', 
-                            lang: 'en-US',
-                            translation: '',
-                            words: words
-                          }
-                        })
-                        handleContentChange('sentencesWithWordsText', sentencesWithWordsText)
-                        handleContentChange('sentences', sentences)
-                      }}
-                      className="w-full p-2 border border-gray-300 rounded-lg h-40"
-                      rows="8"
-                    />
-                    <p className="text-xs text-gray-500 mt-1">
-                      Format: "Sentence | word1, word2, word3" (một dòng một sentence). Words sẽ hiển thị cho từng sentence riêng.
-                    </p>
-                  </div>
-                  
-                  {formData.content.sentences && formData.content.sentences.length > 0 && (
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-2">
-                        Sentences & Words Preview ({formData.content.sentences.length} câu)
-                      </label>
-                      <div className="max-h-48 overflow-y-auto space-y-3">
-                        {formData.content.sentences.map((sentence, index) => (
-                          <div key={index} className="text-sm p-3 bg-emerald-50 rounded border-l-2 border-emerald-200">
-                            <div className="font-medium text-emerald-800 mb-2">
-                              {index + 1}. {sentence.text}
-                            </div>
-                            {sentence.words && sentence.words.length > 0 && (
-                              <div className="flex flex-wrap gap-1">
-                                {sentence.words.map((word, wordIndex) => (
-                                  <span key={wordIndex} className="px-2 py-1 bg-purple-100 text-purple-700 rounded-full text-xs">
-                                    {word.text}
-                                  </span>
-                                ))}
-                              </div>
-                            )}
-                          </div>
-                        ))}
-                      </div>
-                    </div>
-                  )}
-                </div>
-              )}
               
               
               {/* Generic JSON editor for other types */}
-              {!['combined_learning', 'flashcard', 'sentence_pronunciation', 'multiple_choice'].includes(formData.exercise_type) && (
+              {!['flashcard', 'multiple_choice'].includes(formData.exercise_type) && (
                 <textarea
                   value={JSON.stringify(formData.content, null, 2)}
                   onChange={(e) => {
@@ -782,6 +707,11 @@ const ExerciseForm = ({ exercise, sessions, exerciseTypes, onSave, onCancel }) =
 // Flashcard Editor Component
 const FlashcardEditor = ({ cards, onCardsChange }) => {
   const [localCards, setLocalCards] = useState(cards || [])
+  const [showCSVImport, setShowCSVImport] = useState(false)
+  const [csvText, setCsvText] = useState('')
+  const [csvErrors, setCsvErrors] = useState([])
+  const [csvPreview, setCsvPreview] = useState(null)
+  const [isProcessingCSV, setIsProcessingCSV] = useState(false)
 
   useEffect(() => {
     setLocalCards(cards || [])
@@ -793,7 +723,7 @@ const FlashcardEditor = ({ cards, onCardsChange }) => {
       front: '',
       back: '',
       image: '',
-      audio: ''
+      videoUrls: [''] // Start with one empty video URL
     }
     const updatedCards = [...localCards, newCard]
     setLocalCards(updatedCards)
@@ -814,18 +744,166 @@ const FlashcardEditor = ({ cards, onCardsChange }) => {
     onCardsChange(updatedCards)
   }
 
+  // Video URL management functions
+  const addVideoUrl = (cardIndex) => {
+    const updatedCards = localCards.map((card, i) => 
+      i === cardIndex 
+        ? { ...card, videoUrls: [...(card.videoUrls || []), ''] }
+        : card
+    )
+    setLocalCards(updatedCards)
+    onCardsChange(updatedCards)
+  }
+
+  const removeVideoUrl = (cardIndex, videoIndex) => {
+    const updatedCards = localCards.map((card, i) => 
+      i === cardIndex 
+        ? { 
+            ...card, 
+            videoUrls: card.videoUrls.filter((_, vi) => vi !== videoIndex)
+          }
+        : card
+    )
+    setLocalCards(updatedCards)
+    onCardsChange(updatedCards)
+  }
+
+  const updateVideoUrl = (cardIndex, videoIndex, value) => {
+    const updatedCards = localCards.map((card, i) =>
+      i === cardIndex
+        ? {
+            ...card,
+            videoUrls: card.videoUrls.map((url, vi) => vi === videoIndex ? value : url)
+          }
+        : card
+    )
+    setLocalCards(updatedCards)
+    onCardsChange(updatedCards)
+  }
+
+  // CSV Import Functions
+  const handleCSVTextChange = (text) => {
+    setCsvText(text)
+    setCsvErrors([])
+    setCsvPreview(null)
+
+    if (text.trim()) {
+      // Debounce preview generation
+      setTimeout(() => {
+        try {
+          const result = parseFlashcardsFromCSV(text)
+          setCsvPreview(result)
+          if (result.errors.length > 0) {
+            setCsvErrors(result.errors)
+          }
+        } catch (error) {
+          setCsvErrors([error.message])
+          setCsvPreview(null)
+        }
+      }, 500)
+    }
+  }
+
+  const handleCSVImport = () => {
+    if (!csvPreview || csvPreview.flashcards.length === 0) {
+      alert('No valid flashcards to import')
+      return
+    }
+
+    setIsProcessingCSV(true)
+
+    try {
+      const importedCards = csvPreview.flashcards.map(card => ({
+        ...card,
+        id: card.id || `imported_${Date.now()}_${Math.random()}`
+      }))
+
+      const updatedCards = [...localCards, ...importedCards]
+      setLocalCards(updatedCards)
+      onCardsChange(updatedCards)
+
+      // Show success message
+      alert(`Successfully imported ${importedCards.length} flashcard(s)!
+
+Summary:
+- Total imported: ${csvPreview.summary.total}
+- With images: ${csvPreview.summary.withImages}
+- With videos: ${csvPreview.summary.withVideos}
+${csvPreview.summary.errors > 0 ? `- Errors: ${csvPreview.summary.errors}` : ''}`)
+
+      // Reset CSV import state
+      setCsvText('')
+      setCsvErrors([])
+      setCsvPreview(null)
+      setShowCSVImport(false)
+    } catch (error) {
+      alert('Error importing CSV: ' + error.message)
+    } finally {
+      setIsProcessingCSV(false)
+    }
+  }
+
+  const downloadCSVTemplate = () => {
+    const template = generateCSVTemplate()
+    const blob = new Blob([template], { type: 'text/csv;charset=utf-8;' })
+    const link = document.createElement('a')
+    const url = URL.createObjectURL(blob)
+    link.setAttribute('href', url)
+    link.setAttribute('download', 'flashcard_template.csv')
+    link.style.visibility = 'hidden'
+    document.body.appendChild(link)
+    link.click()
+    document.body.removeChild(link)
+  }
+
+  const handleFileUpload = (event) => {
+    const file = event.target.files[0]
+    if (file && file.type === 'text/csv') {
+      const reader = new FileReader()
+      reader.onload = (e) => {
+        const text = e.target.result
+        setCsvText(text)
+        handleCSVTextChange(text)
+      }
+      reader.readAsText(file)
+    } else {
+      alert('Please select a valid CSV file')
+    }
+    // Reset input
+    event.target.value = ''
+  }
+
   return (
     <div className="space-y-4 p-4 border border-gray-200 rounded-lg">
       <div className="flex justify-between items-center">
         <h3 className="text-lg font-medium text-gray-900">Flashcard Cards</h3>
-        <button
-          type="button"
-          onClick={addCard}
-          className="flex items-center gap-2 px-3 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 text-sm"
-        >
-          <Plus className="w-4 h-4" />
-          Thêm card
-        </button>
+        <div className="flex gap-2">
+          <button
+            type="button"
+            onClick={downloadCSVTemplate}
+            className="flex items-center gap-2 px-3 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 text-sm"
+            title="Download CSV template"
+          >
+            <Download className="w-4 h-4" />
+            Template
+          </button>
+          <button
+            type="button"
+            onClick={() => setShowCSVImport(true)}
+            className="flex items-center gap-2 px-3 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 text-sm"
+          >
+            <Upload className="w-4 h-4" />
+            Import CSV
+          </button>
+          <button
+            type="button"
+            onClick={addCard}
+            className="flex items-center gap-2 px-3 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 text-sm"
+          >
+            <Plus className="w-4 h-4" />
+            Thêm card
+          </button>
+        </div>
       </div>
 
       {localCards.length === 0 && (
@@ -902,25 +980,77 @@ const FlashcardEditor = ({ cards, onCardsChange }) => {
               </div>
 
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Audio URL
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Video URLs (hiển thị khi flip)
                 </label>
+                
+                {/* Video URLs List */}
+                <div className="space-y-2">
+                  {(card.videoUrls || []).map((videoUrl, videoIndex) => (
+                    <div key={videoIndex} className="flex gap-2 items-start">
+                      <div className="flex-1">
                 <input
                   type="url"
-                  value={card.audio}
-                  onChange={(e) => updateCard(index, 'audio', e.target.value)}
+                          value={videoUrl}
+                          onChange={(e) => updateVideoUrl(index, videoIndex, e.target.value)}
                   className="w-full p-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
-                  placeholder="https://example.com/audio.mp3"
+                  placeholder="https://example.com/video.mp4"
                 />
-                {card.audio && (
+                        {videoUrl && (
                   <div className="mt-2">
-                    <audio controls className="w-full">
-                      <source src={card.audio} type="audio/mpeg" />
-                      <source src={card.audio} type="audio/wav" />
-                      Trình duyệt không hỗ trợ audio.
-                    </audio>
+                    <video controls className="w-full max-w-xs" muted>
+                              <source src={videoUrl} type="video/mp4" />
+                              <source src={videoUrl} type="video/webm" />
+                      Trình duyệt không hỗ trợ video.
+                    </video>
                   </div>
                 )}
+                      </div>
+                      <button
+                        type="button"
+                        onClick={() => removeVideoUrl(index, videoIndex)}
+                        className="px-2 py-1 text-red-600 hover:text-red-800 hover:bg-red-50 rounded"
+                        title="Xóa video URL"
+                      >
+                        ✕
+                      </button>
+                    </div>
+                  ))}
+                </div>
+
+                {/* Add Video URL Button */}
+                <button
+                  type="button"
+                  onClick={() => addVideoUrl(index)}
+                  className="mt-2 px-3 py-1 text-blue-600 hover:text-blue-800 hover:bg-blue-50 rounded text-sm border border-blue-200"
+                >
+                  + Thêm Video URL
+                </button>
+
+                {/* Legacy Video URL Support */}
+                {card.videoUrl && !card.videoUrls && (
+                  <div className="mt-3 p-3 bg-yellow-50 border border-yellow-200 rounded-lg">
+                    <p className="text-sm text-yellow-800 mb-2">
+                      <strong>Lưu ý:</strong> Card này đang sử dụng định dạng video cũ (videoUrl). 
+                      Để sử dụng nhiều video, hãy chuyển sang videoUrls.
+                    </p>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        updateCard(index, 'videoUrls', [card.videoUrl])
+                        updateCard(index, 'videoUrl', '')
+                      }}
+                      className="px-3 py-1 bg-yellow-600 text-white rounded text-sm hover:bg-yellow-700"
+                    >
+                      Chuyển sang videoUrls
+                    </button>
+                  </div>
+                )}
+
+                <p className="text-xs text-gray-500 mt-2">
+                  Video sẽ hiển thị khi người dùng flip thẻ. Có thể thêm nhiều video URLs. 
+                  Nếu không có video, sẽ hiển thị hình ảnh với text.
+                </p>
               </div>
             </div>
           </div>
@@ -930,6 +1060,152 @@ const FlashcardEditor = ({ cards, onCardsChange }) => {
       {localCards.length > 0 && (
         <div className="text-sm text-gray-600 text-center">
           Tổng cộng {localCards.length} card(s)
+        </div>
+      )}
+
+      {/* CSV Import Modal */}
+      {showCSVImport && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-lg max-w-4xl w-full max-h-[90vh] overflow-y-auto">
+            <div className="p-6">
+              <div className="flex justify-between items-center mb-4">
+                <h3 className="text-xl font-bold text-gray-900">Import Flashcards from CSV</h3>
+                <button
+                  onClick={() => setShowCSVImport(false)}
+                  className="text-gray-500 hover:text-gray-700"
+                >
+                  <X className="w-6 h-6" />
+                </button>
+              </div>
+
+              {/* File Upload */}
+              <div className="mb-4">
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Upload CSV File
+                </label>
+                <input
+                  type="file"
+                  accept=".csv"
+                  onChange={handleFileUpload}
+                  className="w-full p-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500"
+                />
+              </div>
+
+              {/* Manual CSV Input */}
+              <div className="mb-4">
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Or Paste CSV Content
+                </label>
+                <textarea
+                  value={csvText}
+                  onChange={(e) => handleCSVTextChange(e.target.value)}
+                  className="w-full p-3 border border-gray-300 rounded-lg h-40 font-mono text-sm focus:ring-2 focus:ring-purple-500"
+                  placeholder="front,back,image,videoUrls
+Hello,Xin chào,https://example.com/hello.jpg,https://example.com/hello.mp4
+Goodbye,Tạm biệt,https://example.com/goodbye.jpg,
+Thank you,Cảm ơn,,"
+                />
+              </div>
+
+              {/* Format Help */}
+              <div className="mb-4 p-4 bg-blue-50 border border-blue-200 rounded-lg">
+                <h4 className="text-sm font-bold text-blue-900 mb-2">CSV Format Requirements:</h4>
+                <ul className="text-sm text-blue-800 space-y-1">
+                  <li><strong>Required columns:</strong> front, back</li>
+                  <li><strong>Optional columns:</strong> image, videoUrls (or video_url), id</li>
+                  <li><strong>Video URLs:</strong> Multiple videos separated by commas: "url1,url2,url3"</li>
+                  <li><strong>Alternative headers:</strong> english/word/term (for front), vietnamese/meaning/translation (for back)</li>
+                  <li><strong>Tip:</strong> Use quotes around fields containing commas</li>
+                </ul>
+                <button
+                  onClick={downloadCSVTemplate}
+                  className="mt-2 text-blue-600 hover:text-blue-800 underline text-sm"
+                >
+                  Download template file to get started
+                </button>
+              </div>
+
+              {/* Errors Display */}
+              {csvErrors.length > 0 && (
+                <div className="mb-4 p-4 bg-red-50 border border-red-200 rounded-lg">
+                  <h4 className="text-sm font-bold text-red-900 mb-2">Errors Found:</h4>
+                  <ul className="text-sm text-red-800 space-y-1">
+                    {csvErrors.map((error, index) => (
+                      <li key={index}>• {error}</li>
+                    ))}
+                  </ul>
+                </div>
+              )}
+
+              {/* Preview */}
+              {csvPreview && (
+                <div className="mb-4 p-4 bg-green-50 border border-green-200 rounded-lg">
+                  <h4 className="text-sm font-bold text-green-900 mb-2">Preview Summary:</h4>
+                  <div className="text-sm text-green-800 mb-3">
+                    <p>✅ {csvPreview.summary.total} flashcards ready to import</p>
+                    <p>📷 {csvPreview.summary.withImages} with images</p>
+                    <p>🎥 {csvPreview.summary.withVideos} with videos</p>
+                    {csvPreview.summary.errors > 0 && (
+                      <p className="text-red-600">⚠️ {csvPreview.summary.errors} rows with errors (will be skipped)</p>
+                    )}
+                  </div>
+
+                  {/* First 3 cards preview */}
+                  <div className="space-y-2">
+                    <h5 className="text-sm font-medium text-green-900">First 3 cards preview:</h5>
+                    {csvPreview.flashcards.slice(0, 3).map((card, index) => (
+                      <div key={index} className="bg-white p-2 rounded border text-xs">
+                        <div className="flex gap-4">
+                          <div className="flex-1">
+                            <span className="font-medium">Front:</span> {card.front}
+                          </div>
+                          <div className="flex-1">
+                            <span className="font-medium">Back:</span> {card.back}
+                          </div>
+                        </div>
+                        {(card.image || (card.videoUrls && card.videoUrls.length > 0)) && (
+                          <div className="mt-1 text-gray-600">
+                            {card.image && <span>📷 Image </span>}
+                            {card.videoUrls && card.videoUrls.length > 0 && <span>🎥 {card.videoUrls.length} video(s)</span>}
+                          </div>
+                        )}
+                      </div>
+                    ))}
+                    {csvPreview.flashcards.length > 3 && (
+                      <p className="text-xs text-gray-600">...and {csvPreview.flashcards.length - 3} more cards</p>
+                    )}
+                  </div>
+                </div>
+              )}
+
+              {/* Actions */}
+              <div className="flex justify-end gap-3">
+                <button
+                  onClick={() => setShowCSVImport(false)}
+                  className="px-4 py-2 text-gray-700 bg-gray-200 rounded-lg hover:bg-gray-300"
+                >
+                  Cancel
+                </button>
+                <button
+                  onClick={handleCSVImport}
+                  disabled={!csvPreview || csvPreview.flashcards.length === 0 || isProcessingCSV}
+                  className="px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
+                >
+                  {isProcessingCSV ? (
+                    <>
+                      <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                      Processing...
+                    </>
+                  ) : (
+                    <>
+                      <Upload className="w-4 h-4" />
+                      Import {csvPreview?.flashcards.length || 0} Cards
+                    </>
+                  )}
+                </button>
+              </div>
+            </div>
+          </div>
         </div>
       )}
     </div>

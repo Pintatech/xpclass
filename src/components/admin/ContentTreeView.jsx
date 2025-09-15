@@ -797,10 +797,9 @@ const UniversalModal = ({ type, item, parent, onSave, onCancel, loading }) => {
                   onChange={(e) => handleInputChange('exercise_type', e.target.value)}
                   className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
                 >
-                  <option value="combined_learning">Word Pronunciation</option>
                   <option value="flashcard">Flashcard</option>
                   <option value="audio_flashcard">Audio Flashcard</option>
-                  <option value="sentence_pronunciation">Sentence Pronunciation</option>
+                  <option value="multiple_choice">Multiple Choice</option>
                 </select>
               </div>
               <div>

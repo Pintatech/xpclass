@@ -301,12 +301,10 @@ const SessionList = () => {
 
       if (error) throw error
 
-      // Check if this is a vocab session (session_number 1 or contains both combined_learning and sentence_pronunciation)
-      const hasCombinedLearning = exercises?.some(ex => ex.exercise_type === 'combined_learning')
-      const hasSentencePronunciation = exercises?.some(ex => ex.exercise_type === 'sentence_pronunciation')
-      const isVocabSession = session.session_number === 1 || (hasCombinedLearning && hasSentencePronunciation) || hasCombinedLearning
+      // Since we removed combined_learning, check if this is session 1 for vocab
+      const isVocabSession = session.session_number === 1 && exercises && exercises.length > 0
 
-      if (isVocabSession && hasCombinedLearning) {
+      if (false) { // Disabled vocab session wrapper since combined_learning is removed
         // Navigate to vocab session wrapper (no specific exerciseId since we handle multiple pairs)
         navigate(`/study/vocab-session?sessionId=${session.id}`)
         return
@@ -316,12 +314,10 @@ const SessionList = () => {
         // If only one exercise, navigate directly to the exercise
         const exercise = exercises[0]
         const paths = {
-          combined_learning: '/study/combined-learning',
           flashcard: '/study/flashcard',
           audio_flashcard: '/study/audio-flashcard',
           snake_ladder: '/study/snake-ladder',
           two_player: '/study/two-player-game',
-          sentence_pronunciation: '/study/sentence-pronunciation',
           multiple_choice: '/study/multiple-choice'
         }
         const exercisePath = paths[exercise.exercise_type] || '/study/flashcard'

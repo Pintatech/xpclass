@@ -63,7 +63,7 @@ create table public.exercises (
   id uuid default uuid_generate_v4() primary key,
   session_id uuid references public.sessions(id) on delete cascade,
   title text not null,
-  exercise_type text not null check (exercise_type in ('flashcard', 'pronunciation', 'audio_flashcard', 'video')),
+  exercise_type text not null check (exercise_type in ('flashcard', 'audio_flashcard', 'video', 'multiple_choice')),
   content jsonb not null, -- exercise-specific content
   image_urls text[], -- optional images for the exercise
   difficulty_level integer default 1 check (difficulty_level between 1 and 5),

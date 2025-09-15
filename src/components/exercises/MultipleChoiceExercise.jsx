@@ -45,30 +45,37 @@ const MultipleChoiceExercise = () => {
 
   // Meme arrays - you can replace these URLs with your own memes
   const correctMemes = [
-    'https://i.imgflip.com/1g8my4.jpg', // Success Kid
-    'https://i.imgflip.com/30b1gx.jpg', // Drake pointing yes
-    'https://i.imgflip.com/4/1bij.jpg', // Success Baby
-    'https://i.imgflip.com/1otk96.jpg', // Celebration
-    'https://i.imgflip.com/1g7qu4.jpg', // Winning
+    'https://xpclass.vn/leaderboard/correct_image/plus12.png',
+    'https://xpclass.vn/leaderboard/correct_image/plus13.png',
+    'https://xpclass.vn/leaderboard/correct_image/plus14.png',
+    'https://xpclass.vn/leaderboard/correct_image/plus32.png',
+    'https://xpclass.vn/leaderboard/correct_image/plus34.png',
+    'https://xpclass.vn/leaderboard/correct_image/drake%20yes.jpg',
+    'https://xpclass.vn/leaderboard/correct_image/tapping-head-tap-head.gif'
+  
+     // Celebration
   ]
 
   const wrongMemes = [
-    'https://i.imgflip.com/1g8my4.jpg', // Disappointed face
-    'https://i.imgflip.com/30b1gx.jpg', // Drake pointing no
-    'https://i.imgflip.com/4/1bij.jpg', // Sad face
-    'https://i.imgflip.com/1otk96.jpg', // Facepalm
-    'https://i.imgflip.com/1g7qu4.jpg', // Try again
+    'https://xpclass.vn/leaderboard/correct_image/minus2.gif',
+    'https://xpclass.vn/leaderboard/correct_image/minus6.png',
+    'https://xpclass.vn/leaderboard/correct_image/minus9.gif',
+    'https://xpclass.vn/leaderboard/wrong_image/Black-Girl-Wat.png',
+    'https://xpclass.vn/leaderboard/wrong_image/drake.jpg',
+    'https://xpclass.vn/leaderboard/wrong_image/leo%20laugh.jpg',
+    'https://xpclass.vn/leaderboard/wrong_image/nick-confused.gif',
+    'https://xpclass.vn/leaderboard/wrong_image/tom.jpg',
+    'https://xpclass.vn/leaderboard/wrong_image/vince%20mc.gif',
+    'https://xpclass.vn/leaderboard/wrong_image/you-guys-are-getting-paid.jpg'// Try again
   ]
 
   // Sound URLs - you can replace these with your own sound files
   const correctSounds = [
-    'https://www.soundjay.com/misc/sounds/bell-ringing-05.wav',
-    'https://www.soundjay.com/misc/sounds/success-sound-effect.wav'
+    'https://xpclass.vn/leaderboard/sound/lingo.mp3'
   ]
 
   const wrongSounds = [
-    'https://www.soundjay.com/misc/sounds/fail-buzzer-02.wav',
-    'https://www.soundjay.com/misc/sounds/wrong-answer-sound.wav'
+    'https://xpclass.vn/leaderboard/sound/Bruh.mp3'
   ]
 
   // Function to play sound and show meme
@@ -556,10 +563,8 @@ const MultipleChoiceExercise = () => {
       if (currentIndex !== -1 && currentIndex < exercises.length - 1) {
         const nextExercise = exercises[currentIndex + 1]
         const paths = {
-          combined_learning: '/study/combined-learning',
           flashcard: '/study/flashcard',
           audio_flashcard: '/study/audio-flashcard',
-          sentence_pronunciation: '/study/sentence-pronunciation',
           multiple_choice: '/study/multiple-choice'
         }
         const exercisePath = paths[nextExercise.exercise_type] || '/study/flashcard'
@@ -734,10 +739,21 @@ const MultipleChoiceExercise = () => {
         </Card>
       )}
 
+      {/* Meme Overlay */}
+      {showMeme && (
+        <div className="fixed inset-0 flex items-center justify-center z-50 pointer-events-none">
+          <img
+            src={currentMeme}
+            alt="Reaction meme"
+            className="max-w-sm max-h-96 rounded-lg shadow-2xl"
+          />
+        </div>
+      )}
+
       {/* Current Question */}
       {!isQuizComplete && (
         <div className="space-y-6">
-          <Card className="p-6">
+          <Card className="p-6 relative">
             <h2 className="text-xl font-semibold text-gray-800 mb-6">
               {currentQuestion.question}
             </h2>
@@ -783,19 +799,6 @@ const MultipleChoiceExercise = () => {
               })}
             </div>
 
-            {/* Meme Display */}
-            {showMeme && (
-              <div className="mt-6 flex justify-center">
-                <div className="relative">
-                  <img
-                    src={currentMeme}
-                    alt="Reaction meme"
-                    className="max-w-xs max-h-48 rounded-lg shadow-lg animate-bounce"
-                  />
-                  <div className="absolute inset-0 bg-gradient-to-t from-black/20 to-transparent rounded-lg" />
-                </div>
-              </div>
-            )}
 
             {/* Explanation */}
             {showExplanation && selectedAnswer !== null && (

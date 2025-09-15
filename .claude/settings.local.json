@@ -36,7 +36,8 @@
       "Read(/C:\\Users\\Pinta\\Downloads\\momtek\\src\\components\\study/**)",
       "Read(/C:\\Users\\Pinta\\Downloads\\momtek\\src\\components\\study/**)",
       "Bash(npm run dev:*)",
-      "Bash(cat:*)"
+      "Bash(cat:*)",
+      "Bash(node:*)"
     ],
     "deny": [],
     "ask": []

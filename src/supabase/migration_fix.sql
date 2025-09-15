@@ -139,7 +139,7 @@ BEGIN
     
     -- Add new constraint
     ALTER TABLE public.exercises ADD CONSTRAINT exercises_exercise_type_check 
-    CHECK (exercise_type IN ('flashcard', 'pronunciation', 'audio_flashcard', 'video', 'combined_learning', 'sentence_pronunciation'));
+    CHECK (exercise_type IN ('flashcard', 'audio_flashcard', 'video', 'multiple_choice'));
     RAISE NOTICE 'Added new exercise_type constraint';
 END $$;
 

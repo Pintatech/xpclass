@@ -204,9 +204,7 @@ const Profile = () => {
     const icons = {
       multiple_choice: Target,
       flashcard: BookOpen,
-      audio_flashcard: Activity,
-      sentence_pronunciation: PlayCircle,
-      combined_learning: CheckCircle
+      audio_flashcard: Activity
     }
     return icons[type] || BookOpen
   }
@@ -215,9 +213,7 @@ const Profile = () => {
     const labels = {
       multiple_choice: 'Multiple Choice',
       flashcard: 'Flashcard',
-      audio_flashcard: 'Audio Flashcard',
-      sentence_pronunciation: 'Pronunciation',
-      combined_learning: 'Combined Learning'
+      audio_flashcard: 'Audio Flashcard'
     }
     return labels[type] || type
   }

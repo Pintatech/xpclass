@@ -3,8 +3,6 @@ import { useParams, useNavigate, useSearchParams } from 'react-router-dom';
 import { supabase } from '../../supabase/client';
 import { useAuth } from '../../hooks/useAuth';
 import LoadingSpinner from '../ui/LoadingSpinner';
-import CombinedLearningExercise from './CombinedLearningExercise';
-import SentencePronunciationExercise from './SentencePronunciationExercise';
 import { saveRecentExercise } from '../../utils/recentExercise';
 import { ArrowLeft, Star } from 'lucide-react';
 
@@ -52,7 +50,7 @@ const VocabSessionWrapper = () => {
   const navigate = useNavigate();
   const { user } = useAuth();
 
-  const [currentView, setCurrentView] = useState('grid'); // 'grid', 'word-pronunciation', or 'sentence-pronunciation'
+  const [currentView, setCurrentView] = useState('grid'); // 'grid' or 'word-pronunciation'
   const [exercisePairs, setExercisePairs] = useState([]);
   const [currentPair, setCurrentPair] = useState(null);
   const [currentPairIndex, setCurrentPairIndex] = useState(null);
@@ -105,37 +103,34 @@ const VocabSessionWrapper = () => {
           if (sessionError) throw sessionError;
           setSessionExercises(allExercises || []);
 
-          // Separate combined_learning and sentence_pronunciation exercises
-          const wordExercises = allExercises?.filter(ex => ex.exercise_type === 'combined_learning') || [];
-          const sentenceExercises = allExercises?.filter(ex => ex.exercise_type === 'sentence_pronunciation') || [];
+          // Since combined_learning is removed, just use all remaining exercises
+          const wordExercises = allExercises || [];
 
-          // Create pairs by matching order_index or just pairing them sequentially
+          // Create exercise list from combined_learning exercises only
           const pairs = [];
-          const maxPairs = Math.max(wordExercises.length, sentenceExercises.length);
-          
-          for (let i = 0; i < maxPairs; i++) {
+
+          for (let i = 0; i < wordExercises.length; i++) {
             const wordEx = wordExercises[i];
-            const sentenceEx = sentenceExercises[i];
             
-            if (wordEx || sentenceEx) {
+            if (wordEx) {
               // Map word exercise data
-              const mappedWordExercise = wordEx ? {
+              const mappedWordExercise = {
                 ...wordEx,
                 word: wordEx.word || wordEx.content?.word || wordEx.title,
                 audioUrl: wordEx.audio_url || wordEx.content?.audioUrl || wordEx.content?.audio_url,
                 videoUrl: wordEx.video_url || wordEx.content?.videoUrl || wordEx.content?.video_url,
                 imageUrl: wordEx.image_url || wordEx.content?.imageUrl || wordEx.content?.image_url,
-                imageUrls: wordEx.image_urls || wordEx.content?.imageUrls || wordEx.content?.image_urls || 
+                imageUrls: wordEx.image_urls || wordEx.content?.imageUrls || wordEx.content?.image_urls ||
                           (wordEx.image_url || wordEx.content?.imageUrl ? [wordEx.image_url || wordEx.content?.imageUrl] : [])
-              } : null;
+              };
 
               pairs.push({
                 index: i,
                 wordExercise: mappedWordExercise,
-                sentenceExercise: sentenceEx,
-                // Use the word exercise image as the pair image, or fallback
-                imageUrl: mappedWordExercise?.imageUrl || mappedWordExercise?.imageUrls?.[0] || sentenceEx?.image_url,
-                title: mappedWordExercise?.word || sentenceEx?.title || `Pair ${i + 1}`
+                sentenceExercise: null, // No more sentence exercises
+                // Use the word exercise image
+                imageUrl: mappedWordExercise?.imageUrl || mappedWordExercise?.imageUrls?.[0],
+                title: mappedWordExercise?.word || `Exercise ${i + 1}`
               });
             }
           }
@@ -169,8 +164,7 @@ const VocabSessionWrapper = () => {
               const completedPairIndices = new Set();
               pairs.forEach((pair, index) => {
                 const wordCompleted = !pair.wordExercise || completedExerciseIds.has(pair.wordExercise.id);
-                const sentenceCompleted = !pair.sentenceExercise || completedExerciseIds.has(pair.sentenceExercise.id);
-                if (wordCompleted && sentenceCompleted) {
+                if (wordCompleted) {
                   completedPairIndices.add(index);
                 }
               });
@@ -242,39 +236,10 @@ const VocabSessionWrapper = () => {
     };
     updateProgress();
 
-    // Move to sentence pronunciation if available, otherwise complete pair
-    if (currentPair?.sentenceExercise) {
-      console.log('🎯 Moving to sentence pronunciation step');
-      setCurrentView('sentence-pronunciation');
-    } else {
-      handlePairComplete();
-    }
-  };
-
-  const handleSentencePronunciationComplete = (result) => {
-    console.log('Sentence pronunciation completed:', result);
-    
-    // Mark sentence pronunciation exercise as completed in user_progress
-    const updateProgress = async () => {
-      try {
-        if (user && currentPair?.sentenceExercise?.id) {
-          await supabase.from('user_progress').upsert({
-            user_id: user.id,
-            exercise_id: currentPair.sentenceExercise.id,
-            status: 'completed',
-            score: result?.accuracy,
-            completed_at: new Date().toISOString(),
-            updated_at: new Date().toISOString()
-          });
-        }
-      } catch (error) {
-        console.error('Error updating progress:', error);
-      }
-    };
-    updateProgress();
-
+    // Complete the pair since there are no sentence exercises anymore
     handlePairComplete();
   };
+
 
   const handlePairComplete = () => {
     // Mark this pair as completed
@@ -297,9 +262,8 @@ const VocabSessionWrapper = () => {
 
   const handleSessionComplete = () => {
     // Check if there are other exercises in the session to continue with
-    const remainingExercises = sessionExercises.filter(ex => 
-      ex.exercise_type !== 'combined_learning' && 
-      ex.exercise_type !== 'sentence_pronunciation'
+    const remainingExercises = sessionExercises.filter(ex =>
+      ex.exercise_type !== 'vocab_removed' // No need to filter anything specific now
     );
 
     if (remainingExercises.length > 0) {
@@ -483,7 +447,7 @@ const VocabSessionWrapper = () => {
                   {/* Circle at 50% (middle) */}
                   <div className="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2">
                     <div className={`w-6 h-6 rounded-full flex items-center justify-center ${
-                      currentView === 'sentence-pronunciation' || wordPronunciationResult 
+                      wordPronunciationResult 
                         ? 'bg-blue-600' 
                         : 'bg-gray-200'
                     }`}>
@@ -504,10 +468,16 @@ const VocabSessionWrapper = () => {
 
           {/* Exercise Content */}
           {currentView === 'word-pronunciation' && currentPair.wordExercise && showWordExercise && (
-            <CombinedLearningExercise 
-              exercise={currentPair.wordExercise} 
-              onComplete={handleWordPronunciationComplete} 
-            />
+            <div className="text-center p-8">
+              <h2 className="text-xl font-bold mb-4">Exercise Type No Longer Supported</h2>
+              <p className="text-gray-600 mb-4">The combined learning exercise type has been removed.</p>
+              <button
+                onClick={() => handleWordPronunciationComplete({ completed: true })}
+                className="px-4 py-2 bg-blue-500 text-white rounded-lg"
+              >
+                Skip This Exercise
+              </button>
+            </div>
           )}
           
           {/* Loading state for iOS */}
@@ -522,12 +492,6 @@ const VocabSessionWrapper = () => {
             </div>
           )}
 
-          {currentView === 'sentence-pronunciation' && currentPair.sentenceExercise && (
-            <SentencePronunciationExercise 
-              exercise={currentPair.sentenceExercise} 
-              onComplete={handleSentencePronunciationComplete} 
-            />
-          )}
         </div>
       )}
     </div>
