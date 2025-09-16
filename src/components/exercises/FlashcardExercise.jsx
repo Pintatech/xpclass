@@ -144,12 +144,14 @@ const FlashcardExercise = () => {
     // Mark current exercise as completed for progress tracking
     try {
       if (user && exerciseId) {
+        const xpReward = exercise?.xp_reward || 10
         await supabase.from('user_progress').upsert({
           user_id: user.id,
           exercise_id: exerciseId,
           status: 'completed',
           completed_at: new Date().toISOString(),
-          updated_at: new Date().toISOString()
+          updated_at: new Date().toISOString(),
+          xp_earned: xpReward
         })
       }
     } catch (e) {
@@ -341,10 +343,16 @@ const FlashcardExercise = () => {
         resolve(thumbnail)
       }
       
-      video.onerror = () => {
+      video.onerror = (e) => {
+        console.log(`⚠️ Video thumbnail generation failed for: ${videoUrl}`, e)
         resolve(null) // Return null if thumbnail generation fails
       }
       
+      video.onloadstart = () => {
+        console.log(`🎬 Loading video thumbnail: ${videoUrl}`)
+      }
+      
+      video.crossOrigin = 'anonymous' // Try to handle CORS
       video.src = videoUrl
     })
   }
@@ -715,6 +723,7 @@ const FlashcardExercise = () => {
                             className="w-full h-full object-cover"
                             controls                          
                             playsInline
+                            autoPlay
                             key={`${currentCard}-${currentVideoIndex}`}
                             onLoadStart={handleVideoLoadStart}
                             onLoadedData={handleVideoLoadedData}

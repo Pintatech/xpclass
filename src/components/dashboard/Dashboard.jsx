@@ -9,6 +9,7 @@ import {
 import Card from '../ui/Card'
 import Button from '../ui/Button'
 import { getRecentExercise } from '../../utils/recentExercise'
+import RecentActivities from './RecentActivities'
 
 const Dashboard = () => {
   const { profile } = useAuth()
@@ -35,9 +36,9 @@ const Dashboard = () => {
           thumbnail_url,
           level_number,
           difficulty_label,
-          color_theme
+          color_theme,
+          is_active
         `)
-        .eq('is_active', true)
         .order('level_number')
 
       if (error) throw error
@@ -143,54 +144,94 @@ const Dashboard = () => {
         </Card>
       )}
 
-      {/* Levels List */}
-      <div>
-        <h2 className="text-2xl font-bold text-gray-900 mb-6">Chương trình học </h2>
-        {loading ? (
-          <div className="text-center py-8">
-            <div className="inline-block animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
-            <p className="text-gray-600 mt-2">Đang tải...</p>
-          </div>
-        ) : (
-          <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4">
-            {levels.map((level) => (
-              <Link 
-                key={level.id} 
-                to={`/study/level/${level.id}`}
-                className="group"
-              >
-                <div className="bg-white rounded-lg shadow-md hover:shadow-lg transition-all duration-200 overflow-hidden group-hover:scale-105">
-                  {/* Level Image with Text Overlay */}
-                  <div className="aspect-[1.8/1] bg-gradient-to-br from-blue-100 to-purple-100 flex items-center justify-center relative">
-                    {level.thumbnail_url ? (
-                      <img 
-                        src={level.thumbnail_url} 
-                        alt={level.title}
-                        className="w-full h-full object-cover"
-                      />
-                    ) : (
-                      <div className="text-4xl">
-                        {level.level_number === 1 ? '🌱' : 
-                         level.level_number === 2 ? '📚' : 
-                         level.level_number === 3 ? '🏆' : '🎯'}
+      {/* Recent Activities and Levels Grid */}
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        {/* Recent Activities */}
+        <div className="lg:col-span-1">
+          <RecentActivities />
+        </div>
+
+        {/* Levels List */}
+        <div className="lg:col-span-2">
+          <h2 className="text-2xl font-bold text-gray-900 mb-6">Chương trình học </h2>
+          {loading ? (
+            <div className="text-center py-8">
+              <div className="inline-block animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
+              <p className="text-gray-600 mt-2">Đang tải...</p>
+            </div>
+          ) : (
+            <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
+              {levels.map((level) => {
+                const isLocked = !level.is_active
+                
+                const LevelCard = () => (
+                  <div className={`bg-white rounded-lg shadow-md transition-all duration-200 overflow-hidden ${
+                    isLocked 
+                      ? 'opacity-60 cursor-not-allowed' 
+                      : 'hover:shadow-lg group-hover:scale-105'
+                  }`}>
+                    {/* Level Image with Text Overlay */}
+                    <div className="aspect-[1.8/1] bg-gradient-to-br from-blue-100 to-purple-100 flex items-center justify-center relative">
+                      {level.thumbnail_url ? (
+                        <img 
+                          src={level.thumbnail_url} 
+                          alt={level.title}
+                          className="w-full h-full object-cover"
+                        />
+                      ) : (
+                        <div className="text-4xl">
+                          {level.level_number === 1 ? '🌱' : 
+                           level.level_number === 2 ? '📚' : 
+                           level.level_number === 3 ? '🏆' : '🎯'}
+                        </div>
+                      )}
+                      
+                      {/* Lock Overlay */}
+                      {isLocked && (
+                        <div className="absolute inset-0 bg-black bg-opacity-50 flex items-center justify-center">
+                          <div className="text-center text-white">
+                            <svg className="w-12 h-12 mx-auto mb-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
+                            </svg>
+                           
+                          </div>
+                        </div>
+                      )}
+                      
+                      {/* Text Overlay */}
+                      <div className="absolute bottom-0 left-0 right-0 bg-black bg-opacity-20 p-2">
+                        <h3 className="font-semibold text-white text-sm mb-1 line-clamp-2">
+                          {level.title}
+                        </h3>
+                        <p className="text-xs text-gray-200">
+                          {level.difficulty_label}
+                        </p>
                       </div>
-                    )}
-                    
-                    {/* Text Overlay */}
-                    <div className="absolute bottom-0 left-0 right-0 bg-black bg-opacity-20 p-2">
-                      <h3 className="font-semibold text-white text-sm mb-1 line-clamp-2">
-                        {level.title}
-                      </h3>
-                      <p className="text-xs text-gray-200">
-                        {level.difficulty_label}
-                      </p>
                     </div>
                   </div>
-                </div>
-              </Link>
-            ))}
-          </div>
-        )}
+                )
+
+                if (isLocked) {
+                  return (
+                    <div key={level.id} className="group">
+                      <LevelCard />
+                    </div>
+                  )
+                }
+
+                return (
+                  <Link 
+                    key={level.id} 
+                    to={`/study/level/${level.id}`}
+                    className="group"
+                  >
+                    <LevelCard />
+                  </Link>
+                )
+              })}
+            </div>
+          )}
+        </div>
       </div>
     </div>
   )

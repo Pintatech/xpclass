@@ -221,13 +221,15 @@ const VocabSessionWrapper = () => {
     const updateProgress = async () => {
       try {
         if (user && currentPair?.wordExercise?.id) {
+          const xpReward = currentPair.wordExercise.xp_reward || 10
           await supabase.from('user_progress').upsert({
             user_id: user.id,
             exercise_id: currentPair.wordExercise.id,
             status: 'completed',
             score: result?.accuracy,
             completed_at: new Date().toISOString(),
-            updated_at: new Date().toISOString()
+            updated_at: new Date().toISOString(),
+            xp_earned: xpReward
           });
         }
       } catch (error) {

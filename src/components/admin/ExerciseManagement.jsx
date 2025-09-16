@@ -410,11 +410,38 @@ const ExerciseForm = ({ exercise, sessions, exerciseTypes, onSave, onCancel }) =
     <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
       <div className="bg-white rounded-lg max-w-2xl w-full max-h-[90vh] overflow-y-auto">
         <div className="p-6">
-          <h2 className="text-xl font-bold mb-4">
-            {exercise ? 'Chỉnh sửa bài tập' : 'Tạo bài tập mới'}
-          </h2>
+          {/* Header with close and save buttons */}
+          <div className="flex justify-between items-center mb-4">
+            <h2 className="text-xl font-bold">
+              {exercise ? 'Chỉnh sửa bài tập' : 'Tạo bài tập mới'}
+            </h2>
+            <div className="flex gap-2">
+              <button
+                type="button"
+                onClick={onCancel}
+                className="px-4 py-2 text-gray-700 bg-gray-200 rounded-lg hover:bg-gray-300 text-sm"
+              >
+                Hủy
+              </button>
+              <button
+                type="submit"
+                form="exercise-form"
+                className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 text-sm"
+              >
+                {exercise ? 'Cập nhật' : 'Tạo mới'}
+              </button>
+              <button
+                type="button"
+                onClick={onCancel}
+                className="text-gray-500 hover:text-gray-700 p-1"
+                title="Đóng"
+              >
+                <X className="w-6 h-6" />
+              </button>
+            </div>
+          </div>
           
-          <form onSubmit={handleSubmit} className="space-y-4">
+          <form id="exercise-form" onSubmit={handleSubmit} className="space-y-4">
             {/* Session Selection */}
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">
@@ -681,22 +708,7 @@ const ExerciseForm = ({ exercise, sessions, exerciseTypes, onSave, onCancel }) =
               </label>
             </div>
 
-            {/* Actions */}
-            <div className="flex justify-end gap-3 pt-4">
-              <button
-                type="button"
-                onClick={onCancel}
-                className="px-4 py-2 text-gray-700 bg-gray-200 rounded-lg hover:bg-gray-300"
-              >
-                Hủy
-              </button>
-              <button
-                type="submit"
-                className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
-              >
-                {exercise ? 'Cập nhật' : 'Tạo mới'}
-              </button>
-            </div>
+            {/* Actions - moved to header */}
           </form>
         </div>
       </div>
@@ -1417,10 +1429,7 @@ const MultipleChoiceEditor = ({ questions, onQuestionsChange }) => {
           .replace(/______/g, '______')
           .trim()
 
-        // If question text has a blank, use it as is, otherwise add "Which choice completes the text?"
-        if (!questionText.includes('______')) {
-          questionText += ' Which choice completes the text so that it conforms to the conventions of Standard English?'
-        }
+        // Use question text as is
 
         // Parse cloze options from the matched content
         const optionsContent = clozeMatch[1]
@@ -1632,14 +1641,32 @@ Explanation: Good morning is Chào buổi sáng.`}
             <div className="mb-4">
               <label className="block text-sm font-medium text-gray-700 mb-1">
                 Question Text
+                <span className="text-xs text-gray-500 ml-2">(Supports HTML formatting)</span>
               </label>
               <textarea
                 value={question.question}
                 onChange={(e) => updateQuestion(index, 'question', e.target.value)}
-                className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500"
-                placeholder="What does 'Hello' mean in Vietnamese?"
-                rows="2"
+                className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 font-mono text-sm"
+                placeholder="What does 'Hello' mean in Vietnamese?
+
+Multiple lines work too!
+Just hit Enter to create new lines.
+
+Or use HTML: What does <strong>Hello</strong> mean in <em>Vietnamese</em>?"
+                rows="3"
               />
+              <div className="mt-2 p-3 bg-blue-50 border border-blue-200 rounded-lg">
+                <p className="text-xs text-blue-800 font-medium mb-2">💡 Rich Text Formatting Examples:</p>
+                <div className="text-xs text-blue-700 space-y-1">
+                  <div><code>&lt;strong&gt;bold text&lt;/strong&gt;</code> → <strong>bold text</strong></div>
+                  <div><code>&lt;em&gt;italic text&lt;/em&gt;</code> → <em>italic text</em></div>
+                  <div><code>&lt;u&gt;underlined&lt;/u&gt;</code> → <u>underlined</u></div>
+                  <div><code>&lt;mark&gt;highlighted&lt;/mark&gt;</code> → <mark>highlighted</mark></div>
+                  <div><code>&lt;img src="url" alt="text" /&gt;</code> → displays image</div>
+                  <div><code>&lt;br&gt;</code> or <strong>Enter key</strong> → line breaks</div>
+                  <div><code>Fill in the _____ blank</code> → for fill-in-the-blank questions</div>
+                </div>
+              </div>
             </div>
 
             {/* Options */}
@@ -1673,12 +1700,12 @@ Explanation: Good morning is Chào buổi sáng.`}
                       type="text"
                       value={option}
                       onChange={(e) => updateOption(index, optionIndex, e.target.value)}
-                      className={`flex-1 p-2 border rounded-lg focus:ring-2 focus:ring-orange-500 ${
+                      className={`flex-1 p-2 border rounded-lg focus:ring-2 focus:ring-orange-500 font-mono text-sm ${
                         question.correct_answer === optionIndex
                           ? 'border-green-500 bg-green-50'
                           : 'border-gray-300'
                       }`}
-                      placeholder={`Option ${String.fromCharCode(65 + optionIndex)}`}
+                      placeholder={`Option ${String.fromCharCode(65 + optionIndex)} (supports HTML: <strong>bold</strong>, <em>italic</em>)`}
                     />
                     {question.options.length > 2 && (
                       <button
@@ -1702,13 +1729,19 @@ Explanation: Good morning is Chào buổi sáng.`}
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">
                 Explanation (shown after answer)
+                <span className="text-xs text-gray-500 ml-2">(Supports HTML formatting)</span>
               </label>
               <textarea
                 value={question.explanation}
                 onChange={(e) => updateQuestion(index, 'explanation', e.target.value)}
-                className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500"
-                placeholder="Explain why this is the correct answer..."
-                rows="2"
+                className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 font-mono text-sm"
+                placeholder="Explain why this is the correct answer...
+
+You can use multiple lines here too!
+Just press Enter for new lines.
+
+Or with HTML: The correct answer is <strong>important</strong> because <em>it demonstrates</em> the concept."
+                rows="3"
               />
             </div>
           </div>

@@ -108,6 +108,26 @@ const LevelManagement = () => {
     showNotification('Level ID copied to clipboard!');
   };
 
+  const handleToggleLock = async (levelId, newStatus) => {
+    try {
+      setLoading(true);
+      const { error } = await supabase
+        .from('levels')
+        .update({ is_active: newStatus })
+        .eq('id', levelId);
+
+      if (error) throw error;
+      
+      showNotification(`Level ${newStatus ? 'unlocked' : 'locked'} successfully!`);
+      await fetchLevels();
+    } catch (error) {
+      console.error('Error toggling level lock:', error);
+      showNotification('Error updating level status: ' + error.message, 'error');
+    } finally {
+      setLoading(false);
+    }
+  };
+
   return (
     <div className="space-y-6">
       {/* Header */}
@@ -171,6 +191,9 @@ const LevelManagement = () => {
                     Requirements
                   </th>
                   <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    Status
+                  </th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                     Actions
                   </th>
                 </tr>
@@ -232,6 +255,36 @@ const LevelManagement = () => {
                     <td className="px-6 py-4">
                       <div className="text-sm text-gray-900">{level.unlock_requirement} XP</div>
                       <div className="text-sm text-gray-600">to unlock</div>
+                    </td>
+                    <td className="px-6 py-4">
+                      <div className="flex items-center gap-2">
+                        <span className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${
+                          level.is_active 
+                            ? 'bg-green-100 text-green-800' 
+                            : 'bg-red-100 text-red-800'
+                        }`}>
+                          {level.is_active ? 'Unlocked' : 'Locked'}
+                        </span>
+                        <button
+                          onClick={() => handleToggleLock(level.id, !level.is_active)}
+                          className={`p-1 rounded transition-colors ${
+                            level.is_active 
+                              ? 'text-red-600 hover:bg-red-50' 
+                              : 'text-green-600 hover:bg-green-50'
+                          }`}
+                          title={level.is_active ? 'Lock level' : 'Unlock level'}
+                        >
+                          {level.is_active ? (
+                            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
+                            </svg>
+                          ) : (
+                            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 11V7a4 4 0 118 0m-4 8v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2z" />
+                            </svg>
+                          )}
+                        </button>
+                      </div>
                     </td>
                     <td className="px-6 py-4">
                       <div className="flex items-center gap-2">
@@ -305,7 +358,8 @@ const LevelModal = ({ level, onSave, onCancel, loading }) => {
     difficulty_label: level?.difficulty_label || 'Beginner',
     color_theme: level?.color_theme || 'blue',
     unlock_requirement: level?.unlock_requirement || 0,
-    thumbnail_url: level?.thumbnail_url || ''
+    thumbnail_url: level?.thumbnail_url || '',
+    is_active: level?.is_active ?? true
   });
   const [errors, setErrors] = useState({});
 
@@ -488,6 +542,23 @@ const LevelModal = ({ level, onSave, onCancel, loading }) => {
               {errors.unlock_requirement && (
                 <p className="text-red-600 text-sm mt-1">{errors.unlock_requirement}</p>
               )}
+            </div>
+          </div>
+
+          {/* Level Status */}
+          <div className="flex items-center gap-3 p-4 bg-gray-50 rounded-lg">
+            <input
+              type="checkbox"
+              id="is_active"
+              checked={formData.is_active}
+              onChange={(e) => handleInputChange('is_active', e.target.checked)}
+              className="w-4 h-4 text-blue-600 bg-gray-100 border-gray-300 rounded focus:ring-blue-500"
+            />
+            <label htmlFor="is_active" className="text-sm font-medium text-gray-700">
+              Level is unlocked (users can access this level)
+            </label>
+            <div className="text-xs text-gray-500 ml-auto">
+              {formData.is_active ? '✅ Unlocked' : '🔒 Locked'}
             </div>
           </div>
 

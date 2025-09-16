@@ -6,6 +6,7 @@ import { supabase } from '../../supabase/client'
 import Card from '../ui/Card'
 import Button from '../ui/Button'
 import LoadingSpinner from '../ui/LoadingSpinner'
+import RichTextRenderer from '../ui/RichTextRenderer'
 import { ArrowLeft, CheckCircle, XCircle, ArrowRight, RotateCcw, Star } from 'lucide-react'
 
 const MultipleChoiceExercise = () => {
@@ -51,21 +52,18 @@ const MultipleChoiceExercise = () => {
     'https://xpclass.vn/leaderboard/correct_image/plus32.png',
     'https://xpclass.vn/leaderboard/correct_image/plus34.png',
     'https://xpclass.vn/leaderboard/correct_image/drake%20yes.jpg',
-    'https://xpclass.vn/leaderboard/correct_image/tapping-head-tap-head.gif'
+    'https://xpclass.vn/leaderboard/correct_image/tapping%20head.jpg'
   
      // Celebration
   ]
 
   const wrongMemes = [
-    'https://xpclass.vn/leaderboard/correct_image/minus2.gif',
-    'https://xpclass.vn/leaderboard/correct_image/minus6.png',
-    'https://xpclass.vn/leaderboard/correct_image/minus9.gif',
+
     'https://xpclass.vn/leaderboard/wrong_image/Black-Girl-Wat.png',
     'https://xpclass.vn/leaderboard/wrong_image/drake.jpg',
     'https://xpclass.vn/leaderboard/wrong_image/leo%20laugh.jpg',
-    'https://xpclass.vn/leaderboard/wrong_image/nick-confused.gif',
+    'https://xpclass.vn/leaderboard/wrong_image/nick%20young.jpg',
     'https://xpclass.vn/leaderboard/wrong_image/tom.jpg',
-    'https://xpclass.vn/leaderboard/wrong_image/vince%20mc.gif',
     'https://xpclass.vn/leaderboard/wrong_image/you-guys-are-getting-paid.jpg'// Try again
   ]
 
@@ -440,6 +438,13 @@ const MultipleChoiceExercise = () => {
     console.log(`🏁 Completing exercise: ${correctAnswers}/${totalQuestions} correct (${score}%)`)
 
     try {
+      // 2. Calculate and award XP
+      const baseXP = exercise?.xp_reward || 10
+      const bonusXP = score >= 80 ? Math.round(baseXP * 0.2) : 0 // 20% bonus for good performance
+      const totalXP = baseXP + bonusXP
+
+      console.log(`💰 Awarding XP: ${baseXP} base + ${bonusXP} bonus = ${totalXP} total`)
+
       // 1. Mark exercise as completed in user_progress
       const { error: progressError } = await supabase.from('user_progress').upsert({
         user_id: user.id,
@@ -449,7 +454,8 @@ const MultipleChoiceExercise = () => {
         max_score: 100,
         attempts: isRetryMode ? 2 : 1,
         completed_at: new Date().toISOString(),
-        updated_at: new Date().toISOString()
+        updated_at: new Date().toISOString(),
+        xp_earned: totalXP
       }, {
         onConflict: 'user_id,exercise_id'
       })
@@ -465,7 +471,8 @@ const MultipleChoiceExercise = () => {
             max_score: 100,
             attempts: isRetryMode ? 2 : 1,
             completed_at: new Date().toISOString(),
-            updated_at: new Date().toISOString()
+            updated_at: new Date().toISOString(),
+            xp_earned: totalXP
           })
           .eq('user_id', user.id)
           .eq('exercise_id', exerciseId)
@@ -481,17 +488,11 @@ const MultipleChoiceExercise = () => {
             max_score: 100,
             attempts: isRetryMode ? 2 : 1,
             completed_at: new Date().toISOString(),
-            updated_at: new Date().toISOString()
+            updated_at: new Date().toISOString(),
+            xp_earned: totalXP
           })
         }
       }
-
-      // 2. Calculate and award XP
-      const baseXP = exercise?.xp_reward || 10
-      const bonusXP = score >= 80 ? Math.round(baseXP * 0.2) : 0 // 20% bonus for good performance
-      const totalXP = baseXP + bonusXP
-
-      console.log(`💰 Awarding XP: ${baseXP} base + ${bonusXP} bonus = ${totalXP} total`)
 
       // 3. Update user's total XP
       const { error: xpError } = await supabase.rpc('add_user_xp', {
@@ -754,9 +755,14 @@ const MultipleChoiceExercise = () => {
       {!isQuizComplete && (
         <div className="space-y-6">
           <Card className="p-6 relative">
-            <h2 className="text-xl font-semibold text-gray-800 mb-6">
-              {currentQuestion.question}
-            </h2>
+            <div className="mb-6">
+              <RichTextRenderer
+                content={currentQuestion.question}
+                className="text-xl text-gray-800"
+                allowImages={true}
+                allowLinks={false}
+              />
+            </div>
 
             <div className="space-y-3">
               {currentQuestion.options.map((option, index) => {
@@ -782,17 +788,26 @@ const MultipleChoiceExercise = () => {
                     className={buttonClass}
                   >
                     <div className="flex items-center justify-between">
-                      <span className="font-medium">{option}</span>
-                      {selectedAnswer !== null && (
-                        <>
-                          {index === currentQuestion.correct_answer && (
-                            <CheckCircle className="w-5 h-5 text-green-600" />
-                          )}
-                          {index === selectedAnswer && index !== currentQuestion.correct_answer && (
-                            <XCircle className="w-5 h-5 text-red-600" />
-                          )}
-                        </>
-                      )}
+                      <div className="flex-1">
+                        <RichTextRenderer
+                          content={option}
+                          
+                          allowImages={true}
+                          allowLinks={false}
+                        />
+                      </div>
+                      <div className="ml-4 flex-shrink-0">
+                        {selectedAnswer !== null && (
+                          <>
+                            {index === currentQuestion.correct_answer && (
+                              <CheckCircle className="w-5 h-5 text-green-600" />
+                            )}
+                            {index === selectedAnswer && index !== currentQuestion.correct_answer && (
+                              <XCircle className="w-5 h-5 text-red-600" />
+                            )}
+                          </>
+                        )}
+                      </div>
                     </div>
                   </button>
                 )
@@ -804,9 +819,12 @@ const MultipleChoiceExercise = () => {
             {showExplanation && selectedAnswer !== null && (
               <div className="mt-6 p-4 bg-blue-50 border border-blue-200 rounded-lg">
                 <h3 className="font-semibold text-blue-800 mb-2">Giải thích:</h3>
-                <p className="text-blue-700">
-                  {currentQuestion.option_explanations?.[selectedAnswer] || currentQuestion.explanation || 'No explanation available.'}
-                </p>
+                <RichTextRenderer
+                  content={currentQuestion.option_explanations?.[selectedAnswer] || currentQuestion.explanation || 'No explanation available.'}
+                  className="text-blue-700"
+                  allowImages={true}
+                  allowLinks={false}
+                />
               </div>
             )}
 

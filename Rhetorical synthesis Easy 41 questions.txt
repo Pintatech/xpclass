@@ -1,0 +1,706 @@
+MOODLE CLOZE FORMAT OUTPUT:
+==================================================
+Question 1 - af76771f
+
+While researching a topic, a student has taken the following notes:
+Sue is the nickname of a dinosaur fossil specimen housed at the Field Museum of Natural History.
+The Field Museum of Natural History is located in Chicago, Illinois.
+Sue is a member of the genus Tyrannosaurus.
+Big Mike is the nickname of a dinosaur fossil specimen housed at the Museum of the Rockies. 
+The Museum of the Rockies is located in Bozeman, Montana.
+Big Mike is a member of the genus Tyrannosaurus.
+The student wants to emphasize a similarity between the two specimens. Which choice most effectively uses relevant
+information from the notes to accomplish this goal?
+
+{1:MCV:~The Field Museum of Natural History, where Sue is housed, is located in Chicago, Illinois.#Incorrect. Choice A is incorrect. The sentence only provides information about where one of the specimens (Sue) can be found; it
+doesn’t emphasize a similarity between the two specimens.~Big Mike is the nickname of a Tyrannosaurus fossil specimen housed at the Museum of the Rockies in Bozeman,#Incorrect. Choice B is incorrect. The sentence only provides information
+about one specimen (Big Mike); it doesn’t emphasize a similarity between the two specimens.~=The dinosaur fossil specimens Sue and Big Mike are both members of the genus Tyrannosaurus.#Correct. Choice C is the best answer. The sentence emphasizes a similarity between the two specimens, noting that Sue and Big
+Mike are members of the same genus: Tyrannosaurus.~While Sue is housed at the Field Museum of Natural History, Big Mike is housed at the Museum of the Rockies.#Incorrect. Choice D is incorrect. The
+sentence contrasts the locations of Sue and Big Mike; it doesn’t emphasize a similarity between the two specimens.}
+
+Question 2 - 064c8999
+
+While researching a topic, a student has taken the following notes:
+The Haber-Bosch process is an industrial process used to manufacture ammonia (NH ).
+It was invented by chemists Fritz Haber and Carl Bosch in 1910.
+The process’s primary reaction combines nitrogen (N ) from the air with hydrogen (H ).
+It requires an iron catalyst and high temperatures and pressures.
+Most of the ammonia produced by this process is used in fertilizers.
+The student wants to provide an overview of the Haber-Bosch process. Which choice most effectively uses relevant
+information from the notes to accomplish this goal?
+
+{1:MCV:~The Haber-Bosch process needs nitrogen, hydrogen, and an iron catalyst.#Incorrect. Choice A is incorrect. While the sentence identifies some of the process’s required components (nitrogen, hydrogen, and an
+iron catalyst), the overview is incomplete; it doesn’t explain what the process does (produces ammonia) or mention the
+conditions needed for it to function (high temperatures and pressures).~=The Haber-Bosch process uses an iron catalyst along with high temperatures and pressures to manufacture ammonia#Correct. Choice B is the best answer. The sentence provides an overview of the Haber-Bosch process, explaining that it uses an iron
+catalyst, high temperatures, and high pressures to manufacture ammonia from nitrogen and hydrogen.~Chemists Fritz Haber and Carl Bosch invented an industrial process to manufacture ammonia to be used in fertilizers.#Incorrect. Choice C is incorrect. While the sentence indicates
+who invented the process (Fritz Haber and Carl Bosch) and that it produces ammonia, the overview is incomplete; it doesn’t
+mention any of the necessary ingredients or conditions.~In 1910, chemists Fritz Haber and Carl Bosch invented the Haber-Bosch process, which requires high temperatures and#Incorrect. Choice D is incorrect. While the sentence mentions the inventors of
+the process along with the required conditions (high temperatures and pressures), it doesn’t explain that the process
+produces ammonia or indicate what components are needed.}
+
+Question 3 - 264e7415
+
+While researching a topic, a student has taken the following notes:
+The Philadelphia and Lancaster Turnpike was a road built between 1792 and 1794.
+It was the first private turnpike in the United States.
+It connected the cities of Philadelphia and Lancaster in the state of Pennsylvania.
+It was sixty-two miles long.
+The student wants to emphasize the distance covered by the Philadelphia and Lancaster Turnpike. Which choice most
+effectively uses relevant information from the notes to accomplish this goal?
+
+{1:MCV:~=The sixty-two-mile-long Philadelphia and Lancaster Turnpike connected the Pennsylvania cities of Philadelphia and#Correct. Choice A is the best answer. The sentence emphasizes the distance covered by the Philadelphia and Lancaster Turnpike,
+noting that the turnpike, which connected the two Pennsylvania cities in its name, was sixty-two miles long.~The Philadelphia and Lancaster Turnpike was the first private turnpike in the United States.#Incorrect. Choice B is incorrect. The sentence emphasizes the significance of the turnpike; it doesn’t emphasize the distance that the
+turnpike covered.~The Philadelphia and Lancaster Turnpike, which connected two Pennsylvania cities, was built between 1792 and 1794.#Incorrect. Choice C is incorrect. While the sentence mentions that the turnpike connected two Pennsylvania cities, it
+doesn’t emphasize the specific distance covered by the turnpike.~A historic Pennsylvania road, the Philadelphia and Lancaster Turnpike was completed in 1794.#Incorrect. Choice D is incorrect. The sentence emphasizes when the
+turnpike was built; it doesn’t emphasize the distance that the turnpike covered.}
+
+Question 4 - 25a197dd
+
+While researching a topic, a student has taken the following notes:
+The human body requires magnesium for over 300 essential processes.
+Magnesium is a mineral present in many foods.
+Peanuts contain 49 milligrams per ounce (mg/oz) of magnesium.
+Almonds contain 80 mg/oz.
+Chia seeds contain 150 mg/oz.
+The student wants to identify which of the three foods has the highest magnesium content. Which choice most effectively
+uses relevant information from the notes to accomplish this goal?
+
+{1:MCV:~At 80 mg/oz, almonds contain more magnesium than peanuts (49 mg/oz).#Incorrect. Choice A is incorrect. The sentence compares the magnesium content of almonds and peanuts; it doesn’t identify which of
+the three foods has the highest magnesium content.~=Chia seeds contain 150 mg/oz of magnesium, which is more than peanuts and almonds.#Correct. Choice B is the best answer. The sentence identifies chia seeds as having the highest magnesium content of the three foods,
+noting that they contain 150 mg/oz, which is more than both peanuts and almonds.~Magnesium is present in many foods, including peanuts, almonds, and chia seeds.#Incorrect. Choice C is incorrect. The sentence merely mentions the three foods; it
+doesn’t identify which one has the highest magnesium content.~Peanuts contain 49 mg/oz of magnesium, a mineral the human body requires for over 300 essential processes.#Incorrect. Choice D is incorrect. The sentence identifies the
+magnesium content of peanuts; it doesn’t identify which of the three foods has the highest magnesium content.}
+
+Question 5 - e3bbf2bf
+
+While researching a topic, a student has taken the following notes:
+In World War I, US soldiers who were members of the Choctaw Nation in Oklahoma participated in the Choctaw Code
+Talkers program.
+The Choctaw Code Talkers were trained to relay coded military information in their native language.
+In World War II, the US Army recruited Navajo (Diné) soldiers to transmit coded messages in their native language.
+These soldiers were known as the Navajo Code Talkers.
+The student wants to emphasize a similarity between the Choctaw Code Talkers and the Navajo Code Talkers. Which choice
+most effectively uses relevant information from the notes to accomplish this goal?
+
+{1:MCV:~US soldiers who were members of the Choctaw Nation in Oklahoma used their native language to relay coded#Incorrect. Choice A is incorrect. The sentence describes the Choctaw Code Talkers; it doesn’t emphasize a similarity between the
+Choctaw Code Talkers and the Navajo Code Talkers.~In World War II, one group of Navajo (Diné) soldiers was known as the Navajo Code Talkers.#Incorrect. Choice B is incorrect. The sentence introduces the Navajo Code Talkers;
+it doesn’t emphasize a similarity between the Choctaw Code Talkers and the Navajo Code Talkers.~=Both the Choctaw Code Talkers and the Navajo Code Talkers transmitted coded military messages in the soldiers’ native#Correct. Choice C is the best answer. The sentence emphasizes a similarity between the Choctaw Code Talkers and the Navajo Code
+Talkers by explaining that both groups used their native languages to transmit coded messages for the military.~The Choctaw Code Talkers, not the Navajo Code Talkers, served in World War I.#Incorrect. Choice D is incorrect. The
+sentence emphasizes a difference between the Choctaw Code Talkers and the Navajo Code Talkers; it doesn’t emphasize a
+similarity.}
+
+Question 6 - e2693197
+
+While researching a topic, a student has taken the following notes:
+Oracles of the Pink Universe was a 2021 exhibition at the Denver Museum of Art in Colorado.
+It featured eight artworks by South African artist Simphiwe Ndzube.
+One of these works is a painting titled Assertion of Will.
+Assertion of Will depicts three standing figures.
+The figures wear clothing made of fabric pieces stitched to the painting’s canvas.
+The student wants to describe how fabric is used in Assertion of Will. Which choice most effectively uses relevant
+information from the notes to accomplish this goal?
+
+{1:MCV:~=In Assertion of Will, the figures’ clothing is made of fabric pieces stitched to the painting’s canvas.#Correct. Choice A is the best answer. This choice directly describes how fabric is used in Assertion of Will, by explaining that the
+fabric pieces are part of the painting itself.~The exhibition Oracles of the Pink Universe featured artworks by artist Simphiwe Ndzube.#Incorrect. Choice B is incorrect. This choice provides contextual information about the exhibition, but it doesn’t mention anything about
+the painting or the fabric.~Depicting three standing, clothed figures, Assertion of Will is a painting by Simphiwe Ndzube.#Incorrect. Choice C is incorrect. This choice mentions that the figures are clothed, but it doesn’t explain how
+the fabric is integrated into the painting.~Simphiwe Ndzube’s Assertion of Will was one of eight artworks exhibited in Oracles of the Pink Universe at the Denver#Incorrect. Choice D is incorrect. This choice provides contextual information about the
+painting, but it doesn’t mention anything about the fabric or how it is used.}
+
+Question 7 - 54227b8e
+
+While researching a topic, a student has taken the following notes:
+The mountain pygmy possum is a mammal species.
+Up until 1966, it was believed to be extinct.
+That year, a live mountain pygmy possum was identified in the wild in Australia.
+The mountain pygmy possum is considered a Lazarus species.
+“Lazarus species” is a term for living species of organisms that were once believed to be extinct.
+The student wants to define the term “Lazarus species” and provide an example of one. Which choice most effectively uses
+relevant information from the notes to accomplish these goals?
+
+{1:MCV:~=The term “Lazarus species” describes a living species of organism, such as the mountain pygmy possum, that was once#Correct. Choice A is the best answer. The sentence defines the term "Lazarus species" and provides an example of one, explaining
+that a Lazarus species is a living organism that was once believed to be extinct and providing the mountain pygmy possum
+as an example.~One example of a Lazarus species is the mountain pygmy possum, a mammal species that was identified in the wild in#Incorrect. Choice B is incorrect. While the sentence provides an example of a Lazarus species, it doesn’t define the term "Lazarus
+species."~The mountain pygmy possum, a species of mammal, was identified in the wild in 1966.#Incorrect. Choice C is incorrect. The sentence provides information about the mountain pygmy possum; it doesn’t define the
+term "Lazarus species" or explicitly identify the mountain pygmy possum as a Lazarus species.~Sometimes, a species once believed to be extinct is later found living in the wild.#Incorrect. Choice D is incorrect. While
+the sentence describes the concept of a Lazarus species, it doesn’t define the term or provide an example of a Lazarus
+species.}
+
+Question 8 - ca4ff52d
+
+While researching a topic, a student has taken the following notes:
+Muslins are woven cotton fabrics with a variety of uses.
+Dhaka muslin is a handmade fabric produced in Dhaka, Bangladesh.
+It has an extremely fine weave and is primarily used to make luxury clothing.
+Sheeting muslin is a machine-made fabric produced in factories.
+It has a coarse weave and is primarily used to upholster furniture and create backdrops for theater sets.
+The student wants to emphasize a difference between the two muslins. Which choice most effectively uses relevant
+information from the notes to accomplish this goal?
+
+{1:MCV:~=Dhaka muslin is a handmade fabric with an extremely fine weave, while sheeting muslin is machine made with a coarse#Correct. Choice A is the best answer. The difference between the two different kinds of muslin is emphasized.~Dhaka muslin and sheeting muslin are two different types of woven cotton fabrics.#Incorrect. Choice B is incorrect. This choice lists two kinds of muslins, but does not say how they are different from one another.~Muslins can be used in a variety of ways, from making luxury clothing to upholstering furniture and creating backdrops#Incorrect. Choice C is incorrect. This choice does not emphasize a difference between the two muslins.~Sheeting muslin is machine made, has a coarse weave, and is used for furniture and theater sets.#Incorrect. Choice D is incorrect. This
+choice does not emphasize a difference between the two muslins. It only describes sheeting muslin.}
+
+Question 9 - 296801d2
+
+While researching a topic, a student has taken the following notes:
+The Azores is a group of islands about 870 miles off the coast of Portugal.
+Historians have long believed that in the fifteenth century Portuguese mariners were the first humans to populate the
+Azores.
+A 2015 study coauthored by Sofia Gabriel and Maria da Luz Mathias found that Vikings from Scandinavia may have
+populated the Azores as early as the ninth century.
+The researchers found a genetic connection between house mice in the Azores and house mice in Scandinavia.
+House mice may have traveled from Scandinavia to the Azores on Viking ships.
+The student wants to specify who may have first populated the Azores, according to the 2015 study. Which choice most
+effectively uses relevant information from the notes to accomplish this goal?
+
+{1:MCV:~Historians have long believed that the first humans to populate the Azores, a group of islands about 870 miles off the#Incorrect. Choice A is incorrect. This choice doesn’t effectively specify who may have first populated the Azores, according to the 2015
+study. It only mentions the historical belief that the Portuguese were first. The 2015 study drew a different conclusion.~Portuguese mariners may not have been the first humans to populate the Azores.#Incorrect. Choice B is incorrect. This choice casts doubt on the Portuguese claim but doesn’t name the group of people who may have
+arrived before the Portuguese.~In their 2015 study, the researchers found a genetic connection between house mice in the Azores and those in#Incorrect. Choice C is incorrect. This choice mentions the evidence that the researchers found but not
+the conclusion they drew from it. It doesn’t name the possible group of people who may have arrived before the Portuguese.~=According to a 2015 study, the first humans to populate the Azores may have been Vikings from Scandinavia, not#Correct. Choice D is the best answer. This choice effectively specifies who may have first populated the Azores, according to the
+2015 study: the Vikings.}
+
+Question 10 - a3204ab0
+
+While researching a topic, a student has taken the following notes:
+Yellowstone is a national park in the northwest United States.
+In 1995, gray wolves were reintroduced into the park.
+Since then, the number of gray wolves in the park has stabilized at roughly 100.
+This number is believed to be the park’s carrying capacity.
+Carrying capacity describes the maximum number of a species that a specific environment’s resources can sustain
+over time.
+The student wants to specify the number of gray wolves in Yellowstone. Which choice most effectively uses relevant
+information from the notes to accomplish this goal?
+
+{1:MCV:~Gray wolves were reintroduced into Yellowstone, a national park in the northwest United States, in 1995.#Incorrect. Choice A is incorrect. This choice mentions the year gray wolves in Yellowstone were reintroduced but not how many there
+are currently.~As of 1995, there were gray wolves living in Yellowstone, a national park in the northwest United States.#Incorrect. Choice B is incorrect. This choice mentions the year gray wolves in Yellowstone were reintroduced but not how
+many there are currently.~The carrying capacity of an environment, such as Yellowstone, describes the maximum number of species that the#Incorrect. Choice C is incorrect. This choice defines the term carrying capacity but doesn’t connect it to the
+specific number of gray wolves currently living in Yellowstone.~=Yellowstone is a national park that has roughly 100 gray wolves living in it.#Correct. Choice D is the best answer. This choice uses relevant information from the third bullet point to state the approximate
+number of gray wolves in Yellowstone.}
+
+Question 11 - bc930940
+
+While researching a topic, a student has taken the following notes:
+Chiura Obata was a Japanese American artist who lived in California.
+Yosemite Falls is a notable painting by Obata.  
+It uses a Japanese method of black ink painting called sumi-e.
+This painting was completed in 1930.
+The student wants to indicate the year Yosemite Falls was completed.  Which choice most effectively uses relevant
+information from the notes to accomplish this goal?
+
+{1:MCV:~While living in California, Obata created black ink paintings.#Incorrect. Choice A is incorrect. The sentence indicates where Obata created black ink paintings; it doesn’t indicate when the painting
+was completed.~Obata, a Japanese American artist, created a notable painting.#Incorrect. Choice B is incorrect. While the sentence identifies Obata as an artist who created a notable painting, it
+doesn’t indicate when that painting was completed.~=Yosemite Falls was completed in 1930.#Correct. Choice C is the best answer. The sentence indicates the year Yosemite Falls was completed, stating that it was completed in
+1930.~Obata used a Japanese painting method called sumi-e.#Incorrect. Choice D is incorrect. The sentence identifies the method Obata used; it
+doesn’t indicate when the painting was completed.}
+
+Question 12 - c6645cab
+
+While researching a topic, a student has taken the following notes:
+Dr. Sunil Bajpai studies dinosaurs at the Indian Institute of Technology.
+Bajpai’s research team recently found a 167-million-year-old dicraeosaurid fossil.
+It is the oldest fossil from the dicraeosaurid dinosaur group ever recovered.
+It was found in the Thar Desert in western India.
+The student wants to indicate where the dicraeosaurid fossil was found. Which choice most effectively uses relevant
+information from the notes to accomplish this goal?
+
+{1:MCV:~=The dicraeosaurid fossil was found in western India’s Thar Desert.#Correct. Choice A is the best answer. The sentence indicates where the dicraeosaurid fossil was found: western India’s Thar Desert.~Bajpai’s team recently found the oldest dicraeosaurid fossil ever recovered.#Incorrect. Choice B is incorrect. The sentence states that Bajpai’s team discovered the dicraeosaurid fossil; it doesn’t specify where
+they found it.~Dr. Sunil Bajpai, of the Indian Institute of Technology, is part of a research team.#Incorrect. Choice C is incorrect. The sentence provides information about Dr. Sunil Bajpai; it doesn’t indicate where the
+fossil was found.~The fossil, which is from the dicraeosaurid dinosaur group, is 167 million years old.#Incorrect. Choice D is incorrect. While the sentence provides information about the fossil, it doesn’t indicate where
+the fossil was found.}
+
+Question 13 - 00460c13
+
+While researching a topic, a student has taken the following notes:
+Novelist Willa Cather grew up in Nebraska and attended the University of Nebraska-Lincoln.
+Some of Cather’s best-known novels are set in Nebraska.
+Two such novels are O Pioneers! (1913) and My Ántonia (1918).
+Cather’s novels describe the experiences of immigrants who settled in the Great Plains.
+The student wants to identify the setting of Cather’s novel My Ántonia. Which choice most effectively uses relevant
+information from the notes to accomplish this goal?
+
+{1:MCV:~=My Ántonia is set in Nebraska, where Cather grew up.#Correct. Choice A is the best answer. This choice directly identifies the setting of Cather’s novel My Ántonia as Nebraska.~Cather, author of My Ántonia, described the experiences of immigrants in her novels.#Incorrect. Choice B is incorrect. This choice mentions that Cather wrote about immigrants, but it doesn’t indicate where they lived.~Among Cather’s best-known novels are O Pioneers! (1913) and My Ántonia (1918).#Incorrect. Choice C is incorrect. This choice mentions that My Ántonia is one of Cather’s best-known novels but doesn’t state where it
+takes place.~Cather attended the University of Nebraska-Lincoln and set some of her novels in Nebraska.#Incorrect. Choice D is incorrect. This choice mentions that some of Cather’s novels are set in Nebraska, but it doesn’t
+specify which ones, so we can’t be certain that My Ántonia is one of them. It also includes irrelevant information about
+Cather’s education.}
+
+Question 14 - 5a2a4b36
+
+While researching a topic, a student has taken the following notes:
+Pauline Hopkins (1859-1930) was an African American writer.
+In her career, she created many genre-defining stories.
+Her serialized novel Hagar’s Daughter was published from 1901 to 1902 in The Colored American Magazine.
+It is considered the first African American mystery novel.
+The student wants to introduce Pauline Hopkins to an audience unfamiliar with her career. Which choice most effectively
+uses relevant information from the notes to accomplish this goal?
+
+{1:MCV:~Pauline Hopkins is the author of Hagar’s Daughter, a serialized novel published from 1901 to 1902.#Incorrect. Choice A is incorrect. The sentence emphasizes that Pauline Hopkins wrote a serialized novel but doesn’t introduce Hopkins
+to an audience unfamiliar with her career.~=African American writer Pauline Hopkins created many genre-defining stories during her career, including the first African#Correct. Choice B is the best answer. The sentence introduces Pauline Hopkins to an audience unfamiliar with her career, identifying
+her as a genre-defining African American writer and noting a career accomplishment.~Published in The Colored American Magazine from 1901 to 1902, Hagar’s Daughter is a serialized novel by Pauline#Incorrect. Choice C is incorrect. The sentence introduces Hopkins’s novel; it doesn’t
+introduce Hopkins.~Hagar’s Daughter by Pauline Hopkins is considered the first African American mystery novel.#Incorrect. Choice D is incorrect. The sentence explains that a novel written by Hopkins is considered the first
+African American mystery novel; it doesn’t introduce Hopkins to an audience unfamiliar with her career.}
+
+Question 15 - 8b2636ee
+
+While researching a topic, a student has taken the following notes:
+Angana Chaudhuri is a scientist.
+Chaudhuri studies sedimentary rocks.
+A scientist who studies sedimentary rocks is called a sedimentologist.
+Shale, chalk, and sandstone are examples of sedimentary rocks.
+The student wants to identify what type of scientist Chaudhuri is. Which choice most effectively uses relevant information
+from the notes to accomplish this goal?
+
+{1:MCV:~Chalk is a type of sedimentary rock.#Incorrect. Choice A is incorrect. The sentence provides an example of a type of sedimentary rock; it doesn’t identify what type of
+scientist Chaudhuri is.~Some scientists study shale, chalk, and sandstone.#Incorrect. Choice B is incorrect. The sentence indicates types of rock that some scientists study; it doesn’t
+identify what type of scientist Chaudhuri is.~There are scientists who study sedimentary rocks.#Incorrect. Choice C is incorrect. While the sentence states that some scientists study
+sedimentary rocks, it doesn’t identify Chaudhuri as this type of scientist.~=Chaudhuri is a sedimentologist.#Correct. Choice D is the best answer. The sentence identifies the type of scientist Chaudhuri is, noting that she is a sedimentologist.}
+
+Question 16 - 79c6a01e
+
+While researching a topic, a student has taken the following notes:
+The engineer Robert Fulton designed the Clermont steamboat in 1807.
+He designed it in New York City.
+Clermont was the world’s first commercially successful steamboat.
+The city of Fulton, Missouri, is named after Robert Fulton.
+New York City’s Fulton Street is named after him.
+The student wants to indicate how Fulton, Missouri, got its name. Which choice most effectively uses relevant information
+from the notes to accomplish this goal?
+
+{1:MCV:~Fulton, Missouri, shares its name with Fulton Street in New York City.#Incorrect. Choice A is incorrect. The sentence indicates that Fulton, Missouri, has the same name as a street in New York City; it
+doesn’t indicate how the city of Fulton got its name.~Fulton Street is in New York City, where the steamboat Clermont was designed in 1807.#Incorrect. Choice B is incorrect. The sentence indicates that Fulton Street is in
+New York City; it doesn’t indicate how Fulton, Missouri, got its name.~Designed in 1807 in New York City, Clermont was the first commercially successful steamboat.#Incorrect. Choice C is incorrect. The sentence provides details
+about Fulton’s steamboat; it doesn’t indicate how Fulton, Missouri, got its name.~=Fulton, Missouri, is named after Robert Fulton, designer of the first commercially successful steamboat.#Correct. Choice D is the best answer. The sentence indicates how Fulton, Missouri, got its name, noting that the city was named after
+the designer of the first commercially successful steamboat, Robert Fulton.}
+
+Question 17 - 878f835a
+
+While researching a topic, a student has taken the following notes: 
+Some atoms contain an excess of neutrons.
+Often, these neutrons form a “skin” on the atom’s surface.
+An atom of lead-208 has a neutron skin.
+The thickness of its neutron skin is approximately 0.28 trillionths of a millimeter.
+The student wants to emphasize the thickness of lead-208’s neutron skin. Which choice most effectively uses relevant
+information from the notes to accomplish this goal?
+
+{1:MCV:~=The neutron skin surrounding an atom of lead-208 measures about 0.28 trillionths of a millimeter.#Correct. Choice A is the best answer. The sentence emphasizes the thickness of lead-208’s neutron skin, noting that it is about 0.28
+trillionths of a millimeter thick.~Atoms with excess neutrons will often acquire a neutron skin.#Incorrect. Choice B is incorrect. The sentence makes a generalization about atoms, stating that atoms with excess neutrons will often
+acquire a neutron skin; it doesn’t emphasize the thickness of lead-208’s neutron skin.~An atom of lead-208, like some other atoms, is surrounded by a neutron skin.#Incorrect. Choice C is incorrect. The sentence
+states that lead-208 has a neutron skin; it doesn’t emphasize the thickness of that skin.~Neutrons surround the surface of an atom of lead-208.#Incorrect. Choice D is incorrect. The sentence
+indicates that lead-208 is surrounded by neutrons; it doesn’t emphasize the thickness of lead-208’s neutron skin.}
+
+Question 18 - d436a2b2
+
+While researching a topic, a student has taken the following notes:
+Komodo dragons are the largest lizards in the world.
+They live on four islands in Komodo National Park, Indonesia.
+The park has a total of twenty-nine islands.
+The student wants to emphasize how many islands in Komodo National Park have Komodo dragons living on them. Which
+choice most effectively uses relevant information from the notes to accomplish this goal?
+
+{1:MCV:~Komodo dragons, the world’s largest lizards, live on islands in Komodo National Park, Indonesia.#Incorrect. Choice A is incorrect. While the sentence does explain that Komodo dragons live on the islands of Komodo National Park, it
+doesn’t emphasize how many of those islands Komodo dragons live on.~The largest lizards in the world are found in Komodo National Park.#Incorrect. Choice B is incorrect. The sentence explains that
+Komodo National Park contains the world’s largest lizards; it doesn’t identify these lizards as Komodo dragons or emphasize
+how many of the park’s islands the lizards live on.~=Only four of the twenty-nine islands in Komodo National Park have Komodo dragons living on them.#Correct. Choice C is the best answer. The sentence emphasizes the number of islands in Komodo National Park that have Komodo
+dragons living on them, noting that four of the park’s twenty-nine islands have Komodo dragons.~There are twenty-nine islands in Indonesia’s Komodo National Park.#Incorrect. Choice D is incorrect. The sentence specifies the total number of islands
+in Komodo National Park; it doesn’t emphasize how many of those islands have Komodo dragons.}
+
+Question 19 - f4b63a04
+
+While researching a topic, a student has taken the following notes: 
+In 2013, paleontology professor Hesham Sallam and his students from Mansoura University in Egypt made a
+discovery.
+The team found a partial dinosaur skeleton at a site in Egypt’s Dakhla Oasis.
+The skeleton belonged to a dinosaur species that lived approximately 80 million years ago.
+The new species was named Mansourasaurus to recognize the team that discovered it.
+The student wants to explain the origin of the species’ name. Which choice most effectively uses relevant information from
+the notes to accomplish this goal?
+
+{1:MCV:~Mansourasaurus, a new species discovered in Egypt in 2013, lived approximately 80 million years ago.#Incorrect. Choice A is incorrect. This choice does not explain the origin of the dinosaur’s name.~A partial dinosaur skeleton found in Egypt’s Dakhla Oasis belonged to a species named Mansourasaurus.#Incorrect. Choice B is incorrect. This choice does
+not explain the origin of the dinosaur’s name.~Mansourasaurus, a species that lived approximately 80 million years ago, was discovered in 2013 by Egyptian#Incorrect. Choice C is incorrect. This choice does not explain the origin of the dinosaur’s
+name.~=The new species was named Mansourasaurus to recognize the team that discovered it, a professor and students from#Correct. Choice D is the best answer. It explains where the dinosaur’s name came from.}
+
+Question 20 - 1792fa73
+
+While researching a topic, a student has taken the following notes:
+The tundra is a type of environment characterized by especially harsh winter conditions.
+Winter temperatures in the tundra average a frigid −30 degrees Fahrenheit.
+Animals that have adapted to these conditions can survive tundra winters.
+During the tundra’s short growing season, average temperatures can reach a relatively mild 54 degrees Fahrenheit.
+Around 1,700 different kinds of plants are able to grow in the tundra.
+The student wants to emphasize how harsh the conditions can be in the tundra. Which choice most effectively uses relevant
+information from the notes to accomplish this goal?
+
+{1:MCV:~=Winters in the tundra are especially harsh, with temperatures averaging a frigid −30 degrees Fahrenheit.#Correct. Choice A is the best answer. The sentence emphasizes how harsh the conditions in the tundra can be, noting that the winters
+are especially harsh and describing the average temperatures as “frigid.”~Animals that have adapted to harsh winter conditions can survive tundra winters.#Incorrect. Choice B is incorrect because the sentence explains that some animals can survive harsh tundra winters; it doesn’t
+emphasize how harsh the conditions can be.~There are around 1,700 different kinds of plants that can live in the tundra, where average temperatures can reach a mild#Incorrect. Choice C is incorrect because the sentence specifies how many different kinds
+of plants can live in the tundra; it doesn’t emphasize how harsh the conditions in the tundra can be.~Along with animals that have adapted to the tundra’s conditions, around 1,700 different kinds of plants can live in the#Incorrect. Choice D is incorrect
+because the sentence explains that both plants and animals can survive in the tundra; it doesn’t emphasize how harsh the
+conditions in the tundra can be.}
+
+Question 21 - 3067723b
+
+While researching a topic, a student has taken the following notes:
+The Seikan Tunnel is a rail tunnel in Japan.
+It connects the island of Honshu to the island of Hokkaido.
+It is roughly 33 miles long.
+The Channel Tunnel is a rail tunnel in Europe.
+It connects Folkestone, England, to Coquelles, France.
+It is about 31 miles long.
+The student wants to compare the lengths of the two rail tunnels. Which choice most effectively uses relevant information
+from the notes to accomplish this goal?
+
+{1:MCV:~Some of the world’s rail tunnels, including one tunnel that extends from Folkestone, England, to Coquelles, France, are#Incorrect. Choice A is incorrect. The sentence makes a generalization about the length of some rail tunnels; it doesn’t compare the
+lengths of the two rail tunnels.~=The Seikan Tunnel is roughly 33 miles long, while the slightly shorter Channel Tunnel is about 31 miles long.#Correct. Choice B is the best answer. The sentence compares the lengths of the two rail tunnels, noting that the Channel Tunnel
+(about 31 miles long) is slightly shorter than the Seikan Tunnel (roughly 33 miles long).~The Seikan Tunnel, which is roughly 33 miles long, connects the Japanese islands of Honshu and Hokkaido.#Incorrect. Choice C is incorrect. The sentence describes a single rail tunnel; it doesn’t compare the
+lengths of the two rail tunnels.~Both the Seikan Tunnel, which is located in Japan, and the Channel Tunnel, which is located in Europe, are examples of#Incorrect. Choice D is incorrect. While the sentence mentions the two rail tunnels, it doesn’t compare
+their lengths.}
+
+Question 22 - 4e063114
+
+While researching a topic, a student has taken the following notes:       
+Georeferencing is the process of assigning geographic coordinates to an image.
+This process enables mapping software to place the image in its real-world location.
+A 2017 project by Tania López Marrero and colleagues georeferenced a set of aerial photographs of Puerto Rico’s
+coastline taken in 1930.
+These photographs are the earliest known aerial photographs of Puerto Rico.
+López Marrero’s project provided data that can help researchers analyze changes in Puerto Rico’s coastline.
+The student wants to define the term “georeferencing.” Which choice most effectively uses relevant information from the
+notes to accomplish this goal?
+
+{1:MCV:~A 2017 project by Tania López Marrero and colleagues assigned geographic coordinates to photographs of Puerto Rico’s#Incorrect. Choice A is incorrect. The sentence describes López Marrero’s team’s 2017 project; it doesn’t provide a definition of the term
+"georeferencing." Moreover, it misrepresents the information in the notes by characterizing the team’s assignment of
+geographic coordinates to photographs as a process distinct from georeferencing.~Tania López Marrero and colleagues used georeferencing in their analysis of the earliest known aerial photographs of#Incorrect. Choice B is incorrect. The sentence
+states that López Marrero’s team used georeferencing, but it doesn’t provide a definition of the term.~Georeferenced aerial photographs from 1930 can help researchers analyze changes in Puerto Rico’s coastline.#Incorrect. Choice C is incorrect.
+The sentence explains why a particular group of georeferenced aerial photographs is potentially useful for researchers; it
+doesn’t provide a definition of the term "georeferencing."~=Georeferencing is the process of assigning geographic coordinates to an image so that mapping software can place it in#Correct. Choice D is the best answer. The sentence defines the term "georeferencing," stating that it is the process of assigning
+geographic coordinates to an image so that mapping software can place the image in its real-world location.}
+
+Question 23 - ff3865b3
+
+While researching a topic, a student has taken the following notes:
+A wok is a cooking pan that originated in China during the Han dynasty (206 BCE–220 CE).
+The wok’s round, wide base helps to cook food evenly.
+The wok’s high, angled sides help to contain oil splatters.
+Grace Young is a cook and culinary historian.
+Her book The Breath of a Wok (2004) traces the history of the wok.
+The student wants to describe the wok’s shape. Which choice most effectively uses relevant information from the notes to
+accomplish this goal?
+
+{1:MCV:~Grace Young’s 2004 book, The Breath of a Wok, traces the history of the cooking pan.#Incorrect. Choice A is incorrect. This choice doesn’t describe the shape of a wok.~Able to cook food evenly and contain oil splatters, the wok is the subject of Grace Young’s 2004 book.#Incorrect. Choice B is incorrect. This choice doesn’t describe
+the shape of a wok, just some of its features.~=A wok is a cooking pan with a round, wide base and high, angled sides.#Correct. Choice C is the best answer. It summarizes the information that describes the wok’s shape from the second and third bullet
+points.~The design of a wok, a type of cooking pan that originated in China during the Han dynasty, helps the pan cook food#Incorrect. Choice D is incorrect. This choice doesn’t describe the shape of a wok, only
+some of its benefits or functions.}
+
+Question 24 - d2b52c50
+
+While researching a topic, a student has taken the following notes: 
+On January 3, 1959, Alaska became the 49th state to join the US.        
+On August 21, 1959, Hawaii became the 50th state to join the US.        
+A new 50-star US flag was unveiled the same day.
+The student wants to emphasize the order in which Alaska and Hawaii became US states. Which choice most effectively
+uses relevant information from the notes to accomplish this goal?
+
+{1:MCV:~=Alaska, the 49th US state, became a state several months before Hawaii, the 50th state, did.#Correct. Choice A is the best answer. The sentence emphasizes the order in which Alaska and Hawaii became US states, noting that
+Alaska became a US state several months before Hawaii did.~On August 21, 1959, a new 50-star US flag was unveiled.#Incorrect. Choice B is incorrect. The sentence specifies when the 50-star US flag was unveiled; it doesn’t emphasize the order in which
+Alaska and Hawaii became US states.~The 49th and 50th states to join the US did so in the same year.#Incorrect. Choice C is incorrect. While the sentence indicates that the 49th and 50th states
+became US states in the same year, it doesn’t identify which state was the 49th and which was the 50th; as a result, it doesn’t
+emphasize the order in which Alaska and Hawaii became states.~The same day that Hawaii became a US state—August 21, 1959—a new US flag was unveiled.#Incorrect. Choice D is incorrect. The sentence indicates that a new US
+flag was unveiled when Hawaii became a US state; it doesn’t emphasize the order in which Alaska and Hawaii became
+states.}
+
+Question 25 - 4b376902
+
+While researching a topic, a student has taken the following notes:
+NASA uses rovers, large remote vehicles with wheels, to explore the surface of Mars.
+NASA’s rovers can’t explore regions inaccessible to wheeled vehicles.
+Rovers are also heavy, making them difficult to land on the planet’s surface.
+Microprobes, robotic probes that weigh as little as 50 milligrams, could be deployed virtually anywhere on the
+surface of Mars.
+Microprobes have been proposed as an alternative to rovers.
+The student wants to explain an advantage of microprobes. Which choice most effectively uses relevant information from
+the notes to accomplish this goal?
+
+{1:MCV:~Despite being heavy, NASA’s rovers can land successfully on the surface of Mars.#Incorrect. Choice A is incorrect. The sentence indicates that rovers can land successfully on Mars despite their weight; it doesn’t
+explain an advantage of microprobes.~=Microprobes, which weigh as little as 50 milligrams, could explore areas of Mars that are inaccessible to NASA’s heavy,#Correct. Choice B is the best answer. The sentence explains an advantage of microprobes, noting that because microprobes weigh
+as little as 50 milligrams, they can explore areas inaccessible to rovers.~NASA currently uses its rovers on Mars, but microprobes have been proposed as an alternative.#Incorrect. Choice C is incorrect. While the sentence mentions that microprobes have been
+proposed as an alternative to rovers, it doesn’t explain an advantage of microprobes.~Though they are different sizes, both microprobes and rovers can be used to explore the surface of Mars.#Incorrect. Choice D is incorrect. The sentence
+emphasizes a similarity between microprobes and rovers; it doesn’t explain an advantage of microprobes.}
+
+Question 26 - 6b5bc97d
+
+While researching a topic, a student has taken the following notes: 
+The Sasanian Empire lasted about 400 years (AD 224 to AD 651).
+The Sasanians controlled an area spanning 1.4 million square miles.
+This area included present-day Iran and Iraq.
+The empire’s capital was the ancient city of Ctesiphon.
+Ctesiphon was located near present-day Baghdad, Iraq.
+The student wants to specify the location of Ctesiphon. Which choice most effectively uses relevant information from the
+notes to accomplish this goal?
+
+{1:MCV:~The Sasanian Empire began in AD 224 and ended in AD 651.#Incorrect. Choice A is incorrect because the sentence explains when the Sasanian Empire began and ended; it doesn’t specify the
+location of Ctesiphon.~The capital of the Sasanian Empire, which spanned 1.4 million square miles, was Ctesiphon.#Incorrect. Choice B is incorrect because the sentence emphasizes that Ctesiphon was the capital of the
+Sasanian Empire; it doesn’t specify Ctesiphon’s location.~The Sasanians controlled an area of 1.4 million square miles, including present-day Iran and Iraq.#Incorrect. Choice C is incorrect because it emphasizes the size of the
+Sasanian Empire; it doesn’t specify the location of Ctesiphon.~=Ctesiphon, the capital of the Sasanian Empire, was located near present-day Baghdad, Iraq.#Correct. Choice D is the best answer. The sentence specifies the location of Ctesiphon, noting that it was located near present-day
+Baghdad, Iraq.}
+
+Question 27 - b5cd28a7
+
+While researching a topic, a student has taken the following notes:
+Samuel Delany is a US writer known for his science fiction.
+Delany’s science fiction novel Babel-17 was published in 1966.
+The novel won a Nebula Award in 1967.
+The Nebula Awards are given each year to the best works of science fiction published in the US.
+The student wants to indicate the title of a novel that won a Nebula Award. Which choice most effectively uses relevant
+information from the notes to accomplish this goal?
+
+{1:MCV:~=Babel-17, by Samuel Delany, won a Nebula Award in 1967.#Correct. Choice A is the best answer. The sentence indicates the title of a novel that won a Nebula Award, noting that Babel-17 by
+Samuel Delany won the award in 1967.~Samuel Delany published a science fiction novel in 1966.#Incorrect. Choice B is incorrect because the sentence identifies the year that Samuel Delany published a science fiction novel; it
+doesn’t indicate the novel’s title or that it won a Nebula Award.~Samuel Delany is an award-winning US writer known for his science fiction.#Incorrect. Choice C is incorrect because the sentence provides an
+introduction of Samuel Delany; it doesn’t indicate the title of a novel that has won a Nebula Award.~One of Samuel Delany’s novels was among the best works of science fiction published in the US.#Incorrect. Choice D is incorrect
+because the sentence indicates that one of Samuel Delany’s novels met the qualification for a Nebula Award; it doesn’t
+indicate the novel’s title or that it won an award.}
+
+Question 28 - 9922b364
+
+While researching a topic, a student has taken the following notes:
+Ibn Sina was a Persian philosopher and physician.
+His book The Canon of Medicine recorded the most advanced medical knowledge of his time.
+It was published in the year 1025 CE.
+It was used as a medical textbook in Middle Eastern and European universities for centuries.
+The student wants to identify the year that The Canon of Medicine was published. Which choice most effectively uses
+relevant information from the notes to accomplish this goal?
+
+{1:MCV:~=Ibn Sina’s book The Canon of Medicine was published in the year 1025 CE.#Correct. Choice A is the best answer. The sentence identifies the year in which the book was published.~A Persian philosopher and physician wrote a medical textbook called The Canon of Medicine.#Incorrect. Choice B is incorrect. While the sentence provides information about the book’s author, it doesn’t identify the year in which
+the book was published.~The Canon of Medicine was a medical textbook used by Middle Eastern and European universities for centuries.#Incorrect. Choice C is incorrect. While the sentence provides information about the book’s historical use, it
+doesn’t identify the year in which the book was published.~Ibn Sina recorded the most advanced medical knowledge of his time in his book The Canon of Medicine.#Incorrect. Choice D is incorrect. While the sentence provides information
+about the book’s contents, it doesn’t identify the year in which the book was published.}
+
+Question 29 - fbffb352
+
+While researching a topic, a student has taken the following notes:
+Archaeologist Dr. Sada Mire founded the Horn Heritage Foundation to preserve the cultural history of regions in the
+Horn of Africa.
+Horn Heritage has overseen a preservation project to create 3D digital scans of ancient rock art in Somaliland.
+Paintings found at the Laas Geel caves are included in the scans.
+The Laas Geel paintings feature human figures and animals.
+Paintings found at the Dhagah Nabi Galay caves are included in the scans.
+The Dhagah Nabi Galay caves feature what are thought to be the earliest examples of writing in East Africa.
+The student wants to emphasize a similarity between the Laas Geel paintings and the Dhagah Nabi Galay paintings. Which
+choice most effectively uses relevant information from the notes to accomplish this goal?
+
+{1:MCV:~The earliest examples of writing in East Africa are thought to be featured in the paintings at the Dhagah Nabi Galay caves#Incorrect. Choice A is incorrect. This choice only mentions the Dhagah Nabi Galay paintings. It doesn’t compare them to the Laas Geel
+paintings.~The paintings at the Dhagah Nabi Galay caves feature examples of writing, while those at the Laas Geel caves feature#Incorrect. Choice B is incorrect. This choice doesn’t emphasize a similarity between the two paintings. Instead, it
+emphasizes a difference: the type of content they depict.~In Somaliland, the paintings in the Laas Geel caves feature human figures and animals.#Incorrect. Choice C is incorrect. This choice only mentions the Laas Geel
+paintings. It doesn’t compare them to the Dhagah Nabi Galay paintings.~=The Laas Geel paintings and the Dhagah Nabi Galay paintings are both examples of ancient rock art found in Somaliland.#Correct. Choice D is the best answer. This choice compares the Laas Geel paintings and the Dhagah Nabi Galay paintings to one
+another and emphasizes what they have in common: they are both ancient rock art found in the same region.}
+
+Question 30 - 54f29331
+
+While researching a topic, a student has taken the following notes:
+The green iguana is a species of reptile.
+It can be found in Central America and Brazil.
+The green iguana primarily eats leaves and fruit.
+It has an average length of 4.8 feet.
+The student wants to specify the average length of the green iguana. Which choice most effectively uses relevant
+information from the notes to accomplish this goal?
+
+{1:MCV:~The green iguana can be found in Central America.#Incorrect. Choice A is incorrect. While the sentence provides information about the green iguana, it doesn’t specify the green iguana’s
+average length.~=The green iguana has an average length of 4.8 feet.#Correct. Choice B is the best answer. The sentence specifies the average length of the green iguana: 4.8 feet.~One species of reptile found in Brazil primarily eats leaves and fruit.#Incorrect. Choice C is incorrect. The sentence describes the diet of a species of reptile in Brazil; it doesn’t specify the
+green iguana’s average length.~The green iguana is a reptile that primarily eats leaves and fruit.#Incorrect. Choice D is incorrect. While the sentence provides information about the green iguana, it
+doesn’t specify the green iguana’s average length.}
+
+Question 31 - ba263620
+
+While researching a topic, a student has taken the following notes:
+In 1897, African American inventor Andrew Beard invented an automatic coupler.
+It improved on the existing design of train car couplers.
+It made the job of connecting train cars safer.
+In 1938, African American inventor Frederick Jones invented a mobile refrigeration system.
+It improved on the existing design of food transport trucks.
+It enabled trucks to carry perishable foods farther.
+The student wants to emphasize a similarity between Beard’s invention and Jones’s invention. Which choice most effectively
+uses relevant information from the notes to accomplish this goal?
+
+{1:MCV:~=Beard’s automatic coupler and Jones’s mobile refrigeration system both improved on existing designs.#Correct. Choice A is the best answer. It compares Beard’s and Jones’s inventions to one another, and emphasizes what they have in
+common.~In 1897, Beard invented an automatic coupler, which made the job of connecting train cars safer.#Incorrect. Choice B is incorrect. This choice doesn’t emphasize a similarity. It only mentions Beard’s invention. It doesn’t compare it to
+Jones’s invention.~Beard’s invention made the job of connecting train cars safer, whereas Jones’s invention enabled food transport trucks to#Incorrect. Choice C is incorrect. This choice doesn’t emphasize a similarity between the two inventions. Instead, it
+emphasizes a difference.~Jones’s mobile refrigeration system, which he invented in 1938, made it possible for food transport trucks to carry#Incorrect. Choice D is incorrect. This choice doesn’t emphasize a similarity. It only mentions Jones’s
+invention. It doesn’t compare it to Beard’s invention.}
+
+Question 32 - 13f36b03
+
+While researching a topic, a student has taken the following notes:
+Jon Ching is a Los Angeles-based painter.
+He uses the term “flauna” to describe the plant-animal hybrids that he depicts in his surreal paintings.
+“Flauna” is a combination of the words “flora” and “fauna.”
+His painting Nectar depicts a parrot with leaves for feathers.
+His painting Primaveral depicts a snow leopard whose fur sprouts flowers.
+The student wants to provide an explanation and example of “flauna.” Which choice most effectively uses relevant
+information from the notes to accomplish this goal?
+
+{1:MCV:~The term “flauna,” used by Los Angeles-based painter Jon Ching, is a combination of the words “flora” and “fauna.”#Incorrect. Choice A is incorrect. While the sentence partially explains what “flauna” is, it doesn’t provide a full explanation or specific
+example of Ching’s flauna.~=Jon Ching uses the term “flauna,” a combination of the words “flora” and “fauna,” to describe the subjects of his surreal#Correct. Choice B is the best answer because it provides both an explanation and an example of “flauna.” The sentence explains that
+flauna, a combination of the words “flora” and “fauna,” is a term used by Jon Ching to describe the plant-animal hybrids in his
+paintings. The sentence also mentions an example of Ching’s flauna: a parrot with leaves for feathers.~Jon Ching, who created Nectar, refers to the subjects of his paintings as “flauna.”#Incorrect. Choice C is incorrect. While the sentence partially explains what “flauna” is and includes a title of
+a Ching painting, it doesn’t provide a full explanation or specific example of Ching’s flauna.~The subjects of Nectar and Primaveral are types of “flauna,” a term that the paintings’ creator, Jon Ching, uses when#Incorrect. Choice D is incorrect. While the
+sentence partially explains what “flauna” is and includes the titles of two Ching paintings, it doesn’t provide a full explanation
+of Ching’s flauna.}
+
+Question 33 - eaded344
+
+While researching a topic, a student has taken the following notes:
+The painter Frida Kahlo is one of the most influential artists of the twentieth century.
+She was born in Coyoacán, Mexico, in 1907.
+She is best known for her vivid and richly symbolic self-portraits.
+The Two Fridas (1939) features two versions of Kahlo sitting together.
+One version wears a European-style dress and the other a traditional Tehuana dress.
+The student wants to introduce Kahlo to an audience unfamiliar with the artist. Which choice most effectively uses relevant
+information from the notes to accomplish this goal?
+
+{1:MCV:~Known for being vivid and richly symbolic, Frida Kahlo’s self-portraits include The Two Fridas (1939).#Incorrect. Choice A is incorrect. This choice doesn’t effectively introduce Kahlo. It doesn’t include any background information about
+who Kahlo is or where she’s from. It simply identifies one of her paintings.~The 1939 painting The Two Fridas is one example of a self-portrait by Frida Kahlo.#Incorrect. Choice B is incorrect. This choice doesn’t
+effectively introduce Kahlo. It doesn’t include any background information about who Kahlo is or where she’s from. It simply
+identifies one of her paintings.~One painting by Frida Kahlo features two versions of herself, with one version wearing a European-style dress and the#Incorrect. Choice C is incorrect. This choice doesn’t effectively introduce Kahlo. It doesn’t include any
+background information about who Kahlo is or where she’s from. Instead, it describes one of her paintings in detail.~=One of the most influential artists of the twentieth century, Mexican painter Frida Kahlo is best known for her selfportraits, which are vivid and richly symbolic.#Correct. Choice D is the best answer. By identifying Kahlo as an influential artist from Mexico, and by describing the work she’s best
+known for, this choice provides the background information necessary to introduce Kahlo to an unfamiliar audience.}
+
+Question 34 - e3484c07
+
+While researching a topic, a student has taken the following notes:
+Bioluminescence is the emission of light by living organisms.
+This light is produced by chemical reactions in organisms’ cells.
+Jellyfish emit flashes of blue light.
+This behavior serves to startle predators.
+Black dragonfish emit a steady red light.
+This behavior helps them locate prey in deep waters.
+The student wants to emphasize a difference between the behavior of jellyfish and that of black dragonfish. Which choice
+most effectively uses relevant information from the notes to accomplish this goal?
+
+{1:MCV:~Both jellyfish and black dragonfish are organisms that emit light, which is produced by chemical reactions in these#Incorrect. Choice A is incorrect. The sentence emphasizes a similarity between jellyfish and black dragonfish; it doesn’t emphasize a
+difference between the behavior of the two animals.~Black dragonfish emit a steady red light, which helps them locate prey in deep waters.#Incorrect. Choice B is incorrect. The sentence emphasizes the type of
+bioluminescence exhibited by black dragonfish, noting that it’s used in predation; it doesn’t emphasize a difference between
+the behavior of the two animals.~Bioluminescence, the emission of light by living organisms, results from chemical reactions in organisms’ cells.#Incorrect. Choice C is incorrect. The sentence defines bioluminescence and explains how it works; the
+sentence doesn’t mention either animal or emphasize a difference between them.~=Jellyfish emit light to startle predators, whereas black dragonfish do so to locate prey.#Correct. Choice D is the best answer. The sentence emphasizes a difference between the behavior of jellyfish and that of black
+dragonfish, noting that jellyfish and black dragonfish emit light as part of different behaviors (protection and predation,
+respectively).}
+
+Question 35 - d7f31e68
+
+While researching a topic, a student has taken the following notes: 
+Annie Wu is a prominent American flutist who graduated from the New England Conservatory.
+She has won multiple national flute competitions.
+She is best known for a 2011 YouTube video that has been viewed over two million times.
+The video shows her performing Three Beats for Beatbox Flute, an original work by composer Greg Pattillo.
+Wu combines flute playing and beatboxing in the video.
+The student wants to emphasize Wu’s most well-known achievement. Which choice most effectively uses relevant
+information from the notes to accomplish this goal?
+
+{1:MCV:~Annie Wu, who has won multiple national flute competitions, has also combined flute playing and beatboxing.#Incorrect. Choice A is incorrect. This choice doesn’t emphasize Wu’s most well-known achievement. It mentions some of her general
+achievements, but not the one for which she is “best known.”~Among her many achievements, prominent American flutist Annie Wu graduated from the New England Conservatory#Incorrect. Choice B is incorrect. This choice doesn’t emphasize Wu’s
+most well-known achievement—it describes several of her achievements equally.~=Annie Wu is best known for a 2011 YouTube video performance of Three Beats for Beatbox Flute that has been viewed#Correct. Choice C is the best answer. This describes the achievement for which Wu is best known.~Composer Greg Pattillo’s original work Three Beats for Beatbox Flute combines flute playing and beatboxing.#Incorrect. Choice D is incorrect. This choice doesn’t
+emphasize Wu’s most well-known achievement. It describes a piece of music featured in her most well-known achievement.}
+
+Question 36 - 00bb356a
+
+While researching a topic, a student has taken the following notes:
+Miguel Luciano is a multimedia visual artist.
+One of his sculptures is Double Phantom/EntroP.R. (2017).
+The work consists of two red Schwinn Phantom bicycles that he fused together.
+The bicycles face opposite directions.
+The bicycles share the same rear wheel.
+The student wants to describe how the bicycles in Double Phantom/EntroP.R. are fused together. Which choice most
+effectively uses relevant information from the notes to accomplish this goal?
+
+{1:MCV:~To create the sculpture Double Phantom/EntroP.R., Miguel Luciano fused together two Schwinn Phantom bicycles.#Incorrect. Choice A is incorrect. The sentence states that the bicycles are fused together but doesn’t describe how they are fused.~There are two red Schwinn Phantom bicycles in the sculpture Double Phantom/EntroP.R.#Incorrect. Choice B is incorrect. The sentence states that there are two bicycles in the sculpture without indicating that they are fused
+together or describing how they are fused.~=The two red bicycles in Double Phantom/EntroP.R. are fused together so that they share the same rear wheel while#Correct. Choice C is the best answer. The sentence correctly describes how the bicycles in the sculpture are fused together: they
+share the same rear wheel while facing opposite directions.~Double Phantom/EntroP.R. is a sculpture created by multimedia visual artist Miguel Luciano.#Incorrect. Choice D is incorrect. It identifies the artist who created the sculpture but doesn’t
+describe how the bicycles are fused together.}
+
+Question 37 - 25adba4e
+
+While researching a topic, a student has taken the following notes:
+In 1897, twenty Black US Army infantrymen rode bicycles from Montana to Missouri.
+The 1,900-mile journey took forty-one days.
+The goal was to test the idea of forming a military bicycle corps.
+In 2022, Erick Cedeño, a Black long-distance cyclist, reenacted the journey.
+Cedeño wanted to honor the infantrymen on the journey’s 125th anniversary.
+The student wants to emphasize how far the infantrymen traveled. Which choice most effectively uses relevant information
+from the notes to accomplish this goal?
+
+{1:MCV:~=The US infantrymen rode their bicycles from Montana to Missouri—traveling a total of 1,900 miles.#Correct. Choice A is the best answer. The sentence emphasizes how far the infantrymen traveled, indicating that they rode their
+bicycles from Montana to Missouri, a total of 1,900 miles.~The 125th anniversary of the infantrymen’s journey was in 2022.#Incorrect. Choice B is incorrect because the sentence mentions when the anniversary of the journey occurred; it doesn’t emphasize
+how far the infantrymen traveled.~The goal of the 1897 journey was to test the idea of forming a military bicycle corps.#Incorrect. Choice C is incorrect because the sentence discusses the goal of the journey; it doesn’t
+emphasize how far the infantrymen traveled.~Over a century later, Erick Cedeño honored the infantrymen by reenacting their 1897 journey.#Incorrect. Choice D is incorrect because the sentence notes that Cedeño honored the
+infantrymen by reenacting their journey; it doesn’t emphasize how far the infantrymen traveled.}
+
+Question 38 - 7f2781fd
+
+While researching a topic, a student has taken the following notes:
+Certhidea olivacea is a perching bird that can be found on the Galápagos Island of Pinzón.
+Creagrus furcatus is a seabird that can be found on the Galápagos Island of Darwin. 
+Conservation organizations evaluate the risk that species will become extinct in the near future.
+
+{1:MCV:~=According to conservation organizations, C. olivacea has a higher risk of becoming extinct in the near future than C.#Correct. Choice A is the best answer. The sentence compares the extinction risks of the two species, noting that C. olivacea has a
+higher risk of becoming extinct in the near future than C. furcatus.~C. furcatus faces a high risk of extinction, while C. olivacea faces little risk of becoming extinct in the near future.#Incorrect. Choice B is incorrect. While the sentence does compare the extinction risks of the two species, it misrepresents information
+from the notes; C. olivacea faces a higher risk of becoming extinct in the near future than C. furcatus, not the other way
+around.~Conservation organizations have evaluated both C. furcatus’s and C. olivacea’s risk of becoming extinct in the near#Incorrect. Choice C is incorrect. While the sentence mentions that conservation organizations have evaluated both species for
+extinction risk, it doesn’t compare the extinction risks of the two species.~C. olivacea is a perching bird that faces a high risk of extinction.#Incorrect. Choice D is incorrect. While the sentence states
+that C. olivacea faces a high risk of extinction, it doesn’t mention C. furcatus or compare the extinction risks of the two
+species.}
+
+Question 39 - 3150021d
+
+While researching a topic, a student has taken the following notes:
+The Royal Alcázar of Seville is a historic royal palace in Andalucía, Spain.
+The palace is famous for its intricate tilework.
+The palace features majolica and arista tiles.
+In the majolica style, designs are painted directly on the ceramic tiles.
+In the arista style, designs are stamped into the ceramic tiles.
+The student wants to contrast the two styles of tiles. Which choice most effectively uses relevant information from the notes
+to accomplish this goal?
+
+{1:MCV:~Tiles in the majolica and arista styles can be found in the Royal Alcázar of Seville in Andalucía, Spain.#Incorrect. Choice A is incorrect because the sentence indicates that the two styles of tile can be found in the same location; it doesn’t
+contrast the two styles of tile.~Featuring tiles in the majolica and arista styles, the Royal Alcázar of Seville in Spain is famous for its intricate tilework.#Incorrect. Choice B is incorrect because the sentence indicates that the Royal Alcázar of Seville features
+tiles in both the majolica and arista styles; it doesn’t contrast the two styles of tile.~=In the arista style, designs are stamped into the ceramic tiles, whereas in the majolica style, the designs are painted#Correct. Choice C is the best answer. The sentence contrasts the two styles of tiles, noting that tiles in the arista style have designs
+stamped into them, whereas tiles in the majolica style have designs painted directly on them.~Among the famous tilework of the Royal Alcázar of Seville are majolica style tiles, made by painting designs directly on#Incorrect. Choice D is incorrect because the
+sentence indicates that the tilework of the Royal Alcázar of Seville includes tiles in the majolica style; it doesn’t contrast tiles
+in the majolica style with tiles in the arista style.}
+
+Question 40 - 02527f43
+
+While researching a topic, a student has taken the following notes:
+“Raymond’s Run” is a short story.
+It was written by African American author Toni Cade Bambara.
+It was first published in her book Gorilla, My Love in 1972.
+It is told from a first person perspective.
+It takes place in Harlem.
+The student wants to indicate where the short story takes place. Which choice most effectively uses relevant information
+from the notes to accomplish this goal?
+
+{1:MCV:~=“Raymond’s Run” takes place in Harlem.#Correct. Choice A is the best answer. The sentence indicates where "Raymond’s Run" takes place, stating that it takes place in
+Harlem.~“Raymond’s Run” was published in Gorilla, My Love.#Incorrect. Choice B is incorrect. The sentence identifies the book in which the story "Raymond’s Run" was published; it doesn’t indicate
+where the story takes place.~“Raymond’s Run” is told from a first person perspective.#Incorrect. Choice C is incorrect. The sentence indicates the point of view used in "Raymond’s Run"; it
+doesn’t indicate where the story takes place.~“Raymond’s Run” was written by Toni Cade Bambara.#Incorrect. Choice D is incorrect. The sentence identifies the author of "Raymond’s Run"; it
+doesn’t indicate where the story takes place.}
+
+Question 41 - eae29760
+
+While researching a topic, a student has taken the following notes:
+The calendar used by most of the world (the Gregorian calendar) has 365 days.
+Because 365 days can’t be divided evenly by 7 (the number of days in a week), calendar dates fall on a different day
+of the week each year.
+The Hanke-Henry permanent calendar, developed as an alternative to the Gregorian calendar, has 364 days.
+Because 364 can be divided evenly by 7, calendar dates fall on the same day of the week each year, which supports
+more predictable scheduling.
+The student wants to explain an advantage of the Hanke-Henry calendar. Which choice most effectively uses relevant
+information from the notes to accomplish this goal?
+
+{1:MCV:~The Gregorian calendar has 365 days, which is one day longer than the Hanke-Henry permanent calendar.#Incorrect. Choice A is incorrect. The sentence compares the number of days in the Gregorian and Hanke-Henry calendars; it doesn’t
+explain an advantage of the Hanke-Henry calendar.~Adopting the Hanke-Henry permanent calendar would help solve a problem with the Gregorian calendar.#Incorrect. Choice B is incorrect. While the sentence refers to a possible reason to
+adopt the Hanke-Henry calendar—that doing so would help solve a problem with the Gregorian calendar—it doesn’t identify
+the problem or the solution and thus doesn’t explain the advantage of the Hanke-Henry calendar.~=Designed so calendar dates would occur on the same day of the week each year, the Hanke-Henry calendar supports#Correct. Choice C is the best answer. The sentence explains an advantage of the Hanke-Henry calendar, noting that it supports more
+predictable scheduling than does the Gregorian calendar and describing how it does so (by having calendar dates occur on
+the same day each year).~The Hanke-Henry permanent calendar was developed as an alternative to the Gregorian calendar, which is currently the#Incorrect. Choice D is incorrect. The
+sentence describes the origins of the Hanke-Henry calendar; it doesn’t explain an advantage of it.}
+
+
+==================================================
+Copy the text above and paste it into your Moodle quiz
