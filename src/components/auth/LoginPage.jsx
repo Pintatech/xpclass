@@ -51,7 +51,7 @@ const LoginPage = () => {
             Chào mừng trở lại!
           </h2>
           <p className="text-gray-600">
-            Đăng nhập để tiếp tục học tập với MomTek
+            Đăng nhập để tiếp tục học SAT với Kev
           </p>
         </div>
 
