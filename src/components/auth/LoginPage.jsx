@@ -44,7 +44,7 @@ const LoginPage = () => {
         <div className="text-center">
           <div className="flex justify-center mb-4">
             <div className="w-16 h-16 bg-gradient-to-r from-primary-600 to-secondary-600 rounded-2xl flex items-center justify-center text-white font-bold text-2xl">
-              M
+              <img src="https://xpclass.vn/kevhocsat/general%20materials/freepik__upload__83821.jpeg" alt="Logo" width={20} height={20} />
             </div>
           </div>
           <h2 className="text-3xl font-bold text-gray-900 mb-2">
