@@ -30,10 +30,8 @@ const TopNavigation = () => {
         <div className="flex items-center justify-between h-16">
           {/* Logo */}
           <Link to="/" className="flex items-center space-x-2">
-            <div className="w-8 h-8 rounded-lg flex items-center justify-center text-white font-bold text-lg">
-              <img src="https://xpclass.vn/kevhocsat/general%20materials/logo.png" alt="Logo" width={20} height={20} />
-            </div>
-            <span className="text-xl font-bold text-gray-900">SAT hunter</span>
+            <img src="https://xpclass.vn/kevhocsat/general%20materials/logo.png" alt="Logo" className="h-10 w-auto" />
+            <span className="text-xl font-bold text-gray-900">SAT Leveling</span>
           </Link>
 
           {/* Navigation */}

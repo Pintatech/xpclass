@@ -13,6 +13,7 @@ const FlashcardExercise = () => {
   const [currentCard, setCurrentCard] = useState(0)
   const [flashcards, setFlashcards] = useState([])
   const [displayedCards, setDisplayedCards] = useState([])
+  const [exercise, setExercise] = useState(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState(null)
   const [currentAudio, setCurrentAudio] = useState(null)
@@ -86,6 +87,10 @@ const FlashcardExercise = () => {
         .single()
 
       if (error) throw error
+
+      if (data) {
+        setExercise(data)
+      }
 
       if (data && data.content && data.content.cards) {
         setFlashcards(data.content.cards)

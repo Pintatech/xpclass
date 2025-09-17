@@ -4,7 +4,7 @@ import { supabase } from '../../supabase/client'
 import { useAuth } from '../../hooks/useAuth'
 import Card from '../ui/Card'
 import Button from '../ui/Button'
-import LoadingSpinner from '../ui/LoadingSpinner'
+// Skeleton loading sẽ thay cho spinner
 import {
   ArrowLeft,
   Star,
@@ -21,6 +21,7 @@ import {
   Video,
   Image,
   HelpCircle,
+  CheckSquare,
   ChevronRight
 } from 'lucide-react'
 
@@ -38,6 +39,36 @@ const ExerciseList = () => {
   const [levels, setLevels] = useState([])
   const [units, setUnits] = useState([])
   const { user } = useAuth()
+
+  // Skeleton card cho trạng thái loading
+  const SkeletonCard = () => (
+    <div className="flex items-center p-4 rounded-lg border border-gray-200 bg-white animate-pulse">
+      <div className="flex-shrink-0 w-12 h-12 mr-4">
+        <div className="w-full h-full rounded-lg bg-gray-200" />
+      </div>
+      <div className="flex-1 min-w-0">
+        <div className="h-4 bg-gray-200 rounded w-1/3 mb-2" />
+        <div className="flex items-center space-x-4">
+          <div className="h-3 bg-gray-200 rounded w-24" />
+          <div className="h-3 bg-gray-100 rounded w-16" />
+          <div className="h-3 bg-gray-100 rounded w-14" />
+        </div>
+      </div>
+      <div className="w-5 h-5 bg-gray-200 rounded ml-4" />
+    </div>
+  )
+
+  const SkeletonSidebarItem = ({ wide = false }) => (
+    <div className="p-3">
+      <div className="flex items-center space-x-3">
+        <div className={`rounded-lg bg-gray-200 ${wide ? 'w-8 h-8' : 'w-6 h-6'}`} />
+        <div className="flex-1 min-w-0">
+          <div className="h-3 bg-gray-200 rounded w-2/3 mb-1" />
+          <div className="h-2 bg-gray-100 rounded w-1/3" />
+        </div>
+      </div>
+    </div>
+  )
 
   useEffect(() => {
     if (user && levelId && unitId && sessionId) {
@@ -115,7 +146,7 @@ const ExerciseList = () => {
     const icons = {
       flashcard: BookOpen,
       audio_flashcard: Volume2,
-      multiple_choice: HelpCircle,
+      multiple_choice: CheckSquare,
     }
     return icons[exerciseType] || BookOpen
   }
@@ -266,10 +297,41 @@ const ExerciseList = () => {
     )
   }
 
-  if (loading) {
+  if (loading && exercises.length === 0) {
     return (
-      <div className="flex justify-center items-center min-h-64">
-        <LoadingSpinner size="lg" />
+      <div className="flex h-screen bg-gray-50">
+        {/* Sidebar skeleton */}
+        <div className="w-80 transition-all duration-300 bg-white border-r border-gray-200 flex flex-col">
+          <div className="p-4 border-b border-gray-200">
+            <div className="h-4 bg-gray-200 rounded w-32 animate-pulse" />
+          </div>
+          <div className="flex-1 overflow-y-auto">
+            {Array.from({ length: 4 }).map((_, i) => (
+              <div key={i} className="border-b border-gray-100 animate-pulse">
+                <SkeletonSidebarItem wide />
+                <div className="ml-6 space-y-1 pb-3">
+                  {Array.from({ length: 3 }).map((_, j) => (
+                    <div key={j} className="px-2">
+                      <div className="h-7 bg-gray-50 hover:bg-gray-50 rounded-lg flex items-center px-2">
+                        <div className="w-4 h-4 bg-gray-200 rounded mr-3" />
+                        <div className="h-3 bg-gray-200 rounded w-1/2" />
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+
+        {/* Main content skeleton */}
+        <div className="flex-1 flex flex-col overflow-hidden p-6">
+          <div className="space-y-4">
+            {Array.from({ length: 4 }).map((_, idx) => (
+              <SkeletonCard key={idx} />
+            ))}
+          </div>
+        </div>
       </div>
     )
   }

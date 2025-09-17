@@ -4,7 +4,7 @@ import { supabase } from '../../supabase/client'
 import { useAuth } from '../../hooks/useAuth'
 import Card from '../ui/Card'
 import Button from '../ui/Button'
-import LoadingSpinner from '../ui/LoadingSpinner'
+// Thay spinner bằng skeleton để tránh chớp màn hình khi điều hướng
 import { 
   Star, 
   Lock, 
@@ -21,6 +21,24 @@ const LevelList = () => {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState(null)
   const { user } = useAuth()
+
+  // Skeletons
+  const SkeletonCard = () => (
+    <div className="relative overflow-hidden transition-all duration-300 border rounded-lg p-6 bg-white animate-pulse">
+      <div className="flex items-center justify-between mb-4">
+        <div className="flex items-center space-x-3">
+          <div className="w-12 h-12 rounded-full bg-gray-200" />
+          <div>
+            <div className="h-4 bg-gray-200 rounded w-32 mb-2" />
+            <div className="h-3 bg-gray-100 rounded w-24" />
+          </div>
+        </div>
+        <div className="w-8 h-8 bg-gray-200 rounded-full" />
+      </div>
+      <div className="h-3 bg-gray-100 rounded w-2/3 mb-4" />
+      <div className="h-2 bg-gray-100 rounded w-full" />
+    </div>
+  )
 
   useEffect(() => {
     if (user) {
@@ -217,8 +235,16 @@ const LevelList = () => {
 
   if (loading) {
     return (
-      <div className="flex justify-center items-center min-h-64">
-        <LoadingSpinner size="lg" />
+      <div className="space-y-8">
+        <div className="text-center">
+          <div className="h-8 bg-gray-200 rounded w-40 mx-auto mb-4 animate-pulse" />
+          <div className="h-3 bg-gray-100 rounded w-2/3 mx-auto" />
+        </div>
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+          {Array.from({ length: 6 }).map((_, i) => (
+            <SkeletonCard key={i} />
+          ))}
+        </div>
       </div>
     )
   }
