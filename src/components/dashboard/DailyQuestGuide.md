@@ -9,7 +9,7 @@ Hệ thống Daily Quest cho phép học sinh nhận một bài tập hàng ngà
 - Mỗi ngày, học sinh sẽ nhận được 1 quest duy nhất
 - Quest bắt đầu từ Level 1, Unit 1, Session 1, Exercise 1
 - Nếu không có đủ dữ liệu, hệ thống sẽ random một exercise bất kỳ
-- Quest có thời hạn 1 ngày (từ 00:00 đến 23:59)
+- Quest có thời hạn 1 ngày (từ 00:00 đến 23:49)
 
 ### 2. Trạng thái Quest
 - **Available**: Quest sẵn sàng để thực hiện
