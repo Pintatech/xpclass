@@ -1357,6 +1357,15 @@ const MultipleChoiceEditor = ({ questions, onQuestionsChange }) => {
           }
           optionCounter = 0
         }
+        // Continue question text (if not an option or explanation)
+        else if (currentQuestion && !trimmedLine.match(/^[A-Za-z][\.):]|^\d+[\.)]|^(Explanation|Answer):/i) && trimmedLine) {
+          // Add line break if question already has content
+          if (currentQuestion.question) {
+            currentQuestion.question += '\n' + line
+          } else {
+            currentQuestion.question = line
+          }
+        }
         // Answer options (A:, B:, C:, D: or 1., 2., 3., 4.)
         else if (trimmedLine.match(/^[A-Za-z][\.):]|^\d+[\.)]/)) {
           if (currentQuestion) {
@@ -1423,9 +1432,9 @@ const MultipleChoiceEditor = ({ questions, onQuestionsChange }) => {
                  !trimmed.match(/^Which choice completes/i)
         })
 
-        // Join question text and replace blank with proper format
-        questionText = questionLines.join(' ')
-          .replace(/\s+/g, ' ')
+        // Join question text while preserving line breaks
+        questionText = questionLines.join('\n')
+          .replace(/\n\s*\n/g, '\n') // Remove excessive line breaks
           .replace(/______/g, '______')
           .trim()
 

@@ -17,8 +17,18 @@ const RichTextRenderer = ({
   const hasHTMLTags = /<[^>]*>/g.test(content)
 
   if (!hasHTMLTags) {
-    // Plain text - return as is
-    return <span className={className}>{content}</span>
+    // Plain text - convert line breaks to <br> tags
+    const contentWithBreaks = content.replace(/\n/g, '<br>')
+    return (
+      <div 
+        className={className}
+        dangerouslySetInnerHTML={{ __html: contentWithBreaks }}
+        style={{
+          wordBreak: 'break-word',
+          lineHeight: '1.6'
+        }}
+      />
+    )
   }
 
   // Sanitize and process HTML content
