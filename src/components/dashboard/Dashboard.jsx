@@ -10,6 +10,7 @@ import Card from '../ui/Card'
 import Button from '../ui/Button'
 import { getRecentExercise } from '../../utils/recentExercise'
 import RecentActivities from './RecentActivities'
+import DailyQuest from './DailyQuest'
 
 const Dashboard = () => {
   const { profile } = useAuth()
@@ -117,6 +118,9 @@ const Dashboard = () => {
           </div>
         </div>
       </div>
+
+      {/* Daily Quest */}
+      <DailyQuest />
 
       {/* Recent Exercise (Above Levels List) */}
       {recent && (

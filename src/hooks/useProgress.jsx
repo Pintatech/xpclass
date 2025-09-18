@@ -132,8 +132,16 @@ export const ProgressProvider = ({ children }) => {
   const completeExerciseWithXP = async (exerciseId, xpReward, progressData = {}) => {
     if (!user) return { error: 'No user logged in' }
 
-    // Check if exercise is already completed
-    if (isExerciseCompleted(exerciseId)) {
+    console.log('🎯 completeExerciseWithXP called for exercise:', exerciseId)
+
+    const isAlreadyCompleted = isExerciseCompleted(exerciseId)
+    console.log('Exercise already completed:', isAlreadyCompleted)
+
+    // Always check daily quest first, regardless of completion status
+    await checkDailyQuestCompletion(exerciseId)
+
+    // If already completed, don't process further
+    if (isAlreadyCompleted) {
       console.log('Exercise already completed, no XP awarded')
       return { data: null, error: 'Exercise already completed' }
     }
@@ -149,10 +157,30 @@ export const ProgressProvider = ({ children }) => {
           completed_at: new Date().toISOString(),
           ...progressData,
           updated_at: new Date().toISOString()
+        }, {
+          onConflict: 'user_id,exercise_id'
         })
         .select()
 
-      if (error) throw error
+      if (error) {
+        console.log('⚠️ Upsert failed, trying UPDATE instead:', error.message)
+        // Fallback to UPDATE if upsert fails
+        const { error: updateError } = await supabase
+          .from('user_progress')
+          .update({
+            status: 'completed',
+            completed_at: new Date().toISOString(),
+            ...progressData,
+            updated_at: new Date().toISOString()
+          })
+          .eq('user_id', user.id)
+          .eq('exercise_id', exerciseId)
+
+        if (updateError) {
+          console.log('⚠️ UPDATE also failed:', updateError.message)
+          // Don't throw error, just log it
+        }
+      }
 
       // Award XP for first completion
       if (xpReward && xpReward > 0) {
@@ -169,7 +197,8 @@ export const ProgressProvider = ({ children }) => {
       return { data, error: null, xpAwarded: xpReward }
     } catch (error) {
       console.error('Error completing exercise:', error)
-      return { data: null, error }
+      // Don't return error for user_progress issues, daily quest still works
+      return { data: null, error: null, xpAwarded: 0 }
     }
   }
 
@@ -253,6 +282,94 @@ export const ProgressProvider = ({ children }) => {
     return userProgress.reduce((total, p) => total + (p.time_spent || 0), 0)
   }
 
+  // Daily Quest functions
+  const checkDailyQuestCompletion = async (exerciseId) => {
+    if (!user) return
+
+    try {
+      console.log('🔍 Checking daily quest completion for exercise:', exerciseId)
+      
+      // Kiểm tra xem exercise này có phải là daily quest không
+      const { data: questData, error: questError } = await supabase
+        .from('daily_quests')
+        .select('*')
+        .eq('user_id', user.id)
+        .eq('exercise_id', exerciseId)
+        .eq('quest_date', new Date().toISOString().split('T')[0])
+        .eq('status', 'available')
+        .maybeSingle()
+
+      console.log('Quest data:', questData)
+      console.log('Quest error:', questError)
+
+      if (questError) {
+        console.log('Error checking daily quest:', questError.message)
+        return
+      }
+
+      if (!questData) {
+        console.log('No available quest found for this exercise')
+        return
+      }
+
+      console.log('🎯 Found daily quest, marking as completed...')
+
+      // Chỉ đánh dấu quest là completed, KHÔNG trao XP ngay
+      const { error } = await supabase
+        .from('daily_quests')
+        .update({ 
+          status: 'completed',
+          updated_at: new Date().toISOString()
+        })
+        .eq('id', questData.id)
+
+      if (error) {
+        console.error('Error marking daily quest as completed:', error)
+      } else {
+        console.log('🎯 Daily quest marked as completed! User needs to claim reward.')
+      }
+    } catch (error) {
+      console.error('Error checking daily quest completion:', error)
+    }
+  }
+
+  const getDailyQuest = async () => {
+    if (!user) return null
+
+    try {
+      const { data, error } = await supabase
+        .rpc('get_today_daily_quest_simple', { user_uuid: user.id })
+
+      if (error) throw error
+      return data
+    } catch (error) {
+      console.error('Error fetching daily quest:', error)
+      return null
+    }
+  }
+
+  const claimDailyQuestReward = async (questId) => {
+    if (!user) return { success: false, error: 'No user logged in' }
+
+    try {
+      const { data, error } = await supabase
+        .rpc('claim_daily_quest_reward_simple', { quest_uuid: questId })
+
+      if (error) throw error
+
+      if (data.success) {
+        // Refresh user profile to get updated XP
+        await fetchUserProfile(user.id)
+        return { success: true, xpEarned: data.xp_earned }
+      }
+
+      return { success: false, error: data.error }
+    } catch (error) {
+      console.error('Error claiming daily quest reward:', error)
+      return { success: false, error: error.message }
+    }
+  }
+
   const value = {
     userProgress,
     achievements,
@@ -267,7 +384,10 @@ export const ProgressProvider = ({ children }) => {
     getCompletedExercises,
     getTotalStudyTime,
     fetchUserProgress,
-    fetchUserAchievements
+    fetchUserAchievements,
+    checkDailyQuestCompletion,
+    getDailyQuest,
+    claimDailyQuestReward
   }
 
   return (

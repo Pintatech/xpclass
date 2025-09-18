@@ -1,7 +1,8 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useCallback } from 'react'
 import { Link, useParams, useNavigate } from 'react-router-dom'
 import { supabase } from '../../supabase/client'
 import { useAuth } from '../../hooks/useAuth'
+import { useProgress } from '../../hooks/useProgress'
 import Card from '../ui/Card'
 import Button from '../ui/Button'
 // Skeleton loading sẽ thay cho spinner
@@ -32,13 +33,13 @@ const ExerciseList = () => {
   const [unit, setUnit] = useState(null)
   const [session, setSession] = useState(null)
   const [exercises, setExercises] = useState([])
-  const [exerciseProgress, setExerciseProgress] = useState({})
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState(null)
   const [sidebarOpen, setSidebarOpen] = useState(true)
   const [levels, setLevels] = useState([])
   const [units, setUnits] = useState([])
   const { user } = useAuth()
+  const { userProgress, fetchUserProgress } = useProgress()
 
   // Skeleton card cho trạng thái loading
   const SkeletonCard = () => (
@@ -70,35 +71,17 @@ const ExerciseList = () => {
     </div>
   )
 
-  useEffect(() => {
-    if (user && levelId && unitId && sessionId) {
-      fetchData()
-    }
-  }, [user, levelId, unitId, sessionId])
-
-  // Bottom nav Back: go back to unit view (session list)
-  useEffect(() => {
-    const handleBottomNavBack = () => {
-      console.log('🎯 Bottom nav "Back" clicked in ExerciseList');
-      navigate(`/study/level/${levelId}/unit/${unitId}`)
-    };
-
-    window.addEventListener('bottomNavBack', handleBottomNavBack);
-    return () => window.removeEventListener('bottomNavBack', handleBottomNavBack);
-  }, [levelId, unitId, navigate])
-
-  const fetchData = async () => {
+  const fetchData = useCallback(async () => {
     try {
       setLoading(true)
       setError(null)
 
-      // Fetch all data in parallel
-      const [levelResult, unitResult, sessionResult, exercisesResult, progressResult, allLevelsResult, allUnitsResult] = await Promise.all([
+      // Fetch all data in parallel (excluding progress which comes from useProgress hook)
+      const [levelResult, unitResult, sessionResult, exercisesResult, allLevelsResult, allUnitsResult] = await Promise.all([
         supabase.from('levels').select('*').eq('id', levelId).single(),
         supabase.from('units').select('*').eq('id', unitId).single(),
         supabase.from('sessions').select('*').eq('id', sessionId).single(),
         supabase.from('exercises').select('*').eq('session_id', sessionId).eq('is_active', true).order('order_index'),
-        supabase.from('user_progress').select('*').eq('user_id', user.id),
         supabase.from('levels').select('*').order('level_number'),
         supabase.from('units').select('*').order('unit_number')
       ])
@@ -107,15 +90,8 @@ const ExerciseList = () => {
       if (unitResult.error) throw unitResult.error
       if (sessionResult.error) throw sessionResult.error
       if (exercisesResult.error) throw exercisesResult.error
-      if (progressResult.error) throw progressResult.error
       if (allLevelsResult.error) throw allLevelsResult.error
       if (allUnitsResult.error) throw allUnitsResult.error
-
-      // Create progress map
-      const progressMap = {}
-      progressResult.data?.forEach(progress => {
-        progressMap[progress.exercise_id] = progress
-      })
 
       setLevel(levelResult.data)
       setUnit(unitResult.data)
@@ -131,7 +107,6 @@ const ExerciseList = () => {
           console.log('🎯 Target exercise in database:', ex)
         }
       })
-      setExerciseProgress(progressMap)
       setLevels(allLevelsResult.data || [])
       setUnits(allUnitsResult.data || [])
     } catch (err) {
@@ -140,7 +115,31 @@ const ExerciseList = () => {
     } finally {
       setLoading(false)
     }
-  }
+  }, [levelId, unitId, sessionId])
+
+  useEffect(() => {
+    if (user && levelId && unitId && sessionId) {
+      fetchData()
+    }
+  }, [fetchData])
+
+  // Refresh progress when userProgress changes
+  useEffect(() => {
+    if (userProgress.length > 0) {
+      console.log('📊 Progress updated in ExerciseList:', userProgress)
+    }
+  }, [userProgress])
+
+  // Bottom nav Back: go back to unit view (session list)
+  useEffect(() => {
+    const handleBottomNavBack = () => {
+      console.log('🎯 Bottom nav "Back" clicked in ExerciseList');
+      navigate(`/study/level/${levelId}/unit/${unitId}`)
+    };
+
+    window.addEventListener('bottomNavBack', handleBottomNavBack);
+    return () => window.removeEventListener('bottomNavBack', handleBottomNavBack);
+  }, [levelId, unitId, navigate])
 
   const getExerciseIcon = (exerciseType) => {
     const icons = {
@@ -200,7 +199,7 @@ const ExerciseList = () => {
   }
 
   const getExerciseStatus = (exercise, index) => {
-    const progress = exerciseProgress[exercise.id]
+    const progress = userProgress.find(p => p.exercise_id === exercise.id)
     
     // All exercises are now always available (unlocked)
     if (!progress) {
@@ -228,7 +227,7 @@ const ExerciseList = () => {
 
   const renderExerciseCard = (exercise, index) => {
     const { status, canAccess } = getExerciseStatus(exercise, index)
-    const progress = exerciseProgress[exercise.id]
+    const progress = userProgress.find(p => p.exercise_id === exercise.id)
     const theme = getThemeColors(session?.color_theme || unit?.color_theme || level?.color_theme)
     const isLocked = !canAccess
     const ExerciseIcon = getExerciseIcon(exercise.exercise_type)
@@ -483,7 +482,7 @@ const ExerciseList = () => {
               <div className="grid grid-cols-4 gap-6 text-center">
                 <div>
                   <div className={`text-2xl font-bold ${theme.text}`}>
-                    {Object.values(exerciseProgress).filter(p => p.status === 'completed').length}
+                    {userProgress.filter(p => p.status === 'completed').length}
                   </div>
                   <div className="text-sm text-gray-600">Exercises hoàn thành</div>
                 </div>
@@ -495,7 +494,7 @@ const ExerciseList = () => {
                 </div>
                 <div>
                   <div className={`text-2xl font-bold ${theme.text}`}>
-                    {Object.values(exerciseProgress).reduce((total, p) => total + (p.score || 0), 0)}
+                    {userProgress.reduce((total, p) => total + (p.score || 0), 0)}
                   </div>
                   <div className="text-sm text-gray-600">Điểm số</div>
                 </div>

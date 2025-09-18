@@ -2,17 +2,19 @@ import { useState, useEffect } from 'react'
 import { Link, useLocation, useNavigate } from 'react-router-dom'
 import { saveRecentExercise } from '../../utils/recentExercise'
 import { useAuth } from '../../hooks/useAuth'
+import { useProgress } from '../../hooks/useProgress'
 import { supabase } from '../../supabase/client'
 import Card from '../ui/Card'
 import Button from '../ui/Button'
 import LoadingSpinner from '../ui/LoadingSpinner'
 import RichTextRenderer from '../ui/RichTextRenderer'
-import { ArrowLeft, CheckCircle, XCircle, ArrowRight, RotateCcw, Star } from 'lucide-react'
+import { CheckCircle, XCircle, ArrowRight, RotateCcw, Star } from 'lucide-react'
 
 const MultipleChoiceExercise = () => {
   const location = useLocation()
   const navigate = useNavigate()
   const { user } = useAuth()
+  const { completeExerciseWithXP } = useProgress()
 
   // URL params
   const searchParams = new URLSearchParams(location.search)
@@ -35,8 +37,6 @@ const MultipleChoiceExercise = () => {
   const [wrongQuestions, setWrongQuestions] = useState([])
   const [isRetryMode, setIsRetryMode] = useState(false)
   const [startTime, setStartTime] = useState(null)
-  const [isResuming, setIsResuming] = useState(false)
-  const [exerciseProgressId, setExerciseProgressId] = useState(null)
   const [xpAwarded, setXpAwarded] = useState(0)
   const [showXpNotification, setShowXpNotification] = useState(false)
 
@@ -160,10 +160,6 @@ const MultipleChoiceExercise = () => {
         setExercise(data)
         setQuestions(data.content.questions)
 
-        // Load existing progress if user is logged in
-        if (user) {
-          await loadExistingProgress()
-        }
 
         // Save recent exercise
         try {
@@ -184,144 +180,11 @@ const MultipleChoiceExercise = () => {
     }
   }
 
-  const loadExistingProgress = async () => {
-    if (!user || !exerciseId) return
-
-    try {
-      let progressData = null
-
-      // First try to load from database
-      try {
-        const { data: userProgress, error } = await supabase
-          .from('user_progress')
-          .select('*')
-          .eq('user_id', user.id)
-          .eq('exercise_id', exerciseId)
-          .single()
-
-        if (!error && userProgress && userProgress.progress_data) {
-          // If exercise is completed, don't resume
-          if (userProgress.status === 'completed') {
-            return
-          }
-          progressData = userProgress.progress_data
-          console.log('📊 Loaded progress from database:', progressData)
-        }
-      } catch (dbError) {
-        console.log('⚠️ Database load failed, trying localStorage fallback')
-      }
-
-      // Fallback to localStorage if database doesn't work
-      if (!progressData) {
-        const localStorageKey = `exercise_progress_${user.id}_${exerciseId}`
-        const savedProgress = localStorage.getItem(localStorageKey)
-        if (savedProgress) {
-          progressData = JSON.parse(savedProgress)
-          console.log('📊 Loaded progress from localStorage:', progressData)
-        }
-      }
-
-      // If we found progress data, resume from it
-      if (progressData) {
-        const {
-          current_question_index,
-          question_results,
-          questions_answered
-        } = progressData
-
-        // If there's progress and it's meaningful, resume
-        if (current_question_index > 0 || questions_answered > 0) {
-          setCurrentQuestionIndex(current_question_index || 0)
-          setQuestionResults(question_results || [])
-          setIsResuming(true)
-
-          console.log(`🔄 Resuming exercise from question ${(current_question_index || 0) + 1}`)
-        }
-      }
-    } catch (err) {
-      console.error('❌ Error loading existing progress:', err)
-      // Don't block the exercise if progress loading fails
-    }
-  }
 
   const currentQuestion = questions[currentQuestionIndex]
   const totalQuestions = questions.length
   const currentQuestionNumber = currentQuestionIndex + 1
 
-  const saveProgress = async (questionIndex, results) => {
-    if (!user || !exerciseId) {
-      console.log('❌ Cannot save progress: missing user or exerciseId')
-      return
-    }
-
-    try {
-      const questionsAnswered = results.length
-      const questionsCorrect = results.filter(r => r.isCorrect).length
-
-      console.log(`🔄 Saving progress: Question ${questionIndex + 1}/${totalQuestions}, Answered: ${questionsAnswered}`)
-
-      // Create progress data
-      const progressData = {
-        current_question_index: questionIndex,
-        total_questions: totalQuestions,
-        questions_answered: questionsAnswered,
-        questions_correct: questionsCorrect,
-        question_results: results,
-        last_resumed_at: new Date().toISOString()
-      }
-
-      // Try saving to database first (without progress_data if column doesn't exist)
-      try {
-        // First try with progress_data column
-        const { error: upsertError } = await supabase
-          .from('user_progress')
-          .upsert({
-            user_id: user.id,
-            exercise_id: exerciseId,
-            status: 'in_progress',
-            score: questionsCorrect,
-            max_score: totalQuestions,
-            attempts: 1,
-            updated_at: new Date().toISOString(),
-            progress_data: progressData
-          }, {
-            onConflict: 'user_id,exercise_id'
-          })
-
-        if (upsertError) {
-          // If upsert failed, try without progress_data column
-          console.log('⚠️ Upsert with progress_data failed, trying without it:', upsertError.message)
-
-          await supabase
-            .from('user_progress')
-            .upsert({
-              user_id: user.id,
-              exercise_id: exerciseId,
-              status: 'in_progress',
-              score: questionsCorrect,
-              max_score: totalQuestions,
-              attempts: 1,
-              updated_at: new Date().toISOString()
-            }, {
-              onConflict: 'user_id,exercise_id'
-            })
-        }
-
-        console.log(`✅ Progress saved to database: Question ${questionIndex + 1}/${totalQuestions}`)
-      } catch (dbError) {
-        console.log('⚠️ Database save completely failed, using localStorage fallback:', dbError.message)
-      }
-
-      // Always save to localStorage as backup
-      const localStorageKey = `exercise_progress_${user.id}_${exerciseId}`
-      localStorage.setItem(localStorageKey, JSON.stringify(progressData))
-      console.log(`💾 Progress saved to localStorage: Question ${questionIndex + 1}/${totalQuestions}`)
-
-    } catch (err) {
-      console.error('❌ Error saving progress:', err)
-      // Don't block the exercise if saving fails
-    }
-  }
 
   const handleAnswerSelect = async (answerIndex) => {
     if (selectedAnswer !== null || showExplanation) return
@@ -368,9 +231,6 @@ const MultipleChoiceExercise = () => {
     const updatedResults = [...questionResults, newResult]
     setQuestionResults(updatedResults)
 
-    // Save progress after answering question
-    await saveProgress(currentQuestionIndex, updatedResults)
-
     // If wrong answer, add to wrong questions for retry
     if (!isCorrect) {
       setWrongQuestions(prev => [...prev, {
@@ -384,9 +244,6 @@ const MultipleChoiceExercise = () => {
     if (currentQuestionIndex < questions.length - 1) {
       const nextQuestionIndex = currentQuestionIndex + 1
 
-      // Save progress with the next question index
-      await saveProgress(nextQuestionIndex, questionResults)
-
       setCurrentQuestionIndex(nextQuestionIndex)
       setSelectedAnswer(null)
       setShowExplanation(false)
@@ -395,38 +252,9 @@ const MultipleChoiceExercise = () => {
       // Quiz completed
       setIsQuizComplete(true)
       await markExerciseCompleted()
-      await clearProgress() // Clear progress when exercise is completed
     }
   }
 
-  const clearProgress = async () => {
-    if (!user || !exerciseId) return
-
-    try {
-      // Clear from database (optional - may fail if progress_data column doesn't exist)
-      try {
-        const { error } = await supabase
-          .from('user_progress')
-          .update({ progress_data: null })
-          .eq('user_id', user.id)
-          .eq('exercise_id', exerciseId)
-
-        if (error) {
-          console.log('⚠️ Could not clear progress_data from database (column may not exist):', error.message)
-        }
-      } catch (dbError) {
-        console.log('⚠️ Database clear failed:', dbError.message)
-      }
-
-      // Always clear from localStorage
-      const localStorageKey = `exercise_progress_${user.id}_${exerciseId}`
-      localStorage.removeItem(localStorageKey)
-
-      console.log('🗑️ Progress cleared from localStorage (and database if available)')
-    } catch (err) {
-      console.error('❌ Error clearing progress:', err)
-    }
-  }
 
   const markExerciseCompleted = async () => {
     if (!user || !exerciseId) return
@@ -438,86 +266,34 @@ const MultipleChoiceExercise = () => {
     console.log(`🏁 Completing exercise: ${correctAnswers}/${totalQuestions} correct (${score}%)`)
 
     try {
-      // 2. Calculate and award XP
+      // Calculate XP
       const baseXP = exercise?.xp_reward || 10
       const bonusXP = score >= 80 ? Math.round(baseXP * 0.2) : 0 // 20% bonus for good performance
       const totalXP = baseXP + bonusXP
 
       console.log(`💰 Awarding XP: ${baseXP} base + ${bonusXP} bonus = ${totalXP} total`)
 
-      // 1. Mark exercise as completed in user_progress
-      const { error: progressError } = await supabase.from('user_progress').upsert({
-        user_id: user.id,
-        exercise_id: exerciseId,
-        status: 'completed',
+      // Use useProgress hook to complete exercise (this will also check daily quest)
+      const result = await completeExerciseWithXP(exerciseId, totalXP, {
         score: score,
         max_score: 100,
         attempts: isRetryMode ? 2 : 1,
-        completed_at: new Date().toISOString(),
-        updated_at: new Date().toISOString(),
         xp_earned: totalXP
-      }, {
-        onConflict: 'user_id,exercise_id'
       })
 
-      if (progressError) {
-        console.log('⚠️ Progress update failed, trying UPDATE instead:', progressError.message)
-        // Fallback to UPDATE instead of upsert
-        const { error: updateError } = await supabase
-          .from('user_progress')
-          .update({
-            status: 'completed',
-            score: score,
-            max_score: 100,
-            attempts: isRetryMode ? 2 : 1,
-            completed_at: new Date().toISOString(),
-            updated_at: new Date().toISOString(),
-            xp_earned: totalXP
-          })
-          .eq('user_id', user.id)
-          .eq('exercise_id', exerciseId)
-
-        if (updateError) {
-          console.log('⚠️ UPDATE also failed, trying INSERT:', updateError.message)
-          // Last resort: try INSERT
-          await supabase.from('user_progress').insert({
-            user_id: user.id,
-            exercise_id: exerciseId,
-            status: 'completed',
-            score: score,
-            max_score: 100,
-            attempts: isRetryMode ? 2 : 1,
-            completed_at: new Date().toISOString(),
-            updated_at: new Date().toISOString(),
-            xp_earned: totalXP
-          })
-        }
+      if (result.error && result.error !== 'Exercise already completed') {
+        console.log('⚠️ Exercise completion failed:', result.error)
+        return
       }
 
-      // 3. Update user's total XP
-      const { error: xpError } = await supabase.rpc('add_user_xp', {
-        user_id: user.id,
-        xp_to_add: totalXP
-      })
-
-      if (xpError) {
-        console.log('⚠️ XP function failed, trying direct update:', xpError.message)
-        // Fallback: direct update
-        const { data: currentUser, error: getUserError } = await supabase
-          .from('users')
-          .select('xp')
-          .eq('id', user.id)
-          .single()
-
-        if (!getUserError && currentUser) {
-          await supabase
-            .from('users')
-            .update({ xp: (currentUser.xp || 0) + totalXP })
-            .eq('id', user.id)
-        }
+      // If exercise was already completed, that's fine - daily quest still gets checked
+      if (result.error === 'Exercise already completed') {
+        console.log('ℹ️ Exercise was already completed, but daily quest was checked')
+        // Don't show XP notification for already completed exercises
+        return
       }
 
-      // 4. Show XP notification
+      // Show XP notification
       setXpAwarded(totalXP)
       setShowXpNotification(true)
 
@@ -580,15 +356,6 @@ const MultipleChoiceExercise = () => {
     }
   }
 
-  // Hide resume indicator after 5 seconds
-  useEffect(() => {
-    if (isResuming) {
-      const timer = setTimeout(() => {
-        setIsResuming(false)
-      }, 5000)
-      return () => clearTimeout(timer)
-    }
-  }, [isResuming])
 
   // Handle bottom nav back
   useEffect(() => {
@@ -668,22 +435,6 @@ const MultipleChoiceExercise = () => {
         ></div>
       </div>
 
-      {/* Resume Indicator */}
-      {isResuming && (
-        <div className="bg-green-50 border border-green-200 rounded-lg p-4">
-          <div className="flex items-center space-x-2 text-green-700">
-            <CheckCircle className="w-5 h-5" />
-            <span className="font-medium">
-              Đã tiếp tục từ câu hỏi {currentQuestionNumber}
-              {questionResults.length > 0 && (
-                <span className="text-sm ml-1">
-                  (Đã trả lời {questionResults.length} câu)
-                </span>
-              )}
-            </span>
-          </div>
-        </div>
-      )}
 
       {/* XP Notification */}
       {showXpNotification && (
