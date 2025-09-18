@@ -9,7 +9,8 @@ import {
   CheckCircle, 
   Gift,
   Clock,
-  Trophy
+  Trophy,
+  Sword
 } from 'lucide-react'
 
 const DailyQuest = () => {
@@ -109,8 +110,8 @@ const DailyQuest = () => {
     switch (quest?.status) {
       case 'completed':
         return <CheckCircle className="w-6 h-6 text-green-500" />
-      case 'claimed':
-        return <Gift className="w-6 h-6 text-purple-500" />
+        case 'claimed':
+          return <Sword className="w-6 h-6 text-white" style={{ filter: 'drop-shadow(0 0 8px rgba(255, 255, 255, 0.8))' }} />
       default:
         return <Target className="w-6 h-6 text-blue-500" />
     }
@@ -140,11 +141,20 @@ const DailyQuest = () => {
 
   if (loading) {
     return (
-      <Card className="bg-gradient-to-r from-orange-50 to-yellow-50 border-orange-200">
-        <Card.Content className="p-6">
+      <Card 
+        className="border-orange-200 relative overflow-hidden"
+        style={{
+          backgroundImage: 'url("https://xpclass.vn/kevhocsat/general%20materials/quest%20background.jpg")',
+          backgroundSize: 'cover',
+          backgroundPosition: 'center',
+          backgroundRepeat: 'no-repeat'
+        }}
+      >
+        <div className="absolute inset-0 bg-black bg-opacity-20"></div>
+        <Card.Content className="p-6 relative z-10">
           <div className="flex items-center justify-center">
             <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-orange-600"></div>
-            <span className="ml-3 text-gray-600">Đang tải quest...</span>
+            <span className="ml-3 text-white font-medium" style={{ textShadow: '0 0 8px rgba(255, 255, 255, 0.6), 0 0 16px rgba(255, 255, 255, 0.4)' }}>Đang tải quest...</span>
           </div>
         </Card.Content>
       </Card>
@@ -153,12 +163,21 @@ const DailyQuest = () => {
 
   if (!quest) {
     return (
-      <Card className="bg-gradient-to-r from-gray-50 to-gray-100 border-gray-200">
-        <Card.Content className="p-6">
+      <Card 
+        className="border-orange-200 relative overflow-hidden"
+        style={{
+          backgroundImage: 'url("https://xpclass.vn/kevhocsat/general%20materials/quest%20background.jpg")',
+          backgroundSize: 'cover',
+          backgroundPosition: 'center',
+          backgroundRepeat: 'no-repeat'
+        }}
+      >
+        <div className="absolute inset-0 bg-black bg-opacity-30"></div>
+        <Card.Content className="p-6 relative z-10">
           <div className="text-center">
-            <Target className="w-12 h-12 text-gray-400 mx-auto mb-3" />
-            <h3 className="text-lg font-semibold text-gray-600 mb-2">Không có quest hôm nay</h3>
-            <p className="text-gray-500">Hãy quay lại vào ngày mai để nhận quest mới!</p>
+            <Target className="w-12 h-12 text-white mx-auto mb-3" />
+            <h3 className="text-lg font-semibold text-white mb-2" style={{ textShadow: '0 0 10px rgba(255, 255, 255, 0.8), 0 0 20px rgba(255, 255, 255, 0.6)' }}>Không có quest hôm nay</h3>
+            <p className="text-gray-200" style={{ textShadow: '0 0 8px rgba(255, 255, 255, 0.6), 0 0 16px rgba(255, 255, 255, 0.4)' }}>Hãy quay lại vào ngày mai để nhận quest mới!</p>
           </div>
         </Card.Content>
       </Card>
@@ -166,53 +185,63 @@ const DailyQuest = () => {
   }
 
   return (
-    <Card className="bg-gradient-to-r from-orange-50 to-yellow-50 border-orange-200">
-      <Card.Content className="p-6">
+    <Card 
+      className="border-orange-200 relative overflow-hidden"
+      style={{
+        backgroundImage: 'url("https://xpclass.vn/kevhocsat/general%20materials/quest%20background.jpg")',
+        backgroundSize: 'cover',
+        backgroundPosition: 'center',
+        backgroundRepeat: 'no-repeat'
+      }}
+    >
+      {/* Overlay for better text readability */}
+      <div className="absolute inset-0 bg-black bg-opacity-20"></div>
+      <Card.Content className="p-6 relative z-10">
         {/* Header */}
         <div className="flex items-center justify-between mb-4">
           <div className="flex items-center space-x-3">
             {getQuestStatusIcon()}
             <div>
-              <h3 className="text-lg font-bold text-gray-900">Daily Quest</h3>
-              <p className="text-sm text-gray-600">Intellect training has arrived!</p>
+              <h3 className="text-lg font-bold text-white" style={{ textShadow: '0 0 10px rgba(255, 255, 255, 0.8), 0 0 20px rgba(255, 255, 255, 0.6), 0 0 30px rgba(255, 255, 255, 0.4)' }}>Daily Quest</h3>
+              <p className="text-sm text-gray-200" style={{ textShadow: '0 0 8px rgba(255, 255, 255, 0.6), 0 0 16px rgba(255, 255, 255, 0.4)' }}>Intellect training has arrived!</p>
             </div>
           </div>
         
         </div>
 
         {/* Quest Content */}
-        <div className="bg-white rounded-lg p-4 mb-4 border border-orange-100">    
+        <div className="rounded-lg p-4 mb-4 border bg-opacity-90 border-gray-200">    
           <div className="space-y-2">
-            <div className="flex items-center space-x-2">
-              <span className="text-sm text-gray-600">Level:</span>
-              <span className="px-2 py-1 bg-blue-100 text-blue-800 text-xs font-medium rounded">
-                {quest.level_title}
-              </span>
-            </div>
-            <div className="flex items-center space-x-2">
-              <span className="text-sm text-gray-600">Unit:</span>
-              <span className="text-sm font-medium text-gray-800">{quest.unit_title}</span>
-            </div>
-            <div className="flex items-center space-x-2">
-              <span className="text-sm text-gray-600">Session:</span>
-              <span className="text-sm font-medium text-gray-800">{quest.session_title}</span>
-            </div>
-            <div className="flex items-center space-x-2">
-              <span className="text-sm text-gray-600">Exercise:</span>
-              <span className="text-sm font-medium text-gray-800">{quest.exercise_title}</span>
-            </div>
+              <div className="flex items-center space-x-2">
+                <span className="text-sm text-white" style={{ textShadow: '0 0 6px rgba(255, 255, 255, 0.6), 0 0 12px rgba(255, 255, 255, 0.4)' }}>Level:</span>
+                <span className="px-2 py-1 text-white text-sm font-medium rounded" style={{ textShadow: '0 0 8px rgba(255, 255, 255, 0.8), 0 0 16px rgba(255, 255, 255, 0.6)' }}>
+                  {quest.level_title}
+                </span>
+              </div>
+              <div className="flex items-center space-x-2">
+                <span className="text-sm text-white" style={{ textShadow: '0 0 6px rgba(255, 255, 255, 0.6), 0 0 12px rgba(255, 255, 255, 0.4)' }}>Unit:</span>
+                <span className="text-sm font-medium text-white" style={{ textShadow: '0 0 8px rgba(255, 255, 255, 0.8), 0 0 16px rgba(255, 255, 255, 0.6)' }}>{quest.unit_title}</span>
+              </div>
+              <div className="flex items-center space-x-2">
+                <span className="text-sm text-white" style={{ textShadow: '0 0 6px rgba(255, 255, 255, 0.6), 0 0 12px rgba(255, 255, 255, 0.4)' }}>Session:</span>
+                <span className="text-sm font-medium text-white" style={{ textShadow: '0 0 8px rgba(255, 255, 255, 0.8), 0 0 16px rgba(255, 255, 255, 0.6)' }}>{quest.session_title}</span>
+              </div>
+              <div className="flex items-center space-x-2">
+                <span className="text-sm text-white" style={{ textShadow: '0 0 6px rgba(255, 255, 255, 0.6), 0 0 12px rgba(255, 255, 255, 0.4)' }}>Exercise:</span>
+                <span className="text-sm font-medium text-white" style={{ textShadow: '0 0 8px rgba(255, 255, 255, 0.8), 0 0 16px rgba(255, 255, 255, 0.6)' }}>{quest.exercise_title}</span>
+              </div>
 
           </div>
         </div>
 
         {/* XP Reward */}
-        <div className="flex items-center justify-between mb-4">
+        <div className="flex items-center justify-between mb-4 bg-opacity-90 rounded-lg p-3">
           <div className="flex items-center space-x-2">
-            <Star className="w-5 h-5 text-yellow-500 fill-yellow-500" />
-            <span className="text-sm font-medium text-gray-700">Phần thưởng:</span>
-            <span className="text-lg font-bold text-yellow-600">{quest.xp_reward} XP</span>
+            <Star className="w-5 h-5 text-white" style={{ filter: 'drop-shadow(0 0 8px rgba(255, 255, 255, 0.8))' }} />
+            <span className="text-sm font-medium text-white" style={{ textShadow: '0 0 8px rgba(255, 255, 255, 0.6), 0 0 16px rgba(255, 255, 255, 0.4)' }}>Phần thưởng:</span>
+            <span className="text-lg font-bold text-white" style={{ textShadow: '0 0 10px rgba(255, 255, 255, 0.8), 0 0 20px rgba(255, 255, 255, 0.6), 0 0 30px rgba(255, 255, 255, 0.4)' }}>{quest.xp_reward} XP</span>
           </div>
-          <Trophy className="w-6 h-6 text-yellow-500" />
+          
         </div>
 
         {/* Action Buttons */}
@@ -237,15 +266,15 @@ const DailyQuest = () => {
           )}
           
           {quest.status === 'claimed' && (
-            <div className="flex-1 text-center font-medium py-2 px-4 rounded-lg">
+            <div className="flex-1 text-center font-medium text-white py-2 px-4 rounded-lg" style={{ textShadow: '0 0 8px rgba(255, 255, 255, 0.8), 0 0 16px rgba(255, 255, 255, 0.6)' }}>
             Đã nhận thưởng
             </div>
           )}
         </div>
 
         {/* Progress Info */}
-        <div className="mt-4 pt-4 border-t border-orange-200">
-          <p className="text-xs text-gray-500 text-center">
+        <div className="mt-4 pt-4 border-t border-white border-opacity-30">
+          <p className="text-xs text-white text-center" style={{ textShadow: '0 0 6px rgba(255, 255, 255, 0.6), 0 0 12px rgba(255, 255, 255, 0.4)' }}>
             Quest sẽ được làm mới vào ngày mai lúc 00:00
           </p>
         </div>
