@@ -124,3 +124,4 @@ import DailyQuest from './components/dashboard/DailyQuest'
 - Kiểm tra function completeExerciseWithXP có gọi checkDailyQuestCompletion
 - Kiểm tra exercise_id có khớp với quest không
 
+

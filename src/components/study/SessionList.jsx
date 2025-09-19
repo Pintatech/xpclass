@@ -29,7 +29,8 @@ import {
   MessageCircle,
   ChevronRight,
   List,
-  Grid
+  Grid,
+  Crown
 } from 'lucide-react'
 
 const SessionList = () => {
@@ -39,6 +40,7 @@ const SessionList = () => {
   const [level, setLevel] = useState(null)
   const [unit, setUnit] = useState(null)
   const [sessions, setSessions] = useState([])
+  const [allLevelSessions, setAllLevelSessions] = useState([])
   const [sessionProgress, setSessionProgress] = useState({})
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState(null)
@@ -147,6 +149,20 @@ const SessionList = () => {
 
       if (sessionsError) throw sessionsError
 
+      // Get unit IDs for this level
+      const levelUnitIds = allUnits?.filter(u => u.level_id === levelId).map(u => u.id) || []
+
+      // Fetch all sessions for this level (for sidebar)
+      const { data: allLevelSessions, error: allSessionsError } = await supabase
+        .from('sessions')
+        .select('*')
+        .in('unit_id', levelUnitIds)
+        .eq('is_active', true)
+        .order('session_number')
+
+      if (allSessionsError) throw allSessionsError
+
+
       // Fetch user's session progress (explicit session_progress rows)
       const { data: progressData, error: progressError } = await supabase
         .from('session_progress')
@@ -225,9 +241,11 @@ const SessionList = () => {
         }
       })
 
+      console.log('Setting allLevelSessions:', allLevelSessions)
       setLevel(levelData)
       setUnit(unitData)
       setSessions(sessionsData || [])
+      setAllLevelSessions(allLevelSessions || [])
       setSessionProgress(progressMap)
       setLevels(allLevels || [])
       setUnits(allUnits || [])
@@ -594,7 +612,7 @@ const SessionList = () => {
         <div className="p-4 border-b border-gray-200">
           <div className="flex items-center justify-between">
             {sidebarOpen && (
-              <h2 className="text-lg font-semibold text-gray-900">Nội dung học</h2>
+              <h2 className="text-lg font-semibold text-gray-900">Sessions</h2>
             )}
             <Button
               variant="ghost"
@@ -635,34 +653,43 @@ const SessionList = () => {
                 </Link>
               </div>
 
-              {/* Units for this level */}
+              {/* Sessions for this level */}
+              {console.log('Rendering SessionList sidebar for level:', levelId, 'allLevelSessions:', allLevelSessions)}
               {levelItem.id === levelId && sidebarOpen && (
                 <div className="ml-6 space-y-1 pb-3">
-                  {units
-                    .filter(unitItem => unitItem.level_id === levelItem.id)
-                    .map((unitItem) => (
-                      <Link
-                        key={unitItem.id}
-                        to={`/study/level/${levelItem.id}/unit/${unitItem.id}`}
-                        className={`flex items-center space-x-3 p-2 rounded-lg transition-colors ${
-                          unitItem.id === unitId 
-                            ? 'bg-green-100 text-green-700' 
-                            : 'hover:bg-gray-50'
-                        }`}
-                      >
-                        <div className={`w-6 h-6 rounded flex items-center justify-center text-xs font-bold ${
-                          unitItem.id === unitId 
-                            ? 'bg-green-200' 
-                            : 'bg-gray-200'
-                        }`}>
-                          {unitItem.unit_number}
+                  {allLevelSessions && allLevelSessions.length > 0 ? allLevelSessions
+                    .sort((a, b) => (a.session_number || 0) - (b.session_number || 0))
+                    .map((sessionItem) => {
+                      const progress = sessionProgress[sessionItem.id]
+                      const isCompleted = progress?.status === 'completed'
+                      return (
+                        <div
+                          key={sessionItem.id}
+                          onClick={() => handleSessionClick(sessionItem)}
+                          className={`flex items-center space-x-3 p-2 rounded-lg transition-colors hover:bg-gray-50 cursor-pointer`}
+                        >
+                          <div className={`w-3 h-3 rounded ${
+                            progress?.status === 'completed' ? 'bg-green-500' :
+                            (progress?.progress_percentage || 0) > 0 ? 'bg-orange-300' :
+                            'bg-gray-300'
+                          }`}>
+                          </div>
+                          <div className="flex-1 min-w-0">
+                            <div className="font-medium truncate text-sm">{sessionItem.title}</div>
+                            {progress && (
+                              <div className="text-xs text-gray-500 truncate">
+                                {progress.progress_percentage || 0}% • {progress.xp_earned || 0} XP
+                              </div>
+                            )}
+                          </div>
+                          {isCompleted && (
+                            <Crown className="w-3 h-3 text-yellow-600" />
+                          )}
                         </div>
-                        <div className="flex-1 min-w-0">
-                          <div className="font-medium truncate text-sm">{unitItem.title}</div>
-                          <div className="text-xs text-gray-500 truncate">{unitItem.description}</div>
-                        </div>
-                      </Link>
-                    ))}
+                      )
+                    }) : (
+                    <div className="p-2 text-sm text-gray-500">No sessions found</div>
+                  )}
                 </div>
               )}
             </div>

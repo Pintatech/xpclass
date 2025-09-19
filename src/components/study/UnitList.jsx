@@ -5,18 +5,19 @@ import { useAuth } from '../../hooks/useAuth'
 import Card from '../ui/Card'
 import Button from '../ui/Button'
 // Thay spinner bằng skeleton để điều hướng mượt hơn
-import { 
+import {
   ArrowLeft,
-  Star, 
-  Lock, 
-  CheckCircle, 
-  BookOpen, 
+  Star,
+  Lock,
+  CheckCircle,
+  BookOpen,
   ArrowRight,
   Target,
   PlayCircle,
   Play,
   Circle,
-  Flame
+  Flame,
+  Crown
 } from 'lucide-react'
 
 const UnitList = () => {
@@ -24,7 +25,9 @@ const UnitList = () => {
   const navigate = useNavigate()
   const [level, setLevel] = useState(null)
   const [units, setUnits] = useState([])
+  const [sessions, setSessions] = useState([])
   const [unitProgress, setUnitProgress] = useState({})
+  const [sessionProgress, setSessionProgress] = useState({})
   const [userStats, setUserStats] = useState({ xp: 0, streak: 0 })
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState(null)
@@ -129,6 +132,7 @@ const UnitList = () => {
         .select('*')
         .in('unit_id', unitsData?.map(u => u.id) || [])
         .eq('is_active', true)
+        .order('session_number')
 
       if (sessionsError) throw sessionsError
 
@@ -178,6 +182,8 @@ const UnitList = () => {
           }
         })
         setUnitProgress(progressMap)
+        setSessions([])
+        setSessionProgress({})
         return
       }
 
@@ -185,31 +191,115 @@ const UnitList = () => {
       const progressMap = {}
       unitsData?.forEach(unit => {
         const unitSessions = sessionsData?.filter(s => s.unit_id === unit.id) || []
-        const completedExercisesInUnit = progressData?.filter(p => 
-          p.exercises?.sessions?.unit_id === unit.id && 
+        const completedExercisesInUnit = progressData?.filter(p =>
+          p.exercises?.sessions?.unit_id === unit.id &&
           p.status === 'completed'
         ) || []
-        
+
         const totalSessions = unitSessions.length
         // Count unique sessions that have completed exercises
         const completedSessionIds = new Set(completedExercisesInUnit.map(p => p.exercises.session_id))
         const sessionsCompleted = completedSessionIds.size
         const progressPercentage = totalSessions > 0 ? Math.round((sessionsCompleted / totalSessions) * 100) : 0
-        
+
         progressMap[unit.id] = {
           unit_id: unit.id,
           total_sessions: totalSessions,
           sessions_completed: sessionsCompleted,
           progress_percentage: progressPercentage,
-          status: sessionsCompleted === totalSessions && totalSessions > 0 ? 'completed' : 
+          status: sessionsCompleted === totalSessions && totalSessions > 0 ? 'completed' :
                  sessionsCompleted > 0 ? 'in_progress' : 'not_started',
           xp_earned: completedExercisesInUnit.reduce((total, p) => total + (p.score || 0), 0)
         }
       })
 
+      // Calculate session progress
+      const sessionProgressMap = {}
+
+      // Fetch user's session progress (explicit session_progress rows)
+      const { data: sessionProgressData, error: sessionProgressError } = await supabase
+        .from('session_progress')
+        .select('*')
+        .eq('user_id', user.id)
+        .in('session_id', sessionIds)
+
+      if (sessionProgressError) {
+        console.error('Error fetching session progress:', sessionProgressError)
+      }
+
+      // Fetch all exercises for these sessions
+      const { data: allExercises, error: exercisesErr } = await supabase
+        .from('exercises')
+        .select('id, session_id, xp_reward, is_active')
+        .in('session_id', sessionIds)
+        .eq('is_active', true)
+
+      if (exercisesErr) {
+        console.error('Error fetching exercises:', exercisesErr)
+      }
+
+      const exerciseIds = allExercises?.map(e => e.id) || []
+
+      // Fetch user's completed exercises among these
+      const { data: userCompleted, error: userProgErr } = await supabase
+        .from('user_progress')
+        .select('exercise_id, status')
+        .eq('user_id', user.id)
+        .in('exercise_id', exerciseIds)
+
+      if (userProgErr) {
+        console.error('Error fetching user progress:', userProgErr)
+      }
+
+      // Build maps
+      const sessionIdToExercises = {}
+      allExercises?.forEach(ex => {
+        if (!sessionIdToExercises[ex.session_id]) sessionIdToExercises[ex.session_id] = []
+        sessionIdToExercises[ex.session_id].push(ex)
+      })
+
+      const completedSet = new Set(
+        (userCompleted || []).filter(p => p.status === 'completed').map(p => p.exercise_id)
+      )
+
+      // Seed with DB rows first
+      sessionProgressData?.forEach(progress => {
+        sessionProgressMap[progress.session_id] = progress
+      })
+
+      // Fill/override computed fields
+      sessionsData?.forEach(s => {
+        const list = sessionIdToExercises[s.id] || []
+        const total = list.length
+        const completedCount = list.filter(ex => completedSet.has(ex.id)).length
+        const xpEarned = list
+          .filter(ex => completedSet.has(ex.id))
+          .reduce((sum, ex) => sum + (ex.xp_reward || 0), 0)
+        const percentage = total > 0 ? Math.round((completedCount / total) * 100) : 0
+
+        const existing = sessionProgressMap[s.id]
+        if (existing) {
+          sessionProgressMap[s.id] = {
+            ...existing,
+            xp_earned: Math.max(existing.xp_earned || 0, xpEarned),
+            progress_percentage: Math.max(existing.progress_percentage || 0, percentage)
+          }
+        } else {
+          sessionProgressMap[s.id] = {
+            user_id: user.id,
+            session_id: s.id,
+            status: total > 0 && completedCount === total ? 'completed' : 'in_progress',
+            xp_earned: xpEarned,
+            progress_percentage: percentage
+          }
+        }
+      })
+
       setLevel(levelData)
       setUnits(unitsData || [])
+      setSessions(sessionsData || [])
       setUnitProgress(progressMap)
+      setSessionProgress(sessionProgressMap)
       setLevels(allLevelsResult.data || [])
       setAllUnits(allUnitsResult.data || [])
     } catch (err) {
@@ -218,6 +308,20 @@ const UnitList = () => {
     } finally {
       setLoading(false)
     }
+  }
+
+  const getSessionStatusColor = (status, progress) => {
+    if (status === 'completed') {
+      return 'bg-green-500' // Green for completed
+    }
+
+    const progressPercentage = progress?.progress_percentage || 0
+
+    if (progressPercentage > 0) {
+      return 'bg-blue-500' // Blue for in progress
+    }
+
+    return 'bg-gray-300' // Gray for not started
   }
 
   const getThemeColors = (colorTheme) => {
@@ -250,9 +354,61 @@ const UnitList = () => {
     return themes[colorTheme] || themes.blue
   }
 
+  const getSessionStatus = (session, index) => {
+    const progress = sessionProgress[session.id]
+
+    // All sessions are now always available (unlocked)
+    if (!progress) {
+      return { status: 'available', canAccess: true }
+    }
+
+    return {
+      status: progress.status,
+      canAccess: true // Always allow access
+    }
+  }
+
+  const handleSessionClick = async (session) => {
+    try {
+      // Check how many exercises this session has
+      const { data: exercises, error } = await supabase
+        .from('exercises')
+        .select('*')
+        .eq('session_id', session.id)
+        .eq('is_active', true)
+        .order('order_index')
+
+      if (error) throw error
+
+      if (exercises && exercises.length === 1) {
+        // If only one exercise, navigate directly to the exercise
+        const exercise = exercises[0]
+        const paths = {
+          flashcard: '/study/flashcard',
+          audio_flashcard: '/study/audio-flashcard',
+          snake_ladder: '/study/snake-ladder',
+          two_player: '/study/two-player-game',
+          multiple_choice: '/study/multiple-choice'
+        }
+        const exercisePath = paths[exercise.exercise_type] || '/study/flashcard'
+        navigate(`${exercisePath}?exerciseId=${exercise.id}&sessionId=${session.id}`)
+      } else if (exercises && exercises.length > 1) {
+        // If multiple exercises, go to exercise list
+        navigate(`/study/level/${levelId}/unit/${session.unit_id}/session/${session.id}`)
+      } else {
+        // If no exercises, go to exercise list
+        navigate(`/study/level/${levelId}/unit/${session.unit_id}/session/${session.id}`)
+      }
+    } catch (err) {
+      console.error('Error checking exercises:', err)
+      // Fallback to exercise list
+      navigate(`/study/level/${levelId}/unit/${session.unit_id}/session/${session.id}`)
+    }
+  }
+
   const getUnitStatus = (unit, index) => {
     const progress = unitProgress[unit.id]
-    
+
     // All units are now always available (unlocked)
     if (!progress) {
       return { status: 'available', canAccess: true }
@@ -359,6 +515,73 @@ const UnitList = () => {
     )
   }
 
+  const renderSessionCard = (session, index) => {
+    const { status, canAccess } = getSessionStatus(session, index)
+    const progress = sessionProgress[session.id]
+    const isLocked = !canAccess
+    const progressPercentage = progress?.progress_percentage || 0
+
+    return (
+      <div
+        key={session.id}
+        onClick={() => !isLocked && handleSessionClick(session)}
+        className={`block ${isLocked ? 'cursor-not-allowed' : 'cursor-pointer'} w-full h-full group relative`}
+      >
+        <div
+          className={`relative overflow-hidden rounded border border-gray-400 transition-all duration-300 ${
+            isLocked
+              ? 'opacity-60'
+              : 'hover:shadow-md hover:scale-105 hover:border-gray-500'
+          } w-full h-full bg-gray-200`}
+          style={{ aspectRatio: '1' }}
+        >
+          {/* Progress bar from bottom */}
+          {progressPercentage > 0 && status !== 'completed' && (
+            <div
+              className="absolute bottom-0 left-0 right-0 bg-orange-300 transition-all duration-300"
+              style={{ height: `${progressPercentage}%` }}
+            />
+          )}
+
+          {/* Completed overlay */}
+          {status === 'completed' && (
+            <div className="absolute inset-0 bg-green-500" />
+          )}
+
+          {/* Crown icon for completed sessions */}
+          {status === 'completed' && (
+            <div className="absolute inset-0 flex items-center justify-center">
+              <Crown className="w-3 h-3 text-white" />
+            </div>
+          )}
+
+          {/* Lock overlay */}
+          {isLocked && (
+            <div className="absolute top-0 right-0">
+              <div className="w-2 h-2 rounded-full bg-white/90 backdrop-blur-sm flex items-center justify-center shadow-lg">
+                <Lock className="w-1 h-1 text-gray-600" />
+              </div>
+            </div>
+          )}
+        </div>
+
+        {/* Hover tooltip with session name and progress */}
+        <div className="absolute bottom-full left-1/2 transform -translate-x-1/2 mb-2 opacity-0 group-hover:opacity-100 transition-opacity duration-200 pointer-events-none z-10">
+          <div className="bg-gray-900 text-white text-xs rounded-lg px-3 py-2 whitespace-nowrap shadow-lg">
+            <div className="font-medium">{session.title}</div>
+            {progress && (
+              <div className="text-gray-300">
+                {progress.progress_percentage || 0}% • {progress.xp_earned || 0} XP
+              </div>
+            )}
+            {/* Arrow */}
+            <div className="absolute top-full left-1/2 transform -translate-x-1/2 w-0 h-0 border-l-4 border-r-4 border-t-4 border-transparent border-t-gray-900"></div>
+          </div>
+        </div>
+      </div>
+    )
+  }
+
   if (loading && units.length === 0) {
     return (
       <div className="flex h-screen bg-gray-50">
@@ -417,7 +640,7 @@ const UnitList = () => {
         <div className="p-4 border-b border-gray-200">
           <div className="flex items-center justify-between">
             {sidebarOpen && (
-              <h2 className="text-lg font-semibold text-gray-900">Nội dung học</h2>
+              <h2 className="text-lg font-semibold text-gray-900">Sessions</h2>
             )}
             <Button
               variant="ghost"
@@ -458,26 +681,40 @@ const UnitList = () => {
                 </Link>
               </div>
 
-              {/* Units for this level */}
+              {/* Sessions for this level */}
               {levelItem.id === levelId && sidebarOpen && (
                 <div className="ml-6 space-y-1 pb-3">
-                  {allUnits
-                    .filter(unitItem => unitItem.level_id === levelItem.id)
-                    .map((unitItem) => (
-                      <Link
-                        key={unitItem.id}
-                        to={`/study/level/${levelItem.id}/unit/${unitItem.id}`}
-                        className={`flex items-center space-x-3 p-2 rounded-lg transition-colors hover:bg-gray-50`}
-                      >
-                        <div className={`w-6 h-6 rounded flex items-center justify-center text-xs font-bold bg-gray-200`}>
-                          {unitItem.unit_number}
+                  {sessions
+                    .sort((a, b) => (a.session_number || 0) - (b.session_number || 0))
+                    .map((sessionItem) => {
+                      const progress = sessionProgress[sessionItem.id]
+                      const isCompleted = progress?.status === 'completed'
+                      return (
+                        <div
+                          key={sessionItem.id}
+                          onClick={() => handleSessionClick(sessionItem)}
+                          className={`flex items-center space-x-3 p-2 rounded-lg transition-colors hover:bg-gray-50 cursor-pointer`}
+                        >
+                          <div className={`w-3 h-3 rounded ${
+                            progress?.status === 'completed' ? 'bg-green-500' :
+                            (progress?.progress_percentage || 0) > 0 ? 'bg-orange-300' :
+                            'bg-gray-300'
+                          }`}>
+                          </div>
+                          <div className="flex-1 min-w-0">
+                            <div className="font-medium truncate text-sm">{sessionItem.title}</div>
+                            {progress && (
+                              <div className="text-xs text-gray-500 truncate">
+                                {progress.progress_percentage || 0}% • {progress.xp_earned || 0} XP
+                              </div>
+                            )}
+                          </div>
+                          {isCompleted && (
+                            <Crown className="w-3 h-3 text-yellow-600" />
+                          )}
                         </div>
-                        <div className="flex-1 min-w-0">
-                          <div className="font-medium truncate text-sm">{unitItem.title}</div>
-                          <div className="text-xs text-gray-500 truncate">{unitItem.description}</div>
-                        </div>
-                      </Link>
-                    ))}
+                      )
+                    })}
                 </div>
               )}
             </div>
@@ -501,7 +738,7 @@ const UnitList = () => {
               </Button>
               <div>
                 <h1 className="text-3xl font-bold text-gray-900">{level?.title}</h1>
-                <p className="text-gray-600">{level?.description}</p>
+                <p className="text-gray-600">Chọn session để bắt đầu học - Hover để xem tên session</p>
               </div>
             </div>
 
@@ -542,16 +779,22 @@ const UnitList = () => {
           {/* Level progress summary */}
           <Card className={`mb-6 bg-gradient-to-r from-${level.color_theme}-50 to-${level.color_theme}-100 border-${level.color_theme}-200`}>
             <Card.Content className="p-6">
-              <div className="grid grid-cols-2 gap-6 text-center">
+              <div className="grid grid-cols-3 gap-6 text-center">
                 <div>
                   <div className={`text-2xl font-bold ${theme.text}`}>
-                    {Object.values(unitProgress).filter(p => p.status === 'completed').length}
+                    {Object.values(sessionProgress).filter(p => p.status === 'completed').length}
                   </div>
-                  <div className="text-sm text-gray-600">Units hoàn thành</div>
+                  <div className="text-sm text-gray-600">Sessions hoàn thành</div>
                 </div>
                 <div>
                   <div className={`text-2xl font-bold ${theme.text}`}>
-                    {Math.round(Object.values(unitProgress).reduce((total, p) => total + (p.progress_percentage || 0), 0) / Math.max(units.length, 1))}%
+                    {Object.values(sessionProgress).reduce((total, p) => total + (p.xp_earned || 0), 0)}
+                  </div>
+                  <div className="text-sm text-gray-600">XP đã kiếm</div>
+                </div>
+                <div>
+                  <div className={`text-2xl font-bold ${theme.text}`}>
+                    {Math.round(Object.values(sessionProgress).reduce((total, p) => total + (p.progress_percentage || 0), 0) / Math.max(sessions.length, 1))}%
                   </div>
                   <div className="text-sm text-gray-600">Tổng tiến độ</div>
                 </div>
@@ -559,9 +802,35 @@ const UnitList = () => {
             </Card.Content>
           </Card>
 
-          {/* Units grid */}
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-            {units.map((unit, index) => renderUnitCard(unit, index))}
+          {/* Units with Sessions */}
+          <div className="space-y-8">
+            {units.map((unit) => {
+              const unitSessions = sessions
+                .filter(session => session.unit_id === unit.id)
+                .sort((a, b) => (a.session_number || 0) - (b.session_number || 0))
+
+              if (unitSessions.length === 0) return null
+
+              const progress = unitProgress[unit.id]
+
+              return (
+                <div key={unit.id} className="bg-white rounded-lg border border-gray-200 p-4">
+                  {/* Unit Header */}
+                  <div className="mb-3">
+                    <h2 className="text-lg font-bold text-gray-900">{unit.title}</h2>
+                  </div>
+
+                  {/* Sessions Grid for this Unit */}
+                  <div className="grid grid-cols-6 md:grid-cols-8 lg:grid-cols-12 xl:grid-cols-16 gap-2">
+                    {unitSessions.map((session, index) => (
+                      <div key={session.id} className="w-10 h-10">
+                        {renderSessionCard(session, index)}
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )
+            })}
           </div>
 
           {/* Empty state */}
