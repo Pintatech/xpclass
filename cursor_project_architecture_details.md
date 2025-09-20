@@ -1,13 +1,7 @@
 # Project architecture details
 _Exported on 8/29/2025 at 09:28:35 GMT+7 from Cursor (1.5.7)_
 
----
-
-**User**
-
-Give me architecture of this project
-
----
+------
 
 **Cursor**
 
