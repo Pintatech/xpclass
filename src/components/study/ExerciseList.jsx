@@ -500,7 +500,7 @@ const ExerciseList = () => {
   const theme = getThemeColors(session.color_theme || unit.color_theme || level.color_theme)
 
   return (
-    <div className="flex h-screen bg-gray-50">
+    <div className="flex min-h-screen bg-gray-50">
       {/* Left Sidebar - Moved to far left */}
       <div className={`${sidebarOpen ? 'w-80' : 'w-16'} transition-all duration-300 bg-white border-r border-gray-200 flex flex-col order-first`}>
         {/* Sidebar Header */}
@@ -610,33 +610,17 @@ const ExerciseList = () => {
       </div>
 
       {/* Main Content */}
-      <div className="flex-1 flex flex-col overflow-hidden">
+      <div className="flex-1 flex flex-col">
         {/* Header */}
         <div className="bg-white border-b border-gray-200 p-6">
           <div className="flex items-center justify-between">
             <div className="flex items-center space-x-4">
-              <Button
-                variant="ghost"
-                size="sm"
-                onClick={() => navigate(`/study/level/${levelId}/unit/${unitId}`)}
-              >
-                <ArrowLeft className="w-4 h-4 mr-2" />
-                Quay lại
-              </Button>
+              
               <div>
                 <h1 className="text-3xl font-bold text-gray-900">{session.title}</h1>
                 <p className="text-gray-600">{session.description}</p>
               </div>
             </div>
-          </div>
-
-          {/* Breadcrumb */}
-          <div className="flex items-center space-x-2 text-sm text-gray-600 mt-2">
-            <Link to="/study" className="hover:text-primary-600">{level.title}</Link>
-            <ArrowRight className="w-4 h-4" />
-            <Link to={`/study/level/${levelId}`} className="hover:text-primary-600">{unit.title}</Link>
-            <ArrowRight className="w-4 h-4" />
-            <span className="text-gray-900 font-medium">{session.title}</span>
           </div>
         </div>
 

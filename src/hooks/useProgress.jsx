@@ -146,15 +146,24 @@ export const ProgressProvider = ({ children }) => {
       return { data: null, error: 'Exercise already completed' }
     }
 
+    // Check if score meets minimum requirement (75%)
+    const score = progressData.score || 0
+    const meetingRequirement = score >= 75
+
+    console.log(`📊 Score: ${score}% - ${meetingRequirement ? 'PASSED' : 'FAILED'} (requirement: 75%)`)
+
     try {
-      // Mark exercise as completed
+      // Determine status based on score
+      const status = meetingRequirement ? 'completed' : 'attempted'
+
+      // Save progress regardless of score
       const { data, error } = await supabase
         .from('user_progress')
         .upsert({
           user_id: user.id,
           exercise_id: exerciseId,
-          status: 'completed',
-          completed_at: new Date().toISOString(),
+          status: status,
+          completed_at: meetingRequirement ? new Date().toISOString() : null,
           ...progressData,
           updated_at: new Date().toISOString()
         }, {
@@ -168,8 +177,8 @@ export const ProgressProvider = ({ children }) => {
         const { error: updateError } = await supabase
           .from('user_progress')
           .update({
-            status: 'completed',
-            completed_at: new Date().toISOString(),
+            status: status,
+            completed_at: meetingRequirement ? new Date().toISOString() : null,
             ...progressData,
             updated_at: new Date().toISOString()
           })
@@ -178,27 +187,37 @@ export const ProgressProvider = ({ children }) => {
 
         if (updateError) {
           console.log('⚠️ UPDATE also failed:', updateError.message)
-          // Don't throw error, just log it
         }
       }
 
-      // Award XP for first completion
-      if (xpReward && xpReward > 0) {
+      // Only award XP if score requirement is met
+      let actualXpAwarded = 0
+      if (meetingRequirement && xpReward && xpReward > 0) {
         await addXP(xpReward)
-        console.log('💎 Awarded XP for first completion:', xpReward)
+        actualXpAwarded = xpReward
+        console.log('💎 Awarded XP for passing score:', xpReward)
+      } else if (!meetingRequirement) {
+        console.log('❌ No XP awarded - score below 75% requirement')
       }
 
       // Update local state
       await fetchUserProgress()
 
-      // Check for achievements
-      await checkAndAwardAchievements(progressData)
+      // Check for achievements only if completed
+      if (meetingRequirement) {
+        await checkAndAwardAchievements(progressData)
+      }
 
-      return { data, error: null, xpAwarded: xpReward }
+      return {
+        data,
+        error: null,
+        xpAwarded: actualXpAwarded,
+        completed: meetingRequirement,
+        score: score
+      }
     } catch (error) {
       console.error('Error completing exercise:', error)
-      // Don't return error for user_progress issues, daily quest still works
-      return { data: null, error: null, xpAwarded: 0 }
+      return { data: null, error: null, xpAwarded: 0, completed: false }
     }
   }
 
