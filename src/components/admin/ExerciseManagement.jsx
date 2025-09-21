@@ -17,7 +17,9 @@ import {
   Copy,
   X,
   Upload,
-  Download
+  Download,
+  Eye,
+  EyeOff
 } from 'lucide-react'
 
 const ExerciseManagement = () => {
@@ -1230,6 +1232,166 @@ const MultipleChoiceEditor = ({ questions, onQuestionsChange }) => {
   const [bulkImportMode, setBulkImportMode] = useState(false)
   const [bulkText, setBulkText] = useState('')
 
+  // Undo/Redo state management
+  const [undoHistory, setUndoHistory] = useState({})
+  const [redoHistory, setRedoHistory] = useState({})
+
+  // Preview mode state for different fields
+  const [previewModes, setPreviewModes] = useState({})
+
+  // Save state to undo history
+  const saveToUndoHistory = (fieldKey, currentValue) => {
+    setUndoHistory(prev => ({
+      ...prev,
+      [fieldKey]: [...(prev[fieldKey] || []), currentValue].slice(-20) // Keep last 20 states
+    }))
+    // Clear redo history when new action is performed
+    setRedoHistory(prev => ({ ...prev, [fieldKey]: [] }))
+  }
+
+  // Rich text formatting helper function
+  const handleRichTextShortcut = (e, setValue, currentValue, fieldKey) => {
+    if (e.ctrlKey || e.metaKey) {
+      let tagToWrap = null
+
+      switch (e.key.toLowerCase()) {
+        case 'b':
+          e.preventDefault()
+          tagToWrap = 'strong'
+          break
+        case 'i':
+          e.preventDefault()
+          tagToWrap = 'em'
+          break
+        case 'u':
+          e.preventDefault()
+          tagToWrap = 'u'
+          break
+        case 'z':
+          if (!e.shiftKey) {
+            e.preventDefault()
+            handleUndo(fieldKey, setValue)
+            return
+          }
+          break
+        case 'y':
+          e.preventDefault()
+          handleRedo(fieldKey, setValue)
+          return
+        default:
+          return
+      }
+
+      if (tagToWrap) {
+        // Save current state to undo history before making changes
+        saveToUndoHistory(fieldKey, currentValue)
+
+        const textarea = e.target
+        const start = textarea.selectionStart
+        const end = textarea.selectionEnd
+        const selectedText = currentValue.substring(start, end)
+
+        // If no text is selected, insert placeholder
+        const textToWrap = selectedText || 'text'
+        const wrappedText = `<${tagToWrap}>${textToWrap}</${tagToWrap}>`
+
+        const newValue = currentValue.substring(0, start) + wrappedText + currentValue.substring(end)
+        setValue(newValue)
+
+        // Set cursor position after the opening tag
+        setTimeout(() => {
+          const newStart = selectedText ? start + wrappedText.length : start + tagToWrap.length + 2
+          const newEnd = selectedText ? start + wrappedText.length : start + tagToWrap.length + 2 + textToWrap.length
+          textarea.setSelectionRange(newStart, newEnd)
+          textarea.focus()
+        }, 0)
+      }
+    }
+  }
+
+  // Undo function
+  const handleUndo = (fieldKey, setValue) => {
+    const history = undoHistory[fieldKey] || []
+    if (history.length > 0) {
+      const previousValue = history[history.length - 1]
+
+      // Move current value to redo history
+      setRedoHistory(prev => ({
+        ...prev,
+        [fieldKey]: [...(prev[fieldKey] || []), previousValue]
+      }))
+
+      // Remove last item from undo history
+      setUndoHistory(prev => ({
+        ...prev,
+        [fieldKey]: history.slice(0, -1)
+      }))
+
+      setValue(previousValue)
+    }
+  }
+
+  // Redo function
+  const handleRedo = (fieldKey, setValue) => {
+    const history = redoHistory[fieldKey] || []
+    if (history.length > 0) {
+      const nextValue = history[history.length - 1]
+
+      // Move value back to undo history
+      setUndoHistory(prev => ({
+        ...prev,
+        [fieldKey]: [...(prev[fieldKey] || []), nextValue]
+      }))
+
+      // Remove last item from redo history
+      setRedoHistory(prev => ({
+        ...prev,
+        [fieldKey]: history.slice(0, -1)
+      }))
+
+      setValue(nextValue)
+    }
+  }
+
+  // Toggle preview mode for a specific field
+  const togglePreviewMode = (fieldKey) => {
+    setPreviewModes(prev => ({
+      ...prev,
+      [fieldKey]: !prev[fieldKey]
+    }))
+  }
+
+  // HTML Preview Component
+  const HTMLPreview = ({ content, fieldKey, isTextarea = false }) => {
+    const isPreviewMode = previewModes[fieldKey]
+
+    return (
+      <div className="relative">
+        {isPreviewMode ? (
+          <div
+            className={`w-full p-3 border border-gray-300 rounded-lg bg-gray-50 min-h-[2.5rem] ${
+              isTextarea ? 'min-h-[10rem]' : ''
+            }`}
+            style={{
+              whiteSpace: 'pre-wrap',
+              lineHeight: '1.5'
+            }}
+            dangerouslySetInnerHTML={{ __html: content || '<em class="text-gray-400">No content to preview</em>' }}
+          />
+        ) : null}
+
+        <button
+          type="button"
+          onClick={() => togglePreviewMode(fieldKey)}
+          className="absolute top-2 right-2 p-1 bg-white border border-gray-300 rounded shadow-sm hover:bg-gray-50 z-10"
+          title={isPreviewMode ? 'Switch to Edit mode' : 'Switch to Preview mode'}
+        >
+          {isPreviewMode ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+        </button>
+      </div>
+    )
+  }
+
   React.useEffect(() => {
     setLocalQuestions(questions || [])
   }, [questions])
@@ -1650,30 +1812,37 @@ Explanation: Good morning is Chào buổi sáng.`}
             <div className="mb-4">
               <label className="block text-sm font-medium text-gray-700 mb-1">
                 Question Text
-                <span className="text-xs text-gray-500 ml-2">(Supports HTML formatting)</span>
+                <span className="text-xs text-gray-500 ml-2">(Supports HTML formatting + Ctrl+B/I/U shortcuts)</span>
               </label>
-              <textarea
-                value={question.question}
-                onChange={(e) => updateQuestion(index, 'question', e.target.value)}
-                className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 font-mono text-sm"
-                placeholder="What does 'Hello' mean in Vietnamese?
+              <div className="relative">
+                {!previewModes[`question-${index}`] ? (
+                  <textarea
+                    value={question.question}
+                    onChange={(e) => updateQuestion(index, 'question', e.target.value)}
+                    onKeyDown={(e) => handleRichTextShortcut(e, (value) => updateQuestion(index, 'question', value), question.question, `question-${index}`)}
+                    className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 font-mono text-sm pr-12"
+                    placeholder="What does 'Hello' mean in Vietnamese?
 
 Multiple lines work too!
 Just hit Enter to create new lines.
 
-Or use HTML: What does <strong>Hello</strong> mean in <em>Vietnamese</em>?"
-                rows="3"
-              />
+Or use HTML: What does <strong>Hello</strong> mean in <em>Vietnamese</em>?
+💡 TIP: Select text and press Ctrl+B (bold), Ctrl+I (italic), Ctrl+U (underline), or Ctrl+Z (undo)"
+                    rows="10"
+                  />
+                ) : null}
+                <HTMLPreview
+                  content={question.question}
+                  fieldKey={`question-${index}`}
+                  isTextarea={true}
+                />
+              </div>
               <div className="mt-2 p-3 bg-blue-50 border border-blue-200 rounded-lg">
-                <p className="text-xs text-blue-800 font-medium mb-2">💡 Rich Text Formatting Examples:</p>
+                <p className="text-xs text-blue-800 font-medium mb-2">💡 Note:</p>
                 <div className="text-xs text-blue-700 space-y-1">
-                  <div><code>&lt;strong&gt;bold text&lt;/strong&gt;</code> → <strong>bold text</strong></div>
-                  <div><code>&lt;em&gt;italic text&lt;/em&gt;</code> → <em>italic text</em></div>
-                  <div><code>&lt;u&gt;underlined&lt;/u&gt;</code> → <u>underlined</u></div>
-                  <div><code>&lt;mark&gt;highlighted&lt;/mark&gt;</code> → <mark>highlighted</mark></div>
+                  <div><strong>Keyboard Shortcuts:</strong>  <kbd>Ctrl+Z</kbd> undo, <kbd>Ctrl+Y</kbd> redo | <strong>Preview:</strong> Click 👁️ icon</div>                  
                   <div><code>&lt;img src="url" alt="text" /&gt;</code> → displays image</div>
-                  <div><code>&lt;br&gt;</code> or <strong>Enter key</strong> → line breaks</div>
-                  <div><code>Fill in the _____ blank</code> → for fill-in-the-blank questions</div>
+                
                 </div>
               </div>
             </div>
@@ -1705,17 +1874,27 @@ Or use HTML: What does <strong>Hello</strong> mean in <em>Vietnamese</em>?"
                     <span className="text-sm font-medium text-gray-600 w-8">
                       {String.fromCharCode(65 + optionIndex)}:
                     </span>
-                    <input
-                      type="text"
-                      value={option}
-                      onChange={(e) => updateOption(index, optionIndex, e.target.value)}
-                      className={`flex-1 p-2 border rounded-lg focus:ring-2 focus:ring-orange-500 font-mono text-sm ${
-                        question.correct_answer === optionIndex
-                          ? 'border-green-500 bg-green-50'
-                          : 'border-gray-300'
-                      }`}
-                      placeholder={`Option ${String.fromCharCode(65 + optionIndex)} (supports HTML: <strong>bold</strong>, <em>italic</em>)`}
-                    />
+                    <div className="flex-1 relative">
+                      {!previewModes[`option-${index}-${optionIndex}`] ? (
+                        <input
+                          type="text"
+                          value={option}
+                          onChange={(e) => updateOption(index, optionIndex, e.target.value)}
+                          onKeyDown={(e) => handleRichTextShortcut(e, (value) => updateOption(index, optionIndex, value), option, `option-${index}-${optionIndex}`)}
+                          className={`w-full p-2 border rounded-lg focus:ring-2 focus:ring-orange-500 font-mono text-sm pr-10 ${
+                            question.correct_answer === optionIndex
+                              ? 'border-green-500 bg-green-50'
+                              : 'border-gray-300'
+                          }`}
+                          placeholder={`Option ${String.fromCharCode(65 + optionIndex)} (HTML + Ctrl+B/I/U/Z shortcuts)`}
+                        />
+                      ) : null}
+                      <HTMLPreview
+                        content={option}
+                        fieldKey={`option-${index}-${optionIndex}`}
+                        isTextarea={false}
+                      />
+                    </div>
                     {question.options.length > 2 && (
                       <button
                         type="button"
@@ -1738,20 +1917,31 @@ Or use HTML: What does <strong>Hello</strong> mean in <em>Vietnamese</em>?"
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">
                 Explanation (shown after answer)
-                <span className="text-xs text-gray-500 ml-2">(Supports HTML formatting)</span>
+                <span className="text-xs text-gray-500 ml-2">(Supports HTML formatting + Ctrl+B/I/U shortcuts)</span>
               </label>
-              <textarea
-                value={question.explanation}
-                onChange={(e) => updateQuestion(index, 'explanation', e.target.value)}
-                className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 font-mono text-sm"
-                placeholder="Explain why this is the correct answer...
+              <div className="relative">
+                {!previewModes[`explanation-${index}`] ? (
+                  <textarea
+                    value={question.explanation}
+                    onChange={(e) => updateQuestion(index, 'explanation', e.target.value)}
+                    onKeyDown={(e) => handleRichTextShortcut(e, (value) => updateQuestion(index, 'explanation', value), question.explanation, `explanation-${index}`)}
+                    className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 font-mono text-sm pr-12"
+                    placeholder="Explain why this is the correct answer...
 
 You can use multiple lines here too!
 Just press Enter for new lines.
 
-Or with HTML: The correct answer is <strong>important</strong> because <em>it demonstrates</em> the concept."
-                rows="3"
-              />
+Or with HTML: The correct answer is <strong>important</strong> because <em>it demonstrates</em> the concept.
+💡 TIP: Select text and press Ctrl+B (bold), Ctrl+I (italic), Ctrl+U (underline), or Ctrl+Z (undo)"
+                    rows="3"
+                  />
+                ) : null}
+                <HTMLPreview
+                  content={question.explanation}
+                  fieldKey={`explanation-${index}`}
+                  isTextarea={true}
+                />
+              </div>
             </div>
           </div>
         ))}

@@ -135,10 +135,76 @@ const ExerciseList = () => {
         console.error('Error fetching session progress:', sessionProgressError)
       }
 
-      // Build session progress map
+      // Fetch all exercises for these sessions to calculate detailed progress
+      const { data: allExercises, error: exercisesErr } = await supabase
+        .from('exercises')
+        .select('id, session_id, xp_reward, is_active')
+        .in('session_id', allLevelSessions?.map(s => s.id) || [])
+        .eq('is_active', true)
+
+      if (exercisesErr) {
+        console.error('Error fetching exercises for progress:', exercisesErr)
+      }
+
+      const exerciseIds = allExercises?.map(e => e.id) || []
+
+      // Fetch user's completed exercises among these
+      const { data: userCompleted, error: userProgErr } = await supabase
+        .from('user_progress')
+        .select('exercise_id, status')
+        .eq('user_id', user.id)
+        .in('exercise_id', exerciseIds)
+
+      if (userProgErr) {
+        console.error('Error fetching user progress:', userProgErr)
+      }
+
+      // Build maps for progress calculation
+      const sessionIdToExercises = {}
+      allExercises?.forEach(ex => {
+        if (!sessionIdToExercises[ex.session_id]) sessionIdToExercises[ex.session_id] = []
+        sessionIdToExercises[ex.session_id].push(ex)
+      })
+
+      const completedSet = new Set(
+        (userCompleted || []).filter(p => p.status === 'completed').map(p => p.exercise_id)
+      )
+
+      // Build session progress map with calculated values
       const sessionProgressMap = {}
+
+      // Seed with DB rows first
       sessionProgressData?.forEach(progress => {
         sessionProgressMap[progress.session_id] = progress
+      })
+
+      // Fill/override computed fields
+      allLevelSessions?.forEach(s => {
+        const list = sessionIdToExercises[s.id] || []
+        const total = list.length
+        const completedCount = list.filter(ex => completedSet.has(ex.id)).length
+        const xpEarned = list
+          .filter(ex => completedSet.has(ex.id))
+          .reduce((sum, ex) => sum + (ex.xp_reward || 0), 0)
+        const percentage = total > 0 ? Math.round((completedCount / total) * 100) : 0
+
+        const existing = sessionProgressMap[s.id]
+        if (existing) {
+          sessionProgressMap[s.id] = {
+            ...existing,
+            xp_earned: Math.max(existing.xp_earned || 0, xpEarned),
+            progress_percentage: Math.max(existing.progress_percentage || 0, percentage)
+          }
+        } else {
+          sessionProgressMap[s.id] = {
+            user_id: user.id,
+            session_id: s.id,
+            status: total > 0 && completedCount === total ? 'completed' :
+                   completedCount > 0 ? 'in_progress' : 'not_started',
+            xp_earned: xpEarned,
+            progress_percentage: percentage
+          }
+        }
       })
 
       setLevels(allLevelsResult.data || [])
@@ -435,20 +501,21 @@ const ExerciseList = () => {
 
   return (
     <div className="flex h-screen bg-gray-50">
-      {/* Sidebar */}
-      <div className={`${sidebarOpen ? 'w-80' : 'w-16'} transition-all duration-300 bg-white border-r border-gray-200 flex flex-col`}>
+      {/* Left Sidebar - Moved to far left */}
+      <div className={`${sidebarOpen ? 'w-80' : 'w-16'} transition-all duration-300 bg-white border-r border-gray-200 flex flex-col order-first`}>
         {/* Sidebar Header */}
         <div className="p-4 border-b border-gray-200">
           <div className="flex items-center justify-between">
             {sidebarOpen && (
-              <h2 className="text-lg font-semibold text-gray-900">Sessions</h2>
+              <h2 className="text-lg font-semibold text-gray-900">Navigation</h2>
             )}
             <Button
               variant="ghost"
               size="sm"
               onClick={() => setSidebarOpen(!sidebarOpen)}
+              title={sidebarOpen ? "Collapse sidebar" : "Expand sidebar"}
             >
-              <ArrowLeft className={`w-4 h-4 transition-transform ${sidebarOpen ? 'rotate-0' : 'rotate-180'}`} />
+              <ArrowLeft className={`w-4 h-4 transition-transform ${sidebarOpen ? 'rotate-180' : 'rotate-0'}`} />
             </Button>
           </div>
         </div>
@@ -486,7 +553,20 @@ const ExerciseList = () => {
               {levelItem.id === levelId && sidebarOpen && (
                 <div className="ml-6 space-y-1 pb-3">
                   {allLevelSessions && allLevelSessions.length > 0 ? allLevelSessions
-                    .sort((a, b) => (a.session_number || 0) - (b.session_number || 0))
+                    .sort((a, b) => {
+                      // Create unit map for sorting
+                      const unitMap = {}
+                      units.forEach(unit => {
+                        unitMap[unit.id] = unit.unit_number || 0
+                      })
+
+                      // First sort by unit number, then by session number
+                      const unitNumA = unitMap[a.unit_id] || 0
+                      const unitNumB = unitMap[b.unit_id] || 0
+                      const unitDiff = unitNumA - unitNumB
+                      if (unitDiff !== 0) return unitDiff
+                      return (a.session_number || 0) - (b.session_number || 0)
+                    })
                     .map((sessionItem) => {
                       const progress = sessionProgress[sessionItem.id]
                       const isCompleted = progress?.status === 'completed'
