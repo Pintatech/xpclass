@@ -44,7 +44,7 @@ const LoginPage = () => {
         <div className="text-center">
           <div className="flex justify-center mb-4">
             <div className="w-32 h-32  rounded-2xl flex items-center justify-center text-white font-bold text-2xl">
-              <img src="https://xpclass.vn/kevhocsat/general%20materials/logo.png" alt="Logo" width={96} height={96} />
+              <img src="https://xpclass.vn/xpclass/Asset%205.png" alt="Logo" width={96} height={96} />
             </div>
           </div>
           <h2 className="text-3xl font-bold text-gray-900 mb-2">

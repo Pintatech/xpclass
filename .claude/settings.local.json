@@ -37,7 +37,11 @@
       "Read(/C:\\Users\\Pinta\\Downloads\\momtek\\src\\components\\study/**)",
       "Bash(npm run dev:*)",
       "Bash(cat:*)",
-      "Bash(node:*)"
+      "Bash(node:*)",
+      "Bash(git remote add:*)",
+      "Bash(git fetch:*)",
+      "Bash(git merge:*)",
+      "Bash(git add:*)"
     ],
     "deny": [],
     "ask": []
