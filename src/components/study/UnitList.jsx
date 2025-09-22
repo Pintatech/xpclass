@@ -634,20 +634,21 @@ const UnitList = () => {
 
   return (
     <div className="flex h-screen bg-gray-50">
-      {/* Sidebar */}
-      <div className={`${sidebarOpen ? 'w-80' : 'w-16'} transition-all duration-300 bg-white border-r border-gray-200 flex flex-col`}>
+      {/* Left Sidebar - Moved to far left */}
+      <div className={`${sidebarOpen ? 'w-80' : 'w-16'} transition-all duration-300 bg-white border-r border-gray-200 flex flex-col order-first`}>
         {/* Sidebar Header */}
         <div className="p-4 border-b border-gray-200">
           <div className="flex items-center justify-between">
             {sidebarOpen && (
-              <h2 className="text-lg font-semibold text-gray-900">Sessions</h2>
+              <h2 className="text-lg font-semibold text-gray-900">Navigation</h2>
             )}
             <Button
               variant="ghost"
               size="sm"
               onClick={() => setSidebarOpen(!sidebarOpen)}
+              title={sidebarOpen ? "Collapse sidebar" : "Expand sidebar"}
             >
-              <ArrowLeft className={`w-4 h-4 transition-transform ${sidebarOpen ? 'rotate-0' : 'rotate-180'}`} />
+              <ArrowLeft className={`w-4 h-4 transition-transform ${sidebarOpen ? 'rotate-180' : 'rotate-0'}`} />
             </Button>
           </div>
         </div>
@@ -685,7 +686,20 @@ const UnitList = () => {
               {levelItem.id === levelId && sidebarOpen && (
                 <div className="ml-6 space-y-1 pb-3">
                   {sessions
-                    .sort((a, b) => (a.session_number || 0) - (b.session_number || 0))
+                    .sort((a, b) => {
+                      // Create unit map for sorting
+                      const unitMap = {}
+                      units.forEach(unit => {
+                        unitMap[unit.id] = unit.unit_number || 0
+                      })
+
+                      // First sort by unit number, then by session number
+                      const unitNumA = unitMap[a.unit_id] || 0
+                      const unitNumB = unitMap[b.unit_id] || 0
+                      const unitDiff = unitNumA - unitNumB
+                      if (unitDiff !== 0) return unitDiff
+                      return (a.session_number || 0) - (b.session_number || 0)
+                    })
                     .map((sessionItem) => {
                       const progress = sessionProgress[sessionItem.id]
                       const isCompleted = progress?.status === 'completed'

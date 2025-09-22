@@ -271,14 +271,14 @@ const MultipleChoiceExercise = () => {
       const bonusXP = score >= 80 ? Math.round(baseXP * 0.2) : 0 // 20% bonus for good performance
       const totalXP = baseXP + bonusXP
 
-      console.log(`💰 Awarding XP: ${baseXP} base + ${bonusXP} bonus = ${totalXP} total`)
+      console.log(`💰 Calculating XP: ${baseXP} base + ${bonusXP} bonus = ${totalXP} total`)
 
       // Use useProgress hook to complete exercise (this will also check daily quest)
       const result = await completeExerciseWithXP(exerciseId, totalXP, {
         score: score,
         max_score: 100,
         attempts: isRetryMode ? 2 : 1,
-        xp_earned: totalXP
+        xp_earned: totalXP  // We'll calculate actual XP in the backend based on completion
       })
 
       if (result.error && result.error !== 'Exercise already completed') {
@@ -289,20 +289,23 @@ const MultipleChoiceExercise = () => {
       // If exercise was already completed, that's fine - daily quest still gets checked
       if (result.error === 'Exercise already completed') {
         console.log('ℹ️ Exercise was already completed, but daily quest was checked')
-        // Don't show XP notification for already completed exercises
         return
       }
 
-      // Show XP notification
-      setXpAwarded(totalXP)
-      setShowXpNotification(true)
+      // Show XP notification only if XP was actually awarded
+      if (result.xpAwarded > 0) {
+        setXpAwarded(result.xpAwarded)
+        setShowXpNotification(true)
 
-      // Hide notification after 4 seconds
-      setTimeout(() => {
-        setShowXpNotification(false)
-      }, 4000)
+        // Hide notification after 4 seconds
+        setTimeout(() => {
+          setShowXpNotification(false)
+        }, 4000)
 
-      console.log(`✅ Exercise completed successfully! Awarded ${totalXP} XP`)
+        console.log(`✅ Exercise completed successfully! Awarded ${result.xpAwarded} XP`)
+      } else {
+        console.log(`📝 Exercise attempted but not completed (score: ${score}%, required: 75%)`)
+      }
 
     } catch (err) {
       console.error('❌ Error marking exercise completed:', err)
@@ -324,35 +327,80 @@ const MultipleChoiceExercise = () => {
   }
 
   const goToNextExercise = async () => {
-    if (!sessionId) return
+    console.log('🚀 Going to next exercise...', { sessionId, exerciseId })
+
+    if (!sessionId) {
+      console.log('❌ No sessionId, going back to study')
+      navigate('/study')
+      return
+    }
 
     try {
+      // Try different ordering methods since 'order_index' might not exist
       const { data: exercises, error } = await supabase
         .from('exercises')
         .select('*')
         .eq('session_id', sessionId)
-        .eq('is_active', true)
-        .order('order_index')
+        .order('created_at')  // Use created_at instead of order_index
 
       if (error) throw error
 
+      console.log('📚 Found exercises:', exercises?.length)
+      console.log('🔍 Current exercise ID:', exerciseId)
+
+      if (!exercises || exercises.length === 0) {
+        console.log('❌ No exercises found, going back to session')
+        if (session) {
+          navigate(`/study/level/${session.units?.level_id}/unit/${session.unit_id}/session/${sessionId}`)
+        } else {
+          navigate('/study')
+        }
+        return
+      }
+
       const currentIndex = exercises.findIndex(ex => ex.id === exerciseId)
+      console.log('📍 Current exercise index:', currentIndex)
+
       if (currentIndex !== -1 && currentIndex < exercises.length - 1) {
         const nextExercise = exercises[currentIndex + 1]
+        console.log('➡️ Next exercise:', nextExercise.title, nextExercise.exercise_type)
+
         const paths = {
           flashcard: '/study/flashcard',
           audio_flashcard: '/study/audio-flashcard',
-          multiple_choice: '/study/multiple-choice'
+          multiple_choice: '/study/multiple-choice',
+          video: '/study/video',
+          quiz: '/study/quiz',
+          listening: '/study/listening',
+          speaking: '/study/speaking',
+          pronunciation: '/study/pronunciation'
         }
+
         const exercisePath = paths[nextExercise.exercise_type] || '/study/flashcard'
-        navigate(`${exercisePath}?exerciseId=${nextExercise.id}&sessionId=${sessionId}`)
+        const nextUrl = `${exercisePath}?exerciseId=${nextExercise.id}&sessionId=${sessionId}`
+
+        console.log('🔗 Navigating to:', nextUrl)
+        navigate(nextUrl)
       } else {
         // No more exercises, go back to session
-        navigate(`/study/level/${session?.units?.level_id}/unit/${session?.unit_id}/session/${sessionId}`)
+        console.log('✅ No more exercises, going back to session')
+        if (session && session.units) {
+          const backUrl = `/study/level/${session.units.level_id}/unit/${session.unit_id}/session/${sessionId}`
+          console.log('🔙 Going back to:', backUrl)
+          navigate(backUrl)
+        } else {
+          console.log('❌ No session info, going to study dashboard')
+          navigate('/study')
+        }
       }
     } catch (err) {
-      console.error('Error fetching next exercise:', err)
-      navigate(`/study/level/${session?.units?.level_id}/unit/${session?.unit_id}/session/${sessionId}`)
+      console.error('❌ Error fetching next exercise:', err)
+      // Fallback navigation
+      if (session && session.units) {
+        navigate(`/study/level/${session.units.level_id}/unit/${session.unit_id}/session/${sessionId}`)
+      } else {
+        navigate('/study')
+      }
     }
   }
 
@@ -414,6 +462,9 @@ const MultipleChoiceExercise = () => {
                 {isRetryMode ? 'Ôn lại câu sai' : exercise?.title}
               </p>
               <h1 className="text-2xl font-bold">Trắc nghiệm</h1>
+              <p className="text-sm text-blue-200 mt-1">
+                🎯 Cần đạt ≥ 75% để hoàn thành
+              </p>
             </div>
             <div className="text-right">
               <div className="text-2xl font-bold">
@@ -450,21 +501,50 @@ const MultipleChoiceExercise = () => {
       {isQuizComplete && (
         <Card className="p-8 text-center">
           <div className="mb-6">
-            <div className="w-20 h-20 mx-auto mb-4 bg-green-100 rounded-full flex items-center justify-center">
-              <CheckCircle className="w-10 h-10 text-green-500" />
-            </div>
-            <h2 className="text-2xl font-bold text-gray-800 mb-2">
-              {isRetryMode ? 'Đã hoàn thành ôn lại!' : 'Hoàn thành bài quiz!'}
-            </h2>
-            <p className="text-gray-600 mb-2">
-              Bạn đã trả lời đúng {questionResults.filter(r => r.isCorrect).length}/{questionResults.length} câu
-            </p>
-            {xpAwarded > 0 && (
-              <div className="flex items-center justify-center space-x-2 text-yellow-600 font-semibold">
-                <Star className="w-5 h-5" />
-                <span>+{xpAwarded} XP earned!</span>
-              </div>
-            )}
+            {(() => {
+              const correctAnswers = questionResults.filter(r => r.isCorrect).length
+              const totalQuestions = questionResults.length
+              const score = Math.round((correctAnswers / totalQuestions) * 100)
+              const passed = score >= 75
+
+              return (
+                <>
+                  <div className={`w-20 h-20 mx-auto mb-4 ${passed ? 'bg-green-100' : 'bg-orange-100'} rounded-full flex items-center justify-center`}>
+                    {passed ? (
+                      <CheckCircle className="w-10 h-10 text-green-500" />
+                    ) : (
+                      <XCircle className="w-10 h-10 text-orange-500" />
+                    )}
+                  </div>
+                  <h2 className={`text-2xl font-bold mb-2 ${passed ? 'text-green-800' : 'text-orange-800'}`}>
+                    {passed
+                      ? (isRetryMode ? 'Đã hoàn thành ôn lại!' : 'Hoàn thành bài quiz!')
+                      : 'Cần cải thiện!'
+                    }
+                  </h2>
+                  <p className="text-gray-600 mb-2">
+                    Bạn đã trả lời đúng {correctAnswers}/{totalQuestions} câu ({score}%)
+                  </p>
+                  {!passed && (
+                    <p className="text-orange-600 font-semibold mb-4">
+                      Cần đạt ít nhất 75% để hoàn thành bài tập
+                    </p>
+                  )}
+                  {xpAwarded > 0 && (
+                    <div className="flex items-center justify-center space-x-2 text-yellow-600 font-semibold">
+                      <Star className="w-5 h-5" />
+                      <span>+{xpAwarded} XP earned!</span>
+                    </div>
+                  )}
+                  {xpAwarded === 0 && !passed && (
+                    <div className="flex items-center justify-center space-x-2 text-gray-500">
+                      <XCircle className="w-5 h-5" />
+                      <span>Không nhận được XP (điểm quá thấp)</span>
+                    </div>
+                  )}
+                </>
+              )
+            })()}
           </div>
 
           <div className="space-y-4">
@@ -479,13 +559,18 @@ const MultipleChoiceExercise = () => {
               </Button>
             )}
 
-            {/* Continue to next exercise */}
+            {/* Back to exercise list */}
             <Button
-              onClick={goToNextExercise}
+              onClick={() => {
+                if (session && session.units) {
+                  navigate(`/study/level/${session.units.level_id}/unit/${session.unit_id}/session/${sessionId}`)
+                } else {
+                  navigate('/study')
+                }
+              }}
               className="w-full bg-blue-500 hover:bg-blue-600 text-white"
             >
-              <ArrowRight className="w-4 h-4 mr-2" />
-              Tiếp tục
+              Quay lại danh sách bài tập
             </Button>
           </div>
         </Card>
@@ -522,11 +607,16 @@ const MultipleChoiceExercise = () => {
                 if (selectedAnswer === null) {
                   buttonClass += "border-gray-300 hover:border-blue-400 hover:bg-blue-50 cursor-pointer"
                 } else {
-                  if (index === currentQuestion.correct_answer) {
-                    buttonClass += "border-green-500 bg-green-100 text-green-800"
-                  } else if (index === selectedAnswer) {
-                    buttonClass += "border-red-500 bg-red-100 text-red-800"
+                  if (index === selectedAnswer) {
+                    // Show only the selected answer - green if correct, red if wrong
+                    const isCorrect = index === currentQuestion.correct_answer
+                    if (isCorrect) {
+                      buttonClass += "border-green-500 bg-green-100 text-green-800"
+                    } else {
+                      buttonClass += "border-red-500 bg-red-100 text-red-800"
+                    }
                   } else {
+                    // Other options remain neutral
                     buttonClass += "border-gray-300 bg-gray-50 text-gray-500"
                   }
                 }
@@ -542,18 +632,17 @@ const MultipleChoiceExercise = () => {
                       <div className="flex-1">
                         <RichTextRenderer
                           content={option}
-                          
+
                           allowImages={true}
                           allowLinks={false}
                         />
                       </div>
                       <div className="ml-4 flex-shrink-0">
-                        {selectedAnswer !== null && (
+                        {selectedAnswer !== null && index === selectedAnswer && (
                           <>
-                            {index === currentQuestion.correct_answer && (
+                            {index === currentQuestion.correct_answer ? (
                               <CheckCircle className="w-5 h-5 text-green-600" />
-                            )}
-                            {index === selectedAnswer && index !== currentQuestion.correct_answer && (
+                            ) : (
                               <XCircle className="w-5 h-5 text-red-600" />
                             )}
                           </>

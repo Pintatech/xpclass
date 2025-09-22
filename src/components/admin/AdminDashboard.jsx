@@ -190,96 +190,126 @@ const AdminDashboard = () => {
   ];
 
   return (
-    <div className="min-h-screen bg-gray-50">
-      {/* Header */}
-      <div className="bg-white shadow-sm border-b">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="flex justify-between items-center py-4">
-            <div>
-              <h1 className="text-2xl font-bold text-gray-900">Admin Dashboard</h1>
-              <p className="text-sm text-gray-600">Manage your MomTek platform</p>
-            </div>
-            <div className="flex items-center space-x-4">
-              <button
-                onClick={handleExportContent}
-                disabled={loading}
-                className="bg-green-600 text-white px-4 py-2 rounded-lg hover:bg-green-700 disabled:opacity-50 transition-colors flex items-center gap-2"
-              >
-                <Download className="w-4 h-4" />
-                Export Data
-              </button>
-              <div className="flex items-center gap-2">
-                <div className="w-2 h-2 bg-green-500 rounded-full"></div>
-                <span className="text-sm text-green-600 font-medium">Admin Access</span>
-              </div>
-            </div>
+    <div className="min-h-screen bg-gray-50 flex">
+      {/* Left Sidebar */}
+      <div className="w-64 bg-white shadow-lg border-r flex flex-col">
+        {/* Sidebar Header */}
+        <div className="p-6 border-b">
+          <h1 className="text-lg font-bold text-gray-900">Admin Dashboard</h1>
+          <p className="text-xs text-gray-600">Manage your MomTek platform</p>
+        </div>
+
+        {/* Navigation Sidebar */}
+        <div className="flex-1 overflow-y-auto">
+          <nav className="px-4 py-6 space-y-2">
+            {tabs.map((tab) => {
+              const IconComponent = tab.icon;
+              return (
+                <button
+                  key={tab.id}
+                  onClick={() => handleTabChange(tab.id)}
+                  className={`w-full flex items-center gap-3 px-3 py-2 rounded-lg text-sm font-medium transition-colors text-left ${
+                    activeTab === tab.id
+                      ? 'bg-blue-600 text-white shadow-sm'
+                      : 'text-gray-600 hover:text-gray-800 hover:bg-gray-50'
+                  }`}
+                >
+                  <IconComponent className="w-4 h-4" />
+                  {tab.label}
+                </button>
+              );
+            })}
+          </nav>
+        </div>
+
+        {/* Sidebar Footer */}
+        <div className="p-4 border-t">
+          <button
+            onClick={handleExportContent}
+            disabled={loading}
+            className="w-full bg-green-600 text-white px-3 py-2 rounded-lg hover:bg-green-700 disabled:opacity-50 transition-colors flex items-center justify-center gap-2 text-sm"
+          >
+            <Download className="w-4 h-4" />
+            Export Data
+          </button>
+          <div className="flex items-center justify-center gap-2 mt-3">
+            <div className="w-2 h-2 bg-green-500 rounded-full"></div>
+            <span className="text-xs text-green-600 font-medium">Admin Access</span>
           </div>
         </div>
       </div>
 
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        {/* Quick Stats */}
-        {stats && (
-          <div className="grid grid-cols-2 md:grid-cols-6 gap-4 mb-8">
-            <div className="bg-white rounded-lg shadow-sm p-4 border">
-              <div className="text-2xl font-bold text-blue-600">{stats.totalLevels}</div>
-              <div className="text-sm text-gray-600">Levels</div>
-            </div>
-            <div className="bg-white rounded-lg shadow-sm p-4 border">
-              <div className="text-2xl font-bold text-green-600">{stats.totalUnits}</div>
-              <div className="text-sm text-gray-600">Units</div>
-            </div>
-            <div className="bg-white rounded-lg shadow-sm p-4 border">
-              <div className="text-2xl font-bold text-purple-600">{stats.totalSessions}</div>
-              <div className="text-sm text-gray-600">Sessions</div>
-            </div>
-            <div className="bg-white rounded-lg shadow-sm p-4 border">
-              <div className="text-2xl font-bold text-orange-600">{stats.totalExercises}</div>
-              <div className="text-sm text-gray-600">Exercises</div>
-            </div>
-            <div className="bg-white rounded-lg shadow-sm p-4 border">
-              <div className="text-2xl font-bold text-indigo-600">{stats.totalUsers}</div>
-              <div className="text-sm text-gray-600">Users</div>
-            </div>
-            <div className="bg-white rounded-lg shadow-sm p-4 border">
-              <div className="text-2xl font-bold text-pink-600">{stats.recentUsers}</div>
-              <div className="text-sm text-gray-600">New (7d)</div>
+      {/* Main Content Area */}
+      <div className="flex-1 flex flex-col">
+        {/* Top Header */}
+        <div className="bg-white shadow-sm border-b">
+          <div className="px-6 py-4">
+            <div className="flex justify-between items-center">
+              <div>
+                <h2 className="text-xl font-semibold text-gray-900">
+                  {tabs.find(tab => tab.id === activeTab)?.label || 'Dashboard'}
+                </h2>
+                <p className="text-sm text-gray-600">
+                  {activeTab === 'overview' && 'Platform overview and statistics'}
+                  {activeTab === 'tree' && 'Content hierarchy and structure'}
+                  {activeTab === 'levels' && 'Manage learning levels'}
+                  {activeTab === 'units' && 'Manage curriculum units'}
+                  {activeTab === 'sessions' && 'Manage learning sessions'}
+                  {activeTab === 'exercises' && 'Manage exercises and activities'}
+                  {activeTab === 'users' && 'User management and profiles'}
+                  {activeTab === 'analytics' && 'Platform analytics and insights'}
+                </p>
+              </div>
             </div>
           </div>
-        )}
-
-        {/* Navigation Tabs */}
-        <div className="flex space-x-1 bg-white p-1 rounded-lg mb-8 shadow-sm border">
-          {tabs.map((tab) => {
-            const IconComponent = tab.icon;
-            return (
-              <button
-                key={tab.id}
-                onClick={() => handleTabChange(tab.id)}
-                className={`flex-1 py-3 px-4 rounded-md text-sm font-medium transition-colors flex items-center justify-center gap-2 ${
-                  activeTab === tab.id
-                    ? 'bg-blue-600 text-white shadow-sm'
-                    : 'text-gray-600 hover:text-gray-800 hover:bg-gray-50'
-                }`}
-              >
-                <IconComponent className="w-4 h-4" />
-                {tab.label}
-              </button>
-            );
-          })}
         </div>
 
-        {/* Tab Content - Using React Router */}
-        <Routes>
-          <Route index element={<AdminOverview />} />
-          <Route path="tree" element={<ContentTreeView />} />
-          <Route path="levels" element={<LevelManagement />} />
-          <Route path="units" element={<UnitManagement />} />
-          <Route path="sessions" element={<SessionManagement />} />
-          <Route path="exercises" element={<ExerciseManagement />} />
-          <Route path="users" element={<UserManagement />} />
-          <Route path="analytics" element={<AnalyticsView stats={stats} />} />
-        </Routes>
+        {/* Content Container */}
+        <div className="flex-1 overflow-auto">
+          <div className="p-6">
+            {/* Quick Stats */}
+            {stats && activeTab === 'overview' && (
+              <div className="grid grid-cols-2 md:grid-cols-6 gap-4 mb-8">
+                <div className="bg-white rounded-lg shadow-sm p-4 border">
+                  <div className="text-2xl font-bold text-blue-600">{stats.totalLevels}</div>
+                  <div className="text-sm text-gray-600">Levels</div>
+                </div>
+                <div className="bg-white rounded-lg shadow-sm p-4 border">
+                  <div className="text-2xl font-bold text-green-600">{stats.totalUnits}</div>
+                  <div className="text-sm text-gray-600">Units</div>
+                </div>
+                <div className="bg-white rounded-lg shadow-sm p-4 border">
+                  <div className="text-2xl font-bold text-purple-600">{stats.totalSessions}</div>
+                  <div className="text-sm text-gray-600">Sessions</div>
+                </div>
+                <div className="bg-white rounded-lg shadow-sm p-4 border">
+                  <div className="text-2xl font-bold text-orange-600">{stats.totalExercises}</div>
+                  <div className="text-sm text-gray-600">Exercises</div>
+                </div>
+                <div className="bg-white rounded-lg shadow-sm p-4 border">
+                  <div className="text-2xl font-bold text-indigo-600">{stats.totalUsers}</div>
+                  <div className="text-sm text-gray-600">Users</div>
+                </div>
+                <div className="bg-white rounded-lg shadow-sm p-4 border">
+                  <div className="text-2xl font-bold text-pink-600">{stats.recentUsers}</div>
+                  <div className="text-sm text-gray-600">New (7d)</div>
+                </div>
+              </div>
+            )}
+
+            {/* Tab Content - Using React Router */}
+            <Routes>
+              <Route index element={<AdminOverview />} />
+              <Route path="tree" element={<ContentTreeView />} />
+              <Route path="levels" element={<LevelManagement />} />
+              <Route path="units" element={<UnitManagement />} />
+              <Route path="sessions" element={<SessionManagement />} />
+              <Route path="exercises" element={<ExerciseManagement />} />
+              <Route path="users" element={<UserManagement />} />
+              <Route path="analytics" element={<AnalyticsView stats={stats} />} />
+            </Routes>
+          </div>
+        </div>
       </div>
 
       {/* Notification Display */}
