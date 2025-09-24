@@ -24,8 +24,24 @@ const ProtectedRoute = ({ children, requireAdmin = false }) => {
     return <Navigate to="/login" state={{ from: location }} replace />
   }
 
-  if (requireAdmin && !isAdmin()) {
-    return <Navigate to="/" replace />
+  // For admin routes, wait for profile to load before checking admin status
+  if (requireAdmin) {
+    // If profile is still loading (null but user exists), show loading
+    if (profile === null && user) {
+      return (
+        <div className="min-h-screen flex items-center justify-center bg-gray-50">
+          <div className="text-center">
+            <LoadingSpinner size="lg" />
+            <div className="mt-4 text-gray-600">Đang kiểm tra quyền admin...</div>
+          </div>
+        </div>
+      )
+    }
+    
+    // If profile loaded but user is not admin
+    if (profile && !isAdmin()) {
+      return <Navigate to="/" replace />
+    }
   }
 
   return children

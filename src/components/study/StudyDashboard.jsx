@@ -8,6 +8,7 @@ import {
   Music, 
   Video, 
   Star,
+  Copy,
   Clock,
   Target
 } from 'lucide-react'
@@ -53,6 +54,16 @@ const StudyDashboard = () => {
       difficulty: 'Trung bình',
       duration: '15-25 phút',
       path: '/study/video'
+    },
+    {
+      id: 'drag_drop',
+      title: 'Kéo thả',
+      description: 'Sắp xếp từ và câu theo thứ tự đúng',
+      icon: Copy,
+      color: 'bg-green-600',
+      difficulty: 'Trung bình',
+      duration: '10-20 phút',
+      path: '/study/drag-drop'
     },
   ]
 

@@ -53,8 +53,8 @@ const DailyQuest = () => {
         case 'flashcard':
           exerciseUrl = `/study/flashcard?exerciseId=${exerciseId}${sessionId ? `&sessionId=${sessionId}` : ''}`
           break
-        case 'audio_flashcard':
-          exerciseUrl = `/study/audio-flashcard?exerciseId=${exerciseId}${sessionId ? `&sessionId=${sessionId}` : ''}`
+        case 'fill_blank':
+          exerciseUrl = `/study/fill-blank?exerciseId=${exerciseId}${sessionId ? `&sessionId=${sessionId}` : ''}`
           break
         case 'pronunciation':
           exerciseUrl = `/study/pronunciation?exerciseId=${exerciseId}${sessionId ? `&sessionId=${sessionId}` : ''}`

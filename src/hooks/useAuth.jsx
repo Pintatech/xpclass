@@ -35,7 +35,7 @@ export const AuthProvider = ({ children }) => {
 
         if (session?.user) {
           setUser(session.user)
-          // Don't await profile fetch to prevent hanging
+          // Fetch profile and wait for it to complete
           fetchUserProfile(session.user.id).catch(error => {
             console.error('Initial profile fetch failed:', error)
             setProfile(null)
@@ -59,7 +59,7 @@ export const AuthProvider = ({ children }) => {
         try {
           if (session?.user) {
             setUser(session.user)
-            // Don't await fetchUserProfile to prevent hanging
+            // Fetch profile and wait for it to complete
             fetchUserProfile(session.user.id).catch(error => {
               console.error('Profile fetch failed:', error)
               setProfile(null)
@@ -195,7 +195,12 @@ export const AuthProvider = ({ children }) => {
   }
 
   const isAdmin = () => {
-    return profile?.role === 'admin'
+    // Check both profile role and user metadata as fallback
+    return profile?.role === 'admin' || user?.user_metadata?.role === 'admin'
+  }
+
+  const isTeacher = () => {
+    return profile?.role === 'teacher'
   }
 
   const value = {
@@ -207,6 +212,7 @@ export const AuthProvider = ({ children }) => {
     signOut,
     updateProfile,
     isAdmin,
+    isTeacher,
     fetchUserProfile
   }
 

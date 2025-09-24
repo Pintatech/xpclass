@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react'
 import { supabase } from '../../supabase/client'
-import { Clock, Star, Trophy, BookOpen, Volume2, HelpCircle } from 'lucide-react'
+import { Clock, Star, Trophy, BookOpen, Edit3, HelpCircle } from 'lucide-react'
 
 const RecentActivities = () => {
   const [activities, setActivities] = useState([])
@@ -13,87 +13,55 @@ const RecentActivities = () => {
   const fetchRecentActivities = async () => {
     try {
       setLoading(true)
-      
-      // First try with xp_earned field
-      let { data, error } = await supabase
+
+      // Simplified query without nested joins
+      const { data, error } = await supabase
         .from('user_progress')
         .select(`
           id,
           completed_at,
-          xp_earned,
-          users!inner (
-            id,
-            full_name,
-            avatar_url
-          ),
-          exercises!inner (
-            id,
-            title,
-            exercise_type,
-            xp_reward,
-            sessions!inner (
-              id,
-              title,
-              units!inner (
-                id,
-                title,
-                levels!inner (
-                  id,
-                  title
-                )
-              )
-            )
-          )
+          user_id,
+          exercise_id
         `)
         .eq('status', 'completed')
         .not('completed_at', 'is', null)
         .order('completed_at', { ascending: false })
         .limit(10)
 
-      // If xp_earned field doesn't exist, try without it
-      if (error && error.code === 'PGRST116') {
-        console.log('xp_earned field not found, trying without it...')
-        const fallbackResult = await supabase
-          .from('user_progress')
-          .select(`
-            id,
-            completed_at,
-            users!inner (
-              id,
-              full_name,
-              avatar_url
-            ),
-            exercises!inner (
-              id,
-              title,
-              exercise_type,
-              xp_reward,
-              sessions!inner (
-                id,
-                title,
-                units!inner (
-                  id,
-                  title,
-                  levels!inner (
-                    id,
-                    title
-                  )
-                )
-              )
-            )
-          `)
-          .eq('status', 'completed')
-          .not('completed_at', 'is', null)
-          .order('completed_at', { ascending: false })
-          .limit(10)
-        
-        data = fallbackResult.data
-        error = fallbackResult.error
-      }
-
       if (error) throw error
 
-      setActivities(data || [])
+      // Fetch related data separately to avoid complex joins
+      const enrichedData = []
+
+      for (const progress of data || []) {
+        try {
+          // Get user data
+          const { data: userData } = await supabase
+            .from('users')
+            .select('id, full_name, avatar_url')
+            .eq('id', progress.user_id)
+            .single()
+
+          // Get exercise data
+          const { data: exerciseData } = await supabase
+            .from('exercises')
+            .select('id, title, exercise_type, xp_reward')
+            .eq('id', progress.exercise_id)
+            .single()
+
+          if (userData && exerciseData) {
+            enrichedData.push({
+              ...progress,
+              users: userData,
+              exercises: exerciseData
+            })
+          }
+        } catch (err) {
+          console.log('Skipping activity due to missing data:', err)
+        }
+      }
+
+      setActivities(enrichedData)
     } catch (error) {
       console.error('Error fetching recent activities:', error)
       setActivities([])
@@ -106,8 +74,8 @@ const RecentActivities = () => {
     switch (exerciseType) {
       case 'flashcard':
         return BookOpen
-      case 'audio_flashcard':
-        return Volume2
+      case 'fill_blank':
+        return Edit3
       case 'multiple_choice':
         return HelpCircle
       default:
@@ -119,8 +87,8 @@ const RecentActivities = () => {
     switch (exerciseType) {
       case 'flashcard':
         return 'Flashcard'
-      case 'audio_flashcard':
-        return 'Audio Flashcard'
+      case 'fill_blank':
+        return 'Fill in the Blank'
       case 'multiple_choice':
         return 'Multiple Choice'
       default:
@@ -230,7 +198,7 @@ const RecentActivities = () => {
               {/* XP Reward */}
               <div className="flex items-center space-x-1 text-orange-600 font-medium">
                 <Star className="w-4 h-4" />
-                <span className="text-sm">+{activity.xp_earned || activity.exercises.xp_reward || 0}</span>
+                <span className="text-sm">+{activity.exercises.xp_reward || 0}</span>
               </div>
 
              

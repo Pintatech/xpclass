@@ -7,11 +7,12 @@ import {
   Settings,
   LogOut,
   User,
-  Shield
+  Shield,
+  GraduationCap
 } from 'lucide-react'
 
 const TopNavigation = () => {
-  const { profile, signOut, isAdmin } = useAuth()
+  const { profile, signOut, isAdmin, isTeacher } = useAuth()
   const location = useLocation()
 
   const navItems = [
@@ -30,8 +31,8 @@ const TopNavigation = () => {
         <div className="flex items-center justify-between h-16">
           {/* Logo */}
           <Link to="/" className="flex items-center space-x-2">
-            <img src="https://xpclass.vn/kevhocsat/general%20materials/logo.png" alt="Logo" className="h-10 w-auto" />
-            <span className="text-xl font-bold text-gray-900">SAT Leveling</span>
+            <img src="https://xpclass.vn/xpclass/Asset%205.png" alt="Logo" className="h-10 w-auto" />
+            <span className="text-xl font-bold text-gray-900">Pinta English</span>
           </Link>
 
           {/* Navigation */}
@@ -93,6 +94,18 @@ const TopNavigation = () => {
               >
                 <Shield size={20} />
                 <span className="hidden lg:inline font-medium">Admin</span>
+              </Link>
+            )}
+
+            {/* Teacher Dashboard Link */}
+            {isTeacher() && (
+              <Link
+                to="/teacher"
+                className="flex items-center space-x-2 px-3 py-2 rounded-lg text-blue-600 hover:bg-blue-100 transition-colors"
+                title="Teacher Dashboard"
+              >
+                <GraduationCap size={20} />
+                <span className="hidden lg:inline font-medium">Teacher</span>
               </Link>
             )}
 

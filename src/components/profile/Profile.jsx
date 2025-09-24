@@ -204,7 +204,7 @@ const Profile = () => {
     const icons = {
       multiple_choice: Target,
       flashcard: BookOpen,
-      audio_flashcard: Activity
+      fill_blank: Activity
     }
     return icons[type] || BookOpen
   }
@@ -213,7 +213,7 @@ const Profile = () => {
     const labels = {
       multiple_choice: 'Multiple Choice',
       flashcard: 'Flashcard',
-      audio_flashcard: 'Audio Flashcard'
+      fill_blank: 'Fill in the Blank'
     }
     return labels[type] || type
   }

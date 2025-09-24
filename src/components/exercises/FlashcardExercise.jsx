@@ -168,7 +168,7 @@ const FlashcardExercise = () => {
     if (nextExercise) {
       const paths = {
         flashcard: '/study/flashcard',
-        audio_flashcard: '/study/audio-flashcard',
+        fill_blank: '/study/fill-blank',
         multiple_choice: '/study/multiple-choice'
       }
       const exercisePath = paths[nextExercise.exercise_type] || '/study/flashcard'
@@ -189,7 +189,7 @@ const FlashcardExercise = () => {
       } catch (e) {
         console.error('Failed to mark session completed:', e)
       } finally {
-        navigate(`/study/level/${session?.units?.level_id}/unit/${session?.unit_id}/session/${sessionId}`)
+        navigate(`/study/course/${session?.units?.course_id}/unit/${session?.unit_id}/session/${sessionId}`)
       }
     }
   }
@@ -502,10 +502,10 @@ const FlashcardExercise = () => {
       if (session && session.units && session.units.levels) {
         const levelId = session.units.levels.id
         const unitId = session.units.id
-        navigate(`/study/level/${levelId}/unit/${unitId}/session/${sessionId}`)
+        navigate(`/study/course/${courseId}/unit/${unitId}/session/${sessionId}`)
       } else if (sessionId) {
         // Fallback: try to navigate to session without full path
-        navigate(`/study/level/1/unit/1/session/${sessionId}`)
+        navigate(`/study/course/1/unit/1/session/${sessionId}`)
       } else {
         // Final fallback to study page
         navigate('/study')

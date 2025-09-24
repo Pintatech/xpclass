@@ -45,7 +45,7 @@ const SessionManagement = () => {
             id,
             title,
             unit_number,
-            levels (
+            courses (
               id,
               title,
               level_number
@@ -61,7 +61,7 @@ const SessionManagement = () => {
         .from('units')
         .select(`
           *,
-          levels (
+          courses (
             id,
             title,
             level_number
@@ -71,9 +71,9 @@ const SessionManagement = () => {
 
       if (unitsError) throw unitsError;
 
-      // Fetch all levels for filter
+      // Fetch all courses for filter
       const { data: levelsData, error: levelsError } = await supabase
-        .from('levels')
+        .from('courses')
         .select('*')
         .order('level_number');
 
@@ -154,14 +154,14 @@ const SessionManagement = () => {
 
   // Filter sessions
   const filteredSessions = sessions.filter(session => {
-    const levelMatch = !filterLevel || session.units?.levels?.id === filterLevel;
+    const levelMatch = !filterLevel || session.units?.courses?.id === filterLevel;
     const unitMatch = !filterUnit || session.unit_id === filterUnit;
     return levelMatch && unitMatch;
   });
 
   // Get units for selected level
   const availableUnits = filterLevel 
-    ? units.filter(unit => unit.levels?.id === filterLevel)
+    ? units.filter(unit => unit.courses?.id === filterLevel)
     : units;
 
   const sessionTypes = [
@@ -195,16 +195,16 @@ const SessionManagement = () => {
       <div className="bg-white rounded-lg shadow-sm border p-4">
         <div className="flex flex-wrap items-center gap-4">
           <div>
-            <label className="text-sm font-medium text-gray-700 mr-2">Level:</label>
+            <label className="text-sm font-medium text-gray-700 mr-2">Course:</label>
             <select
               value={filterLevel}
               onChange={(e) => {
                 setFilterLevel(e.target.value);
-                setFilterUnit(''); // Reset unit filter when level changes
+                setFilterUnit(''); // Reset unit filter when course changes
               }}
               className="p-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500"
             >
-              <option value="">All Levels</option>
+              <option value="">All Courses</option>
               {levels.map(level => (
                 <option key={level.id} value={level.id}>
                   Level {level.level_number}: {level.title}
@@ -279,7 +279,7 @@ const SessionManagement = () => {
                     Session
                   </th>
                   <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    Level & Unit
+                    Course & Unit
                   </th>
                   <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                     Title & Type
@@ -315,7 +315,7 @@ const SessionManagement = () => {
                     <td className="px-6 py-4">
                       <div className="text-sm">
                         <div className="font-medium text-gray-900">
-                          Level {session.units?.levels?.level_number}
+                          Level {session.units?.courses?.level_number}
                         </div>
                         <div className="text-gray-600">
                           Unit {session.units?.unit_number}: {session.units?.title}
@@ -440,8 +440,8 @@ const SessionModal = ({ session, units, levels, sessionTypes, onSave, onCancel, 
   useEffect(() => {
     if (session?.unit_id && units.length > 0) {
       const unit = units.find(u => u.id === session.unit_id);
-      if (unit?.levels?.id) {
-        setSelectedLevel(unit.levels.id);
+      if (unit?.courses?.id) {
+        setSelectedLevel(unit.courses.id);
       }
     }
   }, [session, units]);
@@ -500,7 +500,7 @@ const SessionModal = ({ session, units, levels, sessionTypes, onSave, onCancel, 
 
   // Get units for selected level
   const availableUnits = selectedLevel 
-    ? units.filter(unit => unit.levels?.id === selectedLevel)
+    ? units.filter(unit => unit.courses?.id === selectedLevel)
     : units;
 
   return (
@@ -519,17 +519,17 @@ const SessionModal = ({ session, units, levels, sessionTypes, onSave, onCancel, 
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">
-                Level
+                Course
               </label>
               <select
                 value={selectedLevel}
                 onChange={(e) => {
                   setSelectedLevel(e.target.value);
-                  handleInputChange('unit_id', ''); // Reset unit when level changes
+                  handleInputChange('unit_id', ''); // Reset unit when course changes
                 }}
                 className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500"
               >
-                <option value="">Select a level first</option>
+                <option value="">Select a course first</option>
                 {levels.map(level => (
                   <option key={level.id} value={level.id}>
                     Level {level.level_number}: {level.title}

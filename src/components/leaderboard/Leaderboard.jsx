@@ -30,7 +30,7 @@ const Leaderboard = () => {
           email,
           full_name,
           xp,
-          level,
+          current_level,
           streak_count,
           created_at
         `)
@@ -62,7 +62,7 @@ const Leaderboard = () => {
         name: user.full_name || user.email.split('@')[0],
         email: user.email,
         xp: user.xp || 0,
-        level: user.level || 1,
+        level: user.current_level || 1,
         streak: user.streak_count || 0,
         completedExercises: exerciseCounts[user.id] || 0,
         isCurrentUser: user.id === user?.id

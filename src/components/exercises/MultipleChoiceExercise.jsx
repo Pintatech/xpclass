@@ -128,8 +128,9 @@ const MultipleChoiceExercise = () => {
         .select(`
           *,
           units:unit_id (
-            *,
-            levels:level_id (*)
+            id,
+            title,
+            course_id
           )
         `)
         .eq('id', sessionId)
@@ -277,7 +278,6 @@ const MultipleChoiceExercise = () => {
       const result = await completeExerciseWithXP(exerciseId, totalXP, {
         score: score,
         max_score: 100,
-        attempts: isRetryMode ? 2 : 1,
         xp_earned: totalXP  // We'll calculate actual XP in the backend based on completion
       })
 
@@ -351,7 +351,7 @@ const MultipleChoiceExercise = () => {
       if (!exercises || exercises.length === 0) {
         console.log('❌ No exercises found, going back to session')
         if (session) {
-          navigate(`/study/level/${session.units?.level_id}/unit/${session.unit_id}/session/${sessionId}`)
+          navigate(`/study/course/${session.units?.course_id}/unit/${session.unit_id}/session/${sessionId}`)
         } else {
           navigate('/study')
         }
@@ -367,7 +367,7 @@ const MultipleChoiceExercise = () => {
 
         const paths = {
           flashcard: '/study/flashcard',
-          audio_flashcard: '/study/audio-flashcard',
+          fill_blank: '/study/fill-blank',
           multiple_choice: '/study/multiple-choice',
           video: '/study/video',
           quiz: '/study/quiz',
@@ -385,7 +385,7 @@ const MultipleChoiceExercise = () => {
         // No more exercises, go back to session
         console.log('✅ No more exercises, going back to session')
         if (session && session.units) {
-          const backUrl = `/study/level/${session.units.level_id}/unit/${session.unit_id}/session/${sessionId}`
+          const backUrl = `/study/course/${session.units.course_id}/unit/${session.unit_id}/session/${sessionId}`
           console.log('🔙 Going back to:', backUrl)
           navigate(backUrl)
         } else {
@@ -397,7 +397,7 @@ const MultipleChoiceExercise = () => {
       console.error('❌ Error fetching next exercise:', err)
       // Fallback navigation
       if (session && session.units) {
-        navigate(`/study/level/${session.units.level_id}/unit/${session.unit_id}/session/${sessionId}`)
+        navigate(`/study/course/${session.units.course_id}/unit/${session.unit_id}/session/${sessionId}`)
       } else {
         navigate('/study')
       }
@@ -408,10 +408,9 @@ const MultipleChoiceExercise = () => {
   // Handle bottom nav back
   useEffect(() => {
     const handleBottomNavBack = () => {
-      if (session && session.units && session.units.levels) {
-        const levelId = session.units.levels.id
+      if (session && session.units) {
         const unitId = session.units.id
-        navigate(`/study/level/${levelId}/unit/${unitId}/session/${sessionId}`)
+        navigate(`/study/course/${session.units.course_id}/unit/${unitId}/session/${sessionId}`)
       } else {
         navigate('/study')
       }
@@ -563,7 +562,7 @@ const MultipleChoiceExercise = () => {
             <Button
               onClick={() => {
                 if (session && session.units) {
-                  navigate(`/study/level/${session.units.level_id}/unit/${session.unit_id}/session/${sessionId}`)
+                  navigate(`/study/course/${session.units.course_id}/unit/${session.unit_id}/session/${sessionId}`)
                 } else {
                   navigate('/study')
                 }

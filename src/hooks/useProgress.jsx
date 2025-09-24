@@ -108,7 +108,8 @@ export const ProgressProvider = ({ children }) => {
       const newXP = (profile.xp || 0) + xpAmount
       const newLevel = calculateLevel(newXP)
 
-      const { error } = await supabase
+      // Try update xp + level; if 'level' column is missing, retry with only xp
+      let { error } = await supabase
         .from('users')
         .update({
           xp: newXP,
@@ -117,7 +118,17 @@ export const ProgressProvider = ({ children }) => {
         })
         .eq('id', user.id)
 
-      if (error) throw error
+      if (error) {
+        console.warn('Primary users update failed, retrying without level:', error?.message)
+        const retry = await supabase
+          .from('users')
+          .update({
+            xp: newXP,
+            updated_at: new Date().toISOString()
+          })
+          .eq('id', user.id)
+        if (retry.error) throw retry.error
+      }
 
       // Refresh profile
       await fetchUserProfile(user.id)
@@ -140,10 +151,10 @@ export const ProgressProvider = ({ children }) => {
     // Always check daily quest first, regardless of completion status
     await checkDailyQuestCompletion(exerciseId)
 
-    // If already completed, don't process further
+    // Allow retries - don't block if already completed
+    // We'll still track attempts and update progress
     if (isAlreadyCompleted) {
-      console.log('Exercise already completed, no XP awarded')
-      return { data: null, error: 'Exercise already completed' }
+      console.log('Exercise already completed, but allowing retry for attempts tracking')
     }
 
     // Check if score meets minimum requirement (75%)
@@ -156,7 +167,27 @@ export const ProgressProvider = ({ children }) => {
       // Determine status based on score
       const status = meetingRequirement ? 'completed' : 'attempted'
 
+      // Get existing progress from database to calculate attempts accurately
+      console.log(`🔍 Fetching existing progress for user ${user.id}, exercise ${exerciseId}`)
+      const { data: existingProgressData, error: fetchError } = await supabase
+        .from('user_progress')
+        .select('attempts, first_attempt_at, status')
+        .eq('user_id', user.id)
+        .eq('exercise_id', exerciseId)
+        .maybeSingle()
+      
+      console.log('📋 Existing progress data:', existingProgressData)
+      console.log('📋 Fetch error:', fetchError)
+      
+      const currentAttempts = existingProgressData?.attempts || 0
+      const newAttempts = currentAttempts + 1
+      console.log(`🔄 Attempt tracking: current=${currentAttempts}, new=${newAttempts}`)
+
+      // Sanitize client-provided progress data (remove columns not present in DB)
+      const { xp_earned: _omitXpEarned, attempts: _omitAttempts, ...safeProgressData } = progressData || {}
+
       // Save progress regardless of score
+      console.log(`💾 Upserting progress with attempts: ${newAttempts}`)
       const { data, error } = await supabase
         .from('user_progress')
         .upsert({
@@ -164,44 +195,57 @@ export const ProgressProvider = ({ children }) => {
           exercise_id: exerciseId,
           status: status,
           completed_at: meetingRequirement ? new Date().toISOString() : null,
-          ...progressData,
+          attempts: newAttempts,
+          first_attempt_at: existingProgressData?.first_attempt_at || new Date().toISOString(),
+          ...safeProgressData,
           updated_at: new Date().toISOString()
         }, {
           onConflict: 'user_id,exercise_id'
         })
         .select()
+      
+      console.log('💾 Upsert result:', { data, error })
 
       if (error) {
         console.log('⚠️ Upsert failed, trying UPDATE instead:', error.message)
         // Fallback to UPDATE if upsert fails
+        console.log(`🔄 Fallback UPDATE with attempts: ${newAttempts}`)
         const { error: updateError } = await supabase
           .from('user_progress')
           .update({
             status: status,
             completed_at: meetingRequirement ? new Date().toISOString() : null,
-            ...progressData,
+            attempts: newAttempts,
+            first_attempt_at: existingProgressData?.first_attempt_at || new Date().toISOString(),
+            ...safeProgressData,
             updated_at: new Date().toISOString()
           })
           .eq('user_id', user.id)
           .eq('exercise_id', exerciseId)
 
+        console.log('🔄 UPDATE result:', { updateError })
         if (updateError) {
           console.log('⚠️ UPDATE also failed:', updateError.message)
         }
       }
 
-      // Only award XP if score requirement is met
+      // Only award XP if score requirement is met AND not already completed
       let actualXpAwarded = 0
-      if (meetingRequirement && xpReward && xpReward > 0) {
+      if (meetingRequirement && xpReward && xpReward > 0 && !isAlreadyCompleted) {
         await addXP(xpReward)
         actualXpAwarded = xpReward
         console.log('💎 Awarded XP for passing score:', xpReward)
+      } else if (isAlreadyCompleted) {
+        console.log('🔄 No XP awarded - exercise already completed, but tracking attempts')
       } else if (!meetingRequirement) {
         console.log('❌ No XP awarded - score below 75% requirement')
       }
 
       // Update local state
       await fetchUserProgress()
+      
+      // Debug: Log the updated attempts
+      console.log(`✅ Exercise completed with ${newAttempts} attempts`)
 
       // Check for achievements only if completed
       if (meetingRequirement) {
@@ -213,7 +257,8 @@ export const ProgressProvider = ({ children }) => {
         error: null,
         xpAwarded: actualXpAwarded,
         completed: meetingRequirement,
-        score: score
+        score: score,
+        attempts: newAttempts
       }
     } catch (error) {
       console.error('Error completing exercise:', error)
@@ -322,6 +367,11 @@ export const ProgressProvider = ({ children }) => {
       console.log('Quest error:', questError)
 
       if (questError) {
+        // Gracefully ignore if table is missing
+        if (questError.message?.includes("Could not find the table") || questError.code === 'PGRST205') {
+          console.warn('daily_quests table not found, skipping quest check')
+          return
+        }
         console.log('Error checking daily quest:', questError.message)
         return
       }

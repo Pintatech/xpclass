@@ -34,12 +34,12 @@ const UnitManagement = () => {
     try {
       setLoading(true);
       
-      // Fetch units with level info
+      // Fetch units with course info
       const { data: unitsData, error: unitsError } = await supabase
         .from('units')
         .select(`
           *,
-          levels (
+          courses (
             id,
             title,
             level_number
@@ -49,9 +49,9 @@ const UnitManagement = () => {
 
       if (unitsError) throw unitsError;
 
-      // Fetch all levels for dropdown
+      // Fetch all courses for dropdown
       const { data: levelsData, error: levelsError } = await supabase
-        .from('levels')
+        .from('courses')
         .select('*')
         .order('level_number');
 
@@ -129,8 +129,8 @@ const UnitManagement = () => {
     showNotification('Unit ID copied to clipboard!');
   };
 
-  const filteredUnits = filterLevel 
-    ? units.filter(unit => unit.level_id === filterLevel)
+  const filteredUnits = filterLevel
+    ? units.filter(unit => unit.course_id === filterLevel)
     : units;
 
   return (
@@ -156,13 +156,13 @@ const UnitManagement = () => {
       {/* Filter */}
       <div className="bg-white rounded-lg shadow-sm border p-4">
         <div className="flex items-center gap-4">
-          <label className="text-sm font-medium text-gray-700">Filter by Level:</label>
+          <label className="text-sm font-medium text-gray-700">Filter by Course:</label>
           <select
             value={filterLevel}
             onChange={(e) => setFilterLevel(e.target.value)}
             className="p-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500"
           >
-            <option value="">All Levels</option>
+            <option value="">All Courses</option>
             {levels.map(level => (
               <option key={level.id} value={level.id}>
                 Level {level.level_number}: {level.title}
@@ -191,11 +191,11 @@ const UnitManagement = () => {
           <div className="p-8 text-center">
             <div className="text-6xl mb-4">📖</div>
             <h3 className="text-lg font-medium text-gray-900 mb-2">
-              {filterLevel ? 'No units in this level' : 'No units yet'}
+              {filterLevel ? 'No units in this course' : 'No units yet'}
             </h3>
             <p className="text-gray-600 mb-4">
-              {filterLevel 
-                ? 'Create your first unit for this level'
+              {filterLevel
+                ? 'Create your first unit for this course'
                 : 'Create your first unit to get started'
               }
             </p>
@@ -218,7 +218,7 @@ const UnitManagement = () => {
                     Unit
                   </th>
                   <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    Level
+                    Course
                   </th>
                   <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                     Title & Description
@@ -254,9 +254,9 @@ const UnitManagement = () => {
                     <td className="px-6 py-4">
                       <div className="text-sm">
                         <div className="font-medium text-gray-900">
-                          Level {unit.levels?.level_number}
+                          Level {unit.courses?.level_number}
                         </div>
-                        <div className="text-gray-600">{unit.levels?.title}</div>
+                        <div className="text-gray-600">{unit.courses?.title}</div>
                       </div>
                     </td>
                     <td className="px-6 py-4">
@@ -337,7 +337,7 @@ const UnitManagement = () => {
 // Unit Modal Component
 const UnitModal = ({ unit, levels, onSave, onCancel, loading }) => {
   const [formData, setFormData] = useState({
-    level_id: unit?.level_id || '',
+    course_id: unit?.course_id || '',
     title: unit?.title || '',
     description: unit?.description || '',
     unit_number: unit?.unit_number || '',
@@ -350,8 +350,8 @@ const UnitModal = ({ unit, levels, onSave, onCancel, loading }) => {
   const validateForm = () => {
     const newErrors = {};
 
-    if (!formData.level_id) {
-      newErrors.level_id = 'Level is required';
+    if (!formData.course_id) {
+      newErrors.course_id = 'Course is required';
     }
 
     if (!formData.title.trim()) {
@@ -405,24 +405,24 @@ const UnitModal = ({ unit, levels, onSave, onCancel, loading }) => {
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">
-                Level *
+                Course *
               </label>
               <select
-                value={formData.level_id}
-                onChange={(e) => handleInputChange('level_id', e.target.value)}
+                value={formData.course_id}
+                onChange={(e) => handleInputChange('course_id', e.target.value)}
                 className={`w-full p-3 border rounded-lg focus:ring-2 focus:ring-green-500 ${
-                  errors.level_id ? 'border-red-300' : 'border-gray-300'
+                  errors.course_id ? 'border-red-300' : 'border-gray-300'
                 }`}
               >
-                <option value="">Select a level</option>
+                <option value="">Select a course</option>
                 {levels.map(level => (
                   <option key={level.id} value={level.id}>
                     Level {level.level_number}: {level.title}
                   </option>
                 ))}
               </select>
-              {errors.level_id && (
-                <p className="text-red-600 text-sm mt-1">{errors.level_id}</p>
+              {errors.course_id && (
+                <p className="text-red-600 text-sm mt-1">{errors.course_id}</p>
               )}
             </div>
 

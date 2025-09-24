@@ -12,15 +12,17 @@ import {
   Copy
 } from 'lucide-react';
 
-const LevelManagement = () => {
-  const [levels, setLevels] = useState([]);
+const CourseManagement = () => {
+  const [courses, setCourses] = useState([]);
+  const [teachers, setTeachers] = useState([]);
   const [showModal, setShowModal] = useState(false);
-  const [editingLevel, setEditingLevel] = useState(null);
+  const [editingCourse, setEditingCourse] = useState(null);
   const [loading, setLoading] = useState(false);
   const [notification, setNotification] = useState(null);
 
   useEffect(() => {
-    fetchLevels();
+    fetchCourses();
+    fetchTeachers();
   }, []);
 
   const showNotification = (message, type = 'success') => {
@@ -28,101 +30,164 @@ const LevelManagement = () => {
     setTimeout(() => setNotification(null), 5000);
   };
 
-  const fetchLevels = async () => {
+  const fetchCourses = async () => {
     try {
       setLoading(true);
-      const { data, error } = await supabase
-        .from('levels')
-        .select('*')
+
+      // Try courses table first
+      let { data, error } = await supabase
+        .from('courses')
+        .select(`
+          *,
+          teacher:users(id, full_name, email)
+        `)
         .order('level_number');
 
+      // If courses table doesn't exist, try levels table as fallback
+      if (error && error.code === 'PGRST205') {
+        console.log('Courses table not found in admin, trying levels table...');
+        const fallback = await supabase
+          .from('levels')
+          .select('*')
+          .order('level_number');
+
+        data = fallback.data;
+        error = fallback.error;
+      }
+
       if (error) throw error;
-      setLevels(data || []);
+      setCourses(data || []);
     } catch (error) {
-      console.error('Error fetching levels:', error);
-      showNotification('Error loading levels: ' + error.message, 'error');
+      console.error('Error fetching courses:', error);
+      showNotification('Error loading courses: ' + error.message, 'error');
     } finally {
       setLoading(false);
     }
   };
 
-  const handleSaveLevel = async (levelData) => {
+  const fetchTeachers = async () => {
+    try {
+      const { data, error } = await supabase
+        .from('users')
+        .select('id, full_name, email')
+        .eq('role', 'teacher');
+
+      if (error) throw error;
+      setTeachers(data || []);
+    } catch (error) {
+      console.error('Error fetching teachers:', error);
+      showNotification('Error loading teachers: ' + error.message, 'error');
+    }
+  };
+
+  const handleSaveCourse = async (courseData) => {
     try {
       setLoading(true);
-      
-      if (editingLevel) {
-        // Update existing level
-        const { error } = await supabase
-          .from('levels')
-          .update(levelData)
-          .eq('id', editingLevel.id);
+
+      if (editingCourse) {
+        // Update existing course - try courses table first
+        let { error } = await supabase
+          .from('courses')
+          .update(courseData)
+          .eq('id', editingCourse.id);
+
+        // If courses table doesn't exist, try levels table as fallback
+        if (error && error.code === 'PGRST205') {
+          console.log('Courses table not found for update, trying levels table...');
+          const fallback = await supabase
+            .from('levels')
+            .update(courseData)
+            .eq('id', editingCourse.id);
+          error = fallback.error;
+        }
 
         if (error) throw error;
-        showNotification('Level updated successfully!');
+        showNotification('Course updated successfully!');
       } else {
-        // Create new level
-        const { error } = await supabase
-          .from('levels')
-          .insert(levelData);
+        // Create new course - try courses table first
+        let { error } = await supabase
+          .from('courses')
+          .insert(courseData);
+
+        // If courses table doesn't exist, try levels table as fallback
+        if (error && error.code === 'PGRST205') {
+          console.log('Courses table not found for insert, trying levels table...');
+          const fallback = await supabase
+            .from('levels')
+            .insert(courseData);
+          error = fallback.error;
+        }
 
         if (error) throw error;
-        showNotification('Level created successfully!');
+        showNotification('Course created successfully!');
       }
 
       setShowModal(false);
-      setEditingLevel(null);
-      await fetchLevels();
+      setEditingCourse(null);
+      await fetchCourses();
     } catch (error) {
-      console.error('Error saving level:', error);
-      showNotification('Error saving level: ' + error.message, 'error');
+      console.error('Error saving course:', error);
+      showNotification('Error saving course: ' + error.message, 'error');
     } finally {
       setLoading(false);
     }
   };
 
-  const handleDeleteLevel = async (levelId) => {
-    if (!confirm('Are you sure? This will delete the level and all its related content.')) {
+  const handleDeleteCourse = async (courseId) => {
+    if (!confirm('Are you sure? This will delete the course and all its related content.')) {
       return;
     }
 
     try {
       setLoading(true);
-      const { error } = await supabase
-        .from('levels')
+
+      // Try courses table first
+      let { error } = await supabase
+        .from('courses')
         .delete()
-        .eq('id', levelId);
+        .eq('id', courseId);
+
+      // If courses table doesn't exist, try levels table as fallback
+      if (error && error.code === 'PGRST205') {
+        console.log('Courses table not found for delete, trying levels table...');
+        const fallback = await supabase
+          .from('levels')
+          .delete()
+          .eq('id', courseId);
+        error = fallback.error;
+      }
 
       if (error) throw error;
-      showNotification('Level deleted successfully!');
-      await fetchLevels();
+      showNotification('Course deleted successfully!');
+      await fetchCourses();
     } catch (error) {
-      console.error('Error deleting level:', error);
-      showNotification('Error deleting level: ' + error.message, 'error');
+      console.error('Error deleting course:', error);
+      showNotification('Error deleting course: ' + error.message, 'error');
     } finally {
       setLoading(false);
     }
   };
 
-  const copyLevelId = (levelId) => {
-    navigator.clipboard.writeText(levelId);
-    showNotification('Level ID copied to clipboard!');
+  const copyCourseId = (courseId) => {
+    navigator.clipboard.writeText(courseId);
+    showNotification('Course ID copied to clipboard!');
   };
 
-  const handleToggleLock = async (levelId, newStatus) => {
+  const handleToggleLock = async (courseId, newStatus) => {
     try {
       setLoading(true);
       const { error } = await supabase
-        .from('levels')
+        .from('courses')
         .update({ is_active: newStatus })
-        .eq('id', levelId);
+        .eq('id', courseId);
 
       if (error) throw error;
-      
-      showNotification(`Level ${newStatus ? 'unlocked' : 'locked'} successfully!`);
-      await fetchLevels();
+
+      showNotification(`Course ${newStatus ? 'unlocked' : 'locked'} successfully!`);
+      await fetchCourses();
     } catch (error) {
-      console.error('Error toggling level lock:', error);
-      showNotification('Error updating level status: ' + error.message, 'error');
+      console.error('Error toggling course lock:', error);
+      showNotification('Error updating course status: ' + error.message, 'error');
     } finally {
       setLoading(false);
     }
@@ -133,41 +198,41 @@ const LevelManagement = () => {
       {/* Header */}
       <div className="flex justify-between items-center">
         <div>
-          <h2 className="text-2xl font-bold text-gray-900">Level Management</h2>
-          <p className="text-gray-600">Create and manage learning levels</p>
+          <h2 className="text-2xl font-bold text-gray-900">Course Management</h2>
+          <p className="text-gray-600">Create and manage learning courses</p>
         </div>
         <button
           onClick={() => {
-            setEditingLevel(null);
+            setEditingCourse(null);
             setShowModal(true);
           }}
           className="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition-colors flex items-center gap-2"
         >
           <Plus className="w-4 h-4" />
-          Create Level
+          Create Course
         </button>
       </div>
 
-      {/* Levels List */}
+      {/* Courses List */}
       <div className="bg-white rounded-lg shadow-sm border overflow-hidden">
-        {loading && levels.length === 0 ? (
+        {loading && courses.length === 0 ? (
           <div className="p-8 text-center">
             <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mx-auto"></div>
-            <p className="mt-2 text-gray-600">Loading levels...</p>
+            <p className="mt-2 text-gray-600">Loading courses...</p>
           </div>
-        ) : levels.length === 0 ? (
+        ) : courses.length === 0 ? (
           <div className="p-8 text-center">
             <div className="text-6xl mb-4">📚</div>
-            <h3 className="text-lg font-medium text-gray-900 mb-2">No levels yet</h3>
-            <p className="text-gray-600 mb-4">Create your first level to get started</p>
+            <h3 className="text-lg font-medium text-gray-900 mb-2">No courses yet</h3>
+            <p className="text-gray-600 mb-4">Create your first course to get started</p>
             <button
               onClick={() => {
-                setEditingLevel(null);
+                setEditingCourse(null);
                 setShowModal(true);
               }}
               className="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700"
             >
-              Create First Level
+              Create First Course
             </button>
           </div>
         ) : (
@@ -179,13 +244,16 @@ const LevelManagement = () => {
                     Thumbnail
                   </th>
                   <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    Level
+                    Course
                   </th>
                   <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                     Title & Description
                   </th>
                   <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                     Difficulty
+                  </th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    Teacher
                   </th>
                   <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                     Requirements
@@ -199,21 +267,21 @@ const LevelManagement = () => {
                 </tr>
               </thead>
               <tbody className="divide-y divide-gray-200">
-                {levels.map((level) => (
-                  <tr key={level.id} className="hover:bg-gray-50">
+                {courses.map((course) => (
+                  <tr key={course.id} className="hover:bg-gray-50">
                     <td className="px-6 py-4">
                       <div className="w-12 h-12 rounded-lg overflow-hidden bg-gray-100 flex items-center justify-center">
-                        {level.thumbnail_url ? (
-                          <img 
-                            src={level.thumbnail_url} 
-                            alt={level.title}
+                        {course.thumbnail_url ? (
+                          <img
+                            src={course.thumbnail_url}
+                            alt={course.title}
                             className="w-full h-full object-cover"
                           />
                         ) : (
                           <span className="text-2xl">
-                            {level.level_number === 1 ? '🌱' : 
-                             level.level_number === 2 ? '📚' : 
-                             level.level_number === 3 ? '🏆' : '🎯'}
+                            {course.level_number === 1 ? '🌱' :
+                             course.level_number === 2 ? '📚' :
+                             course.level_number === 3 ? '🏆' : '🎯'}
                           </span>
                         )}
                       </div>
@@ -221,12 +289,12 @@ const LevelManagement = () => {
                     <td className="px-6 py-4">
                       <div className="flex items-center gap-3">
                         <div className="w-10 h-10 bg-blue-100 rounded-full flex items-center justify-center">
-                          <span className="text-blue-800 font-bold">{level.level_number}</span>
+                          <span className="text-blue-800 font-bold">{course.level_number}</span>
                         </div>
                         <div>
-                          <div className="text-sm text-gray-500">Level {level.level_number}</div>
+                          <div className="text-sm text-gray-500">Course {course.level_number}</div>
                           <button
-                            onClick={() => copyLevelId(level.id)}
+                            onClick={() => copyCourseId(course.id)}
                             className="text-xs text-blue-600 hover:underline flex items-center gap-1"
                           >
                             <Copy className="w-3 h-3" />
@@ -237,44 +305,54 @@ const LevelManagement = () => {
                     </td>
                     <td className="px-6 py-4">
                       <div>
-                        <div className="font-medium text-gray-900">{level.title}</div>
-                        <div className="text-sm text-gray-600">{level.description}</div>
+                        <div className="font-medium text-gray-900">{course.title}</div>
+                        <div className="text-sm text-gray-600">{course.description}</div>
                       </div>
                     </td>
                     <td className="px-6 py-4">
                       <span className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${
-                        level.difficulty_label === 'Beginner' 
+                        course.difficulty_label === 'Beginner'
                           ? 'bg-green-100 text-green-800'
-                          : level.difficulty_label === 'Intermediate'
+                          : course.difficulty_label === 'Intermediate'
                           ? 'bg-yellow-100 text-yellow-800'
                           : 'bg-red-100 text-red-800'
                       }`}>
-                        {level.difficulty_label}
+                        {course.difficulty_label}
                       </span>
                     </td>
                     <td className="px-6 py-4">
-                      <div className="text-sm text-gray-900">{level.unlock_requirement} XP</div>
+                      {course.teacher ? (
+                        <div>
+                          <div className="text-sm font-medium text-gray-900">{course.teacher.full_name}</div>
+                          <div className="text-sm text-gray-600">{course.teacher.email}</div>
+                        </div>
+                      ) : (
+                        <span className="text-sm text-gray-500 italic">No teacher assigned</span>
+                      )}
+                    </td>
+                    <td className="px-6 py-4">
+                      <div className="text-sm text-gray-900">{course.unlock_requirement} XP</div>
                       <div className="text-sm text-gray-600">to unlock</div>
                     </td>
                     <td className="px-6 py-4">
                       <div className="flex items-center gap-2">
                         <span className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${
-                          level.is_active 
-                            ? 'bg-green-100 text-green-800' 
+                          course.is_active
+                            ? 'bg-green-100 text-green-800'
                             : 'bg-red-100 text-red-800'
                         }`}>
-                          {level.is_active ? 'Unlocked' : 'Locked'}
+                          {course.is_active ? 'Unlocked' : 'Locked'}
                         </span>
                         <button
-                          onClick={() => handleToggleLock(level.id, !level.is_active)}
+                          onClick={() => handleToggleLock(course.id, !course.is_active)}
                           className={`p-1 rounded transition-colors ${
-                            level.is_active 
-                              ? 'text-red-600 hover:bg-red-50' 
+                            course.is_active
+                              ? 'text-red-600 hover:bg-red-50'
                               : 'text-green-600 hover:bg-green-50'
                           }`}
-                          title={level.is_active ? 'Lock level' : 'Unlock level'}
+                          title={course.is_active ? 'Lock course' : 'Unlock course'}
                         >
-                          {level.is_active ? (
+                          {course.is_active ? (
                             <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
                             </svg>
@@ -290,18 +368,18 @@ const LevelManagement = () => {
                       <div className="flex items-center gap-2">
                         <button
                           onClick={() => {
-                            setEditingLevel(level);
+                            setEditingCourse(course);
                             setShowModal(true);
                           }}
                           className="text-blue-600 hover:text-blue-900 p-1"
-                          title="Edit level"
+                          title="Edit course"
                         >
                           <Edit className="w-4 h-4" />
                         </button>
                         <button
-                          onClick={() => handleDeleteLevel(level.id)}
+                          onClick={() => handleDeleteCourse(course.id)}
                           className="text-red-600 hover:text-red-900 p-1"
-                          title="Delete level"
+                          title="Delete course"
                         >
                           <Trash2 className="w-4 h-4" />
                         </button>
@@ -317,12 +395,13 @@ const LevelManagement = () => {
 
       {/* Modal */}
       {showModal && (
-        <LevelModal
-          level={editingLevel}
-          onSave={handleSaveLevel}
+        <CourseModal
+          course={editingCourse}
+          teachers={teachers}
+          onSave={handleSaveCourse}
           onCancel={() => {
             setShowModal(false);
-            setEditingLevel(null);
+            setEditingCourse(null);
           }}
           loading={loading}
         />
@@ -349,17 +428,18 @@ const LevelManagement = () => {
   );
 };
 
-// Level Modal Component
-const LevelModal = ({ level, onSave, onCancel, loading }) => {
+// Course Modal Component
+const CourseModal = ({ course, teachers, onSave, onCancel, loading }) => {
   const [formData, setFormData] = useState({
-    title: level?.title || '',
-    description: level?.description || '',
-    level_number: level?.level_number || '',
-    difficulty_label: level?.difficulty_label || 'Beginner',
-    color_theme: level?.color_theme || 'blue',
-    unlock_requirement: level?.unlock_requirement || 0,
-    thumbnail_url: level?.thumbnail_url || '',
-    is_active: level?.is_active ?? true
+    title: course?.title || '',
+    description: course?.description || '',
+    level_number: course?.level_number || '',
+    difficulty_label: course?.difficulty_label || 'Beginner',
+    color_theme: course?.color_theme || 'blue',
+    unlock_requirement: course?.unlock_requirement || 0,
+    thumbnail_url: course?.thumbnail_url || '',
+    teacher_id: course?.teacher_id || '',
+    is_active: course?.is_active ?? true
   });
   const [errors, setErrors] = useState({});
 
@@ -392,7 +472,8 @@ const LevelModal = ({ level, onSave, onCancel, loading }) => {
       onSave({
         ...formData,
         level_number: parseInt(formData.level_number),
-        unlock_requirement: parseInt(formData.unlock_requirement)
+        unlock_requirement: parseInt(formData.unlock_requirement),
+        teacher_id: formData.teacher_id || null
       });
     }
   };
@@ -410,7 +491,7 @@ const LevelModal = ({ level, onSave, onCancel, loading }) => {
       <div className="bg-white rounded-xl max-w-2xl w-full max-h-[90vh] overflow-y-auto">
         <div className="p-6 border-b border-gray-200 flex justify-between items-center">
           <h2 className="text-xl font-bold text-gray-800">
-            {level ? 'Edit Level' : 'Create New Level'}
+            {course ? 'Edit Course' : 'Create New Course'}
           </h2>
           <button onClick={onCancel} className="text-gray-500 hover:text-gray-700">
             <X className="w-6 h-6" />
@@ -421,7 +502,7 @@ const LevelModal = ({ level, onSave, onCancel, loading }) => {
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">
-                Level Number *
+                Course Number *
               </label>
               <input
                 type="number"
@@ -440,16 +521,19 @@ const LevelModal = ({ level, onSave, onCancel, loading }) => {
 
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">
-                Difficulty
+                Assigned Teacher
               </label>
               <select
-                value={formData.difficulty_label}
-                onChange={(e) => handleInputChange('difficulty_label', e.target.value)}
+                value={formData.teacher_id}
+                onChange={(e) => handleInputChange('teacher_id', e.target.value)}
                 className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
               >
-                <option value="Beginner">Beginner</option>
-                <option value="Intermediate">Intermediate</option>
-                <option value="Advanced">Advanced</option>
+                <option value="">No teacher assigned</option>
+                {teachers.map(teacher => (
+                  <option key={teacher.id} value={teacher.id}>
+                    {teacher.full_name} ({teacher.email})
+                  </option>
+                ))}
               </select>
             </div>
           </div>
@@ -465,7 +549,7 @@ const LevelModal = ({ level, onSave, onCancel, loading }) => {
               className={`w-full p-3 border rounded-lg focus:ring-2 focus:ring-blue-500 ${
                 errors.title ? 'border-red-300' : 'border-gray-300'
               }`}
-              placeholder="e.g., Basic English"
+              placeholder="e.g., Spanish Beginner"
             />
             {errors.title && (
               <p className="text-red-600 text-sm mt-1">{errors.title}</p>
@@ -483,7 +567,7 @@ const LevelModal = ({ level, onSave, onCancel, loading }) => {
                 errors.description ? 'border-red-300' : 'border-gray-300'
               }`}
               rows="3"
-              placeholder="Describe what students will learn in this level..."
+              placeholder="Describe what students will learn in this course..."
             />
             {errors.description && (
               <p className="text-red-600 text-sm mt-1">{errors.description}</p>
@@ -502,11 +586,25 @@ const LevelModal = ({ level, onSave, onCancel, loading }) => {
               placeholder="https://example.com/image.jpg"
             />
             <p className="text-sm text-gray-500 mt-1">
-              Optional: URL to an image for this level (400x400px recommended)
+              Optional: URL to an image for this course (400x400px recommended)
             </p>
           </div>
 
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">
+                Difficulty
+              </label>
+              <select
+                value={formData.difficulty_label}
+                onChange={(e) => handleInputChange('difficulty_label', e.target.value)}
+                className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
+              >
+                <option value="Beginner">Beginner</option>
+                <option value="Intermediate">Intermediate</option>
+                <option value="Advanced">Advanced</option>
+              </select>
+            </div>
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">
                 Color Theme
@@ -555,7 +653,7 @@ const LevelModal = ({ level, onSave, onCancel, loading }) => {
               className="w-4 h-4 text-blue-600 bg-gray-100 border-gray-300 rounded focus:ring-blue-500"
             />
             <label htmlFor="is_active" className="text-sm font-medium text-gray-700">
-              Level is unlocked (users can access this level)
+              Course is unlocked (users can access this course)
             </label>
             <div className="text-xs text-gray-500 ml-auto">
               {formData.is_active ? '✅ Unlocked' : '🔒 Locked'}
@@ -584,7 +682,7 @@ const LevelModal = ({ level, onSave, onCancel, loading }) => {
               ) : (
                 <>
                   <Save className="w-4 h-4" />
-                  {level ? 'Update Level' : 'Create Level'}
+                  {course ? 'Update Course' : 'Create Course'}
                 </>
               )}
             </button>
@@ -595,5 +693,5 @@ const LevelModal = ({ level, onSave, onCancel, loading }) => {
   );
 };
 
-export default LevelManagement;
+export default CourseManagement;
 

@@ -29,10 +29,14 @@ import { useAuth } from '../../hooks/useAuth';
 import AdminOverview from './AdminOverview';
 import UserManagement from './UserManagement';
 import ExerciseManagement from './ExerciseManagement';
-import LevelManagement from './LevelManagement';
+import ExerciseBank from './ExerciseBank';
+import CourseManagement from './CourseManagement';
+import StudentEnrollmentManagement from './StudentEnrollmentManagement';
 import UnitManagement from './UnitManagement';
 import SessionManagement from './SessionManagement';
 import ContentTreeView from './ContentTreeView';
+import CohortsManagement from './CohortsManagement';
+import { useCohorts } from '../../hooks/useCohorts';
 
 const AdminDashboard = () => {
   const { user, isAdmin } = useAuth();
@@ -81,9 +85,21 @@ const AdminDashboard = () => {
     try {
       setLoading(true);
 
-      // Get content statistics
-      const [levelsResult, unitsResult, sessionsResult, exercisesResult, usersResult] = await Promise.all([
-        supabase.from('levels').select('id', { count: 'exact' }),
+      // Get content statistics with fallback
+      let coursesResult;
+      try {
+        coursesResult = await supabase.from('courses').select('id', { count: 'exact' });
+      } catch (error) {
+        if (error.code === 'PGRST205') {
+          console.log('Using levels table fallback for admin stats...');
+          coursesResult = await supabase.from('levels').select('id', { count: 'exact' });
+        } else {
+          throw error;
+        }
+      }
+
+      const [unitsResult, sessionsResult, exercisesResult, usersResult] = await Promise.all([
+        supabase.from('units').select('id', { count: 'exact' }),
         supabase.from('units').select('id', { count: 'exact' }),
         supabase.from('sessions').select('id', { count: 'exact' }),
         supabase.from('exercises').select('id, is_active', { count: 'exact' }),
@@ -91,7 +107,7 @@ const AdminDashboard = () => {
       ]);
 
       const stats = {
-        totalLevels: levelsResult.count || 0,
+        totalCourses: coursesResult.count || 0,
         totalUnits: unitsResult.count || 0,
         totalSessions: sessionsResult.count || 0,
         totalExercises: exercisesResult.count || 0,
@@ -124,16 +140,26 @@ const AdminDashboard = () => {
     try {
       setLoading(true);
       
-      // Export all content
-      const [levelsData, unitsData, sessionsData, exercisesData] = await Promise.all([
-        supabase.from('levels').select('*'),
+      // Export all content with fallback
+      let coursesData;
+      try {
+        coursesData = await supabase.from('courses').select('*');
+      } catch (error) {
+        if (error.code === 'PGRST205') {
+          coursesData = await supabase.from('levels').select('*');
+        } else {
+          throw error;
+        }
+      }
+
+      const [unitsData, sessionsData, exercisesData] = await Promise.all([
         supabase.from('units').select('*'),
         supabase.from('sessions').select('*'),
         supabase.from('exercises').select('*')
       ]);
 
       const exportData = {
-        levels: levelsData.data || [],
+        courses: coursesData.data || [],
         units: unitsData.data || [],
         sessions: sessionsData.data || [],
         exercises: exercisesData.data || [],
@@ -181,10 +207,12 @@ const AdminDashboard = () => {
   const tabs = [
     { id: 'overview', label: 'Overview', icon: Home },
     { id: 'tree', label: 'Tree View', icon: BookOpen },
-    { id: 'levels', label: 'Levels', icon: FileText },
+    { id: 'bank', label: 'Exercise Bank', icon: FileText },
+    { id: 'courses', label: 'Courses', icon: BookOpen },
+    { id: 'cohorts', label: 'Cohorts', icon: Users },
+    { id: 'enrollments', label: 'Enrollments', icon: Users },
     { id: 'units', label: 'Units', icon: Settings },
     { id: 'sessions', label: 'Sessions', icon: Edit },
-    { id: 'exercises', label: 'Exercises', icon: Plus },
     { id: 'users', label: 'Users', icon: Users },
     { id: 'analytics', label: 'Analytics', icon: BarChart3 }
   ];
@@ -252,10 +280,11 @@ const AdminDashboard = () => {
                 <p className="text-sm text-gray-600">
                   {activeTab === 'overview' && 'Platform overview and statistics'}
                   {activeTab === 'tree' && 'Content hierarchy and structure'}
-                  {activeTab === 'levels' && 'Manage learning levels'}
+                  {activeTab === 'courses' && 'Manage learning courses and assign teachers'}
+                  {activeTab === 'cohorts' && 'Manage student cohorts'}
+                  {activeTab === 'enrollments' && 'Assign students to courses'}
                   {activeTab === 'units' && 'Manage curriculum units'}
                   {activeTab === 'sessions' && 'Manage learning sessions'}
-                  {activeTab === 'exercises' && 'Manage exercises and activities'}
                   {activeTab === 'users' && 'User management and profiles'}
                   {activeTab === 'analytics' && 'Platform analytics and insights'}
                 </p>
@@ -271,8 +300,8 @@ const AdminDashboard = () => {
             {stats && activeTab === 'overview' && (
               <div className="grid grid-cols-2 md:grid-cols-6 gap-4 mb-8">
                 <div className="bg-white rounded-lg shadow-sm p-4 border">
-                  <div className="text-2xl font-bold text-blue-600">{stats.totalLevels}</div>
-                  <div className="text-sm text-gray-600">Levels</div>
+                  <div className="text-2xl font-bold text-blue-600">{stats.totalCourses}</div>
+                  <div className="text-sm text-gray-600">Courses</div>
                 </div>
                 <div className="bg-white rounded-lg shadow-sm p-4 border">
                   <div className="text-2xl font-bold text-green-600">{stats.totalUnits}</div>
@@ -301,10 +330,16 @@ const AdminDashboard = () => {
             <Routes>
               <Route index element={<AdminOverview />} />
               <Route path="tree" element={<ContentTreeView />} />
-              <Route path="levels" element={<LevelManagement />} />
+              <Route path="bank" element={<ExerciseBank />} />
+              <Route path="courses" element={<CourseManagement />} />
+              <Route path="cohorts" element={<CohortsManagement />} />
+              <Route path="enrollments" element={<StudentEnrollmentManagement />} />
+              {/* Legacy route redirect */}
+              <Route path="levels" element={<CourseManagement />} />
               <Route path="units" element={<UnitManagement />} />
               <Route path="sessions" element={<SessionManagement />} />
-              <Route path="exercises" element={<ExerciseManagement />} />
+              {/* Redirect legacy exercises path to bank */}
+              <Route path="exercises" element={<ExerciseBank />} />
               <Route path="users" element={<UserManagement />} />
               <Route path="analytics" element={<AnalyticsView stats={stats} />} />
             </Routes>
@@ -417,7 +452,7 @@ const AnalyticsView = ({ stats }) => {
           <div className="bg-blue-50 p-4 rounded-lg">
             <p className="text-sm text-gray-600">Total Content</p>
             <p className="text-2xl font-bold text-blue-600">
-              {(stats?.totalLevels || 0) + (stats?.totalUnits || 0) + (stats?.totalSessions || 0)}
+              {(stats?.totalCourses || 0) + (stats?.totalUnits || 0) + (stats?.totalSessions || 0)}
             </p>
           </div>
           <div className="bg-green-50 p-4 rounded-lg">
@@ -477,7 +512,7 @@ const AnalyticsView = ({ stats }) => {
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           <button className="bg-blue-50 border-2 border-dashed border-blue-300 rounded-lg p-4 text-left hover:bg-blue-100 transition-colors">
             <div className="font-medium text-blue-800">Create New Content</div>
-            <div className="text-sm text-blue-600">Add levels, units, or exercises</div>
+            <div className="text-sm text-blue-600">Add courses, units, or exercises</div>
           </button>
           <button className="bg-green-50 border-2 border-dashed border-green-300 rounded-lg p-4 text-left hover:bg-green-100 transition-colors">
             <div className="font-medium text-green-800">Bulk Operations</div>

@@ -14,40 +14,97 @@ import DailyQuest from './DailyQuest'
 
 const Dashboard = () => {
   const { profile } = useAuth()
-  const [levels, setLevels] = useState([])
+  const [courses, setCourses] = useState([])
   const [loading, setLoading] = useState(true)
   const [recent, setRecent] = useState(null)
   const navigate = useNavigate()
 
-  // Fetch levels data
+  // Fetch courses data
   useEffect(() => {
-    fetchLevels()
+    if (profile) {
+      fetchCourses()
+    }
     setRecent(getRecentExercise())
-  }, [])
+  }, [profile])
 
-  const fetchLevels = async () => {
+  const fetchCourses = async () => {
     try {
       setLoading(true)
-      const { data, error } = await supabase
-        .from('levels')
-        .select(`
-          id,
-          title,
-          description,
-          thumbnail_url,
-          level_number,
-          difficulty_label,
-          color_theme,
-          is_active
-        `)
-        .order('level_number')
 
-      if (error) throw error
-      console.log('Fetched levels:', data)
-      setLevels(data || [])
+      // For students, only show enrolled courses. For admins/teachers, show all courses.
+      if (profile?.role === 'user') {
+        // Student: fetch only enrolled courses
+        const { data, error } = await supabase
+          .from('course_enrollments')
+          .select(`
+            courses (
+              id,
+              title,
+              description,
+              thumbnail_url,
+              level_number,
+              difficulty_label,
+              color_theme,
+              is_active
+            )
+          `)
+          .eq('student_id', profile.id)
+          .eq('is_active', true)
+          .eq('courses.is_active', true)
+          .order('level_number', { foreignTable: 'courses' })
+
+        if (error) throw error
+
+        // Extract courses from the enrollment data
+        const enrolledCourses = data?.map(enrollment => enrollment.courses).filter(Boolean) || []
+        console.log('Fetched enrolled courses:', enrolledCourses)
+        setCourses(enrolledCourses)
+      } else {
+        // Admin/Teacher: fetch all courses
+        let { data, error } = await supabase
+          .from('courses')
+          .select(`
+            id,
+            title,
+            description,
+            thumbnail_url,
+            level_number,
+            difficulty_label,
+            color_theme,
+            is_active
+          `)
+          .eq('is_active', true)
+          .order('level_number')
+
+        // If courses table doesn't exist, try levels table as fallback
+        if (error && error.code === 'PGRST205') {
+          console.log('Courses table not found, trying levels table...')
+          const fallback = await supabase
+            .from('levels')
+            .select(`
+              id,
+              title,
+              description,
+              thumbnail_url,
+              level_number,
+              difficulty_label,
+              color_theme,
+              is_active
+            `)
+            .eq('is_active', true)
+            .order('level_number')
+
+          data = fallback.data
+          error = fallback.error
+        }
+
+        if (error) throw error
+        console.log('Fetched all courses:', data)
+        setCourses(data || [])
+      }
     } catch (error) {
-      console.error('Error fetching levels:', error)
-      setLevels([])
+      console.error('Error fetching courses:', error)
+      setCourses([])
     } finally {
       setLoading(false)
     }
@@ -155,7 +212,7 @@ const Dashboard = () => {
           <RecentActivities />
         </div>
 
-        {/* Levels List */}
+        {/* Courses List */}
         <div className="lg:col-span-2">
           <h2 className="text-2xl font-bold text-gray-900 mb-6">Chương trình học </h2>
           {loading ? (
@@ -165,28 +222,28 @@ const Dashboard = () => {
             </div>
           ) : (
             <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
-              {levels.map((level) => {
-                const isLocked = !level.is_active
-                
-                const LevelCard = () => (
+              {courses.map((course) => {
+                const isLocked = !course.is_active
+
+                const CourseCard = () => (
                   <div className={`bg-white rounded-lg shadow-md transition-all duration-200 overflow-hidden ${
                     isLocked 
                       ? 'opacity-60 cursor-not-allowed' 
                       : 'hover:shadow-lg group-hover:scale-105'
                   }`}>
-                    {/* Level Image with Text Overlay */}
+                    {/* Course Image with Text Overlay */}
                     <div className="aspect-[1.8/1] bg-gradient-to-br from-blue-100 to-purple-100 flex items-center justify-center relative">
-                      {level.thumbnail_url ? (
-                        <img 
-                          src={level.thumbnail_url} 
-                          alt={level.title}
+                      {course.thumbnail_url ? (
+                        <img
+                          src={course.thumbnail_url}
+                          alt={course.title}
                           className="w-full h-full object-cover"
                         />
                       ) : (
                         <div className="text-4xl">
-                          {level.level_number === 1 ? '🌱' : 
-                           level.level_number === 2 ? '📚' : 
-                           level.level_number === 3 ? '🏆' : '🎯'}
+                          {course.level_number === 1 ? '🌱' :
+                           course.level_number === 2 ? '📚' :
+                           course.level_number === 3 ? '🏆' : '🎯'}
                         </div>
                       )}
                       
@@ -205,10 +262,10 @@ const Dashboard = () => {
                       {/* Text Overlay */}
                       <div className="absolute bottom-0 left-0 right-0 bg-black bg-opacity-20 p-2">
                         <h3 className="font-semibold text-white text-sm mb-1 line-clamp-2">
-                          {level.title}
+                          {course.title}
                         </h3>
                         <p className="text-xs text-gray-200">
-                          {level.difficulty_label}
+                          {course.difficulty_label}
                         </p>
                       </div>
                     </div>
@@ -217,19 +274,19 @@ const Dashboard = () => {
 
                 if (isLocked) {
                   return (
-                    <div key={level.id} className="group">
-                      <LevelCard />
+                    <div key={course.id} className="group">
+                      <CourseCard />
                     </div>
                   )
                 }
 
                 return (
-                  <Link 
-                    key={level.id} 
-                    to={`/study/level/${level.id}`}
+                  <Link
+                    key={course.id}
+                    to={`/study/course/${course.id}`}
                     className="group"
                   >
-                    <LevelCard />
+                    <CourseCard />
                   </Link>
                 )
               })}

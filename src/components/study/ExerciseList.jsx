@@ -2,9 +2,11 @@ import { useState, useEffect, useCallback } from 'react'
 import { Link, useParams, useNavigate } from 'react-router-dom'
 import { supabase } from '../../supabase/client'
 import { useAuth } from '../../hooks/useAuth'
+import { usePermissions } from '../../hooks/usePermissions'
 import { useProgress } from '../../hooks/useProgress'
 import Card from '../ui/Card'
 import Button from '../ui/Button'
+import AssignExerciseModal from './AssignExerciseModal'
 // Skeleton loading sẽ thay cho spinner
 import {
   ArrowLeft,
@@ -17,18 +19,26 @@ import {
   Target,
   PlayCircle,
   Mic,
-  Volume2,
+  Edit3,
   Music,
   Video,
   Image,
   HelpCircle,
   CheckSquare,
   ChevronRight,
-  Crown
+  Crown,
+  Plus,
+  Edit,
+  Trash2
 } from 'lucide-react'
 
 const ExerciseList = () => {
-  const { levelId, unitId, sessionId } = useParams()
+  const { levelId: rawLevelId, courseId: rawCourseId, unitId, sessionId } = useParams()
+  const sanitizeId = (v) => (v && v !== 'undefined' && v !== 'null') ? v : null
+  const levelId = sanitizeId(rawLevelId)
+  const courseId = sanitizeId(rawCourseId)
+  // Support both level and course routes for backward compatibility
+  const currentId = courseId || levelId
   const navigate = useNavigate()
   const [level, setLevel] = useState(null)
   const [unit, setUnit] = useState(null)
@@ -41,7 +51,9 @@ const ExerciseList = () => {
   const [sidebarOpen, setSidebarOpen] = useState(true)
   const [levels, setLevels] = useState([])
   const [units, setUnits] = useState([])
-  const { user } = useAuth()
+  const [showAssignExerciseModal, setShowAssignExerciseModal] = useState(false)
+  const { user, profile } = useAuth()
+  const { canCreateContent } = usePermissions()
   const { userProgress, fetchUserProgress } = useProgress()
 
   // Skeleton card cho trạng thái loading
@@ -74,18 +86,92 @@ const ExerciseList = () => {
     </div>
   )
 
+  const handleExercisesAssigned = (assignedExercises) => {
+    setExercises(prev => [...prev, ...assignedExercises])
+    setShowAssignExerciseModal(false)
+    alert(`${assignedExercises.length} exercise${assignedExercises.length !== 1 ? 's' : ''} assigned successfully!`)
+  }
+
+  const handleDeleteExercise = async (exercise) => {
+    const confirmDelete = window.confirm(
+      `Are you sure you want to remove the exercise "${exercise.title}" from this session?\n\nThis will only remove it from the session, not delete the exercise from the bank.`
+    )
+
+    if (!confirmDelete) return
+
+    try {
+      // Remove assignment instead of deleting exercise
+      const { error } = await supabase
+        .from('exercise_assignments')
+        .delete()
+        .eq('id', exercise.assignment_id)
+
+      if (error) throw error
+
+      // Remove from local state
+      setExercises(prev => prev.filter(e => e.id !== exercise.id))
+
+      alert('Exercise removed from session successfully!')
+    } catch (err) {
+      console.error('Error removing exercise:', err)
+      alert('Failed to remove exercise: ' + (err.message || 'Unknown error'))
+    }
+  }
+
   const fetchData = useCallback(async () => {
+    // Derive effective course id if missing
     try {
       setLoading(true)
       setError(null)
 
-      // Fetch all data in parallel (excluding progress which comes from useProgress hook)
-      const [levelResult, unitResult, sessionResult, exercisesResult, allLevelsResult, allUnitsResult] = await Promise.all([
-        supabase.from('levels').select('*').eq('id', levelId).single(),
-        supabase.from('units').select('*').eq('id', unitId).single(),
-        supabase.from('sessions').select('*').eq('id', sessionId).single(),
-        supabase.from('exercises').select('*').eq('session_id', sessionId).eq('is_active', true).order('order_index'),
-        supabase.from('levels').select('*').order('level_number'),
+      // Step 1: ensure we have a course id
+      let effectiveCourseId = currentId
+      let unitData = null
+      let sessionData = null
+
+      // Try to derive from unitId if courseId missing
+      if (!effectiveCourseId && unitId) {
+        const { data: uData, error: uErr } = await supabase.from('units').select('*').eq('id', unitId).maybeSingle()
+        if (uErr) throw uErr
+        unitData = uData
+        effectiveCourseId = uData?.course_id || null
+      }
+
+      // Try to derive via session -> unit if still missing
+      if (!effectiveCourseId && sessionId) {
+        const { data: sData, error: sErr } = await supabase.from('sessions').select('*').eq('id', sessionId).maybeSingle()
+        if (sErr) throw sErr
+        sessionData = sData
+        if (sData?.unit_id && !unitData) {
+          const { data: u2Data, error: u2Err } = await supabase.from('units').select('*').eq('id', sData.unit_id).maybeSingle()
+          if (u2Err) throw u2Err
+          unitData = u2Data
+          effectiveCourseId = u2Data?.course_id || null
+        }
+      }
+
+      if (!effectiveCourseId) {
+        setLoading(false)
+        setError('Không xác định được khóa học từ URL. Vui lòng quay lại chọn đúng lộ trình.')
+        return
+      }
+
+      // Step 2: fetch remaining data in parallel
+      const [levelResult, unitResult, sessionResult, exercisesResult, allUnitsResult] = await Promise.all([
+        supabase.from('courses').select('*').eq('id', effectiveCourseId).single(),
+        unitData ? Promise.resolve({ data: unitData, error: null }) : supabase.from('units').select('*').eq('id', unitId).single(),
+        sessionData ? Promise.resolve({ data: sessionData, error: null }) : supabase.from('sessions').select('*').eq('id', sessionId).single(),
+        supabase.from('exercise_assignments').select(`
+          *,
+          exercises (
+            *,
+            exercise_folders (
+              id,
+              name,
+              color
+            )
+          )
+        `).eq('session_id', sessionId).order('order_index'),
         supabase.from('units').select('*').order('unit_number')
       ])
 
@@ -93,26 +179,46 @@ const ExerciseList = () => {
       if (unitResult.error) throw unitResult.error
       if (sessionResult.error) throw sessionResult.error
       if (exercisesResult.error) throw exercisesResult.error
-      if (allLevelsResult.error) throw allLevelsResult.error
       if (allUnitsResult.error) throw allUnitsResult.error
+
+      // For students, verify they are enrolled in this course
+      if (profile?.role === 'user') {
+        const { data: enrollmentData, error: enrollmentError } = await supabase
+          .from('course_enrollments')
+          .select('id')
+          .eq('student_id', user.id)
+          .eq('course_id', levelResult.data.id)
+          .eq('is_active', true)
+          .single()
+
+        if (enrollmentError || !enrollmentData) {
+          console.error('Student not enrolled in this course:', enrollmentError)
+          setError('Bạn chưa được ghi danh vào khóa học này')
+          navigate('/study')
+          return
+        }
+      }
 
       setLevel(levelResult.data)
       setUnit(unitResult.data)
       setSession(sessionResult.data)
-      setExercises(exercisesResult.data || [])
+      
+      // Extract exercises from assignments
+      const assignments = exercisesResult.data || []
+      const exercises = assignments.map(assignment => ({
+        ...assignment.exercises,
+        assignment_id: assignment.id,
+        order_index: assignment.order_index
+      }))
+      setExercises(exercises)
       
       // Debug logging for exercises
-      console.log('📋 All exercises loaded:', exercisesResult.data)
-      console.log('📋 Looking for exercise ID:', 'afbeb98b-5ebf-4c82-b982-9cb172d49155')
-      exercisesResult.data?.forEach(ex => {
-        console.log('📋 Exercise:', ex.id, 'Type:', ex.exercise_type, 'Title:', ex.title)
-        if (ex.id === '921d5b91-de0a-4093-81e9-8e661b7fabfe' || ex.id === 'afbeb98b-5ebf-4c82-b982-9cb172d49155') {
-          console.log('🎯 Target exercise in database:', ex)
-        }
-      })
+      console.log('📋 All exercise assignments loaded:', assignments)
+      console.log('📋 Extracted exercises:', exercises)
 
       // Fetch all sessions for this level (for sidebar)
-      const levelUnitIds = allUnitsResult.data?.filter(u => u.level_id === levelId).map(u => u.id) || []
+      // Build unit ids for this course
+      const levelUnitIds = allUnitsResult.data?.filter(u => (u.course_id === levelResult.data.id) || (u.level_id === levelId)).map(u => u.id) || []
       const { data: allLevelSessions, error: allSessionsError } = await supabase
         .from('sessions')
         .select('*')
@@ -207,7 +313,7 @@ const ExerciseList = () => {
         }
       })
 
-      setLevels(allLevelsResult.data || [])
+      setLevels([])
       setUnits(allUnitsResult.data || [])
       setAllLevelSessions(allLevelSessions || [])
       setSessionProgress(sessionProgressMap)
@@ -220,7 +326,7 @@ const ExerciseList = () => {
   }, [levelId, unitId, sessionId])
 
   useEffect(() => {
-    if (user && levelId && unitId && sessionId) {
+    if (user && unitId && sessionId) {
       fetchData()
     }
   }, [fetchData])
@@ -242,24 +348,33 @@ const ExerciseList = () => {
         const exercise = exercises[0]
         const paths = {
           flashcard: '/study/flashcard',
-          audio_flashcard: '/study/audio-flashcard',
+          fill_blank: '/study/fill-blank',
           snake_ladder: '/study/snake-ladder',
           two_player: '/study/two-player-game',
           multiple_choice: '/study/multiple-choice'
         }
         const exercisePath = paths[exercise.exercise_type] || '/study/flashcard'
-        navigate(`${exercisePath}?exerciseId=${exercise.id}&sessionId=${session.id}`)
+        navigate(`${exercisePath}?exerciseId=${exercise.id}&sessionId=${session.id}&levelId=${levelId || ''}&courseId=${level?.id || ''}&unitId=${session.unit_id}`)
       } else if (exercises && exercises.length > 1) {
         // If multiple exercises, go to exercise list
-        navigate(`/study/level/${levelId}/unit/${session.unit_id}/session/${session.id}`)
+        {
+          const base = levelId ? `/study/level/${levelId}` : `/study/course/${level?.id}`
+          navigate(`${base}/unit/${session.unit_id}/session/${session.id}`)
+        }
       } else {
         // If no exercises, go to exercise list
-        navigate(`/study/level/${levelId}/unit/${session.unit_id}/session/${session.id}`)
+        {
+          const base = levelId ? `/study/level/${levelId}` : `/study/course/${level?.id}`
+          navigate(`${base}/unit/${session.unit_id}/session/${session.id}`)
+        }
       }
     } catch (err) {
       console.error('Error checking exercises:', err)
       // Fallback to exercise list
-      navigate(`/study/level/${levelId}/unit/${session.unit_id}/session/${session.id}`)
+      {
+        const base = levelId ? `/study/level/${levelId}` : `/study/course/${level?.id}`
+        navigate(`${base}/unit/${session.unit_id}/session/${session.id}`)
+      }
     }
   }
 
@@ -274,7 +389,8 @@ const ExerciseList = () => {
   useEffect(() => {
     const handleBottomNavBack = () => {
       console.log('🎯 Bottom nav "Back" clicked in ExerciseList');
-      navigate(`/study/level/${levelId}/unit/${unitId}`)
+      const base = levelId ? `/study/level/${levelId}` : `/study/course/${unit?.course_id || level?.id}`
+      navigate(`${base}/unit/${unitId}`)
     };
 
     window.addEventListener('bottomNavBack', handleBottomNavBack);
@@ -284,7 +400,7 @@ const ExerciseList = () => {
   const getExerciseIcon = (exerciseType) => {
     const icons = {
       flashcard: BookOpen,
-      audio_flashcard: Volume2,
+      fill_blank: Edit3,
       multiple_choice: CheckSquare,
     }
     return icons[exerciseType] || BookOpen
@@ -293,7 +409,7 @@ const ExerciseList = () => {
   const getExerciseColor = (exerciseType) => {
     const colors = {
       flashcard: 'text-blue-600 bg-blue-100',
-      audio_flashcard: 'text-green-600 bg-green-100',
+      fill_blank: 'text-purple-600 bg-purple-100',
       multiple_choice: 'text-orange-600 bg-orange-100',
     }
     return colors[exerciseType] || 'text-gray-600 bg-gray-100'
@@ -302,7 +418,7 @@ const ExerciseList = () => {
   const getExerciseTypeLabel = (exerciseType) => {
     const labels = {
       flashcard: 'Flashcard',
-      audio_flashcard: 'Audio Flashcard',
+      fill_blank: 'Fill in the Blank',
       multiple_choice: 'Multiple Choice',
     }
     return labels[exerciseType] || exerciseType
@@ -356,11 +472,13 @@ const ExerciseList = () => {
     // Map exercise types to their corresponding paths
     const paths = {
       flashcard: '/study/flashcard',
-      audio_flashcard: '/study/audio-flashcard',
+      fill_blank: '/study/fill-blank',
       multiple_choice: '/study/multiple-choice',
+      drag_drop: '/study/drag-drop',
     }
 
-    const selectedPath = paths[exercise.exercise_type] || '/study/flashcard'
+    const basePath = paths[exercise.exercise_type] || '/study/flashcard'
+    const selectedPath = `${basePath}?exerciseId=${exercise.id}&sessionId=${sessionId}`
     console.log('🔍 Exercise type:', exercise.exercise_type, 'Available paths:', Object.keys(paths), 'Selected path:', selectedPath)
     return selectedPath
   }
@@ -372,67 +490,94 @@ const ExerciseList = () => {
     const isLocked = !canAccess
     const ExerciseIcon = getExerciseIcon(exercise.exercise_type)
 
+    const handleExerciseClick = () => {
+      if (!isLocked) {
+        navigate(`${getExercisePath(exercise)}?exerciseId=${exercise.id}&sessionId=${sessionId}&levelId=${levelId}&unitId=${unitId}`)
+      }
+    }
+
     return (
-      <Link
+      <div
         key={exercise.id}
-        to={`${getExercisePath(exercise)}?exerciseId=${exercise.id}&sessionId=${sessionId}`}
-        className={`block ${isLocked ? 'pointer-events-none' : ''}`}
+        className={`flex items-center p-4 rounded-lg border transition-all duration-200 ${
+          isLocked
+            ? 'opacity-60 cursor-not-allowed bg-gray-50 border-gray-200'
+            : 'cursor-pointer hover:shadow-md hover:bg-gray-50 border-gray-300'
+        } ${status === 'completed' ? 'border-green-200 bg-green-50' : ''}`}
+        onClick={handleExerciseClick}
       >
-        <div
-          className={`flex items-center p-4 rounded-lg border transition-all duration-200 ${
-            isLocked
-              ? 'opacity-60 cursor-not-allowed bg-gray-50 border-gray-200'
-              : 'cursor-pointer hover:shadow-md hover:bg-gray-50 border-gray-300'
-          } ${status === 'completed' ? 'border-green-200 bg-green-50' : ''}`}
-        >
-          {/* Exercise Icon */}
-          <div className="flex-shrink-0 w-12 h-12 mr-4">
-            <div className={`w-full h-full rounded-lg flex items-center justify-center ${
-              isLocked ? 'bg-gray-100' :
-              status === 'completed' ? 'bg-green-100' :
-              getExerciseColor(exercise.exercise_type)
-            }`}>
-              <ExerciseIcon className={`w-6 h-6 ${
-                isLocked ? 'text-gray-400' :
-                status === 'completed' ? 'text-green-600' :
-                'text-current'
-              }`} />
-            </div>
+        {/* Exercise Icon */}
+        <div className="flex-shrink-0 w-12 h-12 mr-4">
+          <div className={`w-full h-full rounded-lg flex items-center justify-center ${
+            isLocked ? 'bg-gray-100' :
+            status === 'completed' ? 'bg-green-100' :
+            getExerciseColor(exercise.exercise_type)
+          }`}>
+            <ExerciseIcon className={`w-6 h-6 ${
+              isLocked ? 'text-gray-400' :
+              status === 'completed' ? 'text-green-600' :
+              'text-current'
+            }`} />
           </div>
-
-          {/* Exercise Info */}
-          <div className="flex-1 min-w-0">
-            <div className="flex items-center justify-between">
-              <h3 className="text-lg font-semibold text-gray-900 truncate">
-                {exercise.title}
-              </h3>
-              <div className="flex items-center space-x-2">
-                {status === 'completed' && (
-                  <CheckCircle className="w-5 h-5 text-green-600" />
-                )}
-                {isLocked && (
-                  <Lock className="w-4 h-4 text-gray-400" />
-                )}
-              </div>
-            </div>
-
-            <div className="mt-1 flex items-center space-x-4 text-sm text-gray-600">
-              <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-gray-100 text-gray-800">
-                {getExerciseTypeLabel(exercise.exercise_type)}
-              </span>
-              {progress && progress.score && (
-                <span>Score: {progress.score}%</span>
-              )}
-              <span>Exercise {index + 1}</span>
-            </div>
-          </div>
-
-          {/* Arrow */}
-          {!isLocked && (
-            <ChevronRight className="w-5 h-5 text-gray-400 ml-4" />
-          )}
         </div>
-      </Link>
+
+        {/* Exercise Info */}
+        <div className="flex-1 min-w-0">
+          <div className="flex items-center justify-between">
+            <h3 className="text-lg font-semibold text-gray-900 truncate">
+              {exercise.title}
+            </h3>
+            <div className="flex items-center space-x-2">
+              {canCreateContent() && (
+                <div className="flex items-center space-x-1">
+                  <button
+                    onClick={(e) => {
+                      e.stopPropagation()
+                      // TODO: Add edit functionality
+                      alert('Edit functionality coming soon!')
+                    }}
+                    className="p-1 text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded transition-colors"
+                    title="Edit exercise"
+                  >
+                    <Edit className="w-4 h-4" />
+                  </button>
+                  <button
+                    onClick={(e) => {
+                      e.stopPropagation()
+                      handleDeleteExercise(exercise)
+                    }}
+                    className="p-1 text-red-400 hover:text-red-600 hover:bg-red-100 rounded transition-colors"
+                    title="Delete exercise"
+                  >
+                    <Trash2 className="w-4 h-4" />
+                  </button>
+                </div>
+              )}
+              {status === 'completed' && (
+                <CheckCircle className="w-5 h-5 text-green-600" />
+              )}
+              {isLocked && (
+                <Lock className="w-4 h-4 text-gray-400" />
+              )}
+            </div>
+          </div>
+
+          <div className="mt-1 flex items-center space-x-4 text-sm text-gray-600">
+            <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-gray-100 text-gray-800">
+              {getExerciseTypeLabel(exercise.exercise_type)}
+            </span>
+            {progress && progress.score && (
+              <span>Score: {progress.score}%</span>
+            )}
+            <span>Exercise {index + 1}</span>
+          </div>
+        </div>
+
+        {/* Arrow */}
+        {!isLocked && (
+          <ChevronRight className="w-5 h-5 text-gray-400 ml-4" />
+        )}
+      </div>
     )
   }
 
@@ -658,6 +803,19 @@ const ExerciseList = () => {
             </Card.Content>
           </Card>
 
+          {/* Add Exercise Button */}
+          {canCreateContent() && (
+            <div className="mb-6">
+              <Button
+                onClick={() => setShowAssignExerciseModal(true)}
+                className="bg-green-600 text-white hover:bg-green-700"
+              >
+                <Plus className="w-4 h-4 mr-2" />
+                Assign Exercises
+              </Button>
+            </div>
+          )}
+
           {/* Exercises list */}
           <div className="space-y-4">
             {exercises.map((exercise, index) => renderExerciseCard(exercise, index))}
@@ -669,10 +827,27 @@ const ExerciseList = () => {
               <BookOpen className="w-16 h-16 text-gray-400 mx-auto mb-4" />
               <h3 className="text-lg font-medium text-gray-900 mb-2">Chưa có exercise nào</h3>
               <p className="text-gray-600">Các exercise sẽ sớm được cập nhật!</p>
+              {canCreateContent() && (
+                <Button
+                  onClick={() => setShowAssignExerciseModal(true)}
+                  className="mt-4 bg-green-600 text-white hover:bg-green-700"
+                >
+                  <Plus className="w-4 h-4 mr-2" />
+                  Assign First Exercise
+                </Button>
+              )}
             </div>
           )}
         </div>
       </div>
+      {/* Assign Exercise Modal */}
+      {showAssignExerciseModal && (
+        <AssignExerciseModal
+          sessionId={sessionId}
+          onClose={() => setShowAssignExerciseModal(false)}
+          onAssigned={handleExercisesAssigned}
+        />
+      )}
     </div>
   )
 }

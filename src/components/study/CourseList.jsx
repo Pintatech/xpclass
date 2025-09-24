@@ -15,12 +15,12 @@ import {
   Target
 } from 'lucide-react'
 
-const LevelList = () => {
-  const [levels, setLevels] = useState([])
-  const [levelProgress, setLevelProgress] = useState({})
+const CourseList = () => {
+  const [courses, setCourses] = useState([])
+  const [courseProgress, setCourseProgress] = useState({})
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState(null)
-  const { user } = useAuth()
+  const { user, profile } = useAuth()
 
   // Skeletons
   const SkeletonCard = () => (
@@ -41,28 +41,60 @@ const LevelList = () => {
   )
 
   useEffect(() => {
-    if (user) {
-      fetchLevelsAndProgress()
+    if (user && profile) {
+      fetchCoursesAndProgress()
     }
-  }, [user])
+  }, [user, profile])
 
-  const fetchLevelsAndProgress = async () => {
+  const fetchCoursesAndProgress = async () => {
     try {
       setLoading(true)
       setError(null)
 
-      // Fetch all levels
-      const { data: levelsData, error: levelsError } = await supabase
-        .from('levels')
-        .select('*')
-        .eq('is_active', true)
-        .order('level_number')
+      let coursesData = []
 
-      if (levelsError) throw levelsError
+      // For students, only show enrolled courses. For admins/teachers, show all courses.
+      if (profile?.role === 'user') {
+        // Student: fetch only enrolled courses
+        const { data: enrollmentData, error: enrollmentError } = await supabase
+          .from('course_enrollments')
+          .select(`
+            courses (
+              id,
+              title,
+              description,
+              thumbnail_url,
+              level_number,
+              difficulty_label,
+              color_theme,
+              is_active,
+              unlock_requirement
+            )
+          `)
+          .eq('student_id', user.id)
+          .eq('is_active', true)
+          .eq('courses.is_active', true)
+          .order('courses.level_number')
 
-      // Fetch user's level progress
+        if (enrollmentError) throw enrollmentError
+
+        // Extract courses from the enrollment data
+        coursesData = enrollmentData?.map(enrollment => enrollment.courses).filter(Boolean) || []
+      } else {
+        // Admin/Teacher: fetch all courses
+        const { data, error: coursesError } = await supabase
+          .from('courses')
+          .select('*')
+          .eq('is_active', true)
+          .order('level_number')
+
+        if (coursesError) throw coursesError
+        coursesData = data || []
+      }
+
+      // Fetch user's course progress
       const { data: progressData, error: progressError } = await supabase
-        .from('level_progress')
+        .from('course_progress')
         .select('*')
         .eq('user_id', user.id)
 
@@ -71,14 +103,14 @@ const LevelList = () => {
       // Create progress map
       const progressMap = {}
       progressData?.forEach(progress => {
-        progressMap[progress.level_id] = progress
+        progressMap[progress.course_id] = progress
       })
 
-      setLevels(levelsData || [])
-      setLevelProgress(progressMap)
+      setCourses(coursesData)
+      setCourseProgress(progressMap)
     } catch (err) {
-      console.error('Error fetching levels:', err)
-      setError('Không thể tải danh sách level')
+      console.error('Error fetching courses:', err)
+      setError('Không thể tải danh sách khóa học')
     } finally {
       setLoading(false)
     }
@@ -114,8 +146,8 @@ const LevelList = () => {
     return themes[colorTheme] || themes.blue
   }
 
-  const getLevelStatus = (level) => {
-    const progress = levelProgress[level.id]
+  const getCourseStatus = (course) => {
+    const progress = courseProgress[course.id]
     
     // All levels are now always available (unlocked)
     if (!progress) {
@@ -128,15 +160,15 @@ const LevelList = () => {
     }
   }
 
-  const renderLevelCard = (level, index) => {
-    const { status, canAccess } = getLevelStatus(level)
-    const progress = levelProgress[level.id]
-    const theme = getThemeColors(level.color_theme)
+  const renderCourseCard = (course, index) => {
+    const { status, canAccess } = getCourseStatus(course)
+    const progress = courseProgress[course.id]
+    const theme = getThemeColors(course.color_theme)
     const isLocked = !canAccess
 
     return (
-      <Card 
-        key={level.id} 
+      <Card
+        key={course.id} 
         className={`relative overflow-hidden transition-all duration-300 ${
           isLocked 
             ? 'opacity-60 cursor-not-allowed' 
@@ -160,19 +192,19 @@ const LevelList = () => {
                 )}
               </div>
               <div>
-                <h3 className="text-lg font-bold text-gray-900">{level.title}</h3>
-                <p className="text-sm text-gray-600">{level.difficulty_label}</p>
+                <h3 className="text-lg font-bold text-gray-900">{course.title}</h3>
+                <p className="text-sm text-gray-600">{course.difficulty_label}</p>
               </div>
             </div>
             
             {/* Level number badge */}
             <div className="w-8 h-8 bg-white rounded-full flex items-center justify-center shadow-sm">
-              <span className="text-sm font-bold text-gray-700">{level.level_number}</span>
+              <span className="text-sm font-bold text-gray-700">{course.level_number}</span>
             </div>
           </div>
 
           {/* Description */}
-          <p className="text-gray-700 mb-4 line-clamp-2">{level.description}</p>
+          <p className="text-gray-700 mb-4 line-clamp-2">{course.description}</p>
 
           {/* Progress bar (if started) */}
           {progress && (
@@ -202,7 +234,7 @@ const LevelList = () => {
                 <span className="text-sm text-gray-600">XP cần</span>
               </div>
               <div className="text-sm font-semibold text-gray-900">
-                {level.unlock_requirement}
+                {course.unlock_requirement}
               </div>
             </div>
             <div className="text-center">
@@ -218,7 +250,7 @@ const LevelList = () => {
 
           {/* Action button */}
           <div className="flex justify-center">
-            <Link to={`/study/level/${level.id}`} className="w-full">
+            <Link to={`/study/course/${course.id}`} className="w-full">
               <Button className="w-full bg-gradient-to-r from-primary-600 to-secondary-600 hover:from-primary-700 hover:to-secondary-700">
                 {status === 'completed' ? 'Xem lại' : 
                  status === 'in_progress' ? 'Tiếp tục' : 'Bắt đầu'}
@@ -264,9 +296,9 @@ const LevelList = () => {
     <div className="space-y-8">
       {/* Header */}
       <div className="text-center">
-        <h1 className="text-3xl font-bold text-gray-900 mb-4">Chọn Level</h1>
+        <h1 className="text-3xl font-bold text-gray-900 mb-4">Chọn Khóa học</h1>
         <p className="text-gray-600 max-w-2xl mx-auto">
-          Bắt đầu hành trình học ngôn ngữ của bạn. Mỗi level được thiết kế để giúp bạn 
+          Bắt đầu hành trình học ngôn ngữ của bạn. Mỗi khóa học được thiết kế để giúp bạn
           phát triển từng bước một cách hiệu quả và vui vẻ.
         </p>
       </div>
@@ -277,7 +309,7 @@ const LevelList = () => {
           <div className="grid grid-cols-3 gap-6 text-center">
             <div>
               <div className="text-2xl font-bold text-primary-700">{user?.profile?.current_level || 1}</div>
-              <div className="text-sm text-gray-600">Level hiện tại</div>
+              <div className="text-sm text-gray-600">Khóa học hiện tại</div>
             </div>
             <div>
               <div className="text-2xl font-bold text-secondary-700">{user?.profile?.xp || 0}</div>
@@ -291,21 +323,21 @@ const LevelList = () => {
         </Card.Content>
       </Card>
 
-      {/* Levels grid */}
+      {/* Courses grid */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-        {levels.map((level, index) => renderLevelCard(level, index))}
+        {courses.map((course, index) => renderCourseCard(course, index))}
       </div>
 
       {/* Empty state */}
-      {levels.length === 0 && (
+      {courses.length === 0 && (
         <div className="text-center py-12">
           <BookOpen className="w-16 h-16 text-gray-400 mx-auto mb-4" />
-          <h3 className="text-lg font-medium text-gray-900 mb-2">Chưa có level nào</h3>
-          <p className="text-gray-600">Các level học tập sẽ sớm được cập nhật!</p>
+          <h3 className="text-lg font-medium text-gray-900 mb-2">Chưa có khóa học nào</h3>
+          <p className="text-gray-600">Các khóa học sẽ sớm được cập nhật!</p>
         </div>
       )}
     </div>
   )
 }
 
-export default LevelList
+export default CourseList

@@ -2,8 +2,11 @@ import { useState, useEffect } from 'react'
 import { Link, useParams, useNavigate, useLocation } from 'react-router-dom'
 import { supabase } from '../../supabase/client'
 import { useAuth } from '../../hooks/useAuth'
+import { usePermissions } from '../../hooks/usePermissions'
 import Card from '../ui/Card'
 import Button from '../ui/Button'
+import AddSessionModal from './AddSessionModal'
+import EditSessionModal from './EditSessionModal'
 // Dùng skeleton thay cho spinner khi tải dữ liệu
 import {
   ArrowLeft,
@@ -30,11 +33,20 @@ import {
   ChevronRight,
   List,
   Grid,
-  Crown
+  Crown,
+  Plus,
+  Edit,
+  MoreVertical,
+  Trash2
 } from 'lucide-react'
 
 const SessionList = () => {
-  const { levelId, unitId } = useParams()
+  const { levelId: rawLevelId, courseId: rawCourseId, unitId } = useParams()
+  const sanitizeId = (v) => (v && v !== 'undefined' && v !== 'null') ? v : null
+  const levelId = sanitizeId(rawLevelId)
+  const courseId = sanitizeId(rawCourseId)
+  // Support both level and course routes for backward compatibility
+  const currentId = courseId || levelId
   const navigate = useNavigate()
   const location = useLocation()
   const [level, setLevel] = useState(null)
@@ -48,7 +60,11 @@ const SessionList = () => {
   const [sidebarOpen, setSidebarOpen] = useState(true)
   const [levels, setLevels] = useState([])
   const [units, setUnits] = useState([])
-  const { user } = useAuth()
+  const [showAddSessionModal, setShowAddSessionModal] = useState(false)
+  const [showEditSessionModal, setShowEditSessionModal] = useState(false)
+  const [editingSession, setEditingSession] = useState(null)
+  const { user, profile } = useAuth()
+  const { canCreateContent } = usePermissions()
 
   // Skeletons
   const SkeletonSidebarItem = ({ withChildren = false }) => (
@@ -95,23 +111,69 @@ const SessionList = () => {
   )
 
   useEffect(() => {
-    if (user && levelId && unitId) {
+    if (user && currentId && unitId) {
       fetchData()
     }
-  }, [user, levelId, unitId, location.key])
+  }, [user, currentId, unitId, location.key])
+
+  const handleSessionCreated = (newSession) => {
+    setSessions(prev => [...prev, newSession])
+    setShowAddSessionModal(false)
+    // Show success message
+    alert('Session created successfully!')
+  }
+
+  const handleSessionUpdated = (updatedSession) => {
+    setSessions(prev => prev.map(session => session.id === updatedSession.id ? updatedSession : session))
+    setShowEditSessionModal(false)
+    setEditingSession(null)
+    // Show success message
+    alert('Session updated successfully!')
+  }
+
+  const handleEditSession = (session) => {
+    setEditingSession(session)
+    setShowEditSessionModal(true)
+  }
+
+  const handleDeleteSession = async (session) => {
+    const confirmDelete = window.confirm(
+      `Are you sure you want to delete the session "${session.title}"?\n\nThis will also delete all exercises in this session. This action cannot be undone.`
+    )
+
+    if (!confirmDelete) return
+
+    try {
+      const { error } = await supabase
+        .from('sessions')
+        .delete()
+        .eq('id', session.id)
+
+      if (error) throw error
+
+      // Remove from local state
+      setSessions(prev => prev.filter(s => s.id !== session.id))
+      setAllLevelSessions(prev => prev.filter(s => s.id !== session.id))
+
+      alert('Session deleted successfully!')
+    } catch (err) {
+      console.error('Error deleting session:', err)
+      alert('Failed to delete session: ' + (err.message || 'Unknown error'))
+    }
+  }
 
   const fetchData = async () => {
     try {
       setLoading(true)
       setError(null)
 
-      // Fetch all levels for sidebar
-      const { data: allLevels, error: levelsError } = await supabase
-        .from('levels')
+      // Fetch all courses for sidebar
+      const { data: allCourses, error: coursesError } = await supabase
+        .from('courses')
         .select('*')
         .order('level_number')
 
-      if (levelsError) throw levelsError
+      if (coursesError) throw coursesError
 
       // Fetch all units for sidebar
       const { data: allUnits, error: unitsError } = await supabase
@@ -121,14 +183,36 @@ const SessionList = () => {
 
       if (unitsError) throw unitsError
 
-      // Fetch current level info
-      const { data: levelData, error: levelError } = await supabase
-        .from('levels')
+      // Fetch current course info
+      const { data: courseData, error: courseError } = await supabase
+        .from('courses')
         .select('*')
-        .eq('id', levelId)
-        .single()
+        .eq('id', currentId)
+        .maybeSingle()
 
-      if (levelError) throw levelError
+      if (courseError) throw courseError
+      if (!courseData) {
+        setLoading(false)
+        return
+      }
+
+      // For students, verify they are enrolled in this course
+      if (profile?.role === 'user') {
+        const { data: enrollmentData, error: enrollmentError } = await supabase
+          .from('course_enrollments')
+          .select('id')
+          .eq('student_id', user.id)
+          .eq('course_id', currentId)
+          .eq('is_active', true)
+          .single()
+
+        if (enrollmentError || !enrollmentData) {
+          console.error('Student not enrolled in this course:', enrollmentError)
+          setError('Bạn chưa được ghi danh vào khóa học này')
+          navigate('/study')
+          return
+        }
+      }
 
       // Fetch current unit info
       const { data: unitData, error: unitError } = await supabase
@@ -172,17 +256,22 @@ const SessionList = () => {
 
       if (progressError) throw progressError
 
-      // Fetch all exercises for these sessions
+      // Fetch all assigned exercises for these sessions via linking table
       const sessionIds = sessionsData?.map(s => s.id) || []
-      const { data: allExercises, error: exercisesErr } = await supabase
-        .from('exercises')
-        .select('id, session_id, xp_reward, is_active')
+      const { data: allAssignments, error: assignmentsErr } = await supabase
+        .from('exercise_assignments')
+        .select(`
+          id,
+          session_id,
+          exercise:exercises(id, xp_reward, is_active)
+        `)
         .in('session_id', sessionIds)
-        .eq('is_active', true)
 
-      if (exercisesErr) throw exercisesErr
+      if (assignmentsErr) throw assignmentsErr
 
-      const exerciseIds = allExercises?.map(e => e.id) || []
+      const exerciseIds = (allAssignments || [])
+        .map(a => a.exercise?.id)
+        .filter(Boolean)
 
       // Fetch user's completed exercises among these
       const { data: userCompleted, error: userProgErr } = await supabase
@@ -195,9 +284,16 @@ const SessionList = () => {
 
       // Build maps
       const sessionIdToExercises = {}
-      allExercises?.forEach(ex => {
-        if (!sessionIdToExercises[ex.session_id]) sessionIdToExercises[ex.session_id] = []
-        sessionIdToExercises[ex.session_id].push(ex)
+      ;(allAssignments || []).forEach(a => {
+        const ex = a.exercise
+        if (!ex) return
+        if (!sessionIdToExercises[a.session_id]) sessionIdToExercises[a.session_id] = []
+        sessionIdToExercises[a.session_id].push({
+          id: ex.id,
+          session_id: a.session_id,
+          xp_reward: ex.xp_reward,
+          is_active: ex.is_active
+        })
       })
 
       const completedSet = new Set(
@@ -242,12 +338,12 @@ const SessionList = () => {
       })
 
       console.log('Setting allLevelSessions:', allLevelSessions)
-      setLevel(levelData)
+      setLevel(courseData)
       setUnit(unitData)
       setSessions(sessionsData || [])
       setAllLevelSessions(allLevelSessions || [])
       setSessionProgress(progressMap)
-      setLevels(allLevels || [])
+      setLevels(allCourses || [])
       setUnits(allUnits || [])
     } catch (err) {
       console.error('Error fetching sessions:', err)
@@ -377,7 +473,7 @@ const SessionList = () => {
         const exercise = exercises[0]
         const paths = {
           flashcard: '/study/flashcard',
-          audio_flashcard: '/study/audio-flashcard',
+          fill_blank: '/study/fill-blank',
           snake_ladder: '/study/snake-ladder',
           two_player: '/study/two-player-game',
           multiple_choice: '/study/multiple-choice'
@@ -386,15 +482,18 @@ const SessionList = () => {
         navigate(`${exercisePath}?exerciseId=${exercise.id}&sessionId=${session.id}`)
       } else if (exercises && exercises.length > 1) {
         // If multiple exercises, go to exercise list
-        navigate(`/study/level/${levelId}/unit/${unitId}/session/${session.id}`)
+        const base = levelId ? `/study/level/${levelId}` : `/study/course/${unit?.course_id || level?.id}`
+        navigate(`${base}/unit/${unitId}/session/${session.id}`)
       } else {
         // If no exercises, go to exercise list
-        navigate(`/study/level/${levelId}/unit/${unitId}/session/${session.id}`)
+        const base = levelId ? `/study/level/${levelId}` : `/study/course/${unit?.course_id || level?.id}`
+        navigate(`${base}/unit/${unitId}/session/${session.id}`)
       }
     } catch (err) {
       console.error('Error checking exercises:', err)
       // Fallback to exercise list
-      navigate(`/study/level/${levelId}/unit/${unitId}/session/${session.id}`)
+      const base = levelId ? `/study/level/${levelId}` : `/study/course/${unit?.course_id || level?.id}`
+      navigate(`${base}/unit/${unitId}/session/${session.id}`)
     }
   }
 
@@ -408,6 +507,7 @@ const SessionList = () => {
     const sessionImageUrl = getSessionImageUrl(sessionNumber)
     const sessionGrayImageUrl = getSessionGrayImageUrl(sessionNumber)
     const isFirstItem = index === 0
+    const progressPercentage = progress?.progress_percentage || 0
 
     return (
       <div
@@ -454,12 +554,37 @@ const SessionList = () => {
             </div>
           )}
 
-          {/* Progress bar overlay removed per design */}
+          {/* Progress bar fill from bottom when in progress */}
+          {progressPercentage > 0 && !isCompleted && (
+            <div
+              className="absolute bottom-0 left-0 right-0 bg-orange-300/80 transition-all duration-300 z-20"
+              style={{ height: `${progressPercentage}%` }}
+            />
+          )}
 
-          {/* Overlay with status icon - only show lock when inaccessible */}
+          {/* Completed overlay */}
+          {isCompleted && (
+            <div className="absolute inset-0 bg-green-500/80 z-20" />
+          )}
+
+          {/* Crown icon for completed */}
+          {isCompleted && (
+            <div className="absolute inset-0 flex items-center justify-center z-30">
+              <Crown className="w-6 h-6 text-white" />
+            </div>
+          )}
+
+          {/* Progress badge */}
+          {!isCompleted && progressPercentage > 0 && (
+            <div className="absolute top-2 left-2 z-30 px-2 py-0.5 rounded-full text-[10px] font-semibold bg-white/90 text-gray-800 shadow">
+              {progressPercentage}%
+            </div>
+          )}
+
+          {/* Small lock dot */}
           {isLocked && (
             <div className="absolute top-2 right-2">
-              <div className="w-6 h-6 rounded-full bg-white/90 backdrop-blur-sm flex items-center justify-center shadow-lg">
+              <div className="w-5 h-5 rounded-full bg-white/90 backdrop-blur-sm flex items-center justify-center shadow">
                 <Lock className="w-3 h-3 text-gray-600" />
               </div>
             </div>
@@ -471,6 +596,9 @@ const SessionList = () => {
         {/* Title below SVG/image */}
         <div className="pt-2 text-center">
           <h3 className="text-black font-bold text-sm truncate">{session.title}</h3>
+          {progressPercentage > 0 && (
+            <div className="text-[10px] text-gray-600 mt-0.5">{progressPercentage}%</div>
+          )}
         </div>
       </div>
     )
@@ -516,6 +644,30 @@ const SessionList = () => {
               {session.title}
             </h3>
             <div className="flex items-center space-x-2">
+              {canCreateContent() && (
+                <div className="flex items-center space-x-1">
+                  <button
+                    onClick={(e) => {
+                      e.stopPropagation()
+                      handleEditSession(session)
+                    }}
+                    className="p-1 text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded transition-colors"
+                    title="Edit session"
+                  >
+                    <Edit className="w-4 h-4" />
+                  </button>
+                  <button
+                    onClick={(e) => {
+                      e.stopPropagation()
+                      handleDeleteSession(session)
+                    }}
+                    className="p-1 text-red-400 hover:text-red-600 hover:bg-red-100 rounded transition-colors"
+                    title="Delete session"
+                  >
+                    <Trash2 className="w-4 h-4" />
+                  </button>
+                </div>
+              )}
               {isCompleted && (
                 <CheckCircle className="w-5 h-5 text-green-600" />
               )}
@@ -631,7 +783,7 @@ const SessionList = () => {
             <div key={levelItem.id} className="border-b border-gray-100">
               <div className="p-3">
                 <Link
-                  to={`/study/level/${levelItem.id}`}
+                  to={`/study/course/${levelItem.id}`}
                   className={`flex items-center space-x-3 p-2 rounded-lg transition-colors ${
                     levelItem.id === levelId 
                       ? 'bg-blue-100 text-blue-700' 
@@ -720,7 +872,10 @@ const SessionList = () => {
               <Button
                 variant="ghost"
                 size="sm"
-                onClick={() => navigate(`/study/level/${levelId}`)}
+                onClick={() => {
+                  const base = levelId ? `/study/level/${levelId}` : `/study/course/${level?.id}`
+                  navigate(base)
+                }}
               >
                 <ArrowLeft className="w-4 h-4 mr-2" />
                 Quay lại
@@ -752,7 +907,12 @@ const SessionList = () => {
 
           {/* Breadcrumb */}
           <div className="flex items-center space-x-2 text-sm text-gray-600 mt-2">
-            <Link to="/study" className="hover:text-primary-600">{level?.title}</Link>
+            <Link
+              to={levelId ? `/study/level/${levelId}` : `/study/course/${level?.id}`}
+              className="hover:text-primary-600"
+            >
+              {level?.title}
+            </Link>
             <ArrowRight className="w-4 h-4" />
             <span className="text-gray-900 font-medium">{unit?.title}</span>
           </div>
@@ -806,6 +966,28 @@ const SessionList = () => {
                 })
                 .map((session, index) => renderSessionListItem(session, index))
               }
+
+              {/* Add Session Button for List View */}
+              {canCreateContent() && (
+                <div className="bg-white rounded-lg border-2 border-dashed border-gray-300 p-6 text-center hover:border-green-400 transition-colors">
+                  <div className="flex items-center justify-center space-x-3">
+                    <div className="w-10 h-10 bg-green-100 rounded-lg flex items-center justify-center">
+                      <Plus className="w-5 h-5 text-green-600" />
+                    </div>
+                    <div className="text-left">
+                      <h4 className="font-medium text-gray-900">Add New Session</h4>
+                      <p className="text-sm text-gray-600">Create a learning session for this unit</p>
+                    </div>
+                    <Button
+                      onClick={() => setShowAddSessionModal(true)}
+                      className="bg-green-600 text-white hover:bg-green-700"
+                    >
+                      <Plus className="w-4 h-4 mr-2" />
+                      Create Session
+                    </Button>
+                  </div>
+                </div>
+              )}
             </div>
           ) : (
             <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6">
@@ -830,6 +1012,21 @@ const SessionList = () => {
                   </div>
                 ))
               }
+
+              {/* Add Session Button for Grid View */}
+              {canCreateContent() && (
+                <div className="w-32 h-32">
+                  <div
+                    onClick={() => setShowAddSessionModal(true)}
+                    className="w-full h-full border-2 border-dashed border-gray-300 rounded-lg flex flex-col items-center justify-center hover:border-green-400 hover:bg-green-50 transition-colors cursor-pointer group"
+                  >
+                    <div className="w-8 h-8 bg-green-100 rounded-lg flex items-center justify-center group-hover:bg-green-200 transition-colors">
+                      <Plus className="w-4 h-4 text-green-600" />
+                    </div>
+                    <span className="text-xs text-gray-600 mt-1 text-center px-1">Add Session</span>
+                  </div>
+                </div>
+              )}
             </div>
           )}
 
@@ -839,10 +1036,40 @@ const SessionList = () => {
               <BookOpen className="w-16 h-16 text-gray-400 mx-auto mb-4" />
               <h3 className="text-lg font-medium text-gray-900 mb-2">Chưa có session nào</h3>
               <p className="text-gray-600">Các session học tập sẽ sớm được cập nhật!</p>
+              {canCreateContent() && (
+                <Button
+                  onClick={() => setShowAddSessionModal(true)}
+                  className="mt-4 bg-green-600 text-white hover:bg-green-700"
+                >
+                  <Plus className="w-4 h-4 mr-2" />
+                  Create First Session
+                </Button>
+              )}
             </div>
           )}
         </div>
       </div>
+
+      {/* Add Session Modal */}
+      {showAddSessionModal && (
+        <AddSessionModal
+          unitId={unitId}
+          onClose={() => setShowAddSessionModal(false)}
+          onCreated={handleSessionCreated}
+        />
+      )}
+
+      {/* Edit Session Modal */}
+      {showEditSessionModal && editingSession && (
+        <EditSessionModal
+          session={editingSession}
+          onClose={() => {
+            setShowEditSessionModal(false)
+            setEditingSession(null)
+          }}
+          onUpdated={handleSessionUpdated}
+        />
+      )}
     </div>
   )
 }

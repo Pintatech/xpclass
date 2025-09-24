@@ -2,8 +2,11 @@ import { useState, useEffect } from 'react'
 import { Link, useParams, useNavigate } from 'react-router-dom'
 import { supabase } from '../../supabase/client'
 import { useAuth } from '../../hooks/useAuth'
+import { usePermissions } from '../../hooks/usePermissions'
 import Card from '../ui/Card'
 import Button from '../ui/Button'
+import AddUnitModal from './AddUnitModal'
+import EditUnitModal from './EditUnitModal'
 // Thay spinner bằng skeleton để điều hướng mượt hơn
 import {
   ArrowLeft,
@@ -17,11 +20,21 @@ import {
   Play,
   Circle,
   Flame,
-  Crown
+  Crown,
+  Plus,
+  Edit,
+  MoreVertical,
+  List,
+  Trash2
 } from 'lucide-react'
 
 const UnitList = () => {
-  const { levelId } = useParams()
+  const { levelId: rawLevelId, courseId: rawCourseId } = useParams()
+  const sanitizeId = (v) => (v && v !== 'undefined' && v !== 'null') ? v : null
+  const levelId = sanitizeId(rawLevelId)
+  const courseId = sanitizeId(rawCourseId)
+  // Support both level and course routes for backward compatibility
+  const currentId = courseId || levelId
   const navigate = useNavigate()
   const [level, setLevel] = useState(null)
   const [units, setUnits] = useState([])
@@ -34,7 +47,11 @@ const UnitList = () => {
   const [sidebarOpen, setSidebarOpen] = useState(true)
   const [levels, setLevels] = useState([])
   const [allUnits, setAllUnits] = useState([])
-  const { user } = useAuth()
+  const [showAddUnitModal, setShowAddUnitModal] = useState(false)
+  const [showEditUnitModal, setShowEditUnitModal] = useState(false)
+  const [editingUnit, setEditingUnit] = useState(null)
+  const { user, profile } = useAuth()
+  const { canCreateContent } = usePermissions()
 
   // Skeletons
   const SkeletonSidebarItem = ({ withChildren = false }) => (
@@ -77,20 +94,24 @@ const UnitList = () => {
   )
 
   useEffect(() => {
-    if (user && levelId) {
+    if (user && currentId) {
       fetchLevelAndUnits()
     }
-  }, [user, levelId])
+  }, [user, currentId])
 
   const fetchLevelAndUnits = async () => {
+    if (!currentId) {
+      setLoading(false)
+      return
+    }
     try {
       setLoading(true)
       setError(null)
 
       // Fetch all data in parallel
       const [levelResult, allLevelsResult, allUnitsResult] = await Promise.all([
-        supabase.from('levels').select('*').eq('id', levelId).single(),
-        supabase.from('levels').select('*').order('level_number'),
+        supabase.from('courses').select('*').eq('id', currentId).single(),
+        supabase.from('courses').select('*').order('level_number'),
         supabase.from('units').select('*').order('unit_number')
       ])
 
@@ -99,6 +120,24 @@ const UnitList = () => {
       if (allUnitsResult.error) throw allUnitsResult.error
 
       const levelData = levelResult.data
+
+      // For students, verify they are enrolled in this course
+      if (profile?.role === 'user') {
+        const { data: enrollmentData, error: enrollmentError } = await supabase
+          .from('course_enrollments')
+          .select('id')
+          .eq('student_id', user.id)
+          .eq('course_id', currentId)
+          .eq('is_active', true)
+          .single()
+
+        if (enrollmentError || !enrollmentData) {
+          console.error('Student not enrolled in this course:', enrollmentError)
+          setError('Bạn chưa được ghi danh vào khóa học này')
+          navigate('/study')
+          return
+        }
+      }
 
       // Fetch user stats (XP and streak)
       const { data: userData, error: userError } = await supabase
@@ -120,7 +159,7 @@ const UnitList = () => {
       const { data: unitsData, error: unitsError } = await supabase
         .from('units')
         .select('*')
-        .eq('level_id', levelId)
+        .eq('course_id', currentId)
         .eq('is_active', true)
         .order('unit_number')
 
@@ -227,18 +266,23 @@ const UnitList = () => {
         console.error('Error fetching session progress:', sessionProgressError)
       }
 
-      // Fetch all exercises for these sessions
-      const { data: allExercises, error: exercisesErr } = await supabase
-        .from('exercises')
-        .select('id, session_id, xp_reward, is_active')
+      // Fetch all assigned exercises for these sessions via linking table
+      const { data: allAssignments, error: assignmentsErr } = await supabase
+        .from('exercise_assignments')
+        .select(`
+          id,
+          session_id,
+          exercise:exercises(id, xp_reward, is_active)
+        `)
         .in('session_id', sessionIds)
-        .eq('is_active', true)
 
-      if (exercisesErr) {
-        console.error('Error fetching exercises:', exercisesErr)
+      if (assignmentsErr) {
+        console.error('Error fetching exercise assignments:', assignmentsErr)
       }
 
-      const exerciseIds = allExercises?.map(e => e.id) || []
+      const exerciseIds = (allAssignments || [])
+        .map(a => a.exercise?.id)
+        .filter(Boolean)
 
       // Fetch user's completed exercises among these
       const { data: userCompleted, error: userProgErr } = await supabase
@@ -253,9 +297,16 @@ const UnitList = () => {
 
       // Build maps
       const sessionIdToExercises = {}
-      allExercises?.forEach(ex => {
-        if (!sessionIdToExercises[ex.session_id]) sessionIdToExercises[ex.session_id] = []
-        sessionIdToExercises[ex.session_id].push(ex)
+      ;(allAssignments || []).forEach(a => {
+        const ex = a.exercise
+        if (!ex) return
+        if (!sessionIdToExercises[a.session_id]) sessionIdToExercises[a.session_id] = []
+        sessionIdToExercises[a.session_id].push({
+          id: ex.id,
+          session_id: a.session_id,
+          xp_reward: ex.xp_reward,
+          is_active: ex.is_active
+        })
       })
 
       const completedSet = new Set(
@@ -307,6 +358,53 @@ const UnitList = () => {
       setError('Không thể tải danh sách unit')
     } finally {
       setLoading(false)
+    }
+  }
+
+  const handleUnitCreated = (newUnit) => {
+    setUnits(prev => [...prev, newUnit])
+    setShowAddUnitModal(false)
+    // Show success message
+    alert('Unit created successfully!')
+  }
+
+  const handleUnitUpdated = (updatedUnit) => {
+    setUnits(prev => prev.map(unit => unit.id === updatedUnit.id ? updatedUnit : unit))
+    setShowEditUnitModal(false)
+    setEditingUnit(null)
+    // Show success message
+    alert('Unit updated successfully!')
+  }
+
+  const handleEditUnit = (unit) => {
+    setEditingUnit(unit)
+    setShowEditUnitModal(true)
+  }
+
+  const handleDeleteUnit = async (unit) => {
+    const confirmDelete = window.confirm(
+      `Are you sure you want to delete the unit "${unit.title}"?\n\nThis will also delete all sessions and exercises in this unit. This action cannot be undone.`
+    )
+
+    if (!confirmDelete) return
+
+    try {
+      const { error } = await supabase
+        .from('units')
+        .delete()
+        .eq('id', unit.id)
+
+      if (error) throw error
+
+      // Remove from local state
+      setUnits(prev => prev.filter(u => u.id !== unit.id))
+      // Remove sessions for this unit
+      setSessions(prev => prev.filter(s => s.unit_id !== unit.id))
+
+      alert('Unit deleted successfully!')
+    } catch (err) {
+      console.error('Error deleting unit:', err)
+      alert('Failed to delete unit: ' + (err.message || 'Unknown error'))
     }
   }
 
@@ -385,7 +483,7 @@ const UnitList = () => {
         const exercise = exercises[0]
         const paths = {
           flashcard: '/study/flashcard',
-          audio_flashcard: '/study/audio-flashcard',
+          fill_blank: '/study/fill-blank',
           snake_ladder: '/study/snake-ladder',
           two_player: '/study/two-player-game',
           multiple_choice: '/study/multiple-choice'
@@ -659,15 +757,15 @@ const UnitList = () => {
             <div key={levelItem.id} className="border-b border-gray-100">
               <div className="p-3">
                 <Link
-                  to={`/study/level/${levelItem.id}`}
+                  to={`/study/course/${levelItem.id}`}
                   className={`flex items-center space-x-3 p-2 rounded-lg transition-colors ${
-                    levelItem.id === levelId
+                    levelItem.id === currentId
                       ? 'bg-blue-100 text-blue-700'
                       : 'hover:bg-gray-100'
                   }`}
                 >
                   <div className={`w-8 h-8 rounded-lg flex items-center justify-center text-sm font-bold ${
-                    levelItem.id === levelId
+                    levelItem.id === currentId
                       ? 'bg-blue-200'
                       : 'bg-gray-200'
                   }`}>
@@ -683,7 +781,7 @@ const UnitList = () => {
               </div>
 
               {/* Sessions for this level */}
-              {levelItem.id === levelId && sidebarOpen && (
+              {levelItem.id === currentId && sidebarOpen && (
                 <div className="ml-6 space-y-1 pb-3">
                   {sessions
                     .sort((a, b) => {
@@ -823,28 +921,97 @@ const UnitList = () => {
                 .filter(session => session.unit_id === unit.id)
                 .sort((a, b) => (a.session_number || 0) - (b.session_number || 0))
 
-              if (unitSessions.length === 0) return null
-
               const progress = unitProgress[unit.id]
 
               return (
                 <div key={unit.id} className="bg-white rounded-lg border border-gray-200 p-4">
                   {/* Unit Header */}
-                  <div className="mb-3">
-                    <h2 className="text-lg font-bold text-gray-900">{unit.title}</h2>
+                  <div className="mb-3 flex items-center justify-between">
+                    <div className="flex items-center space-x-3">
+                      <h2 className="text-lg font-bold text-gray-900">{unit.title}</h2>
+                      {canCreateContent() && (
+                        <button
+                          onClick={() => {
+                            const base = levelId ? `/study/level/${levelId}` : `/study/course/${currentId}`
+                            navigate(`${base}/unit/${unit.id}`)
+                          }}
+                          className="p-2 text-blue-400 hover:text-blue-600 hover:bg-blue-100 rounded-lg transition-colors"
+                          title="Manage sessions"
+                        >
+                          <List className="w-4 h-4" />
+                        </button>
+                      )}
+                    </div>
+                    {canCreateContent() && (
+                      <div className="flex items-center space-x-1">
+                        <button
+                          onClick={() => handleEditUnit(unit)}
+                          className="p-2 text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded-lg transition-colors"
+                          title="Edit unit"
+                        >
+                          <Edit className="w-4 h-4" />
+                        </button>
+                        <button
+                          onClick={() => handleDeleteUnit(unit)}
+                          className="p-2 text-red-400 hover:text-red-600 hover:bg-red-100 rounded-lg transition-colors"
+                          title="Delete unit"
+                        >
+                          <Trash2 className="w-4 h-4" />
+                        </button>
+                      </div>
+                    )}
                   </div>
 
                   {/* Sessions Grid for this Unit */}
-                  <div className="grid grid-cols-6 md:grid-cols-8 lg:grid-cols-12 xl:grid-cols-16 gap-2">
-                    {unitSessions.map((session, index) => (
-                      <div key={session.id} className="w-10 h-10">
-                        {renderSessionCard(session, index)}
-                      </div>
-                    ))}
-                  </div>
+                  {unitSessions.length > 0 ? (
+                    <div className="grid grid-cols-6 md:grid-cols-8 lg:grid-cols-12 xl:grid-cols-16 gap-2">
+                      {unitSessions.map((session, index) => (
+                        <div key={session.id} className="w-10 h-10">
+                          {renderSessionCard(session, index)}
+                        </div>
+                      ))}
+                    </div>
+                  ) : (
+                    <div className="text-center py-8 bg-gray-50 rounded-lg border-2 border-dashed border-gray-300">        
+                      {canCreateContent() ? (
+                        <Button
+                          onClick={() => {
+                            const base = levelId ? `/study/level/${levelId}` : `/study/course/${currentId}`
+                            navigate(`${base}/unit/${unit.id}`)
+                          }}
+                          className="bg-green-600 text-white hover:bg-green-700"
+                        >
+                          <Plus className="w-4 h-4 mr-2" />
+                          Add Sessions
+                        </Button>
+                      ) : (
+                        <p className="text-sm text-gray-500">Sessions will be available soon</p>
+                      )}
+                    </div>
+                  )}
                 </div>
               )
             })}
+            {/* Add Unit Button */}
+            {canCreateContent() && (
+              <div className="bg-white rounded-lg border-2 border-dashed border-gray-300 p-8 text-center hover:border-blue-400 transition-colors">
+                <div className="flex flex-col items-center space-y-3">
+                  <div className="w-12 h-12 bg-blue-100 rounded-lg flex items-center justify-center">
+                    <Plus className="w-6 h-6 text-blue-600" />
+                  </div>
+                  <div>
+                    <p className="text-gray-600">Create a new learning unit for this level</p>
+                  </div>
+                  <Button
+                    onClick={() => setShowAddUnitModal(true)}
+                    className="bg-blue-600 text-white hover:bg-blue-700"
+                  >
+                    <Plus className="w-4 h-4 mr-2" />
+                    Create Unit
+                  </Button>
+                </div>
+              </div>
+            )}
           </div>
 
           {/* Empty state */}
@@ -853,10 +1020,40 @@ const UnitList = () => {
               <BookOpen className="w-16 h-16 text-gray-400 mx-auto mb-4" />
               <h3 className="text-lg font-medium text-gray-900 mb-2">Chưa có unit nào</h3>
               <p className="text-gray-600">Các unit học tập sẽ sớm được cập nhật!</p>
+              {canCreateContent() && (
+                <Button
+                  onClick={() => setShowAddUnitModal(true)}
+                  className="mt-4 bg-blue-600 text-white hover:bg-blue-700"
+                >
+                  <Plus className="w-4 h-4 mr-2" />
+                  Create First Unit
+                </Button>
+              )}
             </div>
           )}
         </div>
       </div>
+
+      {/* Add Unit Modal */}
+      {showAddUnitModal && (
+        <AddUnitModal
+          levelId={currentId}
+          onClose={() => setShowAddUnitModal(false)}
+          onCreated={handleUnitCreated}
+        />
+      )}
+
+      {/* Edit Unit Modal */}
+      {showEditUnitModal && editingUnit && (
+        <EditUnitModal
+          unit={editingUnit}
+          onClose={() => {
+            setShowEditUnitModal(false)
+            setEditingUnit(null)
+          }}
+          onUpdated={handleUnitUpdated}
+        />
+      )}
     </div>
   )
 }

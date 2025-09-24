@@ -10,6 +10,8 @@ import Leaderboard from './components/leaderboard/Leaderboard'
 import Progress from './components/progress/Progress'
 import Profile from './components/profile/Profile'
 import AdminDashboard from './components/admin/AdminDashboard'
+import TeacherDashboard from './components/teacher/TeacherDashboard'
+import TeacherExerciseScores from './components/teacher/TeacherExerciseScores'
 import ProtectedRoute from './components/auth/ProtectedRoute'
 
 
@@ -36,6 +38,8 @@ function App() {
                   <AdminDashboard />
                 </ProtectedRoute>
               } />
+              <Route path="teacher" element={<TeacherDashboard />} />
+              <Route path="teacher/exercises" element={<TeacherExerciseScores />} />
             </Route>
           </Routes>
         </Router>

@@ -41,26 +41,33 @@ const ContentTreeView = () => {
   const fetchTreeData = async () => {
     try {
       setLoading(true);
-      
-      // Fetch all data with relationships
-      const [levelsResult, unitsResult, sessionsResult, exercisesResult] = await Promise.all([
-        supabase.from('levels').select('*').order('level_number'),
+
+      // Try courses table first, fallback to levels table
+      let coursesResult = await supabase.from('courses').select('*').order('level_number');
+
+      if (coursesResult.error && coursesResult.error.code === 'PGRST205') {
+        console.log('Courses table not found in content tree, trying levels table...');
+        coursesResult = await supabase.from('levels').select('*').order('level_number');
+      }
+
+      // Fetch other data
+      const [unitsResult, sessionsResult, exercisesResult] = await Promise.all([
         supabase.from('units').select('*').order('unit_number'),
         supabase.from('sessions').select('*').order('session_number'),
         supabase.from('exercises').select('*').order('order_index')
       ]);
 
-      const levels = levelsResult.data || [];
+      const courses = coursesResult.data || [];
       const units = unitsResult.data || [];
       const sessions = sessionsResult.data || [];
       const exercises = exercisesResult.data || [];
 
       // Build tree structure
-      const tree = levels.map(level => ({
-        ...level,
-        type: 'level',
+      const tree = courses.map(course => ({
+        ...course,
+        type: 'course',
         children: units
-          .filter(unit => unit.level_id === level.id)
+          .filter(unit => unit.course_id === course.id)
           .map(unit => ({
             ...unit,
             type: 'unit',
@@ -798,7 +805,7 @@ const UniversalModal = ({ type, item, parent, onSave, onCancel, loading }) => {
                   className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
                 >
                   <option value="flashcard">Flashcard</option>
-                  <option value="audio_flashcard">Audio Flashcard</option>
+                  <option value="fill_blank">Fill in the Blank</option>
                   <option value="multiple_choice">Multiple Choice</option>
                 </select>
               </div>

@@ -1,12 +1,16 @@
 import React, { useState, useEffect } from 'react'
 import { supabase } from '../../supabase/client'
 import { parseFlashcardsFromCSV, generateCSVTemplate } from '../../utils/csvParser'
+import SmartDragDropEditor from './editors/SmartDragDropEditor'
+
+// Debug import
+console.log('🔍 SmartDragDropEditor imported:', SmartDragDropEditor)
 import {
   Plus,
   Edit,
   Trash2,
   Play,
-  Volume2,
+  Edit3,
   Image,
   Video,
   BookOpen,
@@ -34,8 +38,9 @@ const ExerciseManagement = () => {
   // Exercise Types với icons - Only types with actual dedicated components
   const exerciseTypes = {
     'flashcard': { icon: BookOpen, label: 'Flashcard', color: 'blue' },
-    'audio_flashcard': { icon: Volume2, label: 'Audio Flashcard', color: 'purple' },
+    'fill_blank': { icon: Edit3, label: 'Fill in the Blank', color: 'purple' },
     'multiple_choice': { icon: HelpCircle, label: 'Multiple Choice', color: 'orange' },
+    'drag_drop': { icon: Copy, label: 'Drag & Drop', color: 'green' },
   }
 
   useEffect(() => {
@@ -399,6 +404,7 @@ const ExerciseForm = ({ exercise, sessions, exerciseTypes, onSave, onCancel }) =
   }
 
   const handleContentChange = (key, value) => {
+    console.log('🔍 Content change:', key, value)
     setFormData(prev => ({
       ...prev,
       content: {
@@ -679,10 +685,47 @@ const ExerciseForm = ({ exercise, sessions, exerciseTypes, onSave, onCancel }) =
                 />
               )}
 
-              
+              {formData.exercise_type === 'drag_drop' && (
+                <div className="space-y-4">
+                  <div className="p-4 bg-green-50 border border-green-200 rounded-lg">
+                    <h4 className="font-medium text-green-900 mb-2">✅ Drag & Drop Exercise Editor</h4>
+                    <p className="text-sm text-green-700">
+                      Tạo câu hỏi kéo thả để sắp xếp từ, câu hoặc hình ảnh theo thứ tự đúng.
+                    </p>
+                    <div className="mt-2 text-xs text-green-600">
+                      Debug: Exercise type = {formData.exercise_type}, Questions = {JSON.stringify(formData.content.questions || [])}
+                    </div>
+                  </div>
+                  
+                  <div className="border-2 border-dashed border-blue-300 p-4 rounded-lg">
+                    <div className="mb-2 text-sm text-gray-600">
+                      SmartDragDropEditor Component:
+                    </div>
+                    
+                    {/* Test simple component first */}
+                    <div className="mb-4 p-3 bg-yellow-50 border border-yellow-200 rounded">
+                      <p className="text-sm text-yellow-800">
+                        Test: SmartDragDropEditor should appear below this message
+                      </p>
+                    </div>
+                    
+                    <SmartDragDropEditor
+                      questions={formData.content.questions || []}
+                      onQuestionsChange={(questions) => {
+                        console.log('🔍 SmartDragDropEditor questions changed:', questions)
+                        handleContentChange('questions', questions)
+                      }}
+                    />
+                    
+                    <div className="mt-2 text-xs text-gray-500">
+                      If you don't see the editor above, there might be an error. Check console.
+                    </div>
+                  </div>
+                </div>
+              )}
               
               {/* Generic JSON editor for other types */}
-              {!['flashcard', 'multiple_choice'].includes(formData.exercise_type) && (
+              {!['flashcard', 'multiple_choice', 'drag_drop'].includes(formData.exercise_type) && (
                 <textarea
                   value={JSON.stringify(formData.content, null, 2)}
                   onChange={(e) => {

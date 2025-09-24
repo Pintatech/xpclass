@@ -275,7 +275,7 @@ const VocabSessionWrapper = () => {
       
       const paths = {
         flashcard: '/study/flashcard',
-        audio_flashcard: '/study/audio-flashcard',
+        fill_blank: '/study/fill-blank',
       };
       
       const exercisePath = paths[nextExercise.exercise_type] || '/study/flashcard';
@@ -299,7 +299,7 @@ const VocabSessionWrapper = () => {
           console.error('Failed to mark session completed:', e);
         } finally {
           if (levelId && unitId && sessionId) {
-            navigate(`/study/level/${levelId}/unit/${unitId}/session/${sessionId}`);
+            navigate(`/study/course/${courseId}/unit/${unitId}/session/${sessionId}`);
           } else {
             navigate('/study');
           }

@@ -3,6 +3,7 @@ import { Link, Navigate, useLocation } from 'react-router-dom'
 import { useAuth } from '../../hooks/useAuth'
 import Button from '../ui/Button'
 import { Eye, EyeOff, Mail, Lock } from 'lucide-react'
+import { supabase } from '../../supabase/client'
 
 const LoginPage = () => {
   const [email, setEmail] = useState('')
@@ -33,6 +34,20 @@ const LoginPage = () => {
     } catch (err) {
       setError('Có lỗi xảy ra, vui lòng thử lại')
     } finally {
+      setLoading(false)
+    }
+  }
+
+  const handleGoogleSignIn = async () => {
+    setLoading(true)
+    setError('')
+    try {
+      await supabase.auth.signInWithOAuth({
+        provider: 'google',
+        options: { redirectTo: window.location.origin }
+      })
+    } catch (err) {
+      setError('Không thể đăng nhập Google. Vui lòng thử lại')
       setLoading(false)
     }
   }
@@ -129,6 +144,31 @@ const LoginPage = () => {
               Đăng nhập
             </Button>
           </form>
+
+          {/* OAuth Divider */}
+          <div className="my-6 relative">
+            <div className="absolute inset-0 flex items-center" aria-hidden="true">
+              <div className="w-full border-t border-gray-200" />
+            </div>
+            <div className="relative flex justify-center text-sm">
+              <span className="px-2 bg-white text-gray-500">Hoặc</span>
+            </div>
+          </div>
+
+          {/* Google Sign-In */}
+          <button
+            type="button"
+            onClick={handleGoogleSignIn}
+            disabled={loading}
+            className="w-full border border-gray-300 hover:bg-gray-50 text-gray-700 rounded-lg px-4 py-2 flex items-center justify-center gap-2 disabled:opacity-50"
+          >
+            <img
+              src="https://www.gstatic.com/firebasejs/ui/2.0.0/images/auth/google.svg"
+              alt="Google"
+              className="w-5 h-5"
+            />
+            <span>Đăng nhập với Google</span>
+          </button>
 
           {/* Links */}
           <div className="mt-6 text-center space-y-2">
