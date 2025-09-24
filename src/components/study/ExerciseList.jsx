@@ -475,6 +475,7 @@ const ExerciseList = () => {
       fill_blank: '/study/fill-blank',
       multiple_choice: '/study/multiple-choice',
       drag_drop: '/study/drag-drop',
+      ai_fill_blank: '/study/ai-fill-blank',
     }
 
     const basePath = paths[exercise.exercise_type] || '/study/flashcard'
@@ -646,8 +647,8 @@ const ExerciseList = () => {
 
   return (
     <div className="flex min-h-screen bg-gray-50">
-      {/* Left Sidebar - Moved to far left */}
-      <div className={`${sidebarOpen ? 'w-80' : 'w-16'} transition-all duration-300 bg-white border-r border-gray-200 flex flex-col order-first`}>
+      {/* Left Sidebar - Hidden on mobile */}
+      <div className={`hidden md:flex ${sidebarOpen ? 'w-80' : 'w-16'} transition-all duration-300 bg-white border-r border-gray-200 flex-col order-first`}>
         {/* Sidebar Header */}
         <div className="p-4 border-b border-gray-200">
           <div className="flex items-center justify-between">
@@ -755,7 +756,7 @@ const ExerciseList = () => {
       </div>
 
       {/* Main Content */}
-      <div className="flex-1 flex flex-col">
+      <div className="flex-1 flex flex-col w-full md:w-auto">
         {/* Header */}
         <div className="bg-white border-b border-gray-200 p-6">
           <div className="flex items-center justify-between">

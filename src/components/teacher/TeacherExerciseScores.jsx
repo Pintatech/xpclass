@@ -5,7 +5,7 @@ import { useAuth } from '../../hooks/useAuth';
 import { ArrowLeft } from 'lucide-react';
 
 const TeacherExerciseScores = () => {
-  const { user } = useAuth();
+  const { user, isAdmin } = useAuth();
   const navigate = useNavigate();
   const [courses, setCourses] = useState([]);
   const [units, setUnits] = useState([]);
@@ -27,12 +27,18 @@ const TeacherExerciseScores = () => {
   const loadCourses = async () => {
     try {
       setLoading(true);
-      const { data, error } = await supabase
+      let query = supabase
         .from('courses')
-        .select('id, title, level_number')
-        .eq('teacher_id', user.id)
+        .select('id, title, level_number, teacher_id')
         .eq('is_active', true)
         .order('level_number');
+
+      // If user is admin, fetch all courses. Otherwise, fetch only teacher's courses
+      if (!isAdmin()) {
+        query = query.eq('teacher_id', user.id);
+      }
+
+      const { data, error } = await query;
       if (error) throw error;
       setCourses(data || []);
       if (data?.length) setSelectedCourse(data[0].id);
@@ -167,8 +173,15 @@ const TeacherExerciseScores = () => {
           <span>Back to Dashboard</span>
         </button>
         <div>
-          <h1 className="text-2xl font-bold text-gray-900">Exercise Scores</h1>
-          <p className="text-gray-600">Chọn bài tập để xem điểm của học viên</p>
+          <h1 className="text-2xl font-bold text-gray-900">
+            {isAdmin() ? 'Admin Exercise Scores' : 'Exercise Scores'}
+          </h1>
+          <p className="text-gray-600">
+            {isAdmin() 
+              ? 'View exercise scores across all courses' 
+              : 'Chọn bài tập để xem điểm của học viên'
+            }
+          </p>
         </div>
       </div>
 
@@ -178,7 +191,10 @@ const TeacherExerciseScores = () => {
           <label className="block text-sm font-medium text-gray-700 mb-1">Course</label>
           <select className="w-full border rounded-lg p-2" value={selectedCourse} onChange={e => setSelectedCourse(e.target.value)}>
             {courses.map(c => (
-              <option key={c.id} value={c.id}>Course {c.level_number}: {c.title}</option>
+              <option key={c.id} value={c.id}>
+                Course {c.level_number}: {c.title}
+                {isAdmin() && c.teacher_id !== user.id ? ' (Other Teacher)' : ''}
+              </option>
             ))}
           </select>
         </div>

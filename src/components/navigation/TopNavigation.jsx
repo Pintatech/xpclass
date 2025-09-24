@@ -98,7 +98,7 @@ const TopNavigation = () => {
             )}
 
             {/* Teacher Dashboard Link */}
-            {isTeacher() && (
+            {(isTeacher() || isAdmin()) && (
               <Link
                 to="/teacher"
                 className="flex items-center space-x-2 px-3 py-2 rounded-lg text-blue-600 hover:bg-blue-100 transition-colors"

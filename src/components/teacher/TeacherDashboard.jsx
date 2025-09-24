@@ -19,7 +19,7 @@ import {
 } from 'lucide-react';
 
 const TeacherDashboard = () => {
-  const { user } = useAuth();
+  const { user, isAdmin } = useAuth();
   const navigate = useNavigate();
   const [courses, setCourses] = useState([]);
   const [selectedCourse, setSelectedCourse] = useState('');
@@ -46,12 +46,18 @@ const TeacherDashboard = () => {
 
   const fetchTeacherCourses = async () => {
     try {
-      const { data, error } = await supabase
+      let query = supabase
         .from('courses')
-        .select('id, title, level_number, description')
-        .eq('teacher_id', user.id)
+        .select('id, title, level_number, description, teacher_id')
         .eq('is_active', true)
         .order('level_number');
+
+      // If user is admin, fetch all courses. Otherwise, fetch only teacher's courses
+      if (!isAdmin()) {
+        query = query.eq('teacher_id', user.id);
+      }
+
+      const { data, error } = await query;
 
       if (error) throw error;
       
@@ -276,8 +282,15 @@ const TeacherDashboard = () => {
       {/* Header */}
       <div className="flex justify-between items-start">
       <div>
-        <h1 className="text-3xl font-bold text-gray-900">Teacher Dashboard</h1>
-        <p className="text-gray-600 mt-2">Monitor your students' progress and performance</p>
+        <h1 className="text-3xl font-bold text-gray-900">
+          {isAdmin() ? 'Admin Teacher Dashboard' : 'Teacher Dashboard'}
+        </h1>
+        <p className="text-gray-600 mt-2">
+          {isAdmin() 
+            ? 'Monitor all students\' progress and performance across all courses' 
+            : 'Monitor your students\' progress and performance'
+          }
+        </p>
         </div>
         <button
           onClick={() => navigate('/teacher/exercises')}
@@ -302,6 +315,7 @@ const TeacherDashboard = () => {
             {courses.map(course => (
               <option key={course.id} value={course.id}>
                 Course {course.level_number}: {course.title}
+                {isAdmin() && course.teacher_id !== user.id ? ' (Other Teacher)' : ''}
               </option>
             ))}
           </select>

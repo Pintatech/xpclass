@@ -271,9 +271,11 @@ const SmartDragDropEditor = ({ questions, onQuestionsChange }) => {
                               return (
                                 <span
                                   key={index}
-                                  className="inline-block min-w-[60px] h-8 mx-1 border-2 border-blue-400 rounded bg-blue-50 text-center text-blue-600 text-sm leading-8"
+                                  className="inline-block relative mx-1"
                                 >
-                                  {zone?.word || ''}
+                                  <span className="bg-blue-100 text-blue-800 px-2 py-1 rounded text-sm font-medium">
+                                    {zone?.word || ''}
+                                  </span>
                                 </span>
                               )
                             }

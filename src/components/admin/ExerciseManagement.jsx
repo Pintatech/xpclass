@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react'
 import { supabase } from '../../supabase/client'
 import { parseFlashcardsFromCSV, generateCSVTemplate } from '../../utils/csvParser'
 import SmartDragDropEditor from './editors/SmartDragDropEditor'
+import AIFillBlankEditor from './editors/AIFillBlankEditor'
 
 // Debug import
 console.log('🔍 SmartDragDropEditor imported:', SmartDragDropEditor)
@@ -19,6 +20,7 @@ import {
   Filter,
   HelpCircle,
   Copy,
+  Brain,
   X,
   Upload,
   Download,
@@ -41,6 +43,7 @@ const ExerciseManagement = () => {
     'fill_blank': { icon: Edit3, label: 'Fill in the Blank', color: 'purple' },
     'multiple_choice': { icon: HelpCircle, label: 'Multiple Choice', color: 'orange' },
     'drag_drop': { icon: Copy, label: 'Drag & Drop', color: 'green' },
+    'ai_fill_blank': { icon: Brain, label: 'Fill in AI Score', color: 'purple' },
   }
 
   useEffect(() => {
@@ -723,9 +726,27 @@ const ExerciseForm = ({ exercise, sessions, exerciseTypes, onSave, onCancel }) =
                   </div>
                 </div>
               )}
+
+              {formData.exercise_type === 'ai_fill_blank' && (
+                <div className="space-y-4">
+                  <div className="p-4 bg-purple-50 border border-purple-200 rounded-lg">
+                    <h4 className="font-medium text-purple-900 mb-2">🤖 AI Fill-in-the-Blank Exercise Editor</h4>
+                    <p className="text-sm text-purple-700">
+                      Create questions that use AI to intelligently score student answers.
+                    </p>
+                  </div>
+                  
+                  <AIFillBlankEditor
+                    questions={formData.content.questions || []}
+                    onQuestionsChange={(questions) => {
+                      handleContentChange('questions', questions)
+                    }}
+                  />
+                </div>
+              )}
               
               {/* Generic JSON editor for other types */}
-              {!['flashcard', 'multiple_choice', 'drag_drop'].includes(formData.exercise_type) && (
+              {!['flashcard', 'multiple_choice', 'drag_drop', 'ai_fill_blank'].includes(formData.exercise_type) && (
                 <textarea
                   value={JSON.stringify(formData.content, null, 2)}
                   onChange={(e) => {

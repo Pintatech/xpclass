@@ -27,11 +27,21 @@ const DragDropExercise = () => {
   const [isDragging, setIsDragging] = useState(false)
   const [exerciseCompleted, setExerciseCompleted] = useState(false)
   const [questionsChecked, setQuestionsChecked] = useState({})
+  const [attempts, setAttempts] = useState(0)
+  const [startTime, setStartTime] = useState(null)
+  const [timeSpent, setTimeSpent] = useState(0)
   const { user } = useAuth()
 
   useEffect(() => {
     fetchExercise()
   }, [exerciseId])
+
+  // Start time tracking when exercise loads
+  useEffect(() => {
+    if (exercise && !startTime) {
+      setStartTime(Date.now())
+    }
+  }, [exercise, startTime])
 
   // Randomize items when exercise or question changes
   useEffect(() => {
@@ -230,6 +240,9 @@ const DragDropExercise = () => {
     setIsCorrect(isAnswerCorrect)
     setShowResult(true)
     
+    // Increment attempts
+    setAttempts(prev => prev + 1)
+    
     // Mark question as checked
     setQuestionsChecked(prev => ({
       ...prev,
@@ -250,6 +263,11 @@ const DragDropExercise = () => {
     try {
       const xpReward = exercise.xp_reward || 10
       
+      // Calculate time spent
+      const currentTime = Date.now()
+      const totalTimeSpent = startTime ? Math.floor((currentTime - startTime) / 1000) : 0
+      setTimeSpent(totalTimeSpent)
+      
       // Check if all questions are completed
       const allQuestionsCompleted = exercise.content.questions.every((_, index) => {
         const userAnswer = userAnswers[index] || {}
@@ -259,6 +277,18 @@ const DragDropExercise = () => {
         return JSON.stringify(userOrder) === JSON.stringify(correctOrder)
       })
 
+      // Calculate score based on correct answers
+      const correctAnswers = exercise.content.questions.filter((_, index) => {
+        const userAnswer = userAnswers[index] || {}
+        const question = exercise.content.questions[index]
+        const userOrder = question.drop_zones.map(zone => userAnswer[zone.id] || null)
+        const correctOrder = question.correct_order
+        return JSON.stringify(userOrder) === JSON.stringify(correctOrder)
+      }).length
+      
+      const maxScore = exercise.content.questions.length
+      const score = allQuestionsCompleted ? correctAnswers : 0
+
       // Save exercise progress (not individual questions)
       const { error } = await supabase.from('user_progress').upsert({
         user_id: user.id,
@@ -267,7 +297,11 @@ const DragDropExercise = () => {
         status: allQuestionsCompleted ? 'completed' : 'in_progress',
         completed_at: allQuestionsCompleted ? new Date().toISOString() : null,
         updated_at: new Date().toISOString(),
-        xp_earned: allQuestionsCompleted ? (xpReward * exercise.content.questions.length) : 0
+        xp_earned: allQuestionsCompleted ? (xpReward * exercise.content.questions.length) : 0,
+        score: score,
+        max_score: maxScore,
+        attempts: attempts,
+        time_spent: totalTimeSpent
       }, {
         onConflict: 'user_id,exercise_id'
       })
@@ -282,7 +316,11 @@ const DragDropExercise = () => {
             status: allQuestionsCompleted ? 'completed' : 'in_progress',
             completed_at: allQuestionsCompleted ? new Date().toISOString() : null,
             updated_at: new Date().toISOString(),
-            xp_earned: allQuestionsCompleted ? (xpReward * exercise.content.questions.length) : 0
+            xp_earned: allQuestionsCompleted ? (xpReward * exercise.content.questions.length) : 0,
+            score: score,
+            max_score: maxScore,
+            attempts: attempts,
+            time_spent: totalTimeSpent
           })
           .eq('user_id', user.id)
           .eq('exercise_id', exercise.id)
@@ -417,7 +455,7 @@ const DragDropExercise = () => {
         <div className="bg-white rounded-lg shadow-sm p-6" style={{ userSelect: 'none' }}>
           {/* Question with inline drop zones */}
           <div className="mb-8">
-            <h2 className="text-xl font-semibold text-gray-800 mb-4">
+            <h2 className="text-lg font-semibold text-gray-800 mb-4 leading-relaxed">
               {currentQuestion.question.split(/\[DROP_ZONE_(\w+)\]/).map((part, index) => {
                 if (index % 2 === 0) {
                   return <span key={index}>{part}</span>
@@ -436,13 +474,19 @@ const DragDropExercise = () => {
                       onClick={() => handleDropZoneClick(zoneId, currentQuestionIndex)}
                       data-zone-id={zoneId}
                       data-question-index={currentQuestionIndex}
-                      className={`inline-block min-w-[80px] h-10 mx-2 border-2 rounded-lg text-center leading-10 transition-all cursor-pointer ${
-                        itemId
-                          ? 'bg-blue-50 border-blue-300 text-blue-700 hover:bg-blue-100'
-                          : 'bg-gray-100 border-gray-300 text-gray-500 hover:border-blue-400 hover:bg-blue-50'
+                      className={`inline-block relative mx-1 transition-all cursor-pointer ${
+                        itemId ? 'hover:bg-blue-50' : 'hover:bg-gray-50'
                       }`}
                     >
-                      {item ? item.text : ''}
+                      {item ? (
+                        <span className="bg-blue-100 text-blue-800 px-2 py-1 rounded text-sm font-medium">
+                          {item.text}
+                        </span>
+                      ) : (
+                        <span className="text-gray-600 text-lg underline decoration-1 underline-offset-2 min-w-[60px] inline-block">
+                          ____
+                        </span>
+                      )}
                     </span>
                   )
                 }
@@ -454,11 +498,8 @@ const DragDropExercise = () => {
           <div className="mb-8">
             <div className="mb-4">
               <h3 className="text-lg font-medium text-gray-700">Items to drag:</h3>
-              <p className="text-sm text-gray-500 mt-1">
-                Click items in order - they'll automatically go to the next available drop zone. Or drag and drop.
-              </p>
             </div>
-            <div className="flex flex-wrap gap-3">
+            <div className="flex flex-wrap gap-2">
               {randomizedItems.map((item) => {
                 const isUsed = Object.values(userAnswer).includes(item.id)
                 return (
@@ -470,10 +511,10 @@ const DragDropExercise = () => {
                     onTouchMove={handleTouchMove}
                     onTouchEnd={handleTouchEnd}
                     onClick={() => handleItemClick(item.id, currentQuestionIndex)}
-                    className={`px-4 py-2 rounded-lg border-2 transition-all select-none ${
+                    className={`px-2 py-1 rounded transition-all select-none text-sm ${
                       isUsed
-                        ? 'bg-gray-100 border-gray-300 text-gray-400 cursor-not-allowed'
-                        : 'bg-blue-50 border-blue-300 text-blue-700 cursor-pointer hover:bg-blue-100 active:bg-blue-200'
+                        ? 'bg-gray-100 text-gray-400 cursor-not-allowed'
+                        : 'bg-blue-50 text-blue-700 cursor-pointer hover:bg-blue-100 active:bg-blue-200'
                     }`}
                   >
                     {item.text}
@@ -540,7 +581,7 @@ const DragDropExercise = () => {
               }`}
             >
               <CheckCircle className="w-4 h-4" />
-              {questionsChecked[currentQuestionIndex] ? 'Answer Checked ✓' : 'Check Answer'}
+              {questionsChecked[currentQuestionIndex] ? 'Checked' : 'Check'}
             </button>
             
             <button
@@ -548,7 +589,7 @@ const DragDropExercise = () => {
               className="px-6 py-2 bg-gray-600 text-white rounded-lg hover:bg-gray-700 flex items-center gap-2"
             >
               <RotateCcw className="w-4 h-4" />
-              Reset
+            
             </button>
 
             {currentQuestionIndex > 0 && (

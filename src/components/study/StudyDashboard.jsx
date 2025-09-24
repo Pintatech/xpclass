@@ -10,7 +10,8 @@ import {
   Star,
   Copy,
   Clock,
-  Target
+  Target,
+  Brain
 } from 'lucide-react'
 
 const StudyDashboard = () => {
@@ -64,6 +65,16 @@ const StudyDashboard = () => {
       difficulty: 'Trung bình',
       duration: '10-20 phút',
       path: '/study/drag-drop'
+    },
+    {
+      id: 'ai_fill_blank',
+      title: 'Điền từ AI',
+      description: 'Điền từ với chấm điểm thông minh bằng AI',
+      icon: Brain,
+      color: 'bg-purple-600',
+      difficulty: 'Trung bình',
+      duration: '10-15 phút',
+      path: '/study/ai-fill-blank'
     },
   ]
 

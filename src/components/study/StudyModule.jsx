@@ -8,6 +8,7 @@ import VocabSessionWrapper from '../exercises/VocabSessionWrapper'
 import MultipleChoiceExercise from '../exercises/MultipleChoiceExercise'
 import FillBlankExercise from '../exercises/FillBlankExercise'
 import DragDropExercise from '../exercises/DragDropExercise'
+import AIFillBlankExercise from '../exercises/AIFillBlankExercise'
 
 const StudyModule = () => {
   return (
@@ -30,6 +31,7 @@ const StudyModule = () => {
       <Route path="vocab-session" element={<VocabSessionWrapper />} />
       <Route path="multiple-choice" element={<MultipleChoiceExercise />} />
       <Route path="drag-drop" element={<DragDropExercise />} />
+      <Route path="ai-fill-blank" element={<AIFillBlankExercise />} />
     </Routes>
   )
 }
