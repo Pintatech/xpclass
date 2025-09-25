@@ -1,5 +1,6 @@
 import { Link, useLocation } from 'react-router-dom'
 import { useAuth } from '../../hooks/useAuth'
+import { useStudentLevels } from '../../hooks/useStudentLevels'
 import { 
   Trophy, 
   TrendingUp, 
@@ -13,6 +14,7 @@ import {
 
 const TopNavigation = () => {
   const { profile, signOut, isAdmin, isTeacher } = useAuth()
+  const { currentBadge, currentLevel } = useStudentLevels()
   const location = useLocation()
 
   const navItems = [
@@ -68,19 +70,32 @@ const TopNavigation = () => {
 
           {/* User Menu */}
           <div className="flex items-center space-x-4">
-            {/* User Level & XP */}
-            {profile && (
+            {/* User Badge & XP */}
+            {profile && currentBadge && (
               <div className="hidden md:flex items-center space-x-3">
                 <div className="text-right">
                   <div className="text-sm font-medium text-gray-900">
-                    Cấp {profile.level || 1}
+                    {currentBadge.name}
                   </div>
                   <div className="text-xs text-gray-500">
                     {profile.xp || 0} XP
                   </div>
                 </div>
-                <div className="w-8 h-8 bg-gradient-to-r from-yellow-400 to-orange-500 rounded-full flex items-center justify-center text-white font-bold text-sm">
-                  {profile.level || 1}
+                <div className="w-8 h-8 rounded-full overflow-hidden flex items-center justify-center border-2 border-gray-300">
+                  {currentBadge.icon.startsWith('http') ? (
+                    <img 
+                      src={currentBadge.icon} 
+                      alt={currentBadge.name}
+                      className="w-full h-full object-cover"
+                      onError={(e) => {
+                        e.target.style.display = 'none'
+                        e.target.nextSibling.style.display = 'inline'
+                      }}
+                    />
+                  ) : null}
+                  <span className="text-lg" style={{ display: currentBadge.icon.startsWith('http') ? 'none' : 'inline' }}>
+                    {currentBadge.icon}
+                  </span>
                 </div>
               </div>
             )}

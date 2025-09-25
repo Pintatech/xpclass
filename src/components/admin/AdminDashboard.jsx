@@ -36,6 +36,7 @@ import UnitManagement from './UnitManagement';
 import SessionManagement from './SessionManagement';
 import ContentTreeView from './ContentTreeView';
 import CohortsManagement from './CohortsManagement';
+import StudentLevelsManagement from './StudentLevelsManagement';
 import { useCohorts } from '../../hooks/useCohorts';
 
 const AdminDashboard = () => {
@@ -213,6 +214,7 @@ const AdminDashboard = () => {
     { id: 'enrollments', label: 'Enrollments', icon: Users },
     { id: 'units', label: 'Units', icon: Settings },
     { id: 'sessions', label: 'Sessions', icon: Edit },
+    { id: 'levels', label: 'Student Levels', icon: BarChart3 },
     { id: 'users', label: 'Users', icon: Users },
     { id: 'analytics', label: 'Analytics', icon: BarChart3 }
   ];
@@ -284,6 +286,7 @@ const AdminDashboard = () => {
                   {activeTab === 'cohorts' && 'Manage student cohorts'}
                   {activeTab === 'enrollments' && 'Assign students to courses'}
                   {activeTab === 'units' && 'Manage curriculum units'}
+                  {activeTab === 'levels' && 'Manage student XP levels and badges'}
                   {activeTab === 'sessions' && 'Manage learning sessions'}
                   {activeTab === 'users' && 'User management and profiles'}
                   {activeTab === 'analytics' && 'Platform analytics and insights'}
@@ -334,8 +337,8 @@ const AdminDashboard = () => {
               <Route path="courses" element={<CourseManagement />} />
               <Route path="cohorts" element={<CohortsManagement />} />
               <Route path="enrollments" element={<StudentEnrollmentManagement />} />
-              {/* Legacy route redirect */}
-              <Route path="levels" element={<CourseManagement />} />
+              {/* Student Levels Management */}
+              <Route path="levels" element={<StudentLevelsManagement />} />
               <Route path="units" element={<UnitManagement />} />
               <Route path="sessions" element={<SessionManagement />} />
               {/* Redirect legacy exercises path to bank */}

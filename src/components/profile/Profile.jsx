@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react'
 import { useAuth } from '../../hooks/useAuth'
+import { useStudentLevels } from '../../hooks/useStudentLevels'
 import { supabase } from '../../supabase/client'
 import Card from '../ui/Card'
 import Button from '../ui/Button'
@@ -20,11 +21,24 @@ import {
   TrendingUp,
   Activity,
   CheckCircle,
-  PlayCircle
+  PlayCircle,
+  Crown,
+  Zap,
+  Shield,
+  Gem
 } from 'lucide-react'
 
 const Profile = () => {
   const { user, profile, updateProfile } = useAuth()
+  const { 
+    currentLevel, 
+    nextLevel, 
+    levelProgress, 
+    currentBadge, 
+    nextBadge,
+    hasUnlockedPerk,
+    isMaxLevel 
+  } = useStudentLevels()
   const [loading, setLoading] = useState(true)
   const [isEditing, setIsEditing] = useState(false)
   const [editData, setEditData] = useState({
@@ -34,7 +48,6 @@ const Profile = () => {
   // Stats state
   const [stats, setStats] = useState({
     totalXP: 0,
-    currentLevel: 1,
     exercisesCompleted: 0,
     streakCount: 0,
     totalPracticeTime: 0,
@@ -105,7 +118,6 @@ const Profile = () => {
 
       setStats({
         totalXP,
-        currentLevel: userData?.level || 1,
         exercisesCompleted,
         streakCount: userData?.streak_count || 0,
         totalPracticeTime: userData?.total_practice_time || 0,
@@ -236,6 +248,39 @@ const Profile = () => {
     return remainingMinutes > 0 ? `${hours}h ${remainingMinutes}m` : `${hours} giờ`
   }
 
+  const getTierIcon = (tier) => {
+    const icons = {
+      bronze: Shield,
+      silver: Award,
+      gold: Crown,
+      platinum: Gem,
+      diamond: Zap
+    }
+    return icons[tier] || Shield
+  }
+
+  const getTierColor = (tier) => {
+    const colors = {
+      bronze: 'text-amber-600',
+      silver: 'text-gray-500',
+      gold: 'text-yellow-500',
+      platinum: 'text-purple-500',
+      diamond: 'text-cyan-400'
+    }
+    return colors[tier] || 'text-gray-500'
+  }
+
+  const getTierBgColor = (tier) => {
+    const colors = {
+      bronze: 'bg-amber-100',
+      silver: 'bg-gray-100',
+      gold: 'bg-yellow-100',
+      platinum: 'bg-purple-100',
+      diamond: 'bg-cyan-100'
+    }
+    return colors[tier] || 'bg-gray-100'
+  }
+
   if (loading) {
     return (
       <div className="flex justify-center items-center min-h-64">
@@ -317,21 +362,112 @@ const Profile = () => {
           {/* Level and XP Bar */}
           <div className="mt-6">
             <div className="flex items-center justify-between text-sm mb-2">
-              <span>Cấp {stats.currentLevel}</span>
-              <span>{stats.totalXP} XP</span>
+              <div className="flex items-center space-x-2">
+                <span className="font-semibold">Cấp {currentLevel?.level_number || 1}</span>
+                {currentBadge && (
+                  <div className={`flex items-center space-x-1 px-2 py-1 rounded-full ${getTierBgColor(currentBadge.tier)}`}>
+                    <img 
+                      src={currentBadge.icon} 
+                      alt={currentBadge.name}
+                      className="w-5 h-5 rounded-full object-cover"
+                      onError={(e) => {
+                        e.target.style.display = 'none'
+                        e.target.nextSibling.style.display = 'inline'
+                      }}
+                    />
+                    <span className="text-lg hidden">{currentBadge.icon}</span>
+                    <span className={`text-xs font-medium ${getTierColor(currentBadge.tier)}`}>
+                      {currentBadge.name}
+                    </span>
+                  </div>
+                )}
+              </div>
+              <span className="font-semibold">{stats.totalXP} XP</span>
             </div>
-            <div className="w-full bg-white/20 rounded-full h-3">
-              <div
-                className="bg-white h-3 rounded-full transition-all duration-300"
-                style={{ width: `${((stats.totalXP % 1000) / 1000) * 100}%` }}
-              />
-            </div>
-            <div className="text-xs text-blue-100 mt-1 text-center">
-              {1000 - (stats.totalXP % 1000)} XP đến cấp tiếp theo
-            </div>
+            
+            {!isMaxLevel && nextLevel ? (
+              <>
+                <div className="w-full bg-white/20 rounded-full h-3">
+                  <div
+                    className="bg-white h-3 rounded-full transition-all duration-300"
+                    style={{ width: `${levelProgress.progressPercentage}%` }}
+                  />
+                </div>
+                <div className="text-xs text-blue-100 mt-1 text-center">
+                  {levelProgress.xpNeeded} XP đến cấp {nextLevel.level_number} ({nextBadge?.name})
+                </div>
+              </>
+            ) : (
+              <div className="w-full bg-white/20 rounded-full h-3">
+                <div className="bg-white h-3 rounded-full w-full" />
+              </div>
+            )}
+            
+            {isMaxLevel && (
+              <div className="text-xs text-blue-100 mt-1 text-center">
+                🎉 Bạn đã đạt cấp tối đa!
+              </div>
+            )}
           </div>
         </Card.Content>
       </Card>
+
+      {/* Level Information Card */}
+      {currentLevel && (
+        <Card className="bg-gradient-to-r from-indigo-500 to-purple-600 text-white">
+          <Card.Content className="p-6">
+            <div className="flex items-center justify-between mb-4">
+              <div className="flex items-center space-x-3">
+                <div className={`w-16 h-16 ${getTierBgColor(currentBadge?.tier)} rounded-full flex items-center justify-center overflow-hidden`}>
+                  <img 
+                    src={currentBadge?.icon} 
+                    alt={currentBadge?.name}
+                    className="w-full h-full object-cover rounded-full"
+                    onError={(e) => {
+                      e.target.style.display = 'none'
+                      e.target.nextSibling.style.display = 'inline'
+                    }}
+                  />
+                  <span className="text-3xl hidden">{currentBadge?.icon}</span>
+                </div>
+                <div>
+                  <h3 className="text-2xl font-bold">{currentBadge?.name}</h3>
+                  <p className="text-indigo-100">{currentBadge?.description}</p>
+                </div>
+              </div>
+              <div className="text-right">
+                <div className="text-3xl font-bold">Cấp {currentLevel.level_number}</div>
+                <div className="text-indigo-100">Tier {currentBadge?.tier}</div>
+              </div>
+            </div>
+            
+            {currentBadge?.title && (
+              <div className="mb-4 p-3 bg-white/20 rounded-lg">
+                <div className="flex items-center space-x-2">
+                  <Crown className="w-5 h-5" />
+                  <span className="font-semibold">Danh hiệu: {currentBadge.title}</span>
+                </div>
+              </div>
+            )}
+            
+            {currentLevel.perks_unlocked && currentLevel.perks_unlocked.length > 0 && (
+              <div>
+                <h4 className="font-semibold mb-2 flex items-center space-x-2">
+                  <Zap className="w-4 h-4" />
+                  <span>Quyền lợi đã mở khóa:</span>
+                </h4>
+                <div className="flex flex-wrap gap-2">
+                  {currentLevel.perks_unlocked.map((perk, index) => (
+                    <span key={index} className="px-3 py-1 bg-white/20 rounded-full text-sm">
+                      {perk.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase())}
+                    </span>
+                  ))}
+                </div>
+              </div>
+            )}
+          </Card.Content>
+        </Card>
+      )}
 
       {/* Stats Grid */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
@@ -342,6 +478,11 @@ const Profile = () => {
             </div>
             <div className="text-2xl font-bold text-gray-900">{stats.totalXP}</div>
             <div className="text-sm text-gray-600">Tổng XP</div>
+            {currentLevel && (
+              <div className="text-xs text-gray-500 mt-1">
+                Cấp {currentLevel.level_number} • {currentBadge?.name}
+              </div>
+            )}
           </Card.Content>
         </Card>
 
@@ -506,11 +647,15 @@ const Profile = () => {
             </div>
 
             <div className="mt-6 p-4 bg-blue-50 rounded-lg">
-              
-              <div className="mt-3 text-center">
+              <div className="text-center">
                 <span className="text-lg font-bold text-blue-900">
                   XP hiện tại: {stats.totalXP}
                 </span>
+                {currentLevel && (
+                  <div className="text-sm text-blue-700 mt-1">
+                    Cấp {currentLevel.level_number} • {currentBadge?.name}
+                  </div>
+                )}
               </div>
             </div>
           </div>
