@@ -1,11 +1,13 @@
 import React, { useState, useEffect } from 'react'
-import { Plus, Trash2, Wand2, Eye, EyeOff, HelpCircle } from 'lucide-react'
+import { Plus, Trash2, Wand2, Eye, EyeOff, HelpCircle, Upload, Copy } from 'lucide-react'
 
 const SmartDragDropEditor = ({ questions, onQuestionsChange }) => {
   const [localQuestions, setLocalQuestions] = useState([])
   const [phraseInput, setPhraseInput] = useState('')
   const [distractors, setDistractors] = useState('')
   const [previewMode, setPreviewMode] = useState(false)
+  const [bulkImportMode, setBulkImportMode] = useState(false)
+  const [bulkText, setBulkText] = useState('')
 
   useEffect(() => {
     setLocalQuestions(questions || [])
@@ -154,9 +156,15 @@ const SmartDragDropEditor = ({ questions, onQuestionsChange }) => {
 
     const updatedItems = question.items.filter(item => item.id !== itemId)
     const updatedCorrectOrder = question.correct_order.filter(id => id !== itemId)
-    
+
     updateQuestion(questionId, 'items', updatedItems)
     updateQuestion(questionId, 'correct_order', updatedCorrectOrder)
+  }
+
+  const handleRemoveItem = (e, questionId, itemId) => {
+    e.preventDefault()
+    e.stopPropagation()
+    removeItem(questionId, itemId)
   }
 
   const updateItemText = (questionId, itemId, newText) => {
@@ -174,6 +182,137 @@ const SmartDragDropEditor = ({ questions, onQuestionsChange }) => {
     setPreviewMode(!previewMode)
   }
 
+  const processBulkImport = () => {
+    try {
+      const lines = bulkText.split('\n').filter(line => line.trim())
+      const newQuestions = []
+
+      let questionCounter = 0
+      let currentQuestion = null
+      let currentDistractors = []
+
+      lines.forEach((line) => {
+        const trimmedLine = line.trim()
+
+        // Check if this is a new question (starts with Q: or number.)
+        if (trimmedLine.match(/^(Q:|Question|\d+[\.):])/i)) {
+          // Save previous question if exists
+          if (currentQuestion) {
+            newQuestions.push(currentQuestion)
+          }
+
+          // Start new question - extract the question title
+          const questionTitle = trimmedLine.replace(/^(Q:|Question|\d+[\.):])\s*/i, '')
+          currentQuestion = {
+            id: `q${Date.now()}_${questionCounter++}`,
+            question: '',
+            items: [],
+            drop_zones: [],
+            correct_order: [],
+            explanation: questionTitle,
+            settings: {
+              allow_undo: true,
+              show_hints: true,
+              max_attempts: 3,
+              time_limit: 300
+            }
+          }
+          currentDistractors = []
+        }
+        // Check if this line contains dragable words in [brackets]
+        else if (trimmedLine.includes('[') && trimmedLine.includes(']') && currentQuestion) {
+          const distractorWords = currentDistractors
+          const newQuestionData = generateQuestion(trimmedLine, distractorWords)
+
+          if (newQuestionData) {
+            // Update current question with the generated data
+            currentQuestion.question = newQuestionData.question
+            currentQuestion.items = newQuestionData.items
+            currentQuestion.drop_zones = newQuestionData.drop_zones
+            currentQuestion.correct_order = newQuestionData.correct_order
+          }
+        }
+        // Check if this is a distractors line
+        else if (trimmedLine.match(/^Distractors?:\s*/i) && currentQuestion) {
+          const distractorText = trimmedLine.replace(/^Distractors?:\s*/i, '')
+          currentDistractors = distractorText
+            .split(',')
+            .map(word => word.trim())
+            .filter(word => word.length > 0)
+        }
+        // Regular line (no special format) - add to current question explanation if exists
+        else if (trimmedLine && currentQuestion && !trimmedLine.includes('[')) {
+          if (currentQuestion.explanation) {
+            currentQuestion.explanation += '\n' + trimmedLine
+          } else {
+            currentQuestion.explanation = trimmedLine
+          }
+        }
+      })
+
+      // Save the last question
+      if (currentQuestion && currentQuestion.items.length > 0) {
+        newQuestions.push(currentQuestion)
+      }
+
+      if (newQuestions.length > 0) {
+        const updatedQuestions = [...localQuestions, ...newQuestions]
+        setLocalQuestions(updatedQuestions)
+        onQuestionsChange(updatedQuestions)
+        setBulkText('')
+        setBulkImportMode(false)
+        alert(`Successfully imported ${newQuestions.length} drag & drop questions!`)
+      } else {
+        alert('No valid questions found. Please check your format.')
+      }
+    } catch (error) {
+      console.error('Bulk import error:', error)
+      alert('Error processing bulk import. Please check your format.')
+    }
+  }
+
+  const exportQuestions = () => {
+    if (localQuestions.length === 0) {
+      alert('No questions to export')
+      return
+    }
+
+    const exportText = localQuestions.map((q, index) => {
+      let text = `${index + 1}. ${q.explanation || 'Drag & Drop Question'}\n`
+
+      // Extract the original phrase with [brackets] from the question
+      let phrase = q.question
+      q.drop_zones.forEach((zone, idx) => {
+        const placeholder = `[DROP_ZONE_${zone.id}]`
+        phrase = phrase.replace(placeholder, `[${zone.word}]`)
+      })
+
+      text += `${phrase}\n`
+
+      // Add distractors if any
+      const distractors = q.items.filter(item => item.type === 'distractor')
+      if (distractors.length > 0) {
+        const distractorWords = distractors.map(d => d.text).join(', ')
+        text += `Distractors: ${distractorWords}\n`
+      }
+
+      return text
+    }).join('\n')
+
+    navigator.clipboard.writeText(exportText).then(() => {
+      alert('Questions exported to clipboard!')
+    }).catch(() => {
+      // Fallback for older browsers
+      const textArea = document.createElement('textarea')
+      textArea.value = exportText
+      document.body.appendChild(textArea)
+      textArea.select()
+      document.execCommand('copy')
+      document.body.removeChild(textArea)
+      alert('Questions copied to clipboard!')
+    })
+  }
+
   return (
     <div className="space-y-6">
       {/* Header */}
@@ -184,13 +323,34 @@ const SmartDragDropEditor = ({ questions, onQuestionsChange }) => {
             Enter a phrase with words in [brackets] to make them dragable
           </p>
         </div>
-        <button
-          onClick={togglePreview}
-          className="flex items-center gap-2 px-3 py-2 text-sm bg-gray-100 hover:bg-gray-200 rounded-lg"
-        >
-          {previewMode ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
-          {previewMode ? 'Edit Mode' : 'Preview Mode'}
-        </button>
+        <div className="flex gap-2">
+          <button
+            type="button"
+            onClick={() => setBulkImportMode(!bulkImportMode)}
+            className="flex items-center gap-2 px-3 py-2 text-sm bg-blue-600 text-white hover:bg-blue-700 rounded-lg"
+          >
+            <Upload className="w-4 h-4" />
+            Bulk Import
+          </button>
+          {localQuestions.length > 0 && (
+            <button
+              type="button"
+              onClick={exportQuestions}
+              className="flex items-center gap-2 px-3 py-2 text-sm bg-green-600 text-white hover:bg-green-700 rounded-lg"
+            >
+              <Copy className="w-4 h-4" />
+              Export
+            </button>
+          )}
+          <button
+            type="button"
+            onClick={togglePreview}
+            className="flex items-center gap-2 px-3 py-2 text-sm bg-gray-100 hover:bg-gray-200 rounded-lg"
+          >
+            {previewMode ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+            {previewMode ? 'Edit Mode' : 'Preview Mode'}
+          </button>
+        </div>
       </div>
 
       {/* Quick Add Section */}
@@ -231,6 +391,7 @@ const SmartDragDropEditor = ({ questions, onQuestionsChange }) => {
           </div>
 
           <button
+            type="button"
             onClick={addQuestionFromPhrase}
             disabled={!phraseInput.trim()}
             className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:bg-gray-400 disabled:cursor-not-allowed"
@@ -240,6 +401,49 @@ const SmartDragDropEditor = ({ questions, onQuestionsChange }) => {
           </button>
         </div>
       </div>
+
+      {/* Bulk Import Mode */}
+      {bulkImportMode && (
+        <div className="p-4 bg-blue-50 border border-blue-200 rounded-lg">
+          <h4 className="font-medium text-blue-900 mb-2">Bulk Import Drag & Drop Questions</h4>
+          <p className="text-sm text-blue-700 mb-3">
+            Format: Start with "Q:" or "1." followed by question title, then phrase with [words] in brackets
+            <br />
+            Add "Distractors: word1, word2" line for incorrect options
+          </p>
+          <textarea
+            value={bulkText}
+            onChange={(e) => setBulkText(e.target.value)}
+            className="w-full p-3 border border-blue-300 rounded-lg h-40 font-mono text-sm"
+            placeholder={`Q: Complete the sentence by dragging the correct words
+Hello [my] [name] [is] John
+Distractors: wrong, incorrect, false
+
+1. Fill in the missing words in order
+The capital of [France] [is] [Paris]
+Distractors: Germany, London, Italy
+
+2: Put the words in the correct sequence
+She [has] [been] [studying] English for 3 years`}
+          />
+          <div className="flex justify-end gap-2 mt-3">
+            <button
+              type="button"
+              onClick={() => setBulkImportMode(false)}
+              className="px-3 py-2 bg-gray-500 text-white rounded-lg hover:bg-gray-600 text-sm"
+            >
+              Cancel
+            </button>
+            <button
+              type="button"
+              onClick={processBulkImport}
+              className="px-3 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 text-sm"
+            >
+              Import Questions
+            </button>
+          </div>
+        </div>
+      )}
 
       {/* Questions List */}
       <div className="space-y-4">
@@ -273,8 +477,8 @@ const SmartDragDropEditor = ({ questions, onQuestionsChange }) => {
                                   key={index}
                                   className="inline-block relative mx-1"
                                 >
-                                  <span className="bg-blue-100 text-blue-800 px-2 py-1 rounded text-sm font-medium">
-                                    {zone?.word || ''}
+                                  <span className="bg-gray-200 text-gray-600 px-3 py-1 rounded border-2 border-dashed border-gray-400 text-sm font-medium min-w-[60px] text-center">
+                                    ___
                                   </span>
                                 </span>
                               )
@@ -336,7 +540,20 @@ const SmartDragDropEditor = ({ questions, onQuestionsChange }) => {
                                 className="flex-1 px-2 py-1 border border-gray-300 rounded focus:ring-1 focus:ring-blue-500 focus:border-blue-500"
                               />
                               <button
-                                onClick={() => removeItem(question.id, item.id)}
+                                type="button"
+                                onClick={() => {
+                                  const updatedQuestions = localQuestions.map(q =>
+                                    q.id === question.id
+                                      ? {
+                                          ...q,
+                                          items: q.items.filter(i => i.id !== item.id),
+                                          correct_order: q.correct_order.filter(id => id !== item.id)
+                                        }
+                                      : q
+                                  )
+                                  setLocalQuestions(updatedQuestions)
+                                  onQuestionsChange(updatedQuestions)
+                                }}
                                 className="text-red-500 hover:text-red-700"
                               >
                                 <Trash2 className="w-4 h-4" />
@@ -344,6 +561,7 @@ const SmartDragDropEditor = ({ questions, onQuestionsChange }) => {
                             </div>
                           ))}
                           <button
+                            type="button"
                             onClick={() => addDistractor(question.id)}
                             className="flex items-center gap-1 text-sm text-blue-600 hover:text-blue-800"
                           >
@@ -370,6 +588,7 @@ const SmartDragDropEditor = ({ questions, onQuestionsChange }) => {
                 </div>
 
                 <button
+                  type="button"
                   onClick={() => removeQuestion(question.id)}
                   className="ml-4 text-red-500 hover:text-red-700"
                 >

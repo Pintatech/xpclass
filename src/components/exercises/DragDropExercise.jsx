@@ -483,8 +483,8 @@ const DragDropExercise = () => {
                           {item.text}
                         </span>
                       ) : (
-                        <span className="text-gray-600 text-lg underline decoration-1 underline-offset-2 min-w-[60px] inline-block">
-                          ____
+                        <span className="text-gray-600 text-lg min-w-[60px] inline-block">
+                          ___
                         </span>
                       )}
                     </span>
