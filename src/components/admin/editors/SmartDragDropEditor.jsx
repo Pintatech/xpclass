@@ -1,5 +1,42 @@
-import React, { useState, useEffect } from 'react'
-import { Plus, Trash2, Wand2, Eye, EyeOff, HelpCircle, Upload, Copy } from 'lucide-react'
+import React, { useState, useEffect, useRef } from 'react'
+import { Plus, Trash2, Wand2, Eye, EyeOff, HelpCircle, Upload, Copy, Image as ImageIcon, Link as LinkIcon, Music } from 'lucide-react'
+import RichTextRenderer from '../../ui/RichTextRenderer'
+
+// Convert simple markdown/HTML to safe HTML for preview
+const markdownToHtml = (text) => {
+  if (!text) return ''
+  let html = text
+  // Images markdown ![](url)
+  html = html.replace(/!\[(.*?)\]\((.*?)\)/g, (m, alt, url) => `<img src="${url}" alt="${alt || ''}" class="max-w-full h-auto rounded-lg my-2" />`)
+  // Preserve HTML <img> adding styling
+  html = html.replace(/<img([^>]*?)>/g, (m, attrs) => `<img${attrs} class="max-w-full h-auto rounded-lg my-2" />`)
+  // Preserve HTML <audio>
+  html = html.replace(/<audio([^>]*?)>/g, (m, attrs) => `<audio${attrs} class="w-full my-2"></audio>`)
+  // Links [text](url)
+  html = html.replace(/\[(.*?)\]\((.*?)\)/g, (m, t, url) => `<a href="${url}" target="_blank" rel="noreferrer">${t || url}</a>`)
+  return html
+}
+
+// Render question text with HTML content and drop zones
+const renderQuestionWithDropZones = (questionText, dropZones, renderDropZone) => {
+  const parts = questionText.split(/\[DROP_ZONE_(\w+)\]/)
+  return parts.map((part, index) => {
+    if (index % 2 === 0) {
+      // This is regular text - render with HTML support
+      const htmlContent = markdownToHtml(part)
+      return (
+        <span
+          key={index}
+          dangerouslySetInnerHTML={{ __html: htmlContent }}
+        />
+      )
+    } else {
+      // This is a drop zone ID
+      const zoneId = part
+      return renderDropZone(zoneId, index)
+    }
+  })
+}
 
 const SmartDragDropEditor = ({ questions, onQuestionsChange }) => {
   const [localQuestions, setLocalQuestions] = useState([])
@@ -8,6 +45,16 @@ const SmartDragDropEditor = ({ questions, onQuestionsChange }) => {
   const [previewMode, setPreviewMode] = useState(false)
   const [bulkImportMode, setBulkImportMode] = useState(false)
   const [bulkText, setBulkText] = useState('')
+  const [urlModal, setUrlModal] = useState({ isOpen: false, type: '', questionIndex: -1 })
+  const [urlInput, setUrlInput] = useState('')
+  const [linkText, setLinkText] = useState('')
+  const [imageSize, setImageSize] = useState('medium')
+  const [customWidth, setCustomWidth] = useState('')
+  const [customHeight, setCustomHeight] = useState('')
+  const [audioControls, setAudioControls] = useState(true)
+  const [audioAutoplay, setAudioAutoplay] = useState(false)
+  const [audioLoop, setAudioLoop] = useState(false)
+  const questionTextareasRef = useRef({})
 
   useEffect(() => {
     setLocalQuestions(questions || [])
@@ -313,6 +360,156 @@ const SmartDragDropEditor = ({ questions, onQuestionsChange }) => {
     })
   }
 
+  const appendToField = (index, field, snippet) => {
+    const current = localQuestions[index]?.[field] || ''
+    updateQuestion(index, field, (current + (current ? '\n' : '') + snippet).trim())
+  }
+
+  const insertAtCursor = (index, field, snippet) => {
+    const textarea = questionTextareasRef.current[index]
+    const current = localQuestions[index]?.[field] || ''
+
+    if (textarea && typeof textarea.selectionStart === 'number' && typeof textarea.selectionEnd === 'number') {
+      const start = textarea.selectionStart
+      const end = textarea.selectionEnd
+      const before = current.slice(0, start)
+      const after = current.slice(end)
+      const newValue = `${before}${snippet}${after}`
+      updateQuestion(index, field, newValue)
+      // Restore caret after update
+      setTimeout(() => {
+        try {
+          const pos = start + snippet.length
+          const ta = questionTextareasRef.current[index]
+          if (ta) {
+            ta.focus()
+            ta.setSelectionRange(pos, pos)
+          }
+        } catch {}
+      }, 0)
+    } else {
+      // Fallback to append when we cannot detect caret
+      appendToField(index, field, snippet)
+    }
+  }
+
+  const handlePasteImageUrl = (index) => {
+    setUrlModal({ isOpen: true, type: 'image', questionIndex: index })
+    setUrlInput('')
+    setLinkText('')
+    setImageSize('medium')
+    setCustomWidth('')
+    setCustomHeight('')
+  }
+
+  const handleInsertAudio = (index) => {
+    setUrlModal({ isOpen: true, type: 'audio', questionIndex: index })
+    setUrlInput('')
+    setLinkText('')
+    setImageSize('medium')
+    setCustomWidth('')
+    setCustomHeight('')
+    setAudioControls(true)
+    setAudioAutoplay(false)
+    setAudioLoop(false)
+  }
+
+  const handleInsertLink = (index) => {
+    setUrlModal({ isOpen: true, type: 'link', questionIndex: index })
+    setUrlInput('')
+    setLinkText('Reference')
+  }
+
+  const getImageSizeStyle = () => {
+    if (imageSize === 'custom') {
+      const width = customWidth ? `width="${customWidth}"` : ''
+      const height = customHeight ? `height="${customHeight}"` : ''
+      return `${width} ${height}`.trim()
+    }
+    const sizeMap = { small: 'width="200"', medium: 'width="400"', large: 'width="600"', full: 'width="100%"' }
+    return sizeMap[imageSize] || sizeMap['medium']
+  }
+
+  const getAudioAttributes = () => {
+    const attributes = []
+    if (audioControls) attributes.push('controls')
+    if (audioAutoplay) attributes.push('autoplay')
+    if (audioLoop) attributes.push('loop')
+    return attributes.join(' ')
+  }
+
+  const handleUrlSubmit = () => {
+    if (!urlInput.trim()) return
+    try {
+      new URL(urlInput.trim())
+      const trimmedUrl = urlInput.trim()
+      const questionIndex = urlModal.questionIndex
+      const questionId = localQuestions[questionIndex]?.id
+
+      if (!questionId) {
+        alert('Question not found')
+        return
+      }
+
+      let snippet = ''
+      if (urlModal.type === 'image') {
+        const sizeStyle = getImageSizeStyle()
+        snippet = `<img src="${trimmedUrl}" alt="" ${sizeStyle} />`
+      } else if (urlModal.type === 'link') {
+        const text = linkText.trim() || 'Reference'
+        snippet = `[${text}](${trimmedUrl})`
+      } else if (urlModal.type === 'audio') {
+        const audioAttrs = getAudioAttributes()
+        snippet = `<audio src="${trimmedUrl}" ${audioAttrs}></audio>`
+      }
+
+      // Update question directly
+      const currentQuestion = localQuestions[questionIndex]
+      const textarea = questionTextareasRef.current[questionIndex]
+
+      if (textarea && typeof textarea.selectionStart === 'number') {
+        const start = textarea.selectionStart
+        const end = textarea.selectionEnd
+        const current = currentQuestion.question || ''
+        const before = current.slice(0, start)
+        const after = current.slice(end)
+        const newValue = `${before}${snippet}${after}`
+
+        updateQuestion(questionId, 'question', newValue)
+
+        // Restore cursor position
+        setTimeout(() => {
+          try {
+            const pos = start + snippet.length
+            textarea.focus()
+            textarea.setSelectionRange(pos, pos)
+          } catch {}
+        }, 0)
+      } else {
+        // Fallback: append to end
+        const current = currentQuestion.question || ''
+        const newValue = current + (current ? '\n' : '') + snippet
+        updateQuestion(questionId, 'question', newValue)
+      }
+
+      handleUrlCancel()
+    } catch (e) {
+      alert('Please enter a valid URL (http/https)')
+    }
+  }
+
+  const handleUrlCancel = () => {
+    setUrlModal({ isOpen: false, type: '', questionIndex: -1 })
+    setUrlInput('')
+    setLinkText('')
+    setImageSize('medium')
+    setCustomWidth('')
+    setCustomHeight('')
+    setAudioControls(true)
+    setAudioAutoplay(false)
+    setAudioLoop(false)
+  }
+
   return (
     <div className="space-y-6">
       {/* Header */}
@@ -466,11 +663,10 @@ She [has] [been] [studying] English for 3 years`}
                       {/* Inline question with drop zones */}
                       <div className="mb-4">
                         <div className="text-gray-700 text-lg leading-relaxed">
-                          {question.question.split(/\[DROP_ZONE_(\w+)\]/).map((part, index) => {
-                            if (index % 2 === 0) {
-                              return <span key={index}>{part}</span>
-                            } else {
-                              const zoneId = part
+                          {renderQuestionWithDropZones(
+                            question.question,
+                            question.drop_zones,
+                            (zoneId, index) => {
                               const zone = question.drop_zones.find(z => z.id === zoneId)
                               return (
                                 <span
@@ -483,7 +679,7 @@ She [has] [been] [studying] English for 3 years`}
                                 </span>
                               )
                             }
-                          })}
+                          )}
                         </div>
                       </div>
                       
@@ -509,11 +705,24 @@ She [has] [been] [studying] English for 3 years`}
                         <label className="block text-sm font-medium text-gray-700 mb-1">
                           Question Text
                         </label>
-                        <input
-                          type="text"
+                        <div className="flex items-center gap-2 mb-2">
+                          <button type="button" onClick={() => handlePasteImageUrl(index)} className="px-2 py-1 text-xs bg-gray-100 hover:bg-gray-200 rounded inline-flex items-center gap-1">
+                            <ImageIcon className="w-3 h-3" /> Image
+                          </button>
+                          <button type="button" onClick={() => handleInsertAudio(index)} className="px-2 py-1 text-xs bg-gray-100 hover:bg-gray-200 rounded inline-flex items-center gap-1">
+                            <Music className="w-3 h-3" /> Audio
+                          </button>
+                          <button type="button" onClick={() => handleInsertLink(index)} className="px-2 py-1 text-xs bg-gray-100 hover:bg-gray-200 rounded inline-flex items-center gap-1">
+                            <LinkIcon className="w-3 h-3" /> Link
+                          </button>
+                        </div>
+                        <textarea
                           value={question.question}
                           onChange={(e) => updateQuestion(question.id, 'question', e.target.value)}
+                          ref={(el) => { questionTextareasRef.current[index] = el }}
                           className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                          rows={3}
+                          placeholder="Enter question text with [words] in brackets for dragable items..."
                         />
                       </div>
 
@@ -599,6 +808,81 @@ She [has] [been] [studying] English for 3 years`}
           ))
         )}
       </div>
+
+      {/* URL Modal */}
+      {urlModal.isOpen && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-lg max-w-md w-full p-6">
+            <div className="flex justify-between items-center mb-4">
+              <h3 className="text-lg font-semibold">
+                {urlModal.type === 'image' ? 'Add Image' : urlModal.type === 'audio' ? 'Add Audio' : 'Add Link'}
+              </h3>
+              <button onClick={handleUrlCancel} className="text-gray-500 hover:text-gray-700">✕</button>
+            </div>
+            <div className="space-y-4">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">URL</label>
+                <input type="url" value={urlInput} onChange={(e) => setUrlInput(e.target.value)} className="w-full p-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500" placeholder={urlModal.type === 'image' ? 'https://example.com/image.jpg' : urlModal.type === 'audio' ? 'https://example.com/audio.mp3' : 'https://example.com/link'} />
+              </div>
+              {urlModal.type === 'link' && (
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Display Text (optional)</label>
+                  <input type="text" value={linkText} onChange={(e) => setLinkText(e.target.value)} className="w-full p-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500" placeholder="Reference" />
+                </div>
+              )}
+              {urlModal.type === 'image' && (
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">Image Size</label>
+                  <div className="grid grid-cols-2 gap-2 mb-2">
+                    {[
+                      { value: 'small', label: 'Small (200px)' },
+                      { value: 'medium', label: 'Medium (400px)' },
+                      { value: 'large', label: 'Large (600px)' },
+                      { value: 'full', label: 'Full Width' }
+                    ].map(s => (
+                      <button key={s.value} type="button" onClick={() => setImageSize(s.value)} className={`p-2 rounded border text-sm ${imageSize === s.value ? 'border-blue-500 bg-blue-50 text-blue-700' : 'border-gray-300 hover:border-gray-400'}`}>{s.label}</button>
+                    ))}
+                  </div>
+                  <div className="grid grid-cols-2 gap-2">
+                    <div>
+                      <label className="block text-xs text-gray-600 mb-1">Width (px)</label>
+                      <input type="number" value={customWidth} onChange={(e) => setCustomWidth(e.target.value)} className="w-full p-2 border border-gray-300 rounded text-sm" placeholder="400" />
+                    </div>
+                    <div>
+                      <label className="block text-xs text-gray-600 mb-1">Height (px)</label>
+                      <input type="number" value={customHeight} onChange={(e) => setCustomHeight(e.target.value)} className="w-full p-2 border border-gray-300 rounded text-sm" placeholder="300" />
+                    </div>
+                  </div>
+                </div>
+              )}
+              {urlModal.type === 'audio' && (
+                <div className="space-y-2">
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Audio Options</label>
+                  <label className="flex items-center gap-2 text-sm"><input type="checkbox" checked={audioControls} onChange={(e) => setAudioControls(e.target.checked)} /> Show controls</label>
+                  <label className="flex items-center gap-2 text-sm"><input type="checkbox" checked={audioAutoplay} onChange={(e) => setAudioAutoplay(e.target.checked)} /> Autoplay</label>
+                  <label className="flex items-center gap-2 text-sm"><input type="checkbox" checked={audioLoop} onChange={(e) => setAudioLoop(e.target.checked)} /> Loop</label>
+                </div>
+              )}
+              {urlInput && (
+                <div className="p-3 bg-gray-50 rounded">
+                  <div className="text-sm text-gray-600 mb-2">Preview:</div>
+                  {urlModal.type === 'image' ? (
+                    <img src={urlInput} alt="Preview" className="max-w-full rounded border" />
+                  ) : urlModal.type === 'audio' ? (
+                    <audio src={urlInput} controls={audioControls} autoPlay={audioAutoplay} loop={audioLoop} className="w-full" />
+                  ) : (
+                    <a href={urlInput} target="_blank" rel="noreferrer" className="text-blue-600 hover:underline">{linkText || urlInput}</a>
+                  )}
+                </div>
+              )}
+            </div>
+            <div className="flex justify-end gap-2 mt-6">
+              <button type="button" onClick={handleUrlCancel} className="px-4 py-2 bg-gray-200 rounded hover:bg-gray-300">Cancel</button>
+              <button type="button" onClick={handleUrlSubmit} disabled={!urlInput.trim()} className="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700 disabled:bg-gray-400">Insert</button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   )
 }

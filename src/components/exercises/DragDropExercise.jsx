@@ -5,6 +5,42 @@ import { ArrowLeft, RotateCcw, CheckCircle, XCircle, Play, Pause } from 'lucide-
 import LoadingSpinner from '../ui/LoadingSpinner'
 import { useAuth } from '../../hooks/useAuth'
 
+// Convert simple markdown/HTML to safe HTML for preview
+const markdownToHtml = (text) => {
+  if (!text) return ''
+  let html = text
+  // Images markdown ![](url)
+  html = html.replace(/!\[(.*?)\]\((.*?)\)/g, (m, alt, url) => `<img src="${url}" alt="${alt || ''}" class="max-w-full h-auto rounded-lg my-2" />`)
+  // Preserve HTML <img> adding styling
+  html = html.replace(/<img([^>]*?)>/g, (m, attrs) => `<img${attrs} class="max-w-full h-auto rounded-lg my-2" />`)
+  // Preserve HTML <audio>
+  html = html.replace(/<audio([^>]*?)>/g, (m, attrs) => `<audio${attrs} class="w-full my-2"></audio>`)
+  // Links [text](url)
+  html = html.replace(/\[(.*?)\]\((.*?)\)/g, (m, t, url) => `<a href="${url}" target="_blank" rel="noreferrer">${t || url}</a>`)
+  return html
+}
+
+// Render question text with HTML content and drop zones
+const renderQuestionWithDropZones = (questionText, dropZones, renderDropZone) => {
+  const parts = questionText.split(/\[DROP_ZONE_(\w+)\]/)
+  return parts.map((part, index) => {
+    if (index % 2 === 0) {
+      // This is regular text - render with HTML support
+      const htmlContent = markdownToHtml(part)
+      return (
+        <span
+          key={index}
+          dangerouslySetInnerHTML={{ __html: htmlContent }}
+        />
+      )
+    } else {
+      // This is a drop zone ID
+      const zoneId = part
+      return renderDropZone(zoneId, index)
+    }
+  })
+}
+
 const DragDropExercise = () => {
   const location = useLocation()
   const navigate = useNavigate()
@@ -456,15 +492,14 @@ const DragDropExercise = () => {
           {/* Question with inline drop zones */}
           <div className="mb-8">
             <h2 className="text-lg font-semibold text-gray-800 mb-4 leading-relaxed">
-              {currentQuestion.question.split(/\[DROP_ZONE_(\w+)\]/).map((part, index) => {
-                if (index % 2 === 0) {
-                  return <span key={index}>{part}</span>
-                } else {
-                  const zoneId = part
+              {renderQuestionWithDropZones(
+                currentQuestion.question,
+                currentQuestion.drop_zones,
+                (zoneId, index) => {
                   const zone = currentQuestion.drop_zones.find(z => z.id === zoneId)
                   const itemId = userAnswer[zoneId]
                   const item = currentQuestion.items.find(i => i.id === itemId)
-                  
+
                   return (
                     <span
                       key={index}
@@ -490,7 +525,7 @@ const DragDropExercise = () => {
                     </span>
                   )
                 }
-              })}
+              )}
             </h2>
           </div>
 
