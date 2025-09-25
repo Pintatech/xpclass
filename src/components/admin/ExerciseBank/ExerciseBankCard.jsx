@@ -19,6 +19,9 @@ import {
 
 const ExerciseBankCard = ({ exercise, viewMode, onUpdate, onEdit }) => {
   const [showMenu, setShowMenu] = useState(false)
+  const [showAssignments, setShowAssignments] = useState(false)
+  const [assignments, setAssignments] = useState([])
+  const [loadingAssignments, setLoadingAssignments] = useState(false)
 
   const getTypeIcon = (type) => {
     switch (type) {
@@ -78,15 +81,17 @@ const ExerciseBankCard = ({ exercise, viewMode, onUpdate, onEdit }) => {
     if (window.confirm(`Are you sure you want to delete "${exercise.title}"? This action cannot be undone.`)) {
       try {
         // First check if exercise is assigned to any sessions
-        const { data: assignments, error: assignmentError } = await supabase
+        const { data: assignRows, error: assignmentError } = await supabase
           .from('exercise_assignments')
           .select('id')
           .eq('exercise_id', exercise.id)
 
         if (assignmentError) throw assignmentError
 
-        if (assignments && assignments.length > 0) {
-          alert('Cannot delete exercise that is assigned to sessions. Remove assignments first.')
+        if (assignRows && assignRows.length > 0) {
+          // Show where it's assigned and allow unassign
+          await loadAssignments()
+          setShowAssignments(true)
           setShowMenu(false)
           return
         }
@@ -111,6 +116,63 @@ const ExerciseBankCard = ({ exercise, viewMode, onUpdate, onEdit }) => {
     }
     setShowMenu(false)
   }
+  const loadAssignments = async () => {
+    try {
+      setLoadingAssignments(true)
+      const { data, error } = await supabase
+        .from('exercise_assignments')
+        .select(`id, session_id, sessions:session_id(id, title)`) // requires sessions FK
+        .eq('exercise_id', exercise.id)
+      if (error) throw error
+      setAssignments(data || [])
+    } catch (e) {
+      console.error('Error loading assignments:', e)
+      setAssignments([])
+    } finally {
+      setLoadingAssignments(false)
+    }
+  }
+
+  const openAssignments = async () => {
+    // Open modal immediately for better UX
+    setShowAssignments(true)
+    setShowMenu(false)
+    // Then load data
+    await loadAssignments()
+  }
+
+  const handleUnassign = async (assignmentId) => {
+    try {
+      const { error } = await supabase
+        .from('exercise_assignments')
+        .delete()
+        .eq('id', assignmentId)
+      if (error) throw error
+      await loadAssignments()
+      if (onUpdate) onUpdate()
+    } catch (e) {
+      console.error('Error unassigning:', e)
+      alert('Failed to remove assignment: ' + (e.message || 'Unknown error'))
+    }
+  }
+
+  const handleBulkUnassign = async () => {
+    try {
+      const ids = assignments.map(a => a.id)
+      if (ids.length === 0) return
+      const { error } = await supabase
+        .from('exercise_assignments')
+        .delete()
+        .in('id', ids)
+      if (error) throw error
+      await loadAssignments()
+      if (onUpdate) onUpdate()
+    } catch (e) {
+      console.error('Error bulk unassign:', e)
+      alert('Failed to remove assignments: ' + (e.message || 'Unknown error'))
+    }
+  }
+
 
   const handleDuplicate = async () => {
     try {
@@ -223,6 +285,13 @@ const ExerciseBankCard = ({ exercise, viewMode, onUpdate, onEdit }) => {
               {showMenu && (
                 <div className="absolute right-0 top-10 bg-white rounded-lg shadow-lg border border-gray-200 py-1 z-10 min-w-[160px]">
                   <button
+                    onClick={openAssignments}
+                    className="w-full text-left px-3 py-2 text-sm hover:bg-gray-50 flex items-center space-x-2"
+                  >
+                    <FolderOpen className="w-3 h-3" />
+                    <span>Assignments</span>
+                  </button>
+                  <button
                     onClick={handleEdit}
                     className="w-full text-left px-3 py-2 text-sm hover:bg-gray-50 flex items-center space-x-2"
                   >
@@ -256,6 +325,52 @@ const ExerciseBankCard = ({ exercise, viewMode, onUpdate, onEdit }) => {
             </div>
           </div>
         </div>
+        {/* Assignments Modal (list view) */}
+        {showAssignments && (
+          <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50" onClick={() => setShowAssignments(false)}>
+            <div className="bg-white rounded-lg shadow-xl w-full max-w-lg mx-4" onClick={(e) => e.stopPropagation()}>
+              <div className="p-4 border-b border-gray-200 flex items-center justify-between">
+                <h4 className="font-medium text-gray-900">Assignments for "{exercise.title}"</h4>
+                <button onClick={() => setShowAssignments(false)} className="text-gray-400 hover:text-gray-600">✕</button>
+              </div>
+              <div className="p-4">
+                {loadingAssignments ? (
+                  <div className="text-sm text-gray-500">Loading...</div>
+                ) : assignments.length === 0 ? (
+                  <div className="text-sm text-gray-600">This exercise is not assigned to any session.</div>
+                ) : (
+                  <>
+                    <ul className="divide-y">
+                      {assignments.map(a => (
+                        <li key={a.id} className="py-2 flex items-center justify-between">
+                          <div>
+                            <div className="font-medium text-gray-900">{a.sessions?.title || a.session_id}</div>
+                            <div className="text-xs text-gray-500">Session ID: {a.session_id}</div>
+                          </div>
+                          <button
+                            onClick={() => handleUnassign(a.id)}
+                            className="px-3 py-1 text-sm bg-red-50 text-red-700 hover:bg-red-100 rounded"
+                          >
+                            Unassign
+                          </button>
+                        </li>
+                      ))}
+                    </ul>
+                    <div className="mt-4 flex items-center justify-between">
+                      <div className="text-sm text-gray-600">Total: {assignments.length}</div>
+                      <button onClick={handleBulkUnassign} className="px-3 py-1.5 text-sm bg-red-600 text-white hover:bg-red-700 rounded">
+                        Remove all assignments
+                      </button>
+                    </div>
+                  </>
+                )}
+              </div>
+              <div className="p-4 border-t border-gray-200 text-right">
+                <button onClick={() => setShowAssignments(false)} className="px-4 py-2 bg-gray-100 hover:bg-gray-200 rounded">Close</button>
+              </div>
+            </div>
+          </div>
+        )}
       </div>
     )
   }
@@ -285,6 +400,13 @@ const ExerciseBankCard = ({ exercise, viewMode, onUpdate, onEdit }) => {
 
             {showMenu && (
               <div className="absolute right-0 top-6 bg-white rounded-lg shadow-lg border border-gray-200 py-1 z-10 min-w-[140px]">
+                <button
+                  onClick={openAssignments}
+                  className="w-full text-left px-3 py-2 text-sm hover:bg-gray-50 flex items-center space-x-2"
+                >
+                  <FolderOpen className="w-3 h-3" />
+                  <span>Assignments</span>
+                </button>
                 <button
                   onClick={handleEdit}
                   className="w-full text-left px-3 py-2 text-sm hover:bg-gray-50 flex items-center space-x-2"
@@ -377,6 +499,52 @@ const ExerciseBankCard = ({ exercise, viewMode, onUpdate, onEdit }) => {
           </div>
         )}
       </div>
+      {/* Assignments Modal */}
+      {showAssignments && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50" onClick={() => setShowAssignments(false)}>
+          <div className="bg-white rounded-lg shadow-xl w-full max-w-lg mx-4" onClick={(e) => e.stopPropagation()}>
+            <div className="p-4 border-b border-gray-200 flex items-center justify-between">
+              <h4 className="font-medium text-gray-900">Assignments for "{exercise.title}"</h4>
+              <button onClick={() => setShowAssignments(false)} className="text-gray-400 hover:text-gray-600">✕</button>
+            </div>
+            <div className="p-4">
+              {loadingAssignments ? (
+                <div className="text-sm text-gray-500">Loading...</div>
+              ) : assignments.length === 0 ? (
+                <div className="text-sm text-gray-600">This exercise is not assigned to any session.</div>
+              ) : (
+                <>
+                  <ul className="divide-y">
+                    {assignments.map(a => (
+                      <li key={a.id} className="py-2 flex items-center justify-between">
+                        <div>
+                          <div className="font-medium text-gray-900">{a.sessions?.title || a.session_id}</div>
+                          <div className="text-xs text-gray-500">Session ID: {a.session_id}</div>
+                        </div>
+                        <button
+                          onClick={() => handleUnassign(a.id)}
+                          className="px-3 py-1 text-sm bg-red-50 text-red-700 hover:bg-red-100 rounded"
+                        >
+                          Unassign
+                        </button>
+                      </li>
+                    ))}
+                  </ul>
+                  <div className="mt-4 flex items-center justify-between">
+                    <div className="text-sm text-gray-600">Total: {assignments.length}</div>
+                    <button onClick={handleBulkUnassign} className="px-3 py-1.5 text-sm bg-red-600 text-white hover:bg-red-700 rounded">
+                      Remove all assignments
+                    </button>
+                  </div>
+                </>
+              )}
+            </div>
+            <div className="p-4 border-t border-gray-200 text-right">
+              <button onClick={() => setShowAssignments(false)} className="px-4 py-2 bg-gray-100 hover:bg-gray-200 rounded">Close</button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   )
 }

@@ -13,11 +13,7 @@ export default defineConfig({
         changeOrigin: true,
         rewrite: (path) => path.replace(/^\/api\/audio/, '')
       },
-      // Local dev proxy to Vercel function (optional if running vercel dev)
-      '/api/ai-score': {
-        target: 'http://localhost:3001',
-        changeOrigin: true
-      }
+      // Gợi ý: dùng `vercel dev` để phục vụ /api. Nếu không, xoá proxy này để tránh vòng lặp.
     }
   },
   build: {

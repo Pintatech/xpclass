@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react'
-import { Plus, Trash2, Wand2, Eye, EyeOff, HelpCircle, Brain } from 'lucide-react'
+import { Plus, Trash2, Wand2, Eye, EyeOff, HelpCircle, Brain, Image as ImageIcon, Music, Link as LinkIcon } from 'lucide-react'
 
 const AIFillBlankEditor = ({ questions, onQuestionsChange }) => {
   const [localQuestions, setLocalQuestions] = useState([])
@@ -50,6 +50,30 @@ const AIFillBlankEditor = ({ questions, onQuestionsChange }) => {
     }
     setLocalQuestions(updatedQuestions)
     onQuestionsChange(updatedQuestions)
+  }
+
+  const appendToField = (index, field, snippet) => {
+    const current = (localQuestions[index]?.[field]) || ''
+    updateQuestion(index, field, (current + (current ? '\n' : '') + snippet).trim())
+  }
+
+  const handleInsertImage = (index) => {
+    const url = window.prompt('Enter image URL')
+    if (!url) return
+    appendToField(index, 'question', `<img src="${url}" alt="" style="max-width:100%" />`)
+  }
+
+  const handleInsertAudio = (index) => {
+    const url = window.prompt('Enter audio URL')
+    if (!url) return
+    appendToField(index, 'question', `<audio src="${url}" controls preload="none"></audio>`)
+  }
+
+  const handleInsertLink = (index) => {
+    const url = window.prompt('Enter link URL')
+    if (!url) return
+    const text = window.prompt('Link text (optional)') || url
+    appendToField(index, 'question', `<a href="${url}" target="_blank" rel="noopener noreferrer">${text}</a>`)
   }
 
   const addExpectedAnswer = (questionIndex) => {
@@ -188,6 +212,17 @@ Provide a score (0-100), confidence level (0-100), and brief explanation.`
                     <label className="block text-sm font-medium text-gray-700 mb-1">
                       Question Text
                     </label>
+                    <div className="flex items-center gap-2 mb-2">
+                      <button type="button" onClick={() => handleInsertImage(index)} className="px-2 py-1 text-xs bg-gray-100 hover:bg-gray-200 rounded inline-flex items-center gap-1">
+                        <ImageIcon className="w-3 h-3" /> Image
+                      </button>
+                      <button type="button" onClick={() => handleInsertAudio(index)} className="px-2 py-1 text-xs bg-gray-100 hover:bg-gray-200 rounded inline-flex items-center gap-1">
+                        <Music className="w-3 h-3" /> Audio
+                      </button>
+                      <button type="button" onClick={() => handleInsertLink(index)} className="px-2 py-1 text-xs bg-gray-100 hover:bg-gray-200 rounded inline-flex items-center gap-1">
+                        <LinkIcon className="w-3 h-3" /> Link
+                      </button>
+                    </div>
                     <textarea
                       value={question.question}
                       onChange={(e) => updateQuestion(index, 'question', e.target.value)}

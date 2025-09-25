@@ -302,7 +302,7 @@ const MultipleChoiceEditor = ({ questions, onQuestionsChange }) => {
   const processBulkImport = () => {
     try {
       // First, try to detect if this is Moodle Cloze format
-      if (bulkText.includes('{1:MCV:') || bulkText.includes('{1:MULTICHOICE:') || bulkText.includes('{=')) {
+      if (bulkText.includes('{1:MCV:') || bulkText.includes('{1:MC:') || bulkText.includes('{1:MULTICHOICE:') || bulkText.includes('{=')) {
         processMoodleCloze()
         return
       }
@@ -382,77 +382,62 @@ const MultipleChoiceEditor = ({ questions, onQuestionsChange }) => {
   const processMoodleCloze = () => {
     try {
       const newQuestions = []
+      const lines = bulkText.split('\n')
 
-      // Split by question patterns (Question X - ID) - more specific regex
-      const questionBlocks = bulkText.split(/(?=Question\s+\d+\s*-\s*[a-zA-Z0-9]+)/i).filter(block => block.trim())
+      let currentInstruction = ''
+      let questionCounter = 0
 
-      questionBlocks.forEach((block, blockIndex) => {
-        const lines = block.trim().split('\n')
-        let questionText = ''
-        let options = []
-        let correctAnswer = 0
-        let explanation = ''
-
-        // Find the cloze pattern in the entire block
-        const clozeMatch = block.match(/\{1:MCV:([^}]+)\}/s)
-        if (!clozeMatch) return
-
-        // Extract question text (everything before the cloze and after question header)
-        const beforeCloze = block.substring(0, block.indexOf('{1:MCV:'))
-        const questionLines = beforeCloze.split('\n').filter(line => {
+      lines.forEach((line) => {
           const trimmed = line.trim()
-          return trimmed &&
-                 !trimmed.match(/^Question\s+\d+\s*-/i) &&
-                 !trimmed.match(/^Which choice completes/i)
-        })
+        if (!trimmed) return
 
-        // Join question text while preserving line breaks
-        questionText = questionLines.join('\n')
-          .replace(/\n\s*\n/g, '\n') // Remove excessive line breaks
-          .replace(/______/g, '______')
-          .trim()
+        // Capture instruction lines like "E. Circle the correct ..."
+        if (/^[A-Z]\.\s+/.test(trimmed)) {
+          currentInstruction = trimmed
+          return
+        }
 
-        // Use question text as is
+        // Each cloze occurrence on a line becomes a separate question
+        const clozeMatches = [
+          ...trimmed.matchAll(/\{1:MCV:([^}]+)\}/g),
+          ...trimmed.matchAll(/\{1:MC:([^}]+)\}/g),
+          ...trimmed.matchAll(/\{1:MULTICHOICE:([^}]+)\}/g)
+        ]
+        if (clozeMatches.length === 0) return
 
-        // Parse cloze options from the matched content
-        const optionsContent = clozeMatch[1]
+        clozeMatches.forEach((match) => {
+          const optionsContent = match[1]
         const rawOptions = optionsContent.split('~').filter(opt => opt.trim())
-        const optionExplanations = {}
 
-        rawOptions.forEach((option, index) => {
-          if (!option.trim()) return
+          const options = []
+          let correctIndex = 0
 
-          const isCorrect = option.startsWith('=')
-          const cleanOption = option.replace(/^=/, '')
-
-          // Split by # to separate option text from explanation
-          const parts = cleanOption.split('#')
-          const optionText = parts[0].trim()
-          const optionExplanation = parts.length > 1 ? parts.slice(1).join('#').trim() : ''
-
-          if (optionText) {
+          rawOptions.forEach((opt) => {
+            if (!opt.trim()) return
+            const isCorrect = opt.trim().startsWith('=')
+            const clean = opt.replace(/^=/, '').trim()
+            // Remove optional inline explanations after # if any
+            const optionText = clean.split('#')[0].trim()
+            if (!optionText) return
             options.push(optionText)
+            if (isCorrect) correctIndex = options.length - 1
+          })
 
-            // Store explanation for this specific option
-            optionExplanations[options.length - 1] = optionExplanation || `This is option ${String.fromCharCode(65 + options.length - 1)}.`
+          if (options.length >= 2) {
+            const displayText = trimmed.replace(match[0], '______')
+            const questionText = currentInstruction
+              ? `${currentInstruction}\n\n${displayText}`
+              : displayText
 
-            if (isCorrect) {
-              correctAnswer = options.length - 1
-            }
+          newQuestions.push({
+              id: `q${Date.now()}_${questionCounter++}`,
+            question: questionText,
+              options,
+              correct_answer: correctIndex,
+              explanation: ''
+            })
           }
         })
-
-        // Create question if we have valid data
-        if (questionText && options.length >= 2) {
-          newQuestions.push({
-            id: `q${Date.now()}_${blockIndex}`,
-            question: questionText,
-            options: options,
-            correct_answer: correctAnswer,
-            explanation: optionExplanations[correctAnswer] || `The correct answer is: ${options[correctAnswer]}`,
-            option_explanations: optionExplanations // Store all explanations
-          })
-        }
       })
 
       if (newQuestions.length > 0) {

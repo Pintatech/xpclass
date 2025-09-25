@@ -4,6 +4,7 @@ import { supabase } from '../../supabase/client'
 import { useAuth } from '../../hooks/useAuth'
 import { ArrowLeft, CheckCircle, XCircle, Clock, RefreshCw } from 'lucide-react'
 import LoadingSpinner from '../ui/LoadingSpinner'
+import { callAIScoring as localAIScoring } from '../../utils/aiScoringService'
 
 const AIFillBlankExercise = () => {
   const location = useLocation()
@@ -19,6 +20,7 @@ const AIFillBlankExercise = () => {
   const [isChecking, setIsChecking] = useState(false)
   const [showResults, setShowResults] = useState({})
   const [exerciseCompleted, setExerciseCompleted] = useState(false)
+  const [language, setLanguage] = useState('en') // 'en' | 'vi'
   const [attempts, setAttempts] = useState(0)
   const [startTime, setStartTime] = useState(null)
   const [timeSpent, setTimeSpent] = useState(0)
@@ -61,42 +63,26 @@ const AIFillBlankExercise = () => {
     }
   }
 
-  const callAIScoring = async (question, userAnswer, expectedAnswers) => {
+  const callAIScoreAPI = async (question, userAnswer, expectedAnswers) => {
+    const controller = new AbortController()
+    const timeout = setTimeout(() => controller.abort(), 8000)
     try {
       const response = await fetch('/api/ai-score', {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          question: question,
-          userAnswer: userAnswer,
-          expectedAnswers: expectedAnswers,
-          context: 'educational assessment'
-        })
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ question, userAnswer, expectedAnswers, context: 'educational assessment', language }),
+        signal: controller.signal
       })
-
-      if (!response.ok) {
-        throw new Error('AI scoring service unavailable')
-      }
-
+      clearTimeout(timeout)
+      if (!response.ok) throw new Error(`AI API ${response.status}`)
       const result = await response.json()
       return {
         score: result.score || 0,
         explanation: result.explanation || 'No explanation provided',
         confidence: result.confidence || 0
       }
-    } catch (error) {
-      console.error('AI scoring error:', error)
-      // Fallback to simple text matching
-      const isExactMatch = expectedAnswers.some(expected => 
-        expected.toLowerCase().trim() === userAnswer.toLowerCase().trim()
-      )
-      return {
-        score: isExactMatch ? 100 : 0,
-        explanation: isExactMatch ? 'Exact match found' : 'No exact match found',
-        confidence: isExactMatch ? 100 : 0
-      }
+    } finally {
+      clearTimeout(timeout)
     }
   }
 
@@ -115,11 +101,24 @@ const AIFillBlankExercise = () => {
     setAttempts(prev => prev + 1)
 
     try {
-      const aiResult = await callAIScoring(
-        question.question,
-        userAnswer,
-        question.expected_answers || []
-      )
+      let aiResult
+      try {
+        // Try production API first
+        aiResult = await callAIScoreAPI(
+          question.question,
+          userAnswer,
+          question.expected_answers || []
+        )
+      } catch (err) {
+        console.warn('AI API failed, using local scoring fallback:', err?.message || err)
+        aiResult = await localAIScoring(
+          question.question,
+          userAnswer,
+          question.expected_answers || [],
+          'educational assessment',
+          language
+        )
+      }
 
       setAiScores(prev => ({
         ...prev,
@@ -264,6 +263,12 @@ const AIFillBlankExercise = () => {
   const currentQuestion = exercise.content.questions[currentQuestionIndex]
   const userAnswer = userAnswers[currentQuestionIndex] || ''
   const aiScore = aiScores[currentQuestionIndex]
+  const exerciseLanguage = exercise?.content?.settings?.language
+  useEffect(() => {
+    if (exerciseLanguage && (exerciseLanguage === 'en' || exerciseLanguage === 'vi')) {
+      setLanguage(exerciseLanguage)
+    }
+  }, [exerciseLanguage])
   const showResult = showResults[currentQuestionIndex]
 
   return (
@@ -342,7 +347,18 @@ const AIFillBlankExercise = () => {
             )}
 
             {/* Action Buttons */}
-            <div className="flex gap-3">
+            <div className="flex gap-3 items-center">
+              <div className="ml-auto flex items-center gap-2">
+                <label className="text-sm text-gray-600">Language:</label>
+                <select
+                  value={language}
+                  onChange={(e) => setLanguage(e.target.value)}
+                  className="px-2 py-1 border border-gray-300 rounded text-sm"
+                >
+                  <option value="en">English</option>
+                  <option value="vi">Tiếng Việt</option>
+                </select>
+              </div>
               {!showResult ? (
                 <button
                   onClick={() => checkAnswer(currentQuestionIndex)}

@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react'
+import React, { useState, useEffect, useRef } from 'react'
 import {
   Plus,
   Trash2,
@@ -7,13 +7,27 @@ import {
   ChevronDown,
   Upload,
   Check,
-  HelpCircle
+  HelpCircle,
+  Image as ImageIcon,
+  Link as LinkIcon,
+  Music
 } from 'lucide-react'
+import RichTextRenderer from '../../ui/RichTextRenderer'
 
 const FillBlankEditor = ({ questions, onQuestionsChange }) => {
   const [localQuestions, setLocalQuestions] = useState(questions || [])
   const [bulkImportMode, setBulkImportMode] = useState(false)
   const [bulkText, setBulkText] = useState('')
+  const [urlModal, setUrlModal] = useState({ isOpen: false, type: '', questionIndex: -1 })
+  const [urlInput, setUrlInput] = useState('')
+  const [linkText, setLinkText] = useState('')
+  const [imageSize, setImageSize] = useState('medium')
+  const [customWidth, setCustomWidth] = useState('')
+  const [customHeight, setCustomHeight] = useState('')
+  const [audioControls, setAudioControls] = useState(true)
+  const [audioAutoplay, setAudioAutoplay] = useState(false)
+  const [audioLoop, setAudioLoop] = useState(false)
+  const questionTextareasRef = useRef({})
 
   useEffect(() => {
     setLocalQuestions(questions || [])
@@ -53,6 +67,118 @@ const FillBlankEditor = ({ questions, onQuestionsChange }) => {
     )
     setLocalQuestions(updatedQuestions)
     onQuestionsChange(updatedQuestions)
+  }
+
+  const appendToField = (index, field, snippet) => {
+    const current = localQuestions[index]?.[field] || ''
+    updateQuestion(index, field, (current + (current ? '\n' : '') + snippet).trim())
+  }
+
+  const insertAtCursor = (index, field, snippet) => {
+    const textarea = questionTextareasRef.current[index]
+    const current = localQuestions[index]?.[field] || ''
+
+    if (textarea && typeof textarea.selectionStart === 'number' && typeof textarea.selectionEnd === 'number') {
+      const start = textarea.selectionStart
+      const end = textarea.selectionEnd
+      const before = current.slice(0, start)
+      const after = current.slice(end)
+      const newValue = `${before}${snippet}${after}`
+      updateQuestion(index, field, newValue)
+      // Restore caret after update
+      setTimeout(() => {
+        try {
+          const pos = start + snippet.length
+          const ta = questionTextareasRef.current[index]
+          if (ta) {
+            ta.focus()
+            ta.setSelectionRange(pos, pos)
+          }
+        } catch {}
+      }, 0)
+    } else {
+      // Fallback to append when we cannot detect caret
+      appendToField(index, field, snippet)
+    }
+  }
+
+  const handlePasteImageUrl = (index) => {
+    setUrlModal({ isOpen: true, type: 'image', questionIndex: index })
+    setUrlInput('')
+    setLinkText('')
+    setImageSize('medium')
+    setCustomWidth('')
+    setCustomHeight('')
+  }
+
+  const handleInsertAudio = (index) => {
+    setUrlModal({ isOpen: true, type: 'audio', questionIndex: index })
+    setUrlInput('')
+    setLinkText('')
+    setImageSize('medium')
+    setCustomWidth('')
+    setCustomHeight('')
+    setAudioControls(true)
+    setAudioAutoplay(false)
+    setAudioLoop(false)
+  }
+
+  const handleInsertLink = (index) => {
+    setUrlModal({ isOpen: true, type: 'link', questionIndex: index })
+    setUrlInput('')
+    setLinkText('Reference')
+  }
+
+  const getImageSizeStyle = () => {
+    if (imageSize === 'custom') {
+      const width = customWidth ? `width="${customWidth}"` : ''
+      const height = customHeight ? `height="${customHeight}"` : ''
+      return `${width} ${height}`.trim()
+    }
+    const sizeMap = { small: 'width="200"', medium: 'width="400"', large: 'width="600"', full: 'width="100%"' }
+    return sizeMap[imageSize] || sizeMap['medium']
+  }
+
+  const getAudioAttributes = () => {
+    const attributes = []
+    if (audioControls) attributes.push('controls')
+    if (audioAutoplay) attributes.push('autoplay')
+    if (audioLoop) attributes.push('loop')
+    return attributes.join(' ')
+  }
+
+  const handleUrlSubmit = () => {
+    if (!urlInput.trim()) return
+    try {
+      new URL(urlInput.trim())
+      const trimmedUrl = urlInput.trim()
+      const idx = urlModal.questionIndex
+      if (urlModal.type === 'image') {
+        const sizeStyle = getImageSizeStyle()
+        insertAtCursor(idx, 'question', `<img src="${trimmedUrl}" alt="" ${sizeStyle} />`)
+      } else if (urlModal.type === 'link') {
+        const text = linkText.trim() || 'Reference'
+        insertAtCursor(idx, 'question', `[${text}](${trimmedUrl})`)
+      } else if (urlModal.type === 'audio') {
+        const audioAttrs = getAudioAttributes()
+        insertAtCursor(idx, 'question', `<audio src="${trimmedUrl}" ${audioAttrs}></audio>`)
+      }
+      handleUrlCancel()
+    } catch (e) {
+      alert('Vui lòng nhập URL hợp lệ (http/https)')
+    }
+  }
+
+  const handleUrlCancel = () => {
+    setUrlModal({ isOpen: false, type: '', questionIndex: -1 })
+    setUrlInput('')
+    setLinkText('')
+    setImageSize('medium')
+    setCustomWidth('')
+    setCustomHeight('')
+    setAudioControls(true)
+    setAudioAutoplay(false)
+    setAudioLoop(false)
   }
 
   const addBlank = (questionIndex) => {
@@ -121,44 +247,41 @@ const FillBlankEditor = ({ questions, onQuestionsChange }) => {
         if (trimmedLine.match(/^[A-Z]\.\s+/)) {
           currentInstruction = trimmedLine
         }
-        // Check if this line contains blanks with answers in brackets
-        else if (trimmedLine.includes('[') && trimmedLine.includes(']') && trimmedLine.includes('(') && trimmedLine.includes(')')) {
-          // Parse the line to extract blanks and answers
-          const blankMatches = trimmedLine.match(/\[([^\]]+)\]\s*\(([^)]+)\)/g)
-          
-          if (blankMatches) {
-            const blanks = []
-            let displayText = trimmedLine
-            
-            blankMatches.forEach(match => {
-              const blankMatch = match.match(/\[([^\]]+)\]\s*\(([^)]+)\)/)
-              if (blankMatch) {
-                const answer = blankMatch[1]
-                const hint = blankMatch[2]
-                
-                 // Support multiple answers separated by |, /, or ,
-                 const answers = answer.split(/[|/,]/).map(a => a.trim()).filter(a => a)
-                 const answerText = answers.length > 0 ? answers.join(', ') : answer
-                 
-                 blanks.push({
-                   text: hint,
-                   answer: answerText,
-                   case_sensitive: false
-                 })
-              }
-            })
+        // Check if this line contains blanks with answers in brackets (with or without hint)
+        else if (trimmedLine.includes('[') && trimmedLine.includes(']')) {
+          const blanks = []
+          let displayText = trimmedLine
 
-            // Replace blanks in the text with _____ for display
-            displayText = displayText.replace(/\[([^\]]+)\]\s*\(([^)]+)\)/g, '_____')
-            
-            // Create a new question for this line
+          // With hint: [answer] (hint)
+          const withHintMatches = [...trimmedLine.matchAll(/\[([^\]]+)\]\s*\(([^)]+)\)/g)]
+          withHintMatches.forEach((m) => {
+            const answer = m[1]
+            const hint = m[2]
+            const answers = answer.split(/[|/,]/).map(a => a.trim()).filter(a => a)
+            const answerText = answers.length > 0 ? answers.join(', ') : answer
+            blanks.push({ text: '', answer: answerText, case_sensitive: false })
+          })
+          // Replace with-hint occurrences with blank keeping hint text
+          displayText = displayText.replace(/\[([^\]]+)\]\s*\(([^)]+)\)/g, (m, a, h) => `_____ (${h})`)
+
+          // Without hint: [answer] not followed by (...)
+          const noHintMatches = [...trimmedLine.matchAll(/\[([^\]]+)\](?!\s*\()/g)]
+          noHintMatches.forEach((m) => {
+            const answer = m[1]
+            const answers = answer.split(/[|/,]/).map(a => a.trim()).filter(a => a)
+            const answerText = answers.length > 0 ? answers.join(', ') : answer
+            blanks.push({ text: '', answer: answerText, case_sensitive: false })
+          })
+          // Replace no-hint occurrences with blank only
+          displayText = displayText.replace(/\[([^\]]+)\](?!\s*\()/g, '_____')
+
+          if (blanks.length > 0) {
             const question = {
               id: `q${Date.now()}_${questionCounter++}`,
               question: currentInstruction ? `${currentInstruction}\n\n${displayText}` : displayText,
               blanks: blanks,
               explanation: ''
             }
-            
             newQuestions.push(question)
           }
         }
@@ -313,7 +436,28 @@ const FillBlankEditor = ({ questions, onQuestionsChange }) => {
     })
   }
 
+  // Convert simple markdown/HTML to safe HTML for preview (align with MultipleChoice)
+  const markdownToHtml = (text) => {
+    if (!text) return ''
+    let html = text
+    // Highlight blank underscores (___ or longer) with prominent blue styling
+    html = html.replace(
+      /(_{3,})/g,
+      '<span class="inline-block align-baseline text-blue-700 font-bold bg-blue-50 border border-blue-200 rounded px-1">$1</span>'
+    )
+    // Images markdown ![](url)
+    html = html.replace(/!\[(.*?)\]\((.*?)\)/g, (m, alt, url) => `<img src="${url}" alt="${alt || ''}" class="max-w-full h-auto rounded-lg my-2" />`)
+    // Preserve HTML <img> adding styling
+    html = html.replace(/<img([^>]*?)>/g, (m, attrs) => `<img${attrs} class="max-w-full h-auto rounded-lg my-2" />`)
+    // Preserve HTML <audio>
+    html = html.replace(/<audio([^>]*?)>/g, (m, attrs) => `<audio${attrs} class="w-full my-2"></audio>`)
+    // Links [text](url)
+    html = html.replace(/\[(.*?)\]\((.*?)\)/g, (m, t, url) => `<a href="${url}" target="_blank" rel="noreferrer">${t || url}</a>`)
+    return html
+  }
+
   return (
+    <>
     <div className="space-y-4 p-4 border border-gray-200 rounded-lg">
       <div className="flex justify-between items-center">
         <h3 className="text-lg font-medium text-gray-900">Fill in the Blank Questions</h3>
@@ -443,9 +587,21 @@ const FillBlankEditor = ({ questions, onQuestionsChange }) => {
               <label className="block text-sm font-medium text-gray-700 mb-1">
                 Question
               </label>
+              <div className="flex items-center gap-2 mb-2">
+                <button type="button" onClick={() => handlePasteImageUrl(index)} className="px-2 py-1 text-xs bg-gray-100 hover:bg-gray-200 rounded inline-flex items-center gap-1">
+                  <ImageIcon className="w-3 h-3" /> Image
+                </button>
+                <button type="button" onClick={() => handleInsertAudio(index)} className="px-2 py-1 text-xs bg-gray-100 hover:bg-gray-200 rounded inline-flex items-center gap-1">
+                  <Music className="w-3 h-3" /> Audio
+                </button>
+                <button type="button" onClick={() => handleInsertLink(index)} className="px-2 py-1 text-xs bg-gray-100 hover:bg-gray-200 rounded inline-flex items-center gap-1">
+                  <LinkIcon className="w-3 h-3" /> Link
+                </button>
+              </div>
               <textarea
                 value={question.question || ''}
                 onChange={(e) => updateQuestion(index, 'question', e.target.value)}
+                ref={(el) => { questionTextareasRef.current[index] = el }}
                      className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
                      rows={3}
                      placeholder="Enter your question with blanks (use _____ for blanks)... Example: By the time I arrived, everyone _____ (leave)! Steve _____ (already / see) the film, so he _____ (not / come) with us."
@@ -454,17 +610,8 @@ const FillBlankEditor = ({ questions, onQuestionsChange }) => {
               {question.question && (
                 <div className="mt-2 p-3 bg-gray-50 border border-gray-200 rounded-lg">
                   <p className="text-sm text-gray-600 mb-1">Preview:</p>
-                  <div className="text-sm whitespace-pre-line">
-                    {question.question.split(/(_____|\[blank\])/gi).map((part, partIndex) => {
-                      if (part.match(/^(_____|\[blank\])$/gi)) {
-                        return (
-                          <span key={partIndex} className="inline-block mx-1 px-2 py-1 bg-blue-100 text-blue-800 rounded border border-blue-300">
-                            _____
-                          </span>
-                        )
-                      }
-                      return <span key={partIndex}>{part}</span>
-                    })}
+                  <div className="prose max-w-none">
+                    <RichTextRenderer content={markdownToHtml(question.question)} allowImages allowLinks />
                   </div>
                 </div>
               )}
@@ -489,20 +636,11 @@ const FillBlankEditor = ({ questions, onQuestionsChange }) => {
                 {question.blanks.map((blank, blankIndex) => (
                   <div key={blankIndex} className="border border-gray-300 rounded-lg p-3 bg-white">
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-                      <div>
-                        <label className="block text-sm font-medium text-gray-700 mb-1">
-                          Hint Text (Optional)
-                        </label>
-                        <input
-                          type="text"
-                          value={blank.text}
-                          onChange={(e) => updateBlank(index, blankIndex, 'text', e.target.value)}
-                          className="w-full p-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
-                          placeholder="e.g., leave, already / see"
-                        />
-                        <p className="text-xs text-gray-500 mt-1">This will appear as a hint below the input field</p>
+                      {/* Hint input removed per request */}
+                      <div className="hidden">
+                        <input type="hidden" value={blank.text} readOnly />
                       </div>
-                       <div>
+                       <div className="md:col-span-2">
                          <label className="block text-sm font-medium text-gray-700 mb-1">
                            Correct Answers
                          </label>
@@ -566,6 +704,78 @@ const FillBlankEditor = ({ questions, onQuestionsChange }) => {
         )}
       </div>
     </div>
+    {urlModal.isOpen && (
+      <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+        <div className="bg-white rounded-lg max-w-md w-full p-6">
+          <div className="flex justify-between items-center mb-4">
+            <h3 className="text-lg font-semibold">{urlModal.type === 'image' ? 'Thêm hình ảnh' : urlModal.type === 'audio' ? 'Thêm âm thanh' : 'Thêm liên kết'}</h3>
+            <button onClick={handleUrlCancel} className="text-gray-500 hover:text-gray-700">✕</button>
+          </div>
+          <div className="space-y-4">
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">URL</label>
+              <input type="url" value={urlInput} onChange={(e) => setUrlInput(e.target.value)} className="w-full p-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500" placeholder={urlModal.type === 'image' ? 'https://example.com/image.jpg' : urlModal.type === 'audio' ? 'https://example.com/audio.mp3' : 'https://example.com/link'} />
+            </div>
+            {urlModal.type === 'link' && (
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Text hiển thị (tùy chọn)</label>
+                <input type="text" value={linkText} onChange={(e) => setLinkText(e.target.value)} className="w-full p-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500" placeholder="Reference" />
+              </div>
+            )}
+            {urlModal.type === 'image' && (
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">Kích thước hình ảnh</label>
+                <div className="grid grid-cols-2 gap-2 mb-2">
+                  {[
+                    { value: 'small', label: 'Nhỏ (200px)' },
+                    { value: 'medium', label: 'Trung bình (400px)' },
+                    { value: 'large', label: 'Lớn (600px)' },
+                    { value: 'full', label: 'Toàn màn hình' }
+                  ].map(s => (
+                    <button key={s.value} type="button" onClick={() => setImageSize(s.value)} className={`p-2 rounded border text-sm ${imageSize === s.value ? 'border-blue-500 bg-blue-50 text-blue-700' : 'border-gray-300 hover:border-gray-400'}`}>{s.label}</button>
+                  ))}
+                </div>
+                <div className="grid grid-cols-2 gap-2">
+                  <div>
+                    <label className="block text-xs text-gray-600 mb-1">Rộng (px)</label>
+                    <input type="number" value={customWidth} onChange={(e) => setCustomWidth(e.target.value)} className="w-full p-2 border border-gray-300 rounded text-sm" placeholder="400" />
+                  </div>
+                  <div>
+                    <label className="block text-xs text-gray-600 mb-1">Cao (px)</label>
+                    <input type="number" value={customHeight} onChange={(e) => setCustomHeight(e.target.value)} className="w-full p-2 border border-gray-300 rounded text-sm" placeholder="300" />
+                  </div>
+                </div>
+              </div>
+            )}
+            {urlModal.type === 'audio' && (
+              <div className="space-y-2">
+                <label className="block text-sm font-medium text-gray-700 mb-1">Tùy chọn âm thanh</label>
+                <label className="flex items-center gap-2 text-sm"><input type="checkbox" checked={audioControls} onChange={(e) => setAudioControls(e.target.checked)} /> Hiển thị controls</label>
+                <label className="flex items-center gap-2 text-sm"><input type="checkbox" checked={audioAutoplay} onChange={(e) => setAudioAutoplay(e.target.checked)} /> Autoplay</label>
+                <label className="flex items-center gap-2 text-sm"><input type="checkbox" checked={audioLoop} onChange={(e) => setAudioLoop(e.target.checked)} /> Loop</label>
+              </div>
+            )}
+            {urlInput && (
+              <div className="p-3 bg-gray-50 rounded">
+                <div className="text-sm text-gray-600 mb-2">Preview:</div>
+                {urlModal.type === 'image' ? (
+                  <img src={urlInput} alt="Preview" className="max-w-full rounded border" />
+                ) : urlModal.type === 'audio' ? (
+                  <audio src={urlInput} controls={audioControls} autoPlay={audioAutoplay} loop={audioLoop} className="w-full" />
+                ) : (
+                  <a href={urlInput} target="_blank" rel="noreferrer" className="text-blue-600 hover:underline">{linkText || urlInput}</a>
+                )}
+              </div>
+            )}
+          </div>
+          <div className="flex justify-end gap-2 mt-6">
+            <button type="button" onClick={handleUrlCancel} className="px-4 py-2 bg-gray-200 rounded hover:bg-gray-300">Hủy</button>
+            <button type="button" onClick={handleUrlSubmit} disabled={!urlInput.trim()} className="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700 disabled:bg-gray-400">Chèn</button>
+          </div>
+        </div>
+      </div>
+    )}
+    </>
   )
 }
 

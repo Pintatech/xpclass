@@ -16,7 +16,8 @@ import {
   Edit,
   Trash2,
   Copy,
-  Move
+  Move,
+  Brain
 } from 'lucide-react'
 import FolderTree from './ExerciseBank/FolderTree'
 import ExerciseBankCard from './ExerciseBank/ExerciseBankCard'
@@ -31,7 +32,7 @@ const ExerciseBank = () => {
   const [selectedFolder, setSelectedFolder] = useState(null)
   const [loading, setLoading] = useState(true)
   const [searchTerm, setSearchTerm] = useState('')
-  const [viewMode, setViewMode] = useState('grid') // 'grid' or 'list'
+  const [viewMode, setViewMode] = useState('list') // 'grid' or 'list'
   const [filterType, setFilterType] = useState('all')
   const [showCreateExercise, setShowCreateExercise] = useState(false)
   const [showCreateFolder, setShowCreateFolder] = useState(false)
@@ -188,6 +189,7 @@ const ExerciseBank = () => {
     { value: 'fill_blank', label: 'Fill in the Blank', icon: Edit3 },
     { value: 'multiple_choice', label: 'Multiple Choice', icon: HelpCircle },
     { value: 'drag_drop', label: 'Drag & Drop', icon: Copy },
+    { value: 'ai_fill_blank', label: 'Fill in AI Score', icon: Brain },
   ]
 
   const breadcrumbs = () => {

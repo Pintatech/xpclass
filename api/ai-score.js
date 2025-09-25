@@ -53,7 +53,7 @@ export default async function handler(req) {
   }
 
   try {
-    const { question, userAnswer, expectedAnswers = [], context, minScore = 70, prompt } = await req.json()
+    const { question, userAnswer, expectedAnswers = [], context, minScore = 70, prompt, language = 'en' } = await req.json()
 
     if (typeof userAnswer !== 'string' || userAnswer.trim().length === 0) {
       return jsonResponse(400, { error: 'Missing userAnswer' })
@@ -82,7 +82,8 @@ Context: ${context || 'educational assessment'}
 
 Rules:
 - Return JSON only: {"score":0-100,"confidence":0-100,"explanation":"..."}
-- Reward partial correctness and synonyms. Minor typos should not penalize much.`
+- Reward partial correctness and synonyms. Minor typos should not penalize much.
+- Write explanation in ${language === 'vi' ? 'Vietnamese' : 'English'}.`
 
       const res = await fetch('https://api.openai.com/v1/chat/completions', {
         method: 'POST',

@@ -6,6 +6,7 @@ import { useProgress } from '../../hooks/useProgress'
 import { saveRecentExercise } from '../../utils/recentExercise'
 import LoadingSpinner from '../ui/LoadingSpinner'
 import { Check, X, RotateCcw, HelpCircle, ArrowLeft } from 'lucide-react'
+import RichTextRenderer from '../ui/RichTextRenderer'
 
 const FillBlankExercise = () => {
   const location = useLocation()
@@ -326,7 +327,7 @@ const FillBlankExercise = () => {
   }
 
   const renderQuestionText = () => {
-    let text = currentQuestion.question
+    let text = currentQuestion.question || ''
     let blankIndex = 0
     
     // Replace blanks with input fields - handle multiple blanks per question
@@ -382,13 +383,31 @@ const FillBlankExercise = () => {
           </span>
         )
       }
-      // Handle line breaks in text parts
+      // Non-blank parts: render rich text (images/audio/html/link)
+      const html = markdownToHtml(part)
       return (
-        <span key={index} className="whitespace-pre-line">
-          {part}
+        <span key={index} className="inline">
+          <RichTextRenderer content={html} allowImages allowLinks className="prose inline max-w-none" />
         </span>
       )
     })
+  }
+
+  // Convert simple markdown/HTML to safe HTML similar to editors
+  const markdownToHtml = (text) => {
+    if (!text) return ''
+    let html = text
+    // Images markdown ![](url)
+    html = html.replace(/!\[(.*?)\]\((.*?)\)/g, (m, alt, url) => `<img src="${url}" alt="${alt || ''}" class="max-w-full h-auto align-middle" />`)
+    // HTML <img>
+    html = html.replace(/<img([^>]*?)>/g, (m, attrs) => `<img${attrs} class="max-w-full h-auto align-middle" />`)
+    // HTML <audio>
+    html = html.replace(/<audio([^>]*?)>/g, (m, attrs) => `<audio${attrs} class="w-full align-middle"></audio>`)
+    // Links [text](url)
+    html = html.replace(/\[(.*?)\]\((.*?)\)/g, (m, t, url) => `<a href="${url}" target="_blank" rel="noreferrer">${t || url}</a>`)
+    // Preserve line breaks
+    html = html.replace(/\n/g, '<br/>')
+    return html
   }
 
   return (

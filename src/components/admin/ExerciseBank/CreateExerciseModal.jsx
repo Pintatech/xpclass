@@ -1,10 +1,11 @@
 import React, { useState } from 'react'
 import { supabase } from '../../../supabase/client'
-import { X, BookOpen, Edit3, Mic, HelpCircle, Tag, Copy } from 'lucide-react'
+import { X, BookOpen, Edit3, Mic, HelpCircle, Tag, Copy, Brain } from 'lucide-react'
 import FlashcardEditor from '../editors/FlashcardEditor'
 import MultipleChoiceEditor from '../editors/MultipleChoiceEditor'
 import FillBlankEditor from '../editors/FillBlankEditor'
 import SmartDragDropEditor from '../editors/SmartDragDropEditor'
+import AIFillBlankEditor from '../editors/AIFillBlankEditor'
 
 const CreateExerciseModal = ({ folders, selectedFolder, onClose, onCreated }) => {
   const [formData, setFormData] = useState({
@@ -27,7 +28,8 @@ const CreateExerciseModal = ({ folders, selectedFolder, onClose, onCreated }) =>
     { value: 'pronunciation', label: 'Pronunciation', icon: Mic },
     { value: 'fill_blank', label: 'Fill in the Blank', icon: Edit3 },
     { value: 'multiple_choice', label: 'Multiple Choice', icon: HelpCircle },
-    { value: 'drag_drop', label: 'Drag & Drop', icon: Copy }
+    { value: 'drag_drop', label: 'Drag & Drop', icon: Copy },
+    { value: 'ai_fill_blank', label: 'Fill in AI Score', icon: Brain }
   ]
 
   const handleSubmit = async (e) => {
@@ -342,6 +344,44 @@ const CreateExerciseModal = ({ folders, selectedFolder, onClose, onCreated }) =>
                 <p className="text-sm text-gray-600 text-center">
                   Pronunciation exercises can be configured after creation
                 </p>
+              </div>
+            )}
+
+            {formData.exercise_type === 'ai_fill_blank' && (
+              <div className="space-y-4">
+                <div className="p-4 bg-purple-50 border border-purple-200 rounded-lg">
+                  <h4 className="font-medium text-purple-900 mb-2">🤖 AI Fill-in-the-Blank Exercise Editor</h4>
+                  <p className="text-sm text-purple-700">
+                    Create questions that use AI to intelligently score student answers.
+                  </p>
+                </div>
+                {/* Language toggle for AI explanation */}
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                      AI Explanation Language
+                    </label>
+                    <select
+                      value={formData?.content?.settings?.language || 'en'}
+                      onChange={(e) => {
+                        const currentSettings = formData?.content?.settings || {}
+                        handleContentChange('settings', {
+                          ...currentSettings,
+                          language: e.target.value
+                        })
+                      }}
+                      className="w-full p-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-purple-500"
+                    >
+                      <option value="en">English</option>
+                      <option value="vi">Tiếng Việt</option>
+                    </select>
+                    <p className="text-xs text-gray-500 mt-1">Chọn ngôn ngữ giải thích của AI cho bài này.</p>
+                  </div>
+                </div>
+                <AIFillBlankEditor
+                  questions={formData.content.questions || []}
+                  onQuestionsChange={(questions) => handleContentChange('questions', questions)}
+                />
               </div>
             )}
           </div>

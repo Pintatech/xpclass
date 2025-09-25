@@ -5,6 +5,7 @@ import FlashcardEditor from '../editors/FlashcardEditor'
 import MultipleChoiceEditor from '../editors/MultipleChoiceEditor'
 import FillBlankEditor from '../editors/FillBlankEditor'
 import SmartDragDropEditor from '../editors/SmartDragDropEditor'
+import AIFillBlankEditor from '../editors/AIFillBlankEditor'
 
 const EditExerciseModal = ({ isOpen, onClose, exercise, onUpdate }) => {
   const [formData, setFormData] = useState({
@@ -157,6 +158,31 @@ const EditExerciseModal = ({ isOpen, onClose, exercise, onUpdate }) => {
             questions={content.questions || []}
             onQuestionsChange={(questions) => handleContentChange({ ...content, questions })}
           />
+        )
+      case 'ai_fill_blank':
+        return (
+          <>
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">AI Explanation Language</label>
+                <select
+                  value={(content?.settings?.language) || 'en'}
+                  onChange={(e) => handleContentChange({
+                    ...content,
+                    settings: { ...(content?.settings || {}), language: e.target.value }
+                  })}
+                  className="w-full p-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-purple-500"
+                >
+                  <option value="en">English</option>
+                  <option value="vi">Tiếng Việt</option>
+                </select>
+              </div>
+            </div>
+            <AIFillBlankEditor
+              questions={content.questions || []}
+              onQuestionsChange={(questions) => handleContentChange({ ...content, questions })}
+            />
+          </>
         )
       default:
         return (

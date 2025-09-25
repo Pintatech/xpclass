@@ -1,7 +1,7 @@
 // AI Scoring Service for Fill-in-the-Blank Questions
 // This service handles AI-powered answer evaluation
 
-export const callAIScoring = async (question, userAnswer, expectedAnswers, context = 'educational assessment') => {
+export const callAIScoring = async (question, userAnswer, expectedAnswers, context = 'educational assessment', language = 'en') => {
   try {
     // For now, we'll use a mock AI service
     // In production, this would call OpenAI API or similar
@@ -14,7 +14,7 @@ export const callAIScoring = async (question, userAnswer, expectedAnswers, conte
 }
 
 // Mock AI scoring function (replace with real AI API call)
-const mockAIScoring = async (question, userAnswer, expectedAnswers, context) => {
+const mockAIScoring = async (question, userAnswer, expectedAnswers, context, language = 'en') => {
   // Simulate API delay
   await new Promise(resolve => setTimeout(resolve, 1000 + Math.random() * 2000))
   
@@ -27,7 +27,7 @@ const mockAIScoring = async (question, userAnswer, expectedAnswers, context) => 
     return {
       score: 100,
       confidence: 95,
-      explanation: "Perfect match! Your answer exactly matches one of the expected answers."
+      explanation: language === 'vi' ? 'Chính xác! Câu trả lời trùng khớp với đáp án mong đợi.' : "Perfect match! Your answer exactly matches one of the expected answers."
     }
   }
   
@@ -47,13 +47,15 @@ const mockAIScoring = async (question, userAnswer, expectedAnswers, context) => 
   const keywordScore = checkKeywordMatches(userAnswerLower, expectedAnswersLower)
   if (keywordScore > bestScore) {
     bestScore = keywordScore
-    bestExplanation = "Good! Your answer contains the key concepts, though the wording is different."
+    bestExplanation = language === 'vi' ? 'Tốt! Câu trả lời của bạn chứa các ý chính, dù cách diễn đạt khác.' : "Good! Your answer contains the key concepts, though the wording is different."
   }
   
   return {
     score: Math.round(bestScore),
     confidence: Math.min(95, Math.round(bestScore + Math.random() * 10)),
-    explanation: bestExplanation || "Your answer doesn't quite match the expected responses. Try rephrasing or checking your spelling."
+    explanation: bestExplanation || (language === 'vi'
+      ? 'Câu trả lời chưa phù hợp với đáp án kỳ vọng. Hãy thử diễn đạt lại hoặc kiểm tra chính tả.'
+      : "Your answer doesn't quite match the expected responses. Try rephrasing or checking your spelling.")
   }
 }
 
