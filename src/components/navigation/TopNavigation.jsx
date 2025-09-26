@@ -81,19 +81,19 @@ const TopNavigation = () => {
                     {profile.xp || 0} XP
                   </div>
                 </div>
-                <div className="w-8 h-8 rounded-full overflow-hidden flex items-center justify-center border-2 border-gray-300">
+                <div className="flex items-center justify-center">
                   {currentBadge.icon.startsWith('http') ? (
-                    <img 
-                      src={currentBadge.icon} 
+                    <img
+                      src={currentBadge.icon}
                       alt={currentBadge.name}
-                      className="w-full h-full object-cover"
+                      className="w-7 h-7 object-contain"
                       onError={(e) => {
                         e.target.style.display = 'none'
                         e.target.nextSibling.style.display = 'inline'
                       }}
                     />
                   ) : null}
-                  <span className="text-lg" style={{ display: currentBadge.icon.startsWith('http') ? 'none' : 'inline' }}>
+                  <span className="text-xl" style={{ display: currentBadge.icon.startsWith('http') ? 'none' : 'inline' }}>
                     {currentBadge.icon}
                   </span>
                 </div>

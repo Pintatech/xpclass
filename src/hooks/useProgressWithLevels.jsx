@@ -2,6 +2,7 @@ import { createContext, useContext, useEffect, useState } from 'react'
 import { useAuth } from './useAuth'
 import { useStudentLevels } from './useStudentLevels'
 import { supabase } from '../supabase/client'
+import { getVietnamDate, daysDifferenceVietnam } from '../utils/vietnamTime'
 
 const ProgressContext = createContext({})
 
@@ -207,13 +208,13 @@ export const ProgressProvider = ({ children }) => {
 
     try {
       // Determine status based on score
-      const status = meetingRequirement ? 'completed' : 'attempted'
+      const currentStatus = meetingRequirement ? 'completed' : 'attempted'
 
       // Get existing progress from database to calculate attempts accurately
       console.log(`🔍 Fetching existing progress for user ${user.id}, exercise ${exerciseId}`)
       const { data: existingProgressData, error: fetchError } = await supabase
         .from('user_progress')
-        .select('attempts, first_attempt_at, status')
+        .select('attempts, first_attempt_at, status, completed_at, score, max_score')
         .eq('user_id', user.id)
         .eq('exercise_id', exerciseId)
         .maybeSingle()
@@ -224,18 +225,44 @@ export const ProgressProvider = ({ children }) => {
       const newAttempts = currentAttempts + 1
       console.log(`🔄 Attempt tracking: current=${currentAttempts}, new=${newAttempts}`)
 
-      // Sanitize client-provided progress data
-      const { xp_earned: _omitXpEarned, attempts: _omitAttempts, ...safeProgressData } = progressData || {}
+      // Determine best score and status
+      let finalStatus = currentStatus
+      let finalCompletedAt = meetingRequirement ? new Date().toISOString() : null
+      let finalScore = progressData.score || 0
+      let finalMaxScore = progressData.max_score || 0
 
-      // Save progress regardless of score
-      console.log(`💾 Upserting progress with attempts: ${newAttempts}`)
+      // If already completed, keep completed status unless new score is better
+      if (existingProgressData?.status === 'completed') {
+        const existingScorePercent = existingProgressData.max_score ?
+          (existingProgressData.score / existingProgressData.max_score) * 100 : 0
+        const newScorePercent = finalMaxScore ? (finalScore / finalMaxScore) * 100 : 0
+
+        // Keep completed status and best score
+        if (existingScorePercent >= newScorePercent) {
+          finalStatus = 'completed'
+          finalCompletedAt = existingProgressData.completed_at
+          finalScore = existingProgressData.score
+          finalMaxScore = existingProgressData.max_score
+          console.log('📊 Keeping existing better score and completed status')
+        } else {
+          console.log('📊 New score is better, updating to new score')
+        }
+      }
+
+      // Sanitize client-provided progress data
+      const { xp_earned: _omitXpEarned, attempts: _omitAttempts, score: _omitScore, max_score: _omitMaxScore, ...safeProgressData } = progressData || {}
+
+      // Save progress with best score logic
+      console.log(`💾 Upserting progress with attempts: ${newAttempts}, status: ${finalStatus}`)
       const { data, error } = await supabase
         .from('user_progress')
         .upsert({
           user_id: user.id,
           exercise_id: exerciseId,
-          status: status,
-          completed_at: meetingRequirement ? new Date().toISOString() : null,
+          status: finalStatus,
+          completed_at: finalCompletedAt,
+          score: finalScore,
+          max_score: finalMaxScore,
           attempts: newAttempts,
           first_attempt_at: existingProgressData?.first_attempt_at || new Date().toISOString(),
           ...safeProgressData,
@@ -252,8 +279,10 @@ export const ProgressProvider = ({ children }) => {
         const { error: updateError } = await supabase
           .from('user_progress')
           .update({
-            status: status,
-            completed_at: meetingRequirement ? new Date().toISOString() : null,
+            status: finalStatus,
+            completed_at: finalCompletedAt,
+            score: finalScore,
+            max_score: finalMaxScore,
             attempts: newAttempts,
             first_attempt_at: existingProgressData?.first_attempt_at || new Date().toISOString(),
             ...safeProgressData,
@@ -287,6 +316,12 @@ export const ProgressProvider = ({ children }) => {
 
       console.log(`✅ Exercise completed with ${newAttempts} attempts`)
 
+      // Update streak if exercise was completed successfully
+      if (meetingRequirement && !isAlreadyCompleted) {
+        console.log('🔥 Updating streak counter...')
+        await updateStreak()
+      }
+
       // Check for achievements only if completed
       if (meetingRequirement) {
         await checkAndAwardAchievements(progressData)
@@ -310,15 +345,18 @@ export const ProgressProvider = ({ children }) => {
     if (!user || !profile) return
 
     try {
-      const today = new Date().toISOString().split('T')[0]
+      // Get today's date in Vietnam timezone (for streak logic)
+      const vietnamToday = getVietnamDate()
       const lastActivity = profile.last_activity_date
+
+      console.log('🔥 Streak update:', { vietnamToday, lastActivity })
 
       let newStreakCount = profile.streak_count || 0
 
       if (lastActivity) {
-        const lastActivityDate = new Date(lastActivity)
-        const todayDate = new Date(today)
-        const daysDiff = Math.floor((todayDate - lastActivityDate) / (1000 * 60 * 60 * 24))
+        // Calculate days difference using Vietnam timezone
+        const daysDiff = daysDifferenceVietnam(vietnamToday, lastActivity)
+        console.log('🔥 Days difference (Vietnam time):', daysDiff)
 
         if (daysDiff === 1) {
           newStreakCount += 1
@@ -333,8 +371,8 @@ export const ProgressProvider = ({ children }) => {
         .from('users')
         .update({
           streak_count: newStreakCount,
-          last_activity_date: today,
-          updated_at: new Date().toISOString()
+          last_activity_date: vietnamToday, // Store Vietnam date for streak logic
+          updated_at: new Date().toISOString() // Keep UTC for updated_at
         })
         .eq('id', user.id)
 
@@ -379,12 +417,14 @@ export const ProgressProvider = ({ children }) => {
     try {
       console.log('🔍 Checking daily quest completion for exercise:', exerciseId)
 
+      // Check if this exercise is a daily quest (using Vietnam date)
+      const vietnamToday = getVietnamDate()
       const { data: questData, error: questError } = await supabase
         .from('daily_quests')
         .select('*')
         .eq('user_id', user.id)
         .eq('exercise_id', exerciseId)
-        .eq('quest_date', new Date().toISOString().split('T')[0])
+        .eq('quest_date', vietnamToday) // Use Vietnam date for quest logic
         .eq('status', 'available')
         .maybeSingle()
 

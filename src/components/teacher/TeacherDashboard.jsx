@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { supabase } from '../../supabase/client';
 import { useAuth } from '../../hooks/useAuth';
+import StudentExerciseMatrix from './StudentExerciseMatrix';
 import {
   BookOpen,
   Users,
@@ -15,11 +16,12 @@ import {
   Award,
   ChevronDown,
   ChevronRight,
-  BarChart
+  BarChart,
+  Grid
 } from 'lucide-react';
 
 const TeacherDashboard = () => {
-  const { user, isAdmin } = useAuth();
+  const { user, isAdmin, profile, loading: authLoading } = useAuth();
   const navigate = useNavigate();
   const [courses, setCourses] = useState([]);
   const [selectedCourse, setSelectedCourse] = useState('');
@@ -30,12 +32,13 @@ const TeacherDashboard = () => {
   const [courseSessionIds, setCourseSessionIds] = useState([]);
   const [loading, setLoading] = useState(false);
   const [expandedStudent, setExpandedStudent] = useState(null);
+  const [currentView, setCurrentView] = useState('overview'); // 'overview' or 'matrix'
 
   useEffect(() => {
-    if (user) {
+    if (user && !authLoading) {
       fetchTeacherCourses();
     }
-  }, [user]);
+  }, [user, authLoading, profile]);
 
   useEffect(() => {
     if (selectedCourse) {
@@ -46,6 +49,8 @@ const TeacherDashboard = () => {
 
   const fetchTeacherCourses = async () => {
     try {
+      console.log('Admin check:', isAdmin(), 'Profile:', user?.profile, 'User metadata:', user?.user_metadata);
+
       let query = supabase
         .from('courses')
         .select('id, title, level_number, description, teacher_id')
@@ -54,7 +59,10 @@ const TeacherDashboard = () => {
 
       // If user is admin, fetch all courses. Otherwise, fetch only teacher's courses
       if (!isAdmin()) {
+        console.log('Not admin, filtering by teacher_id:', user.id);
         query = query.eq('teacher_id', user.id);
+      } else {
+        console.log('Admin detected, fetching all courses');
       }
 
       const { data, error } = await query;
@@ -277,6 +285,15 @@ const TeacherDashboard = () => {
 
   const selectedCourseData = courses.find(course => course.id === selectedCourse);
 
+  if (authLoading) {
+    return (
+      <div className="flex items-center justify-center min-h-screen">
+        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
+        <p className="ml-2 text-gray-600">Loading...</p>
+      </div>
+    );
+  }
+
   return (
     <div className="space-y-6">
       {/* Header */}
@@ -292,13 +309,15 @@ const TeacherDashboard = () => {
           }
         </p>
         </div>
-        <button
-          onClick={() => navigate('/teacher/exercises')}
-          className="flex items-center space-x-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
-        >
-          <BarChart className="w-4 h-4" />
-          <span>Exercise Scores</span>
-        </button>
+        <div className="flex space-x-3">
+          <button
+            onClick={() => navigate('/teacher/exercises')}
+            className="flex items-center space-x-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
+          >
+            <BarChart className="w-4 h-4" />
+            <span>Exercise Scores</span>
+          </button>
+        </div>
       </div>
 
       {/* Course Selection */}
@@ -325,8 +344,41 @@ const TeacherDashboard = () => {
         </div>
       )}
 
-      {/* Course Overview Stats */}
+      {/* View Toggle */}
       {selectedCourse && (
+        <div className="bg-white rounded-lg shadow-sm border p-4">
+          <div className="flex items-center space-x-4">
+            <span className="text-sm font-medium text-gray-700">View:</span>
+            <div className="flex space-x-2">
+              <button
+                onClick={() => setCurrentView('overview')}
+                className={`flex items-center space-x-2 px-4 py-2 rounded-lg transition-colors ${
+                  currentView === 'overview'
+                    ? 'bg-blue-600 text-white'
+                    : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                }`}
+              >
+                <Users className="w-4 h-4" />
+                <span>Student Overview</span>
+              </button>
+              <button
+                onClick={() => setCurrentView('matrix')}
+                className={`flex items-center space-x-2 px-4 py-2 rounded-lg transition-colors ${
+                  currentView === 'matrix'
+                    ? 'bg-blue-600 text-white'
+                    : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                }`}
+              >
+                <Grid className="w-4 h-4" />
+                <span>Exercise Matrix</span>
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Course Overview Stats */}
+      {selectedCourse && currentView === 'overview' && (
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
           <div className="bg-white rounded-lg shadow-sm border p-6">
             <div className="flex items-center">
@@ -372,7 +424,7 @@ const TeacherDashboard = () => {
       )}
 
       {/* Students List */}
-      {selectedCourse && (
+      {selectedCourse && currentView === 'overview' && (
         <div className="bg-white rounded-lg shadow-sm border">
           <div className="p-6 border-b border-gray-200">
             <h2 className="text-xl font-semibold text-gray-900">Student Progress</h2>
@@ -500,6 +552,11 @@ const TeacherDashboard = () => {
             </div>
           )}
         </div>
+      )}
+
+      {/* Student Exercise Matrix */}
+      {selectedCourse && currentView === 'matrix' && (
+        <StudentExerciseMatrix selectedCourse={selectedCourse} />
       )}
 
       {/* No Courses */}

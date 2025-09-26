@@ -162,6 +162,7 @@ const Profile = () => {
 
   const fetchAvailableAvatars = async () => {
     try {
+      // Fetch ALL avatars, not just unlocked ones
       const { data, error } = await supabase
         .from('avatars')
         .select('*')
@@ -173,6 +174,14 @@ const Profile = () => {
       setAvailableAvatars(data || [])
     } catch (error) {
       console.error('Error fetching avatars:', error)
+      // Fallback to default avatars if function fails
+      setAvailableAvatars([
+        { id: '1', name: 'Default', image_url: '👤', unlock_xp: 0, description: 'Default avatar', tier: 'default' },
+        { id: '2', name: 'Smiley', image_url: '😊', unlock_xp: 0, description: 'Happy face', tier: 'default' },
+        { id: '3', name: 'Rookie', image_url: '🌱', unlock_xp: 500, description: 'Rookie learner', tier: 'bronze' },
+        { id: '4', name: 'Scholar', image_url: '🎓', unlock_xp: 2000, description: 'Academic scholar', tier: 'silver' },
+        { id: '5', name: 'Expert', image_url: '⚡', unlock_xp: 8000, description: 'Expert level', tier: 'gold' }
+      ])
     }
   }
 
@@ -365,18 +374,18 @@ const Profile = () => {
               <div className="flex items-center space-x-2">
                 <span className="font-semibold">Cấp {currentLevel?.level_number || 1}</span>
                 {currentBadge && (
-                  <div className={`flex items-center space-x-1 px-2 py-1 rounded-full ${getTierBgColor(currentBadge.tier)}`}>
-                    <img 
-                      src={currentBadge.icon} 
+                  <div className={`flex items-center space-x-2 px-3 py-1 rounded-lg ${getTierBgColor(currentBadge.tier)}`}>
+                    <img
+                      src={currentBadge.icon}
                       alt={currentBadge.name}
-                      className="w-5 h-5 rounded-full object-cover"
+                      className="w-5 h-5 object-contain"
                       onError={(e) => {
                         e.target.style.display = 'none'
                         e.target.nextSibling.style.display = 'inline'
                       }}
                     />
                     <span className="text-lg hidden">{currentBadge.icon}</span>
-                    <span className={`text-xs font-medium ${getTierColor(currentBadge.tier)}`}>
+                    <span className={`text-sm font-medium ${getTierColor(currentBadge.tier)}`}>
                       {currentBadge.name}
                     </span>
                   </div>
@@ -417,19 +426,17 @@ const Profile = () => {
         <Card className="bg-gradient-to-r from-indigo-500 to-purple-600 text-white">
           <Card.Content className="p-6">
             <div className="flex items-center justify-between mb-4">
-              <div className="flex items-center space-x-3">
-                <div className={`w-16 h-16 ${getTierBgColor(currentBadge?.tier)} rounded-full flex items-center justify-center overflow-hidden`}>
-                  <img 
-                    src={currentBadge?.icon} 
-                    alt={currentBadge?.name}
-                    className="w-full h-full object-cover rounded-full"
-                    onError={(e) => {
-                      e.target.style.display = 'none'
-                      e.target.nextSibling.style.display = 'inline'
-                    }}
-                  />
-                  <span className="text-3xl hidden">{currentBadge?.icon}</span>
-                </div>
+              <div className="flex items-center space-x-4">
+                <img
+                  src={currentBadge?.icon}
+                  alt={currentBadge?.name}
+                  className="w-12 h-12 object-contain"
+                  onError={(e) => {
+                    e.target.style.display = 'none'
+                    e.target.nextSibling.style.display = 'inline'
+                  }}
+                />
+                <span className="text-3xl hidden">{currentBadge?.icon}</span>
                 <div>
                   <h3 className="text-2xl font-bold">{currentBadge?.name}</h3>
                   <p className="text-indigo-100">{currentBadge?.description}</p>
@@ -606,39 +613,59 @@ const Profile = () => {
               </button>
             </div>
 
-            <div className="grid grid-cols-6 md:grid-cols-8 lg:grid-cols-10 gap-8">
+            <div className="grid grid-cols-6 md:grid-cols-8 lg:grid-cols-10 gap-6">
               {availableAvatars.map((avatar) => {
                 const isUnlocked = stats.totalXP >= avatar.unlock_xp
                 const isSelected = selectedAvatar === avatar.image_url
 
                 return (
                   <div key={avatar.id} className="text-center">
-                    <div
-                      className={`w-24 h-24 rounded-full flex items-center justify-center text-3xl cursor-pointer transition-all overflow-hidden ${
-                        isUnlocked
-                          ? isSelected
-                            ? 'bg-blue-500 text-white ring-4 ring-blue-300'
-                            : 'bg-gray-100 hover:bg-gray-200'
-                          : 'bg-gray-300 cursor-not-allowed opacity-50'
-                      }`}
-                      onClick={() => isUnlocked && handleAvatarSelect(avatar)}
-                      title={
-                        isUnlocked
-                          ? `${avatar.name} - ${avatar.description}`
-                          : `${avatar.name} - Cần ${avatar.unlock_xp} XP để mở khóa`
-                      }
-                    >
-                      {avatar.image_url.startsWith('http') ? (
-                        <img src={avatar.image_url} alt={avatar.name} className="w-full h-full object-cover" />
-                      ) : (
-                        avatar.image_url
+                    <div className="relative w-20 h-20">
+                      <div
+                        className={`w-full h-full rounded-full flex items-center justify-center text-2xl transition-all overflow-hidden border-2 ${
+                          isUnlocked
+                            ? isSelected
+                              ? 'bg-blue-500 text-white ring-4 ring-blue-300 border-blue-600 cursor-pointer'
+                              : 'bg-gray-100 hover:bg-gray-200 border-gray-300 cursor-pointer'
+                            : 'bg-gray-300 opacity-50 border-gray-400 cursor-not-allowed'
+                        }`}
+                        onClick={() => isUnlocked && handleAvatarSelect(avatar)}
+                        title={
+                          isUnlocked
+                            ? `${avatar.name} - ${avatar.description}`
+                            : `${avatar.name} - Cần ${avatar.unlock_xp} XP để mở khóa`
+                        }
+                      >
+                        {avatar.image_url.startsWith('http') ? (
+                          <img src={avatar.image_url} alt={avatar.name} className="w-full h-full object-cover rounded-full" />
+                        ) : (
+                          avatar.image_url
+                        )}
+                      </div>
+                      
+                      {/* Lock overlay for locked avatars - positioned absolutely over the entire container */}
+                      {!isUnlocked && (
+                        <div className="absolute inset-0 bg-black bg-opacity-60 rounded-full flex items-center justify-center">
+                          <svg className="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
+                          </svg>
+                        </div>
                       )}
                     </div>
-                    <div className="text-xs mt-1">
-                      {!isUnlocked && (
+                    <div className="text-xs mt-2">
+                      <div className={`font-medium ${isUnlocked ? 'text-gray-800' : 'text-gray-500'}`}>
+                        {avatar.name}
+                      </div>
+                      {!isUnlocked ? (
                         <div className="text-red-500 font-medium">
                           {avatar.unlock_xp} XP
                         </div>
+                      ) : (
+                        avatar.tier !== 'default' && (
+                          <div className="text-gray-500 capitalize">
+                            {avatar.tier}
+                          </div>
+                        )
                       )}
                     </div>
                   </div>
@@ -656,6 +683,30 @@ const Profile = () => {
                     Cấp {currentLevel.level_number} • {currentBadge?.name}
                   </div>
                 )}
+                
+                {/* Show next unlockable avatar */}
+                {(() => {
+                  const nextAvatar = availableAvatars.find(avatar => avatar.unlock_xp > stats.totalXP)
+                  if (nextAvatar) {
+                    return (
+                      <div className="mt-3 p-3 bg-white rounded-lg border border-blue-200">
+                        <div className="text-sm text-blue-800 font-medium">
+                          Avatar tiếp theo: {nextAvatar.name}
+                        </div>
+                        <div className="text-xs text-blue-600">
+                          Cần {nextAvatar.unlock_xp - stats.totalXP} XP nữa
+                        </div>
+                      </div>
+                    )
+                  }
+                  return (
+                    <div className="mt-3 p-3 bg-green-100 rounded-lg border border-green-200">
+                      <div className="text-sm text-green-800 font-medium">
+                        🎉 Bạn đã mở khóa tất cả avatars!
+                      </div>
+                    </div>
+                  )
+                })()}
               </div>
             </div>
           </div>

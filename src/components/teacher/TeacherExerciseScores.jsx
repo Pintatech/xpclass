@@ -155,6 +155,7 @@ const TeacherExerciseScores = () => {
 
   const userIdToProgress = useMemo(() => {
     const map = new Map();
+    // Since backend now handles best score logic, we can use simple mapping
     progressRows.forEach(r => map.set(r.user_id, r));
     return map;
   }, [progressRows]);

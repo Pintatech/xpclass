@@ -1,6 +1,8 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { useAuth } from '../../hooks/useAuth'
 import { useProgress } from '../../hooks/useProgress'
+import { useStudentLevels } from '../../hooks/useStudentLevels'
+import { supabase } from '../../supabase/client'
 import Card from '../ui/Card'
 import Button from '../ui/Button'
 import { 
@@ -16,65 +18,211 @@ import {
 } from 'lucide-react'
 
 const Progress = () => {
-  const { profile } = useAuth()
-  const { getCompletedExercises, getTotalStudyTime, getProgressPercentage, getXPForNextLevel } = useProgress()
+  const { user, profile } = useAuth()
+  const { getCompletedExercises, getTotalStudyTime, userProgress } = useProgress()
+  const { currentLevel, nextLevel, levelProgress, loading: levelsLoading } = useStudentLevels()
   const [selectedPeriod, setSelectedPeriod] = useState('week')
+  const [weeklyData, setWeeklyData] = useState([])
+  const [activityCalendar, setActivityCalendar] = useState([])
+  const [realAchievements, setRealAchievements] = useState([])
+  const [loading, setLoading] = useState(true)
 
   const completedExercises = getCompletedExercises()
   const totalStudyTime = getTotalStudyTime()
-  const progressPercentage = getProgressPercentage()
-  const xpForNextLevel = getXPForNextLevel()
 
-  const weeklyData = [
-    { day: 'T2', xp: 250, exercises: 3, time: 45 },
-    { day: 'T3', xp: 180, exercises: 2, time: 30 },
-    { day: 'T4', xp: 320, exercises: 4, time: 60 },
-    { day: 'T5', xp: 0, exercises: 0, time: 0 },
-    { day: 'T6', xp: 420, exercises: 5, time: 75 },
-    { day: 'T7', xp: 280, exercises: 3, time: 50 },
-    { day: 'CN', xp: 150, exercises: 2, time: 25 }
-  ]
+  // Fallback level calculations if student levels system is not available
+  const fallbackLevel = Math.floor((profile?.xp || 0) / 1000) + 1
+  const fallbackXpForNext = 1000 - ((profile?.xp || 0) % 1000)
+  const fallbackProgress = ((profile?.xp || 0) % 1000) / 1000 * 100
 
-  const achievements = [
-    {
-      id: 1,
-      title: 'Người mới bắt đầu',
-      description: 'Hoàn thành 5 bài tập đầu tiên',
-      icon: Star,
-      color: 'bg-yellow-500',
-      unlocked: true,
-      date: '2024-01-15'
-    },
-    {
-      id: 2,
-      title: 'Học viên chăm chỉ',
-      description: 'Học 7 ngày liên tiếp',
-      icon: Flame,
-      color: 'bg-red-500',
-      unlocked: true,
-      date: '2024-01-20'
-    },
-    {
-      id: 3,
-      title: 'Bậc thầy phát âm',
-      description: 'Đạt 90% độ chính xác trong phát âm',
-      icon: Trophy,
-      color: 'bg-blue-500',
-      unlocked: false,
-      progress: 75
-    },
-    {
-      id: 4,
-      title: 'Kỷ lục gia',
-      description: 'Học 100 bài tập',
-      icon: Target,
-      color: 'bg-green-500',
-      unlocked: false,
-      progress: 45
+  // Use either the new level system or fallback
+  const displayLevel = currentLevel?.level_number || fallbackLevel
+  const displayLevelName = currentLevel?.level_name || `Cấp ${displayLevel}`
+  const displayNextLevelName = nextLevel?.level_name || `Cấp ${displayLevel + 1}`
+  const displayXpNeeded = levelProgress?.xpNeeded || fallbackXpForNext
+  const displayProgress = levelProgress?.progressPercentage || fallbackProgress
+
+  useEffect(() => {
+    if (user && userProgress) {
+      fetchWeeklyData()
+      fetchActivityCalendar()
+      fetchRealAchievements()
     }
-  ]
+  }, [user, userProgress])
 
-  const maxXP = Math.max(...weeklyData.map(d => d.xp))
+  // Debug logging for level system
+  useEffect(() => {
+    console.log('Progress Component Debug:', {
+      currentLevel,
+      nextLevel,
+      levelProgress,
+      profileXp: profile?.xp,
+      levelsLoading,
+      fallbackLevel,
+      displayLevel,
+      displayXpNeeded,
+      displayProgress
+    })
+  }, [currentLevel, nextLevel, levelProgress, profile, levelsLoading, fallbackLevel, displayLevel, displayXpNeeded, displayProgress])
+
+  const fetchWeeklyData = async () => {
+    try {
+      const days = ['T2', 'T3', 'T4', 'T5', 'T6', 'T7', 'CN']
+      const weekData = []
+
+      // Get last 7 days
+      for (let i = 6; i >= 0; i--) {
+        const date = new Date()
+        date.setDate(date.getDate() - i)
+        const dateStr = date.toISOString().split('T')[0]
+
+        // Get progress data for this day
+        const dayProgress = userProgress.filter(p =>
+          p.completed_at && p.completed_at.startsWith(dateStr)
+        )
+
+        const dayXp = dayProgress.reduce((total, p) => total + (p.xp_earned || 0), 0)
+        const dayExercises = dayProgress.filter(p => p.status === 'completed').length
+        const dayTime = dayProgress.reduce((total, p) => total + (p.time_spent || 0), 0)
+
+        weekData.push({
+          day: days[i],
+          xp: dayXp,
+          exercises: dayExercises,
+          time: dayTime
+        })
+      }
+
+      setWeeklyData(weekData)
+    } catch (error) {
+      console.error('Error fetching weekly data:', error)
+      // Fallback to empty data
+      setWeeklyData([
+        { day: 'T2', xp: 0, exercises: 0, time: 0 },
+        { day: 'T3', xp: 0, exercises: 0, time: 0 },
+        { day: 'T4', xp: 0, exercises: 0, time: 0 },
+        { day: 'T5', xp: 0, exercises: 0, time: 0 },
+        { day: 'T6', xp: 0, exercises: 0, time: 0 },
+        { day: 'T7', xp: 0, exercises: 0, time: 0 },
+        { day: 'CN', xp: 0, exercises: 0, time: 0 }
+      ])
+    }
+  }
+
+  const fetchActivityCalendar = async () => {
+    try {
+      // Get last 30 days activity
+      const calendar = []
+      for (let i = 29; i >= 0; i--) {
+        const date = new Date()
+        date.setDate(date.getDate() - i)
+        const dateStr = date.toISOString().split('T')[0]
+
+        const dayProgress = userProgress.filter(p =>
+          p.completed_at && p.completed_at.startsWith(dateStr)
+        )
+
+        const dayXp = dayProgress.reduce((total, p) => total + (p.xp_earned || 0), 0)
+        const hasActivity = dayXp > 0
+        const intensity = Math.min(dayXp / 100, 1) // Normalize XP to 0-1 scale
+
+        calendar.push({
+          date: dateStr,
+          hasActivity,
+          intensity,
+          xp: dayXp
+        })
+      }
+
+      setActivityCalendar(calendar)
+    } catch (error) {
+      console.error('Error fetching activity calendar:', error)
+      setActivityCalendar([])
+    }
+  }
+
+  const fetchRealAchievements = async () => {
+    try {
+      const completedCount = completedExercises
+      const currentStreak = profile?.streak_count || 0
+      const totalXp = profile?.xp || 0
+
+      // Calculate real achievements based on user data
+      const achievements = [
+        {
+          id: 1,
+          title: 'Người mới bắt đầu',
+          description: 'Hoàn thành 5 bài tập đầu tiên',
+          icon: 'Star',
+          color: 'bg-yellow-500',
+          unlocked: completedCount >= 5,
+          progress: Math.min((completedCount / 5) * 100, 100),
+          date: completedCount >= 5 ? 'Đã mở khóa' : null
+        },
+        {
+          id: 2,
+          title: 'Học viên chăm chỉ',
+          description: 'Học 7 ngày liên tiếp',
+          icon: 'Flame',
+          color: 'bg-red-500',
+          unlocked: currentStreak >= 7,
+          progress: Math.min((currentStreak / 7) * 100, 100),
+          date: currentStreak >= 7 ? 'Đã mở khóa' : null
+        },
+        {
+          id: 3,
+          title: 'Chiến binh XP',
+          description: 'Đạt 1000 XP',
+          icon: 'Trophy',
+          color: 'bg-blue-500',
+          unlocked: totalXp >= 1000,
+          progress: Math.min((totalXp / 1000) * 100, 100),
+          date: totalXp >= 1000 ? 'Đã mở khóa' : null
+        },
+        {
+          id: 4,
+          title: 'Kỷ lục gia',
+          description: 'Hoàn thành 100 bài tập',
+          icon: 'Target',
+          color: 'bg-green-500',
+          unlocked: completedCount >= 100,
+          progress: Math.min((completedCount / 100) * 100, 100),
+          date: completedCount >= 100 ? 'Đã mở khóa' : null
+        }
+      ]
+
+      setRealAchievements(achievements)
+    } catch (error) {
+      console.error('Error fetching achievements:', error)
+      setRealAchievements([])
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  // Helper function to get icon component from string
+  const getIconComponent = (iconName) => {
+    const icons = {
+      Star,
+      Flame,
+      Trophy,
+      Target
+    }
+    return icons[iconName] || Star
+  }
+
+  const maxXP = Math.max(...weeklyData.map(d => d.xp), 1) // Prevent division by 0
+
+  if (loading) {
+    return (
+      <div className="space-y-8">
+        <div>
+          <h1 className="text-3xl font-bold text-gray-900 mb-2">Tiến độ học tập</h1>
+          <p className="text-gray-600">Đang tải dữ liệu...</p>
+        </div>
+      </div>
+    )
+  }
 
   return (
     <div className="space-y-8">
@@ -92,7 +240,7 @@ const Progress = () => {
               <Star className="w-5 h-5 text-blue-600" />
             </div>
             <div>
-              <div className="text-lg font-bold text-gray-900">{profile?.level || 1}</div>
+              <div className="text-lg font-bold text-gray-900">{displayLevel}</div>
               <div className="text-sm text-gray-600">Cấp độ</div>
             </div>
           </div>
@@ -145,26 +293,26 @@ const Progress = () => {
             <div className="flex justify-between items-center">
               <div className="flex items-center space-x-3">
                 <div className="w-12 h-12 bg-gradient-to-r from-primary-600 to-secondary-600 rounded-full flex items-center justify-center text-white font-bold">
-                  {profile?.level || 1}
+                  {displayLevel}
                 </div>
                 <div>
-                  <div className="font-semibold text-gray-900">Cấp {profile?.level || 1}</div>
+                  <div className="font-semibold text-gray-900">{displayLevelName}</div>
                   <div className="text-sm text-gray-600">{profile?.xp || 0} XP</div>
                 </div>
               </div>
               <div className="text-right">
-                <div className="font-semibold text-gray-900">Cấp {(profile?.level || 1) + 1}</div>
-                <div className="text-sm text-gray-600">Còn {xpForNextLevel} XP</div>
+                <div className="font-semibold text-gray-900">{displayNextLevelName}</div>
+                <div className="text-sm text-gray-600">Còn {Math.max(0, displayXpNeeded)} XP</div>
               </div>
             </div>
             
             <div className="w-full bg-gray-200 rounded-full h-4">
-              <div 
+              <div
                 className="bg-gradient-to-r from-primary-600 to-secondary-600 h-4 rounded-full transition-all duration-500 flex items-center justify-end pr-2"
-                style={{ width: `${progressPercentage}%` }}
+                style={{ width: `${Math.min(100, Math.max(0, displayProgress))}%` }}
               >
                 <span className="text-xs text-white font-medium">
-                  {Math.round(progressPercentage)}%
+                  {Math.round(Math.min(100, Math.max(0, displayProgress)))}%
                 </span>
               </div>
             </div>
@@ -244,11 +392,21 @@ const Progress = () => {
               <div className="space-y-2">
                 <div className="flex justify-between text-sm">
                   <span className="text-gray-600">Trung bình/ngày:</span>
-                  <span className="font-medium">45 phút</span>
+                  <span className="font-medium">
+                    {totalStudyTime > 0 ? Math.round(totalStudyTime / 30) : 0} phút
+                  </span>
                 </div>
                 <div className="flex justify-between text-sm">
                   <span className="text-gray-600">Tuần này:</span>
-                  <span className="font-medium">4.5 giờ</span>
+                  <span className="font-medium">
+                    {weeklyData.reduce((total, day) => total + day.time, 0)} phút
+                  </span>
+                </div>
+                <div className="flex justify-between text-sm">
+                  <span className="text-gray-600">Chuỗi ngày hiện tại:</span>
+                  <span className="font-medium text-green-600">
+                    {profile?.streak_count || 0} ngày
+                  </span>
                 </div>
               </div>
             </div>
@@ -264,25 +422,21 @@ const Progress = () => {
           </Card.Header>
           <Card.Content>
             <div className="grid grid-cols-7 gap-1">
-              {[...Array(30)].map((_, index) => {
-                const hasActivity = Math.random() > 0.3
-                const intensity = Math.random()
-                return (
-                  <div
-                    key={index}
-                    className={`w-4 h-4 rounded-sm ${
-                      hasActivity
-                        ? intensity > 0.7
-                          ? 'bg-green-600'
-                          : intensity > 0.4
-                          ? 'bg-green-400'
-                          : 'bg-green-200'
-                        : 'bg-gray-100'
-                    }`}
-                    title={hasActivity ? `${Math.floor(intensity * 100)} XP` : 'Không có hoạt động'}
-                  />
-                )
-              })}
+              {activityCalendar.map((day, index) => (
+                <div
+                  key={index}
+                  className={`w-4 h-4 rounded-sm ${
+                    day.hasActivity
+                      ? day.intensity > 0.7
+                        ? 'bg-green-600'
+                        : day.intensity > 0.4
+                        ? 'bg-green-400'
+                        : 'bg-green-200'
+                      : 'bg-gray-100'
+                  }`}
+                  title={day.hasActivity ? `${day.xp} XP - ${day.date}` : `Không có hoạt động - ${day.date}`}
+                />
+              ))}
             </div>
             <div className="flex justify-between text-xs text-gray-600 mt-2">
               <span>Ít</span>
@@ -302,44 +456,47 @@ const Progress = () => {
         </Card.Header>
         <Card.Content>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            {achievements.map((achievement) => (
-              <div
-                key={achievement.id}
-                className={`p-4 rounded-lg border ${
-                  achievement.unlocked
-                    ? 'bg-gradient-to-r from-yellow-50 to-orange-50 border-yellow-200'
-                    : 'bg-gray-50 border-gray-200'
-                }`}
-              >
-                <div className="flex items-start space-x-3">
-                  <div className={`w-10 h-10 rounded-full flex items-center justify-center ${achievement.color}`}>
-                    <achievement.icon className="w-5 h-5 text-white" />
-                  </div>
-                  <div className="flex-1">
-                    <div className="font-semibold text-gray-900">{achievement.title}</div>
-                    <div className="text-sm text-gray-600">{achievement.description}</div>
-                    
-                    {achievement.unlocked ? (
-                      <div className="text-xs text-green-600 mt-1">
-                        ✓ Đã mở khóa • {achievement.date}
-                      </div>
-                    ) : (
-                      <div className="mt-2">
-                        <div className="w-full bg-gray-200 rounded-full h-2">
-                          <div 
-                            className="bg-primary-600 h-2 rounded-full"
-                            style={{ width: `${achievement.progress}%` }}
-                          />
+            {realAchievements.map((achievement) => {
+              const IconComponent = getIconComponent(achievement.icon)
+              return (
+                <div
+                  key={achievement.id}
+                  className={`p-4 rounded-lg border ${
+                    achievement.unlocked
+                      ? 'bg-gradient-to-r from-yellow-50 to-orange-50 border-yellow-200'
+                      : 'bg-gray-50 border-gray-200'
+                  }`}
+                >
+                  <div className="flex items-start space-x-3">
+                    <div className={`w-10 h-10 rounded-full flex items-center justify-center ${achievement.color}`}>
+                      <IconComponent className="w-5 h-5 text-white" />
+                    </div>
+                    <div className="flex-1">
+                      <div className="font-semibold text-gray-900">{achievement.title}</div>
+                      <div className="text-sm text-gray-600">{achievement.description}</div>
+
+                      {achievement.unlocked ? (
+                        <div className="text-xs text-green-600 mt-1">
+                          ✓ {achievement.date}
                         </div>
-                        <div className="text-xs text-gray-600 mt-1">
-                          {achievement.progress}% hoàn thành
+                      ) : (
+                        <div className="mt-2">
+                          <div className="w-full bg-gray-200 rounded-full h-2">
+                            <div
+                              className="bg-primary-600 h-2 rounded-full"
+                              style={{ width: `${achievement.progress}%` }}
+                            />
+                          </div>
+                          <div className="text-xs text-gray-600 mt-1">
+                            {Math.round(achievement.progress)}% hoàn thành
+                          </div>
                         </div>
-                      </div>
-                    )}
+                      )}
+                    </div>
                   </div>
                 </div>
-              </div>
-            ))}
+              )
+            })}
           </div>
         </Card.Content>
       </Card>

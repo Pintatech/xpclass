@@ -346,7 +346,7 @@ const FillBlankExercise = () => {
                   type="text"
                   value=""
                   disabled
-                  className="px-2 py-1 border-2 border-gray-200 bg-gray-100 text-center min-w-[100px] cursor-not-allowed"
+                  className="px-2 py-1 border-2 border-gray-200 bg-gray-100 text-center w-16 max-w-24 cursor-not-allowed"
                   placeholder="?"
                 />
                 <div className="absolute -bottom-6 left-0 text-xs text-red-500 whitespace-nowrap">
@@ -365,9 +365,9 @@ const FillBlankExercise = () => {
                 value={userAnswers[currentQuestionIndex]?.[currentBlankIndex] || ''}
                 onChange={(e) => handleAnswerChange(currentBlankIndex, e.target.value)}
                 disabled={showResults}
-                className={`px-2 py-1 border-2 rounded text-center min-w-[100px] ${
-                  status === 'correct' 
-                    ? 'border-green-500 bg-green-50 text-green-700' 
+                className={`px-2 py-1 border-2 rounded text-center w-16 max-w-24 ${
+                  status === 'correct'
+                    ? 'border-green-500 bg-green-50 text-green-700'
                     : status === 'incorrect'
                     ? 'border-red-500 bg-red-50 text-red-700'
                     : 'border-gray-300 focus:border-blue-500'

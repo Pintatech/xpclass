@@ -17,7 +17,17 @@ const Dashboard = () => {
   const [courses, setCourses] = useState([])
   const [loading, setLoading] = useState(true)
   const [recent, setRecent] = useState(null)
+  const [currentTime, setCurrentTime] = useState(new Date())
   const navigate = useNavigate()
+
+  // Update current time every second
+  useEffect(() => {
+    const timer = setInterval(() => {
+      setCurrentTime(new Date())
+    }, 1000)
+
+    return () => clearInterval(timer)
+  }, [])
 
   // Fetch courses data
   useEffect(() => {
@@ -110,15 +120,18 @@ const Dashboard = () => {
     }
   }
 
-  // Get greeting message based on current time (GMT+7)
+  // Get greeting message based on Vietnam time
   const getGreetingMessage = () => {
-    const now = new Date()
-    const vietnamTime = new Date(now.getTime() + (7 * 60 * 60 * 1000)) // GMT+7
-    const hour = vietnamTime.getHours()
-    
-    if (hour >= 5 && hour < 12) {
+    // Get Vietnam hour
+    const vietnamHour = parseInt(new Date().toLocaleString('en-US', {
+      timeZone: 'Asia/Ho_Chi_Minh',
+      hour: '2-digit',
+      hour12: false
+    }))
+
+    if (vietnamHour >= 5 && vietnamHour < 12) {
       return "Buổi sáng vui vẻ, học thôi nào! 🌅"
-    } else if (hour >= 12 && hour < 18) {
+    } else if (vietnamHour >= 12 && vietnamHour < 18) {
       return "Buổi chiều vui vẻ, học thôi nào! ☀️"
     } else {
       return "Buổi tối vui vẻ, học thôi nào! 🌙"
@@ -169,6 +182,11 @@ const Dashboard = () => {
                   <p className="text-base md:text-lg opacity-90 drop-shadow-md max-w-2xl">
                     {getGreetingMessage()}
                   </p>
+                  <div className="text-sm opacity-75 mt-1">
+                    🕒 {currentTime.toLocaleString('vi-VN', {
+                      timeZone: 'Asia/Ho_Chi_Minh'
+                    })} (VN)
+                  </div>
                 </div>
               </div>
             </div>
