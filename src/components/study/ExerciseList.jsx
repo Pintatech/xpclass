@@ -163,14 +163,7 @@ const ExerciseList = () => {
         sessionData ? Promise.resolve({ data: sessionData, error: null }) : supabase.from('sessions').select('*').eq('id', sessionId).single(),
         supabase.from('exercise_assignments').select(`
           *,
-          exercises (
-            *,
-            exercise_folders (
-              id,
-              name,
-              color
-            )
-          )
+          exercises (*)
         `).eq('session_id', sessionId).order('order_index'),
         supabase.from('units').select('*').order('unit_number')
       ])
@@ -479,9 +472,8 @@ const ExerciseList = () => {
     }
 
     const basePath = paths[exercise.exercise_type] || '/study/flashcard'
-    const selectedPath = `${basePath}?exerciseId=${exercise.id}&sessionId=${sessionId}`
-    console.log('🔍 Exercise type:', exercise.exercise_type, 'Available paths:', Object.keys(paths), 'Selected path:', selectedPath)
-    return selectedPath
+    console.log('🔍 Exercise type:', exercise.exercise_type, 'Available paths:', Object.keys(paths), 'Selected path:', basePath)
+    return basePath
   }
 
   const renderExerciseCard = (exercise, index) => {

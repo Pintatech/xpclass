@@ -128,14 +128,7 @@ const AssignExerciseModal = ({ sessionId, onClose, onAssigned }) => {
         .insert(assignmentsToCreate)
         .select(`
           *,
-          exercises (
-            *,
-            exercise_folders (
-              id,
-              name,
-              color
-            )
-          )
+          exercises (*)
         `)
 
       if (error) throw error

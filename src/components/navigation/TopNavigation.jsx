@@ -1,10 +1,10 @@
 import { Link, useLocation } from 'react-router-dom'
 import { useAuth } from '../../hooks/useAuth'
 import { useStudentLevels } from '../../hooks/useStudentLevels'
-import { 
-  Trophy, 
-  TrendingUp, 
-  HelpCircle, 
+import {
+  Trophy,
+  TrendingUp,
+  HelpCircle,
   Settings,
   LogOut,
   User,

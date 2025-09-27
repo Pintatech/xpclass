@@ -25,7 +25,8 @@ import {
   Crown,
   Zap,
   Shield,
-  Gem
+  Gem,
+  X
 } from 'lucide-react'
 
 const Profile = () => {
@@ -65,6 +66,11 @@ const Profile = () => {
   const [showAvatarSelector, setShowAvatarSelector] = useState(false)
   const [selectedAvatar, setSelectedAvatar] = useState('')
 
+  // Badge state
+  const [earnedBadges, setEarnedBadges] = useState([])
+  const [upcomingBadges, setUpcomingBadges] = useState([])
+  const [showBadgeModal, setShowBadgeModal] = useState(false)
+
   useEffect(() => {
     if (profile) {
       setEditData({
@@ -74,6 +80,7 @@ const Profile = () => {
       fetchUserStats()
       fetchRecentActivity()
       fetchAvailableAvatars()
+      processBadges()
     }
   }, [profile])
 
@@ -116,7 +123,7 @@ const Profile = () => {
 
       if (userError) throw userError
 
-      setStats({
+      const newStats = {
         totalXP,
         exercisesCompleted,
         streakCount: userData?.streak_count || 0,
@@ -125,7 +132,12 @@ const Profile = () => {
         levelsCompleted: 0, // We can calculate this if needed
         unitsCompleted: 0,  // We can calculate this if needed
         sessionsCompleted: 0 // We can calculate this if needed
-      })
+      }
+
+      setStats(newStats)
+
+      // Process badges after stats are updated
+      processBadges()
 
     } catch (error) {
       console.error('Error fetching user stats:', error)
@@ -182,6 +194,33 @@ const Profile = () => {
         { id: '4', name: 'Scholar', image_url: '🎓', unlock_xp: 2000, description: 'Academic scholar', tier: 'silver' },
         { id: '5', name: 'Expert', image_url: '⚡', unlock_xp: 8000, description: 'Expert level', tier: 'gold' }
       ])
+    }
+  }
+
+  const processBadges = async () => {
+    try {
+      // Get user's current XP
+      const userXP = stats.totalXP || profile?.xp || 0
+
+      // Fetch student levels from the existing admin system
+      const { data: studentLevels, error } = await supabase
+        .from('student_levels')
+        .select('*')
+        .eq('is_active', true)
+        .order('level_number', { ascending: true })
+
+      if (error) throw error
+
+      const levels = studentLevels || []
+
+      // Convert student levels to badge format and separate earned vs upcoming
+      const earned = levels.filter(level => userXP >= level.xp_required)
+      const upcoming = levels.filter(level => userXP < level.xp_required)
+
+      setEarnedBadges(earned)
+      setUpcomingBadges(upcoming)
+    } catch (error) {
+      console.error('Error processing badges:', error)
     }
   }
 
@@ -372,7 +411,6 @@ const Profile = () => {
           <div className="mt-6">
             <div className="flex items-center justify-between text-sm mb-2">
               <div className="flex items-center space-x-2">
-                <span className="font-semibold">Cấp {currentLevel?.level_number || 1}</span>
                 {currentBadge && (
                   <div className={`flex items-center space-x-2 px-3 py-1 rounded-lg ${getTierBgColor(currentBadge.tier)}`}>
                     <img
@@ -403,7 +441,7 @@ const Profile = () => {
                   />
                 </div>
                 <div className="text-xs text-blue-100 mt-1 text-center">
-                  {levelProgress.xpNeeded} XP đến cấp {nextLevel.level_number} ({nextBadge?.name})
+                  {levelProgress.xpNeeded} XP to unlock {nextBadge?.name}
                 </div>
               </>
             ) : (
@@ -414,67 +452,79 @@ const Profile = () => {
             
             {isMaxLevel && (
               <div className="text-xs text-blue-100 mt-1 text-center">
-                🎉 Bạn đã đạt cấp tối đa!
+                🎉 You've reached the highest level!
               </div>
             )}
           </div>
         </Card.Content>
       </Card>
 
-      {/* Level Information Card */}
-      {currentLevel && (
-        <Card className="bg-gradient-to-r from-indigo-500 to-purple-600 text-white">
-          <Card.Content className="p-6">
-            <div className="flex items-center justify-between mb-4">
-              <div className="flex items-center space-x-4">
-                <img
-                  src={currentBadge?.icon}
-                  alt={currentBadge?.name}
-                  className="w-12 h-12 object-contain"
-                  onError={(e) => {
-                    e.target.style.display = 'none'
-                    e.target.nextSibling.style.display = 'inline'
-                  }}
-                />
-                <span className="text-3xl hidden">{currentBadge?.icon}</span>
-                <div>
-                  <h3 className="text-2xl font-bold">{currentBadge?.name}</h3>
-                  <p className="text-indigo-100">{currentBadge?.description}</p>
+
+
+      {/* Badge Collection */}
+      <Card>
+        <Card.Header>
+          <div className="flex items-center justify-between">
+            <h3 className="text-xl font-semibold flex items-center space-x-2">
+              <Trophy className="w-5 h-5 text-yellow-600" />
+              <span>Badges ({earnedBadges.length} earned)</span>
+            </h3>
+            <button
+              onClick={() => setShowBadgeModal(true)}
+              className="flex items-center space-x-1 px-3 py-1 text-sm text-blue-600 hover:text-blue-700 hover:bg-blue-50 rounded-lg transition-colors"
+            >
+              <Trophy className="w-4 h-4" />
+              <span>View All</span>
+            </button>
+          </div>
+        </Card.Header>
+        
+        <Card.Content>
+          {earnedBadges.length > 0 ? (
+            <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-4">
+              {earnedBadges.slice(0, 6).map((badge) => (
+                <div key={badge.id} className="text-center">
+                  <div className={`w-16 h-16 mx-auto mb-2 p-2 rounded-full ${getTierBgColor(badge.badge_tier)}`}>
+                    <img
+                      src={badge.badge_icon}
+                      alt={badge.badge_name}
+                      className="w-full h-full object-contain"
+                      onError={(e) => {
+                        e.target.style.display = 'none'
+                        e.target.nextSibling.style.display = 'inline'
+                      }}
+                    />
+                    <span className="text-2xl hidden">{badge.badge_icon}</span>
+                  </div>
+                  <div className="text-sm font-medium text-gray-900">{badge.badge_name}</div>
                 </div>
-              </div>
-              <div className="text-right">
-                <div className="text-3xl font-bold">Cấp {currentLevel.level_number}</div>
-                <div className="text-indigo-100">Tier {currentBadge?.tier}</div>
-              </div>
+              ))}
+              {earnedBadges.length > 6 && (
+                <div className="flex items-center justify-center">
+                  <button
+                    onClick={() => setShowBadgeModal(true)}
+                    className="w-16 h-16 mx-auto mb-2 p-2 rounded-full bg-gray-100 hover:bg-gray-200 transition-colors flex items-center justify-center"
+                  >
+                    <span className="text-sm text-gray-600">+{earnedBadges.length - 6}</span>
+                  </button>
+                  <div className="text-sm text-gray-600 text-center">More...</div>
+                </div>
+              )}
             </div>
-            
-            {currentBadge?.title && (
-              <div className="mb-4 p-3 bg-white/20 rounded-lg">
-                <div className="flex items-center space-x-2">
-                  <Crown className="w-5 h-5" />
-                  <span className="font-semibold">Danh hiệu: {currentBadge.title}</span>
-                </div>
-              </div>
-            )}
-            
-            {currentLevel.perks_unlocked && currentLevel.perks_unlocked.length > 0 && (
-              <div>
-                <h4 className="font-semibold mb-2 flex items-center space-x-2">
-                  <Zap className="w-4 h-4" />
-                  <span>Quyền lợi đã mở khóa:</span>
-                </h4>
-                <div className="flex flex-wrap gap-2">
-                  {currentLevel.perks_unlocked.map((perk, index) => (
-                    <span key={index} className="px-3 py-1 bg-white/20 rounded-full text-sm">
-                      {perk.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase())}
-                    </span>
-                  ))}
-                </div>
-              </div>
-            )}
-          </Card.Content>
-        </Card>
-      )}
+          ) : (
+            <div className="text-center py-8 text-gray-500">
+              <Trophy className="w-16 h-16 mx-auto mb-4 opacity-50" />
+              <p>No badges earned yet. Keep learning to unlock your first badge!</p>
+              <button
+                onClick={() => setShowBadgeModal(true)}
+                className="mt-4 px-4 py-2 text-sm text-blue-600 hover:text-blue-700 hover:bg-blue-50 rounded-lg transition-colors"
+              >
+                View All Available Badges
+              </button>
+            </div>
+          )}
+        </Card.Content>
+      </Card>
 
       {/* Stats Grid */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
@@ -484,10 +534,10 @@ const Profile = () => {
               <Star className="w-6 h-6 text-yellow-600" />
             </div>
             <div className="text-2xl font-bold text-gray-900">{stats.totalXP}</div>
-            <div className="text-sm text-gray-600">Tổng XP</div>
-            {currentLevel && (
+            <div className="text-sm text-gray-600">Total XP</div>
+            {currentBadge && (
               <div className="text-xs text-gray-500 mt-1">
-                Cấp {currentLevel.level_number} • {currentBadge?.name}
+                {currentBadge?.name}
               </div>
             )}
           </Card.Content>
@@ -708,6 +758,105 @@ const Profile = () => {
                   )
                 })()}
               </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Badge Modal */}
+      {showBadgeModal && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-lg max-w-4xl w-full max-h-[90vh] overflow-y-auto">
+            <div className="sticky top-0 bg-white border-b p-4">
+              <div className="flex items-center justify-between">
+                <h2 className="text-2xl font-bold text-gray-900">Badge Collection</h2>
+                <button
+                  onClick={() => setShowBadgeModal(false)}
+                  className="p-2 hover:bg-gray-100 rounded-full"
+                >
+                  <X className="w-5 h-5" />
+                </button>
+              </div>
+            </div>
+
+            <div className="p-6 space-y-8">
+              {/* Earned Badges */}
+              {earnedBadges.length > 0 && (
+                <div>
+                  <h3 className="text-lg font-semibold text-gray-900 mb-4 flex items-center space-x-2">
+                    <Trophy className="w-5 h-5 text-yellow-600" />
+                    <span>Earned Badges ({earnedBadges.length})</span>
+                  </h3>
+                  <div className="grid grid-cols-3 md:grid-cols-5 lg:grid-cols-6 gap-4">
+                    {earnedBadges.map((badge) => (
+                      <div key={badge.id} className="text-center">
+                        <div className={`w-16 h-16 mx-auto mb-2 p-2 rounded-full ${getTierBgColor(badge.badge_tier)}`}>
+                          <img
+                            src={badge.badge_icon}
+                            alt={badge.badge_name}
+                            className="w-full h-full object-contain"
+                            onError={(e) => {
+                              e.target.style.display = 'none'
+                              e.target.nextSibling.style.display = 'inline'
+                            }}
+                          />
+                          <span className="text-2xl hidden">{badge.badge_icon}</span>
+                        </div>
+                        <div className="text-sm font-medium text-gray-900">{badge.badge_name}</div>
+                        <div className="text-xs text-gray-500">{badge.xp_required} XP</div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {/* Upcoming Badges */}
+              {upcomingBadges.length > 0 && (
+                <div>
+                  <h3 className="text-lg font-semibold text-gray-900 mb-4 flex items-center space-x-2">
+                    <Target className="w-5 h-5 text-gray-600" />
+                    <span>Upcoming Badges ({upcomingBadges.length})</span>
+                  </h3>
+                  <div className="grid grid-cols-3 md:grid-cols-5 lg:grid-cols-6 gap-4">
+                    {upcomingBadges.map((badge) => (
+                      <div key={badge.id} className="text-center relative">
+                        <div className="w-16 h-16 mx-auto mb-2 p-2 rounded-full bg-gray-100 relative">
+                          <img
+                            src={badge.badge_icon}
+                            alt={badge.badge_name}
+                            className="w-full h-full object-contain opacity-30 grayscale"
+                            onError={(e) => {
+                              e.target.style.display = 'none'
+                              e.target.nextSibling.style.display = 'inline'
+                            }}
+                          />
+                          <span className="text-2xl hidden opacity-30 grayscale">{badge.badge_icon}</span>
+                          {/* Lock overlay */}
+                          <div className="absolute inset-0 bg-black bg-opacity-30 rounded-full flex items-center justify-center">
+                            <svg className="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
+                            </svg>
+                          </div>
+                        </div>
+                        <div className="text-sm font-medium text-gray-600">{badge.badge_name}</div>
+                        <div className="text-xs text-gray-500">{badge.xp_required} XP</div>
+                        <div className="text-xs text-red-500 mt-1">
+                          {badge.xp_required - (stats.totalXP || 0)} XP needed
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {/* Empty state */}
+              {earnedBadges.length === 0 && upcomingBadges.length === 0 && (
+                <div className="text-center py-12 text-gray-500">
+                  <Trophy className="w-16 h-16 mx-auto mb-4 opacity-50" />
+                  <h3 className="text-lg font-medium mb-2">No badges available</h3>
+                  <p>Badge system is not configured yet.</p>
+                </div>
+              )}
             </div>
           </div>
         </div>

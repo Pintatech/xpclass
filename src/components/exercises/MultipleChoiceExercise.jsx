@@ -69,7 +69,7 @@ const MultipleChoiceExercise = () => {
 
   // Sound URLs - you can replace these with your own sound files
   const correctSounds = [
-    'https://xpclass.vn/leaderboard/sound/lingo.mp3'
+    'https://xpclass.vn/leaderboard/sound/lingo.mp3',
   ]
 
   const wrongSounds = [

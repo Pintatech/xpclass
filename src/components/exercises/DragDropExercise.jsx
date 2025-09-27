@@ -62,6 +62,7 @@ const DragDropExercise = () => {
   const [touchStartPos, setTouchStartPos] = useState(null)
   const [isDragging, setIsDragging] = useState(false)
   const [exerciseCompleted, setExerciseCompleted] = useState(false)
+  const [xpEarnedThisSession, setXpEarnedThisSession] = useState(0)
   const [questionsChecked, setQuestionsChecked] = useState({})
   const [attempts, setAttempts] = useState(0)
   const [startTime, setStartTime] = useState(null)
@@ -276,8 +277,7 @@ const DragDropExercise = () => {
     setIsCorrect(isAnswerCorrect)
     setShowResult(true)
     
-    // Increment attempts
-    setAttempts(prev => prev + 1)
+    // Attempts will be incremented in saveProgress function
     
     // Mark question as checked
     setQuestionsChecked(prev => ({
@@ -285,9 +285,9 @@ const DragDropExercise = () => {
       [questionIndex]: true
     }))
     
-    // Save progress if answer is correct
-    if (isAnswerCorrect && user) {
-      await saveProgress(questionIndex, true)
+    // Save progress on every question check, but don't increment attempts here
+    if (user) {
+      await saveProgress(questionIndex, isAnswerCorrect)
     }
     
     return isAnswerCorrect
@@ -295,6 +295,7 @@ const DragDropExercise = () => {
 
   const saveProgress = async (questionIndex, isCorrect) => {
     if (!user || !exercise) return
+
 
     try {
       const xpReward = exercise.xp_reward || 10
@@ -321,22 +322,40 @@ const DragDropExercise = () => {
         const correctOrder = question.correct_order
         return JSON.stringify(userOrder) === JSON.stringify(correctOrder)
       }).length
-      
+
       const maxScore = exercise.content.questions.length
-      const score = allQuestionsCompleted ? correctAnswers : 0
+      const scorePercentage = maxScore > 0 ? Math.round((correctAnswers / maxScore) * 100) : 0
+      const score = allQuestionsCompleted ? scorePercentage : 0
+
+      // First check if exercise was already completed
+      const { data: existingProgress } = await supabase
+        .from('user_progress')
+        .select('status, completed_at, xp_earned, score, attempts')
+        .eq('user_id', user.id)
+        .eq('exercise_id', exercise.id)
+        .maybeSingle()
+
+      const wasAlreadyCompleted = existingProgress?.status === 'completed'
+      const shouldMarkCompleted = allQuestionsCompleted && !wasAlreadyCompleted
+      const xpToEarn = shouldMarkCompleted ? (xpReward * exercise.content.questions.length) : 0
+
+      // Don't increment attempts here - only when they finish the exercise
+      const totalAttempts = existingProgress?.attempts || 0
+
 
       // Save exercise progress (not individual questions)
+      // Don't downgrade from 'completed' to 'in_progress'
       const { error } = await supabase.from('user_progress').upsert({
         user_id: user.id,
         exercise_id: exercise.id,
         question_index: questionIndex,
-        status: allQuestionsCompleted ? 'completed' : 'in_progress',
-        completed_at: allQuestionsCompleted ? new Date().toISOString() : null,
+        status: wasAlreadyCompleted ? 'completed' : (allQuestionsCompleted ? 'completed' : 'in_progress'),
+        completed_at: wasAlreadyCompleted ? existingProgress.completed_at : (allQuestionsCompleted ? new Date().toISOString() : null),
         updated_at: new Date().toISOString(),
-        xp_earned: allQuestionsCompleted ? (xpReward * exercise.content.questions.length) : 0,
-        score: score,
-        max_score: maxScore,
-        attempts: attempts,
+        xp_earned: wasAlreadyCompleted ? existingProgress.xp_earned : xpToEarn,
+        score: Math.max(existingProgress?.score || 0, score), // Keep the best score
+        max_score: 100, // Since we're storing percentage, max is always 100
+        attempts: totalAttempts,
         time_spent: totalTimeSpent
       }, {
         onConflict: 'user_id,exercise_id'
@@ -368,10 +387,46 @@ const DragDropExercise = () => {
 
       if (allQuestionsCompleted) {
         setExerciseCompleted(true)
+        if (xpToEarn > 0) {
+          setXpEarnedThisSession(xpToEarn)
+        }
       }
     } catch (error) {
       console.error('Error saving progress:', error)
     }
+  }
+
+  const handleFinishExercise = async () => {
+    console.log('🏁 Finishing exercise - incrementing attempts');
+
+    // Increment attempts when finishing exercise
+    if (user && exercise) {
+      try {
+        const { data: existingProgress } = await supabase
+          .from('user_progress')
+          .select('attempts')
+          .eq('user_id', user.id)
+          .eq('exercise_id', exercise.id)
+          .maybeSingle()
+
+        const newAttempts = (existingProgress?.attempts || 0) + 1
+        console.log('🎯 Incrementing attempts to:', newAttempts);
+
+        await supabase.from('user_progress').upsert({
+          user_id: user.id,
+          exercise_id: exercise.id,
+          attempts: newAttempts,
+          updated_at: new Date().toISOString()
+        }, {
+          onConflict: 'user_id,exercise_id'
+        })
+      } catch (error) {
+        console.error('Error updating attempts:', error)
+      }
+    }
+
+    // Navigate back
+    navigate(-1)
   }
 
   const resetQuestion = (questionIndex) => {
@@ -380,13 +435,13 @@ const DragDropExercise = () => {
     setUserAnswers(newAnswers)
     setIsCorrect(null)
     setShowResult(false)
-    
+
     // Reset checked status
     setQuestionsChecked(prev => ({
       ...prev,
       [questionIndex]: false
     }))
-    
+
     // Re-randomize items
     if (exercise && exercise.content.questions && exercise.content.questions[questionIndex]) {
       const question = exercise.content.questions[questionIndex]
@@ -503,14 +558,19 @@ const DragDropExercise = () => {
                   return (
                     <span
                       key={index}
-                      onDragOver={handleDragOver}
-                      onDrop={(e) => handleDrop(e, zoneId, currentQuestionIndex)}
-                      onTouchEnd={handleTouchEnd}
-                      onClick={() => handleDropZoneClick(zoneId, currentQuestionIndex)}
+                      onDragOver={!questionsChecked[currentQuestionIndex] ? handleDragOver : undefined}
+                      onDrop={(e) => !questionsChecked[currentQuestionIndex] && handleDrop(e, zoneId, currentQuestionIndex)}
+                      onTouchEnd={!questionsChecked[currentQuestionIndex] ? handleTouchEnd : undefined}
+                      onClick={() => !questionsChecked[currentQuestionIndex] && handleDropZoneClick(zoneId, currentQuestionIndex)}
                       data-zone-id={zoneId}
                       data-question-index={currentQuestionIndex}
-                      className={`inline-block relative mx-1 transition-all cursor-pointer ${
-                        itemId ? 'hover:bg-blue-50' : 'hover:bg-gray-50'
+                      className={`inline-block relative mx-1 transition-all ${
+                        questionsChecked[currentQuestionIndex]
+                          ? 'cursor-default'
+                          : 'cursor-pointer'
+                      } ${
+                        !questionsChecked[currentQuestionIndex] && itemId ? 'hover:bg-blue-50' :
+                        !questionsChecked[currentQuestionIndex] && !itemId ? 'hover:bg-gray-50' : ''
                       }`}
                     >
                       {item ? (
@@ -540,16 +600,18 @@ const DragDropExercise = () => {
                 return (
                   <div
                     key={item.id}
-                    draggable={!isUsed}
-                    onDragStart={(e) => handleDragStart(e, item.id, currentQuestionIndex)}
-                    onTouchStart={(e) => handleTouchStart(e, item.id, currentQuestionIndex)}
+                    draggable={!isUsed && !questionsChecked[currentQuestionIndex]}
+                    onDragStart={(e) => !questionsChecked[currentQuestionIndex] && handleDragStart(e, item.id, currentQuestionIndex)}
+                    onTouchStart={(e) => !questionsChecked[currentQuestionIndex] && handleTouchStart(e, item.id, currentQuestionIndex)}
                     onTouchMove={handleTouchMove}
                     onTouchEnd={handleTouchEnd}
-                    onClick={() => handleItemClick(item.id, currentQuestionIndex)}
+                    onClick={() => !questionsChecked[currentQuestionIndex] && handleItemClick(item.id, currentQuestionIndex)}
                     className={`px-2 py-1 rounded transition-all select-none text-sm ${
                       isUsed
                         ? 'bg-gray-100 text-gray-400 cursor-not-allowed'
-                        : 'bg-blue-50 text-blue-700 cursor-pointer hover:bg-blue-100 active:bg-blue-200'
+                        : questionsChecked[currentQuestionIndex]
+                          ? 'bg-blue-50 text-blue-700 cursor-default'
+                          : 'bg-blue-50 text-blue-700 cursor-pointer hover:bg-blue-100 active:bg-blue-200'
                     }`}
                   >
                     {item.text}
@@ -598,9 +660,11 @@ const DragDropExercise = () => {
                 <p className="text-green-700 mb-4">
                   Great job! You've successfully completed all questions.
                 </p>
-                <div className="text-sm text-green-600">
-                  XP Earned: {exercise?.xp_reward * exercise?.content?.questions?.length || 0}
-                </div>
+                {xpEarnedThisSession > 0 && (
+                  <div className="text-sm text-green-600">
+                    XP Earned: {xpEarnedThisSession}
+                  </div>
+                )}
               </div>
             </div>
           )}
@@ -611,7 +675,7 @@ const DragDropExercise = () => {
               onClick={() => checkAnswer(currentQuestionIndex)}
               className={`px-6 py-2 rounded-lg flex items-center gap-2 transition-all ${
                 questionsChecked[currentQuestionIndex]
-                  ? 'bg-green-600 text-white hover:bg-green-700'
+                  ? 'bg-gray-600 text-white hover:bg-gray-700'
                   : 'bg-blue-600 text-white hover:bg-blue-700'
               }`}
             >
@@ -621,7 +685,11 @@ const DragDropExercise = () => {
             
             <button
               onClick={() => resetQuestion(currentQuestionIndex)}
-              className="px-6 py-2 bg-gray-600 text-white rounded-lg hover:bg-gray-700 flex items-center gap-2"
+              className={`px-6 py-2 text-white rounded-lg flex items-center gap-2 transition-all ${
+                showResult && !isCorrect
+                  ? 'bg-green-600 hover:bg-green-700'
+                  : 'bg-gray-600 hover:bg-gray-700'
+              }`}
             >
               <RotateCcw className="w-4 h-4" />
             
@@ -636,7 +704,7 @@ const DragDropExercise = () => {
               </button>
             )}
 
-            {currentQuestionIndex < exercise.content.questions.length - 1 && (
+            {currentQuestionIndex < exercise.content.questions.length - 1 ? (
               <button
                 onClick={nextQuestion}
                 disabled={!questionsChecked[currentQuestionIndex]}
@@ -648,6 +716,19 @@ const DragDropExercise = () => {
                 title={!questionsChecked[currentQuestionIndex] ? 'Please check your answer first' : ''}
               >
                 Next
+              </button>
+            ) : (
+              <button
+                onClick={handleFinishExercise}
+                disabled={!questionsChecked[currentQuestionIndex]}
+                className={`px-6 py-2 rounded-lg transition-all ${
+                  questionsChecked[currentQuestionIndex]
+                    ? 'bg-blue-600 text-white hover:bg-blue-700'
+                    : 'bg-gray-300 text-gray-500 cursor-not-allowed'
+                }`}
+                title={!questionsChecked[currentQuestionIndex] ? 'Please check your answer first' : ''}
+              >
+                Finish Exercise
               </button>
             )}
           </div>

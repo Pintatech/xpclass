@@ -24,6 +24,10 @@ const FillBlankExercise = () => {
   const [exerciseCompleted, setExerciseCompleted] = useState(false)
   const [totalScore, setTotalScore] = useState(0)
   const [questionScores, setQuestionScores] = useState([])
+  const [hasEdited, setHasEdited] = useState(false)
+  const [showCorrectAnswers, setShowCorrectAnswers] = useState(false)
+  const [retryMode, setRetryMode] = useState(false)
+  const [retryQuestions, setRetryQuestions] = useState([])
 
   const questions = exercise?.content?.questions || []
   const currentQuestion = questions[currentQuestionIndex]
@@ -98,6 +102,11 @@ const FillBlankExercise = () => {
         [blankIndex]: value
       }
     }))
+
+    // If results are shown and user changes answer, mark as edited
+    if (showResults) {
+      setHasEdited(true)
+    }
   }
 
   const checkAnswer = (blankIndex) => {
@@ -120,27 +129,96 @@ const FillBlankExercise = () => {
     return checkAnswer(blankIndex) ? 'correct' : 'incorrect'
   }
 
+  const calculateBlankWidth = (blankIndex) => {
+    const blank = currentQuestion?.blanks?.[blankIndex]
+    if (!blank) return 64 // Default 64px (w-16)
+
+    // Get all possible answers and find the longest one
+    const answers = blank.answer
+      .split(',')
+      .map(a => a.trim())
+      .filter(a => a)
+
+    const longestAnswer = answers.reduce((longest, current) =>
+      current.length > longest.length ? current : longest, ''
+    )
+
+    // Calculate width: 16px per character + 32px padding
+    const calculatedWidth = Math.max(64, Math.min(400, longestAnswer.length * 16 + 32))
+
+    return calculatedWidth
+  }
+
   const handleSubmit = () => {
     setShowResults(true)
-    setShowExplanation(true)
-    
+    setHasEdited(false)
+    setShowCorrectAnswers(false)
+
     // Calculate score for current question
-    const correctAnswers = currentQuestion.blanks.filter((_, blankIndex) => 
+    const correctAnswers = currentQuestion.blanks.filter((_, blankIndex) =>
       checkAnswer(blankIndex)
     ).length
     const questionScore = (correctAnswers / currentQuestion.blanks.length) * 100
     setScore(questionScore)
   }
 
+  const handleRecheck = () => {
+    setHasEdited(false)
+
+    // Recalculate score - only show feedback, not answers
+    const correctAnswers = currentQuestion.blanks.filter((_, blankIndex) =>
+      checkAnswer(blankIndex)
+    ).length
+    const questionScore = (correctAnswers / currentQuestion.blanks.length) * 100
+    setScore(questionScore)
+  }
+
+  const handleShowAnswers = () => {
+    setShowCorrectAnswers(true)
+    setShowExplanation(true)
+  }
+
   const handleNext = async () => {
+    // Save current question score
+    const currentScore = score
+
+    if (retryMode) {
+      // In retry mode, update the specific question score
+      const newScores = [...questionScores]
+      newScores[currentQuestionIndex] = currentScore
+      setQuestionScores(newScores)
+
+      // Find next retry question
+      const currentRetryIndex = retryQuestions.indexOf(currentQuestionIndex)
+      if (currentRetryIndex < retryQuestions.length - 1) {
+        // Move to next retry question
+        setCurrentQuestionIndex(retryQuestions[currentRetryIndex + 1])
+        setShowResults(false)
+        setShowExplanation(false)
+        setHasEdited(false)
+        setShowCorrectAnswers(false)
+        return
+      } else {
+        // Finished all retry questions, calculate final score
+        const finalScores = newScores
+        const averageScore = finalScores.reduce((sum, s) => sum + s, 0) / finalScores.length
+        setTotalScore(averageScore)
+        setExerciseCompleted(true)
+        setRetryMode(false)
+        setRetryQuestions([])
+        return
+      }
+    }
+
+    // Normal mode navigation
     if (currentQuestionIndex < questions.length - 1) {
-      // Save current question score
-      const currentScore = score
       setQuestionScores(prev => [...prev, currentScore])
-      
+
       setCurrentQuestionIndex(prev => prev + 1)
       setShowResults(false)
       setShowExplanation(false)
+      setHasEdited(false)
+      setShowCorrectAnswers(false)
     } else {
       // Exercise completed - show results screen
       const currentScore = score
@@ -174,14 +252,6 @@ const FillBlankExercise = () => {
     }
   }
 
-  const handleRetry = () => {
-    setUserAnswers(prev => ({
-      ...prev,
-      [currentQuestionIndex]: currentQuestion.blanks.map(() => '')
-    }))
-    setShowResults(false)
-    setShowExplanation(false)
-  }
 
   const handleBackToSession = () => {
     const urlParams = new URLSearchParams(location.search)
@@ -299,27 +369,71 @@ const FillBlankExercise = () => {
             </div>
           </div>
 
-          <div className="flex gap-4 justify-center">
+          <div className="flex flex-col sm:flex-row gap-3 sm:gap-4 justify-center items-center">
             <button
               onClick={handleBackToSession}
-              className="px-6 py-3 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition-colors flex items-center gap-2"
+              className="w-full sm:w-auto px-4 sm:px-6 py-2 sm:py-3 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition-colors flex items-center justify-center gap-2"
             >
-              <ArrowLeft className="w-5 h-5" />
-              Back to Session
+              <ArrowLeft className="w-4 h-4 sm:w-5 sm:h-5" />
+              <span className="text-sm sm:text-base">Back to Session</span>
             </button>
-            <button
-              onClick={() => {
-                setExerciseCompleted(false)
-                setCurrentQuestionIndex(0)
-                setUserAnswers({})
-                setQuestionScores([])
-                setTotalScore(0)
-              }}
-              className="px-6 py-3 bg-gray-600 text-white rounded-lg hover:bg-gray-700 transition-colors flex items-center gap-2"
-            >
-              <RotateCcw className="w-5 h-5" />
-              Try Again
-            </button>
+            <div className="flex flex-col sm:flex-row gap-2 sm:gap-3 w-full sm:w-auto">
+              <button
+                onClick={() => {
+                  // Find questions with score < 80% (wrong questions)
+                  const wrongQuestions = questionScores
+                    .map((score, index) => ({ score, index }))
+                    .filter(q => q.score < 80)
+                    .map(q => q.index)
+
+                  if (wrongQuestions.length > 0) {
+                    // Reset scores for fresh calculation
+                    const newScores = [...questionScores]
+                    wrongQuestions.forEach(qIndex => {
+                      newScores[qIndex] = 0 // Reset wrong question scores
+                    })
+                    setQuestionScores(newScores)
+
+                    // Set retry mode
+                    setRetryMode(true)
+                    setRetryQuestions(wrongQuestions)
+
+                    // Start from first wrong question
+                    setExerciseCompleted(false)
+                    setCurrentQuestionIndex(wrongQuestions[0])
+                    setShowResults(false)
+                    setShowExplanation(false)
+                    setShowCorrectAnswers(false)
+                    setHasEdited(false)
+                    setTotalScore(0) // Reset total score
+                  } else {
+                    // No wrong questions, just restart all
+                    setExerciseCompleted(false)
+                    setCurrentQuestionIndex(0)
+                    setUserAnswers({})
+                    setQuestionScores([])
+                    setTotalScore(0)
+                  }
+                }}
+                className="w-full sm:w-auto px-4 sm:px-6 py-2 sm:py-3 bg-yellow-600 text-white rounded-lg hover:bg-yellow-700 transition-colors flex items-center justify-center gap-2"
+              >
+                <RotateCcw className="w-4 h-4 sm:w-5 sm:h-5" />
+                <span className="text-sm sm:text-base">Retry Wrong</span>
+              </button>
+              <button
+                onClick={() => {
+                  setExerciseCompleted(false)
+                  setCurrentQuestionIndex(0)
+                  setUserAnswers({})
+                  setQuestionScores([])
+                  setTotalScore(0)
+                }}
+                className="w-full sm:w-auto px-4 sm:px-6 py-2 sm:py-3 bg-gray-600 text-white rounded-lg hover:bg-gray-700 transition-colors flex items-center justify-center gap-2"
+              >
+                <RotateCcw className="w-4 h-4 sm:w-5 sm:h-5" />
+                <span className="text-sm sm:text-base">Try All Again</span>
+              </button>
+            </div>
           </div>
         </div>
       </div>
@@ -346,7 +460,8 @@ const FillBlankExercise = () => {
                   type="text"
                   value=""
                   disabled
-                  className="px-2 py-1 border-2 border-gray-200 bg-gray-100 text-center w-16 max-w-24 cursor-not-allowed"
+                  style={{ width: '64px' }}
+                  className="px-1 py-1 border-0 border-b-2 border-b-gray-300 bg-transparent text-center cursor-not-allowed"
                   placeholder="?"
                 />
                 <div className="absolute -bottom-6 left-0 text-xs text-red-500 whitespace-nowrap">
@@ -364,14 +479,15 @@ const FillBlankExercise = () => {
                 type="text"
                 value={userAnswers[currentQuestionIndex]?.[currentBlankIndex] || ''}
                 onChange={(e) => handleAnswerChange(currentBlankIndex, e.target.value)}
-                disabled={showResults}
-                className={`px-2 py-1 border-2 rounded text-center w-16 max-w-24 ${
+                disabled={showCorrectAnswers}
+                style={{ width: `${calculateBlankWidth(currentBlankIndex)}px` }}
+                className={`px-1 py-1 border-0 border-b-2 bg-transparent text-center focus:outline-none ${
                   status === 'correct'
-                    ? 'border-green-500 bg-green-50 text-green-700'
+                    ? 'border-b-green-500 text-green-700'
                     : status === 'incorrect'
-                    ? 'border-red-500 bg-red-50 text-red-700'
-                    : 'border-gray-300 focus:border-blue-500'
-                } ${showResults ? 'cursor-not-allowed' : 'focus:outline-none focus:ring-2 focus:ring-blue-500'}`}
+                    ? 'border-b-red-500 text-red-700'
+                    : 'border-b-gray-400 focus:border-b-blue-500'
+                } ${showCorrectAnswers ? 'cursor-not-allowed opacity-75' : ''}`}
                 placeholder="?"
               />
               {blank?.text && (
@@ -429,16 +545,23 @@ const FillBlankExercise = () => {
       <div className="mb-6">
         <div className="flex justify-between items-center mb-2">
           <span className="text-sm font-medium text-gray-600">
-            Question {currentQuestionIndex + 1} of {questions.length}
+            {retryMode
+              ? `Retry ${retryQuestions.indexOf(currentQuestionIndex) + 1} of ${retryQuestions.length} (Question ${currentQuestionIndex + 1})`
+              : `Question ${currentQuestionIndex + 1} of ${questions.length}`
+            }
           </span>
           <span className="text-sm text-gray-500">
-            Fill in the Blank
+            {retryMode ? 'Retry Wrong Questions' : 'Fill in the Blank'}
           </span>
         </div>
         <div className="w-full bg-gray-200 rounded-full h-2">
-          <div 
-            className="bg-blue-600 h-2 rounded-full transition-all duration-300"
-            style={{ width: `${((currentQuestionIndex + 1) / questions.length) * 100}%` }}
+          <div
+            className={`h-2 rounded-full transition-all duration-300 ${retryMode ? 'bg-yellow-600' : 'bg-blue-600'}`}
+            style={{
+              width: retryMode
+                ? `${((retryQuestions.indexOf(currentQuestionIndex) + 1) / retryQuestions.length) * 100}%`
+                : `${((currentQuestionIndex + 1) / questions.length) * 100}%`
+            }}
           />
         </div>
       </div>
@@ -463,26 +586,38 @@ const FillBlankExercise = () => {
                 </span>
               </div>
               <div className="flex gap-2">
-                <button
-                  onClick={handleRetry}
-                  className="flex items-center gap-1 px-3 py-1 text-sm bg-gray-100 text-gray-700 rounded hover:bg-gray-200"
-                >
-                  <RotateCcw className="w-4 h-4" />
-                  Retry
-                </button>
+                {hasEdited && !showCorrectAnswers && (
+                  <button
+                    onClick={handleRecheck}
+                    className="flex items-center gap-1 px-4 py-2 text-sm bg-green-600 text-white rounded-lg hover:bg-green-700"
+                  >
+                    <Check className="w-4 h-4" />
+                    Check Answer
+                  </button>
+                )}
+                {showResults && !showCorrectAnswers && (
+                  <button
+                    onClick={handleShowAnswers}
+                    className="flex items-center gap-1 px-4 py-2 text-sm bg-yellow-600 text-white rounded-lg hover:bg-yellow-700"
+                  >
+                    <HelpCircle className="w-4 h-4" />
+                    Show Answers
+                  </button>
+                )}
                 <button
                   onClick={handleNext}
-                  className="flex items-center gap-1 px-3 py-1 text-sm bg-blue-600 text-white rounded hover:bg-blue-700"
+                  className="flex items-center gap-1 px-4 py-2 text-sm bg-blue-600 text-white rounded-lg hover:bg-blue-700"
                 >
-                  {currentQuestionIndex < questions.length - 1 ? 'Next' : 'Finish'}
+                  {currentQuestionIndex < questions.length - 1 ? 'Next Question' : 'Finish Exercise'}
                 </button>
               </div>
             </div>
 
-             {/* Correct Answers */}
-             <div className="space-y-2">
-               <h4 className="font-medium text-gray-700">Correct Answers:</h4>
-               {currentQuestion.blanks.map((blank, blankIndex) => {
+             {/* Correct Answers - only show when answers are revealed */}
+             {showCorrectAnswers && (
+               <div className="space-y-2">
+                 <h4 className="font-medium text-gray-700">Correct Answers:</h4>
+                 {currentQuestion.blanks.map((blank, blankIndex) => {
                  const correctAnswers = blank.answer
                    .split(',')
                    .map(a => a.trim())
@@ -507,7 +642,8 @@ const FillBlankExercise = () => {
                    </div>
                  )
                })}
-             </div>
+               </div>
+             )}
           </div>
         )}
 

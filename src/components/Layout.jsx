@@ -1,6 +1,7 @@
 import { Outlet } from 'react-router-dom'
 import { useAuth } from '../hooks/useAuth'
 import TopNavigation from './navigation/TopNavigation'
+import BottomNavigation from './navigation/BottomNavigation'
 import LoadingSpinner from './ui/LoadingSpinner'
 
 const Layout = () => {
@@ -18,11 +19,16 @@ const Layout = () => {
       </div>
 
       {/* Main Content */}
-      <main className="md:pt-16">
+      <main className="md:pt-16 pb-16 md:pb-0">
         <div className="container mx-auto px-4 py-6 max-w-7xl">
           <Outlet />
         </div>
       </main>
+
+      {/* Bottom Navigation - Mobile */}
+      <div className="md:hidden">
+        <BottomNavigation />
+      </div>
     </div>
   )
 }

@@ -332,14 +332,7 @@ export const useExerciseBank = () => {
         .from('exercise_assignments')
         .select(`
           *,
-          exercises (
-            *,
-            exercise_folders (
-              id,
-              name,
-              color
-            )
-          )
+          exercises (*)
         `)
         .eq('session_id', sessionId)
         .order('order_index')

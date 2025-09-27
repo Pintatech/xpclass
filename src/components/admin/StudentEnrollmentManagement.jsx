@@ -99,6 +99,7 @@ const StudentEnrollmentManagement = () => {
   };
 
   const fetchEnrollments = async (courseId) => {
+    console.log('🔄 Fetching enrollments for course:', courseId);
     try {
       setLoading(true);
       const { data, error } = await supabase
@@ -113,10 +114,13 @@ const StudentEnrollmentManagement = () => {
         .eq('course_id', courseId)
         .eq('is_active', true);
 
+      console.log('📊 Fetch enrollments result:', { data, error });
+
       if (error) throw error;
+      console.log('📝 Setting enrollments state:', data?.length, 'students');
       setEnrollments(data || []);
     } catch (error) {
-      console.error('Error fetching enrollments:', error);
+      console.error('❌ Error fetching enrollments:', error);
       showNotification('Error loading enrollments: ' + error.message, 'error');
     } finally {
       setLoading(false);
@@ -169,6 +173,8 @@ const StudentEnrollmentManagement = () => {
   };
 
   const handleEnrollStudent = async (studentId) => {
+    console.log('🎓 Starting enrollment:', { studentId, selectedCourse });
+
     if (!selectedCourse) {
       showNotification('Please select a course first', 'error');
       return;
@@ -177,35 +183,43 @@ const StudentEnrollmentManagement = () => {
     try {
       setLoading(true);
 
-      // Check if already enrolled
-      const { data: existing } = await supabase
-        .from('course_enrollments')
-        .select('id')
-        .eq('course_id', selectedCourse)
-        .eq('student_id', studentId)
-        .eq('is_active', true)
-        .maybeSingle();
+      console.log('💾 Upserting enrollment (will update if exists, insert if not)...');
+      const currentUser = await supabase.auth.getUser();
+      console.log('👤 Current user:', currentUser.data.user?.id);
 
-      if (existing) {
-        showNotification('Student is already enrolled in this course', 'error');
-        return;
+      const enrollmentData = {
+        course_id: selectedCourse,
+        student_id: studentId,
+        assigned_by: currentUser.data.user.id,
+        is_active: true,
+        updated_at: new Date().toISOString() // Add timestamp to ensure upsert works
+      };
+      console.log('📝 Enrollment data:', enrollmentData);
+
+      const { data: result, error } = await supabase
+        .from('course_enrollments')
+        .upsert(enrollmentData, {
+          onConflict: 'course_id,student_id',
+          ignoreDuplicates: false // This will update existing records instead of ignoring
+        });
+
+      console.log('✅ Upsert result:', result);
+
+      if (error) {
+        console.error('❌ Enrollment error:', error);
+        throw error;
       }
 
-      const { error } = await supabase
-        .from('course_enrollments')
-        .upsert({
-          course_id: selectedCourse,
-          student_id: studentId,
-          assigned_by: (await supabase.auth.getUser()).data.user.id,
-          is_active: true
-        }, { onConflict: 'course_id,student_id', ignoreDuplicates: true });
-
-      if (error) throw error;
-
+      console.log('🎉 Enrollment successful!');
       showNotification('Student enrolled successfully!');
+
+      // Add a small delay before fetching to ensure database consistency
+      console.log('⏳ Waiting 500ms before refresh...');
+      await new Promise(resolve => setTimeout(resolve, 500));
+
       await fetchEnrollments(selectedCourse);
     } catch (error) {
-      console.error('Error enrolling student:', error);
+      console.error('💥 Full error in handleEnrollStudent:', error);
       showNotification('Error enrolling student: ' + error.message, 'error');
     } finally {
       setLoading(false);

@@ -101,14 +101,7 @@ const ExerciseBank = () => {
       setLoading(true)
       let query = supabase
         .from('exercises')
-        .select(`
-          *,
-          exercise_folders (
-            id,
-            name,
-            color
-          )
-        `)
+        .select('*')
         .eq('is_in_bank', true)
 
       // Filter by folder
