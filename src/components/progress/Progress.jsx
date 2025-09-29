@@ -2,7 +2,9 @@ import { useState, useEffect } from 'react'
 import { useAuth } from '../../hooks/useAuth'
 import { useProgress } from '../../hooks/useProgress'
 import { useStudentLevels } from '../../hooks/useStudentLevels'
+import { useAchievements } from '../../hooks/useAchievements'
 import { supabase } from '../../supabase/client'
+import AchievementBadgeBar from './AchievementBadgeBar'
 import Card from '../ui/Card'
 import Button from '../ui/Button'
 import { 
@@ -21,10 +23,10 @@ const Progress = () => {
   const { user, profile } = useAuth()
   const { getCompletedExercises, getTotalStudyTime, userProgress } = useProgress()
   const { currentLevel, nextLevel, levelProgress, loading: levelsLoading } = useStudentLevels()
+  const { getAchievementsWithProgress, checkAndAwardAchievements, claimAchievementXP, userAchievements, loading: achievementsLoading } = useAchievements()
   const [selectedPeriod, setSelectedPeriod] = useState('week')
   const [weeklyData, setWeeklyData] = useState([])
   const [activityCalendar, setActivityCalendar] = useState([])
-  const [realAchievements, setRealAchievements] = useState([])
   const [loading, setLoading] = useState(true)
 
   const completedExercises = getCompletedExercises()
@@ -46,9 +48,121 @@ const Progress = () => {
     if (user && userProgress) {
       fetchWeeklyData()
       fetchActivityCalendar()
-      fetchRealAchievements()
+      // checkAndAwardAchievements() // Disabled until SQL functions are fixed
     }
   }, [user, userProgress])
+
+  // Set loading to false after component mounts
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      setLoading(false)
+    }, 2000) // 2 second timeout
+
+    return () => clearTimeout(timer)
+  }, [])
+
+  // Calculate achievement progress based on user stats
+  const calculateAchievementProgress = (achievement) => {
+    const completedCount = completedExercises
+    const currentStreak = profile?.streak_count || 0
+    const totalXp = profile?.xp || 0
+
+    let progress = 0
+    let unlocked = false
+
+    switch (achievement.criteria_type) {
+      case 'exercise_completed':
+        progress = Math.min((completedCount / achievement.criteria_value) * 100, 100)
+        unlocked = completedCount >= achievement.criteria_value
+        break
+      case 'daily_streak':
+        progress = Math.min((currentStreak / achievement.criteria_value) * 100, 100)
+        unlocked = currentStreak >= achievement.criteria_value
+        break
+      case 'total_xp':
+        progress = Math.min((totalXp / achievement.criteria_value) * 100, 100)
+        unlocked = totalXp >= achievement.criteria_value
+        break
+      case 'daily_exercises':
+        // This would need daily exercise count calculation
+        progress = 0
+        unlocked = false
+        break
+      default:
+        progress = 0
+        unlocked = false
+    }
+
+    return {
+      progress: Math.round(progress),
+      unlocked,
+      date: unlocked ? 'Đã mở khóa' : null
+    }
+  }
+
+  // Get achievements with progress and calculate their status
+  const achievementsWithProgress = getAchievementsWithProgress()
+  
+  // Fallback achievements if database is not ready
+  const fallbackAchievements = [
+    {
+      id: '1',
+      title: 'Người mới bắt đầu',
+      description: 'Hoàn thành 5 bài tập đầu tiên',
+      icon: 'Star',
+      badge_color: 'yellow',
+      criteria_type: 'exercise_completed',
+      criteria_value: 5,
+      xp_reward: 50,
+      badge_image_url: '',
+      badge_image_alt: 'Người mới bắt đầu badge'
+    },
+    {
+      id: '2',
+      title: 'Học viên chăm chỉ',
+      description: 'Học 7 ngày liên tiếp',
+      icon: 'Flame',
+      badge_color: 'red',
+      criteria_type: 'daily_streak',
+      criteria_value: 7,
+      xp_reward: 100,
+      badge_image_url: '',
+      badge_image_alt: 'Học viên chăm chỉ badge'
+    },
+    {
+      id: '3',
+      title: 'Chiến binh XP',
+      description: 'Đạt 1000 XP',
+      icon: 'Trophy',
+      badge_color: 'blue',
+      criteria_type: 'total_xp',
+      criteria_value: 1000,
+      xp_reward: 200,
+      badge_image_url: '',
+      badge_image_alt: 'Chiến binh XP badge'
+    },
+    {
+      id: '4',
+      title: 'Kỷ lục gia',
+      description: 'Hoàn thành 100 bài tập',
+      icon: 'Target',
+      badge_color: 'green',
+      criteria_type: 'exercise_completed',
+      criteria_value: 100,
+      xp_reward: 500,
+      badge_image_url: '',
+      badge_image_alt: 'Kỷ lục gia badge'
+    }
+  ]
+
+  const allAchievements = achievementsWithProgress.length > 0 ? achievementsWithProgress : fallbackAchievements
+  
+  // User stats for achievement calculations
+  const userStats = {
+    completedExercises,
+    currentStreak: profile?.streak_count || 0,
+    totalXp: profile?.xp || 0
+  }
 
   // Debug logging for level system
   useEffect(() => {
@@ -138,65 +252,6 @@ const Progress = () => {
     } catch (error) {
       console.error('Error fetching activity calendar:', error)
       setActivityCalendar([])
-    }
-  }
-
-  const fetchRealAchievements = async () => {
-    try {
-      const completedCount = completedExercises
-      const currentStreak = profile?.streak_count || 0
-      const totalXp = profile?.xp || 0
-
-      // Calculate real achievements based on user data
-      const achievements = [
-        {
-          id: 1,
-          title: 'Người mới bắt đầu',
-          description: 'Hoàn thành 5 bài tập đầu tiên',
-          icon: 'Star',
-          color: 'bg-yellow-500',
-          unlocked: completedCount >= 5,
-          progress: Math.min((completedCount / 5) * 100, 100),
-          date: completedCount >= 5 ? 'Đã mở khóa' : null
-        },
-        {
-          id: 2,
-          title: 'Học viên chăm chỉ',
-          description: 'Học 7 ngày liên tiếp',
-          icon: 'Flame',
-          color: 'bg-red-500',
-          unlocked: currentStreak >= 7,
-          progress: Math.min((currentStreak / 7) * 100, 100),
-          date: currentStreak >= 7 ? 'Đã mở khóa' : null
-        },
-        {
-          id: 3,
-          title: 'Chiến binh XP',
-          description: 'Đạt 1000 XP',
-          icon: 'Trophy',
-          color: 'bg-blue-500',
-          unlocked: totalXp >= 1000,
-          progress: Math.min((totalXp / 1000) * 100, 100),
-          date: totalXp >= 1000 ? 'Đã mở khóa' : null
-        },
-        {
-          id: 4,
-          title: 'Kỷ lục gia',
-          description: 'Hoàn thành 100 bài tập',
-          icon: 'Target',
-          color: 'bg-green-500',
-          unlocked: completedCount >= 100,
-          progress: Math.min((completedCount / 100) * 100, 100),
-          date: completedCount >= 100 ? 'Đã mở khóa' : null
-        }
-      ]
-
-      setRealAchievements(achievements)
-    } catch (error) {
-      console.error('Error fetching achievements:', error)
-      setRealAchievements([])
-    } finally {
-      setLoading(false)
     }
   }
 
@@ -373,33 +428,33 @@ const Progress = () => {
         </Card.Content>
       </Card>
 
-      {/* Study Time */}
+      {/* Exercise Progress */}
       <div className="grid md:grid-cols-2 gap-6">
         <Card>
           <Card.Header>
             <h3 className="text-lg font-semibold text-gray-900 flex items-center">
-              <Clock className="w-5 h-5 mr-2 text-orange-600" />
-              Thời gian học tập
+              <Target className="w-5 h-5 mr-2 text-green-600" />
+              Bài tập đã hoàn thành
             </h3>
           </Card.Header>
           <Card.Content>
             <div className="text-center space-y-4">
               <div className="text-4xl font-bold text-gray-900">
-                {Math.floor(totalStudyTime / 60)}h {totalStudyTime % 60}m
+                {completedExercises}
               </div>
-              <div className="text-gray-600">Tổng thời gian học</div>
-              
+              <div className="text-gray-600">Tổng bài tập hoàn thành</div>
+
               <div className="space-y-2">
-                <div className="flex justify-between text-sm">
-                  <span className="text-gray-600">Trung bình/ngày:</span>
-                  <span className="font-medium">
-                    {totalStudyTime > 0 ? Math.round(totalStudyTime / 30) : 0} phút
-                  </span>
-                </div>
                 <div className="flex justify-between text-sm">
                   <span className="text-gray-600">Tuần này:</span>
                   <span className="font-medium">
-                    {weeklyData.reduce((total, day) => total + day.time, 0)} phút
+                    {weeklyData.reduce((total, day) => total + day.exercises, 0)} bài
+                  </span>
+                </div>
+                <div className="flex justify-between text-sm">
+                  <span className="text-gray-600">Trung bình/ngày:</span>
+                  <span className="font-medium">
+                    {completedExercises > 0 ? Math.round(completedExercises / 30) : 0} bài
                   </span>
                 </div>
                 <div className="flex justify-between text-sm">
@@ -447,61 +502,15 @@ const Progress = () => {
       </div>
 
       {/* Achievements */}
-      <Card>
-        <Card.Header>
-          <h3 className="text-lg font-semibold text-gray-900 flex items-center">
-            <Trophy className="w-5 h-5 mr-2 text-yellow-600" />
-            Thành tích
-          </h3>
-        </Card.Header>
-        <Card.Content>
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            {realAchievements.map((achievement) => {
-              const IconComponent = getIconComponent(achievement.icon)
-              return (
-                <div
-                  key={achievement.id}
-                  className={`p-4 rounded-lg border ${
-                    achievement.unlocked
-                      ? 'bg-gradient-to-r from-yellow-50 to-orange-50 border-yellow-200'
-                      : 'bg-gray-50 border-gray-200'
-                  }`}
-                >
-                  <div className="flex items-start space-x-3">
-                    <div className={`w-10 h-10 rounded-full flex items-center justify-center ${achievement.color}`}>
-                      <IconComponent className="w-5 h-5 text-white" />
-                    </div>
-                    <div className="flex-1">
-                      <div className="font-semibold text-gray-900">{achievement.title}</div>
-                      <div className="text-sm text-gray-600">{achievement.description}</div>
-
-                      {achievement.unlocked ? (
-                        <div className="text-xs text-green-600 mt-1">
-                          ✓ {achievement.date}
-                        </div>
-                      ) : (
-                        <div className="mt-2">
-                          <div className="w-full bg-gray-200 rounded-full h-2">
-                            <div
-                              className="bg-primary-600 h-2 rounded-full"
-                              style={{ width: `${achievement.progress}%` }}
-                            />
-                          </div>
-                          <div className="text-xs text-gray-600 mt-1">
-                            {Math.round(achievement.progress)}% hoàn thành
-                          </div>
-                        </div>
-                      )}
-                    </div>
-                  </div>
-                </div>
-              )
-            })}
-          </div>
-        </Card.Content>
-      </Card>
+      <AchievementBadgeBar 
+        achievements={allAchievements}
+        userStats={userStats}
+        onClaimXP={claimAchievementXP}
+        userAchievements={userAchievements}
+      />
     </div>
   )
 }
 
 export default Progress
+

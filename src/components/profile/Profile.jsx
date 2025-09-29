@@ -601,7 +601,7 @@ const Profile = () => {
                       </p>
                     </div>
                     <div className="text-green-600 font-semibold">
-                      +{activity.score || 0} XP
+                      +{activity.exercises?.xp_reward || 10} XP
                     </div>
                   </div>
                 )

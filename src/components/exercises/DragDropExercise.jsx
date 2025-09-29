@@ -4,6 +4,7 @@ import { supabase } from '../../supabase/client'
 import { ArrowLeft, RotateCcw, CheckCircle, XCircle, Play, Pause } from 'lucide-react'
 import LoadingSpinner from '../ui/LoadingSpinner'
 import { useAuth } from '../../hooks/useAuth'
+import { useProgress } from '../../hooks/useProgress'
 
 // Convert simple markdown/HTML to safe HTML for preview
 const markdownToHtml = (text) => {
@@ -68,6 +69,7 @@ const DragDropExercise = () => {
   const [startTime, setStartTime] = useState(null)
   const [timeSpent, setTimeSpent] = useState(0)
   const { user } = useAuth()
+  const { completeExerciseWithXP } = useProgress()
 
   useEffect(() => {
     fetchExercise()
@@ -296,15 +298,14 @@ const DragDropExercise = () => {
   const saveProgress = async (questionIndex, isCorrect) => {
     if (!user || !exercise) return
 
-
     try {
       const xpReward = exercise.xp_reward || 10
-      
+
       // Calculate time spent
       const currentTime = Date.now()
       const totalTimeSpent = startTime ? Math.floor((currentTime - startTime) / 1000) : 0
       setTimeSpent(totalTimeSpent)
-      
+
       // Check if all questions are completed
       const allQuestionsCompleted = exercise.content.questions.every((_, index) => {
         const userAnswer = userAnswers[index] || {}
@@ -327,68 +328,23 @@ const DragDropExercise = () => {
       const scorePercentage = maxScore > 0 ? Math.round((correctAnswers / maxScore) * 100) : 0
       const score = allQuestionsCompleted ? scorePercentage : 0
 
-      // First check if exercise was already completed
-      const { data: existingProgress } = await supabase
-        .from('user_progress')
-        .select('status, completed_at, xp_earned, score, attempts')
-        .eq('user_id', user.id)
-        .eq('exercise_id', exercise.id)
-        .maybeSingle()
-
-      const wasAlreadyCompleted = existingProgress?.status === 'completed'
-      const shouldMarkCompleted = allQuestionsCompleted && !wasAlreadyCompleted
-      const xpToEarn = shouldMarkCompleted ? (xpReward * exercise.content.questions.length) : 0
-
-      // Don't increment attempts here - only when they finish the exercise
-      const totalAttempts = existingProgress?.attempts || 0
-
-
-      // Save exercise progress (not individual questions)
-      // Don't downgrade from 'completed' to 'in_progress'
-      const { error } = await supabase.from('user_progress').upsert({
-        user_id: user.id,
-        exercise_id: exercise.id,
-        question_index: questionIndex,
-        status: wasAlreadyCompleted ? 'completed' : (allQuestionsCompleted ? 'completed' : 'in_progress'),
-        completed_at: wasAlreadyCompleted ? existingProgress.completed_at : (allQuestionsCompleted ? new Date().toISOString() : null),
-        updated_at: new Date().toISOString(),
-        xp_earned: wasAlreadyCompleted ? existingProgress.xp_earned : xpToEarn,
-        score: Math.max(existingProgress?.score || 0, score), // Keep the best score
-        max_score: 100, // Since we're storing percentage, max is always 100
-        attempts: totalAttempts,
-        time_spent: totalTimeSpent
-      }, {
-        onConflict: 'user_id,exercise_id'
-      })
-
-      if (error) {
-        console.error('Error saving progress:', error)
-        // Try to update existing record instead
-        const { error: updateError } = await supabase
-          .from('user_progress')
-          .update({
-            question_index: questionIndex,
-            status: allQuestionsCompleted ? 'completed' : 'in_progress',
-            completed_at: allQuestionsCompleted ? new Date().toISOString() : null,
-            updated_at: new Date().toISOString(),
-            xp_earned: allQuestionsCompleted ? (xpReward * exercise.content.questions.length) : 0,
-            score: score,
-            max_score: maxScore,
-            attempts: attempts,
-            time_spent: totalTimeSpent
-          })
-          .eq('user_id', user.id)
-          .eq('exercise_id', exercise.id)
-
-        if (updateError) {
-          console.error('Error updating progress:', updateError)
-        }
-      }
-
+      // If exercise is completed, use proper XP awarding system
       if (allQuestionsCompleted) {
-        setExerciseCompleted(true)
-        if (xpToEarn > 0) {
-          setXpEarnedThisSession(xpToEarn)
+        const result = await completeExerciseWithXP(
+          exercise.id,
+          xpReward,
+          {
+            score: scorePercentage,
+            max_score: 100,
+            time_spent: totalTimeSpent
+          }
+        )
+
+        if (result.completed) {
+          setExerciseCompleted(true)
+          if (result.xpAwarded > 0) {
+            setXpEarnedThisSession(result.xpAwarded)
+          }
         }
       }
     } catch (error) {
@@ -397,32 +353,11 @@ const DragDropExercise = () => {
   }
 
   const handleFinishExercise = async () => {
-    console.log('🏁 Finishing exercise - incrementing attempts');
+    console.log('🏁 Finishing exercise');
 
-    // Increment attempts when finishing exercise
+    // Trigger final save progress to complete the exercise
     if (user && exercise) {
-      try {
-        const { data: existingProgress } = await supabase
-          .from('user_progress')
-          .select('attempts')
-          .eq('user_id', user.id)
-          .eq('exercise_id', exercise.id)
-          .maybeSingle()
-
-        const newAttempts = (existingProgress?.attempts || 0) + 1
-        console.log('🎯 Incrementing attempts to:', newAttempts);
-
-        await supabase.from('user_progress').upsert({
-          user_id: user.id,
-          exercise_id: exercise.id,
-          attempts: newAttempts,
-          updated_at: new Date().toISOString()
-        }, {
-          onConflict: 'user_id,exercise_id'
-        })
-      } catch (error) {
-        console.error('Error updating attempts:', error)
-      }
+      await saveProgress(currentQuestionIndex, true)
     }
 
     // Navigate back

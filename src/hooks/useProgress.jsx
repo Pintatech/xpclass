@@ -371,9 +371,31 @@ export const ProgressProvider = ({ children }) => {
   }
 
   const checkAndAwardAchievements = async (progressData) => {
-    // This would check various achievement criteria
-    // For now, just a placeholder
-    console.log('Checking achievements for progress:', progressData)
+    if (!user) return
+
+    try {
+      // Call the database function to check and award achievements
+      const { data, error } = await supabase.rpc('check_and_award_achievements', {
+        user_id_param: user.id
+      })
+
+      if (error) {
+        console.error('Error checking achievements:', error)
+        return
+      }
+
+      // If new achievements were awarded, refresh achievements and profile
+      if (data && data.length > 0) {
+        console.log('🎉 New achievements earned:', data)
+        await fetchUserAchievements()
+        await fetchUserProfile(user.id)
+        
+        // You could show a notification here
+        // showAchievementNotification(data)
+      }
+    } catch (error) {
+      console.error('Error in checkAndAwardAchievements:', error)
+    }
   }
 
   const getCompletedExercises = () => {

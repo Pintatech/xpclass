@@ -39,13 +39,13 @@ const createMockClient = () => ({
   })
 })
 
-export const supabase = hasValidConfig 
+export const supabase = hasValidConfig
   ? createClient(supabaseUrl, supabaseAnonKey, {
       auth: {
         autoRefreshToken: true,
         persistSession: true,
-        detectSessionInUrl: true,
-        redirectTo: window.location.origin
+        detectSessionInUrl: false, // Only detect on login pages
+        flowType: 'pkce'
       },
       db: {
         schema: 'public'

@@ -51,19 +51,29 @@ export const AuthProvider = ({ children }) => {
 
     getInitialSession()
 
-    // Listen for auth changes
+    // Listen for auth changes with debouncing
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
       async (event, session) => {
-        console.log('Auth event:', event)
-        
+        // Only log significant events, ignore redundant SIGNED_IN events
+        if (event !== 'SIGNED_IN' || !user) {
+          console.log('Auth event:', event)
+        }
+
+        // Skip redundant SIGNED_IN events if user is already set
+        if (event === 'SIGNED_IN' && user && session?.user?.id === user.id) {
+          return
+        }
+
         try {
           if (session?.user) {
             setUser(session.user)
-            // Fetch profile and wait for it to complete
-            fetchUserProfile(session.user.id).catch(error => {
-              console.error('Profile fetch failed:', error)
-              setProfile(null)
-            })
+            // Only fetch profile if user changed or not already loaded
+            if (!user || session.user.id !== user.id || !profile) {
+              fetchUserProfile(session.user.id).catch(error => {
+                console.error('Profile fetch failed:', error)
+                setProfile(null)
+              })
+            }
           } else {
             setUser(null)
             setProfile(null)

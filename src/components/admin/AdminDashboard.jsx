@@ -20,7 +20,8 @@ import {
   BarChart3,
   Settings,
   FileText,
-  Home
+  Home,
+  Trophy
 } from 'lucide-react';
 import { supabase } from '../../supabase/client';
 import { useAuth } from '../../hooks/useAuth';
@@ -37,6 +38,7 @@ import SessionManagement from './SessionManagement';
 import ContentTreeView from './ContentTreeView';
 import CohortsManagement from './CohortsManagement';
 import StudentLevelsManagement from './StudentLevelsManagement';
+import AchievementManagement from './AchievementManagement';
 import { useCohorts } from '../../hooks/useCohorts';
 
 const AdminDashboard = () => {
@@ -215,6 +217,7 @@ const AdminDashboard = () => {
     { id: 'units', label: 'Units', icon: Settings },
     { id: 'sessions', label: 'Sessions', icon: Edit },
     { id: 'levels', label: 'Student Levels', icon: BarChart3 },
+    { id: 'achievements', label: 'Achievements', icon: Trophy },
     { id: 'users', label: 'Users', icon: Users },
     { id: 'analytics', label: 'Analytics', icon: BarChart3 }
   ];
@@ -287,6 +290,7 @@ const AdminDashboard = () => {
                   {activeTab === 'enrollments' && 'Assign students to courses'}
                   {activeTab === 'units' && 'Manage curriculum units'}
                   {activeTab === 'levels' && 'Manage student XP levels and badges'}
+                  {activeTab === 'achievements' && 'Manage achievements and badges'}
                   {activeTab === 'sessions' && 'Manage learning sessions'}
                   {activeTab === 'users' && 'User management and profiles'}
                   {activeTab === 'analytics' && 'Platform analytics and insights'}
@@ -339,6 +343,7 @@ const AdminDashboard = () => {
               <Route path="enrollments" element={<StudentEnrollmentManagement />} />
               {/* Student Levels Management */}
               <Route path="levels" element={<StudentLevelsManagement />} />
+              <Route path="achievements" element={<AchievementManagement />} />
               <Route path="units" element={<UnitManagement />} />
               <Route path="sessions" element={<SessionManagement />} />
               {/* Redirect legacy exercises path to bank */}
