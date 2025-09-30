@@ -169,16 +169,7 @@ const Profile = () => {
 
       if (progressError) throw progressError
 
-      // Calculate stats from progress data
-      const completed = progressData?.filter(p => p.status === 'completed') || []
-      const targetProfile = targetUserId ? viewedProfile : profile
-      const totalXP = targetProfile?.xp || 0
-      const exercisesCompleted = completed.length
-      const averageScore = completed.length > 0
-        ? Math.round(completed.reduce((sum, p) => sum + (p.score || 0), 0) / completed.length)
-        : 0
-
-      // Fetch additional user data
+      // Fetch additional user data first
       const { data: userData, error: userError } = await supabase
         .from('users')
         .select('*')
@@ -186,6 +177,14 @@ const Profile = () => {
         .single()
 
       if (userError) throw userError
+
+      // Calculate stats from progress data
+      const completed = progressData?.filter(p => p.status === 'completed') || []
+      const totalXP = userData?.xp || 0
+      const exercisesCompleted = completed.length
+      const averageScore = completed.length > 0
+        ? Math.round(completed.reduce((sum, p) => sum + (p.score || 0), 0) / completed.length)
+        : 0
 
       const newStats = {
         totalXP,
@@ -444,10 +443,24 @@ const Profile = () => {
   }
 
   const getExerciseTypeIcon = (type) => {
+    const IconImg = ({ src, className = '' }) => (
+      <img src={src} alt="" className={className} />
+    )
+
     const icons = {
-      multiple_choice: Target,
+      multiple_choice: (props) => (
+        <IconImg src="https://xpclass.vn/xpclass/icon/multiple_choice.svg" {...props} />
+      ),
       flashcard: BookOpen,
-      fill_blank: Activity
+      fill_blank: (props) => (
+        <IconImg src="https://xpclass.vn/xpclass/icon/fill_blank.svg" {...props} />
+      ),
+      drag_drop: (props) => (
+        <IconImg src="https://xpclass.vn/xpclass/icon/drag_drop.svg" {...props} />
+      ),
+      dropdown: (props) => (
+        <IconImg src="https://xpclass.vn/xpclass/icon/drop_down.svg" {...props} />
+      )
     }
     return icons[type] || BookOpen
   }
@@ -587,7 +600,7 @@ const Profile = () => {
                 ) : (
                   <Button onClick={handleEditToggle} variant="ghost" className="text-white">
                     <Edit3 className="w-4 h-4 mr-2" />
-                    Chỉnh sửa
+                    Edit
                   </Button>
                 )}
               </div>
@@ -636,7 +649,7 @@ const Profile = () => {
           <div className="flex items-center justify-between">
             <h3 className="text-xl font-semibold flex items-center space-x-2">
               <Trophy className="w-5 h-5 text-yellow-600" />
-              <span>Badges ({earnedBadges.length} earned)</span>
+              <span>Badges ({earnedBadges.length})</span>
             </h3>
             <button
               onClick={() => setShowBadgeModal(true)}
@@ -701,7 +714,7 @@ const Profile = () => {
           <div className="flex items-center justify-between">
             <h3 className="text-xl font-semibold flex items-center space-x-2">
               <Award className="w-5 h-5 text-purple-600" />
-              <span>Achievements ({achievements.filter(a => a.isUnlocked).length} unlocked)</span>
+              <span>Achievements ({achievements.filter(a => a.isUnlocked).length})</span>
             </h3>
             <button
               onClick={() => setShowAchievementModal(true)}
@@ -765,8 +778,8 @@ const Profile = () => {
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
         <Card className="text-center">
           <Card.Content className="p-4">
-            <div className="w-12 h-12 bg-yellow-100 rounded-full flex items-center justify-center mx-auto mb-2">
-              <Star className="w-6 h-6 text-yellow-600" />
+            <div className="w-12 h-12 rounded-full flex items-center justify-center mx-auto mb-2">
+              <img src="https://xpclass.vn/xpclass/icon/XP.svg" alt="XP" className="w-12 h-12" />
             </div>
             <div className="text-2xl font-bold text-gray-900">{stats.totalXP}</div>
             <div className="text-sm text-gray-600">Total XP</div>
@@ -780,8 +793,8 @@ const Profile = () => {
 
         <Card className="text-center">
           <Card.Content className="p-4">
-            <div className="w-12 h-12 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-2">
-              <CheckCircle className="w-6 h-6 text-green-600" />
+            <div className="w-12 h-12 rounded-full flex items-center justify-center mx-auto mb-2">
+              <img src="https://xpclass.vn/xpclass/icon/paper.svg" alt="Exercises" className="w-12 h-12" />
             </div>
             <div className="text-2xl font-bold text-gray-900">{stats.exercisesCompleted}</div>
             <div className="text-sm text-gray-600">Bài tập hoàn thành</div>
@@ -790,8 +803,8 @@ const Profile = () => {
 
         <Card className="text-center">
           <Card.Content className="p-4">
-            <div className="w-12 h-12 bg-orange-100 rounded-full flex items-center justify-center mx-auto mb-2">
-              <Flame className="w-6 h-6 text-orange-600" />
+            <div className="w-12 h-12 rounded-full flex items-center justify-center mx-auto mb-2">
+              <img src="https://xpclass.vn/xpclass/icon/streak.svg" alt="Streak" className="w-12 h-12" />
             </div>
             <div className="text-2xl font-bold text-gray-900">{stats.streakCount}</div>
             <div className="text-sm text-gray-600">Chuỗi ngày học</div>
@@ -800,8 +813,8 @@ const Profile = () => {
 
         <Card className="text-center">
           <Card.Content className="p-4">
-            <div className="w-12 h-12 bg-blue-100 rounded-full flex items-center justify-center mx-auto mb-2">
-              <TrendingUp className="w-6 h-6 text-blue-600" />
+            <div className="w-12 h-12 rounded-full flex items-center justify-center mx-auto mb-2">
+              <img src="https://xpclass.vn/xpclass/icon/score%20metric.svg" alt="Score" className="w-12 h-12" />
             </div>
             <div className="text-2xl font-bold text-gray-900">{stats.averageScore}%</div>
             <div className="text-sm text-gray-600">Điểm trung bình</div>
@@ -825,7 +838,7 @@ const Profile = () => {
                   return (
                     <div key={`achievement-${activity.id}`} className="flex items-center space-x-3 p-3 rounded-lg bg-yellow-50 border border-yellow-200">
                       <div className="w-10 h-10 bg-yellow-100 rounded-full flex items-center justify-center">
-                        <Trophy className="w-5 h-5 text-yellow-600" />
+                        <img src="https://xpclass.vn/xpclass/icon/achievement.svg" alt="achievement" className="w-5 h-5" />
                       </div>
                       <div className="flex-1">
                         <h4 className="font-medium text-gray-900">
@@ -844,8 +857,8 @@ const Profile = () => {
                   const IconComponent = getExerciseTypeIcon(activity.exercises?.exercise_type)
                   return (
                     <div key={`exercise-${activity.id}`} className="flex items-center space-x-3 p-3 rounded-lg bg-gray-50">
-                      <div className="w-10 h-10 bg-green-100 rounded-full flex items-center justify-center">
-                        <IconComponent className="w-5 h-5 text-green-600" />
+                      <div className="w-10 h-10 bg-gray-200 rounded-full flex items-center justify-center">
+                        <IconComponent className="w-5 h-5 text-blue-600" />
                       </div>
                       <div className="flex-1">
                         <h4 className="font-medium text-gray-900">
@@ -855,7 +868,7 @@ const Profile = () => {
                           {getExerciseTypeLabel(activity.exercises?.exercise_type)} • Điểm: {activity.score}% • {formatTimeAgo(activity.completed_at)}
                         </p>
                       </div>
-                      <div className="text-green-600 font-semibold">
+                      <div className="text-blue-600 font-semibold">
                         +{activity.exercises?.xp_reward || 10} XP
                       </div>
                     </div>

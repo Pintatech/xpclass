@@ -235,7 +235,7 @@ const LevelProgressBar = ({ showNextBadge = true, className = '' }) => {
 
           <div className="text-center mt-2 text-sm text-gray-600 flex items-center justify-center gap-1">
             {levelProgress.xpNeeded.toLocaleString()}
-            <img src="https://xpclass.vn/leaderboard/icon/coin.png" alt="XP" className="w-4 h-4" />
+            <img src="https://xpclass.vn/xpclass/icon/xp_small.svg" alt="XP" className="w-4 h-4" />
             needed for {nextBadge?.name}
           </div>
         </>

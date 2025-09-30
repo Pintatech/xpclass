@@ -156,7 +156,7 @@ const Dashboard = () => {
                 <span className="font-bold text-gray-800">{profile?.streak_count || 0}</span>
               </div>
               <div className="bg-white/90 backdrop-blur-sm rounded-full px-4 py-3 flex items-center space-x-2 border-2 border-blue-700">
-                <img src="https://xpclass.vn/leaderboard/icon/coin.png" alt="XP" className="w-5 h-5" />
+                <img src="https://xpclass.vn/xpclass/icon/xp_small.svg" alt="XP" className="w-5 h-5" />
                 <span className="font-bold text-gray-800">{profile?.xp || 0}</span>
               </div>
             </div>

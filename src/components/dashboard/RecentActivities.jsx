@@ -122,13 +122,22 @@ const RecentActivities = () => {
   }
 
   const getExerciseIcon = (exerciseType) => {
+    const IconImg = ({ src, className = '' }) => (
+      <img src={src} alt="" className={className} />
+    )
     switch (exerciseType) {
       case 'flashcard':
         return BookOpen
       case 'fill_blank':
-        return Edit3
+        return (props) => <IconImg src="https://xpclass.vn/xpclass/icon/fill_blank.svg" {...props} />
+      case 'ai_fill_blank':
+        return (props) => <IconImg src="https://xpclass.vn/xpclass/icon/fill_blank.svg" {...props} />
+      case 'drag_drop':
+        return (props) => <IconImg src="https://xpclass.vn/xpclass/icon/drag_drop.svg" {...props} />
       case 'multiple_choice':
-        return HelpCircle
+        return (props) => <IconImg src="https://xpclass.vn/xpclass/icon/multiple_choice.svg" {...props} />
+      case 'dropdown':
+        return (props) => <IconImg src="https://xpclass.vn/xpclass/icon/drop_down.svg" {...props} />
       default:
         return BookOpen
     }
@@ -233,7 +242,7 @@ const RecentActivities = () => {
                 {/* Activity Content */}
                 <div className="flex-1 min-w-0">
                   <div className="flex items-center space-x-2">
-                    <Trophy className="w-4 h-4 text-yellow-600 flex-shrink-0" />
+                    <img src="https://xpclass.vn/xpclass/icon/achievement.svg" alt="achievement" className="w-4 h-4 flex-shrink-0" />
                     <span className="text-sm font-medium text-gray-900 truncate">
                       {activity.users.full_name || 'Người dùng'}
                     </span>

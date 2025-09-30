@@ -6,6 +6,7 @@ import MultipleChoiceEditor from '../editors/MultipleChoiceEditor'
 import FillBlankEditor from '../editors/FillBlankEditor'
 import SmartDragDropEditor from '../editors/SmartDragDropEditor'
 import AIFillBlankEditor from '../editors/AIFillBlankEditor'
+import SimpleDropdownEditor from '../editors/SimpleDropdownEditor'
 
 const EditExerciseModal = ({ isOpen, onClose, exercise, onUpdate }) => {
   const [formData, setFormData] = useState({
@@ -159,6 +160,13 @@ const EditExerciseModal = ({ isOpen, onClose, exercise, onUpdate }) => {
             onQuestionsChange={(questions) => handleContentChange({ ...content, questions })}
           />
         )
+      case 'dropdown':
+        return (
+          <SimpleDropdownEditor
+            questions={content.questions || []}
+            onQuestionsChange={(questions) => handleContentChange({ ...content, questions })}
+          />
+        )
       case 'ai_fill_blank':
         return (
           <>
@@ -248,6 +256,9 @@ const EditExerciseModal = ({ isOpen, onClose, exercise, onUpdate }) => {
                   <option value="flashcard">Flashcard</option>
                   <option value="multiple_choice">Multiple Choice</option>
                   <option value="fill_blank">Fill in the Blank</option>
+                  <option value="dropdown">Dropdown</option>
+                  <option value="drag_drop">Drag & Drop</option>
+                  <option value="ai_fill_blank">AI Fill Blank</option>
                 </select>
               </div>
 

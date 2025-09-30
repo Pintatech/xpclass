@@ -1,11 +1,12 @@
 import React, { useState } from 'react'
 import { supabase } from '../../../supabase/client'
-import { X, BookOpen, Edit3, Mic, HelpCircle, Tag, Copy, Brain } from 'lucide-react'
+import { X, BookOpen, Edit3, Mic, HelpCircle, Tag, Copy, Brain, ChevronDown } from 'lucide-react'
 import FlashcardEditor from '../editors/FlashcardEditor'
 import MultipleChoiceEditor from '../editors/MultipleChoiceEditor'
 import FillBlankEditor from '../editors/FillBlankEditor'
 import SmartDragDropEditor from '../editors/SmartDragDropEditor'
 import AIFillBlankEditor from '../editors/AIFillBlankEditor'
+import SimpleDropdownEditor from '../editors/SimpleDropdownEditor'
 
 const CreateExerciseModal = ({ folders, selectedFolder, onClose, onCreated }) => {
   const [formData, setFormData] = useState({
@@ -29,6 +30,7 @@ const CreateExerciseModal = ({ folders, selectedFolder, onClose, onCreated }) =>
     { value: 'fill_blank', label: 'Fill in the Blank', icon: Edit3 },
     { value: 'multiple_choice', label: 'Multiple Choice', icon: HelpCircle },
     { value: 'drag_drop', label: 'Drag & Drop', icon: Copy },
+    { value: 'dropdown', label: 'Dropdown', icon: ChevronDown },
     { value: 'ai_fill_blank', label: 'Fill in AI Score', icon: Brain }
   ]
 
@@ -334,6 +336,13 @@ const CreateExerciseModal = ({ folders, selectedFolder, onClose, onCreated }) =>
 
             {formData.exercise_type === 'fill_blank' && (
               <FillBlankEditor
+                questions={formData.content.questions || []}
+                onQuestionsChange={(questions) => handleContentChange('questions', questions)}
+              />
+            )}
+
+            {formData.exercise_type === 'dropdown' && (
+              <SimpleDropdownEditor
                 questions={formData.content.questions || []}
                 onQuestionsChange={(questions) => handleContentChange('questions', questions)}
               />

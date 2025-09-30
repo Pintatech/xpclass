@@ -344,7 +344,10 @@ const ExerciseList = () => {
           fill_blank: '/study/fill-blank',
           snake_ladder: '/study/snake-ladder',
           two_player: '/study/two-player-game',
-          multiple_choice: '/study/multiple-choice'
+          multiple_choice: '/study/multiple-choice',
+          drag_drop: '/study/drag-drop',
+          dropdown: '/study/dropdown',
+          ai_fill_blank: '/study/ai-fill-blank'
         }
         const exercisePath = paths[exercise.exercise_type] || '/study/flashcard'
         navigate(`${exercisePath}?exerciseId=${exercise.id}&sessionId=${session.id}&levelId=${levelId || ''}&courseId=${level?.id || ''}&unitId=${session.unit_id}`)
@@ -391,10 +394,27 @@ const ExerciseList = () => {
   }, [levelId, unitId, navigate])
 
   const getExerciseIcon = (exerciseType) => {
+    const IconImg = ({ src, className = '' }) => (
+      <img src={src} alt="" className={className} />
+    )
+
     const icons = {
       flashcard: BookOpen,
-      fill_blank: Edit3,
-      multiple_choice: CheckSquare,
+      fill_blank: (props) => (
+        <IconImg src="https://xpclass.vn/xpclass/icon/fill_blank.svg" {...props} />
+      ),
+      drag_drop: (props) => (
+        <IconImg src="https://xpclass.vn/xpclass/icon/drag_drop.svg" {...props} />
+      ),
+      multiple_choice: (props) => (
+        <IconImg src="https://xpclass.vn/xpclass/icon/multiple_choice.svg" {...props} />
+      ),
+      dropdown: (props) => (
+        <IconImg src="https://xpclass.vn/xpclass/icon/drop_down.svg" {...props} />
+      ),
+      ai_fill_blank: (props) => (
+        <IconImg src="https://xpclass.vn/xpclass/icon/fill_blank.svg" {...props} />
+      ),
     }
     return icons[exerciseType] || BookOpen
   }
@@ -404,6 +424,7 @@ const ExerciseList = () => {
       flashcard: 'text-blue-600 bg-blue-100',
       fill_blank: 'text-purple-600 bg-purple-100',
       multiple_choice: 'text-orange-600 bg-orange-100',
+      dropdown: 'text-indigo-600 bg-indigo-100',
     }
     return colors[exerciseType] || 'text-gray-600 bg-gray-100'
   }
@@ -413,6 +434,7 @@ const ExerciseList = () => {
       flashcard: 'Flashcard',
       fill_blank: 'Fill in the Blank',
       multiple_choice: 'Multiple Choice',
+      dropdown: 'Dropdown',
     }
     return labels[exerciseType] || exerciseType
   }
@@ -468,6 +490,7 @@ const ExerciseList = () => {
       fill_blank: '/study/fill-blank',
       multiple_choice: '/study/multiple-choice',
       drag_drop: '/study/drag-drop',
+      dropdown: '/study/dropdown',
       ai_fill_blank: '/study/ai-fill-blank',
     }
 

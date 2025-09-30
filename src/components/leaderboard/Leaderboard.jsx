@@ -341,40 +341,33 @@ const Leaderboard = () => {
       {/* Header */}
       <div className="text-center">
         <h1 className="text-3xl font-bold text-gray-900 mb-2">Bảng xếp hạng</h1>
-        <p className="text-gray-600">
+        <div className="text-gray-600">
           <div className="flex items-center gap-2 justify-center">
-            {timeframe === 'today' && (
-              <>
-                <img src="https://xpclass.vn/leaderboard/icon/coin.png" alt="XP" className="w-5 h-5" />
-                kiếm được hôm nay
-              </>
-            )}
             {timeframe === 'week' && (
               <>
-                <img src="https://xpclass.vn/leaderboard/icon/coin.png" alt="XP" className="w-5 h-5" />
+                <img src="https://xpclass.vn/xpclass/icon/xp_small.svg" alt="XP" className="w-5 h-5" />
                 kiếm được tuần này
               </>
             )}
             {timeframe === 'month' && (
               <>
-                <img src="https://xpclass.vn/leaderboard/icon/coin.png" alt="XP" className="w-5 h-5" />
+                <img src="https://xpclass.vn/xpclass/icon/xp_small.svg" alt="XP" className="w-5 h-5" />
                 kiếm được tháng này
               </>
             )}
             {timeframe === 'all' && (
               <>
-                Tổng <img src="https://xpclass.vn/leaderboard/icon/coin.png" alt="XP" className="w-5 h-5" /> tích lũy
+                Tổng <img src="https://xpclass.vn/xpclass/icon/xp_small.svg" alt="XP" className="w-5 h-5" /> tích lũy
               </>
             )}
           </div>
-        </p>
+        </div>
       </div>
 
       {/* Timeframe Filter */}
       <div className="flex justify-center">
         <div className="bg-gray-100 p-1 rounded-lg">
           {[
-            { key: 'today', label: 'Hôm nay' },
             { key: 'week', label: 'Tuần này' },
             { key: 'month', label: 'Tháng này' },
             { key: 'all', label: 'Tất cả' }
@@ -446,7 +439,7 @@ const Leaderboard = () => {
                 <div className="text-lg font-semibold text-gray-900 mt-2">
                   <div className="flex items-center justify-center gap-1">
                     {leaderboardData[1].xp.toLocaleString()}
-                    <img src="https://xpclass.vn/leaderboard/icon/coin.png" alt="XP" className="w-4 h-4" />
+                    <img src="https://xpclass.vn/xpclass/icon/xp_small.svg" alt="XP" className="w-4 h-4" />
                   </div>
                 </div>
               </Card>
@@ -496,7 +489,7 @@ const Leaderboard = () => {
                 <div className="text-xl font-bold text-yellow-600 mt-2">
                   <div className="flex items-center justify-center gap-1">
                     {leaderboardData[0].xp.toLocaleString()}
-                    <img src="https://xpclass.vn/leaderboard/icon/coin.png" alt="XP" className="w-5 h-5" />
+                    <img src="https://xpclass.vn/xpclass/icon/xp_small.svg" alt="XP" className="w-5 h-5" />
                   </div>
                 </div>
                 <div className="flex items-center justify-center mt-2 text-yellow-600">
@@ -549,7 +542,7 @@ const Leaderboard = () => {
                 <div className="text-lg font-semibold text-gray-900 mt-2">
                   <div className="flex items-center justify-center gap-1">
                     {leaderboardData[2].xp.toLocaleString()}
-                    <img src="https://xpclass.vn/leaderboard/icon/coin.png" alt="XP" className="w-4 h-4" />
+                    <img src="https://xpclass.vn/xpclass/icon/xp_small.svg" alt="XP" className="w-4 h-4" />
                   </div>
                 </div>
               </Card>
@@ -622,7 +615,7 @@ const Leaderboard = () => {
                 <div className="text-right">
                   <div className="font-bold text-lg text-gray-900 flex items-center gap-2 justify-end">
                     {user.xp.toLocaleString()}
-                    <img src="https://xpclass.vn/leaderboard/icon/coin.png" alt="XP" className="w-5 h-5" />
+                    <img src="https://xpclass.vn/xpclass/icon/xp_small.svg" alt="XP" className="w-5 h-5" />
                   </div>
                 </div>
               </div>
@@ -674,7 +667,7 @@ const Leaderboard = () => {
               <div className="text-right">
                 <div className="font-bold text-lg text-gray-900 flex items-center gap-2 justify-end">
                   {currentUserRank.xp.toLocaleString()}
-                  <img src="https://xpclass.vn/leaderboard/icon/coin.png" alt="XP" className="w-5 h-5" />
+                  <img src="https://xpclass.vn/xpclass/icon/xp_small.svg" alt="XP" className="w-5 h-5" />
                 </div>
               </div>
             </div>
@@ -699,7 +692,7 @@ const Leaderboard = () => {
                 <span className="text-sm text-gray-600">
                   <div className="flex items-center gap-1">
                     Cần thêm {getNextLevelXpRequired(currentUserRank.xp).toLocaleString()}
-                    <img src="https://xpclass.vn/leaderboard/icon/coin.png" alt="XP" className="w-4 h-4" />
+                    <img src="https://xpclass.vn/xpclass/icon/xp_small.svg" alt="XP" className="w-4 h-4" />
                   </div>
                 </span>
               </div>
@@ -716,7 +709,7 @@ const Leaderboard = () => {
                   <span className="text-sm text-gray-600">
                     <div className="flex items-center gap-1">
                       Cần thêm {(leaderboardData[currentUserRank.rank - 2].xp - currentUserRank.xp + 1).toLocaleString()}
-                      <img src="https://xpclass.vn/leaderboard/icon/coin.png" alt="XP" className="w-4 h-4" />
+                      <img src="https://xpclass.vn/xpclass/icon/xp_small.svg" alt="XP" className="w-4 h-4" />
                     </div>
                   </span>
                 </div>
@@ -733,7 +726,7 @@ const Leaderboard = () => {
                     {leaderboardData[9] ? (
                       <>
                         Cần thêm {Math.max(1, leaderboardData[9].xp - currentUserRank.xp + 1).toLocaleString()}
-                        <img src="https://xpclass.vn/leaderboard/icon/coin.png" alt="XP" className="w-4 h-4" />
+                        <img src="https://xpclass.vn/xpclass/icon/xp_small.svg" alt="XP" className="w-4 h-4" />
                       </>
                     ) : (
                       'Đang tính toán...'

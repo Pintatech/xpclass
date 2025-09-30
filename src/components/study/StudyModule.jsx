@@ -9,6 +9,7 @@ import MultipleChoiceExercise from '../exercises/MultipleChoiceExercise'
 import FillBlankExercise from '../exercises/FillBlankExercise'
 import DragDropExercise from '../exercises/DragDropExercise'
 import AIFillBlankExercise from '../exercises/AIFillBlankExercise'
+import DropdownExercise from '../exercises/DropdownExercise'
 
 const StudyModule = () => {
   return (
@@ -32,6 +33,7 @@ const StudyModule = () => {
       <Route path="multiple-choice" element={<MultipleChoiceExercise />} />
       <Route path="drag-drop" element={<DragDropExercise />} />
       <Route path="ai-fill-blank" element={<AIFillBlankExercise />} />
+      <Route path="dropdown" element={<DropdownExercise />} />
     </Routes>
   )
 }
