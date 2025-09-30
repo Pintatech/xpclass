@@ -2,8 +2,9 @@ import { useState } from 'react'
 import { Trophy, Star, Flame, Target, Zap, BookOpen, Crown, Heart, Shield } from 'lucide-react'
 import AchievementModal from './AchievementModal'
 
-const AchievementBadgeBar = ({ achievements, userStats, onClaimXP, userAchievements = [] }) => {
+const AchievementBadgeBar = ({ achievements, userStats, onClaimXP, userAchievements = [], claimedFallbackAchievements = new Set() }) => {
   const [isModalOpen, setIsModalOpen] = useState(false)
+  const [claimingAchievements, setClaimingAchievements] = useState(new Set())
 
   const getIconComponent = (iconName) => {
     const icons = {
@@ -87,42 +88,74 @@ const AchievementBadgeBar = ({ achievements, userStats, onClaimXP, userAchieveme
         {unlockedAchievements.length > 0 && (
           <div className="mb-4">
             <h4 className="text-sm font-medium text-gray-700 mb-2">Đã đạt được</h4>
-            <div className="flex flex-wrap gap-2">
-              {unlockedAchievements.slice(0, 6).map((achievement) => {
+            <div className="space-y-3">
+              {unlockedAchievements.slice(0, 3).map((achievement) => {
                 const IconComponent = getIconComponent(achievement.icon)
+                const userAchievement = userAchievements.find(ua => ua.achievement_id === achievement.id)
+                const claimed = userAchievement?.claimed_at !== null || claimedFallbackAchievements.has(achievement.id)
+
                 return (
                   <div
                     key={achievement.id}
-                    className="relative group cursor-pointer"
-                    title={achievement.title}
+                    className="flex items-center justify-between p-3 bg-gradient-to-r from-yellow-50 to-orange-50 border border-yellow-200 rounded-lg"
                   >
-                    {achievement.badge_image_url ? (
-                      <img
-                        src={achievement.badge_image_url}
-                        alt={achievement.badge_image_alt || achievement.title}
-                        className="w-10 h-10 rounded-full object-cover border-2 border-yellow-300 shadow-md hover:scale-110 transition-transform duration-200"
-                      />
-                    ) : (
-                      <div className={`w-10 h-10 rounded-full flex items-center justify-center ${getBadgeColorClass(achievement.badge_color)} shadow-md hover:scale-110 transition-transform duration-200`}>
-                        <IconComponent className="w-5 h-5 text-white" />
+                    <div className="flex items-center space-x-3">
+                      {achievement.badge_image_url ? (
+                        <img
+                          src={achievement.badge_image_url}
+                          alt={achievement.badge_image_alt || achievement.title}
+                          className="w-8 h-8 rounded-full object-cover border-2 border-yellow-300"
+                        />
+                      ) : (
+                        <div className={`w-8 h-8 rounded-full flex items-center justify-center ${getBadgeColorClass(achievement.badge_color)}`}>
+                          <IconComponent className="w-4 h-4 text-white" />
+                        </div>
+                      )}
+                      <div>
+                        <div className="font-medium text-gray-900 text-sm">{achievement.title}</div>
+                        <div className="text-xs text-gray-600">+{achievement.xp_reward} XP</div>
+                      </div>
+                    </div>
+
+                    {achievement.xp_reward > 0 && !claimed && (
+                      <button
+                        onClick={async () => {
+                          setClaimingAchievements(prev => new Set([...prev, achievement.id]))
+                          try {
+                            const result = await onClaimXP(achievement.id)
+                            if (result.success) {
+                              // Button will disappear as claimed status updates
+                            }
+                          } finally {
+                            setClaimingAchievements(prev => {
+                              const newSet = new Set(prev)
+                              newSet.delete(achievement.id)
+                              return newSet
+                            })
+                          }
+                        }}
+                        disabled={claimingAchievements.has(achievement.id)}
+                        className="px-3 py-1 bg-green-600 hover:bg-green-700 disabled:bg-gray-400 text-white text-xs font-medium rounded-md transition-colors"
+                      >
+                        {claimingAchievements.has(achievement.id) ? 'Đang nhận...' : 'Nhận XP'}
+                      </button>
+                    )}
+
+                    {claimed && (
+                      <div className="text-xs text-green-600 font-medium">
+                        ✓ Đã nhận XP
                       </div>
                     )}
-                    <div className="absolute -top-1 -right-1 w-4 h-4 bg-green-500 rounded-full flex items-center justify-center">
-                      <span className="text-white text-xs">✓</span>
-                    </div>
-                    
-                    {/* Tooltip */}
-                    <div className="absolute bottom-full left-1/2 transform -translate-x-1/2 mb-2 px-2 py-1 bg-gray-900 text-white text-xs rounded opacity-0 group-hover:opacity-100 transition-opacity duration-200 whitespace-nowrap z-10">
-                      {achievement.title}
-                      <div className="absolute top-full left-1/2 transform -translate-x-1/2 w-0 h-0 border-l-4 border-r-4 border-t-4 border-transparent border-t-gray-900"></div>
-                    </div>
                   </div>
                 )
               })}
-              {unlockedAchievements.length > 6 && (
-                <div className="w-10 h-10 rounded-full bg-gray-200 flex items-center justify-center text-gray-600 text-xs font-medium">
-                  +{unlockedAchievements.length - 6}
-                </div>
+              {unlockedAchievements.length > 3 && (
+                <button
+                  onClick={() => setIsModalOpen(true)}
+                  className="w-full p-2 text-sm text-blue-600 hover:text-blue-800 border border-blue-200 hover:bg-blue-50 rounded-lg transition-colors"
+                >
+                  Xem {unlockedAchievements.length - 3} thành tích khác →
+                </button>
               )}
             </div>
           </div>

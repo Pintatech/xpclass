@@ -272,7 +272,7 @@ const AIFillBlankExercise = () => {
   const showResult = showResults[currentQuestionIndex]
 
   return (
-    <div className="min-h-screen bg-gray-50">
+    <div className="quiz-question-bg quiz-desktop-reset">
       {/* Header */}
       <div className="bg-white shadow-sm border-b">
         <div className="max-w-4xl mx-auto px-4 py-4">

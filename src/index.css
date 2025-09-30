@@ -32,4 +32,58 @@
   .input {
     @apply flex h-10 w-full rounded-md border border-gray-300 bg-white px-3 py-2 text-sm file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-gray-500 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-500 focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50;
   }
+
+  .quiz-question-bg {
+    /* Create a stacking context (safe on all viewports) */
+    position: relative;
+    min-height: 100vh;
+    width: 100%;
+  }
+
+
+  /* Outline white border around question text (mobile disabled) */
+
+  /* Desktop only */
+  @media (min-width: 768px) {
+    .quiz-question-bg {
+      /* prevent page from scrolling when using fixed background on desktop */
+      overflow: hidden;
+      height: 100vh; /* avoid extra space from min-height */
+      min-height: 0;
+    }
+    /* Remove extra spacing added by Layout on desktop within quiz pages */
+    .quiz-desktop-reset {
+      margin-top: -4rem; /* counter md:pt-16 from Layout */
+      padding-top: 0;
+      padding-bottom: 0;
+      min-height: 100vh;
+    }
+    /* Make background cover the entire viewport regardless of parent width */
+    .quiz-question-bg::before {
+      content: '';
+      position: fixed;
+      top: 0;
+      right: 0;
+      bottom: 0;
+      left: 0;
+      background-image: url('https://xpclass.vn/xpclass/Quiz_bg.jpg');
+      background-size: cover;
+      background-position: center;
+      background-repeat: no-repeat;
+      opacity: 0.8;
+      z-index: 0;
+    }
+
+    /* Ensure inner content renders above the fixed background */
+    .quiz-question-bg > * {
+      position: relative;
+      z-index: 1;
+    }
+    /* Apply text outline only on desktop */
+    .question-text,
+    .question-text * {
+      -webkit-text-stroke: 1px #ffffff;
+      text-stroke: 1px #ffffff;
+    }
+  }
 }

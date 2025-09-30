@@ -3,7 +3,7 @@ import { supabase } from '../supabase/client'
 import { useAuth } from './useAuth'
 
 export const useAchievements = () => {
-  const { user } = useAuth()
+  const { user, fetchUserProfile } = useAuth()
   const [achievements, setAchievements] = useState([])
   const [userAchievements, setUserAchievements] = useState([])
   const [loading, setLoading] = useState(true)
@@ -102,7 +102,8 @@ export const useAchievements = () => {
         if (result.success) {
           // Refresh user achievements and profile
           await fetchUserAchievements()
-          // You might want to refresh user profile here too
+          // Refresh user profile to show updated XP
+          await fetchUserProfile(user.id)
           return { success: true, xpAwarded: result.xp_awarded, message: result.message }
         } else {
           return { success: false, message: result.message }

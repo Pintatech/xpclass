@@ -451,7 +451,8 @@ const MultipleChoiceExercise = () => {
   }
 
   return (
-    <div className="max-w-4xl mx-auto space-y-6">
+    <div className="quiz-question-bg quiz-desktop-reset">
+      <div className="max-w-4xl mx-auto px-4 py-6 space-y-6">
       {/* Header */}
       <div className="mb-6">
         <div className="bg-blue-500 text-white px-6 py-4 rounded-lg border-2 border-gray-600">
@@ -581,7 +582,8 @@ const MultipleChoiceExercise = () => {
           <img
             src={currentMeme}
             alt="Reaction meme"
-            className="max-w-sm max-h-96 rounded-lg shadow-2xl"
+            className="rounded-lg shadow-2xl"
+            style={{ width: '200px', height: 'auto' }}
           />
         </div>
       )}
@@ -589,22 +591,31 @@ const MultipleChoiceExercise = () => {
       {/* Current Question */}
       {!isQuizComplete && (
         <div className="space-y-6">
-          <Card className="p-6 relative">
-            <div className="mb-6">
+          <Card className="p-6 relative !bg-transparent !border-none !shadow-none" style={{ marginTop: '70px' }}>
+            <div className="mb-6 p-0">
               <RichTextRenderer
                 content={currentQuestion.question}
-                className="text-xl text-gray-800"
+                className="text-2xl md:text-3xl font-bold text-black md:text-white question-text"
                 allowImages={true}
                 allowLinks={false}
               />
             </div>
 
-            <div className="space-y-3">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
               {currentQuestion.options.map((option, index) => {
                 let buttonClass = "w-full p-4 text-left border-2 rounded-lg transition-all duration-200 "
 
+                // Hover color sets per index: pink, orange, yellow, green
+                const hoverStylesByIndex = [
+                  "hover:border-pink-400 hover:bg-pink-300",
+                  "hover:border-orange-400 hover:bg-orange-300",
+                  "hover:border-yellow-400 hover:bg-yellow-300 ",
+                  "hover:border-green-400 hover:bg-green-300",
+                ]
+                const hoverStyles = hoverStylesByIndex[index % hoverStylesByIndex.length]
+
                 if (selectedAnswer === null) {
-                  buttonClass += "border-gray-300 hover:border-blue-400 hover:bg-blue-50 cursor-pointer"
+                  buttonClass += `border-gray-300 ${hoverStyles} cursor-pointer`
                 } else {
                   if (index === selectedAnswer) {
                     // Show only the selected answer - green if correct, red if wrong
@@ -688,6 +699,7 @@ const MultipleChoiceExercise = () => {
           </Card>
         </div>
       )}
+      </div>
     </div>
   )
 }

@@ -1,4 +1,4 @@
-import { Outlet } from 'react-router-dom'
+import { Outlet, useLocation } from 'react-router-dom'
 import { useAuth } from '../hooks/useAuth'
 import TopNavigation from './navigation/TopNavigation'
 import BottomNavigation from './navigation/BottomNavigation'
@@ -6,6 +6,20 @@ import LoadingSpinner from './ui/LoadingSpinner'
 
 const Layout = () => {
   const { loading } = useAuth()
+  const location = useLocation()
+
+  const exercisePaths = [
+    '/study/flashcard',
+    '/study/fill-blank',
+    '/study/multiple-choice',
+    '/study/video',
+    '/study/quiz',
+    '/study/listening',
+    '/study/speaking',
+    '/study/pronunciation'
+  ]
+
+  const hideBottomNav = exercisePaths.some(p => location.pathname.startsWith(p))
 
   if (loading) {
     return <LoadingSpinner />
@@ -25,10 +39,12 @@ const Layout = () => {
         </div>
       </main>
 
-      {/* Bottom Navigation - Mobile */}
-      <div className="md:hidden">
-        <BottomNavigation />
-      </div>
+      {/* Bottom Navigation - Mobile (hidden on exercise/question UIs) */}
+      {!hideBottomNav && (
+        <div className="md:hidden">
+          <BottomNavigation />
+        </div>
+      )}
     </div>
   )
 }

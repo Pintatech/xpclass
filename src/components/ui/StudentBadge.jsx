@@ -119,6 +119,34 @@ const StudentBadge = ({
   )
 }
 
+// Simple Badge without background
+const SimpleBadge = ({ badge, size = 'medium', className = '' }) => {
+  if (!badge) return null
+
+  const sizeClasses = {
+    small: 'w-8 h-8',
+    medium: 'w-12 h-12',
+    large: 'w-16 h-16',
+    xl: 'w-20 h-20'
+  }
+
+  return (
+    <div className={`${sizeClasses[size]} ${className}`}>
+      {badge.icon.startsWith('http') ? (
+        <img
+          src={badge.icon}
+          alt={badge.name}
+          className="w-full h-full object-contain"
+        />
+      ) : (
+        <div className="w-full h-full flex items-center justify-center text-2xl">
+          {badge.icon}
+        </div>
+      )}
+    </div>
+  )
+}
+
 // Level Progress Bar with Badge Preview
 const LevelProgressBar = ({ showNextBadge = true, className = '' }) => {
   const {
@@ -144,7 +172,7 @@ const LevelProgressBar = ({ showNextBadge = true, className = '' }) => {
     <div className={`bg-white rounded-lg p-4 border shadow-sm ${className}`}>
       <div className="flex items-center justify-between mb-3">
         <div className="flex items-center gap-3">
-          <Badge badge={currentBadge} size="small" />
+          <SimpleBadge badge={currentBadge} size="medium" />
           <div>
             <div className="font-semibold text-gray-800">
               Level {currentBadge.levelNumber}
@@ -161,7 +189,7 @@ const LevelProgressBar = ({ showNextBadge = true, className = '' }) => {
               <div className="text-xs text-gray-500">Next Level</div>
               <div className="text-sm text-gray-600">{nextBadge.name}</div>
             </div>
-            <Badge badge={nextBadge} size="small" showLevel={false} />
+            <SimpleBadge badge={nextBadge} size="small" />
           </div>
         )}
       </div>
@@ -175,7 +203,7 @@ const LevelProgressBar = ({ showNextBadge = true, className = '' }) => {
 
           <div className="w-full bg-gray-200 rounded-full h-2">
             <div
-              className="bg-gradient-to-r from-blue-500 to-purple-500 h-2 rounded-full transition-all duration-300"
+              className="bg-blue-500 h-2 rounded-full transition-all duration-300"
               style={{ width: `${levelProgress.progressPercentage}%` }}
             ></div>
           </div>

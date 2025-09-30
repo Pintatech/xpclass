@@ -154,7 +154,7 @@ const AssignExerciseModal = ({ sessionId, onClose, onAssigned }) => {
 
   return (
     <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-      <div className="bg-white rounded-lg shadow-xl w-full max-w-4xl mx-4 max-h-[90vh] overflow-hidden">
+      <div className="bg-white rounded-lg shadow-xl w-full max-w-4xl mx-4 max-h-[90vh] flex flex-col">
         {/* Header */}
         <div className="flex items-center justify-between p-6 border-b border-gray-200">
           <div className="flex items-center space-x-3">
@@ -209,7 +209,7 @@ const AssignExerciseModal = ({ sessionId, onClose, onAssigned }) => {
         </div>
 
         {/* Exercise List */}
-        <div className="flex-1 overflow-y-auto p-6">
+        <div className="flex-1 overflow-y-auto p-6 min-h-0">
           {error && (
             <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-lg mb-4">
               {error}
@@ -298,7 +298,7 @@ const AssignExerciseModal = ({ sessionId, onClose, onAssigned }) => {
         </div>
 
         {/* Footer */}
-        <div className="flex items-center justify-between p-6 border-t border-gray-200 bg-gray-50">
+        <div className="flex items-center justify-between p-6 border-t border-gray-200 bg-gray-50 flex-shrink-0">
           <div className="text-sm text-gray-600">
             {selectedExercises.size} exercise{selectedExercises.size !== 1 ? 's' : ''} selected
           </div>

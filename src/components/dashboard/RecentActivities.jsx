@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react'
 import { supabase } from '../../supabase/client'
-import { Clock, Star, Trophy, BookOpen, Edit3, HelpCircle } from 'lucide-react'
+import { Clock, Star, Trophy, BookOpen, Edit3, HelpCircle, Award, Crown } from 'lucide-react'
 
 const RecentActivities = () => {
   const [activities, setActivities] = useState([])
@@ -10,12 +10,13 @@ const RecentActivities = () => {
     fetchRecentActivities()
   }, [])
 
+
   const fetchRecentActivities = async () => {
     try {
       setLoading(true)
 
-      // Simplified query without nested joins
-      const { data, error } = await supabase
+      // Fetch exercise completions
+      const { data: exerciseData, error: exerciseError } = await supabase
         .from('user_progress')
         .select(`
           id,
@@ -26,42 +27,92 @@ const RecentActivities = () => {
         .eq('status', 'completed')
         .not('completed_at', 'is', null)
         .order('completed_at', { ascending: false })
-        .limit(10)
+        .limit(15)
 
-      if (error) throw error
+      if (exerciseError) throw exerciseError
 
-      // Fetch related data separately to avoid complex joins
-      const enrichedData = []
+      // Fetch achievement claims
+      const { data: achievementData, error: achievementError } = await supabase
+        .from('user_achievements')
+        .select(`
+          id,
+          user_id,
+          achievement_id,
+          claimed_at
+        `)
+        .not('claimed_at', 'is', null)
+        .order('claimed_at', { ascending: false })
+        .limit(15)
 
-      for (const progress of data || []) {
+      if (achievementError) throw achievementError
+
+      // Combine all activities
+      const allActivities = []
+
+      // Process exercise completions
+      for (const progress of exerciseData || []) {
         try {
-          // Get user data
           const { data: userData } = await supabase
             .from('users')
             .select('id, full_name, avatar_url')
             .eq('id', progress.user_id)
             .single()
 
-          // Get exercise data
-          const { data: exerciseData } = await supabase
+          const { data: exerciseDetails } = await supabase
             .from('exercises')
             .select('id, title, exercise_type, xp_reward')
             .eq('id', progress.exercise_id)
             .single()
 
-          if (userData && exerciseData) {
-            enrichedData.push({
+          if (userData && exerciseDetails) {
+            allActivities.push({
               ...progress,
+              type: 'exercise',
+              activity_date: progress.completed_at,
               users: userData,
-              exercises: exerciseData
+              exercises: exerciseDetails
             })
           }
         } catch (err) {
-          console.log('Skipping activity due to missing data:', err)
+          console.log('Skipping exercise activity:', err)
         }
       }
 
-      setActivities(enrichedData)
+      // Process achievement claims
+      for (const achievement of achievementData || []) {
+        try {
+          const { data: userData } = await supabase
+            .from('users')
+            .select('id, full_name, avatar_url')
+            .eq('id', achievement.user_id)
+            .single()
+
+          const { data: achievementDetails } = await supabase
+            .from('achievements')
+            .select('id, title, xp_reward')
+            .eq('id', achievement.achievement_id)
+            .single()
+
+          if (userData && achievementDetails) {
+            allActivities.push({
+              ...achievement,
+              type: 'achievement',
+              activity_date: achievement.claimed_at,
+              users: userData,
+              achievements: achievementDetails
+            })
+          }
+        } catch (err) {
+          console.log('Skipping achievement activity:', err)
+        }
+      }
+
+      // Sort all activities by date and limit to 10
+      const sortedActivities = allActivities
+        .sort((a, b) => new Date(b.activity_date) - new Date(a.activity_date))
+        .slice(0, 20)
+
+      setActivities(sortedActivities)
     } catch (error) {
       console.error('Error fetching recent activities:', error)
       setActivities([])
@@ -159,61 +210,92 @@ const RecentActivities = () => {
       
       <div className="space-y-3 max-h-96 overflow-y-auto">
         {activities.map((activity) => {
-          const IconComponent = getExerciseIcon(activity.exercises.exercise_type)
-          const exerciseTypeLabel = getExerciseTypeLabel(activity.exercises.exercise_type)
-          
-          return (
-            <div key={activity.id} className="flex items-center space-x-3 p-3 rounded-lg hover:bg-gray-50 transition-colors">
-              {/* User Avatar */}
-              <div className="flex-shrink-0">
-                {activity.users.avatar_url ? (
-                  <img
-                    src={activity.users.avatar_url}
-                    alt={activity.users.full_name}
-                    className="w-8 h-8 rounded-full object-cover"
-                  />
-                ) : (
-                  <div className="w-8 h-8 rounded-full bg-blue-100 flex items-center justify-center">
-                    <span className="text-sm font-medium text-blue-600">
-                      {activity.users.full_name?.charAt(0) || 'U'}
+          if (activity.type === 'achievement') {
+            return (
+              <div key={`achievement-${activity.id}`} className="flex items-center space-x-3 p-3 rounded-lg hover:bg-yellow-50 transition-colors border-l-4 border-yellow-400">
+                {/* User Avatar */}
+                <div className="flex-shrink-0">
+                  {activity.users.avatar_url ? (
+                    <img
+                      src={activity.users.avatar_url}
+                      alt={activity.users.full_name}
+                      className="w-8 h-8 rounded-full object-cover"
+                    />
+                  ) : (
+                    <div className="w-8 h-8 rounded-full bg-yellow-100 flex items-center justify-center">
+                      <span className="text-sm font-medium text-yellow-600">
+                        {activity.users.full_name?.charAt(0) || 'U'}
+                      </span>
+                    </div>
+                  )}
+                </div>
+
+                {/* Activity Content */}
+                <div className="flex-1 min-w-0">
+                  <div className="flex items-center space-x-2">
+                    <Trophy className="w-4 h-4 text-yellow-600 flex-shrink-0" />
+                    <span className="text-sm font-medium text-gray-900 truncate">
+                      {activity.users.full_name || 'Người dùng'}
                     </span>
                   </div>
-                )}
-              </div>
-
-              {/* Activity Content */}
-              <div className="flex-1 min-w-0">
-                <div className="flex items-center space-x-2">
-                  <IconComponent className="w-4 h-4 text-blue-600 flex-shrink-0" />
-                  <span className="text-sm font-medium text-gray-900 truncate">
-                    {activity.users.full_name || 'Người dùng'}
-                  </span>
+                  <p className="text-sm text-gray-600 truncate">
+                    đạt thành tích <span className="font-medium text-yellow-700">{activity.achievements.title}</span>
+                  </p>
                 </div>
-                <p className="text-sm text-gray-600 truncate">
-                  vừa hoàn thành <span className="font-medium">{activity.exercises.title}</span>
-                </p>
-                
-              </div>
 
-              {/* XP Reward */}
-              <div className="flex items-center space-x-1 text-orange-600 font-medium">
-                <Star className="w-4 h-4" />
-                <span className="text-sm">+{activity.exercises.xp_reward || 0}</span>
+                {/* XP Reward */}
+                <div className="flex items-center space-x-1 text-yellow-600 font-medium">
+                  <Star className="w-4 h-4" />
+                  <span className="text-sm">+{activity.achievements.xp_reward || 0}</span>
+                </div>
               </div>
+            )
+          } else {
+            const IconComponent = getExerciseIcon(activity.exercises.exercise_type)
 
-             
-            </div>
-          )
+            return (
+              <div key={`exercise-${activity.id}`} className="flex items-center space-x-3 p-3 rounded-lg hover:bg-gray-50 transition-colors">
+                {/* User Avatar */}
+                <div className="flex-shrink-0">
+                  {activity.users.avatar_url ? (
+                    <img
+                      src={activity.users.avatar_url}
+                      alt={activity.users.full_name}
+                      className="w-8 h-8 rounded-full object-cover"
+                    />
+                  ) : (
+                    <div className="w-8 h-8 rounded-full bg-blue-100 flex items-center justify-center">
+                      <span className="text-sm font-medium text-blue-600">
+                        {activity.users.full_name?.charAt(0) || 'U'}
+                      </span>
+                    </div>
+                  )}
+                </div>
+
+                {/* Activity Content */}
+                <div className="flex-1 min-w-0">
+                  <div className="flex items-center space-x-2">
+                    <IconComponent className="w-4 h-4 text-blue-600 flex-shrink-0" />
+                    <span className="text-sm font-medium text-gray-900 truncate">
+                      {activity.users.full_name || 'Người dùng'}
+                    </span>
+                  </div>
+                  <p className="text-sm text-gray-600 truncate">
+                    hoàn thành <span className="font-medium">{activity.exercises.title}</span>
+                  </p>
+                </div>
+
+                {/* XP Reward */}
+                <div className="flex items-center space-x-1 text-green-600 font-medium">
+                  <Star className="w-4 h-4" />
+                  <span className="text-sm">+{activity.exercises.xp_reward || 0}</span>
+                </div>
+              </div>
+            )
+          }
         })}
       </div>
 
-      {activities.length >= 10 && (
-        <div className="mt-4 text-center">
-          <button className="text-sm text-blue-600 hover:text-blue-800 font-medium">
-            Xem tất cả hoạt động
-          </button>
-        </div>
-      )}
     </div>
   )
 }

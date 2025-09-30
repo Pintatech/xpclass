@@ -457,7 +457,7 @@ const DragDropExercise = () => {
   const userAnswer = userAnswers[currentQuestionIndex] || {}
 
   return (
-    <div className="min-h-screen bg-gray-50">
+    <div className="quiz-question-bg quiz-desktop-reset">
       {/* Header */}
       <div className="bg-white shadow-sm border-b">
         <div className="max-w-4xl mx-auto px-4 py-4">
@@ -478,7 +478,7 @@ const DragDropExercise = () => {
 
       {/* Main Content */}
       <div className="max-w-4xl mx-auto px-4 py-8">
-        <div className="bg-white rounded-lg shadow-sm p-6" style={{ userSelect: 'none' }}>
+        <div className="rounded-lg p-6 !bg-transparent shadow-none" style={{ userSelect: 'none', marginTop: '120px' }}>
           {/* Question with inline drop zones */}
           <div className="mb-8">
             <h2 className="text-lg font-semibold text-gray-800 mb-4 leading-relaxed">

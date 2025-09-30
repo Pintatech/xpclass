@@ -150,7 +150,8 @@ const Profile = () => {
     if (!user) return
 
     try {
-      const { data, error } = await supabase
+      // Fetch exercise completions
+      const { data: exerciseData, error: exerciseError } = await supabase
         .from('user_progress')
         .select(`
           *,
@@ -164,9 +165,44 @@ const Profile = () => {
         .order('completed_at', { ascending: false })
         .limit(10)
 
-      if (error) throw error
+      if (exerciseError) throw exerciseError
 
-      setRecentActivity(data || [])
+      // Fetch achievement claims
+      const { data: achievementData, error: achievementError } = await supabase
+        .from('user_achievements')
+        .select(`
+          *,
+          achievements (
+            title,
+            xp_reward
+          )
+        `)
+        .eq('user_id', user.id)
+        .not('claimed_at', 'is', null)
+        .order('claimed_at', { ascending: false })
+        .limit(10)
+
+      if (achievementError) throw achievementError
+
+      // Combine and sort activities
+      const exerciseActivities = (exerciseData || []).map(item => ({
+        ...item,
+        type: 'exercise',
+        activity_date: item.completed_at
+      }))
+
+      const achievementActivities = (achievementData || []).map(item => ({
+        ...item,
+        type: 'achievement',
+        activity_date: item.claimed_at,
+        xp_earned: item.achievements?.xp_reward || 0
+      }))
+
+      const allActivities = [...exerciseActivities, ...achievementActivities]
+        .sort((a, b) => new Date(b.activity_date) - new Date(a.activity_date))
+        .slice(0, 10)
+
+      setRecentActivity(allActivities)
     } catch (error) {
       console.error('Error fetching recent activity:', error)
     }
@@ -340,7 +376,7 @@ const Profile = () => {
   return (
     <div className="max-w-4xl mx-auto space-y-6">
       {/* Profile Header */}
-      <Card className="bg-gradient-to-r from-blue-500 to-purple-600 text-white">
+      <Card className="!bg-blue-500 text-white">
         <Card.Content className="p-6">
           <div className="flex items-center justify-between">
             <div className="flex items-center space-x-4">
@@ -410,25 +446,7 @@ const Profile = () => {
           {/* Level and XP Bar */}
           <div className="mt-6">
             <div className="flex items-center justify-between text-sm mb-2">
-              <div className="flex items-center space-x-2">
-                {currentBadge && (
-                  <div className={`flex items-center space-x-2 px-3 py-1 rounded-lg ${getTierBgColor(currentBadge.tier)}`}>
-                    <img
-                      src={currentBadge.icon}
-                      alt={currentBadge.name}
-                      className="w-5 h-5 object-contain"
-                      onError={(e) => {
-                        e.target.style.display = 'none'
-                        e.target.nextSibling.style.display = 'inline'
-                      }}
-                    />
-                    <span className="text-lg hidden">{currentBadge.icon}</span>
-                    <span className={`text-sm font-medium ${getTierColor(currentBadge.tier)}`}>
-                      {currentBadge.name}
-                    </span>
-                  </div>
-                )}
-              </div>
+              <div></div>
               <span className="font-semibold">{stats.totalXP} XP</span>
             </div>
             
@@ -586,25 +604,46 @@ const Profile = () => {
           {recentActivity.length > 0 ? (
             <div className="space-y-3">
               {recentActivity.map((activity, index) => {
-                const IconComponent = getExerciseTypeIcon(activity.exercises?.exercise_type)
-                return (
-                  <div key={activity.id} className="flex items-center space-x-3 p-3 rounded-lg bg-gray-50">
-                    <div className="w-10 h-10 bg-green-100 rounded-full flex items-center justify-center">
-                      <IconComponent className="w-5 h-5 text-green-600" />
+                if (activity.type === 'achievement') {
+                  return (
+                    <div key={`achievement-${activity.id}`} className="flex items-center space-x-3 p-3 rounded-lg bg-yellow-50 border border-yellow-200">
+                      <div className="w-10 h-10 bg-yellow-100 rounded-full flex items-center justify-center">
+                        <Trophy className="w-5 h-5 text-yellow-600" />
+                      </div>
+                      <div className="flex-1">
+                        <h4 className="font-medium text-gray-900">
+                          Nhận thành tích: {activity.achievements?.title}
+                        </h4>
+                        <p className="text-sm text-gray-600">
+                          Achievement • {formatTimeAgo(activity.claimed_at)}
+                        </p>
+                      </div>
+                      <div className="text-yellow-600 font-semibold">
+                        +{activity.xp_earned} XP
+                      </div>
                     </div>
-                    <div className="flex-1">
-                      <h4 className="font-medium text-gray-900">
-                        Hoàn thành: {activity.exercises?.title}
-                      </h4>
-                      <p className="text-sm text-gray-600">
-                        {getExerciseTypeLabel(activity.exercises?.exercise_type)} • Điểm: {activity.score}% • {formatTimeAgo(activity.completed_at)}
-                      </p>
+                  )
+                } else {
+                  const IconComponent = getExerciseTypeIcon(activity.exercises?.exercise_type)
+                  return (
+                    <div key={`exercise-${activity.id}`} className="flex items-center space-x-3 p-3 rounded-lg bg-gray-50">
+                      <div className="w-10 h-10 bg-green-100 rounded-full flex items-center justify-center">
+                        <IconComponent className="w-5 h-5 text-green-600" />
+                      </div>
+                      <div className="flex-1">
+                        <h4 className="font-medium text-gray-900">
+                          Hoàn thành: {activity.exercises?.title}
+                        </h4>
+                        <p className="text-sm text-gray-600">
+                          {getExerciseTypeLabel(activity.exercises?.exercise_type)} • Điểm: {activity.score}% • {formatTimeAgo(activity.completed_at)}
+                        </p>
+                      </div>
+                      <div className="text-green-600 font-semibold">
+                        +{activity.exercises?.xp_reward || 10} XP
+                      </div>
                     </div>
-                    <div className="text-green-600 font-semibold">
-                      +{activity.exercises?.xp_reward || 10} XP
-                    </div>
-                  </div>
-                )
+                  )
+                }
               })}
             </div>
           ) : (

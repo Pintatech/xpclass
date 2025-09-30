@@ -91,6 +91,7 @@ const Leaderboard = () => {
 
       if (timeframe === 'today') {
         // Get users based on XP earned today (from completed exercises)
+        console.log('Today leaderboard - Vietnam date:', vietnamToday)
         leaderboardQuery = await getTimeframeLeaderboard('today', vietnamToday)
       } else if (timeframe === 'week') {
         // Get last 7 days (including today)
@@ -216,9 +217,11 @@ const Leaderboard = () => {
       .not('xp_earned', 'is', null)
 
     if (period === 'today') {
-      // Filter by Vietnam date
-      progressQuery = progressQuery.gte('completed_at', startDate + 'T00:00:00')
-                                  .lt('completed_at', startDate + 'T23:59:59')
+      // Filter by Vietnam date - need to handle timezone properly
+      const startOfDay = new Date(startDate + 'T00:00:00+07:00').toISOString()
+      const endOfDay = new Date(startDate + 'T23:59:59+07:00').toISOString()
+      progressQuery = progressQuery.gte('completed_at', startOfDay)
+                                  .lte('completed_at', endOfDay)
     } else {
       progressQuery = progressQuery.gte('completed_at', startDate + 'T00:00:00')
     }
@@ -239,9 +242,9 @@ const Leaderboard = () => {
       if (period === 'today') {
         includeInTimeframe = vietnamDate === startDate
       } else if (period === 'week') {
-        includeInTimeframe = vietnamDate >= startDate
+        includeInTimeframe = vietnamDate >= startDate.split('T')[0] // Compare just the date part
       } else if (period === 'month') {
-        includeInTimeframe = vietnamDate >= startDate
+        includeInTimeframe = vietnamDate >= startDate.split('T')[0] // Compare just the date part
       }
 
       if (includeInTimeframe) {

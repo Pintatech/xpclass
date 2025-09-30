@@ -558,7 +558,8 @@ const FlashcardExercise = () => {
   }
 
   return (
-    <div className="max-w-6xl mx-auto space-y-6">
+    <div className="quiz-question-bg quiz-desktop-reset">
+      <div className="max-w-6xl mx-auto space-y-6 px-4 py-6">
 
 
 
@@ -961,6 +962,7 @@ const FlashcardExercise = () => {
           </Button>
         </div>
       )}
+      </div>
     </div>
   )
 }
