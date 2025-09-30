@@ -35,6 +35,7 @@ function App() {
                 <Route path="leaderboard" element={<Leaderboard />} />
                 <Route path="progress" element={<Progress />} />
                 <Route path="profile" element={<Profile />} />
+                <Route path="profile/:userId" element={<Profile />} />
                 <Route path="admin/*" element={
                   <ProtectedRoute requireAdmin>
                     <AdminDashboard />

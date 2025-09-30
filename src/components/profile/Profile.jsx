@@ -1,6 +1,8 @@
 import { useState, useEffect } from 'react'
+import { useParams, useNavigate } from 'react-router-dom'
 import { useAuth } from '../../hooks/useAuth'
 import { useStudentLevels } from '../../hooks/useStudentLevels'
+import { useAchievements } from '../../hooks/useAchievements'
 import { supabase } from '../../supabase/client'
 import Card from '../ui/Card'
 import Button from '../ui/Button'
@@ -30,21 +32,33 @@ import {
 } from 'lucide-react'
 
 const Profile = () => {
+  const { userId } = useParams()
+  const navigate = useNavigate()
   const { user, profile, updateProfile } = useAuth()
-  const { 
-    currentLevel, 
-    nextLevel, 
-    levelProgress, 
-    currentBadge, 
+  const {
+    currentLevel,
+    nextLevel,
+    levelProgress,
+    currentBadge,
     nextBadge,
     hasUnlockedPerk,
-    isMaxLevel 
+    isMaxLevel
   } = useStudentLevels()
+  const { getAchievementsWithProgress, userAchievements } = useAchievements()
+
+  // State for profile being viewed
+  const [viewedProfile, setViewedProfile] = useState(null)
+  const [viewedUser, setViewedUser] = useState(null)
   const [loading, setLoading] = useState(true)
   const [isEditing, setIsEditing] = useState(false)
   const [editData, setEditData] = useState({
     full_name: ''
   })
+
+  // Check if viewing own profile or someone else's
+  const isOwnProfile = !userId || userId === user?.id
+  const currentProfile = isOwnProfile ? profile : viewedProfile
+  const currentUser = isOwnProfile ? user : viewedUser
 
   // Stats state
   const [stats, setStats] = useState({
@@ -71,8 +85,12 @@ const Profile = () => {
   const [upcomingBadges, setUpcomingBadges] = useState([])
   const [showBadgeModal, setShowBadgeModal] = useState(false)
 
+  // Achievement state
+  const [achievements, setAchievements] = useState([])
+  const [showAchievementModal, setShowAchievementModal] = useState(false)
+
   useEffect(() => {
-    if (profile) {
+    if (isOwnProfile && profile) {
       setEditData({
         full_name: profile.full_name || ''
       })
@@ -81,11 +99,56 @@ const Profile = () => {
       fetchRecentActivity()
       fetchAvailableAvatars()
       processBadges()
+    } else if (!isOwnProfile && userId) {
+      fetchOtherUserProfile()
     }
-  }, [profile])
+  }, [profile, userId, isOwnProfile])
 
-  const fetchUserStats = async () => {
-    if (!user) return
+  // Separate effect to fetch achievements after stats are loaded
+  useEffect(() => {
+    const userIdToCheck = isOwnProfile ? user?.id : userId
+    if (userIdToCheck && !loading && (stats.exercisesCompleted !== undefined || stats.totalXP !== undefined)) {
+      fetchAchievements(isOwnProfile ? null : userId)
+    }
+  }, [userAchievements, user?.id, userId, isOwnProfile, stats, loading])
+
+  const fetchOtherUserProfile = async () => {
+    try {
+      setLoading(true)
+
+      // Fetch the other user's profile
+      const { data: userData, error: userError } = await supabase
+        .from('users')
+        .select('*')
+        .eq('id', userId)
+        .single()
+
+      if (userError) {
+        console.error('User not found:', userError)
+        navigate('/leaderboard')
+        return
+      }
+
+      setViewedUser(userData)
+      setViewedProfile(userData)
+      setSelectedAvatar(userData.avatar_url || '👤')
+
+      // Fetch stats for the viewed user
+      await fetchUserStats(userId)
+      await fetchRecentActivity(userId)
+      await fetchAvailableAvatars()
+      await processBadges(userData?.xp || 0)
+      // fetchAchievements will be called automatically via useEffect after stats are loaded
+
+    } catch (error) {
+      console.error('Error fetching user profile:', error)
+      navigate('/leaderboard')
+    }
+  }
+
+  const fetchUserStats = async (targetUserId = null) => {
+    const userIdToFetch = targetUserId || user?.id
+    if (!userIdToFetch) return
 
     try {
       setLoading(true)
@@ -102,13 +165,14 @@ const Profile = () => {
             xp_reward
           )
         `)
-        .eq('user_id', user.id)
+        .eq('user_id', userIdToFetch)
 
       if (progressError) throw progressError
 
       // Calculate stats from progress data
       const completed = progressData?.filter(p => p.status === 'completed') || []
-      const totalXP = profile?.xp || 0
+      const targetProfile = targetUserId ? viewedProfile : profile
+      const totalXP = targetProfile?.xp || 0
       const exercisesCompleted = completed.length
       const averageScore = completed.length > 0
         ? Math.round(completed.reduce((sum, p) => sum + (p.score || 0), 0) / completed.length)
@@ -118,7 +182,7 @@ const Profile = () => {
       const { data: userData, error: userError } = await supabase
         .from('users')
         .select('*')
-        .eq('id', user.id)
+        .eq('id', userIdToFetch)
         .single()
 
       if (userError) throw userError
@@ -137,7 +201,11 @@ const Profile = () => {
       setStats(newStats)
 
       // Process badges after stats are updated
-      processBadges()
+      if (targetUserId) {
+        processBadges(totalXP)
+      } else {
+        processBadges()
+      }
 
     } catch (error) {
       console.error('Error fetching user stats:', error)
@@ -146,8 +214,9 @@ const Profile = () => {
     }
   }
 
-  const fetchRecentActivity = async () => {
-    if (!user) return
+  const fetchRecentActivity = async (targetUserId = null) => {
+    const userIdToFetch = targetUserId || user?.id
+    if (!userIdToFetch) return
 
     try {
       // Fetch exercise completions
@@ -160,7 +229,7 @@ const Profile = () => {
             exercise_type
           )
         `)
-        .eq('user_id', user.id)
+        .eq('user_id', userIdToFetch)
         .eq('status', 'completed')
         .order('completed_at', { ascending: false })
         .limit(10)
@@ -177,7 +246,7 @@ const Profile = () => {
             xp_reward
           )
         `)
-        .eq('user_id', user.id)
+        .eq('user_id', userIdToFetch)
         .not('claimed_at', 'is', null)
         .order('claimed_at', { ascending: false })
         .limit(10)
@@ -233,10 +302,10 @@ const Profile = () => {
     }
   }
 
-  const processBadges = async () => {
+  const processBadges = async (userXP = null) => {
     try {
       // Get user's current XP
-      const userXP = stats.totalXP || profile?.xp || 0
+      const currentXP = userXP !== null ? userXP : (stats.totalXP || currentProfile?.xp || 0)
 
       // Fetch student levels from the existing admin system
       const { data: studentLevels, error } = await supabase
@@ -250,13 +319,91 @@ const Profile = () => {
       const levels = studentLevels || []
 
       // Convert student levels to badge format and separate earned vs upcoming
-      const earned = levels.filter(level => userXP >= level.xp_required)
-      const upcoming = levels.filter(level => userXP < level.xp_required)
+      const earned = levels.filter(level => currentXP >= level.xp_required)
+      const upcoming = levels.filter(level => currentXP < level.xp_required)
 
       setEarnedBadges(earned)
       setUpcomingBadges(upcoming)
     } catch (error) {
       console.error('Error processing badges:', error)
+    }
+  }
+
+  const fetchAchievements = async (targetUserId = null) => {
+    try {
+      const userIdToFetch = targetUserId || user?.id
+      if (!userIdToFetch) return
+
+      // Fetch all achievements directly from database
+      const { data: allAchievements, error: achievementsError } = await supabase
+        .from('achievements')
+        .select('*')
+        .eq('is_active', true)
+        .order('criteria_value', { ascending: true })
+
+      if (achievementsError) throw achievementsError
+
+      // Fetch user's specific achievements from database
+      const { data: userAchievements, error } = await supabase
+        .from('user_achievements')
+        .select('*')
+        .eq('user_id', userIdToFetch)
+
+      if (error) throw error
+
+      // Get user stats for progress calculation
+      const targetProfile = targetUserId ? viewedProfile : profile
+      const userStats = {
+        completedExercises: stats.exercisesCompleted || 0,
+        currentStreak: stats.streakCount || 0,
+        totalXp: stats.totalXP || targetProfile?.xp || 0
+      }
+
+      console.log('User stats for achievement calculation:', userStats)
+      console.log('User achievements from DB:', userAchievements)
+
+      // Process achievements with proper unlock calculation
+      const processedAchievements = allAchievements.map(achievement => {
+        const userAchievement = userAchievements?.find(ua => ua.achievement_id === achievement.id)
+
+        // Calculate if achievement should be unlocked based on criteria (same logic as AchievementBadgeBar)
+        let calculatedUnlocked = false
+        switch (achievement.criteria_type) {
+          case 'exercise_completed':
+            calculatedUnlocked = userStats.completedExercises >= achievement.criteria_value
+            break
+          case 'daily_streak':
+            calculatedUnlocked = userStats.currentStreak >= achievement.criteria_value
+            break
+          case 'total_xp':
+            calculatedUnlocked = userStats.totalXp >= achievement.criteria_value
+            break
+          case 'daily_exercises':
+            calculatedUnlocked = false // This criteria is not implemented yet
+            break
+          default:
+            calculatedUnlocked = false
+        }
+
+        // Use database record if it exists, otherwise use calculated value
+        const isUnlocked = !!userAchievement?.unlocked_at || calculatedUnlocked
+        const isClaimed = !!userAchievement?.claimed_at
+
+        return {
+          ...achievement,
+          isUnlocked,
+          isClaimed,
+          unlockedDate: isUnlocked && userAchievement?.unlocked_at
+            ? new Date(userAchievement.unlocked_at).toLocaleDateString('vi-VN')
+            : (calculatedUnlocked ? 'Đã mở khóa' : null),
+          claimedDate: isClaimed ? new Date(userAchievement.claimed_at).toLocaleDateString('vi-VN') : null
+        }
+      })
+
+      console.log('Processed achievements:', processedAchievements)
+      setAchievements(processedAchievements)
+    } catch (error) {
+      console.error('Error fetching achievements:', error)
     }
   }
 
@@ -381,9 +528,11 @@ const Profile = () => {
           <div className="flex items-center justify-between">
             <div className="flex items-center space-x-4">
               <div
-                className="w-20 h-20 bg-white/20 rounded-full flex items-center justify-center text-2xl font-bold cursor-pointer hover:bg-white/30 transition-colors overflow-hidden"
-                onClick={() => setShowAvatarSelector(true)}
-                title="Click to change avatar"
+                className={`w-20 h-20 bg-white/20 rounded-full flex items-center justify-center text-2xl font-bold overflow-hidden ${
+                  isOwnProfile ? 'cursor-pointer hover:bg-white/30 transition-colors' : ''
+                }`}
+                onClick={isOwnProfile ? () => setShowAvatarSelector(true) : undefined}
+                title={isOwnProfile ? "Click to change avatar" : ""}
               >
                 {selectedAvatar ? (
                   selectedAvatar.startsWith('http') ? (
@@ -392,7 +541,7 @@ const Profile = () => {
                     selectedAvatar
                   )
                 ) : (
-                  profile?.full_name?.[0]?.toUpperCase() || profile?.email?.[0]?.toUpperCase() || 'U'
+                  currentProfile?.full_name?.[0]?.toUpperCase() || currentProfile?.email?.[0]?.toUpperCase() || 'U'
                 )}
               </div>
               <div>
@@ -407,40 +556,42 @@ const Profile = () => {
                     />
                     <p className="text-blue-100 flex items-center space-x-2">
                       <Mail className="w-4 h-4" />
-                      <span>{profile?.email}</span>
+                      <span>{currentProfile?.email}</span>
                     </p>
                   </div>
                 ) : (
                   <div>
                     <h1 className="text-3xl font-bold">
-                      {profile?.full_name || 'Người dùng'}
+                      {currentProfile?.full_name || 'Người dùng'}
                     </h1>
                     <p className="text-blue-100 flex items-center space-x-2 mt-1">
                       <Mail className="w-4 h-4" />
-                      <span>{profile?.email}</span>
+                      <span>{currentProfile?.email}</span>
                     </p>
                   </div>
                 )}
               </div>
             </div>
 
-            <div className="text-right">
-              {isEditing ? (
-                <div className="space-x-2">
-                  <Button onClick={handleSaveProfile} variant="outline" className="text-white border-white">
-                    Lưu
-                  </Button>
+            {isOwnProfile && (
+              <div className="text-right">
+                {isEditing ? (
+                  <div className="space-x-2">
+                    <Button onClick={handleSaveProfile} variant="outline" className="text-white border-white">
+                      Lưu
+                    </Button>
+                    <Button onClick={handleEditToggle} variant="ghost" className="text-white">
+                      Hủy
+                    </Button>
+                  </div>
+                ) : (
                   <Button onClick={handleEditToggle} variant="ghost" className="text-white">
-                    Hủy
+                    <Edit3 className="w-4 h-4 mr-2" />
+                    Chỉnh sửa
                   </Button>
-                </div>
-              ) : (
-                <Button onClick={handleEditToggle} variant="ghost" className="text-white">
-                  <Edit3 className="w-4 h-4 mr-2" />
-                  Chỉnh sửa
-                </Button>
-              )}
-            </div>
+                )}
+              </div>
+            )}
           </div>
 
           {/* Level and XP Bar */}
@@ -539,6 +690,72 @@ const Profile = () => {
               >
                 View All Available Badges
               </button>
+            </div>
+          )}
+        </Card.Content>
+      </Card>
+
+      {/* Achievements Collection */}
+      <Card>
+        <Card.Header>
+          <div className="flex items-center justify-between">
+            <h3 className="text-xl font-semibold flex items-center space-x-2">
+              <Award className="w-5 h-5 text-purple-600" />
+              <span>Achievements ({achievements.filter(a => a.isUnlocked).length} unlocked)</span>
+            </h3>
+            <button
+              onClick={() => setShowAchievementModal(true)}
+              className="flex items-center space-x-1 px-3 py-1 text-sm text-purple-600 hover:text-purple-700 hover:bg-purple-50 rounded-lg transition-colors"
+            >
+              <Award className="w-4 h-4" />
+              <span>View All</span>
+            </button>
+          </div>
+        </Card.Header>
+
+        <Card.Content>
+          {achievements.filter(a => a.isUnlocked).length > 0 ? (
+            <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-4">
+              {achievements.filter(a => a.isUnlocked).slice(0, 6).map((achievement) => (
+                <div key={achievement.id} className="text-center">
+                  <div className="w-16 h-16 mx-auto mb-2 p-2 rounded-full bg-purple-100 border-2 border-purple-300">
+                    {achievement.badge_image_url ? (
+                      <img
+                        src={achievement.badge_image_url}
+                        alt={achievement.title}
+                        className="w-full h-full object-contain"
+                      />
+                    ) : (
+                      <div className="w-full h-full flex items-center justify-center text-2xl">
+                        🏆
+                      </div>
+                    )}
+                  </div>
+                  <div className="text-sm font-medium text-gray-900">{achievement.title}</div>
+                  {achievement.isClaimed && (
+                    <div className="text-xs text-green-600 mt-1">✓ Claimed</div>
+                  )}
+                  {!achievement.isClaimed && (
+                    <div className="text-xs text-blue-600 mt-1">Ready to claim!</div>
+                  )}
+                </div>
+              ))}
+              {achievements.filter(a => a.isUnlocked).length > 6 && (
+                <div className="flex items-center justify-center">
+                  <button
+                    onClick={() => setShowAchievementModal(true)}
+                    className="w-16 h-16 mx-auto mb-2 p-2 rounded-full bg-gray-100 hover:bg-gray-200 transition-colors flex items-center justify-center"
+                  >
+                    <span className="text-sm text-gray-600">+{achievements.filter(a => a.isUnlocked).length - 6}</span>
+                  </button>
+                  <div className="text-sm text-gray-600 text-center">More...</div>
+                </div>
+              )}
+            </div>
+          ) : (
+            <div className="text-center py-8 text-gray-500">
+              <Award className="w-16 h-16 mx-auto mb-4 opacity-50" />
+              <p>No achievements unlocked yet. Keep learning to unlock your first achievement!</p>
             </div>
           )}
         </Card.Content>
@@ -681,7 +898,7 @@ const Profile = () => {
           </Card.Header>
           <Card.Content>
             <div className="text-lg font-medium text-gray-900 mb-2">
-              {profile?.created_at ? new Date(profile.created_at).toLocaleDateString('vi-VN') : 'N/A'}
+              {currentProfile?.created_at ? new Date(currentProfile.created_at).toLocaleDateString('vi-VN') : 'N/A'}
             </div>
             <p className="text-gray-600">Ngày đăng ký tài khoản</p>
           </Card.Content>
@@ -689,7 +906,7 @@ const Profile = () => {
       </div>
 
       {/* Avatar Selector Modal */}
-      {showAvatarSelector && (
+      {showAvatarSelector && isOwnProfile && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
           <div className="bg-white rounded-lg p-8 max-w-5xl w-full max-h-[90vh] overflow-y-auto">
             <div className="flex items-center justify-between mb-4">
@@ -894,6 +1111,70 @@ const Profile = () => {
                   <Trophy className="w-16 h-16 mx-auto mb-4 opacity-50" />
                   <h3 className="text-lg font-medium mb-2">No badges available</h3>
                   <p>Badge system is not configured yet.</p>
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Achievement Modal */}
+      {showAchievementModal && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-lg max-w-4xl w-full max-h-[90vh] overflow-y-auto">
+            <div className="sticky top-0 bg-white border-b p-4">
+              <div className="flex items-center justify-between">
+                <h2 className="text-2xl font-bold text-gray-900">Achievement Collection</h2>
+                <button
+                  onClick={() => setShowAchievementModal(false)}
+                  className="p-2 hover:bg-gray-100 rounded-full"
+                >
+                  <X className="w-5 h-5" />
+                </button>
+              </div>
+            </div>
+
+            <div className="p-6">
+              {/* Unlocked Achievements */}
+              {achievements.filter(a => a.isUnlocked).length > 0 ? (
+                <div>
+                  <h3 className="text-lg font-semibold text-gray-900 mb-4 flex items-center space-x-2">
+                    <Trophy className="w-5 h-5 text-purple-600" />
+                    <span>Unlocked Achievements ({achievements.filter(a => a.isUnlocked).length})</span>
+                  </h3>
+                  <div className="grid grid-cols-3 md:grid-cols-5 lg:grid-cols-6 gap-4">
+                    {achievements.filter(a => a.isUnlocked).map((achievement) => (
+                      <div key={achievement.id} className="text-center">
+                        <div className="w-16 h-16 mx-auto mb-2 p-2 rounded-full bg-purple-100 border-2 border-purple-300">
+                          {achievement.badge_image_url ? (
+                            <img
+                              src={achievement.badge_image_url}
+                              alt={achievement.title}
+                              className="w-full h-full object-contain"
+                            />
+                          ) : (
+                            <div className="w-full h-full flex items-center justify-center text-2xl">
+                              🏆
+                            </div>
+                          )}
+                        </div>
+                        <div className="text-sm font-medium text-gray-900">{achievement.title}</div>
+                        <div className="text-xs text-gray-500">{achievement.description}</div>
+                        {achievement.isClaimed && (
+                          <div className="text-xs text-green-600 mt-1">✓ Claimed</div>
+                        )}
+                        {!achievement.isClaimed && (
+                          <div className="text-xs text-blue-600 mt-1">Ready to claim!</div>
+                        )}
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              ) : (
+                <div className="text-center py-12 text-gray-500">
+                  <Award className="w-16 h-16 mx-auto mb-4 opacity-50" />
+                  <h3 className="text-lg font-medium mb-2">No achievements unlocked yet</h3>
+                  <p>Keep learning to unlock your first achievement!</p>
                 </div>
               )}
             </div>

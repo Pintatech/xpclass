@@ -94,7 +94,7 @@ const DailyQuest = () => {
         // Refresh quest status
         await fetchTodayQuest()
         // Show success message
-        alert(`🎉 Chúc mừng! Bạn đã nhận được ${result.xpEarned} XP!`)
+        alert(`🎉 Chúc mừng! Bạn đã nhận được ${result.xpEarned} 🪙!`)
       } else {
         alert(`Có lỗi xảy ra: ${result.error}`)
       }
@@ -239,7 +239,10 @@ const DailyQuest = () => {
           <div className="flex items-center space-x-2">
             <Star className="w-5 h-5 text-white" style={{ filter: 'drop-shadow(0 0 8px rgba(255, 255, 255, 0.8))' }} />
             <span className="text-sm font-medium text-white" style={{ textShadow: '0 0 8px rgba(255, 255, 255, 0.6), 0 0 16px rgba(255, 255, 255, 0.4)' }}>Phần thưởng:</span>
-            <span className="text-lg font-bold text-white" style={{ textShadow: '0 0 10px rgba(255, 255, 255, 0.8), 0 0 20px rgba(255, 255, 255, 0.6), 0 0 30px rgba(255, 255, 255, 0.4)' }}>{quest.xp_reward} XP</span>
+            <div className="flex items-center gap-2">
+              <span className="text-lg font-bold text-white" style={{ textShadow: '0 0 10px rgba(255, 255, 255, 0.8), 0 0 20px rgba(255, 255, 255, 0.6), 0 0 30px rgba(255, 255, 255, 0.4)' }}>{quest.xp_reward}</span>
+              <img src="https://xpclass.vn/leaderboard/icon/coin.png" alt="XP" className="w-5 h-5" style={{ filter: 'drop-shadow(0 0 8px rgba(255, 255, 255, 0.8))' }} />
+            </div>
           </div>
           
         </div>

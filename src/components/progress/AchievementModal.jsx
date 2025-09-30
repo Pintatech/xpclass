@@ -16,14 +16,14 @@ const AchievementModal = ({ isOpen, onClose, achievements, userStats, onClaimXP,
     try {
       const result = await onClaimXP(achievementId)
       if (result.success) {
-        setClaimMessage(`+${result.xpAwarded} XP đã được cộng!`)
+        setClaimMessage(`+${result.xpAwarded}  đã được cộng!`)
         setTimeout(() => setClaimMessage(''), 3000)
       } else {
         setClaimMessage(result.message)
         setTimeout(() => setClaimMessage(''), 3000)
       }
     } catch (error) {
-      setClaimMessage('Có lỗi xảy ra khi nhận XP')
+      setClaimMessage('Có lỗi xảy ra khi nhận ')
       setTimeout(() => setClaimMessage(''), 3000)
     } finally {
       setClaiming(prev => ({ ...prev, [achievementId]: false }))
@@ -198,8 +198,9 @@ const AchievementModal = ({ isOpen, onClose, achievements, userStats, onClaimXP,
                           <div className="font-semibold text-gray-900">{achievement.title}</div>
                           <div className="text-sm text-gray-600">{achievement.description}</div>
                           {achievement.xp_reward > 0 && (
-                            <div className="text-xs text-blue-600 mt-1">
-                              +{achievement.xp_reward} XP
+                            <div className="text-xs text-blue-600 mt-1 flex items-center gap-1">
+                              +{achievement.xp_reward}
+                              <img src="https://xpclass.vn/leaderboard/icon/coin.png" alt="XP" className="w-3 h-3" />
                             </div>
                           )}
                           {unlocked && (
@@ -219,7 +220,7 @@ const AchievementModal = ({ isOpen, onClose, achievements, userStats, onClaimXP,
                               >
                                 <Gift className="w-4 h-4" />
                                 <span>
-                                  {claiming[achievement.id] ? 'Đang nhận...' : `Nhận ${achievement.xp_reward} XP`}
+                                  {claiming[achievement.id] ? 'Đang nhận...' : `Nhận ${achievement.xp_reward} `}
                                 </span>
                               </Button>
                             </div>
@@ -227,7 +228,7 @@ const AchievementModal = ({ isOpen, onClose, achievements, userStats, onClaimXP,
                           
                           {claimed && (
                             <div className="mt-2 text-xs text-green-600 font-medium">
-                              ✓ Đã nhận XP
+                              ✓ Đã nhận 
                             </div>
                           )}
                         </div>
@@ -274,8 +275,9 @@ const AchievementModal = ({ isOpen, onClose, achievements, userStats, onClaimXP,
                           <div className="font-semibold text-gray-700">{achievement.title}</div>
                           <div className="text-sm text-gray-500">{achievement.description}</div>
                           {achievement.xp_reward > 0 && (
-                            <div className="text-xs text-gray-500 mt-1">
-                              +{achievement.xp_reward} XP
+                            <div className="text-xs text-gray-500 mt-1 flex items-center gap-1">
+                              +{achievement.xp_reward}
+                              <img src="https://xpclass.vn/leaderboard/icon/coin.png" alt="XP" className="w-3 h-3" />
                             </div>
                           )}
                           <div className="mt-2">

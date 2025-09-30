@@ -120,27 +120,52 @@ const StudentBadge = ({
 }
 
 // Simple Badge without background
-const SimpleBadge = ({ badge, size = 'medium', className = '' }) => {
+const SimpleBadge = ({ badge, size = 'medium', className = '', showName = false }) => {
   if (!badge) return null
 
   const sizeClasses = {
+    small: 'max-w-8 max-h-8',
+    medium: 'max-w-12 max-h-12',
+    large: 'max-w-16 max-h-16',
+    xl: 'max-w-20 max-h-20'
+  }
+
+  const fallbackSizeClasses = {
     small: 'w-8 h-8',
     medium: 'w-12 h-12',
     large: 'w-16 h-16',
     xl: 'w-20 h-20'
   }
 
+  const textSizeClasses = {
+    small: 'text-xs',
+    medium: 'text-sm',
+    large: 'text-base',
+    xl: 'text-lg'
+  }
+
   return (
-    <div className={`${sizeClasses[size]} ${className}`}>
+    <div className={`inline-flex flex-col items-center ${className}`}>
       {badge.icon.startsWith('http') ? (
         <img
           src={badge.icon}
           alt={badge.name}
-          className="w-full h-full object-contain"
+          className={`${sizeClasses[size]} object-contain`}
+          onError={(e) => {
+            e.target.style.display = 'none'
+            e.target.nextSibling.style.display = 'flex'
+          }}
         />
-      ) : (
-        <div className="w-full h-full flex items-center justify-center text-2xl">
-          {badge.icon}
+      ) : null}
+      <div
+        className={`${fallbackSizeClasses[size]} flex items-center justify-center text-2xl`}
+        style={{ display: badge.icon.startsWith('http') ? 'none' : 'flex' }}
+      >
+        {badge.icon}
+      </div>
+      {showName && (
+        <div className={`text-center mt-1 ${textSizeClasses[size]} text-gray-700 font-medium`}>
+          {badge.name}
         </div>
       )}
     </div>
@@ -208,8 +233,10 @@ const LevelProgressBar = ({ showNextBadge = true, className = '' }) => {
             ></div>
           </div>
 
-          <div className="text-center mt-2 text-sm text-gray-600">
-            {levelProgress.xpNeeded.toLocaleString()} XP needed for {nextBadge?.name}
+          <div className="text-center mt-2 text-sm text-gray-600 flex items-center justify-center gap-1">
+            {levelProgress.xpNeeded.toLocaleString()}
+            <img src="https://xpclass.vn/leaderboard/icon/coin.png" alt="XP" className="w-4 h-4" />
+            needed for {nextBadge?.name}
           </div>
         </>
       ) : (
@@ -313,4 +340,4 @@ const CompactBadge = ({ className = '' }) => {
 }
 
 export default StudentBadge
-export { Badge, LevelProgressBar, BadgeGallery, CompactBadge }
+export { Badge, SimpleBadge, LevelProgressBar, BadgeGallery, CompactBadge }

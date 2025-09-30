@@ -1,20 +1,36 @@
 import { useState, useEffect } from 'react'
+import { useNavigate } from 'react-router-dom'
 import { supabase } from '../../supabase/client'
 import { useAuth } from '../../hooks/useAuth'
 import { useStudentLevels } from '../../hooks/useStudentLevels'
 import { getVietnamDate, utcToVietnamDate } from '../../utils/vietnamTime'
 import Card from '../ui/Card'
 import Button from '../ui/Button'
+import { SimpleBadge } from '../ui/StudentBadge'
 import { Trophy, Medal, Award, Crown, Star, RefreshCw } from 'lucide-react'
 
 const Leaderboard = () => {
+  const navigate = useNavigate()
   const [timeframe, setTimeframe] = useState('week')
   const [leaderboardData, setLeaderboardData] = useState([])
   const [currentUserRank, setCurrentUserRank] = useState(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState(null)
+  const [showBadgeInfo, setShowBadgeInfo] = useState(null)
   const { user } = useAuth()
   const { studentLevels } = useStudentLevels()
+
+  // Handle badge click for mobile
+  const handleBadgeClick = (badge) => {
+    setShowBadgeInfo(badge)
+    // Auto-hide after 3 seconds
+    setTimeout(() => setShowBadgeInfo(null), 3000)
+  }
+
+  // Handle profile navigation
+  const handleProfileClick = (userId) => {
+    navigate(`/profile/${userId}`)
+  }
 
   useEffect(() => {
     fetchLeaderboardData()
@@ -122,7 +138,10 @@ const Leaderboard = () => {
           xp: timeframe === 'all' ? (user.xp || 0) : timeframeXp,
           totalXp: user.xp || 0, // Always show total XP for level calculation
           level: levelInfo.level,
-          badge: levelInfo.badge,
+          badge: {
+            ...levelInfo.badge,
+            levelNumber: levelInfo.level
+          },
           avatar: user.avatar_url,
           streak: user.streak_count || 0,
           completedExercises: exerciseCounts[user.id] || 0,
@@ -323,10 +342,31 @@ const Leaderboard = () => {
       <div className="text-center">
         <h1 className="text-3xl font-bold text-gray-900 mb-2">Bảng xếp hạng</h1>
         <p className="text-gray-600">
-          {timeframe === 'today' && 'XP kiếm được hôm nay'}
-          {timeframe === 'week' && 'XP kiếm được tuần này'}
-          {timeframe === 'month' && 'XP kiếm được tháng này'}
-          {timeframe === 'all' && 'Tổng XP tích lũy'}
+          <div className="flex items-center gap-2 justify-center">
+            {timeframe === 'today' && (
+              <>
+                <img src="https://xpclass.vn/leaderboard/icon/coin.png" alt="XP" className="w-5 h-5" />
+                kiếm được hôm nay
+              </>
+            )}
+            {timeframe === 'week' && (
+              <>
+                <img src="https://xpclass.vn/leaderboard/icon/coin.png" alt="XP" className="w-5 h-5" />
+                kiếm được tuần này
+              </>
+            )}
+            {timeframe === 'month' && (
+              <>
+                <img src="https://xpclass.vn/leaderboard/icon/coin.png" alt="XP" className="w-5 h-5" />
+                kiếm được tháng này
+              </>
+            )}
+            {timeframe === 'all' && (
+              <>
+                Tổng <img src="https://xpclass.vn/leaderboard/icon/coin.png" alt="XP" className="w-5 h-5" /> tích lũy
+              </>
+            )}
+          </div>
         </p>
       </div>
 
@@ -388,10 +428,26 @@ const Leaderboard = () => {
                   )}
                   <span className="text-2xl hidden">{leaderboardData[1].name.charAt(0).toUpperCase()}</span>
                 </div>
-                <div className="font-bold text-gray-900">{leaderboardData[1].name}</div>
-                <div className="text-sm text-gray-600">Level {leaderboardData[1].level} • {leaderboardData[1].badge.name}</div>
+                <div
+                  className="font-bold text-gray-900 cursor-pointer hover:text-blue-600 transition-colors"
+                  onClick={() => handleProfileClick(leaderboardData[1].id)}
+                >
+                  {leaderboardData[1].name}
+                </div>
+                <div className="flex items-center justify-center mt-2">
+                  <div
+                    title={leaderboardData[1].badge.name}
+                    onClick={() => handleBadgeClick(leaderboardData[1].badge)}
+                    className="cursor-pointer"
+                  >
+                    <SimpleBadge badge={leaderboardData[1].badge} size="small" showName={false} />
+                  </div>
+                </div>
                 <div className="text-lg font-semibold text-gray-900 mt-2">
-                  {leaderboardData[1].xp.toLocaleString()} XP
+                  <div className="flex items-center justify-center gap-1">
+                    {leaderboardData[1].xp.toLocaleString()}
+                    <img src="https://xpclass.vn/leaderboard/icon/coin.png" alt="XP" className="w-4 h-4" />
+                  </div>
                 </div>
               </Card>
             </div>
@@ -422,10 +478,26 @@ const Leaderboard = () => {
                   )}
                   <span className="text-3xl hidden">{leaderboardData[0].name.charAt(0).toUpperCase()}</span>
                 </div>
-                <div className="font-bold text-gray-900 text-lg">{leaderboardData[0].name}</div>
-                <div className="text-sm text-gray-600">Level {leaderboardData[0].level} • {leaderboardData[0].badge.name}</div>
+                <div
+                  className="font-bold text-gray-900 text-lg cursor-pointer hover:text-blue-600 transition-colors"
+                  onClick={() => handleProfileClick(leaderboardData[0].id)}
+                >
+                  {leaderboardData[0].name}
+                </div>
+                <div className="flex items-center justify-center mt-2">
+                  <div
+                    title={leaderboardData[0].badge.name}
+                    onClick={() => handleBadgeClick(leaderboardData[0].badge)}
+                    className="cursor-pointer"
+                  >
+                    <SimpleBadge badge={leaderboardData[0].badge} size="medium" showName={false} />
+                  </div>
+                </div>
                 <div className="text-xl font-bold text-yellow-600 mt-2">
-                  {leaderboardData[0].xp.toLocaleString()} XP
+                  <div className="flex items-center justify-center gap-1">
+                    {leaderboardData[0].xp.toLocaleString()}
+                    <img src="https://xpclass.vn/leaderboard/icon/coin.png" alt="XP" className="w-5 h-5" />
+                  </div>
                 </div>
                 <div className="flex items-center justify-center mt-2 text-yellow-600">
                   <Star size={16} fill="currentColor" />
@@ -459,10 +531,26 @@ const Leaderboard = () => {
                   )}
                   <span className="text-2xl hidden">{leaderboardData[2].name.charAt(0).toUpperCase()}</span>
                 </div>
-                <div className="font-bold text-gray-900">{leaderboardData[2].name}</div>
-                <div className="text-sm text-gray-600">Level {leaderboardData[2].level} • {leaderboardData[2].badge.name}</div>
+                <div
+                  className="font-bold text-gray-900 cursor-pointer hover:text-blue-600 transition-colors"
+                  onClick={() => handleProfileClick(leaderboardData[2].id)}
+                >
+                  {leaderboardData[2].name}
+                </div>
+                <div className="flex items-center justify-center mt-2">
+                  <div
+                    title={leaderboardData[2].badge.name}
+                    onClick={() => handleBadgeClick(leaderboardData[2].badge)}
+                    className="cursor-pointer"
+                  >
+                    <SimpleBadge badge={leaderboardData[2].badge} size="small" showName={false} />
+                  </div>
+                </div>
                 <div className="text-lg font-semibold text-gray-900 mt-2">
-                  {leaderboardData[2].xp.toLocaleString()} XP
+                  <div className="flex items-center justify-center gap-1">
+                    {leaderboardData[2].xp.toLocaleString()}
+                    <img src="https://xpclass.vn/leaderboard/icon/coin.png" alt="XP" className="w-4 h-4" />
+                  </div>
                 </div>
               </Card>
             </div>
@@ -512,19 +600,30 @@ const Leaderboard = () => {
                   </div>
 
                   <div>
-                    <div className="font-semibold text-gray-900">{user.name}</div>
+                    <div
+                      className="font-semibold text-gray-900 cursor-pointer hover:text-blue-600 transition-colors"
+                      onClick={() => handleProfileClick(user.id)}
+                    >
+                      {user.name}
+                    </div>
                     <div className="flex items-center space-x-2 mt-1">
-                      <span className="text-sm text-gray-600">Level {user.level} • {user.badge.name}</span>
+                      <div
+                        title={user.badge.name}
+                        onClick={() => handleBadgeClick(user.badge)}
+                        className="cursor-pointer"
+                      >
+                        <SimpleBadge badge={user.badge} size="small" showName={false} />
+                      </div>
                       <span className="text-sm text-gray-600">• {user.completedExercises} bài tập</span>
                     </div>
                   </div>
                 </div>
 
                 <div className="text-right">
-                  <div className="font-bold text-lg text-gray-900">
+                  <div className="font-bold text-lg text-gray-900 flex items-center gap-2 justify-end">
                     {user.xp.toLocaleString()}
+                    <img src="https://xpclass.vn/leaderboard/icon/coin.png" alt="XP" className="w-5 h-5" />
                   </div>
-                  <div className="text-sm text-gray-600">XP</div>
                 </div>
               </div>
             ))}
@@ -560,12 +659,23 @@ const Leaderboard = () => {
                 </div>
                 <div>
                   <div className="font-semibold text-gray-900">Bạn ({currentUserRank.name})</div>
-                  <div className="text-sm text-gray-600">Hạng #{currentUserRank.rank} • Level {currentUserRank.level} • {currentUserRank.badge.name}</div>
+                  <div className="flex items-center space-x-2 mt-1">
+                    <span className="text-sm text-gray-600">Hạng #{currentUserRank.rank}</span>
+                    <div
+                      title={currentUserRank.badge.name}
+                      onClick={() => handleBadgeClick(currentUserRank.badge)}
+                      className="cursor-pointer"
+                    >
+                      <SimpleBadge badge={currentUserRank.badge} size="small" showName={false} />
+                    </div>
+                  </div>
                 </div>
               </div>
               <div className="text-right">
-                <div className="font-bold text-lg text-gray-900">{currentUserRank.xp.toLocaleString()}</div>
-                <div className="text-sm text-gray-600">XP</div>
+                <div className="font-bold text-lg text-gray-900 flex items-center gap-2 justify-end">
+                  {currentUserRank.xp.toLocaleString()}
+                  <img src="https://xpclass.vn/leaderboard/icon/coin.png" alt="XP" className="w-5 h-5" />
+                </div>
               </div>
             </div>
           </Card.Content>
@@ -587,7 +697,10 @@ const Leaderboard = () => {
                   <span className="text-gray-900">Lên cấp {getNextLevelNumber(currentUserRank.xp)}</span>
                 </div>
                 <span className="text-sm text-gray-600">
-                  Cần thêm {getNextLevelXpRequired(currentUserRank.xp).toLocaleString()} XP
+                  <div className="flex items-center gap-1">
+                    Cần thêm {getNextLevelXpRequired(currentUserRank.xp).toLocaleString()}
+                    <img src="https://xpclass.vn/leaderboard/icon/coin.png" alt="XP" className="w-4 h-4" />
+                  </div>
                 </span>
               </div>
 
@@ -601,7 +714,10 @@ const Leaderboard = () => {
                     </span>
                   </div>
                   <span className="text-sm text-gray-600">
-                    Cần thêm {(leaderboardData[currentUserRank.rank - 2].xp - currentUserRank.xp + 1).toLocaleString()} XP
+                    <div className="flex items-center gap-1">
+                      Cần thêm {(leaderboardData[currentUserRank.rank - 2].xp - currentUserRank.xp + 1).toLocaleString()}
+                      <img src="https://xpclass.vn/leaderboard/icon/coin.png" alt="XP" className="w-4 h-4" />
+                    </div>
                   </span>
                 </div>
               )}
@@ -613,17 +729,47 @@ const Leaderboard = () => {
                     <Trophy className="w-5 h-5 text-yellow-600" />
                     <span className="text-gray-900">Vào top 10</span>
                   </div>
-                  <span className="text-sm text-gray-600">
-                    {leaderboardData[9] ?
-                      `Cần thêm ${Math.max(1, leaderboardData[9].xp - currentUserRank.xp + 1).toLocaleString()} XP` :
+                  <div className="text-sm text-gray-600 flex items-center gap-1">
+                    {leaderboardData[9] ? (
+                      <>
+                        Cần thêm {Math.max(1, leaderboardData[9].xp - currentUserRank.xp + 1).toLocaleString()}
+                        <img src="https://xpclass.vn/leaderboard/icon/coin.png" alt="XP" className="w-4 h-4" />
+                      </>
+                    ) : (
                       'Đang tính toán...'
-                    }
-                  </span>
+                    )}
+                  </div>
                 </div>
               )}
             </div>
           </Card.Content>
         </Card>
+      )}
+
+      {/* Badge Info Modal for Mobile */}
+      {showBadgeInfo && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 md:hidden">
+          <div className="bg-white rounded-lg p-6 mx-4 max-w-sm w-full">
+            <div className="text-center">
+              <div className="mb-4">
+                <SimpleBadge badge={showBadgeInfo} size="large" showName={false} />
+              </div>
+              <h3 className="text-lg font-semibold text-gray-900 mb-2">
+                {showBadgeInfo.name}
+              </h3>
+              <p className="text-sm text-gray-600">
+                Tier: {showBadgeInfo.tier.charAt(0).toUpperCase() + showBadgeInfo.tier.slice(1)}
+              </p>
+              <Button
+                onClick={() => setShowBadgeInfo(null)}
+                className="mt-4"
+                size="sm"
+              >
+                Đóng
+              </Button>
+            </div>
+          </div>
+        </div>
       )}
     </div>
   )

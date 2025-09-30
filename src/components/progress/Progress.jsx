@@ -134,15 +134,15 @@ const Progress = () => {
     },
     {
       id: '3',
-      title: 'Chiến binh XP',
-      description: 'Đạt 1000 XP',
+      title: 'Chiến binh 🪙',
+      description: 'Đạt 1000 🪙',
       icon: 'Trophy',
       badge_color: 'blue',
       criteria_type: 'total_xp',
       criteria_value: 1000,
       xp_reward: 200,
       badge_image_url: '',
-      badge_image_alt: 'Chiến binh XP badge'
+      badge_image_alt: 'Chiến binh 🪙 badge'
     },
     {
       id: '4',
@@ -191,7 +191,7 @@ const Progress = () => {
           // Refresh user profile
           fetchUserProfile(user.id)
 
-          return { success: true, xpAwarded: achievement.xp_reward, message: 'XP đã được cộng!' }
+          return { success: true, xpAwarded: achievement.xp_reward, message: '🪙 đã được cộng!' }
         } catch (error) {
           console.error('Error claiming fallback achievement XP:', error)
           return { success: false, message: 'Có lỗi xảy ra' }
@@ -411,8 +411,11 @@ const Progress = () => {
               <TrendingUp className="w-5 h-5 text-yellow-600" />
             </div>
             <div>
-              <div className="text-lg font-bold text-gray-900">{profile?.xp || 0}</div>
-              <div className="text-sm text-gray-600">Tổng XP</div>
+              <div className="text-lg font-bold text-gray-900 flex items-center gap-2">
+                {profile?.xp || 0}
+                <img src="https://xpclass.vn/leaderboard/icon/coin.png" alt="XP" className="w-5 h-5" />
+              </div>
+              <div className="text-sm text-gray-600">Tổng</div>
             </div>
           </div>
         </Card>
@@ -488,7 +491,7 @@ const Progress = () => {
                           height: `${heightPercentage}%`,
                           minHeight: item.exercises > 0 ? '12px' : '4px'
                         }}
-                        title={`${item.exercises} bài tập - ${item.xp} XP`}
+                        title={`${item.exercises} bài tập - ${item.xp} 🪙`}
                       />
                       <div className="text-xs text-gray-600 mt-1 font-medium">
                         {selectedPeriod === 'week' ? item.day : item.week}
@@ -576,7 +579,7 @@ const Progress = () => {
                         : 'bg-green-200'
                       : 'bg-gray-100'
                   }`}
-                  title={day.hasActivity ? `${day.xp} XP - ${day.date}` : `Không có hoạt động - ${day.date}`}
+                  title={day.hasActivity ? `${day.xp} 🪙 - ${day.date}` : `Không có hoạt động - ${day.date}`}
                 />
               ))}
             </div>

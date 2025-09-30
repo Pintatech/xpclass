@@ -113,7 +113,10 @@ const AchievementBadgeBar = ({ achievements, userStats, onClaimXP, userAchieveme
                       )}
                       <div>
                         <div className="font-medium text-gray-900 text-sm">{achievement.title}</div>
-                        <div className="text-xs text-gray-600">+{achievement.xp_reward} XP</div>
+                        <div className="text-xs text-gray-600 flex items-center gap-1">
+                          +{achievement.xp_reward}
+                          <img src="https://xpclass.vn/leaderboard/icon/coin.png" alt="XP" className="w-3 h-3" />
+                        </div>
                       </div>
                     </div>
 
@@ -137,13 +140,13 @@ const AchievementBadgeBar = ({ achievements, userStats, onClaimXP, userAchieveme
                         disabled={claimingAchievements.has(achievement.id)}
                         className="px-3 py-1 bg-green-600 hover:bg-green-700 disabled:bg-gray-400 text-white text-xs font-medium rounded-md transition-colors"
                       >
-                        {claimingAchievements.has(achievement.id) ? 'Đang nhận...' : 'Nhận XP'}
+                        {claimingAchievements.has(achievement.id) ? 'Đang nhận...' : 'Nhận thưởng'}
                       </button>
                     )}
 
                     {claimed && (
                       <div className="text-xs text-green-600 font-medium">
-                        ✓ Đã nhận XP
+                        ✓ Đã nhận
                       </div>
                     )}
                   </div>

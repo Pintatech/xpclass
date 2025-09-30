@@ -77,8 +77,9 @@ const TopNavigation = () => {
                   <div className="text-sm font-medium text-gray-900">
                     {currentBadge.name}
                   </div>
-                  <div className="text-xs text-gray-500">
-                    {profile.xp || 0} XP
+                  <div className="text-xs text-gray-500 flex items-center gap-1">
+                    {profile.xp || 0}
+                    <img src="https://xpclass.vn/leaderboard/icon/coin.png" alt="XP" className="w-3 h-3" />
                   </div>
                 </div>
                 <div className="flex items-center justify-center">
