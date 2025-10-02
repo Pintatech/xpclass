@@ -46,24 +46,15 @@
   /* Desktop only */
   @media (min-width: 768px) {
     .quiz-question-bg {
-      /* prevent page from scrolling when using fixed background on desktop */
-      overflow: hidden;
-      height: 100vh; /* avoid extra space from min-height */
-      min-height: 0;
+      min-height: 100vh;
       position: relative;
+      background-image: url('https://xpclass.vn/xpclass/Quiz_bg.jpg');
+      background-size: cover;
+      background-position: center;
+      background-repeat: no-repeat;
+      background-attachment: fixed;
     }
 
-    .quiz-question-bg > div {
-      height: 100%;
-      overflow-y: auto;
-      overflow-x: hidden;
-      scrollbar-width: none; /* Firefox */
-      -ms-overflow-style: none; /* IE and Edge */
-    }
-
-    .quiz-question-bg > div::-webkit-scrollbar {
-      display: none; /* Chrome, Safari and Opera */
-    }
     /* Remove extra spacing added by Layout on desktop within quiz pages */
     .quiz-desktop-reset {
       margin-top: -4rem; /* counter md:pt-16 from Layout */
@@ -71,27 +62,7 @@
       padding-bottom: 0;
       min-height: 100vh;
     }
-    /* Make background cover the entire viewport regardless of parent width */
-    .quiz-question-bg::before {
-      content: '';
-      position: fixed;
-      top: 0;
-      right: 0;
-      bottom: 0;
-      left: 0;
-      background-image: url('https://xpclass.vn/xpclass/Quiz_bg.jpg');
-      background-size: cover;
-      background-position: center;
-      background-repeat: no-repeat;
-      opacity: 0.8;
-      z-index: 0;
-    }
-
-    /* Ensure inner content renders above the fixed background */
-    .quiz-question-bg > * {
-      position: relative;
-      z-index: 1;
-    }
+    
     /* Apply text outline only on desktop */
     .question-text,
     .question-text * {

@@ -456,8 +456,16 @@ const DragDropExercise = () => {
   const currentQuestion = exercise.content.questions[currentQuestionIndex]
   const userAnswer = userAnswers[currentQuestionIndex] || {}
 
+  // Debug logging
+  console.log('DragDropExercise render:', {
+    exercise: !!exercise,
+    currentQuestion: !!currentQuestion,
+    currentQuestionIndex,
+    totalQuestions: exercise?.content?.questions?.length || 0
+  })
+
   return (
-    <div className="quiz-question-bg quiz-desktop-reset">
+    <div className="min-h-screen bg-gray-50">
       {/* Header */}
       <div className="bg-white shadow-sm border-b">
         <div className="max-w-4xl mx-auto px-4 py-4">
@@ -477,8 +485,8 @@ const DragDropExercise = () => {
       </div>
 
       {/* Main Content */}
-      <div className="max-w-4xl mx-auto px-4 py-8 lg:pt-20">
-        <div className="rounded-lg p-6 bg-white md:!bg-transparent shadow-lg md:shadow-none" style={{ userSelect: 'none' }}>
+      <div className="max-w-4xl mx-auto px-4 py-8">
+        <div className="rounded-lg p-6 bg-white shadow-lg" style={{ userSelect: 'none' }}>
           {/* Question with inline drop zones */}
           <div className="mb-8">
             <h2 className="text-lg font-semibold text-gray-800 mb-4 leading-relaxed">
@@ -627,7 +635,7 @@ const DragDropExercise = () => {
               }`}
             >
               <RotateCcw className="w-4 h-4" />
-            
+              Reset
             </button>
 
             {currentQuestionIndex > 0 && (

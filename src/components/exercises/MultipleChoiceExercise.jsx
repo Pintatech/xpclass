@@ -623,7 +623,7 @@ const MultipleChoiceExercise = () => {
             <div className="mb-3 md:mb-4 p-0">
               <RichTextRenderer
                 content={currentQuestion.question}
-                className="text-base md:text-xl lg:text-2xl font-bold text-black md:text-white question-text"
+                className="text-base md:text-xl lg:text-2xl text-black md:text-white question-text"
                 allowImages={true}
                 allowLinks={false}
               />
