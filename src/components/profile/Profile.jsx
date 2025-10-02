@@ -731,19 +731,17 @@ const Profile = () => {
             <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-4">
               {achievements.filter(a => a.isUnlocked).slice(0, 6).map((achievement) => (
                 <div key={achievement.id} className="text-center">
-                  <div className="w-16 h-16 mx-auto mb-2 p-2 rounded-full bg-purple-100 border-2 border-purple-300">
-                    {achievement.badge_image_url ? (
-                      <img
-                        src={achievement.badge_image_url}
-                        alt={achievement.title}
-                        className="w-full h-full object-contain"
-                      />
-                    ) : (
-                      <div className="w-full h-full flex items-center justify-center text-2xl">
-                        🏆
-                      </div>
-                    )}
-                  </div>
+                  {achievement.badge_image_url ? (
+                    <img
+                      src={achievement.badge_image_url}
+                      alt={achievement.title}
+                      className="w-20 h-20 mx-auto mb-2 object-contain"
+                    />
+                  ) : (
+                    <div className="text-4xl mx-auto mb-2">
+                      🏆
+                    </div>
+                  )}
                   <div className="text-sm font-medium text-gray-900">{achievement.title}</div>
                   {achievement.isClaimed && (
                     <div className="text-xs text-green-600 mt-1">✓ Claimed</div>
@@ -1158,19 +1156,17 @@ const Profile = () => {
                   <div className="grid grid-cols-3 md:grid-cols-5 lg:grid-cols-6 gap-4">
                     {achievements.filter(a => a.isUnlocked).map((achievement) => (
                       <div key={achievement.id} className="text-center">
-                        <div className="w-16 h-16 mx-auto mb-2 p-2 rounded-full bg-purple-100 border-2 border-purple-300">
-                          {achievement.badge_image_url ? (
-                            <img
-                              src={achievement.badge_image_url}
-                              alt={achievement.title}
-                              className="w-full h-full object-contain"
-                            />
-                          ) : (
-                            <div className="w-full h-full flex items-center justify-center text-2xl">
-                              🏆
-                            </div>
-                          )}
-                        </div>
+                        {achievement.badge_image_url ? (
+                          <img
+                            src={achievement.badge_image_url}
+                            alt={achievement.title}
+                            className="w-20 h-20 mx-auto mb-2 object-contain"
+                          />
+                        ) : (
+                          <div className="text-4xl mx-auto mb-2">
+                            🏆
+                          </div>
+                        )}
                         <div className="text-sm font-medium text-gray-900">{achievement.title}</div>
                         <div className="text-xs text-gray-500">{achievement.description}</div>
                         {achievement.isClaimed && (

@@ -65,7 +65,8 @@ const AchievementManagement = () => {
     { value: 'daily_exercises', label: 'Bài tập trong ngày' },
     { value: 'pronunciation_completed', label: 'Bài phát âm hoàn thành' },
     { value: 'vocabulary_learned', label: 'Từ vựng đã học' },
-    { value: 'level_completed', label: 'Level hoàn thành' }
+    { value: 'level_completed', label: 'Level hoàn thành' },
+    { value: 'weekly_xp_leader', label: 'Nhà vô địch XP tuần (tự động)' }
   ]
 
   const badgeColors = [

@@ -477,8 +477,8 @@ const DragDropExercise = () => {
       </div>
 
       {/* Main Content */}
-      <div className="max-w-4xl mx-auto px-4 py-8">
-        <div className="rounded-lg p-6 !bg-transparent shadow-none" style={{ userSelect: 'none', marginTop: '120px' }}>
+      <div className="max-w-4xl mx-auto px-4 py-8 lg:pt-20">
+        <div className="rounded-lg p-6 bg-white md:!bg-transparent shadow-lg md:shadow-none" style={{ userSelect: 'none' }}>
           {/* Question with inline drop zones */}
           <div className="mb-8">
             <h2 className="text-lg font-semibold text-gray-800 mb-4 leading-relaxed">

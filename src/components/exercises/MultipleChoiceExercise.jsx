@@ -24,6 +24,7 @@ const MultipleChoiceExercise = () => {
   // Exercise state
   const [exercise, setExercise] = useState(null)
   const [questions, setQuestions] = useState([])
+  const [shuffledQuestions, setShuffledQuestions] = useState([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState(null)
   const [session, setSession] = useState(null)
@@ -159,8 +160,35 @@ const MultipleChoiceExercise = () => {
 
       if (data && data.content && data.content.questions) {
         setExercise(data)
-        setQuestions(data.content.questions)
 
+        // Shuffle options for each question if shuffle_options is enabled
+        const processedQuestions = data.content.questions.map(q => {
+          if (q.shuffle_options === false) {
+            // Don't shuffle - keep original order
+            return q
+          }
+
+          // Shuffle options
+          const shuffledOptionsMap = q.options.map((opt, idx) => ({ option: opt, originalIndex: idx }))
+          // Fisher-Yates shuffle
+          for (let i = shuffledOptionsMap.length - 1; i > 0; i--) {
+            const j = Math.floor(Math.random() * (i + 1));
+            [shuffledOptionsMap[i], shuffledOptionsMap[j]] = [shuffledOptionsMap[j], shuffledOptionsMap[i]]
+          }
+
+          const shuffledOptions = shuffledOptionsMap.map(item => item.option)
+          const newCorrectIndex = shuffledOptionsMap.findIndex(item => item.originalIndex === q.correct_answer)
+
+          return {
+            ...q,
+            options: shuffledOptions,
+            correct_answer: newCorrectIndex,
+            _originalOptions: q.options, // Keep original for reference
+            _originalCorrectAnswer: q.correct_answer
+          }
+        })
+
+        setQuestions(processedQuestions)
 
         // Save recent exercise
         try {
@@ -452,25 +480,25 @@ const MultipleChoiceExercise = () => {
 
   return (
     <div className="quiz-question-bg quiz-desktop-reset">
-      <div className="max-w-4xl mx-auto px-4 py-6 space-y-6">
+      <div className="max-w-4xl mx-auto px-3 py-2 lg:pt-20 pb-32 space-y-2">
       {/* Header */}
-      <div className="mb-6">
-        <div className="bg-blue-500 text-white px-6 py-4 rounded-lg border-2 border-gray-600">
-          <div className="flex items-center justify-between">
-            <div>
-              <p className="text-sm font-medium text-blue-100">
+      <div className="mb-2">
+        <div className="bg-blue-500 text-white px-3 py-2 rounded-lg border-2 border-gray-600">
+          <div className="flex items-center justify-between gap-2">
+            <div className="flex-1 min-w-0">
+              <p className="text-xs font-medium text-blue-100 truncate">
                 {isRetryMode ? 'Ôn lại câu sai' : exercise?.title}
               </p>
-              <h1 className="text-2xl font-bold">Trắc nghiệm</h1>
-              <p className="text-sm text-blue-200 mt-1">
+              <h1 className="text-base md:text-xl font-bold">Trắc nghiệm</h1>
+              <p className="text-xs text-blue-200 hidden md:block">
                 🎯 Cần đạt ≥ 75% để hoàn thành
               </p>
             </div>
-            <div className="text-right">
-              <div className="text-2xl font-bold">
+            <div className="text-right flex-shrink-0">
+              <div className="text-base md:text-xl font-bold">
                 {currentQuestionNumber}/{totalQuestions}
               </div>
-              <div className="text-sm text-blue-100">
+              <div className="text-xs text-blue-100">
                 Câu hỏi
               </div>
             </div>
@@ -479,9 +507,9 @@ const MultipleChoiceExercise = () => {
       </div>
 
       {/* Progress Bar */}
-      <div className="w-full bg-gray-200 rounded-full h-3">
+      <div className="w-full bg-gray-200 rounded-full h-2">
         <div
-          className="bg-blue-500 h-3 rounded-full transition-all duration-300"
+          className="bg-blue-500 h-2 rounded-full transition-all duration-300"
           style={{ width: `${(currentQuestionNumber / totalQuestions) * 100}%` }}
         ></div>
       </div>
@@ -489,18 +517,18 @@ const MultipleChoiceExercise = () => {
 
       {/* XP Notification */}
       {showXpNotification && (
-        <div className="fixed top-4 right-4 z-50 bg-yellow-500 text-white px-6 py-3 rounded-lg shadow-lg animate-bounce">
+        <div className="fixed top-4 right-4 z-50 bg-yellow-500 text-white px-4 py-2 rounded-lg shadow-lg animate-bounce">
           <div className="flex items-center space-x-2">
-            <Star className="w-5 h-5" />
-            <span className="font-bold">+{xpAwarded} XP!</span>
+            <Star className="w-4 h-4" />
+            <span className="font-bold text-sm">+{xpAwarded} XP!</span>
           </div>
         </div>
       )}
 
       {/* Quiz Complete Screen */}
       {isQuizComplete && (
-        <Card className="p-8 text-center">
-          <div className="mb-6">
+        <Card className="p-4 md:p-8 text-center">
+          <div className="mb-4">
             {(() => {
               const correctAnswers = questionResults.filter(r => r.isCorrect).length
               const totalQuestions = questionResults.length
@@ -509,36 +537,36 @@ const MultipleChoiceExercise = () => {
 
               return (
                 <>
-                  <div className={`w-20 h-20 mx-auto mb-4 ${passed ? 'bg-green-100' : 'bg-orange-100'} rounded-full flex items-center justify-center`}>
+                  <div className={`w-16 h-16 md:w-20 md:h-20 mx-auto mb-3 ${passed ? 'bg-green-100' : 'bg-orange-100'} rounded-full flex items-center justify-center`}>
                     {passed ? (
-                      <CheckCircle className="w-10 h-10 text-green-500" />
+                      <CheckCircle className="w-8 h-8 md:w-10 md:h-10 text-green-500" />
                     ) : (
-                      <XCircle className="w-10 h-10 text-orange-500" />
+                      <XCircle className="w-8 h-8 md:w-10 md:h-10 text-orange-500" />
                     )}
                   </div>
-                  <h2 className={`text-2xl font-bold mb-2 ${passed ? 'text-green-800' : 'text-orange-800'}`}>
+                  <h2 className={`text-lg md:text-2xl font-bold mb-2 ${passed ? 'text-green-800' : 'text-orange-800'}`}>
                     {passed
                       ? (isRetryMode ? 'Đã hoàn thành ôn lại!' : 'Hoàn thành bài quiz!')
                       : 'Cần cải thiện!'
                     }
                   </h2>
-                  <p className="text-gray-600 mb-2">
+                  <p className="text-sm md:text-base text-gray-600 mb-2">
                     Bạn đã trả lời đúng {correctAnswers}/{totalQuestions} câu ({score}%)
                   </p>
                   {!passed && (
-                    <p className="text-orange-600 font-semibold mb-4">
+                    <p className="text-sm md:text-base text-orange-600 font-semibold mb-3">
                       Cần đạt ít nhất 75% để hoàn thành bài tập
                     </p>
                   )}
                   {xpAwarded > 0 && (
-                    <div className="flex items-center justify-center space-x-2 text-yellow-600 font-semibold">
-                      <Star className="w-5 h-5" />
+                    <div className="flex items-center justify-center space-x-2 text-yellow-600 font-semibold text-sm md:text-base">
+                      <Star className="w-4 h-4 md:w-5 md:h-5" />
                       <span>+{xpAwarded} XP earned!</span>
                     </div>
                   )}
                   {xpAwarded === 0 && !passed && (
-                    <div className="flex items-center justify-center space-x-2 text-gray-500">
-                      <XCircle className="w-5 h-5" />
+                    <div className="flex items-center justify-center space-x-2 text-gray-500 text-sm md:text-base">
+                      <XCircle className="w-4 h-4 md:w-5 md:h-5" />
                       <span>Không nhận được XP (điểm quá thấp)</span>
                     </div>
                   )}
@@ -590,20 +618,20 @@ const MultipleChoiceExercise = () => {
 
       {/* Current Question */}
       {!isQuizComplete && (
-        <div className="space-y-6">
-          <Card className="p-6 relative !bg-transparent !border-none !shadow-none" style={{ marginTop: '70px' }}>
-            <div className="mb-6 p-0">
+        <div className="space-y-2 md:space-y-4">
+          <Card className="p-3 md:p-6 relative !bg-transparent !border-none !shadow-none" style={{ marginTop: '10px', marginBottom: '10px' }}>
+            <div className="mb-3 md:mb-4 p-0">
               <RichTextRenderer
                 content={currentQuestion.question}
-                className="text-2xl md:text-3xl font-bold text-black md:text-white question-text"
+                className="text-base md:text-xl lg:text-2xl font-bold text-black md:text-white question-text"
                 allowImages={true}
                 allowLinks={false}
               />
             </div>
 
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+            <div className="grid grid-cols-2 gap-2 md:gap-3">
               {currentQuestion.options.map((option, index) => {
-                let buttonClass = "w-full p-4 text-left border-2 rounded-lg transition-all duration-200 "
+                let buttonClass = "w-full p-2 md:p-3 text-left border-2 rounded-lg transition-all duration-200 text-xs md:text-sm "
 
                 // Hover color sets per index: pink, orange, yellow, green
                 const hoverStylesByIndex = [
@@ -667,11 +695,11 @@ const MultipleChoiceExercise = () => {
 
             {/* Explanation */}
             {showExplanation && selectedAnswer !== null && (
-              <div className="mt-6 p-4 bg-blue-50 border border-blue-200 rounded-lg">
-                <h3 className="font-semibold text-blue-800 mb-2">Giải thích:</h3>
+              <div className="mt-3 md:mt-4 p-2 md:p-3 bg-blue-50 border border-blue-200 rounded-lg">
+                <h3 className="font-semibold text-blue-800 mb-1 text-xs md:text-sm">Giải thích:</h3>
                 <RichTextRenderer
                   content={currentQuestion.option_explanations?.[selectedAnswer] || currentQuestion.explanation || 'No explanation available.'}
-                  className="text-blue-700"
+                  className="text-blue-700 text-xs md:text-sm"
                   allowImages={true}
                   allowLinks={false}
                 />
@@ -680,15 +708,15 @@ const MultipleChoiceExercise = () => {
 
             {/* Next Button */}
             {showExplanation && (
-              <div className="mt-6 flex justify-end">
+              <div className="mt-3 md:mt-4 flex justify-end">
                 <Button
                   onClick={handleNextQuestion}
-                  className="bg-blue-500 hover:bg-blue-600 text-white"
+                  className="bg-blue-500 hover:bg-blue-600 text-white text-sm px-4 py-2"
                 >
                   {currentQuestionIndex < questions.length - 1 ? (
                     <>
                       Câu tiếp theo
-                      <ArrowRight className="w-4 h-4 ml-2" />
+                      <ArrowRight className="w-3 h-3 md:w-4 md:h-4 ml-2" />
                     </>
                   ) : (
                     'Hoàn thành'

@@ -39,7 +39,9 @@ const CourseManagement = () => {
         .from('courses')
         .select(`
           *,
-          teacher:users(id, full_name, email)
+          course_teachers(
+            teacher:users(id, full_name, email)
+          )
         `)
         .order('level_number');
 
@@ -84,11 +86,13 @@ const CourseManagement = () => {
     try {
       setLoading(true);
 
+      const { teacher_ids, ...courseFields } = courseData;
+
       if (editingCourse) {
         // Update existing course - try courses table first
         let { error } = await supabase
           .from('courses')
-          .update(courseData)
+          .update(courseFields)
           .eq('id', editingCourse.id);
 
         // If courses table doesn't exist, try levels table as fallback
@@ -96,29 +100,69 @@ const CourseManagement = () => {
           console.log('Courses table not found for update, trying levels table...');
           const fallback = await supabase
             .from('levels')
-            .update(courseData)
+            .update(courseFields)
             .eq('id', editingCourse.id);
           error = fallback.error;
         }
 
         if (error) throw error;
+
+        // Update teacher assignments
+        // Delete existing assignments
+        await supabase
+          .from('course_teachers')
+          .delete()
+          .eq('course_id', editingCourse.id);
+
+        // Insert new assignments
+        if (teacher_ids && teacher_ids.length > 0) {
+          const assignments = teacher_ids.map(teacher_id => ({
+            course_id: editingCourse.id,
+            teacher_id
+          }));
+          const { error: assignError } = await supabase
+            .from('course_teachers')
+            .insert(assignments);
+
+          if (assignError) throw assignError;
+        }
+
         showNotification('Course updated successfully!');
       } else {
         // Create new course - try courses table first
-        let { error } = await supabase
+        let { data: newCourse, error } = await supabase
           .from('courses')
-          .insert(courseData);
+          .insert(courseFields)
+          .select()
+          .single();
 
         // If courses table doesn't exist, try levels table as fallback
         if (error && error.code === 'PGRST205') {
           console.log('Courses table not found for insert, trying levels table...');
           const fallback = await supabase
             .from('levels')
-            .insert(courseData);
+            .insert(courseFields)
+            .select()
+            .single();
+          newCourse = fallback.data;
           error = fallback.error;
         }
 
         if (error) throw error;
+
+        // Insert teacher assignments for new course
+        if (teacher_ids && teacher_ids.length > 0 && newCourse) {
+          const assignments = teacher_ids.map(teacher_id => ({
+            course_id: newCourse.id,
+            teacher_id
+          }));
+          const { error: assignError } = await supabase
+            .from('course_teachers')
+            .insert(assignments);
+
+          if (assignError) throw assignError;
+        }
+
         showNotification('Course created successfully!');
       }
 
@@ -253,7 +297,7 @@ const CourseManagement = () => {
                     Difficulty
                   </th>
                   <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    Teacher
+                    Teachers
                   </th>
                   <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                     Requirements
@@ -321,13 +365,17 @@ const CourseManagement = () => {
                       </span>
                     </td>
                     <td className="px-6 py-4">
-                      {course.teacher ? (
-                        <div>
-                          <div className="text-sm font-medium text-gray-900">{course.teacher.full_name}</div>
-                          <div className="text-sm text-gray-600">{course.teacher.email}</div>
+                      {course.course_teachers && course.course_teachers.length > 0 ? (
+                        <div className="space-y-1">
+                          {course.course_teachers.map((ct, index) => (
+                            <div key={index}>
+                              <div className="text-sm font-medium text-gray-900">{ct.teacher.full_name}</div>
+                              <div className="text-sm text-gray-600">{ct.teacher.email}</div>
+                            </div>
+                          ))}
                         </div>
                       ) : (
-                        <span className="text-sm text-gray-500 italic">No teacher assigned</span>
+                        <span className="text-sm text-gray-500 italic">No teachers assigned</span>
                       )}
                     </td>
                     <td className="px-6 py-4">
@@ -438,7 +486,7 @@ const CourseModal = ({ course, teachers, onSave, onCancel, loading }) => {
     color_theme: course?.color_theme || 'blue',
     unlock_requirement: course?.unlock_requirement || 0,
     thumbnail_url: course?.thumbnail_url || '',
-    teacher_id: course?.teacher_id || '',
+    teacher_ids: course?.course_teachers?.map(ct => ct.teacher.id) || [],
     is_active: course?.is_active ?? true
   });
   const [errors, setErrors] = useState({});
@@ -469,11 +517,12 @@ const CourseModal = ({ course, teachers, onSave, onCancel, loading }) => {
   const handleSubmit = (e) => {
     e.preventDefault();
     if (validateForm()) {
+      const { teacher_ids, ...courseData } = formData;
       onSave({
-        ...formData,
+        ...courseData,
         level_number: parseInt(formData.level_number),
         unlock_requirement: parseInt(formData.unlock_requirement),
-        teacher_id: formData.teacher_id || null
+        teacher_ids: teacher_ids
       });
     }
   };
@@ -521,20 +570,35 @@ const CourseModal = ({ course, teachers, onSave, onCancel, loading }) => {
 
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">
-                Assigned Teacher
+                Assigned Teachers
               </label>
-              <select
-                value={formData.teacher_id}
-                onChange={(e) => handleInputChange('teacher_id', e.target.value)}
-                className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
-              >
-                <option value="">No teacher assigned</option>
-                {teachers.map(teacher => (
-                  <option key={teacher.id} value={teacher.id}>
-                    {teacher.full_name} ({teacher.email})
-                  </option>
-                ))}
-              </select>
+              <div className="border border-gray-300 rounded-lg p-3 max-h-48 overflow-y-auto space-y-2">
+                {teachers.length === 0 ? (
+                  <p className="text-sm text-gray-500">No teachers available</p>
+                ) : (
+                  teachers.map(teacher => (
+                    <label key={teacher.id} className="flex items-center gap-2 cursor-pointer hover:bg-gray-50 p-2 rounded">
+                      <input
+                        type="checkbox"
+                        checked={formData.teacher_ids.includes(teacher.id)}
+                        onChange={(e) => {
+                          const newTeacherIds = e.target.checked
+                            ? [...formData.teacher_ids, teacher.id]
+                            : formData.teacher_ids.filter(id => id !== teacher.id);
+                          handleInputChange('teacher_ids', newTeacherIds);
+                        }}
+                        className="w-4 h-4 text-blue-600 bg-gray-100 border-gray-300 rounded focus:ring-blue-500"
+                      />
+                      <span className="text-sm text-gray-900">
+                        {teacher.full_name} <span className="text-gray-500">({teacher.email})</span>
+                      </span>
+                    </label>
+                  ))
+                )}
+              </div>
+              <p className="text-sm text-gray-500 mt-1">
+                {formData.teacher_ids.length} teacher{formData.teacher_ids.length !== 1 ? 's' : ''} selected
+              </p>
             </div>
           </div>
 

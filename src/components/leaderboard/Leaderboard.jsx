@@ -17,6 +17,7 @@ const Leaderboard = () => {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState(null)
   const [showBadgeInfo, setShowBadgeInfo] = useState(null)
+  const [countdownText, setCountdownText] = useState('')
   const { user } = useAuth()
   const { studentLevels } = useStudentLevels()
 
@@ -34,6 +35,57 @@ const Leaderboard = () => {
 
   useEffect(() => {
     fetchLeaderboardData()
+  }, [timeframe])
+
+  // Countdown for week/month tabs (Vietnam time)
+  useEffect(() => {
+    const getVietnamNow = () => new Date(new Date().toLocaleString('en-US', { timeZone: 'Asia/Ho_Chi_Minh' }))
+
+    const getEndOfWeekVN = (now) => {
+      // End of week = Sunday 23:59:59 VN
+      const end = new Date(now)
+      const day = end.getDay() // 0=Sun
+      const daysToSunday = (7 - day) % 7
+      end.setDate(end.getDate() + daysToSunday)
+      end.setHours(23, 59, 59, 999)
+      return end
+    }
+
+    const getEndOfMonthVN = (now) => {
+      const end = new Date(now.getFullYear(), now.getMonth() + 1, 0)
+      end.setHours(23, 59, 59, 999)
+      return end
+    }
+
+    const formatCountdown = (ms) => {
+      if (ms <= 0) return '00:00:00'
+      const totalSeconds = Math.floor(ms / 1000)
+      const days = Math.floor(totalSeconds / 86400)
+      const hours = Math.floor((totalSeconds % 86400) / 3600)
+      const minutes = Math.floor((totalSeconds % 3600) / 60)
+      const seconds = totalSeconds % 60
+      if (days > 0) return `${days}d ${String(hours).padStart(2, '0')}:${String(minutes).padStart(2, '0')}:${String(seconds).padStart(2, '0')}`
+      return `${String(hours).padStart(2, '0')}:${String(minutes).padStart(2, '0')}:${String(seconds).padStart(2, '0')}`
+    }
+
+    let timer
+    const start = () => {
+      if (timeframe !== 'week' && timeframe !== 'month') {
+        setCountdownText('')
+        return
+      }
+      const tick = () => {
+        const now = getVietnamNow()
+        const end = timeframe === 'week' ? getEndOfWeekVN(now) : getEndOfMonthVN(now)
+        const diff = end - now
+        setCountdownText(formatCountdown(diff))
+      }
+      tick()
+      timer = setInterval(tick, 1000)
+    }
+
+    start()
+    return () => timer && clearInterval(timer)
   }, [timeframe])
 
   // Function to get level and badge info based on XP
@@ -361,6 +413,12 @@ const Leaderboard = () => {
               </>
             )}
           </div>
+          {(timeframe === 'week' || timeframe === 'month') && countdownText && (
+            <div className="mt-1 text-sm text-blue-600 flex items-center justify-center gap-2">
+              <span>Kết thúc trong:</span>
+              <span className="font-semibold tabular-nums">{countdownText}</span>
+            </div>
+          )}
         </div>
       </div>
 
@@ -396,12 +454,12 @@ const Leaderboard = () => {
 
       {/* Top 3 Podium */}
       {leaderboardData.length > 0 && (
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-8">
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-2 md:gap-4 mb-4 md:mb-8">
           {/* 2nd Place */}
           {leaderboardData[1] && (
             <div className="md:order-1 order-2">
-              <Card className="text-center p-6 bg-gradient-to-br from-gray-50 to-gray-100 border-gray-300">
-                <div className="w-16 h-16 rounded-full mx-auto mb-4 flex items-center justify-center border-2 border-gray-400 overflow-hidden">
+              <Card className="text-center p-3 md:p-6 bg-gradient-to-br from-gray-50 to-gray-100 border-gray-300">
+                <div className="w-12 h-12 md:w-16 md:h-16 rounded-full mx-auto mb-2 md:mb-4 flex items-center justify-center border-2 border-gray-400 overflow-hidden">
                   {leaderboardData[1].avatar ? (
                     leaderboardData[1].avatar.startsWith('http') ? (
                       <img
@@ -422,12 +480,12 @@ const Leaderboard = () => {
                   <span className="text-2xl hidden">{leaderboardData[1].name.charAt(0).toUpperCase()}</span>
                 </div>
                 <div
-                  className="font-bold text-gray-900 cursor-pointer hover:text-blue-600 transition-colors"
+                  className="font-bold text-gray-900 text-sm md:text-base cursor-pointer hover:text-blue-600 transition-colors truncate"
                   onClick={() => handleProfileClick(leaderboardData[1].id)}
                 >
                   {leaderboardData[1].name}
                 </div>
-                <div className="flex items-center justify-center mt-2">
+                <div className="hidden md:flex items-center justify-center mt-1 md:mt-2">
                   <div
                     title={leaderboardData[1].badge.name}
                     onClick={() => handleBadgeClick(leaderboardData[1].badge)}
@@ -449,9 +507,9 @@ const Leaderboard = () => {
           {/* 1st Place */}
           {leaderboardData[0] && (
             <div className="md:order-2 order-1">
-              <Card className="text-center p-6 bg-gradient-to-br from-yellow-50 to-yellow-100 border-yellow-300 transform scale-105">
-                <Crown className="w-8 h-8 text-yellow-500 mx-auto mb-2" />
-                <div className="w-20 h-20 rounded-full mx-auto mb-4 flex items-center justify-center border-2 border-yellow-500 overflow-hidden">
+              <Card className="text-center p-3 md:p-6 bg-gradient-to-br from-yellow-50 to-yellow-100 border-yellow-300 md:transform md:scale-105">
+                <Crown className="w-6 h-6 md:w-8 md:h-8 text-yellow-500 mx-auto mb-1 md:mb-2" />
+                <div className="w-14 h-14 md:w-20 md:h-20 rounded-full mx-auto mb-2 md:mb-4 flex items-center justify-center border-2 border-yellow-500 overflow-hidden">
                   {leaderboardData[0].avatar ? (
                     leaderboardData[0].avatar.startsWith('http') ? (
                       <img
@@ -472,12 +530,12 @@ const Leaderboard = () => {
                   <span className="text-3xl hidden">{leaderboardData[0].name.charAt(0).toUpperCase()}</span>
                 </div>
                 <div
-                  className="font-bold text-gray-900 text-lg cursor-pointer hover:text-blue-600 transition-colors"
+                  className="font-bold text-gray-900 text-base md:text-lg cursor-pointer hover:text-blue-600 transition-colors truncate"
                   onClick={() => handleProfileClick(leaderboardData[0].id)}
                 >
                   {leaderboardData[0].name}
                 </div>
-                <div className="flex items-center justify-center mt-2">
+                <div className="hidden md:flex items-center justify-center mt-1 md:mt-2">
                   <div
                     title={leaderboardData[0].badge.name}
                     onClick={() => handleBadgeClick(leaderboardData[0].badge)}
@@ -503,8 +561,8 @@ const Leaderboard = () => {
           {/* 3rd Place */}
           {leaderboardData[2] && (
             <div className="md:order-3 order-3">
-              <Card className="text-center p-6 bg-gradient-to-br from-orange-50 to-orange-100 border-orange-300">
-                <div className="w-16 h-16 rounded-full mx-auto mb-4 flex items-center justify-center border-2 border-orange-400 overflow-hidden">
+              <Card className="text-center p-3 md:p-6 bg-gradient-to-br from-orange-50 to-orange-100 border-orange-300">
+                <div className="w-12 h-12 md:w-16 md:h-16 rounded-full mx-auto mb-2 md:mb-4 flex items-center justify-center border-2 border-orange-400 overflow-hidden">
                   {leaderboardData[2].avatar ? (
                     leaderboardData[2].avatar.startsWith('http') ? (
                       <img
@@ -525,12 +583,12 @@ const Leaderboard = () => {
                   <span className="text-2xl hidden">{leaderboardData[2].name.charAt(0).toUpperCase()}</span>
                 </div>
                 <div
-                  className="font-bold text-gray-900 cursor-pointer hover:text-blue-600 transition-colors"
+                  className="font-bold text-gray-900 text-sm md:text-base cursor-pointer hover:text-blue-600 transition-colors truncate"
                   onClick={() => handleProfileClick(leaderboardData[2].id)}
                 >
                   {leaderboardData[2].name}
                 </div>
-                <div className="flex items-center justify-center mt-2">
+                <div className="hidden md:flex items-center justify-center mt-1 md:mt-2">
                   <div
                     title={leaderboardData[2].badge.name}
                     onClick={() => handleBadgeClick(leaderboardData[2].badge)}

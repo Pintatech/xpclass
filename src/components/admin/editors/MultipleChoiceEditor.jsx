@@ -26,7 +26,8 @@ const MultipleChoiceEditor = ({ questions, onQuestionsChange }) => {
       correct_answer: Math.min(Math.max(0, safeCorrect), Math.max(0, safeOptions.length - 1)),
       explanation: q?.explanation || '',
       image_url: q?.image_url || '',
-      reference_url: q?.reference_url || ''
+      reference_url: q?.reference_url || '',
+      shuffle_options: q?.shuffle_options !== undefined ? q.shuffle_options : true
     }
   }
 
@@ -38,13 +39,14 @@ const MultipleChoiceEditor = ({ questions, onQuestionsChange }) => {
   const [previewOpen, setPreviewOpen] = useState({})
   const [urlModal, setUrlModal] = useState({ isOpen: false, type: '', questionIndex: -1 })
   const [urlInput, setUrlInput] = useState('')
-  const [linkText, setLinkText] = useState('')
+  const [linkText, setLinkText] = useState('Reference')
   const [imageSize, setImageSize] = useState('medium')
   const [customWidth, setCustomWidth] = useState('')
   const [customHeight, setCustomHeight] = useState('')
   const [audioControls, setAudioControls] = useState(true)
   const [audioAutoplay, setAudioAutoplay] = useState(false)
   const [audioLoop, setAudioLoop] = useState(false)
+  const [collapsedQuestions, setCollapsedQuestions] = useState({})
 
   useEffect(() => {
     setLocalQuestions((questions || []).map((q, i) => normalizeQuestion(q, i)))
@@ -56,7 +58,8 @@ const MultipleChoiceEditor = ({ questions, onQuestionsChange }) => {
       question: '',
       options: ['', '', '', ''],
       correct_answer: 0,
-      explanation: ''
+      explanation: '',
+      shuffle_options: true
     }
     const updatedQuestions = [...localQuestions, newQuestion]
     setLocalQuestions(updatedQuestions)
@@ -299,6 +302,29 @@ const MultipleChoiceEditor = ({ questions, onQuestionsChange }) => {
     onQuestionsChange(updatedQuestions)
   }
 
+  const toggleCollapse = (index) => {
+    setCollapsedQuestions(prev => ({
+      ...prev,
+      [index]: !prev[index]
+    }))
+  }
+
+  const toggleAllQuestions = () => {
+    const anyExpanded = localQuestions.some((_, index) => !collapsedQuestions[index])
+
+    if (anyExpanded) {
+      // Collapse all
+      const allCollapsed = {}
+      localQuestions.forEach((_, index) => {
+        allCollapsed[index] = true
+      })
+      setCollapsedQuestions(allCollapsed)
+    } else {
+      // Expand all
+      setCollapsedQuestions({})
+    }
+  }
+
   const processBulkImport = () => {
     try {
       // First, try to detect if this is Moodle Cloze format
@@ -382,32 +408,55 @@ const MultipleChoiceEditor = ({ questions, onQuestionsChange }) => {
   const processMoodleCloze = () => {
     try {
       const newQuestions = []
-      const lines = bulkText.split('\n')
 
-      let currentInstruction = ''
+      // First, merge multi-line cloze patterns into single lines
+      let processedText = bulkText
+
+      // Replace newlines within cloze patterns with spaces
+      // Match opening brace until closing brace, even across newlines
+      processedText = processedText.replace(/\{1:(MCV|MC|MULTICHOICE):([^}]*)\}/gs, (match) => {
+        // Remove newlines but preserve the structure
+        // Keep ~ separators intact by adding space before them if needed
+        return match.replace(/\s*\n\s*~/g, '~').replace(/\s*\n\s*/g, ' ')
+      })
+
+      const lines = processedText.split('\n')
+
       let questionCounter = 0
+      let currentQuestionText = ''
 
       lines.forEach((line) => {
-          const trimmed = line.trim()
+        const trimmed = line.trim()
         if (!trimmed) return
 
-        // Capture instruction lines like "E. Circle the correct ..."
-        if (/^[A-Z]\.\s+/.test(trimmed)) {
-          currentInstruction = trimmed
+        // Check if this line starts a new question (Question 1, Question 2, etc.)
+        if (/^Question\s+\d+/i.test(trimmed)) {
+          // Save any accumulated question text and start fresh
+          currentQuestionText = ''
           return
         }
 
-        // Each cloze occurrence on a line becomes a separate question
+        // Check if line contains a cloze pattern
         const clozeMatches = [
           ...trimmed.matchAll(/\{1:MCV:([^}]+)\}/g),
           ...trimmed.matchAll(/\{1:MC:([^}]+)\}/g),
           ...trimmed.matchAll(/\{1:MULTICHOICE:([^}]+)\}/g)
         ]
-        if (clozeMatches.length === 0) return
 
+        // If no cloze pattern, accumulate this line as part of question text
+        if (clozeMatches.length === 0) {
+          if (currentQuestionText) {
+            currentQuestionText += '\n' + trimmed
+          } else {
+            currentQuestionText = trimmed
+          }
+          return
+        }
+
+        // Process each cloze pattern on this line
         clozeMatches.forEach((match) => {
           const optionsContent = match[1]
-        const rawOptions = optionsContent.split('~').filter(opt => opt.trim())
+          const rawOptions = optionsContent.split('~').filter(opt => opt.trim())
 
           const options = []
           let correctIndex = 0
@@ -417,25 +466,31 @@ const MultipleChoiceEditor = ({ questions, onQuestionsChange }) => {
             const isCorrect = opt.trim().startsWith('=')
             const clean = opt.replace(/^=/, '').trim()
             // Remove optional inline explanations after # if any
-            const optionText = clean.split('#')[0].trim()
+            let optionText = clean.split('#')[0].trim()
+            // Remove A., B., C., D. prefixes (or any letter followed by dot/parenthesis)
+            optionText = optionText.replace(/^[A-Za-z][\.)]\s*/, '')
             if (!optionText) return
             options.push(optionText)
             if (isCorrect) correctIndex = options.length - 1
           })
 
           if (options.length >= 2) {
-            const displayText = trimmed.replace(match[0], '______')
-            const questionText = currentInstruction
-              ? `${currentInstruction}\n\n${displayText}`
-              : displayText
+            // Combine accumulated question text with current line
+            let fullQuestion = currentQuestionText ? currentQuestionText + '\n' + trimmed : trimmed
+            // Replace the cloze pattern with ______
+            const displayText = fullQuestion.replace(match[0], '______')
 
-          newQuestions.push({
+            newQuestions.push({
               id: `q${Date.now()}_${questionCounter++}`,
-            question: questionText,
+              question: displayText,
               options,
               correct_answer: correctIndex,
-              explanation: ''
+              explanation: '',
+              shuffle_options: false
             })
+
+            // Reset accumulated text after creating question
+            currentQuestionText = ''
           }
         })
       })
@@ -444,8 +499,8 @@ const MultipleChoiceEditor = ({ questions, onQuestionsChange }) => {
         const updatedQuestions = [...localQuestions, ...newQuestions]
         setLocalQuestions(updatedQuestions)
         onQuestionsChange(updatedQuestions)
-      setBulkText('')
-      setBulkImportMode(false)
+        setBulkText('')
+        setBulkImportMode(false)
         alert(`Successfully imported ${newQuestions.length} Moodle Cloze questions!`)
       } else {
         alert('No valid Moodle Cloze questions found. Please check the format.')
@@ -500,16 +555,25 @@ const MultipleChoiceEditor = ({ questions, onQuestionsChange }) => {
             className="flex items-center gap-2 px-3 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 text-sm"
           >
             <Plus className="w-4 h-4" />
-            Bulk Import
+            Bulk
           </button>
           {localQuestions.length > 0 && (
             <button
               type="button"
-              onClick={exportQuestions}
-              className="flex items-center gap-2 px-3 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 text-sm"
+              onClick={toggleAllQuestions}
+              className="flex items-center gap-2 px-3 py-2 bg-gray-600 text-white rounded-lg hover:bg-gray-700 text-sm"
             >
-              <Copy className="w-4 h-4" />
-              Export
+              {localQuestions.some((_, index) => !collapsedQuestions[index]) ? (
+                <>
+                  <ChevronUp className="w-4 h-4" />
+                  Collapse
+                </>
+              ) : (
+                <>
+                  <ChevronDown className="w-4 h-4" />
+                  Expand
+                </>
+              )}
             </button>
           )}
           <button
@@ -518,7 +582,7 @@ const MultipleChoiceEditor = ({ questions, onQuestionsChange }) => {
             className="flex items-center gap-2 px-3 py-2 bg-orange-600 text-white rounded-lg hover:bg-orange-700 text-sm"
           >
             <Plus className="w-4 h-4" />
-            Add Question
+            Add 1
           </button>
         </div>
       </div>
@@ -573,10 +637,29 @@ Explanation: Good morning is Chào buổi sáng.`}
 
       {/* Questions List */}
       <div className="space-y-6">
-        {localQuestions.map((question, index) => (
+        {localQuestions.map((question, index) => {
+          const isCollapsed = collapsedQuestions[index]
+          return (
           <div key={question.id || index} className="border border-gray-200 rounded-lg p-4 bg-gray-50">
             <div className="flex justify-between items-center mb-3">
-              <span className="text-sm font-medium text-gray-700">Question {index + 1}</span>
+              <div className="flex items-center gap-2">
+                <button
+                  type="button"
+                  onClick={() => toggleCollapse(index)}
+                  className="p-1 text-gray-600 hover:text-gray-900"
+                  title={isCollapsed ? "Expand" : "Collapse"}
+                >
+                  {isCollapsed ? <ChevronDown className="w-5 h-5" /> : <ChevronUp className="w-5 h-5" />}
+                </button>
+                <span className="text-sm font-medium text-gray-700">
+                  Question {index + 1}
+                  {isCollapsed && question.question && (
+                    <span className="ml-2 text-xs text-gray-500 truncate max-w-md inline-block">
+                      - {question.question.substring(0, 50)}{question.question.length > 50 ? '...' : ''}
+                    </span>
+                  )}
+                </span>
+              </div>
               <div className="flex gap-1">
                 <button
                   type="button"
@@ -614,6 +697,9 @@ Explanation: Good morning is Chào buổi sáng.`}
                 </button>
               </div>
             </div>
+
+            {!isCollapsed && (
+              <div>
 
             {/* Question Text */}
             <div className="mb-4">
@@ -742,6 +828,20 @@ Explanation: Good morning is Chào buổi sáng.`}
               </div>
             </div>
 
+            {/* Shuffle Options Toggle */}
+            <div className="mb-4 flex items-center gap-2 p-3 bg-gray-100 rounded-lg">
+              <input
+                type="checkbox"
+                id={`shuffle-${index}`}
+                checked={question.shuffle_options !== false}
+                onChange={(e) => updateQuestion(index, 'shuffle_options', e.target.checked)}
+                className="w-4 h-4 text-blue-600 rounded"
+              />
+              <label htmlFor={`shuffle-${index}`} className="text-sm font-medium text-gray-700 cursor-pointer">
+                Randomize answer order (shuffle options when displayed to students)
+              </label>
+            </div>
+
             {/* Explanation */}
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">
@@ -755,8 +855,11 @@ Explanation: Good morning is Chào buổi sáng.`}
                 placeholder="Explain why this is the correct answer..."
               />
             </div>
+              </div>
+            )}
           </div>
-        ))}
+        )
+        })}
 
         {localQuestions.length === 0 && !bulkImportMode && (
           <div className="text-center py-8 text-gray-500">
