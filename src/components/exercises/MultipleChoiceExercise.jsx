@@ -116,6 +116,21 @@ const MultipleChoiceExercise = () => {
     }
   }, [exerciseId])
 
+  // Disable page scrolling on desktop unless explanation is shown; allow on mobile.
+  useEffect(() => {
+    const applyOverflow = () => {
+      const isDesktop = window.matchMedia('(min-width: 768px)').matches
+      document.body.style.overflow = isDesktop && !showExplanation ? 'hidden' : ''
+    }
+    const previousOverflow = document.body.style.overflow
+    applyOverflow()
+    window.addEventListener('resize', applyOverflow)
+    return () => {
+      window.removeEventListener('resize', applyOverflow)
+      document.body.style.overflow = previousOverflow
+    }
+  }, [showExplanation])
+
   useEffect(() => {
     if (sessionId) {
       fetchSessionInfo()
@@ -479,8 +494,8 @@ const MultipleChoiceExercise = () => {
   }
 
   return (
-    <div className="quiz-question-bg quiz-desktop-reset">
-      <div className="max-w-4xl mx-auto px-3 py-2 lg:pt-20 pb-32 space-y-2">
+    <div className={`quiz-question-bg quiz-desktop-reset${showExplanation ? '' : ' md:overflow-hidden'}`}>
+      <div className="max-w-4xl mx-auto px-3 pt-4 lg:pt-20 space-y-2">
       {/* Header */}
       <div className="mb-2">
         <div className="bg-blue-500 text-white px-3 py-2 rounded-lg border-2 border-gray-600">
@@ -618,82 +633,114 @@ const MultipleChoiceExercise = () => {
 
       {/* Current Question */}
       {!isQuizComplete && (
-        <div className="space-y-2 md:space-y-4">
-          <Card className="p-3 md:p-6 relative !bg-transparent !border-none !shadow-none" style={{ marginTop: '10px', marginBottom: '10px' }}>
-            <div className="mb-3 md:mb-4 p-0">
+        <div className="max-w-4xl mx-auto md:rounded-lg md:p-6 bg-transparent md:shadow-lg md:overflow-y-auto quiz-content-scroll md:max-h-[70vh] md:mt-[50px]">
+          <div className="space-y-2 md:space-y-4">
+            {/* Mobile: show question text */}
+            <div className="mb-3 md:hidden">
               <RichTextRenderer
                 content={currentQuestion.question}
-                className="text-base md:text-xl lg:text-2xl text-black md:text-white question-text"
+                className="text-base text-gray-800 question-text"
                 allowImages={true}
                 allowLinks={false}
               />
             </div>
 
-            <div className="grid grid-cols-2 gap-2 md:gap-3">
-              {currentQuestion.options.map((option, index) => {
-                let buttonClass = "w-full p-2 md:p-3 text-left border-2 rounded-lg transition-all duration-200 text-xs md:text-sm "
+            {/* Desktop only: flexible height based on content */}
+            <div className="hidden md:block mb-3 md:mb-4 p-0">
+              <RichTextRenderer
+                content={currentQuestion.question}
+                className="md:text-xl lg:text-2xl md:text-white question-text"
+                allowImages={true}
+                allowLinks={false}
+              />
+            </div>
 
-                // Hover color sets per index: pink, orange, yellow, green
-                const hoverStylesByIndex = [
-                  "hover:border-pink-400 hover:bg-pink-300",
-                  "hover:border-orange-400 hover:bg-orange-300",
-                  "hover:border-yellow-400 hover:bg-yellow-300 ",
-                  "hover:border-green-400 hover:bg-green-300",
-                ]
-                const hoverStyles = hoverStylesByIndex[index % hoverStylesByIndex.length]
+            <div className="flex items-start gap-2 md:gap-3">
+              <div className="flex-1">
+                <div className="grid grid-cols-2 gap-2 md:gap-3">
+                  {currentQuestion.options.map((option, index) => {
+                    let buttonClass = "w-full p-2 md:p-3 text-left border-2 rounded-lg transition-all duration-200 text-xs md:text-sm "
 
-                if (selectedAnswer === null) {
-                  buttonClass += `border-gray-300 ${hoverStyles} cursor-pointer`
-                } else {
-                  if (index === selectedAnswer) {
-                    // Show only the selected answer - green if correct, red if wrong
-                    const isCorrect = index === currentQuestion.correct_answer
-                    if (isCorrect) {
-                      buttonClass += "border-green-500 bg-green-100 text-green-800"
+                    // Hover color sets per index: pink, orange, yellow, green
+                    const hoverStylesByIndex = [
+                      "hover:border-pink-400 hover:bg-pink-300",
+                      "hover:border-orange-400 hover:bg-orange-300",
+                      "hover:border-yellow-400 hover:bg-yellow-300 ",
+                      "hover:border-green-400 hover:bg-green-300",
+                    ]
+                    const hoverStyles = hoverStylesByIndex[index % hoverStylesByIndex.length]
+
+                    if (selectedAnswer === null) {
+                      buttonClass += `border-gray-300 ${hoverStyles} cursor-pointer`
                     } else {
-                      buttonClass += "border-red-500 bg-red-100 text-red-800"
+                      if (index === selectedAnswer) {
+                        // Show only the selected answer - green if correct, red if wrong
+                        const isCorrect = index === currentQuestion.correct_answer
+                        if (isCorrect) {
+                          buttonClass += "border-green-500 bg-green-100 text-green-800"
+                        } else {
+                          buttonClass += "border-red-500 bg-red-100 text-red-800"
+                        }
+                      } else {
+                        // Other options remain neutral
+                        buttonClass += "border-gray-300 bg-gray-50 text-gray-500"
+                      }
                     }
-                  } else {
-                    // Other options remain neutral
-                    buttonClass += "border-gray-300 bg-gray-50 text-gray-500"
-                  }
-                }
 
-                return (
-                  <button
-                    key={index}
-                    onClick={() => handleAnswerSelect(index)}
-                    disabled={selectedAnswer !== null}
-                    className={buttonClass}
-                  >
-                    <div className="flex items-center justify-between">
-                      <div className="flex-1">
-                        <RichTextRenderer
-                          content={option}
+                    return (
+                      <button
+                        key={index}
+                        onClick={() => handleAnswerSelect(index)}
+                        disabled={selectedAnswer !== null}
+                        className={buttonClass}
+                      >
+                        <div className="flex items-center justify-between">
+                          <div className="flex-1">
+                            <RichTextRenderer
+                              content={option}
 
-                          allowImages={true}
-                          allowLinks={false}
-                        />
-                      </div>
-                      <div className="ml-4 flex-shrink-0">
-                        {selectedAnswer !== null && index === selectedAnswer && (
-                          <>
-                            {index === currentQuestion.correct_answer ? (
-                              <CheckCircle className="w-5 h-5 text-green-600" />
-                            ) : (
-                              <XCircle className="w-5 h-5 text-red-600" />
+                              allowImages={true}
+                              allowLinks={false}
+                            />
+                          </div>
+                          <div className="ml-4 flex-shrink-0">
+                            {selectedAnswer !== null && index === selectedAnswer && (
+                              <>
+                                {index === currentQuestion.correct_answer ? (
+                                  <CheckCircle className="w-5 h-5 text-green-600" />
+                                ) : (
+                                  <XCircle className="w-5 h-5 text-red-600" />
+                                )}
+                              </>
                             )}
-                          </>
-                        )}
-                      </div>
-                    </div>
-                  </button>
-                )
-              })}
+                          </div>
+                        </div>
+                      </button>
+                    )
+                  })}
+                </div>
+              </div>
+              {showExplanation && (
+                <div className="flex-shrink-0 hidden md:block">
+                  <Button
+                    onClick={handleNextQuestion}
+                    className="bg-blue-500 hover:bg-blue-600 text-white text-sm px-4 py-2"
+                  >
+                    {currentQuestionIndex < questions.length - 1 ? (
+                      <>
+                        Câu tiếp theo
+                        <ArrowRight className="w-3 h-3 md:w-4 md:h-4 ml-2" />
+                      </>
+                    ) : (
+                      'Hoàn thành'
+                    )}
+                  </Button>
+                </div>
+              )}
             </div>
 
 
-            {/* Explanation */}
+            {/* Explanation block below */}
             {showExplanation && selectedAnswer !== null && (
               <div className="mt-3 md:mt-4 p-2 md:p-3 bg-blue-50 border border-blue-200 rounded-lg">
                 <h3 className="font-semibold text-blue-800 mb-1 text-xs md:text-sm">Giải thích:</h3>
@@ -706,9 +753,9 @@ const MultipleChoiceExercise = () => {
               </div>
             )}
 
-            {/* Next Button */}
+            {/* Mobile-only Next Button below (like before) */}
             {showExplanation && (
-              <div className="mt-3 md:mt-4 flex justify-end">
+              <div className="md:hidden mt-3 md:mt-4 flex justify-end">
                 <Button
                   onClick={handleNextQuestion}
                   className="bg-blue-500 hover:bg-blue-600 text-white text-sm px-4 py-2"
@@ -724,7 +771,7 @@ const MultipleChoiceExercise = () => {
                 </Button>
               </div>
             )}
-          </Card>
+          </div>
         </div>
       )}
       </div>

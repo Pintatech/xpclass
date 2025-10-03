@@ -10,7 +10,8 @@ import {
   Upload,
   Check,
   HelpCircle,
-  X
+  X,
+  Table
 } from 'lucide-react'
 import { supabase } from '../../../supabase/client'
 import RichTextRenderer from '../../ui/RichTextRenderer'
@@ -36,6 +37,7 @@ const MultipleChoiceEditor = ({ questions, onQuestionsChange }) => {
   const [bulkText, setBulkText] = useState('')
   const fileInputRefs = useRef({})
   const questionInputRefs = useRef({})
+  const explanationInputRefs = useRef({})
   const [previewOpen, setPreviewOpen] = useState({})
   const [urlModal, setUrlModal] = useState({ isOpen: false, type: '', questionIndex: -1 })
   const [urlInput, setUrlInput] = useState('')
@@ -47,6 +49,13 @@ const MultipleChoiceEditor = ({ questions, onQuestionsChange }) => {
   const [audioAutoplay, setAudioAutoplay] = useState(false)
   const [audioLoop, setAudioLoop] = useState(false)
   const [collapsedQuestions, setCollapsedQuestions] = useState({})
+  const [undoHistory, setUndoHistory] = useState({})
+  const [redoHistory, setRedoHistory] = useState({})
+  const [tableModal, setTableModal] = useState({ isOpen: false, questionIndex: -1 })
+  const [tableRows, setTableRows] = useState(2)
+  const [tableColumns, setTableColumns] = useState(2)
+  const [tableWidth, setTableWidth] = useState('100%') // '100%' or 'auto'
+  const [tableBorder, setTableBorder] = useState(true) // true or false
 
   useEffect(() => {
     setLocalQuestions((questions || []).map((q, i) => normalizeQuestion(q, i)))
@@ -82,7 +91,21 @@ const MultipleChoiceEditor = ({ questions, onQuestionsChange }) => {
     onQuestionsChange(updatedQuestions)
   }
 
-  const updateQuestion = (index, field, value) => {
+  const updateQuestion = (index, field, value, saveToHistory = true) => {
+    // Save to undo history before updating
+    if (saveToHistory && (field === 'question' || field === 'explanation')) {
+      const historyKey = `${index}_${field}`
+      setUndoHistory(prev => ({
+        ...prev,
+        [historyKey]: [...(prev[historyKey] || []), localQuestions[index]?.[field] || '']
+      }))
+      // Clear redo history when new change is made
+      setRedoHistory(prev => ({
+        ...prev,
+        [historyKey]: []
+      }))
+    }
+
     const updatedQuestions = localQuestions.map((q, i) =>
       i === index ? { ...q, [field]: value } : q
     )
@@ -109,6 +132,207 @@ const MultipleChoiceEditor = ({ questions, onQuestionsChange }) => {
     }, 0)
   }
 
+  const handleKeyboardShortcut = (e, index, field = 'question') => {
+    // Only handle Ctrl/Cmd key combinations
+    if (!e.ctrlKey && !e.metaKey) return
+
+    const textarea = field === 'question'
+      ? questionInputRefs.current[index]
+      : explanationInputRefs.current[index]
+    if (!textarea) return
+
+    const start = textarea.selectionStart || 0
+    const end = textarea.selectionEnd || 0
+    const value = localQuestions[index]?.[field] || ''
+    const selectedText = value.substring(start, end)
+    const historyKey = `${index}_${field}`
+
+    // Ctrl+B - Bold
+    if (e.key === 'b' || e.key === 'B') {
+      e.preventDefault()
+      if (selectedText) {
+        // Check if text is already bold by looking at surrounding characters
+        const beforeHtml = value.slice(Math.max(0, start - 3), start)
+        const afterHtml = value.slice(end, Math.min(value.length, end + 4))
+
+        let newValue
+        let newSelectionStart, newSelectionEnd
+
+        // Check HTML bold
+        if (beforeHtml === '<b>' && afterHtml === '</b>') {
+          // Remove HTML bold
+          newValue = value.slice(0, start - 3) + selectedText + value.slice(end + 4)
+          newSelectionStart = start - 3
+          newSelectionEnd = start - 3 + selectedText.length
+        }
+        // Add bold
+        else {
+          newValue = value.slice(0, start) + `<b>${selectedText}</b>` + value.slice(end)
+          newSelectionStart = start + 3
+          newSelectionEnd = start + 3 + selectedText.length
+        }
+
+        updateQuestion(index, field, newValue)
+        setTimeout(() => {
+          textarea.focus()
+          textarea.setSelectionRange(newSelectionStart, newSelectionEnd)
+        }, 0)
+      } else {
+        const newValue = value.slice(0, start) + '<b></b>' + value.slice(end)
+        updateQuestion(index, field, newValue)
+        setTimeout(() => {
+          textarea.focus()
+          textarea.setSelectionRange(start + 3, start + 3)
+        }, 0)
+      }
+      return
+    }
+
+    // Ctrl+I - Italic
+    if (e.key === 'i' || e.key === 'I') {
+      e.preventDefault()
+      if (selectedText) {
+        // Check if text is already italic by looking at surrounding characters
+        const beforeHtml = value.slice(Math.max(0, start - 3), start)
+        const afterHtml = value.slice(end, Math.min(value.length, end + 4))
+
+        let newValue
+        let newSelectionStart, newSelectionEnd
+
+        // Check HTML italic
+        if (beforeHtml === '<i>' && afterHtml === '</i>') {
+          // Remove HTML italic
+          newValue = value.slice(0, start - 3) + selectedText + value.slice(end + 4)
+          newSelectionStart = start - 3
+          newSelectionEnd = start - 3 + selectedText.length
+        }
+        // Add italic
+        else {
+          newValue = value.slice(0, start) + `<i>${selectedText}</i>` + value.slice(end)
+          newSelectionStart = start + 3
+          newSelectionEnd = start + 3 + selectedText.length
+        }
+
+        updateQuestion(index, field, newValue)
+        setTimeout(() => {
+          textarea.focus()
+          textarea.setSelectionRange(newSelectionStart, newSelectionEnd)
+        }, 0)
+      } else {
+        const newValue = value.slice(0, start) + '<i></i>' + value.slice(end)
+        updateQuestion(index, field, newValue)
+        setTimeout(() => {
+          textarea.focus()
+          textarea.setSelectionRange(start + 3, start + 3)
+        }, 0)
+      }
+      return
+    }
+
+    // Ctrl+U - Underline
+    if (e.key === 'u' || e.key === 'U') {
+      e.preventDefault()
+      if (selectedText) {
+        // Check if text is already underlined by looking at surrounding characters
+        const beforeHtml = value.slice(Math.max(0, start - 3), start)
+        const afterHtml = value.slice(end, Math.min(value.length, end + 4))
+
+        let newValue
+        let newSelectionStart, newSelectionEnd
+
+        // Check HTML underline
+        if (beforeHtml === '<u>' && afterHtml === '</u>') {
+          // Remove underline
+          newValue = value.slice(0, start - 3) + selectedText + value.slice(end + 4)
+          newSelectionStart = start - 3
+          newSelectionEnd = start - 3 + selectedText.length
+        }
+        // Add underline
+        else {
+          newValue = value.slice(0, start) + `<u>${selectedText}</u>` + value.slice(end)
+          newSelectionStart = start + 3
+          newSelectionEnd = start + 3 + selectedText.length
+        }
+
+        updateQuestion(index, field, newValue)
+        setTimeout(() => {
+          textarea.focus()
+          textarea.setSelectionRange(newSelectionStart, newSelectionEnd)
+        }, 0)
+      } else {
+        const newValue = value.slice(0, start) + '<u></u>' + value.slice(end)
+        updateQuestion(index, field, newValue)
+        setTimeout(() => {
+          textarea.focus()
+          textarea.setSelectionRange(start + 3, start + 3)
+        }, 0)
+      }
+      return
+    }
+
+    // Ctrl+Z - Undo
+    if (e.key === 'z' || e.key === 'Z') {
+      e.preventDefault()
+      const history = undoHistory[historyKey] || []
+      if (history.length > 0) {
+        const previousValue = history[history.length - 1]
+        const currentValue = localQuestions[index]?.[field] || ''
+
+        // Save current state to redo
+        setRedoHistory(prev => ({
+          ...prev,
+          [historyKey]: [...(prev[historyKey] || []), currentValue]
+        }))
+
+        // Remove from undo history
+        setUndoHistory(prev => ({
+          ...prev,
+          [historyKey]: history.slice(0, -1)
+        }))
+
+        // Restore previous value
+        updateQuestion(index, field, previousValue, false)
+
+        setTimeout(() => {
+          textarea.focus()
+          textarea.setSelectionRange(previousValue.length, previousValue.length)
+        }, 0)
+      }
+      return
+    }
+
+    // Ctrl+Y or Ctrl+Shift+Z - Redo
+    if ((e.key === 'y' || e.key === 'Y') || (e.shiftKey && (e.key === 'z' || e.key === 'Z'))) {
+      e.preventDefault()
+      const history = redoHistory[historyKey] || []
+      if (history.length > 0) {
+        const nextValue = history[history.length - 1]
+        const currentValue = localQuestions[index]?.[field] || ''
+
+        // Save current state to undo
+        setUndoHistory(prev => ({
+          ...prev,
+          [historyKey]: [...(prev[historyKey] || []), currentValue]
+        }))
+
+        // Remove from redo history
+        setRedoHistory(prev => ({
+          ...prev,
+          [historyKey]: history.slice(0, -1)
+        }))
+
+        // Restore next value
+        updateQuestion(index, field, nextValue, false)
+
+        setTimeout(() => {
+          textarea.focus()
+          textarea.setSelectionRange(nextValue.length, nextValue.length)
+        }, 0)
+      }
+      return
+    }
+  }
+
   const handleSelectFile = (index) => {
     if (!fileInputRefs.current[index]) return
     fileInputRefs.current[index].click()
@@ -130,7 +354,7 @@ const MultipleChoiceEditor = ({ questions, onQuestionsChange }) => {
       const publicUrl = publicData?.publicUrl
       if (!publicUrl) throw new Error('Cannot get public URL')
 
-      insertAtCursor(index, `![](${publicUrl})`)
+      insertAtCursor(index, `\n![](${publicUrl})\n`)
       alert('Image uploaded and inserted into question!')
     } catch (e) {
       console.error('Image upload failed:', e)
@@ -163,6 +387,53 @@ const MultipleChoiceEditor = ({ questions, onQuestionsChange }) => {
     setAudioControls(true)
     setAudioAutoplay(false)
     setAudioLoop(false)
+  }
+
+  const handleInsertTable = (index) => {
+    setTableModal({ isOpen: true, questionIndex: index })
+    setTableRows(2)
+    setTableColumns(2)
+    setTableWidth('100%')
+    setTableBorder(true)
+  }
+
+  const handleTableSubmit = () => {
+    const rows = parseInt(tableRows) || 2
+    const cols = parseInt(tableColumns) || 2
+
+    // Determine table layout based on width setting
+    const isFlexible = tableWidth === 'auto'
+    const tableLayout = isFlexible ? 'auto' : 'fixed'
+    const widthStyle = tableWidth
+
+    // Determine border style
+    const borderStyle = tableBorder ? 'border: 1px solid #ddd;' : 'border: none;'
+
+    let tableHTML = `<table style="width: ${widthStyle}; border-collapse: collapse; margin: 10px 0; table-layout: ${tableLayout};">\n`
+
+    for (let i = 0; i < rows; i++) {
+      tableHTML += '  <tr>\n'
+      for (let j = 0; j < cols; j++) {
+        const cellNumber = i * cols + j + 1
+        // Only add width for fixed layout tables
+        const cellWidth = isFlexible ? '' : ` width: ${Math.floor(100 / cols)}%;`
+        tableHTML += `    <td style="${borderStyle} padding: 8px;${cellWidth} vertical-align: top;">Cell ${cellNumber}</td>\n`
+      }
+      tableHTML += '  </tr>\n'
+    }
+
+    tableHTML += '</table>'
+
+    insertAtCursor(tableModal.questionIndex, tableHTML)
+    setTableModal({ isOpen: false, questionIndex: -1 })
+  }
+
+  const handleTableCancel = () => {
+    setTableModal({ isOpen: false, questionIndex: -1 })
+    setTableRows(2)
+    setTableColumns(2)
+    setTableWidth('100%')
+    setTableBorder(true)
   }
 
   const getImageSizeStyle = () => {
@@ -199,7 +470,7 @@ const MultipleChoiceEditor = ({ questions, onQuestionsChange }) => {
       
       if (urlModal.type === 'image') {
         const sizeStyle = getImageSizeStyle()
-        insertAtCursor(urlModal.questionIndex, `<img src="${trimmedUrl}" alt="" ${sizeStyle} />`)
+        insertAtCursor(urlModal.questionIndex, `\n<img src="${trimmedUrl}" alt="" ${sizeStyle} />\n`)
       } else if (urlModal.type === 'link') {
         const text = linkText.trim() || 'Reference'
         insertAtCursor(urlModal.questionIndex, `[${text}](${trimmedUrl})`)
@@ -705,11 +976,15 @@ Explanation: Good morning is Chào buổi sáng.`}
             <div className="mb-4">
               <label className="block text-sm font-medium text-gray-700 mb-1">
                 Question
+                <span className="ml-2 text-xs text-gray-500">
+                  (Ctrl+B: Bold, Ctrl+I: Italic, Ctrl+U: Underline, Ctrl+Z: Undo)
+                </span>
               </label>
               <textarea
                 ref={(el) => (questionInputRefs.current[index] = el)}
                 value={question.question || ''}
                 onChange={(e) => updateQuestion(index, 'question', e.target.value)}
+                onKeyDown={(e) => handleKeyboardShortcut(e, index)}
                 className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
                 rows={2}
                 placeholder="Enter your question here..."
@@ -730,14 +1005,14 @@ Explanation: Good morning is Chào buổi sáng.`}
                 onClick={() => handleSelectFile(index)}
                 className="px-3 py-2 bg-gray-700 text-white rounded-lg hover:bg-gray-800 text-sm flex items-center gap-2"
               >
-                <Upload className="w-4 h-4" /> Upload & insert image
+                <Upload className="w-4 h-4" /> Upload
               </button>
               <button
                 type="button"
                 onClick={() => handlePasteImageUrl(index)}
                 className="px-3 py-2 bg-gray-100 text-gray-800 rounded-lg hover:bg-gray-200 text-sm"
               >
-                Paste image URL → insert
+                Paste URL
               </button>
               <button
                 type="button"
@@ -752,6 +1027,13 @@ Explanation: Good morning is Chào buổi sáng.`}
                 className="px-3 py-2 bg-purple-100 text-purple-800 rounded-lg hover:bg-purple-200 text-sm"
               >
                 🎵 Insert audio
+              </button>
+              <button
+                type="button"
+                onClick={() => handleInsertTable(index)}
+                className="px-3 py-2 bg-blue-100 text-blue-800 rounded-lg hover:bg-blue-200 text-sm flex items-center gap-2"
+              >
+                <Table className="w-4 h-4" /> Insert table
               </button>
               <span className="text-xs text-gray-500 self-center">Mẹo: dùng cú pháp Markdown ![](url) hoặc [text](url)</span>
             </div>
@@ -846,10 +1128,15 @@ Explanation: Good morning is Chào buổi sáng.`}
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">
                 Explanation (Optional)
+                <span className="ml-2 text-xs text-gray-500">
+                  (Ctrl+B: Bold, Ctrl+I: Italic, Ctrl+U: Underline, Ctrl+Z: Undo)
+                </span>
               </label>
               <textarea
+                ref={(el) => (explanationInputRefs.current[index] = el)}
                 value={question.explanation || ''}
                 onChange={(e) => updateQuestion(index, 'explanation', e.target.value)}
+                onKeyDown={(e) => handleKeyboardShortcut(e, index, 'explanation')}
                 className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
                 rows={2}
                 placeholder="Explain why this is the correct answer..."
@@ -868,6 +1155,149 @@ Explanation: Good morning is Chào buổi sáng.`}
           </div>
         )}
       </div>
+
+      {/* Table Input Modal */}
+      {tableModal.isOpen && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-lg max-w-md w-full p-6">
+            <div className="flex justify-between items-center mb-4">
+              <h3 className="text-lg font-semibold">Insert Table</h3>
+              <button
+                onClick={handleTableCancel}
+                className="text-gray-500 hover:text-gray-700"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            <div className="space-y-4">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Number of Rows
+                </label>
+                <input
+                  type="number"
+                  value={tableRows}
+                  onChange={(e) => setTableRows(e.target.value)}
+                  className="w-full p-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
+                  min="1"
+                  max="20"
+                  autoFocus
+                />
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Number of Columns
+                </label>
+                <input
+                  type="number"
+                  value={tableColumns}
+                  onChange={(e) => setTableColumns(e.target.value)}
+                  className="w-full p-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
+                  min="1"
+                  max="10"
+                />
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Table Width
+                </label>
+                <div className="flex gap-2">
+                  <button
+                    type="button"
+                    onClick={() => setTableWidth('100%')}
+                    className={`flex-1 px-3 py-2 border rounded-lg text-sm transition-colors ${
+                      tableWidth === '100%'
+                        ? 'border-blue-500 bg-blue-50 text-blue-700'
+                        : 'border-gray-300 hover:border-gray-400'
+                    }`}
+                  >
+                    Full Width (100%)
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setTableWidth('auto')}
+                    className={`flex-1 px-3 py-2 border rounded-lg text-sm transition-colors ${
+                      tableWidth === 'auto'
+                        ? 'border-blue-500 bg-blue-50 text-blue-700'
+                        : 'border-gray-300 hover:border-gray-400'
+                    }`}
+                  >
+                    Flexible (Auto)
+                  </button>
+                </div>
+                <p className="text-xs text-gray-500 mt-1">
+                  {tableWidth === '100%'
+                    ? 'Table stretches to full width with equal columns'
+                    : 'Table shrinks to fit content size'}
+                </p>
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Border Style
+                </label>
+                <div className="flex gap-2">
+                  <button
+                    type="button"
+                    onClick={() => setTableBorder(true)}
+                    className={`flex-1 px-3 py-2 border rounded-lg text-sm transition-colors ${
+                      tableBorder
+                        ? 'border-blue-500 bg-blue-50 text-blue-700'
+                        : 'border-gray-300 hover:border-gray-400'
+                    }`}
+                  >
+                    With Borders
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setTableBorder(false)}
+                    className={`flex-1 px-3 py-2 border rounded-lg text-sm transition-colors ${
+                      !tableBorder
+                        ? 'border-blue-500 bg-blue-50 text-blue-700'
+                        : 'border-gray-300 hover:border-gray-400'
+                    }`}
+                  >
+                    No Borders
+                  </button>
+                </div>
+                <p className="text-xs text-gray-500 mt-1">
+                  {tableBorder
+                    ? 'Cells will have visible borders'
+                    : 'Borderless table for cleaner layout'}
+                </p>
+              </div>
+
+              <div className="p-3 bg-gray-50 rounded-lg">
+                <p className="text-sm text-gray-600">
+                  Preview: {tableRows || 0} rows × {tableColumns || 0} columns ({tableWidth === '100%' ? 'Full width' : 'Flexible'}, {tableBorder ? 'With borders' : 'No borders'})
+                </p>
+              </div>
+            </div>
+
+            <div className="flex justify-end gap-2 mt-6">
+              <button
+                type="button"
+                onClick={handleTableCancel}
+                className="px-4 py-2 text-gray-700 bg-gray-200 rounded-lg hover:bg-gray-300"
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                onClick={handleTableSubmit}
+                disabled={!tableRows || !tableColumns || tableRows < 1 || tableColumns < 1}
+                className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:bg-gray-400 flex items-center gap-2"
+              >
+                <Table className="w-4 h-4" />
+                Insert Table
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* URL Input Modal */}
       {urlModal.isOpen && (

@@ -31,15 +31,43 @@ const RichTextRenderer = ({
     )
   }
 
+  // Convert markdown to HTML first
+  const markdownToHtml = (text) => {
+    if (!text) return ''
+    let html = text
+
+    // Images: ![alt](url) - must come before links
+    html = html.replace(/!\[([^\]]*)\]\(([^)]+)\)/g, '<img src="$2" alt="$1" />')
+
+    // Links: [text](url)
+    html = html.replace(/\[([^\]]+)\]\(([^)]+)\)/g, '<a href="$2" target="_blank" rel="noopener noreferrer">$1</a>')
+
+    // Bold: **text** or __text__ - must come before italic
+    html = html.replace(/\*\*([^*]+)\*\*/g, '<strong>$1</strong>')
+    html = html.replace(/__([^_]+)__/g, '<strong>$1</strong>')
+
+    // Italic: *text* (single asterisk, not double)
+    // Use a more careful approach to avoid matching ** markers
+    html = html.replace(/(?<!\*)\*([^*\n]+?)\*(?!\*)/g, '<em>$1</em>')
+
+    // Strikethrough: ~~text~~
+    html = html.replace(/~~([^~]+)~~/g, '<del>$1</del>')
+
+    return html
+  }
+
   // Sanitize and process HTML content
   const sanitizeHTML = (html) => {
+    // First convert any markdown syntax to HTML
+    let processedHtml = markdownToHtml(html)
+
     // Allow specific safe HTML tags for formatting
     const allowedTags = [
       'b', 'strong', 'i', 'em', 'u', 'br', 'p', 'span', 'div',
       'h1', 'h2', 'h3', 'h4', 'h5', 'h6',
       'ul', 'ol', 'li',
       'code', 'pre',
-      'mark', 'sup', 'sub'
+      'mark', 'sup', 'sub', 'del'
     ]
 
     if (allowImages) {
@@ -51,20 +79,21 @@ const RichTextRenderer = ({
     }
 
     // Convert plain text line breaks to HTML <br> tags
-    // First, protect existing HTML tags from line break conversion
-    const htmlTagRegex = /<[^>]+>/g
+    // But ONLY outside of block-level HTML elements like tables
+    // First, protect existing HTML tags and block elements from line break conversion
+    const blockElements = /<(table|tr|td|th|thead|tbody|tfoot|div|p)[^>]*>[\s\S]*?<\/\1>/gi
     const htmlTags = []
-    let tempHtml = html.replace(htmlTagRegex, (match, offset) => {
+    let tempHtml = processedHtml.replace(blockElements, (match) => {
       htmlTags.push(match)
-      return `__HTML_TAG_${htmlTags.length - 1}__`
+      return `__HTML_BLOCK_${htmlTags.length - 1}__`
     })
 
-    // Convert \n to <br> in the text content (but not inside HTML tags)
+    // Convert \n to <br> in the text content (but not inside block elements)
     tempHtml = tempHtml.replace(/\n/g, '<br>')
 
-    // Restore HTML tags
+    // Restore block elements (without converting their internal newlines)
     htmlTags.forEach((tag, index) => {
-      tempHtml = tempHtml.replace(`__HTML_TAG_${index}__`, tag)
+      tempHtml = tempHtml.replace(`__HTML_BLOCK_${index}__`, tag)
     })
 
     // Basic sanitization - remove dangerous attributes and scripts
@@ -78,9 +107,10 @@ const RichTextRenderer = ({
     // Process images if allowed
     if (allowImages) {
       // Ensure images have proper attributes and styling
+      // Add max-height for images inside table cells to prevent excessive vertical space
       sanitized = sanitized.replace(
         /<img([^>]*)>/gi,
-        '<img$1 class="max-w-full h-auto rounded-lg my-2" loading="lazy" />'
+        '<img$1 style="max-width: 100%; height: auto; max-height: 300px; object-fit: contain;" class="rounded-lg" loading="lazy" />'
       )
     }
 
@@ -96,7 +126,8 @@ const RichTextRenderer = ({
       style={{
         // CSS for common formatting
         wordBreak: 'break-word',
-        lineHeight: '1.6'
+        lineHeight: '1.6',
+        whiteSpace: 'normal'
       }}
     />
   )

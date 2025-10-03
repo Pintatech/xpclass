@@ -7,6 +7,22 @@ import { useProgress } from '../../hooks/useProgress'
 import Card from '../ui/Card'
 import Button from '../ui/Button'
 import AssignExerciseModal from './AssignExerciseModal'
+import {
+  DndContext,
+  closestCenter,
+  KeyboardSensor,
+  PointerSensor,
+  useSensor,
+  useSensors,
+} from '@dnd-kit/core'
+import {
+  arrayMove,
+  SortableContext,
+  sortableKeyboardCoordinates,
+  useSortable,
+  verticalListSortingStrategy,
+} from '@dnd-kit/sortable'
+import { CSS } from '@dnd-kit/utilities'
 // Skeleton loading sẽ thay cho spinner
 import {
   ArrowLeft,
@@ -29,7 +45,8 @@ import {
   Crown,
   Plus,
   Edit,
-  Trash2
+  Trash2,
+  GripVertical
 } from 'lucide-react'
 
 const ExerciseList = () => {
@@ -55,6 +72,14 @@ const ExerciseList = () => {
   const { user, profile } = useAuth()
   const { canCreateContent } = usePermissions()
   const { userProgress, fetchUserProgress } = useProgress()
+
+  // Drag and drop sensors
+  const sensors = useSensors(
+    useSensor(PointerSensor),
+    useSensor(KeyboardSensor, {
+      coordinateGetter: sortableKeyboardCoordinates,
+    })
+  )
 
   // Skeleton card cho trạng thái loading
   const SkeletonCard = () => (
@@ -115,6 +140,58 @@ const ExerciseList = () => {
     } catch (err) {
       console.error('Error removing exercise:', err)
       alert('Failed to remove exercise: ' + (err.message || 'Unknown error'))
+    }
+  }
+
+  const handleDragEnd = async (event) => {
+    const { active, over } = event
+
+    if (!over || active.id === over.id) {
+      return
+    }
+
+    const oldIndex = exercises.findIndex(ex => ex.id === active.id)
+    const newIndex = exercises.findIndex(ex => ex.id === over.id)
+
+    const newExercises = arrayMove(exercises, oldIndex, newIndex)
+
+    // Update local state immediately for smooth UX
+    setExercises(newExercises)
+
+    // Update order_index in database
+    try {
+      // Step 1: Set all order_index to negative temporary values to avoid conflicts
+      for (let i = 0; i < newExercises.length; i++) {
+        const { error } = await supabase
+          .from('exercise_assignments')
+          .update({ order_index: -(i + 1000) })
+          .eq('id', newExercises[i].assignment_id)
+
+        if (error) throw error
+      }
+
+      // Step 2: Set to actual order_index values
+      for (let i = 0; i < newExercises.length; i++) {
+        const { error } = await supabase
+          .from('exercise_assignments')
+          .update({ order_index: i + 1 })
+          .eq('id', newExercises[i].assignment_id)
+
+        if (error) throw error
+      }
+
+      // Update local state with new order_index values
+      setExercises(newExercises.map((ex, idx) => ({
+        ...ex,
+        order_index: idx + 1
+      })))
+
+      console.log('✅ Exercise order updated successfully')
+    } catch (err) {
+      console.error('Error updating exercise order:', err)
+      // Revert on error
+      setExercises(exercises)
+      alert('Failed to update exercise order: ' + (err.message || 'Unknown error'))
     }
   }
 
@@ -499,7 +576,23 @@ const ExerciseList = () => {
     return basePath
   }
 
-  const renderExerciseCard = (exercise, index) => {
+  // Sortable Exercise Card Component
+  const SortableExerciseCard = ({ exercise, index }) => {
+    const {
+      attributes,
+      listeners,
+      setNodeRef,
+      transform,
+      transition,
+      isDragging,
+    } = useSortable({ id: exercise.id })
+
+    const style = {
+      transform: CSS.Transform.toString(transform),
+      transition,
+      opacity: isDragging ? 0.5 : 1,
+    }
+
     const { status, canAccess } = getExerciseStatus(exercise, index)
     const progress = userProgress.find(p => p.exercise_id === exercise.id)
     const theme = getThemeColors(session?.color_theme || unit?.color_theme || level?.color_theme)
@@ -514,16 +607,31 @@ const ExerciseList = () => {
 
     return (
       <div
-        key={exercise.id}
+        ref={setNodeRef}
+        style={style}
         className={`flex items-center p-4 rounded-lg border transition-all duration-200 ${
           isLocked
             ? 'opacity-60 cursor-not-allowed bg-gray-50 border-gray-200'
-            : 'cursor-pointer hover:shadow-md hover:bg-gray-50 border-gray-300'
+            : 'hover:shadow-md hover:bg-gray-50 border-gray-300'
         } ${status === 'completed' ? 'border-green-200 bg-green-50' : ''}`}
-        onClick={handleExerciseClick}
       >
+        {/* Drag Handle - Only show for admins/teachers */}
+        {canCreateContent() && (
+          <div
+            {...attributes}
+            {...listeners}
+            className="flex-shrink-0 mr-3 cursor-grab active:cursor-grabbing text-gray-400 hover:text-gray-600"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <GripVertical className="w-5 h-5" />
+          </div>
+        )}
+
         {/* Exercise Icon */}
-        <div className="flex-shrink-0 w-12 h-12 mr-4">
+        <div
+          className="flex-shrink-0 w-12 h-12 mr-4 cursor-pointer"
+          onClick={handleExerciseClick}
+        >
           <div className={`w-full h-full rounded-lg flex items-center justify-center ${
             isLocked ? 'bg-gray-100' :
             status === 'completed' ? 'bg-green-100' :
@@ -538,7 +646,10 @@ const ExerciseList = () => {
         </div>
 
         {/* Exercise Info */}
-        <div className="flex-1 min-w-0">
+        <div
+          className="flex-1 min-w-0 cursor-pointer"
+          onClick={handleExerciseClick}
+        >
           <div className="flex items-center justify-between">
             <h3 className="text-lg font-semibold text-gray-900 truncate">
               {exercise.title}
@@ -591,7 +702,10 @@ const ExerciseList = () => {
 
         {/* Arrow */}
         {!isLocked && (
-          <ChevronRight className="w-5 h-5 text-gray-400 ml-4" />
+          <ChevronRight
+            className="w-5 h-5 text-gray-400 ml-4 cursor-pointer"
+            onClick={handleExerciseClick}
+          />
         )}
       </div>
     )
@@ -832,10 +946,27 @@ const ExerciseList = () => {
             </div>
           )}
 
-          {/* Exercises list */}
-          <div className="space-y-4">
-            {exercises.map((exercise, index) => renderExerciseCard(exercise, index))}
-          </div>
+          {/* Exercises list with Drag and Drop */}
+          <DndContext
+            sensors={sensors}
+            collisionDetection={closestCenter}
+            onDragEnd={handleDragEnd}
+          >
+            <SortableContext
+              items={exercises.map(ex => ex.id)}
+              strategy={verticalListSortingStrategy}
+            >
+              <div className="space-y-4">
+                {exercises.map((exercise, index) => (
+                  <SortableExerciseCard
+                    key={exercise.id}
+                    exercise={exercise}
+                    index={index}
+                  />
+                ))}
+              </div>
+            </SortableContext>
+          </DndContext>
 
           {/* Empty state */}
           {exercises.length === 0 && (

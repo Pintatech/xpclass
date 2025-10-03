@@ -68,6 +68,7 @@ const DragDropExercise = () => {
   const [attempts, setAttempts] = useState(0)
   const [startTime, setStartTime] = useState(null)
   const [timeSpent, setTimeSpent] = useState(0)
+  const [itemFeedback, setItemFeedback] = useState({}) // Track correct/incorrect for each item
   const { user } = useAuth()
   const { completeExerciseWithXP } = useProgress()
 
@@ -270,28 +271,44 @@ const DragDropExercise = () => {
   const checkAnswer = async (questionIndex) => {
     const question = exercise.content.questions[questionIndex]
     const userAnswer = userAnswers[questionIndex] || {}
-    
+
     // Convert user answer to array in correct order
     const userOrder = question.drop_zones.map(zone => userAnswer[zone.id] || null)
     const correctOrder = question.correct_order
-    
+
     const isAnswerCorrect = JSON.stringify(userOrder) === JSON.stringify(correctOrder)
     setIsCorrect(isAnswerCorrect)
     setShowResult(true)
-    
+
+    // Calculate feedback for each drop zone
+    const feedback = {}
+    question.drop_zones.forEach((zone, index) => {
+      const userItemId = userAnswer[zone.id]
+      const correctItemId = correctOrder[index]
+
+      if (userItemId) {
+        feedback[zone.id] = userItemId === correctItemId ? 'correct' : 'incorrect'
+      }
+    })
+
+    setItemFeedback(prev => ({
+      ...prev,
+      [questionIndex]: feedback
+    }))
+
     // Attempts will be incremented in saveProgress function
-    
+
     // Mark question as checked
     setQuestionsChecked(prev => ({
       ...prev,
       [questionIndex]: true
     }))
-    
+
     // Save progress on every question check, but don't increment attempts here
     if (user) {
       await saveProgress(questionIndex, isAnswerCorrect)
     }
-    
+
     return isAnswerCorrect
   }
 
@@ -375,6 +392,12 @@ const DragDropExercise = () => {
     setQuestionsChecked(prev => ({
       ...prev,
       [questionIndex]: false
+    }))
+
+    // Reset feedback
+    setItemFeedback(prev => ({
+      ...prev,
+      [questionIndex]: {}
     }))
 
     // Re-randomize items
@@ -465,28 +488,9 @@ const DragDropExercise = () => {
   })
 
   return (
-    <div className="min-h-screen bg-gray-50">
-      {/* Header */}
-      <div className="bg-white shadow-sm border-b">
-        <div className="max-w-4xl mx-auto px-4 py-4">
-          <div className="flex items-center justify-between">
-            <button
-              onClick={() => navigate(-1)}
-              className="flex items-center gap-2 text-gray-600 hover:text-gray-800"
-            >
-              <ArrowLeft className="w-5 h-5" />
-              Back
-            </button>
-            <div className="text-sm text-gray-500">
-              Question {currentQuestionIndex + 1} of {exercise.content.questions.length}
-            </div>
-          </div>
-        </div>
-      </div>
-
+    <div className="quiz-question-bg quiz-desktop-reset">
       {/* Main Content */}
-      <div className="max-w-4xl mx-auto px-4 py-8">
-        <div className="rounded-lg p-6 bg-white shadow-lg" style={{ userSelect: 'none' }}>
+      <div className="max-w-4xl mx-auto md:rounded-lg md:p-6 bg-transparent md:shadow-lg md:overflow-y-auto quiz-content-scroll md:max-h-[70vh] md:mt-[140px]" style={{ userSelect: 'none' }}>
           {/* Question with inline drop zones */}
           <div className="mb-8">
             <h2 className="text-lg font-semibold text-gray-800 mb-4 leading-relaxed">
@@ -497,6 +501,7 @@ const DragDropExercise = () => {
                   const zone = currentQuestion.drop_zones.find(z => z.id === zoneId)
                   const itemId = userAnswer[zoneId]
                   const item = currentQuestion.items.find(i => i.id === itemId)
+                  const feedback = itemFeedback[currentQuestionIndex]?.[zoneId]
 
                   return (
                     <span
@@ -517,7 +522,13 @@ const DragDropExercise = () => {
                       }`}
                     >
                       {item ? (
-                        <span className="bg-blue-100 text-blue-800 px-2 py-1 rounded text-sm font-medium">
+                        <span className={`px-2 py-1 rounded text-sm font-medium ${
+                          feedback === 'correct'
+                            ? 'bg-green-100 text-green-800 border-2 border-green-500'
+                            : feedback === 'incorrect'
+                              ? 'bg-red-100 text-red-800 border-2 border-red-500'
+                              : 'bg-blue-100 text-blue-800'
+                        }`}>
                           {item.text}
                         </span>
                       ) : (
@@ -675,7 +686,6 @@ const DragDropExercise = () => {
               </button>
             )}
           </div>
-        </div>
       </div>
     </div>
   )
