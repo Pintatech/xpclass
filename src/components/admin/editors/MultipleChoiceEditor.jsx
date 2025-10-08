@@ -19,6 +19,11 @@ import RichTextRenderer from '../../ui/RichTextRenderer'
 const MultipleChoiceEditor = ({ questions, onQuestionsChange }) => {
   const normalizeQuestion = (q, idx = 0) => {
     const safeOptions = Array.isArray(q?.options) ? q.options : ['', '', '', '']
+    const baseOptionExplanations = Array.isArray(q?.option_explanations)
+      ? q.option_explanations
+      : Array(safeOptions.length).fill('')
+    // Ensure option_explanations length matches options
+    const safeOptionExplanations = safeOptions.map((_, i) => baseOptionExplanations[i] || '')
     const safeCorrect = Number.isInteger(q?.correct_answer) ? q.correct_answer : 0
     return {
       id: q?.id || `q${Date.now()}_${idx}`,
@@ -26,6 +31,8 @@ const MultipleChoiceEditor = ({ questions, onQuestionsChange }) => {
       options: safeOptions,
       correct_answer: Math.min(Math.max(0, safeCorrect), Math.max(0, safeOptions.length - 1)),
       explanation: q?.explanation || '',
+      option_explanations: safeOptionExplanations,
+      original_text: q?.original_text || '',
       image_url: q?.image_url || '',
       reference_url: q?.reference_url || '',
       shuffle_options: q?.shuffle_options !== undefined ? q.shuffle_options : true
@@ -35,6 +42,15 @@ const MultipleChoiceEditor = ({ questions, onQuestionsChange }) => {
   const [localQuestions, setLocalQuestions] = useState((questions || []).map((q, i) => normalizeQuestion(q, i)))
   const [bulkImportMode, setBulkImportMode] = useState(false)
   const [bulkText, setBulkText] = useState('')
+  const [lastBulkText, setLastBulkText] = useState('')
+
+  // Load lastBulkText from localStorage on mount
+  useEffect(() => {
+    try {
+      const saved = localStorage.getItem('xpclass_last_bulk_text')
+      if (saved) setLastBulkText(saved)
+    } catch {}
+  }, [])
   const fileInputRefs = useRef({})
   const questionInputRefs = useRef({})
   const explanationInputRefs = useRef({})
@@ -524,7 +540,9 @@ const MultipleChoiceEditor = ({ questions, onQuestionsChange }) => {
       i === questionIndex
         ? {
             ...q,
-            options: q.options.map((opt, oi) => oi === optionIndex ? value : opt)
+            options: q.options.map((opt, oi) => oi === optionIndex ? value : opt),
+            option_explanations: (q.option_explanations || Array(q.options.length).fill(''))
+              .map((exp, oi) => oi === optionIndex ? (q.option_explanations?.[oi] || '') : exp)
           }
         : q
     )
@@ -535,7 +553,7 @@ const MultipleChoiceEditor = ({ questions, onQuestionsChange }) => {
   const addOption = (questionIndex) => {
     const updatedQuestions = localQuestions.map((q, i) =>
       i === questionIndex
-        ? { ...q, options: [...q.options, ''] }
+        ? { ...q, options: [...q.options, ''], option_explanations: [...(q.option_explanations || []), ''] }
         : q
     )
     setLocalQuestions(updatedQuestions)
@@ -551,6 +569,7 @@ const MultipleChoiceEditor = ({ questions, onQuestionsChange }) => {
         ? {
             ...q,
             options: q.options.filter((_, oi) => oi !== optionIndex),
+            option_explanations: (q.option_explanations || []).filter((_, oi) => oi !== optionIndex),
             // Adjust correct_answer if needed
             correct_answer: q.correct_answer >= optionIndex ? Math.max(0, q.correct_answer - 1) : q.correct_answer
           }
@@ -628,6 +647,13 @@ const MultipleChoiceEditor = ({ questions, onQuestionsChange }) => {
           }
           optionCounter = 0
         }
+        // Explanation line starting with #
+        else if (currentQuestion && /^#/.test(trimmedLine)) {
+          const expl = trimmedLine.replace(/^#\s*/, '')
+          currentQuestion.explanation = currentQuestion.explanation
+            ? currentQuestion.explanation + '\n' + expl
+            : expl
+        }
         // Continue question text (if not an option or explanation)
         else if (currentQuestion && !trimmedLine.match(/^[A-Za-z][\.):]|^\d+[\.)]|^(Explanation|Answer):/i) && trimmedLine) {
           // Add line break if question already has content
@@ -664,11 +690,13 @@ const MultipleChoiceEditor = ({ questions, onQuestionsChange }) => {
       }
 
       if (newQuestions.length > 0) {
-      const updatedQuestions = [...localQuestions, ...newQuestions]
-      setLocalQuestions(updatedQuestions)
-      onQuestionsChange(updatedQuestions)
-        setBulkText('')
-        setBulkImportMode(false)
+        setLastBulkText(bulkText)
+        try { localStorage.setItem('xpclass_last_bulk_text', bulkText) } catch {}
+        // Attach original_text to every imported question
+        const updatedQuestions = [...localQuestions, ...newQuestions.map(q => ({ ...q, original_text: bulkText }))]
+        setLocalQuestions(updatedQuestions)
+        onQuestionsChange(updatedQuestions)
+        // Keep modal open and keep the text visible
         alert(`Successfully imported ${newQuestions.length} questions!`)
       }
     } catch (error) {
@@ -695,6 +723,7 @@ const MultipleChoiceEditor = ({ questions, onQuestionsChange }) => {
 
       let questionCounter = 0
       let currentQuestionText = ''
+      let explanationText = ''
 
       lines.forEach((line) => {
         const trimmed = line.trim()
@@ -704,6 +733,14 @@ const MultipleChoiceEditor = ({ questions, onQuestionsChange }) => {
         if (/^Question\s+\d+/i.test(trimmed)) {
           // Save any accumulated question text and start fresh
           currentQuestionText = ''
+          explanationText = ''
+          return
+        }
+
+        // Explanation lines starting with #
+        if (/^#/.test(trimmed)) {
+          const expl = trimmed.replace(/^#\s*/, '')
+          explanationText = explanationText ? `${explanationText}\n${expl}` : expl
           return
         }
 
@@ -729,15 +766,33 @@ const MultipleChoiceEditor = ({ questions, onQuestionsChange }) => {
           const optionsContent = match[1]
           const rawOptions = optionsContent.split('~').filter(opt => opt.trim())
 
-          const options = []
+        const options = []
+        const optionExplanations = []
           let correctIndex = 0
 
           rawOptions.forEach((opt) => {
             if (!opt.trim()) return
             const isCorrect = opt.trim().startsWith('=')
             const clean = opt.replace(/^=/, '').trim()
-            // Remove optional inline explanations after # if any
-            let optionText = clean.split('#')[0].trim()
+          // Capture optional inline explanations after # per option
+          let optionText = clean
+          if (clean.includes('#')) {
+            const [before, after] = clean.split('#')
+            optionText = before.trim()
+            const perOptionExplanation = (after || '').trim()
+            // Temporarily push placeholder; set explanation after pushing option
+            // We'll align indices with options
+            // Note: we don't merge per-option explanation into global explanationText
+            // so that UI can show explanation specific to the selected option
+            if (perOptionExplanation) {
+              optionExplanations.push(perOptionExplanation)
+            } else {
+              optionExplanations.push('')
+            }
+          } else {
+            optionText = optionText.trim()
+            optionExplanations.push('')
+          }
             // Remove A., B., C., D. prefixes (or any letter followed by dot/parenthesis)
             optionText = optionText.replace(/^[A-Za-z][\.)]\s*/, '')
             if (!optionText) return
@@ -756,22 +811,26 @@ const MultipleChoiceEditor = ({ questions, onQuestionsChange }) => {
               question: displayText,
               options,
               correct_answer: correctIndex,
-              explanation: '',
+            explanation: explanationText,
+            option_explanations: optionExplanations,
               shuffle_options: false
             })
 
             // Reset accumulated text after creating question
             currentQuestionText = ''
+            explanationText = ''
           }
         })
       })
 
       if (newQuestions.length > 0) {
-        const updatedQuestions = [...localQuestions, ...newQuestions]
+        setLastBulkText(bulkText)
+        try { localStorage.setItem('xpclass_last_bulk_text', bulkText) } catch {}
+        // Attach original_text to every imported question
+        const updatedQuestions = [...localQuestions, ...newQuestions.map(q => ({ ...q, original_text: bulkText }))]
         setLocalQuestions(updatedQuestions)
         onQuestionsChange(updatedQuestions)
-        setBulkText('')
-        setBulkImportMode(false)
+        // Keep modal open and keep the text visible
         alert(`Successfully imported ${newQuestions.length} Moodle Cloze questions!`)
       } else {
         alert('No valid Moodle Cloze questions found. Please check the format.')
@@ -863,11 +922,17 @@ const MultipleChoiceEditor = ({ questions, onQuestionsChange }) => {
         <div className="p-4 bg-blue-50 border border-blue-200 rounded-lg">
           <h4 className="font-medium text-blue-900 mb-2">Bulk Import Questions</h4>
           <p className="text-sm text-blue-700 mb-3">
-            Format: Q1: Question text / A: Option 1 * / B: Option 2 / C: Option 3 / D: Option 4 / Explanation: Text
+            <strong>Simple format:</strong> Q1: Question text / A: Option 1 * / B: Option 2 / C: Option 3 / D: Option 4
             <br />
-            (Add * after correct answer)
+            - Đáp án đúng: đánh dấu <code>*</code> sau option
             <br />
-            <strong>Also supports Moodle Cloze format!</strong>
+            - Giải thích cho câu hỏi: bắt đầu dòng bằng <code>#</code> hoặc dùng <code>Explanation:</code>
+            <br />
+            <strong>Moodle Cloze:</strong> ví dụ {`{1:MC:=Option A#Giải thích A~Option B#Giải thích B~Option C}`}
+            <br />
+            - Phần sau dấu <code>#</code> trong mỗi option sẽ hiển thị khi người học chọn option đó
+            <br />
+            - Có thể thêm nhiều dòng giải thích cho cả câu hỏi với <code>#</code>
           </p>
           <textarea
             value={bulkText}
@@ -878,15 +943,24 @@ A: Xin chào *
 B: Tạm biệt
 C: Cảm ơn
 D: Xin lỗi
-Explanation: Hello means Xin chào in Vietnamese.
+# Hello means Xin chào in Vietnamese.
 
-Q2: How do you say "Good morning"?
-A: Chào buổi tối
-B: Chào buổi sáng *
-C: Chào buổi chiều
-D: Tạm biệt
-Explanation: Good morning is Chào buổi sáng.`}
+Question 2
+Good morning in Vietnamese is {1:MC:=Chào buổi sáng#Correct explanation~Chào buổi chiều#Afternoon greeting~Tạm biệt#Means goodbye}
+# Extra note for the whole question`}
           />
+          <div className="flex justify-between items-center mt-2">
+            <button
+              type="button"
+              onClick={() => setBulkText(lastBulkText)}
+              disabled={!lastBulkText}
+              className={`px-3 py-2 rounded-lg text-sm ${lastBulkText ? 'bg-gray-200 hover:bg-gray-300 text-gray-800' : 'bg-gray-100 text-gray-400 cursor-not-allowed'}`}
+              title={lastBulkText ? 'Restore last imported text' : 'No previous import yet'}
+            >
+              Restore last import
+            </button>
+            <span className="text-xs text-gray-500">Văn bản cuối: {lastBulkText ? `${Math.min(lastBulkText.length, 60)} chars` : 'none'}</span>
+          </div>
           <div className="flex justify-end gap-2 mt-3">
             <button
               type="button"
@@ -1072,7 +1146,7 @@ Explanation: Good morning is Chào buổi sáng.`}
               </div>
               <div className="space-y-2">
                 {(question.options || []).map((option, optionIndex) => (
-                  <div key={optionIndex} className="flex items-center gap-2">
+                  <div key={optionIndex} className="flex items-start gap-2">
                     <button
                       type="button"
                       onClick={() => updateQuestion(index, 'correct_answer', optionIndex)}
@@ -1094,6 +1168,27 @@ Explanation: Good morning is Chào buổi sáng.`}
                       onChange={(e) => updateOption(index, optionIndex, e.target.value)}
                       className="flex-1 p-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
                       placeholder={`Option ${String.fromCharCode(65 + optionIndex)}`}
+                    />
+                    <input
+                      type="text"
+                      value={(question.option_explanations && question.option_explanations[optionIndex]) || ''}
+                      onChange={(e) => {
+                        const value = e.target.value
+                        const updated = localQuestions.map((q, qi) =>
+                          qi === index
+                            ? {
+                                ...q,
+                                option_explanations: (q.option_explanations || Array(q.options.length).fill('')).map((exp, ei) =>
+                                  ei === optionIndex ? value : exp
+                                )
+                              }
+                            : q
+                        )
+                        setLocalQuestions(updated)
+                        onQuestionsChange(updated)
+                      }}
+                      className="w-64 p-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
+                      placeholder={`Explanation ${String.fromCharCode(65 + optionIndex)}`}
                     />
                     {question.options.length > 2 && (
                       <button
@@ -1141,6 +1236,12 @@ Explanation: Good morning is Chào buổi sáng.`}
                 rows={2}
                 placeholder="Explain why this is the correct answer..."
               />
+              {question.original_text && (
+                <details className="mt-2">
+                  <summary className="text-xs text-gray-600 cursor-pointer">Original import text</summary>
+                  <pre className="mt-1 p-2 bg-gray-50 border rounded text-xs whitespace-pre-wrap">{question.original_text}</pre>
+                </details>
+              )}
             </div>
               </div>
             )}

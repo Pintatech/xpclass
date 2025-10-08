@@ -84,6 +84,7 @@
     .question-text * {
       -webkit-text-stroke: 1px #ffffff;
       text-stroke: 1px #ffffff;
+      background: transparent;
     }
     
     /* Custom scrollbar for quiz content */

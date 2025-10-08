@@ -527,7 +527,7 @@ const FillBlankExercise = () => {
   }
 
   return (
-    <div className="quiz-question-bg quiz-desktop-reset">
+    <div className="quiz-question-bg quiz-desktop-reset" style={{backgroundImage: 'url(https://xpclass.vn/xpclass/mobile_bg7.jpg)', backgroundSize: '100% auto', backgroundPosition: 'center', backgroundRepeat: 'repeat'}}>
       <div className="max-w-4xl mx-auto p-6">
       {/* Header */}
       <div className="flex items-center justify-between mb-6">
@@ -568,7 +568,7 @@ const FillBlankExercise = () => {
       </div>
 
       {/* Question */}
-      <div className="bg-transparent rounded-lg  p-6 mb-6" style={{ marginTop: '120px' }}>
+      <div className="bg-transparent rounded-lg  p-6 mb-6" style={{ marginTop: '50px' }}>
         <div className="text-lg leading-relaxed mb-4">
           {renderQuestionText()}
         </div>

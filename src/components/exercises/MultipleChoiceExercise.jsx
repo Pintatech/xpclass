@@ -494,7 +494,7 @@ const MultipleChoiceExercise = () => {
   }
 
   return (
-    <div className={`quiz-question-bg quiz-desktop-reset${showExplanation ? '' : ' md:overflow-hidden'}`}>
+    <div className={`quiz-question-bg quiz-desktop-reset bg-blue-100${showExplanation ? '' : ' md:overflow-hidden'}`} style={{backgroundImage: 'url(https://xpclass.vn/xpclass/mobile_bg7.jpg)', backgroundSize: '100% auto', backgroundPosition: 'center', backgroundRepeat: 'repeat'}}>
       <div className="max-w-4xl mx-auto px-3 pt-4 lg:pt-20 space-y-2">
       {/* Header */}
       <div className="mb-2">
@@ -633,7 +633,7 @@ const MultipleChoiceExercise = () => {
 
       {/* Current Question */}
       {!isQuizComplete && (
-        <div className="max-w-4xl mx-auto md:rounded-lg md:p-6 bg-transparent md:shadow-lg md:overflow-y-auto quiz-content-scroll md:max-h-[70vh] md:mt-[50px]">
+        <div className="max-w-4xl mx-auto md:rounded-lg md:p-6 bg-transparent md:shadow-lg md:overflow-y-auto quiz-content-scroll md:max-h-[70vh] md:mb-0 md:mt-[50px] pb-6">
           <div className="space-y-2 md:space-y-4">
             {/* Mobile: show question text */}
             <div className="mb-3 md:hidden">

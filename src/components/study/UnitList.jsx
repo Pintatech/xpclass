@@ -848,10 +848,7 @@ const UnitList = () => {
                 <ArrowLeft className="w-4 h-4 mr-2" />
                 Quay lại
               </Button>
-              <div>
-                <h1 className="text-3xl font-bold text-gray-900">{level?.title}</h1>
-                
-              </div>
+              
             </div>
 
             {/* XP and Streak stats */}
@@ -879,12 +876,6 @@ const UnitList = () => {
                 className="w-full h-full object-cover"
               />
               <div className="absolute inset-0 bg-black/30" />
-              <div className="absolute inset-0 flex items-center justify-center">
-                <div className="text-center text-white">
-                  <h2 className="text-3xl font-bold drop-shadow-lg">{level.title}</h2>
-                  <p className="text-lg opacity-90 drop-shadow-md">{level.description}</p>
-                </div>
-              </div>
             </div>
           )}
 

@@ -488,11 +488,11 @@ const DragDropExercise = () => {
   })
 
   return (
-    <div className="quiz-question-bg quiz-desktop-reset">
+    <div className="quiz-question-bg quiz-desktop-reset" style={{backgroundImage: 'url(https://xpclass.vn/xpclass/mobile_bg7.jpg)', backgroundSize: '100% auto', backgroundPosition: 'center', backgroundRepeat: 'repeat'}}>
       {/* Main Content */}
       <div className="max-w-4xl mx-auto md:rounded-lg md:p-6 bg-transparent md:shadow-lg md:overflow-y-auto quiz-content-scroll md:max-h-[70vh] md:mt-[140px]" style={{ userSelect: 'none' }}>
           {/* Question with inline drop zones */}
-          <div className="mb-8">
+          <div className="mb-8 p-4">
             <h2 className="text-lg font-semibold text-gray-800 mb-4 leading-relaxed">
               {renderQuestionWithDropZones(
                 currentQuestion.question,
@@ -544,7 +544,7 @@ const DragDropExercise = () => {
           </div>
 
           {/* Drag Items */}
-          <div className="mb-8">
+          <div className="mb-8 p-4">
             <div className="mb-4">
               <h3 className="text-lg font-medium text-gray-700">Items to drag:</h3>
             </div>
@@ -624,7 +624,7 @@ const DragDropExercise = () => {
           )}
 
           {/* Actions */}
-          <div className="flex gap-3">
+          <div className="flex gap-3 p-4">
             <button
               onClick={() => checkAnswer(currentQuestionIndex)}
               className={`px-6 py-2 rounded-lg flex items-center gap-2 transition-all ${
@@ -682,7 +682,7 @@ const DragDropExercise = () => {
                 }`}
                 title={!questionsChecked[currentQuestionIndex] ? 'Please check your answer first' : ''}
               >
-                Finish Exercise
+                Finish
               </button>
             )}
           </div>
