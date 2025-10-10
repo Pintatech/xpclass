@@ -280,12 +280,19 @@ const Leaderboard = () => {
     const userIds = users.map(u => u.id)
 
     // Get user progress in the timeframe with XP data
+    // Join with exercises to get XP value when xp_earned is missing/zero
     let progressQuery = supabase
       .from('user_progress')
-      .select('user_id, xp_earned, completed_at')
+      .select(`
+        user_id,
+        xp_earned,
+        completed_at,
+        exercises (
+          xp_reward
+        )
+      `)
       .eq('status', 'completed')
       .in('user_id', userIds)
-      .not('xp_earned', 'is', null)
 
     if (period === 'today') {
       // Filter by Vietnam date - need to handle timezone properly
@@ -294,7 +301,9 @@ const Leaderboard = () => {
       progressQuery = progressQuery.gte('completed_at', startOfDay)
                                   .lte('completed_at', endOfDay)
     } else {
-      progressQuery = progressQuery.gte('completed_at', startDate + 'T00:00:00')
+      // For week and month, also need to handle timezone properly
+      const startOfPeriod = new Date(startDate + 'T00:00:00+07:00').toISOString()
+      progressQuery = progressQuery.gte('completed_at', startOfPeriod)
     }
 
     const { data: progressData, error: progressError } = await progressQuery
@@ -305,7 +314,7 @@ const Leaderboard = () => {
     const userXpCounts = {}
     const exerciseCounts = {}
 
-    progressData.forEach(progress => {
+    progressData.forEach((progress) => {
       const vietnamDate = utcToVietnamDate(progress.completed_at)
 
       // Double-check date filtering for accuracy
@@ -313,13 +322,17 @@ const Leaderboard = () => {
       if (period === 'today') {
         includeInTimeframe = vietnamDate === startDate
       } else if (period === 'week') {
-        includeInTimeframe = vietnamDate >= startDate.split('T')[0] // Compare just the date part
+        const compareDate = startDate.split('T')[0]
+        includeInTimeframe = vietnamDate >= compareDate
       } else if (period === 'month') {
-        includeInTimeframe = vietnamDate >= startDate.split('T')[0] // Compare just the date part
+        const compareDate = startDate.split('T')[0]
+        includeInTimeframe = vietnamDate >= compareDate
       }
 
       if (includeInTimeframe) {
-        userXpCounts[progress.user_id] = (userXpCounts[progress.user_id] || 0) + (progress.xp_earned || 0)
+        // Use xp_earned if available, otherwise fall back to exercise xp_reward
+        const xpToAdd = progress.xp_earned || progress.exercises?.xp_reward || 0
+        userXpCounts[progress.user_id] = (userXpCounts[progress.user_id] || 0) + xpToAdd
         exerciseCounts[progress.user_id] = (exerciseCounts[progress.user_id] || 0) + 1
       }
     })

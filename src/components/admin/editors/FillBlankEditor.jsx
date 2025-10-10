@@ -14,7 +14,7 @@ import {
 } from 'lucide-react'
 import RichTextRenderer from '../../ui/RichTextRenderer'
 
-const FillBlankEditor = ({ questions, onQuestionsChange }) => {
+const FillBlankEditor = ({ questions, onQuestionsChange, settings, onSettingsChange }) => {
   const [localQuestions, setLocalQuestions] = useState(questions || [])
   const [bulkImportMode, setBulkImportMode] = useState(false)
   const [bulkText, setBulkText] = useState('')
@@ -489,6 +489,23 @@ const FillBlankEditor = ({ questions, onQuestionsChange }) => {
             Add Question
           </button>
         </div>
+      </div>
+
+      {/* Display Settings */}
+      <div className="p-4 bg-blue-50 border border-blue-200 rounded-lg">
+        <h4 className="font-medium text-blue-900 mb-3">Display Settings</h4>
+        <label className="flex items-center gap-3">
+          <input
+            type="checkbox"
+            checked={settings?.show_all_questions || false}
+            onChange={(e) => onSettingsChange?.({ ...settings, show_all_questions: e.target.checked })}
+            className="w-4 h-4 text-blue-600 rounded focus:ring-blue-500"
+          />
+          <div>
+            <span className="text-sm font-medium text-gray-900">Show all questions on one page</span>
+            <p className="text-xs text-gray-600 mt-0.5">Students will see all questions at once and submit together (instead of one question at a time)</p>
+          </div>
+        </label>
       </div>
 
       {/* Bulk Import Mode */}

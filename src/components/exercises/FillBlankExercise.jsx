@@ -31,6 +31,7 @@ const FillBlankExercise = () => {
 
   const questions = exercise?.content?.questions || []
   const currentQuestion = questions[currentQuestionIndex]
+  const showAllQuestions = exercise?.content?.settings?.show_all_questions || false
 
   useEffect(() => {
     loadExercise()
@@ -160,6 +161,55 @@ const FillBlankExercise = () => {
     ).length
     const questionScore = (correctAnswers / currentQuestion.blanks.length) * 100
     setScore(questionScore)
+  }
+
+  const handleSubmitAll = async () => {
+    setShowResults(true)
+    setHasEdited(false)
+    setShowCorrectAnswers(false)
+
+    // Calculate scores for all questions
+    const scores = questions.map((question, qIndex) => {
+      const correctAnswers = question.blanks.filter((_, blankIndex) => {
+        const userAnswer = userAnswers[qIndex]?.[blankIndex] || ''
+        const correctAnswers = question.blanks[blankIndex].answer
+          .split(',')
+          .map(a => a.trim())
+          .filter(a => a)
+        const caseSensitive = question.blanks[blankIndex].case_sensitive
+
+        if (caseSensitive) {
+          return correctAnswers.some(answer => userAnswer === answer)
+        } else {
+          return correctAnswers.some(answer => userAnswer.toLowerCase() === answer.toLowerCase())
+        }
+      }).length
+      return (correctAnswers / question.blanks.length) * 100
+    })
+
+    setQuestionScores(scores)
+    const averageScore = scores.reduce((sum, s) => sum + s, 0) / scores.length
+    setTotalScore(averageScore)
+    setExerciseCompleted(true)
+
+    // Save progress
+    try {
+      const urlParams = new URLSearchParams(location.search)
+      const exerciseId = urlParams.get('exerciseId')
+      const roundedScore = Math.round(averageScore)
+      const baseXP = exercise?.xp_reward || 10
+      const bonusXP = roundedScore >= 80 ? Math.round(baseXP * 0.2) : 0
+      const totalXP = baseXP + bonusXP
+
+      if (exerciseId && user) {
+        await completeExerciseWithXP(exerciseId, totalXP, {
+          score: roundedScore,
+          max_score: 100
+        })
+      }
+    } catch (err) {
+      console.error('Error marking fill_blank exercise completed:', err)
+    }
   }
 
   const handleRecheck = () => {
@@ -440,17 +490,18 @@ const FillBlankExercise = () => {
     )
   }
 
-  const renderQuestionText = () => {
-    let text = currentQuestion.question || ''
+  const renderQuestionText = (questionIndex = currentQuestionIndex) => {
+    const question = questions[questionIndex]
+    let text = question.question || ''
     let blankIndex = 0
-    
+
     // Replace blanks with input fields - handle multiple blanks per question
     return text.split(/(_____|\[blank\])/gi).map((part, index) => {
       if (part.match(/^(_____|\[blank\])$/gi)) {
         const currentBlankIndex = blankIndex++
-        const status = getBlankStatus(currentBlankIndex)
-        const blank = currentQuestion.blanks[currentBlankIndex]
-        
+        const status = showResults ? (checkAnswerForQuestion(questionIndex, currentBlankIndex) ? 'correct' : 'incorrect') : 'neutral'
+        const blank = question.blanks[currentBlankIndex]
+
         // If we have more blanks than expected, create a placeholder
         if (!blank) {
           return (
@@ -471,23 +522,31 @@ const FillBlankExercise = () => {
             </span>
           )
         }
-        
+
         return (
           <span key={index} className="inline-block mx-1">
             <div className="relative">
               <input
                 type="text"
-                value={userAnswers[currentQuestionIndex]?.[currentBlankIndex] || ''}
-                onChange={(e) => handleAnswerChange(currentBlankIndex, e.target.value)}
-                disabled={showCorrectAnswers}
-                style={{ width: `${calculateBlankWidth(currentBlankIndex)}px` }}
+                value={userAnswers[questionIndex]?.[currentBlankIndex] || ''}
+                onChange={(e) => {
+                  setUserAnswers(prev => ({
+                    ...prev,
+                    [questionIndex]: {
+                      ...prev[questionIndex],
+                      [currentBlankIndex]: e.target.value
+                    }
+                  }))
+                }}
+                disabled={showResults}
+                style={{ width: `${calculateBlankWidthForQuestion(questionIndex, currentBlankIndex)}px` }}
                 className={`px-1 py-1 border-0 border-b-2 bg-transparent text-center focus:outline-none ${
                   status === 'correct'
                     ? 'border-b-green-500 text-green-700'
                     : status === 'incorrect'
                     ? 'border-b-red-500 text-red-700'
                     : 'border-b-gray-400 focus:border-b-blue-500'
-                } ${showCorrectAnswers ? 'cursor-not-allowed opacity-75' : ''}`}
+                } ${showResults ? 'cursor-not-allowed opacity-75' : ''}`}
                 placeholder="?"
               />
               {blank?.text && (
@@ -509,6 +568,39 @@ const FillBlankExercise = () => {
     })
   }
 
+  const checkAnswerForQuestion = (questionIndex, blankIndex) => {
+    const question = questions[questionIndex]
+    const userAnswer = userAnswers[questionIndex]?.[blankIndex] || ''
+    const correctAnswers = question.blanks[blankIndex].answer
+      .split(',')
+      .map(a => a.trim())
+      .filter(a => a)
+    const caseSensitive = question.blanks[blankIndex].case_sensitive
+
+    if (caseSensitive) {
+      return correctAnswers.some(answer => userAnswer === answer)
+    } else {
+      return correctAnswers.some(answer => userAnswer.toLowerCase() === answer.toLowerCase())
+    }
+  }
+
+  const calculateBlankWidthForQuestion = (questionIndex, blankIndex) => {
+    const question = questions[questionIndex]
+    const blank = question?.blanks?.[blankIndex]
+    if (!blank) return 64
+
+    const answers = blank.answer
+      .split(',')
+      .map(a => a.trim())
+      .filter(a => a)
+
+    const longestAnswer = answers.reduce((longest, current) =>
+      current.length > longest.length ? current : longest, ''
+    )
+
+    return Math.max(64, Math.min(400, longestAnswer.length * 16 + 32))
+  }
+
   // Convert simple markdown/HTML to safe HTML similar to editors
   const markdownToHtml = (text) => {
     if (!text) return ''
@@ -524,6 +616,72 @@ const FillBlankExercise = () => {
     // Preserve line breaks
     html = html.replace(/\n/g, '<br/>')
     return html
+  }
+
+  // Render all questions on one page
+  if (showAllQuestions && !exerciseCompleted) {
+    const allAnswersFilled = questions.every((question, qIndex) =>
+      question.blanks.every((_, blankIndex) =>
+        (userAnswers[qIndex]?.[blankIndex] || '').trim() !== ''
+      )
+    )
+
+    return (
+      <div className="quiz-question-bg quiz-desktop-reset" style={{backgroundImage: 'url(https://xpclass.vn/xpclass/mobile_bg7.jpg)', backgroundSize: '100% auto', backgroundPosition: 'center', backgroundRepeat: 'repeat'}}>
+        <div className="max-w-4xl mx-auto p-6">
+          {/* Header */}
+          <div className="flex items-center justify-between mb-6">
+            <button
+              onClick={() => navigate(-1)}
+              className="flex items-center gap-2 text-gray-600 hover:text-gray-800"
+            >
+              <ArrowLeft className="w-5 h-5" />
+              Back
+            </button>
+            <h1 className="text-xl font-semibold text-gray-900">{exercise.title}</h1>
+            <div className="w-20"></div>
+          </div>
+
+          {/* All Questions */}
+          <div className="space-y-8">
+            {questions.map((question, qIndex) => (
+              <div key={qIndex} className="bg-white rounded-lg shadow-sm p-6">
+                <div className="flex items-center gap-2 mb-4">
+                  <span className="text-sm font-semibold text-blue-600">Question {qIndex + 1}</span>
+                  {showResults && questionScores[qIndex] !== undefined && (
+                    <span className={`text-sm font-medium ${
+                      questionScores[qIndex] >= 80 ? 'text-green-600' :
+                      questionScores[qIndex] >= 60 ? 'text-yellow-600' : 'text-red-600'
+                    }`}>
+                      ({Math.round(questionScores[qIndex])}%)
+                    </span>
+                  )}
+                </div>
+                <div className="text-lg leading-relaxed">
+                  {renderQuestionText(qIndex)}
+                </div>
+              </div>
+            ))}
+          </div>
+
+          {/* Submit Button */}
+          {!showResults && (
+            <div className="text-center mt-8">
+              <button
+                onClick={handleSubmitAll}
+                disabled={!allAnswersFilled}
+                className="px-8 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:bg-gray-300 disabled:cursor-not-allowed font-medium text-lg"
+              >
+                Submit All Answers
+              </button>
+              <p className="text-sm text-gray-500 mt-2">
+                {allAnswersFilled ? 'All blanks filled!' : 'Please fill in all blanks before submitting'}
+              </p>
+            </div>
+          )}
+        </div>
+      </div>
+    )
   }
 
   return (

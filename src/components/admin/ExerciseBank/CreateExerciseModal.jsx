@@ -338,6 +338,8 @@ const CreateExerciseModal = ({ folders, selectedFolder, onClose, onCreated }) =>
               <FillBlankEditor
                 questions={formData.content.questions || []}
                 onQuestionsChange={(questions) => handleContentChange('questions', questions)}
+                settings={formData.content.settings || {}}
+                onSettingsChange={(settings) => handleContentChange('settings', settings)}
               />
             )}
 

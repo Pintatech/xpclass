@@ -151,6 +151,8 @@ const EditExerciseModal = ({ isOpen, onClose, exercise, onUpdate }) => {
           <FillBlankEditor
             questions={content.questions || []}
             onQuestionsChange={(questions) => handleContentChange({ ...content, questions })}
+            settings={content.settings || {}}
+            onSettingsChange={(settings) => handleContentChange({ ...content, settings })}
           />
         )
       case 'drag_drop':
