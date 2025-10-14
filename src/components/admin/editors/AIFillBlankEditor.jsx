@@ -145,6 +145,7 @@ Provide a score (0-100), confidence level (0-100), and brief explanation.`
           </div>
         </div>
         <button
+          type="button"
           onClick={addQuestion}
           className="flex items-center gap-2 px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700"
         >
@@ -169,6 +170,7 @@ Provide a score (0-100), confidence level (0-100), and brief explanation.`
                 </h4>
                 <div className="flex items-center gap-2">
                   <button
+                    type="button"
                     onClick={() => togglePreview(index)}
                     className="flex items-center gap-1 px-3 py-1 text-sm text-gray-600 hover:text-gray-800"
                   >
@@ -176,6 +178,7 @@ Provide a score (0-100), confidence level (0-100), and brief explanation.`
                     {previewMode[index] ? 'Hide Preview' : 'Preview'}
                   </button>
                   <button
+                    type="button"
                     onClick={() => removeQuestion(index)}
                     className="p-1 text-red-600 hover:text-red-800"
                   >
@@ -213,7 +216,7 @@ Provide a score (0-100), confidence level (0-100), and brief explanation.`
                       Question Text
                     </label>
                     <div className="flex items-center gap-2 mb-2">
-                      <button type="button" onClick={() => handleInsertImage(index)} className="px-2 py-1 text-xs bg-gray-100 hover:bg-gray-200 rounded inline-flex items-center gap-1">
+                    <button type="button" onClick={() => handleInsertImage(index)} className="px-2 py-1 text-xs bg-gray-100 hover:bg-gray-200 rounded inline-flex items-center gap-1">
                         <ImageIcon className="w-3 h-3" /> Image
                       </button>
                       <button type="button" onClick={() => handleInsertAudio(index)} className="px-2 py-1 text-xs bg-gray-100 hover:bg-gray-200 rounded inline-flex items-center gap-1">
@@ -239,6 +242,7 @@ Provide a score (0-100), confidence level (0-100), and brief explanation.`
                         Expected Answers
                       </label>
                       <button
+                        type="button"
                         onClick={() => addExpectedAnswer(index)}
                         className="flex items-center gap-1 px-2 py-1 text-sm text-purple-600 hover:text-purple-800"
                       >
@@ -257,6 +261,7 @@ Provide a score (0-100), confidence level (0-100), and brief explanation.`
                             className="flex-1 p-2 border border-gray-300 rounded focus:ring-2 focus:ring-purple-500 focus:border-purple-500"
                           />
                           <button
+                            type="button"
                             onClick={() => removeExpectedAnswer(index, answerIndex)}
                             className="p-1 text-red-600 hover:text-red-800"
                           >
@@ -277,6 +282,7 @@ Provide a score (0-100), confidence level (0-100), and brief explanation.`
                         AI Scoring Prompt
                       </label>
                       <button
+                        type="button"
                         onClick={() => generateAIPrompt(index)}
                         className="flex items-center gap-1 px-2 py-1 text-sm text-purple-600 hover:text-purple-800"
                       >

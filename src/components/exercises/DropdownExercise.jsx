@@ -512,7 +512,7 @@ const DropdownExercise = () => {
   }
 
   return (
-    <div className="quiz-question-bg quiz-desktop-reset">
+    <div className="min-h-screen bg-gray-50">
       <div className="max-w-4xl mx-auto p-6">
       {/* Header */}
       <div className="flex items-center justify-between mb-6">
@@ -553,7 +553,7 @@ const DropdownExercise = () => {
       </div>
 
       {/* Question */}
-      <div className="bg-transparent rounded-lg p-6 mb-6" style={{ marginTop: '120px' }}>
+      <div className="bg-white rounded-lg shadow-md p-6 mb-6 border border-gray-200" style={{ marginTop: '120px' }}>
         <div className="text-lg leading-relaxed mb-4">
           {renderQuestionText()}
         </div>

@@ -25,6 +25,14 @@ const AIFillBlankExercise = () => {
   const [startTime, setStartTime] = useState(null)
   const [timeSpent, setTimeSpent] = useState(0)
 
+  // Keep language in sync with exercise settings (must be before any early returns)
+  const exerciseLanguage = exercise?.content?.settings?.language
+  useEffect(() => {
+    if (exerciseLanguage && (exerciseLanguage === 'en' || exerciseLanguage === 'vi')) {
+      setLanguage(exerciseLanguage)
+    }
+  }, [exerciseLanguage])
+
   // Get exerciseId and sessionId from URL params
   const searchParams = new URLSearchParams(location.search)
   const exerciseId = searchParams.get('exerciseId')
@@ -263,16 +271,10 @@ const AIFillBlankExercise = () => {
   const currentQuestion = exercise.content.questions[currentQuestionIndex]
   const userAnswer = userAnswers[currentQuestionIndex] || ''
   const aiScore = aiScores[currentQuestionIndex]
-  const exerciseLanguage = exercise?.content?.settings?.language
-  useEffect(() => {
-    if (exerciseLanguage && (exerciseLanguage === 'en' || exerciseLanguage === 'vi')) {
-      setLanguage(exerciseLanguage)
-    }
-  }, [exerciseLanguage])
   const showResult = showResults[currentQuestionIndex]
 
   return (
-    <div className="quiz-question-bg quiz-desktop-reset">
+    <div className="min-h-screen bg-gray-50">
       {/* Header */}
       <div className="bg-white shadow-sm border-b">
         <div className="max-w-4xl mx-auto px-4 py-4">
@@ -293,7 +295,7 @@ const AIFillBlankExercise = () => {
 
       {/* Main Content */}
       <div className="max-w-4xl mx-auto px-4 py-8">
-        <div className="bg-white rounded-lg shadow-sm p-6">
+        <div className="bg-white rounded-lg shadow-md p-6 border border-gray-200">
           {/* Question */}
           <div className="mb-8">
             <h2 className="text-lg font-semibold text-gray-800 mb-4 leading-relaxed">

@@ -468,15 +468,25 @@ const UnitList = () => {
 
   const handleSessionClick = async (session) => {
     try {
-      // Check how many exercises this session has
-      const { data: exercises, error } = await supabase
-        .from('exercises')
-        .select('*')
+      // Check how many exercises this session has using the exercise_assignments table
+      const { data: assignments, error: assignmentsError } = await supabase
+        .from('exercise_assignments')
+        .select(`
+          id,
+          exercise:exercises!inner(
+            id,
+            exercise_type,
+            is_active
+          )
+        `)
         .eq('session_id', session.id)
-        .eq('is_active', true)
-        .order('order_index')
+        .eq('exercise.is_active', true)
 
-      if (error) throw error
+      if (assignmentsError) throw assignmentsError
+
+      const exercises = (assignments || [])
+        .map(a => a.exercise)
+        .filter(Boolean)
 
       if (exercises && exercises.length === 1) {
         // If only one exercise, navigate directly to the exercise
@@ -489,18 +499,23 @@ const UnitList = () => {
           multiple_choice: '/study/multiple-choice'
         }
         const exercisePath = paths[exercise.exercise_type] || '/study/flashcard'
+        // Use course route
+        const base = levelId ? `/study/level/${levelId}` : `/study/course/${currentId}`
         navigate(`${exercisePath}?exerciseId=${exercise.id}&sessionId=${session.id}`)
       } else if (exercises && exercises.length > 1) {
         // If multiple exercises, go to exercise list
-        navigate(`/study/level/${levelId}/unit/${session.unit_id}/session/${session.id}`)
+        const base = levelId ? `/study/level/${levelId}` : `/study/course/${currentId}`
+        navigate(`${base}/unit/${session.unit_id}/session/${session.id}`)
       } else {
         // If no exercises, go to exercise list
-        navigate(`/study/level/${levelId}/unit/${session.unit_id}/session/${session.id}`)
+        const base = levelId ? `/study/level/${levelId}` : `/study/course/${currentId}`
+        navigate(`${base}/unit/${session.unit_id}/session/${session.id}`)
       }
     } catch (err) {
       console.error('Error checking exercises:', err)
       // Fallback to exercise list
-      navigate(`/study/level/${levelId}/unit/${session.unit_id}/session/${session.id}`)
+      const base = levelId ? `/study/level/${levelId}` : `/study/course/${currentId}`
+      navigate(`${base}/unit/${session.unit_id}/session/${session.id}`)
     }
   }
 
@@ -623,10 +638,10 @@ const UnitList = () => {
       <div
         key={session.id}
         onClick={() => !isLocked && handleSessionClick(session)}
-        className={`block ${isLocked ? 'cursor-not-allowed' : 'cursor-pointer'} w-full h-full group relative`}
+        className={`block ${isLocked ? 'cursor-not-allowed' : 'cursor-pointer'} w-full h-full`}
       >
         <div
-          className={`relative overflow-hidden rounded border border-gray-400 transition-all duration-300 ${
+          className={`relative overflow-hidden rounded-lg border border-gray-400 transition-all duration-300 ${
             isLocked
               ? 'opacity-60'
               : 'hover:shadow-md hover:scale-105 hover:border-gray-500'
@@ -636,44 +651,44 @@ const UnitList = () => {
           {/* Progress bar from bottom */}
           {progressPercentage > 0 && status !== 'completed' && (
             <div
-              className="absolute bottom-0 left-0 right-0 bg-orange-300 transition-all duration-300"
+              className="absolute bottom-0 left-0 right-0 bg-orange-300 transition-all duration-300 z-10"
               style={{ height: `${progressPercentage}%` }}
             />
           )}
 
           {/* Completed overlay */}
           {status === 'completed' && (
-            <div className="absolute inset-0 bg-green-500" />
+            <div className="absolute inset-0 bg-green-500 z-10" />
           )}
 
           {/* Crown icon for completed sessions */}
           {status === 'completed' && (
-            <div className="absolute inset-0 flex items-center justify-center">
-              <Crown className="w-3 h-3 text-white" />
+            <div className="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 z-20">
+              <Crown className="w-6 h-6 text-yellow-300" />
             </div>
           )}
 
           {/* Lock overlay */}
           {isLocked && (
-            <div className="absolute top-0 right-0">
-              <div className="w-2 h-2 rounded-full bg-white/90 backdrop-blur-sm flex items-center justify-center shadow-lg">
-                <Lock className="w-1 h-1 text-gray-600" />
+            <div className="absolute top-1 right-1 z-40">
+              <div className="w-4 h-4 rounded-full bg-white/90 backdrop-blur-sm flex items-center justify-center shadow-lg">
+                <Lock className="w-2 h-2 text-gray-600" />
               </div>
             </div>
           )}
-        </div>
 
-        {/* Hover tooltip with session name and progress */}
-        <div className="absolute bottom-full left-1/2 transform -translate-x-1/2 mb-2 opacity-0 group-hover:opacity-100 transition-opacity duration-200 pointer-events-none z-10">
-          <div className="bg-gray-900 text-white text-xs rounded-lg px-3 py-2 whitespace-nowrap shadow-lg">
-            <div className="font-medium">{session.title}</div>
-            {progress && (
-              <div className="text-gray-300">
-                {progress.progress_percentage || 0}% • {progress.xp_earned || 0} XP
-              </div>
-            )}
-            {/* Arrow */}
-            <div className="absolute top-full left-1/2 transform -translate-x-1/2 w-0 h-0 border-l-4 border-r-4 border-t-4 border-transparent border-t-gray-900"></div>
+          {/* Progress badge */}
+          {!status === 'completed' && progressPercentage > 0 && (
+            <div className="absolute top-1 left-1 z-40 px-1.5 py-0.5 rounded-full text-[10px] font-semibold bg-white/90 text-gray-800 shadow">
+              {progressPercentage}%
+            </div>
+          )}
+
+          {/* Session Title on the square - Always visible */}
+          <div className="absolute bottom-0 left-0 right-0 z-50 px-2 py-1.5">
+            <h3 className="text-white font-bold text-[11px] text-center leading-tight line-clamp-2 drop-shadow-[0_2px_2px_rgba(0,0,0,0.8)]">
+              {session.title}
+            </h3>
           </div>
         </div>
       </div>
@@ -955,9 +970,9 @@ const UnitList = () => {
 
                   {/* Sessions Grid for this Unit */}
                   {unitSessions.length > 0 ? (
-                    <div className="grid grid-cols-6 md:grid-cols-8 lg:grid-cols-12 xl:grid-cols-16 gap-2">
+                    <div className="grid grid-cols-4 md:grid-cols-6 lg:grid-cols-8 xl:grid-cols-10 gap-3">
                       {unitSessions.map((session, index) => (
-                        <div key={session.id} className="w-10 h-10">
+                        <div key={session.id} style={{ width: '60px', height: '60px' }}>
                           {renderSessionCard(session, index)}
                         </div>
                       ))}

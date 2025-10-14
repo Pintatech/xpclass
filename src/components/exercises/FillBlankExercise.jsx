@@ -627,25 +627,26 @@ const FillBlankExercise = () => {
     )
 
     return (
-      <div className="quiz-question-bg quiz-desktop-reset" style={{backgroundImage: 'url(https://xpclass.vn/xpclass/mobile_bg7.jpg)', backgroundSize: '100% auto', backgroundPosition: 'center', backgroundRepeat: 'repeat'}}>
-        <div className="max-w-4xl mx-auto p-6">
+      <div className="px-4 pt-6 pb-12">
+        <div className="max-w-4xl mx-auto space-y-6">
           {/* Header */}
-          <div className="flex items-center justify-between mb-6">
-            <button
-              onClick={() => navigate(-1)}
-              className="flex items-center gap-2 text-gray-600 hover:text-gray-800"
-            >
-              <ArrowLeft className="w-5 h-5" />
-              Back
-            </button>
-            <h1 className="text-xl font-semibold text-gray-900">{exercise.title}</h1>
-            <div className="w-20"></div>
+          <div className="bg-white rounded-lg shadow-sm p-4 md:p-5 border border-gray-200 mb-6">
+            <div className="flex items-center justify-between gap-4">
+              <h1 className="text-lg md:text-2xl font-bold text-gray-900">{exercise.title}</h1>
+              <button
+                onClick={() => navigate(-1)}
+                className="flex items-center gap-2 text-gray-600 hover:text-gray-800"
+              >
+                <ArrowLeft className="w-5 h-5" />
+                Back
+              </button>
+            </div>
           </div>
 
           {/* All Questions */}
           <div className="space-y-8">
             {questions.map((question, qIndex) => (
-              <div key={qIndex} className="bg-white rounded-lg shadow-sm p-6">
+              <div key={qIndex} className="bg-white rounded-lg shadow-md p-6 border border-gray-200">
                 <div className="flex items-center gap-2 mb-4">
                   <span className="text-sm font-semibold text-blue-600">Question {qIndex + 1}</span>
                   {showResults && questionScores[qIndex] !== undefined && (
@@ -685,48 +686,53 @@ const FillBlankExercise = () => {
   }
 
   return (
-    <div className="quiz-question-bg quiz-desktop-reset" style={{backgroundImage: 'url(https://xpclass.vn/xpclass/mobile_bg7.jpg)', backgroundSize: '100% auto', backgroundPosition: 'center', backgroundRepeat: 'repeat'}}>
-      <div className="max-w-4xl mx-auto p-6">
+    <div className="px-4 pt-6 pb-12">
+      <div className="max-w-4xl mx-auto space-y-6">
       {/* Header */}
-      <div className="flex items-center justify-between mb-6">
-        <button
-          onClick={() => navigate(-1)}
-          className="flex items-center gap-2 text-gray-600 hover:text-gray-800"
-        >
-          <ArrowLeft className="w-5 h-5" />
-          Back
-        </button>
-        <h1 className="text-xl font-semibold text-gray-900">{exercise.title}</h1>
-        <div className="w-20"></div> {/* Spacer for centering */}
-      </div>
-
-      {/* Progress */}
-      <div className="mb-6">
-        <div className="flex justify-between items-center mb-2">
-          <span className="text-sm font-medium text-gray-600">
-            {retryMode
-              ? `Retry ${retryQuestions.indexOf(currentQuestionIndex) + 1} of ${retryQuestions.length} (Question ${currentQuestionIndex + 1})`
-              : `Question ${currentQuestionIndex + 1} of ${questions.length}`
-            }
-          </span>
-          <span className="text-sm text-gray-500">
-            {retryMode ? 'Retry Wrong Questions' : 'Fill in the Blank'}
-          </span>
+      <div className="bg-white rounded-lg shadow-sm p-4 md:p-5 border border-gray-200">
+        <div className="flex items-center justify-between gap-4 mb-4">
+          <div className="flex-1 min-w-0">
+            <p className="text-xs md:text-sm font-medium text-gray-500 truncate mb-1">
+              {retryMode ? 'Retry Wrong Questions' : exercise?.title}
+            </p>
+            <h1 className="text-lg md:text-2xl font-bold text-gray-900">Fill in the Blank</h1>
+          </div>
+          <div className="text-right flex-shrink-0">
+            <div className="text-xl md:text-3xl font-bold text-blue-600">
+              {currentQuestionIndex + 1}/{questions.length}
+            </div>
+            <div className="text-xs md:text-sm text-gray-500">
+              Question
+            </div>
+          </div>
         </div>
-        <div className="w-full bg-gray-200 rounded-full h-2">
-          <div
-            className={`h-2 rounded-full transition-all duration-300 ${retryMode ? 'bg-yellow-600' : 'bg-blue-600'}`}
-            style={{
-              width: retryMode
-                ? `${((retryQuestions.indexOf(currentQuestionIndex) + 1) / retryQuestions.length) * 100}%`
-                : `${((currentQuestionIndex + 1) / questions.length) * 100}%`
-            }}
-          />
+
+        {/* Progress Bar inside header */}
+        <div className="mt-4">
+          <div className="flex items-center justify-between mb-2">
+            <span className="text-xs md:text-sm text-gray-600">Progress</span>
+            <span className="text-xs md:text-sm font-semibold text-blue-600">
+              {retryMode
+                ? Math.round(((retryQuestions.indexOf(currentQuestionIndex) + 1) / retryQuestions.length) * 100)
+                : Math.round(((currentQuestionIndex + 1) / questions.length) * 100)
+              }%
+            </span>
+          </div>
+          <div className="w-full bg-gray-200 rounded-full h-2.5">
+            <div
+              className={`h-2.5 rounded-full transition-all duration-300 ${retryMode ? 'bg-yellow-600' : 'bg-blue-600'}`}
+              style={{
+                width: retryMode
+                  ? `${((retryQuestions.indexOf(currentQuestionIndex) + 1) / retryQuestions.length) * 100}%`
+                  : `${((currentQuestionIndex + 1) / questions.length) * 100}%`
+              }}
+            />
+          </div>
         </div>
       </div>
 
       {/* Question */}
-      <div className="bg-transparent rounded-lg  p-6 mb-6" style={{ marginTop: '50px' }}>
+      <div className="w-full max-w-4xl min-w-0 mx-auto rounded-lg p-4 md:p-8 bg-white shadow-md border border-gray-200">
         <div className="text-lg leading-relaxed mb-4">
           {renderQuestionText()}
         </div>

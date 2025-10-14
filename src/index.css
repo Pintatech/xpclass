@@ -13,6 +13,49 @@
 }
 
 @layer components {
+  /* Batman running animation */
+  @keyframes run-across {
+    0% {
+      left: -100px;
+      opacity: 1;
+    }
+    90% {
+      opacity: 1;
+    }
+    100% {
+      left: 100%;
+      opacity: 0;
+    }
+  }
+
+  .animate-run-across {
+    animation: run-across 8s linear infinite;
+    animation-delay: 0s;
+  }
+
+  /* Pause animation after completion */
+  @keyframes run-across-with-pause {
+    0%, 100% {
+      left: 0;
+      opacity: 0;
+    }
+    5% {
+      opacity: 1;
+    }
+    50% {
+      left: calc(100% - 48px);
+      opacity: 1;
+    }
+    55%, 100% {
+      left: calc(100% - 48px);
+      opacity: 0;
+    }
+  }
+
+  .animate-run-across {
+    animation: run-across-with-pause 18s linear infinite;
+  }
+
   .btn {
     @apply inline-flex items-center justify-center rounded-md text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-500 focus-visible:ring-offset-2 disabled:opacity-50 disabled:pointer-events-none;
   }
@@ -79,12 +122,14 @@
       pointer-events: none;
     }
     
-    /* Apply text outline only on desktop */
+    /* Apply text outline only on desktop - with proper color */
     .question-text,
     .question-text * {
-      -webkit-text-stroke: 1px #ffffff;
-      text-stroke: 1px #ffffff;
+      -webkit-text-stroke: 0.5px rgba(0, 0, 0, 0.3);
+      text-stroke: 0.5px rgba(0, 0, 0, 0.3);
       background: transparent;
+      color: #1f2937;
+      font-weight: 600;
     }
     
     /* Custom scrollbar for quiz content */

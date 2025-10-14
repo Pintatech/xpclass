@@ -557,48 +557,46 @@ const SessionList = () => {
           {/* Progress bar fill from bottom when in progress */}
           {progressPercentage > 0 && !isCompleted && (
             <div
-              className="absolute bottom-0 left-0 right-0 bg-orange-300/80 transition-all duration-300 z-20"
+              className="absolute bottom-0 left-0 right-0 bg-orange-300/80 transition-all duration-300 z-10"
               style={{ height: `${progressPercentage}%` }}
             />
           )}
 
           {/* Completed overlay */}
           {isCompleted && (
-            <div className="absolute inset-0 bg-green-500/80 z-20" />
+            <div className="absolute inset-0 bg-green-500/80 z-10" />
           )}
 
           {/* Crown icon for completed */}
           {isCompleted && (
-            <div className="absolute inset-0 flex items-center justify-center z-30">
-              <Crown className="w-6 h-6 text-white" />
+            <div className="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 z-20">
+              <Crown className="w-12 h-12 text-yellow-300" />
             </div>
           )}
 
           {/* Progress badge */}
           {!isCompleted && progressPercentage > 0 && (
-            <div className="absolute top-2 left-2 z-30 px-2 py-0.5 rounded-full text-[10px] font-semibold bg-white/90 text-gray-800 shadow">
+            <div className="absolute top-2 left-2 z-40 px-2 py-1 rounded-full text-xs font-semibold bg-white/90 text-gray-800 shadow">
               {progressPercentage}%
             </div>
           )}
 
           {/* Small lock dot */}
           {isLocked && (
-            <div className="absolute top-2 right-2">
-              <div className="w-5 h-5 rounded-full bg-white/90 backdrop-blur-sm flex items-center justify-center shadow">
-                <Lock className="w-3 h-3 text-gray-600" />
+            <div className="absolute top-2 right-2 z-40">
+              <div className="w-6 h-6 rounded-full bg-white/90 backdrop-blur-sm flex items-center justify-center shadow">
+                <Lock className="w-4 h-4 text-gray-600" />
               </div>
             </div>
           )}
 
+          {/* Session Title on the square - Always on top */}
+          <div className="absolute bottom-0 left-0 right-0 z-50 bg-black/70 backdrop-blur-sm px-3 py-3">
+            <h3 className="text-white font-bold text-base text-center leading-tight line-clamp-2">
+              {session.title}
+            </h3>
+          </div>
 
-
-        </div>
-        {/* Title below SVG/image */}
-        <div className="pt-2 text-center">
-          <h3 className="text-black font-bold text-sm truncate">{session.title}</h3>
-          {progressPercentage > 0 && (
-            <div className="text-[10px] text-gray-600 mt-0.5">{progressPercentage}%</div>
-          )}
         </div>
       </div>
     )
@@ -1007,7 +1005,7 @@ const SessionList = () => {
                   return (a.session_number || 0) - (b.session_number || 0)
                 })
                 .map((session, index) => (
-                  <div key={session.id} className="w-32 h-32">
+                  <div key={session.id} className="w-48 h-48">
                     {renderSessionCard(session, index)}
                   </div>
                 ))
@@ -1015,15 +1013,15 @@ const SessionList = () => {
 
               {/* Add Session Button for Grid View */}
               {canCreateContent() && (
-                <div className="w-32 h-32">
+                <div className="w-48 h-48">
                   <div
                     onClick={() => setShowAddSessionModal(true)}
                     className="w-full h-full border-2 border-dashed border-gray-300 rounded-lg flex flex-col items-center justify-center hover:border-green-400 hover:bg-green-50 transition-colors cursor-pointer group"
                   >
-                    <div className="w-8 h-8 bg-green-100 rounded-lg flex items-center justify-center group-hover:bg-green-200 transition-colors">
-                      <Plus className="w-4 h-4 text-green-600" />
+                    <div className="w-12 h-12 bg-green-100 rounded-lg flex items-center justify-center group-hover:bg-green-200 transition-colors">
+                      <Plus className="w-6 h-6 text-green-600" />
                     </div>
-                    <span className="text-xs text-gray-600 mt-1 text-center px-1">Add Session</span>
+                    <span className="text-sm text-gray-600 mt-2 text-center px-2">Add Session</span>
                   </div>
                 </div>
               )}

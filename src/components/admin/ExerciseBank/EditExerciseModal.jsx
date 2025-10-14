@@ -144,6 +144,10 @@ const EditExerciseModal = ({ isOpen, onClose, exercise, onUpdate }) => {
           <MultipleChoiceEditor
             questions={content.questions || []}
             onQuestionsChange={(questions) => handleContentChange({ ...content, questions })}
+            settings={content.settings || {}}
+            onSettingsChange={(settings) => handleContentChange({ ...content, settings })}
+            intro={content.intro || ''}
+            onIntroChange={(intro) => handleContentChange({ ...content, intro })}
           />
         )
       case 'fill_blank':

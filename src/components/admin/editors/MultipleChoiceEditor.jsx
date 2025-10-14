@@ -11,12 +11,14 @@ import {
   Check,
   HelpCircle,
   X,
-  Table
+  Table,
+  Link,
+  Image
 } from 'lucide-react'
 import { supabase } from '../../../supabase/client'
 import RichTextRenderer from '../../ui/RichTextRenderer'
 
-const MultipleChoiceEditor = ({ questions, onQuestionsChange }) => {
+const MultipleChoiceEditor = ({ questions, onQuestionsChange, settings, onSettingsChange, intro, onIntroChange }) => {
   const normalizeQuestion = (q, idx = 0) => {
     const safeOptions = Array.isArray(q?.options) ? q.options : ['', '', '', '']
     const baseOptionExplanations = Array.isArray(q?.option_explanations)
@@ -27,6 +29,7 @@ const MultipleChoiceEditor = ({ questions, onQuestionsChange }) => {
     const safeCorrect = Number.isInteger(q?.correct_answer) ? q.correct_answer : 0
     return {
       id: q?.id || `q${Date.now()}_${idx}`,
+      intro: q?.intro || '',
       question: q?.question || '',
       options: safeOptions,
       correct_answer: Math.min(Math.max(0, safeCorrect), Math.max(0, safeOptions.length - 1)),
@@ -73,9 +76,29 @@ const MultipleChoiceEditor = ({ questions, onQuestionsChange }) => {
   const [tableWidth, setTableWidth] = useState('100%') // '100%' or 'auto'
   const [tableBorder, setTableBorder] = useState(true) // true or false
 
+  // Settings state
+  const [localSettings, setLocalSettings] = useState({
+    view_mode: 'one-by-one', // 'one-by-one' or 'all-at-once'
+    ...settings
+  })
+
   useEffect(() => {
     setLocalQuestions((questions || []).map((q, i) => normalizeQuestion(q, i)))
   }, [questions])
+
+  useEffect(() => {
+    if (settings) {
+      setLocalSettings(prev => ({ ...prev, ...settings }))
+    }
+  }, [settings])
+
+  const updateSetting = (key, value) => {
+    const newSettings = { ...localSettings, [key]: value }
+    setLocalSettings(newSettings)
+    if (onSettingsChange) {
+      onSettingsChange(newSettings)
+    }
+  }
 
   const addQuestion = () => {
     const newQuestion = {
@@ -440,7 +463,30 @@ const MultipleChoiceEditor = ({ questions, onQuestionsChange }) => {
 
     tableHTML += '</table>'
 
-    insertAtCursor(tableModal.questionIndex, tableHTML)
+    // Check if this is for intro (questionIndex === -1)
+    if (tableModal.questionIndex === -1) {
+      // Insert into intro
+      const textarea = questionInputRefs.current[-1]
+      const current = intro || ''
+
+      if (!textarea) {
+        onIntroChange && onIntroChange(current + (current ? '\n\n' : '') + tableHTML)
+      } else {
+        const start = textarea.selectionStart || 0
+        const end = textarea.selectionEnd || 0
+        const newValue = current.slice(0, start) + tableHTML + current.slice(end)
+        onIntroChange && onIntroChange(newValue)
+        setTimeout(() => {
+          textarea.focus()
+          const caret = start + tableHTML.length
+          textarea.setSelectionRange(caret, caret)
+        }, 0)
+      }
+    } else {
+      // Insert into question
+      insertAtCursor(tableModal.questionIndex, tableHTML)
+    }
+
     setTableModal({ isOpen: false, questionIndex: -1 })
   }
 
@@ -479,22 +525,56 @@ const MultipleChoiceEditor = ({ questions, onQuestionsChange }) => {
 
   const handleUrlSubmit = () => {
     if (!urlInput.trim()) return
-    
+
     try {
       new URL(urlInput.trim())
       const trimmedUrl = urlInput.trim()
-      
-      if (urlModal.type === 'image') {
-        const sizeStyle = getImageSizeStyle()
-        insertAtCursor(urlModal.questionIndex, `\n<img src="${trimmedUrl}" alt="" ${sizeStyle} />\n`)
-      } else if (urlModal.type === 'link') {
-        const text = linkText.trim() || 'Reference'
-        insertAtCursor(urlModal.questionIndex, `[${text}](${trimmedUrl})`)
-      } else if (urlModal.type === 'audio') {
-        const audioAttrs = getAudioAttributes()
-        insertAtCursor(urlModal.questionIndex, `<audio src="${trimmedUrl}" ${audioAttrs}></audio>`)
+
+      // Check if this is for intro (questionIndex === -1)
+      if (urlModal.questionIndex === -1) {
+        // Insert into intro
+        const textarea = questionInputRefs.current[-1]
+        const current = intro || ''
+        let textToInsert = ''
+
+        if (urlModal.type === 'image') {
+          const sizeStyle = getImageSizeStyle()
+          textToInsert = `\n<img src="${trimmedUrl}" alt="" ${sizeStyle} />\n`
+        } else if (urlModal.type === 'link') {
+          const text = linkText.trim() || 'Reference'
+          textToInsert = `[${text}](${trimmedUrl})`
+        } else if (urlModal.type === 'audio') {
+          const audioAttrs = getAudioAttributes()
+          textToInsert = `<audio src="${trimmedUrl}" ${audioAttrs}></audio>`
+        }
+
+        if (!textarea) {
+          onIntroChange && onIntroChange(current + (current ? '\n\n' : '') + textToInsert)
+        } else {
+          const start = textarea.selectionStart || 0
+          const end = textarea.selectionEnd || 0
+          const newValue = current.slice(0, start) + textToInsert + current.slice(end)
+          onIntroChange && onIntroChange(newValue)
+          setTimeout(() => {
+            textarea.focus()
+            const caret = start + textToInsert.length
+            textarea.setSelectionRange(caret, caret)
+          }, 0)
+        }
+      } else {
+        // Insert into question
+        if (urlModal.type === 'image') {
+          const sizeStyle = getImageSizeStyle()
+          insertAtCursor(urlModal.questionIndex, `\n<img src="${trimmedUrl}" alt="" ${sizeStyle} />\n`)
+        } else if (urlModal.type === 'link') {
+          const text = linkText.trim() || 'Reference'
+          insertAtCursor(urlModal.questionIndex, `[${text}](${trimmedUrl})`)
+        } else if (urlModal.type === 'audio') {
+          const audioAttrs = getAudioAttributes()
+          insertAtCursor(urlModal.questionIndex, `<audio src="${trimmedUrl}" ${audioAttrs}></audio>`)
+        }
       }
-      
+
       setUrlModal({ isOpen: false, type: '', questionIndex: -1 })
       setUrlInput('')
       setLinkText('')
@@ -879,6 +959,9 @@ const MultipleChoiceEditor = ({ questions, onQuestionsChange }) => {
       <div className="flex justify-between items-center">
         <h3 className="text-lg font-medium text-gray-900">Multiple Choice Questions</h3>
         <div className="flex gap-2">
+        
+          {/* Exercise Intro (applies to all questions) */}
+          
           <button
             type="button"
             onClick={() => setBulkImportMode(!bulkImportMode)}
@@ -914,6 +997,193 @@ const MultipleChoiceEditor = ({ questions, onQuestionsChange }) => {
             <Plus className="w-4 h-4" />
             Add 1
           </button>
+        </div>
+      </div>
+
+    {/* Global Intro Section */}
+    <div className="bg-white p-4 border border-gray-200 rounded-lg">
+      <label className="block text-sm font-medium text-gray-700 mb-1">
+        Exercise Intro (Optional)
+        
+      </label>
+      <textarea
+        ref={(el) => (questionInputRefs.current[-1] = el)}
+        value={intro || ''}
+        onChange={(e) => onIntroChange && onIntroChange(e.target.value)}
+        className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
+        rows={2}
+        placeholder="Nhập nội dung giới thiệu chung cho bài trắc nghiệm..."
+      />
+
+      {/* Insert Media Buttons for Intro */}
+      <div className="mt-2 flex flex-wrap gap-2">
+        <input
+          ref={(el) => (fileInputRefs.current[-1] = el)}
+          type="file"
+          accept="image/*"
+          className="hidden"
+          onChange={(e) => {
+            const file = e.target.files?.[0]
+            if (!file) return
+            // Upload image for intro
+            const uploadImageForIntro = async () => {
+              try {
+                const path = `multiple_choice/${Date.now()}_${Math.random().toString(36).slice(2)}_${file.name}`
+                const { error: uploadError } = await supabase.storage
+                  .from('exercise-images')
+                  .upload(path, file, { cacheControl: '3600', upsert: true })
+                if (uploadError) throw uploadError
+
+                const { data: publicData } = supabase.storage
+                  .from('exercise-images')
+                  .getPublicUrl(path)
+
+                const publicUrl = publicData?.publicUrl
+                if (!publicUrl) throw new Error('Cannot get public URL')
+
+                // Insert at cursor position in intro
+                const textarea = questionInputRefs.current[-1]
+                const current = intro || ''
+                if (!textarea) {
+                  onIntroChange && onIntroChange(current + (current ? '\n\n' : '') + `![](${publicUrl})`)
+                  return
+                }
+                const start = textarea.selectionStart || 0
+                const end = textarea.selectionEnd || 0
+                const textToInsert = `\n![](${publicUrl})\n`
+                const newValue = current.slice(0, start) + textToInsert + current.slice(end)
+                onIntroChange && onIntroChange(newValue)
+                setTimeout(() => {
+                  textarea.focus()
+                  const caret = start + textToInsert.length
+                  textarea.setSelectionRange(caret, caret)
+                }, 0)
+                alert('Image uploaded and inserted into intro!')
+              } catch (e) {
+                console.error('Image upload failed:', e)
+                alert('Image upload failed. Please ensure the bucket "exercise-images" exists and RLS allows uploads.')
+              }
+            }
+            uploadImageForIntro()
+          }}
+        />
+        <button
+          type="button"
+          onClick={() => {
+            const input = fileInputRefs.current[-1]
+            if (input) input.click()
+          }}
+          className="px-3 py-2 bg-gray-700 text-white rounded-lg hover:bg-gray-800 text-sm flex items-center gap-2"
+        >
+          <Upload className="w-4 h-4" /> Upload
+        </button>
+        <button
+          type="button"
+          onClick={() => {
+            setUrlModal({ isOpen: true, type: 'image', questionIndex: -1 })
+            setUrlInput('')
+            setLinkText('')
+            setImageSize('medium')
+            setCustomWidth('')
+            setCustomHeight('')
+          }}
+          className="px-3 py-2 bg-gray-100 text-gray-800 rounded-lg hover:bg-gray-200 text-sm flex items-center gap-2"
+          title="Insert image"
+        >
+          <Image className="w-4 h-4" />
+          Insert image
+        </button>
+        <button
+          type="button"
+          onClick={() => {
+            setUrlModal({ isOpen: true, type: 'link', questionIndex: -1 })
+            setUrlInput('')
+            setLinkText('Reference')
+          }}
+          className="px-3 py-2 bg-gray-100 text-gray-800 rounded-lg hover:bg-gray-200 text-sm flex items-center gap-2"
+          title="Insert link"
+        >
+          <Link className="w-4 h-4" />
+        </button>
+        <button
+          type="button"
+          onClick={() => {
+            setUrlModal({ isOpen: true, type: 'audio', questionIndex: -1 })
+            setUrlInput('')
+            setLinkText('')
+            setImageSize('medium')
+            setCustomWidth('')
+            setCustomHeight('')
+            setAudioControls(true)
+            setAudioAutoplay(false)
+            setAudioLoop(false)
+          }}
+          className="px-3 py-2 bg-purple-100 text-purple-800 rounded-lg hover:bg-purple-200 text-sm"
+        >
+          🎵 Insert audio
+        </button>
+        <button
+          type="button"
+          onClick={() => {
+            setTableModal({ isOpen: true, questionIndex: -1 })
+            setTableRows(2)
+            setTableColumns(2)
+            setTableWidth('100%')
+            setTableBorder(true)
+          }}
+          className="px-3 py-2 bg-blue-100 text-blue-800 rounded-lg hover:bg-blue-200 text-sm flex items-center gap-2"
+        >
+          <Table className="w-4 h-4" /> Insert table
+        </button>
+        
+      </div>
+
+      {intro && intro.trim() && (
+        <div className="mt-3 p-3 bg-white border rounded-lg">
+          <div className="text-xs text-gray-500 mb-2">Intro Preview</div>
+          <RichTextRenderer content={markdownToHtml(intro)} allowImages allowLinks className="prose max-w-none" />
+        </div>
+      )}
+    </div>
+
+      {/* Settings Section */}
+      <div className="bg-gray-50 p-4 rounded-lg border">
+        
+        <div className="space-y-3">
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-2">
+              Question Display Mode
+            </label>
+            <div className="flex gap-4">
+              <label className="flex items-center">
+                <input
+                  type="radio"
+                  name="view_mode"
+                  value="one-by-one"
+                  checked={localSettings.view_mode === 'one-by-one'}
+                  onChange={(e) => updateSetting('view_mode', e.target.value)}
+                  className="w-4 h-4 text-blue-600 border-gray-300 focus:ring-blue-500"
+                />
+                <span className="ml-2 text-sm text-gray-700">
+                  One by One 
+                </span>
+              </label>
+              <label className="flex items-center">
+                <input
+                  type="radio"
+                  name="view_mode"
+                  value="all-at-once"
+                  checked={localSettings.view_mode === 'all-at-once'}
+                  onChange={(e) => updateSetting('view_mode', e.target.value)}
+                  className="w-4 h-4 text-blue-600 border-gray-300 focus:ring-blue-500"
+                />
+                <span className="ml-2 text-sm text-gray-700">
+                  All at Once 
+                </span>
+              </label>
+            </div>
+            
+          </div>
         </div>
       </div>
 
@@ -1046,6 +1316,8 @@ Good morning in Vietnamese is {1:MC:=Chào buổi sáng#Correct explanation~Chà
             {!isCollapsed && (
               <div>
 
+            {/* Removed per requirement: intro is now global, not per-question */}
+
             {/* Question Text */}
             <div className="mb-4">
               <label className="block text-sm font-medium text-gray-700 mb-1">
@@ -1084,16 +1356,19 @@ Good morning in Vietnamese is {1:MC:=Chào buổi sáng#Correct explanation~Chà
               <button
                 type="button"
                 onClick={() => handlePasteImageUrl(index)}
-                className="px-3 py-2 bg-gray-100 text-gray-800 rounded-lg hover:bg-gray-200 text-sm"
+                className="px-3 py-2 bg-gray-100 text-gray-800 rounded-lg hover:bg-gray-200 text-sm flex items-center gap-2"
+                title="Insert image"
               >
-                Paste URL
+                <Image className="w-4 h-4" />
+                Insert image
               </button>
               <button
                 type="button"
                 onClick={() => handleInsertLink(index)}
-                className="px-3 py-2 bg-gray-100 text-gray-800 rounded-lg hover:bg-gray-200 text-sm"
+                className="px-3 py-2 bg-gray-100 text-gray-800 rounded-lg hover:bg-gray-200 text-sm flex items-center gap-2"
+                title="Insert link"
               >
-                Insert link
+                <Link className="w-4 h-4" />
               </button>
               <button
                 type="button"

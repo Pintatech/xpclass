@@ -69,6 +69,7 @@ const DragDropExercise = () => {
   const [startTime, setStartTime] = useState(null)
   const [timeSpent, setTimeSpent] = useState(0)
   const [itemFeedback, setItemFeedback] = useState({}) // Track correct/incorrect for each item
+  const [isBatmanMoving, setIsBatmanMoving] = useState(false)
   const { user } = useAuth()
   const { completeExerciseWithXP } = useProgress()
 
@@ -417,7 +418,11 @@ const DragDropExercise = () => {
         alert('Please check your answer before moving to the next question.')
         return
       }
-      
+
+      // Trigger Batman movement
+      setIsBatmanMoving(true)
+      setTimeout(() => setIsBatmanMoving(false), 3000)
+
       setCurrentQuestionIndex(currentQuestionIndex + 1)
       setIsCorrect(null)
       setShowResult(false)
@@ -488,9 +493,56 @@ const DragDropExercise = () => {
   })
 
   return (
-    <div className="quiz-question-bg quiz-desktop-reset" style={{backgroundImage: 'url(https://xpclass.vn/xpclass/mobile_bg7.jpg)', backgroundSize: '100% auto', backgroundPosition: 'center', backgroundRepeat: 'repeat'}}>
-      {/* Main Content */}
-      <div className="max-w-4xl mx-auto md:rounded-lg md:p-6 bg-transparent md:shadow-lg md:overflow-y-auto quiz-content-scroll md:max-h-[70vh] md:mt-[140px]" style={{ userSelect: 'none' }}>
+    <div className="px-4 pt-6 pb-12">
+      <div className="max-w-4xl mx-auto space-y-6">
+        {/* Header */}
+        <div className="bg-white rounded-lg shadow-sm p-4 md:p-5 border border-gray-200">
+          <div className="flex items-center justify-between gap-4">
+            <div className="flex-1 min-w-0">
+              <p className="text-xs md:text-sm font-medium text-gray-500 truncate mb-1">
+                {exercise?.title}
+              </p>
+              <h1 className="text-lg md:text-2xl font-bold text-gray-900">Drag & Drop</h1>
+            </div>
+            <div className="text-right flex-shrink-0">
+              <div className="text-xl md:text-3xl font-bold text-blue-600">
+                {currentQuestionIndex + 1}/{exercise?.content?.questions?.length || 0}
+              </div>
+              <div className="text-xs md:text-sm text-gray-500">
+                Question
+              </div>
+            </div>
+          </div>
+
+          {/* Progress Bar inside header */}
+          <div className="mt-4 relative">
+            <div className="flex items-center justify-between mb-2">
+              <span className="text-xs md:text-sm text-gray-600">Progress</span>
+              <span className="text-xs md:text-sm font-semibold text-blue-600">
+                {Math.round(((currentQuestionIndex + 1) / (exercise?.content?.questions?.length || 1)) * 100)}%
+              </span>
+            </div>
+            <div className="w-full bg-gray-200 rounded-full h-2.5 relative overflow-visible">
+              <div
+                className="bg-blue-600 h-2.5 rounded-full transition-all duration-[3000ms]"
+                style={{ width: `${((currentQuestionIndex + 1) / (exercise?.content?.questions?.length || 1)) * 100}%` }}
+              />
+              {/* Running Batman Animation - moves with and stays with progress bar */}
+              <img
+                src={isBatmanMoving ? "https://xpclass.vn/LMS_enhance/gif/Left%20running/batman.gif" : "https://xpclass.vn/2010/frame_00_delay-0.1s.gif"}
+                alt="Running Batman"
+                className="absolute -top-8 h-12 transition-all duration-[3000ms]"
+                style={{
+                  left: `calc(${((currentQuestionIndex + 1) / (exercise?.content?.questions?.length || 1)) * 100}% - 24px)`,
+                  zIndex: 10
+                }}
+              />
+            </div>
+          </div>
+        </div>
+
+        {/* Main Content */}
+        <div className="w-full max-w-4xl min-w-0 mx-auto rounded-lg p-4 md:p-8 bg-white shadow-md border border-gray-200" style={{ userSelect: 'none' }}>
           {/* Question with inline drop zones */}
           <div className="mb-8 p-4">
             <h2 className="text-lg font-semibold text-gray-800 mb-4 leading-relaxed">
@@ -686,6 +738,7 @@ const DragDropExercise = () => {
               </button>
             )}
           </div>
+        </div>
       </div>
     </div>
   )

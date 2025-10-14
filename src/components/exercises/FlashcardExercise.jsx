@@ -558,7 +558,7 @@ const FlashcardExercise = () => {
   }
 
   return (
-    <div className="quiz-question-bg quiz-desktop-reset">
+    <div className="min-h-screen bg-gray-50">
       <div className="max-w-6xl mx-auto space-y-6 px-4 py-6">
 
 
@@ -581,7 +581,7 @@ const FlashcardExercise = () => {
       {/* Practice Mode UI */}
       {practiceMode && practiceQuestion && (
         <div className="max-w-2xl mx-auto">
-          <Card className="p-6">
+          <div className="bg-white rounded-lg shadow-md p-6 border border-gray-200">
             {/* Score */}
             <div className="text-center mb-6">
               <div className="text-2xl font-bold text-blue-600">
@@ -648,7 +648,7 @@ const FlashcardExercise = () => {
                 </button>
               </div>
             )}
-          </Card>
+          </div>
         </div>
       )}
 
@@ -657,7 +657,7 @@ const FlashcardExercise = () => {
         <div className="flex gap-4 max-w-full mx-auto px-4">
           {/* Main Card */}
           <div className="flex-1 max-w-2xl mx-auto">
-            <Card className="overflow-hidden shadow-lg">
+            <div className="bg-white rounded-lg shadow-md overflow-hidden border border-gray-200">
               <div className="relative">
                 {/* Card Content - Front or Back */}
                 <div className="aspect-square relative">
@@ -875,7 +875,7 @@ const FlashcardExercise = () => {
                 </button>
               </div>
             </div>
-          </Card>
+          </div>
           </div>
 
           {/* Right Side Thumbnails - 3-4 Columns Grid */}

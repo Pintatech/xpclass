@@ -7,7 +7,8 @@ const RichTextRenderer = ({
   content,
   className = '',
   allowImages = true,
-  allowLinks = false
+  allowLinks = false,
+  style = {}
 }) => {
   if (!content || typeof content !== 'string') {
     return <span className={className}>{content}</span>
@@ -20,12 +21,14 @@ const RichTextRenderer = ({
     // Plain text - convert line breaks to <br> tags
     const contentWithBreaks = content.replace(/\n/g, '<br>')
     return (
-      <div 
+      <div
         className={className}
         dangerouslySetInnerHTML={{ __html: contentWithBreaks }}
         style={{
           wordBreak: 'break-word',
-          lineHeight: '1.6'
+          lineHeight: '1.6',
+          color: 'inherit',
+          ...style
         }}
       />
     )
@@ -61,56 +64,28 @@ const RichTextRenderer = ({
     // First convert any markdown syntax to HTML
     let processedHtml = markdownToHtml(html)
 
-    // Allow specific safe HTML tags for formatting
-    const allowedTags = [
-      'b', 'strong', 'i', 'em', 'u', 'br', 'p', 'span', 'div',
-      'h1', 'h2', 'h3', 'h4', 'h5', 'h6',
-      'ul', 'ol', 'li',
-      'code', 'pre',
-      'mark', 'sup', 'sub', 'del'
-    ]
-
-    if (allowImages) {
-      allowedTags.push('img')
-    }
-
-    if (allowLinks) {
-      allowedTags.push('a')
-    }
-
-    // Convert plain text line breaks to HTML <br> tags
-    // But ONLY outside of block-level HTML elements like tables
-    // First, protect existing HTML tags and block elements from line break conversion
-    const blockElements = /<(table|tr|td|th|thead|tbody|tfoot|div|p)[^>]*>[\s\S]*?<\/\1>/gi
-    const htmlTags = []
-    let tempHtml = processedHtml.replace(blockElements, (match) => {
-      htmlTags.push(match)
-      return `__HTML_BLOCK_${htmlTags.length - 1}__`
-    })
-
-    // Convert \n to <br> in the text content (but not inside block elements)
-    tempHtml = tempHtml.replace(/\n/g, '<br>')
-
-    // Restore block elements (without converting their internal newlines)
-    htmlTags.forEach((tag, index) => {
-      tempHtml = tempHtml.replace(`__HTML_BLOCK_${index}__`, tag)
-    })
+    // Convert line breaks to <br> tags (simpler approach)
+    processedHtml = processedHtml.replace(/\n/g, '<br>')
 
     // Basic sanitization - remove dangerous attributes and scripts
-    let sanitized = tempHtml
+    let sanitized = processedHtml
       .replace(/<script[^>]*>.*?<\/script>/gi, '')
-      .replace(/on\w+="[^"]*"/gi, '')
+      .replace(/on\w+\s*=\s*["'][^"']*["']/gi, '')
       .replace(/javascript:/gi, '')
       .replace(/vbscript:/gi, '')
-      .replace(/data:/gi, '')
 
     // Process images if allowed
     if (allowImages) {
       // Ensure images have proper attributes and styling
-      // Add max-height for images inside table cells to prevent excessive vertical space
       sanitized = sanitized.replace(
         /<img([^>]*)>/gi,
-        '<img$1 style="max-width: 100%; height: auto; max-height: 300px; object-fit: contain;" class="rounded-lg" loading="lazy" />'
+        (match, attrs) => {
+          // Preserve existing styles and add our defaults
+          if (attrs.includes('style=')) {
+            return `<img${attrs} class="rounded-lg" loading="lazy" />`
+          }
+          return `<img${attrs} style="max-width: 100%; height: auto; display: inline-block;" class="rounded-lg" loading="lazy" />`
+        }
       )
     }
 
@@ -124,10 +99,11 @@ const RichTextRenderer = ({
       className={`rich-text-content ${className}`}
       dangerouslySetInnerHTML={{ __html: processedContent }}
       style={{
-        // CSS for common formatting
         wordBreak: 'break-word',
+        overflowWrap: 'anywhere',
         lineHeight: '1.6',
-        whiteSpace: 'normal'
+        color: 'inherit',
+        ...style
       }}
     />
   )

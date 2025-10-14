@@ -11,6 +11,8 @@ const AssignExerciseModal = ({ sessionId, onClose, onAssigned }) => {
   const [error, setError] = useState('')
   const [searchTerm, setSearchTerm] = useState('')
   const [selectedType, setSelectedType] = useState('all')
+  const [selectedFolder, setSelectedFolder] = useState('all')
+  const [folders, setFolders] = useState([])
   const [selectedExercises, setSelectedExercises] = useState(new Set())
 
   const exerciseTypes = [
@@ -24,19 +26,24 @@ const AssignExerciseModal = ({ sessionId, onClose, onAssigned }) => {
   ]
 
   useEffect(() => {
+    fetchFolders()
     fetchExercises()
     fetchAssignedExercises()
   }, [sessionId])
 
   useEffect(() => {
     filterExercises()
-  }, [exercises, searchTerm, selectedType, assignedExercises])
+  }, [exercises, searchTerm, selectedType, selectedFolder, assignedExercises])
+
 
   const fetchExercises = async () => {
     try {
       const { data, error } = await supabase
         .from('exercises')
-        .select('*')
+        .select(`
+          *,
+          folder:exercise_folders(id, name, color)
+        `)
         .eq('is_in_bank', true)
         .eq('is_active', true)
         .order('created_at', { ascending: false })
@@ -48,6 +55,45 @@ const AssignExerciseModal = ({ sessionId, onClose, onAssigned }) => {
       setError('Failed to load exercises from bank')
     } finally {
       setLoading(false)
+    }
+  }
+
+  const fetchFolders = async () => {
+    try {
+      const { data, error } = await supabase
+        .from('exercise_folders')
+        .select('*')
+        .order('sort_order')
+
+      if (error) throw error
+
+      // Build folder hierarchy for display
+      const folderMap = {}
+      data?.forEach(folder => {
+        folderMap[folder.id] = folder
+      })
+
+      // Add display_name with hierarchy
+      const foldersWithHierarchy = data?.map(folder => {
+        const hierarchy = []
+        let current = folder
+
+        // Build path from current folder to root
+        while (current) {
+          hierarchy.unshift(current.name)
+          current = current.parent_folder_id ? folderMap[current.parent_folder_id] : null
+        }
+
+        return {
+          ...folder,
+          display_name: hierarchy.join(' > '),
+          indent_level: hierarchy.length - 1
+        }
+      })
+
+      setFolders(foldersWithHierarchy || [])
+    } catch (err) {
+      console.error('Error fetching folders:', err)
     }
   }
 
@@ -79,6 +125,10 @@ const AssignExerciseModal = ({ sessionId, onClose, onAssigned }) => {
 
     if (selectedType !== 'all') {
       filtered = filtered.filter(exercise => exercise.exercise_type === selectedType)
+    }
+
+    if (selectedFolder !== 'all') {
+      filtered = filtered.filter(exercise => exercise.folder_id === selectedFolder)
     }
 
     setFilteredExercises(filtered)
@@ -193,11 +243,27 @@ const AssignExerciseModal = ({ sessionId, onClose, onAssigned }) => {
               />
             </div>
 
+            {/* Folder Filter */}
+            <select
+              value={selectedFolder}
+              onChange={(e) => setSelectedFolder(e.target.value)}
+              className="px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent min-w-[240px]"
+            >
+              <option value="all">📁 All Folders</option>
+              {folders.map(folder => (
+                <option key={folder.id} value={folder.id}>
+                  {'  '.repeat(folder.indent_level)}
+                  {folder.indent_level > 0 ? '└─ ' : ''}
+                  {folder.display_name}
+                </option>
+              ))}
+            </select>
+
             {/* Type Filter */}
             <select
               value={selectedType}
               onChange={(e) => setSelectedType(e.target.value)}
-              className="px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent"
+              className="px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent min-w-[180px]"
             >
               {exerciseTypes.map(type => (
                 <option key={type.value} value={type.value}>
@@ -283,8 +349,10 @@ const AssignExerciseModal = ({ sessionId, onClose, onAssigned }) => {
                         <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-gray-100 text-gray-800">
                           {getExerciseTypeLabel(exercise.exercise_type)}
                         </span>
-                        {exercise.category && (
-                          <span>{exercise.category}</span>
+                        {exercise.folder_id && folders.find(f => f.id === exercise.folder_id) && (
+                          <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-blue-100 text-blue-800">
+                            📁 {folders.find(f => f.id === exercise.folder_id)?.display_name}
+                          </span>
                         )}
                         <span>{exercise.xp_reward} XP</span>
                         <span>{exercise.estimated_duration} min</span>
