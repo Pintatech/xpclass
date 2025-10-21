@@ -157,6 +157,8 @@ const EditExerciseModal = ({ isOpen, onClose, exercise, onUpdate }) => {
             onQuestionsChange={(questions) => handleContentChange({ ...content, questions })}
             settings={content.settings || {}}
             onSettingsChange={(settings) => handleContentChange({ ...content, settings })}
+            intro={content.intro || ''}
+            onIntroChange={(intro) => handleContentChange({ ...content, intro })}
           />
         )
       case 'drag_drop':

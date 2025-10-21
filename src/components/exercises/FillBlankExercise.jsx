@@ -166,7 +166,7 @@ const FillBlankExercise = () => {
   const handleSubmitAll = async () => {
     setShowResults(true)
     setHasEdited(false)
-    setShowCorrectAnswers(false)
+    setShowCorrectAnswers(true) // Show correct answers immediately
 
     // Calculate scores for all questions
     const scores = questions.map((question, qIndex) => {
@@ -190,7 +190,6 @@ const FillBlankExercise = () => {
     setQuestionScores(scores)
     const averageScore = scores.reduce((sum, s) => sum + s, 0) / scores.length
     setTotalScore(averageScore)
-    setExerciseCompleted(true)
 
     // Save progress
     try {
@@ -643,6 +642,13 @@ const FillBlankExercise = () => {
             </div>
           </div>
 
+          {/* Global Intro (exercise.content.intro) */}
+          {exercise?.content?.intro && String(exercise.content.intro).trim() && (
+            <div className="w-full max-w-4xl min-w-0 mx-auto rounded-lg p-4 md:p-6 bg-white shadow-sm border border-gray-200">
+              <RichTextRenderer content={exercise.content.intro} allowImages={true} allowLinks={false} />
+            </div>
+          )}
+
           {/* All Questions */}
           <div className="space-y-8">
             {questions.map((question, qIndex) => (
@@ -658,12 +664,88 @@ const FillBlankExercise = () => {
                     </span>
                   )}
                 </div>
+                {/* Intro above question (optional) */}
+                {question.intro && String(question.intro).trim() && (
+                  <div className="mb-4">
+                    <RichTextRenderer
+                      content={question.intro}
+                      allowImages={true}
+                      allowLinks={false}
+                    />
+                  </div>
+                )}
                 <div className="text-lg leading-relaxed">
                   {renderQuestionText(qIndex)}
                 </div>
+
+                {/* Explanation for each question after submission */}
+                {showResults && question.explanation && (
+                  <div className="mt-4 p-4 bg-blue-50 border border-blue-200 rounded-lg">
+                    <h4 className="font-medium text-blue-900 mb-1 text-sm">Explanation</h4>
+                    <p className="text-blue-800 text-sm">{question.explanation}</p>
+                  </div>
+                )}
               </div>
             ))}
           </div>
+
+          {/* Results Summary and Actions */}
+          {showResults && (
+            <div className="mt-8 bg-white rounded-lg shadow-md p-6 border border-gray-200">
+              <div className="text-center mb-6">
+                <div className={`text-5xl font-bold mb-2 ${
+                  totalScore >= 80 ? 'text-green-600' :
+                  totalScore >= 60 ? 'text-yellow-600' : 'text-red-600'
+                }`}>
+                  {Math.round(totalScore)}%
+                </div>
+                <p className="text-gray-600 text-lg">Overall Score</p>
+              </div>
+
+              <div className="flex flex-col sm:flex-row gap-3 justify-center items-center">
+                <button
+                  onClick={handleBackToSession}
+                  className="w-full sm:w-auto px-6 py-3 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition-colors"
+                >
+                  Back to Session
+                </button>
+                <button
+                  onClick={() => {
+                    // Clear only wrong answers
+                    const newUserAnswers = {}
+                    questions.forEach((question, qIndex) => {
+                      newUserAnswers[qIndex] = {}
+                      question.blanks.forEach((blank, blankIndex) => {
+                        const userAnswer = userAnswers[qIndex]?.[blankIndex] || ''
+                        const correctAnswers = blank.answer
+                          .split(',')
+                          .map(a => a.trim())
+                          .filter(a => a)
+                        const caseSensitive = blank.case_sensitive
+
+                        // Check if answer is correct
+                        const isCorrect = caseSensitive
+                          ? correctAnswers.some(answer => userAnswer === answer)
+                          : correctAnswers.some(answer => userAnswer.toLowerCase() === answer.toLowerCase())
+
+                        // Keep correct answers, clear wrong ones
+                        newUserAnswers[qIndex][blankIndex] = isCorrect ? userAnswer : ''
+                      })
+                    })
+
+                    setUserAnswers(newUserAnswers)
+                    setShowResults(false)
+                    setShowCorrectAnswers(false)
+                    setQuestionScores([])
+                    setTotalScore(0)
+                  }}
+                  className="w-full sm:w-auto px-6 py-3 bg-gray-600 text-white rounded-lg hover:bg-gray-700 transition-colors"
+                >
+                  Try Again
+                </button>
+              </div>
+            </div>
+          )}
 
           {/* Submit Button */}
           {!showResults && (
@@ -731,8 +813,25 @@ const FillBlankExercise = () => {
         </div>
       </div>
 
+      {/* Global Intro (exercise.content.intro) */}
+      {exercise?.content?.intro && String(exercise.content.intro).trim() && (
+        <div className="w-full max-w-4xl min-w-0 mx-auto rounded-lg p-4 md:p-6 bg-white shadow-sm border border-gray-200">
+          <RichTextRenderer content={exercise.content.intro} allowImages={true} allowLinks={false} />
+        </div>
+      )}
+
       {/* Question */}
       <div className="w-full max-w-4xl min-w-0 mx-auto rounded-lg p-4 md:p-8 bg-white shadow-md border border-gray-200">
+        {/* Intro above question (optional) */}
+        {currentQuestion.intro && String(currentQuestion.intro).trim() && (
+          <div className="mb-4">
+            <RichTextRenderer
+              content={currentQuestion.intro}
+              allowImages={true}
+              allowLinks={false}
+            />
+          </div>
+        )}
         <div className="text-lg leading-relaxed mb-4">
           {renderQuestionText()}
         </div>

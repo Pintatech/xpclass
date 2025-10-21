@@ -529,7 +529,7 @@ const DragDropExercise = () => {
               />
               {/* Running Batman Animation - moves with and stays with progress bar */}
               <img
-                src={isBatmanMoving ? "https://xpclass.vn/LMS_enhance/gif/Left%20running/batman.gif" : "https://xpclass.vn/2010/frame_00_delay-0.1s.gif"}
+                src={isBatmanMoving ? "https://xpclass.vn/LMS_enhance/gif/Left%20running/batman.gif" : "https://xpclass.vn/xpclass/materials/batman_standing.gif"}
                 alt="Running Batman"
                 className="absolute -top-8 h-12 transition-all duration-[3000ms]"
                 style={{

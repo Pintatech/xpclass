@@ -344,6 +344,8 @@ const CreateExerciseModal = ({ folders, selectedFolder, onClose, onCreated }) =>
                 onQuestionsChange={(questions) => handleContentChange('questions', questions)}
                 settings={formData.content.settings || {}}
                 onSettingsChange={(settings) => handleContentChange('settings', settings)}
+                intro={formData.content.intro || ''}
+                onIntroChange={(intro) => handleContentChange('intro', intro)}
               />
             )}
 

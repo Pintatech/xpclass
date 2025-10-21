@@ -13,8 +13,9 @@ import {
   Music
 } from 'lucide-react'
 import RichTextRenderer from '../../ui/RichTextRenderer'
+import { supabase } from '../../../supabase/client'
 
-const FillBlankEditor = ({ questions, onQuestionsChange, settings, onSettingsChange }) => {
+const FillBlankEditor = ({ questions, onQuestionsChange, settings, onSettingsChange, intro, onIntroChange }) => {
   const [localQuestions, setLocalQuestions] = useState(questions || [])
   const [bulkImportMode, setBulkImportMode] = useState(false)
   const [bulkText, setBulkText] = useState('')
@@ -28,6 +29,8 @@ const FillBlankEditor = ({ questions, onQuestionsChange, settings, onSettingsCha
   const [audioAutoplay, setAudioAutoplay] = useState(false)
   const [audioLoop, setAudioLoop] = useState(false)
   const questionTextareasRef = useRef({})
+  const introTextareaRef = useRef(null)
+  const introFileInputRef = useRef(null)
 
   useEffect(() => {
     setLocalQuestions(questions || [])
@@ -36,6 +39,7 @@ const FillBlankEditor = ({ questions, onQuestionsChange, settings, onSettingsCha
   const addQuestion = () => {
     const newQuestion = {
       id: `q${Date.now()}`,
+      intro: '',
       question: '',
       blanks: [{ text: '', answer: '', case_sensitive: false }],
       explanation: ''
@@ -75,6 +79,34 @@ const FillBlankEditor = ({ questions, onQuestionsChange, settings, onSettingsCha
   }
 
   const insertAtCursor = (index, field, snippet) => {
+    // Handle intro (index === -1)
+    if (index === -1) {
+      const textarea = introTextareaRef.current
+      const current = intro || ''
+
+      if (textarea && typeof textarea.selectionStart === 'number' && typeof textarea.selectionEnd === 'number') {
+        const start = textarea.selectionStart
+        const end = textarea.selectionEnd
+        const before = current.slice(0, start)
+        const after = current.slice(end)
+        const newValue = `${before}${snippet}${after}`
+        onIntroChange && onIntroChange(newValue)
+        setTimeout(() => {
+          try {
+            const pos = start + snippet.length
+            if (textarea) {
+              textarea.focus()
+              textarea.setSelectionRange(pos, pos)
+            }
+          } catch {}
+        }, 0)
+      } else {
+        onIntroChange && onIntroChange(current + (current ? '\n' : '') + snippet)
+      }
+      return
+    }
+
+    // Handle question field
     const textarea = questionTextareasRef.current[index]
     const current = localQuestions[index]?.[field] || ''
 
@@ -491,6 +523,133 @@ const FillBlankEditor = ({ questions, onQuestionsChange, settings, onSettingsCha
         </div>
       </div>
 
+      {/* Global Intro Section */}
+      <div className="bg-white p-4 border border-gray-200 rounded-lg">
+        <label className="block text-sm font-medium text-gray-700 mb-1">
+          Exercise Intro (Optional)
+        </label>
+        <textarea
+          ref={introTextareaRef}
+          value={intro || ''}
+          onChange={(e) => onIntroChange && onIntroChange(e.target.value)}
+          className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
+          rows={2}
+          placeholder="Enter introductory text for the fill-in-the-blank exercise..."
+        />
+
+        {/* Insert Media Buttons for Intro */}
+        <div className="mt-2 flex flex-wrap gap-2">
+          <input
+            ref={introFileInputRef}
+            type="file"
+            accept="image/*"
+            className="hidden"
+            onChange={async (e) => {
+              const file = e.target.files?.[0]
+              if (!file) return
+              try {
+                const path = `fill_blank/${Date.now()}_${Math.random().toString(36).slice(2)}_${file.name}`
+                const { error: uploadError } = await supabase.storage
+                  .from('exercise-images')
+                  .upload(path, file, { cacheControl: '3600', upsert: true })
+                if (uploadError) throw uploadError
+
+                const { data: publicData } = supabase.storage
+                  .from('exercise-images')
+                  .getPublicUrl(path)
+
+                const publicUrl = publicData?.publicUrl
+                if (!publicUrl) throw new Error('Cannot get public URL')
+
+                // Insert at cursor position in intro
+                const textarea = introTextareaRef.current
+                const current = intro || ''
+                if (!textarea) {
+                  onIntroChange && onIntroChange(current + (current ? '\n\n' : '') + `![](${publicUrl})`)
+                  return
+                }
+                const start = textarea.selectionStart || 0
+                const end = textarea.selectionEnd || 0
+                const textToInsert = `\n![](${publicUrl})\n`
+                const newValue = current.slice(0, start) + textToInsert + current.slice(end)
+                onIntroChange && onIntroChange(newValue)
+                setTimeout(() => {
+                  textarea.focus()
+                  const caret = start + textToInsert.length
+                  textarea.setSelectionRange(caret, caret)
+                }, 0)
+                alert('Image uploaded and inserted into intro!')
+              } catch (e) {
+                console.error('Image upload failed:', e)
+                alert('Image upload failed. Please ensure the bucket "exercise-images" exists and RLS allows uploads.')
+              }
+            }}
+          />
+          <button
+            type="button"
+            onClick={() => {
+              const input = introFileInputRef.current
+              if (input) input.click()
+            }}
+            className="px-3 py-2 bg-gray-700 text-white rounded-lg hover:bg-gray-800 text-sm flex items-center gap-2"
+          >
+            <Upload className="w-4 h-4" /> Upload
+          </button>
+          <button
+            type="button"
+            onClick={() => {
+              setUrlModal({ isOpen: true, type: 'image', questionIndex: -1 })
+              setUrlInput('')
+              setLinkText('')
+              setImageSize('medium')
+              setCustomWidth('')
+              setCustomHeight('')
+            }}
+            className="px-3 py-2 bg-gray-100 text-gray-800 rounded-lg hover:bg-gray-200 text-sm flex items-center gap-2"
+            title="Insert image"
+          >
+            <ImageIcon className="w-4 h-4" />
+            Insert image
+          </button>
+          <button
+            type="button"
+            onClick={() => {
+              setUrlModal({ isOpen: true, type: 'link', questionIndex: -1 })
+              setUrlInput('')
+              setLinkText('Reference')
+            }}
+            className="px-3 py-2 bg-gray-100 text-gray-800 rounded-lg hover:bg-gray-200 text-sm flex items-center gap-2"
+            title="Insert link"
+          >
+            <LinkIcon className="w-4 h-4" />
+          </button>
+          <button
+            type="button"
+            onClick={() => {
+              setUrlModal({ isOpen: true, type: 'audio', questionIndex: -1 })
+              setUrlInput('')
+              setLinkText('')
+              setImageSize('medium')
+              setCustomWidth('')
+              setCustomHeight('')
+              setAudioControls(true)
+              setAudioAutoplay(false)
+              setAudioLoop(false)
+            }}
+            className="px-3 py-2 bg-purple-100 text-purple-800 rounded-lg hover:bg-purple-200 text-sm"
+          >
+            🎵 Insert audio
+          </button>
+        </div>
+
+        {intro && intro.trim() && (
+          <div className="mt-3 p-3 bg-white border rounded-lg">
+            <div className="text-xs text-gray-500 mb-2">Intro Preview</div>
+            <RichTextRenderer content={markdownToHtml(intro)} allowImages allowLinks className="prose max-w-none" />
+          </div>
+        )}
+      </div>
+
       {/* Display Settings */}
       <div className="p-4 bg-blue-50 border border-blue-200 rounded-lg">
         <h4 className="font-medium text-blue-900 mb-3">Display Settings</h4>
@@ -597,6 +756,28 @@ const FillBlankEditor = ({ questions, onQuestionsChange, settings, onSettingsCha
                   <Trash2 className="w-4 h-4" />
                 </button>
               </div>
+            </div>
+
+            {/* Question Intro */}
+            <div className="mb-4">
+              <label className="block text-sm font-medium text-gray-700 mb-1">
+                Question Intro (Optional)
+              </label>
+              <textarea
+                value={question.intro || ''}
+                onChange={(e) => updateQuestion(index, 'intro', e.target.value)}
+                className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
+                rows={2}
+                placeholder="Enter introductory text for this specific question..."
+              />
+              {question.intro && question.intro.trim() && (
+                <div className="mt-2 p-3 bg-gray-50 border border-gray-200 rounded-lg">
+                  <p className="text-sm text-gray-600 mb-1">Preview:</p>
+                  <div className="prose max-w-none">
+                    <RichTextRenderer content={markdownToHtml(question.intro)} allowImages allowLinks />
+                  </div>
+                </div>
+              )}
             </div>
 
             {/* Question Text */}

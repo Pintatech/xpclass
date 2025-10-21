@@ -129,7 +129,17 @@
       text-stroke: 0.5px rgba(0, 0, 0, 0.3);
       background: transparent;
       color: #1f2937;
-      font-weight: 600;
+    }
+
+    /* Base weight normal for question container only */
+    .question-text {
+      font-weight: 400;
+    }
+
+    /* Allow bold within question content */
+    .question-text b,
+    .question-text strong {
+      font-weight: 700;
     }
     
     /* Custom scrollbar for quiz content */
