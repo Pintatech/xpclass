@@ -38,7 +38,9 @@ const MultipleChoiceEditor = ({ questions, onQuestionsChange, settings, onSettin
       original_text: q?.original_text || '',
       image_url: q?.image_url || '',
       reference_url: q?.reference_url || '',
-      shuffle_options: q?.shuffle_options !== undefined ? q.shuffle_options : true
+      shuffle_options: q?.shuffle_options !== undefined ? q.shuffle_options : true,
+      audio_url: q?.audio_url || '',
+      max_audio_plays: q?.max_audio_plays || 0
     }
   }
 
@@ -883,8 +885,8 @@ const MultipleChoiceEditor = ({ questions, onQuestionsChange, settings, onSettin
           if (options.length >= 2) {
             // Combine accumulated question text with current line
             let fullQuestion = currentQuestionText ? currentQuestionText + '\n' + trimmed : trimmed
-            // Replace the cloze pattern with ______
-            const displayText = fullQuestion.replace(match[0], '______')
+            // Remove the cloze pattern from the question text
+            const displayText = fullQuestion.replace(match[0], '')
 
             newQuestions.push({
               id: `q${Date.now()}_${questionCounter++}`,
@@ -1518,6 +1520,48 @@ Good morning in Vietnamese is {1:MC:=Chào buổi sáng#Correct explanation~Chà
                 </details>
               )}
             </div>
+
+            {/* Audio URL */}
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">
+                Question Audio URL (Optional)
+              </label>
+              <input
+                type="text"
+                value={question.audio_url || ''}
+                onChange={(e) => updateQuestion(index, 'audio_url', e.target.value)}
+                className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
+                placeholder="https://example.com/audio.mp3"
+              />
+              <p className="text-xs text-gray-500 mt-1">
+                Add audio for students to listen before answering
+              </p>
+            </div>
+
+            {/* Max Audio Plays */}
+            {question.audio_url && (
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Audio Play Limit
+                </label>
+                <div className="flex items-center gap-3">
+                  <input
+                    type="number"
+                    min="0"
+                    max="10"
+                    value={question.max_audio_plays || 0}
+                    onChange={(e) => updateQuestion(index, 'max_audio_plays', parseInt(e.target.value) || 0)}
+                    className="w-24 p-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
+                  />
+                  <span className="text-sm text-gray-600">
+                    {question.max_audio_plays === 0 ? 'Unlimited plays' : `Max ${question.max_audio_plays} play${question.max_audio_plays !== 1 ? 's' : ''}`}
+                  </span>
+                </div>
+                <p className="text-xs text-gray-500 mt-1">
+                  Set to 0 for unlimited plays, or limit how many times students can listen
+                </p>
+              </div>
+            )}
               </div>
             )}
           </div>

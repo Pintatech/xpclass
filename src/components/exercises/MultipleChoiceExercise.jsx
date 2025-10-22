@@ -9,6 +9,7 @@ import Button from '../ui/Button'
 import LoadingSpinner from '../ui/LoadingSpinner'
 import RichTextRenderer from '../ui/RichTextRenderer'
 import { CheckCircle, XCircle, ArrowRight, RotateCcw, Star } from 'lucide-react'
+import AudioPlayer from '../ui/AudioPlayer'
 
 const MultipleChoiceExercise = () => {
   const location = useLocation()
@@ -846,6 +847,17 @@ const MultipleChoiceExercise = () => {
                       lineHeight: '1.75'
                     }}
                   />
+
+                  {/* Audio Player */}
+                  {currentQuestion.audio_url && (
+                    <div className="mt-4">
+                      <AudioPlayer
+                        audioUrl={currentQuestion.audio_url}
+                        maxPlays={currentQuestion.max_audio_plays || 0}
+                        variant="outline"
+                      />
+                    </div>
+                  )}
                 </div>
 
                 {/* Options - responsive grid */}
@@ -979,6 +991,17 @@ const MultipleChoiceExercise = () => {
                           lineHeight: '1.75'
                         }}
                       />
+
+                      {/* Audio Player */}
+                      {question.audio_url && (
+                        <div className="mt-4">
+                          <AudioPlayer
+                            audioUrl={question.audio_url}
+                            maxPlays={question.max_audio_plays || 0}
+                            variant="outline"
+                          />
+                        </div>
+                      )}
                     </div>
 
                     {/* Options */}

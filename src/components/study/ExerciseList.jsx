@@ -569,6 +569,7 @@ const ExerciseList = () => {
       drag_drop: '/study/drag-drop',
       dropdown: '/study/dropdown',
       ai_fill_blank: '/study/ai-fill-blank',
+      pronunciation: '/study/pronunciation',
     }
 
     const basePath = paths[exercise.exercise_type] || '/study/flashcard'

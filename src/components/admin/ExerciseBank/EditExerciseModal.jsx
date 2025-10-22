@@ -7,6 +7,7 @@ import FillBlankEditor from '../editors/FillBlankEditor'
 import SmartDragDropEditor from '../editors/SmartDragDropEditor'
 import AIFillBlankEditor from '../editors/AIFillBlankEditor'
 import SimpleDropdownEditor from '../editors/SimpleDropdownEditor'
+import PronunciationEditor from '../editors/PronunciationEditor'
 
 const EditExerciseModal = ({ isOpen, onClose, exercise, onUpdate }) => {
   const [formData, setFormData] = useState({
@@ -171,6 +172,13 @@ const EditExerciseModal = ({ isOpen, onClose, exercise, onUpdate }) => {
       case 'dropdown':
         return (
           <SimpleDropdownEditor
+            questions={content.questions || []}
+            onQuestionsChange={(questions) => handleContentChange({ ...content, questions })}
+          />
+        )
+      case 'pronunciation':
+        return (
+          <PronunciationEditor
             questions={content.questions || []}
             onQuestionsChange={(questions) => handleContentChange({ ...content, questions })}
           />

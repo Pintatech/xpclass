@@ -7,6 +7,7 @@ import FillBlankEditor from '../editors/FillBlankEditor'
 import SmartDragDropEditor from '../editors/SmartDragDropEditor'
 import AIFillBlankEditor from '../editors/AIFillBlankEditor'
 import SimpleDropdownEditor from '../editors/SimpleDropdownEditor'
+import PronunciationEditor from '../editors/PronunciationEditor'
 
 const CreateExerciseModal = ({ folders, selectedFolder, onClose, onCreated }) => {
   const [formData, setFormData] = useState({
@@ -351,6 +352,13 @@ const CreateExerciseModal = ({ folders, selectedFolder, onClose, onCreated }) =>
 
             {formData.exercise_type === 'dropdown' && (
               <SimpleDropdownEditor
+                questions={formData.content.questions || []}
+                onQuestionsChange={(questions) => handleContentChange('questions', questions)}
+              />
+            )}
+
+            {formData.exercise_type === 'pronunciation' && (
+              <PronunciationEditor
                 questions={formData.content.questions || []}
                 onQuestionsChange={(questions) => handleContentChange('questions', questions)}
               />
