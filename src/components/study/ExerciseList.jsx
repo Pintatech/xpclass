@@ -7,6 +7,7 @@ import { useProgress } from '../../hooks/useProgress'
 import Card from '../ui/Card'
 import Button from '../ui/Button'
 import AssignExerciseModal from './AssignExerciseModal'
+import AssignToStudentModal from '../admin/AssignToStudentModal'
 import {
   DndContext,
   closestCenter,
@@ -46,7 +47,8 @@ import {
   Plus,
   Edit,
   Trash2,
-  GripVertical
+  GripVertical,
+  UserPlus
 } from 'lucide-react'
 
 const ExerciseList = () => {
@@ -69,6 +71,7 @@ const ExerciseList = () => {
   const [levels, setLevels] = useState([])
   const [units, setUnits] = useState([])
   const [showAssignExerciseModal, setShowAssignExerciseModal] = useState(false)
+  const [assignToStudentExercise, setAssignToStudentExercise] = useState(null)
   const { user, profile } = useAuth()
   const { canCreateContent } = usePermissions()
   const { userProgress, fetchUserProgress } = useProgress()
@@ -661,6 +664,16 @@ const ExerciseList = () => {
                   <button
                     onClick={(e) => {
                       e.stopPropagation()
+                      setAssignToStudentExercise(exercise)
+                    }}
+                    className="p-1 text-blue-400 hover:text-blue-600 hover:bg-blue-100 rounded transition-colors"
+                    title="Assign to individual student"
+                  >
+                    <UserPlus className="w-4 h-4" />
+                  </button>
+                  <button
+                    onClick={(e) => {
+                      e.stopPropagation()
                       // TODO: Add edit functionality
                       alert('Edit functionality coming soon!')
                     }}
@@ -996,6 +1009,13 @@ const ExerciseList = () => {
           onAssigned={handleExercisesAssigned}
         />
       )}
+
+      {/* Assign to Student Modal */}
+      <AssignToStudentModal
+        isOpen={!!assignToStudentExercise}
+        onClose={() => setAssignToStudentExercise(null)}
+        exercise={assignToStudentExercise}
+      />
     </div>
   )
 }

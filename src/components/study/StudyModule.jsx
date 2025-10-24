@@ -3,6 +3,7 @@ import CourseList from './CourseList'
 import UnitList from './UnitList'
 import SessionList from './SessionList'
 import ExerciseList from './ExerciseList'
+import PersonalAssignments from './PersonalAssignments'
 import FlashcardExercise from '../exercises/FlashcardExercise'
 import VocabSessionWrapper from '../exercises/VocabSessionWrapper'
 import MultipleChoiceExercise from '../exercises/MultipleChoiceExercise'
@@ -26,7 +27,10 @@ const StudyModule = () => {
       <Route path="level/:levelId" element={<UnitList />} />
       <Route path="level/:levelId/unit/:unitId" element={<SessionList />} />
       <Route path="level/:levelId/unit/:unitId/session/:sessionId" element={<ExerciseList />} />
-      
+
+      {/* Personal Assignments */}
+      <Route path="my-assignments" element={<PersonalAssignments />} />
+
       {/* Exercise routes */}
       <Route path="flashcard" element={<FlashcardExercise />} />
       <Route path="fill-blank" element={<FillBlankExercise />} />

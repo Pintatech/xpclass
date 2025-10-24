@@ -45,7 +45,8 @@
       "Bash(git commit:*)",
       "Bash(npm install:*)",
       "Bash(git checkout:*)",
-      "Bash(taskkill:*)"
+      "Bash(taskkill:*)",
+      "Bash(psql:*)"
     ],
     "deny": [],
     "ask": []

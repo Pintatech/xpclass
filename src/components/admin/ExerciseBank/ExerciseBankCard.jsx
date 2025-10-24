@@ -545,6 +545,7 @@ const ExerciseBankCard = ({ exercise, viewMode, onUpdate, onEdit }) => {
           </div>
         </div>
       )}
+
     </div>
   )
 }
