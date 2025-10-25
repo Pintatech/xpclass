@@ -25,7 +25,9 @@ import {
   Edit,
   MoreVertical,
   List,
-  Trash2
+  Trash2,
+  Users,
+  BarChart3
 } from 'lucide-react'
 
 const UnitList = () => {
@@ -50,7 +52,10 @@ const UnitList = () => {
   const [showAddUnitModal, setShowAddUnitModal] = useState(false)
   const [showEditUnitModal, setShowEditUnitModal] = useState(false)
   const [editingUnit, setEditingUnit] = useState(null)
-  const { user, profile } = useAuth()
+  const [showTeacherView, setShowTeacherView] = useState(false)
+  const [courseStudents, setCourseStudents] = useState([])
+  const [studentProgress, setStudentProgress] = useState([])
+  const { user, profile, isTeacher, isAdmin } = useAuth()
   const { canCreateContent } = usePermissions()
 
   // Skeletons
@@ -98,6 +103,12 @@ const UnitList = () => {
       fetchLevelAndUnits()
     }
   }, [user, currentId])
+
+  useEffect(() => {
+    if (showTeacherView && sessions.length > 0) {
+      fetchTeacherViewData()
+    }
+  }, [showTeacherView, sessions])
 
   const fetchLevelAndUnits = async () => {
     if (!currentId) {
@@ -379,6 +390,53 @@ const UnitList = () => {
   const handleEditUnit = (unit) => {
     setEditingUnit(unit)
     setShowEditUnitModal(true)
+  }
+
+  const fetchTeacherViewData = async () => {
+    if (!currentId || (!isTeacher() && !isAdmin())) return
+
+    try {
+      // Fetch students enrolled in this course
+      const { data: enrollments, error: enrollError } = await supabase
+        .from('course_enrollments')
+        .select(`
+          student_id,
+          student:users!student_id(
+            id,
+            full_name,
+            email
+          )
+        `)
+        .eq('course_id', currentId)
+        .eq('is_active', true)
+
+      if (enrollError) throw enrollError
+
+      // Get exercise IDs for this course
+      const { data: exerciseAssignments, error: exError } = await supabase
+        .from('exercise_assignments')
+        .select('exercise_id')
+        .in('session_id', sessions.map(s => s.id))
+
+      if (exError) throw exError
+
+      const exerciseIds = [...new Set(exerciseAssignments.map(a => a.exercise_id))]
+
+      // Fetch progress for all students
+      const studentIds = enrollments.map(e => e.student_id)
+      const { data: progress, error: progError } = await supabase
+        .from('user_progress')
+        .select('*')
+        .in('user_id', studentIds)
+        .in('exercise_id', exerciseIds)
+
+      if (progError) throw progError
+
+      setCourseStudents(enrollments || [])
+      setStudentProgress(progress || [])
+    } catch (error) {
+      console.error('Error fetching teacher view data:', error)
+    }
   }
 
   const handleDeleteUnit = async (unit) => {
@@ -877,27 +935,173 @@ const UnitList = () => {
                 <ArrowLeft className="w-4 h-4 mr-2" />
                 Quay lại
               </Button>
-              
+
+              {/* Teacher View Toggle */}
+              {(isTeacher() || isAdmin()) && (
+                <Button
+                  variant={showTeacherView ? "primary" : "ghost"}
+                  size="sm"
+                  onClick={() => setShowTeacherView(!showTeacherView)}
+                  className="flex items-center gap-2"
+                >
+                  {showTeacherView ? <Users className="w-4 h-4" /> : <BarChart3 className="w-4 h-4" />}
+                  {showTeacherView ? 'Student View' : 'Teacher View'}
+                </Button>
+              )}
             </div>
 
             {/* XP and Streak stats */}
-            <div className="flex items-center space-x-4">
-              <div className="bg-orange-100 rounded-full px-4 py-2 flex items-center space-x-2">
-                <Flame className="w-5 h-5 text-orange-500" />
-                <span className="font-bold text-gray-800">{userStats.streak}</span>
+            {!showTeacherView && (
+              <div className="flex items-center space-x-4">
+                <div className="bg-orange-100 rounded-full px-4 py-2 flex items-center space-x-2">
+                  <Flame className="w-5 h-5 text-orange-500" />
+                  <span className="font-bold text-gray-800">{userStats.streak}</span>
+                </div>
+                <div className="bg-yellow-100 rounded-full px-4 py-2 flex items-center space-x-2">
+                  <Star className="w-5 h-5 text-yellow-500" />
+                  <span className="font-bold text-gray-800">{userStats.xp}</span>
+                </div>
               </div>
-              <div className="bg-yellow-100 rounded-full px-4 py-2 flex items-center space-x-2">
-                <Star className="w-5 h-5 text-yellow-500" />
-                <span className="font-bold text-gray-800">{userStats.xp}</span>
-              </div>
-            </div>
+            )}
           </div>
         </div>
 
         {/* Content Area */}
         <div className="flex-1 overflow-y-auto p-6">
-          {/* Hero Image Section */}
-          {level?.thumbnail_url && (
+          {/* Teacher View */}
+          {showTeacherView ? (
+            <div className="space-y-6">
+              <div className="bg-white rounded-lg shadow-sm border p-6">
+                <h2 className="text-2xl font-bold text-gray-900 mb-4">
+                  Teacher Dashboard - {level?.title}
+                </h2>
+                <p className="text-gray-600 mb-6">Viewing student progress for this course</p>
+
+                {/* Course Stats */}
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-6">
+                  <div className="bg-blue-50 rounded-lg p-4">
+                    <div className="flex items-center gap-3">
+                      <Users className="w-8 h-8 text-blue-600" />
+                      <div>
+                        <p className="text-sm text-gray-600">Enrolled Students</p>
+                        <p className="text-2xl font-bold text-gray-900">{courseStudents.length}</p>
+                      </div>
+                    </div>
+                  </div>
+                  <div className="bg-green-50 rounded-lg p-4">
+                    <div className="flex items-center gap-3">
+                      <CheckCircle className="w-8 h-8 text-green-600" />
+                      <div>
+                        <p className="text-sm text-gray-600">Avg Completion</p>
+                        <p className="text-2xl font-bold text-gray-900">
+                          {courseStudents.length > 0
+                            ? Math.round(studentProgress.filter(p => p.status === 'completed').length / courseStudents.length)
+                            : 0}%
+                        </p>
+                      </div>
+                    </div>
+                  </div>
+                  <div className="bg-yellow-50 rounded-lg p-4">
+                    <div className="flex items-center gap-3">
+                      <Star className="w-8 h-8 text-yellow-600" />
+                      <div>
+                        <p className="text-sm text-gray-600">Avg Score</p>
+                        <p className="text-2xl font-bold text-gray-900">
+                          {studentProgress.length > 0
+                            ? Math.round(studentProgress.reduce((sum, p) => sum + ((p.score / p.max_score) * 100 || 0), 0) / studentProgress.length)
+                            : 0}%
+                        </p>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Student List */}
+                <div className="border-t border-gray-200">
+                  <h3 className="text-xl font-semibold text-gray-900 p-6 border-b border-gray-200">Student Progress</h3>
+                  {courseStudents.length === 0 ? (
+                    <div className="p-8 text-center">
+                      <Users className="w-16 h-16 text-gray-400 mx-auto mb-4" />
+                      <h3 className="text-lg font-medium text-gray-900 mb-2">No Students Enrolled</h3>
+                      <p className="text-gray-600">No students are currently enrolled in this course.</p>
+                    </div>
+                  ) : (
+                    <div className="divide-y divide-gray-200">
+                      {courseStudents.map(({ student_id, student }) => {
+                        const studentProgressData = studentProgress.filter(p => p.user_id === student_id)
+                        const completed = studentProgressData.filter(p => p.status === 'completed').length
+                        const total = studentProgressData.length
+                        const completionRate = total > 0 ? Math.round((completed / total) * 100) : 0
+
+                        const scores = studentProgressData
+                          .filter(p => p.score !== null && (p.max_score || 0) > 0)
+                          .map(p => (p.score / p.max_score) * 100)
+
+                        const averageScore = scores.length > 0
+                          ? Math.round(scores.reduce((sum, score) => sum + score, 0) / scores.length)
+                          : 0
+
+                        const totalTime = studentProgressData.reduce((sum, p) => sum + (p.time_spent || 0), 0)
+
+                        const getScoreColor = (score) => {
+                          if (score >= 90) return 'text-green-600 bg-green-100'
+                          if (score >= 75) return 'text-blue-600 bg-blue-100'
+                          if (score >= 60) return 'text-yellow-600 bg-yellow-100'
+                          return 'text-red-600 bg-red-100'
+                        }
+
+                        return (
+                          <div key={student_id} className="p-6">
+                            <div className="flex items-center justify-between">
+                              <div className="flex items-center space-x-4">
+                                <div className="flex-shrink-0">
+                                  <div className="w-12 h-12 bg-blue-100 rounded-full flex items-center justify-center">
+                                    <span className="text-blue-600 font-semibold">
+                                      {student.full_name.charAt(0).toUpperCase()}
+                                    </span>
+                                  </div>
+                                </div>
+                                <div>
+                                  <h3 className="text-lg font-medium text-gray-900">{student.full_name}</h3>
+                                  <p className="text-sm text-gray-600">{student.email}</p>
+                                </div>
+                              </div>
+
+                              <div className="flex items-center space-x-6">
+                                <div className="text-center">
+                                  <div className="text-sm font-medium text-gray-900">{completed}/{total}</div>
+                                  <div className="text-xs text-gray-500">Completed</div>
+                                </div>
+                                <div className="text-center">
+                                  <div className={`text-sm font-medium px-2 py-1 rounded-full ${getScoreColor(averageScore)}`}>
+                                    {averageScore}%
+                                  </div>
+                                  <div className="text-xs text-gray-500">Avg Score</div>
+                                </div>
+                                <div className="text-center">
+                                  <div className="text-sm font-medium text-gray-900">{Math.round(totalTime / 60)}m</div>
+                                  <div className="text-xs text-gray-500">Study Time</div>
+                                </div>
+                                <div className="text-center">
+                                  <div className={`text-sm font-medium px-2 py-1 rounded-full ${getScoreColor(completionRate)}`}>
+                                    {completionRate}%
+                                  </div>
+                                  <div className="text-xs text-gray-500">Progress</div>
+                                </div>
+                              </div>
+                            </div>
+                          </div>
+                        )
+                      })}
+                    </div>
+                  )}
+                </div>
+              </div>
+            </div>
+          ) : (
+            <>
+              {/* Hero Image Section */}
+              {level?.thumbnail_url && (
             <div className="mb-6 relative h-48 rounded-xl overflow-hidden">
               <img
                 src={level.thumbnail_url}
@@ -1050,6 +1254,8 @@ const UnitList = () => {
                 </Button>
               )}
             </div>
+          )}
+            </>
           )}
         </div>
       </div>
