@@ -684,11 +684,16 @@ const DragDropExercise = () => {
                   ? 'bg-gray-600 text-white hover:bg-gray-700'
                   : 'bg-blue-600 text-white hover:bg-blue-700'
               }`}
+              style={{
+                boxShadow: questionsChecked[currentQuestionIndex]
+                  ? '0 4px 0 0 #282e37'
+                  : '0 4px 0 0 #1c47a6'
+              }}
             >
               <CheckCircle className="w-4 h-4" />
               {questionsChecked[currentQuestionIndex] ? 'Checked' : 'Check'}
             </button>
-            
+
             <button
               onClick={() => resetQuestion(currentQuestionIndex)}
               className={`px-6 py-2 text-white rounded-lg flex items-center gap-2 transition-all ${
@@ -696,6 +701,11 @@ const DragDropExercise = () => {
                   ? 'bg-green-600 hover:bg-green-700'
                   : 'bg-gray-600 hover:bg-gray-700'
               }`}
+              style={{
+                boxShadow: showResult && !isCorrect
+                  ? '0 4px 0 0 #46a302'
+                  : '0 4px 0 0 #282e37'
+              }}
             >
               <RotateCcw className="w-4 h-4" />
               Reset
@@ -705,6 +715,7 @@ const DragDropExercise = () => {
               <button
                 onClick={prevQuestion}
                 className="px-6 py-2 bg-gray-500 text-white rounded-lg hover:bg-gray-600"
+                style={{ boxShadow: '0 4px 0 0 #4b505b' }}
               >
                 Previous
               </button>
@@ -719,6 +730,11 @@ const DragDropExercise = () => {
                     ? 'bg-green-600 text-white hover:bg-green-700'
                     : 'bg-gray-300 text-gray-500 cursor-not-allowed'
                 }`}
+                style={{
+                  boxShadow: questionsChecked[currentQuestionIndex]
+                    ? '0 4px 0 0 #46a302'
+                    : '0 4px 0 0 #b7b7b7'
+                }}
                 title={!questionsChecked[currentQuestionIndex] ? 'Please check your answer first' : ''}
               >
                 Next
@@ -732,6 +748,11 @@ const DragDropExercise = () => {
                     ? 'bg-blue-600 text-white hover:bg-blue-700'
                     : 'bg-gray-300 text-gray-500 cursor-not-allowed'
                 }`}
+                style={{
+                  boxShadow: questionsChecked[currentQuestionIndex]
+                    ? '0 4px 0 0 #1c47a6'
+                    : '0 4px 0 0 #b7b7b7'
+                }}
                 title={!questionsChecked[currentQuestionIndex] ? 'Please check your answer first' : ''}
               >
                 Finish

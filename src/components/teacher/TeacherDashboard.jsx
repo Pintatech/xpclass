@@ -33,12 +33,22 @@ const TeacherDashboard = () => {
   const [loading, setLoading] = useState(false);
   const [expandedStudent, setExpandedStudent] = useState(null);
   const [currentView, setCurrentView] = useState('overview'); // 'overview' or 'matrix'
+  const [hasLoadedCourses, setHasLoadedCourses] = useState(false);
 
   useEffect(() => {
-    if (user && !authLoading) {
+    console.log('🔄 Effect triggered:', {
+      hasUser: !!user,
+      userId: user?.id,
+      authLoading,
+      hasLoadedCourses
+    });
+
+    if (user && !authLoading && !hasLoadedCourses) {
+      console.log('✅ Conditions met, fetching courses...');
       fetchTeacherCourses();
+      setHasLoadedCourses(true);
     }
-  }, [user, authLoading, profile]);
+  }, [user, authLoading, hasLoadedCourses]);
 
   useEffect(() => {
     if (selectedCourse) {
@@ -49,32 +59,57 @@ const TeacherDashboard = () => {
 
   const fetchTeacherCourses = async () => {
     try {
-      console.log('Admin check:', isAdmin(), 'Profile:', user?.profile, 'User metadata:', user?.user_metadata);
+      console.log('🔍 Fetching courses for user:', user?.id);
 
-      let query = supabase
-        .from('courses')
-        .select('id, title, level_number, description, teacher_id')
-        .eq('is_active', true)
-        .order('level_number');
-
-      // If user is admin, fetch all courses. Otherwise, fetch only teacher's courses
+      // If user is admin, fetch all courses. Otherwise, fetch only teacher's assigned courses
       if (!isAdmin()) {
-        console.log('Not admin, filtering by teacher_id:', user.id);
-        query = query.eq('teacher_id', user.id);
+        console.log('Not admin, fetching via course_teachers junction table');
+
+        // Get courses via course_teachers junction table
+        const { data: courseTeachers, error: ctError } = await supabase
+          .from('course_teachers')
+          .select(`
+            course:courses(id, title, level_number, description, teacher_id, is_active)
+          `)
+          .eq('teacher_id', user.id);
+
+        if (ctError) throw ctError;
+
+        // Extract and filter active courses
+        const teacherCourses = (courseTeachers || [])
+          .map(ct => ct.course)
+          .filter(c => c && c.is_active)
+          .sort((a, b) => a.level_number - b.level_number);
+
+        console.log('📊 Courses fetched:', teacherCourses);
+
+        setCourses(teacherCourses);
+        if (teacherCourses.length > 0) {
+          setSelectedCourse(teacherCourses[0].id);
+        }
       } else {
-        console.log('Admin detected, fetching all courses');
+        console.log('Admin user, fetching all courses');
+
+        const { data, error } = await supabase
+          .from('courses')
+          .select('id, title, level_number, description, teacher_id')
+          .eq('is_active', true)
+          .order('level_number');
+
+        if (error) throw error;
+
+        console.log('📊 Courses fetched:', data);
+
+        setCourses(data || []);
+        if (data?.length > 0) {
+          setSelectedCourse(data[0].id);
+        }
       }
 
-      const { data, error } = await query;
-
-      if (error) throw error;
-      
-      setCourses(data || []);
-      if (data?.length > 0) {
-        setSelectedCourse(data[0].id);
-      }
+      console.log('✅ Courses loaded successfully');
     } catch (error) {
-      console.error('Error fetching teacher courses:', error);
+      console.error('❌ Error fetching teacher courses:', error);
+      setCourses([]);
     }
   };
 
@@ -490,7 +525,9 @@ const TeacherDashboard = () => {
                           <div className="text-xs text-gray-500">Study Time</div>
                         </div>
                         <div className="text-center">
-                          <div className="text-sm font-medium text-gray-900">{stats.completionRate}%</div>
+                          <div className={`text-sm font-medium px-2 py-1 rounded-full ${getScoreColor(stats.completionRate)}`}>
+                            {stats.completionRate}%
+                          </div>
                           <div className="text-xs text-gray-500">Progress</div>
                         </div>
                         {isExpanded ? (

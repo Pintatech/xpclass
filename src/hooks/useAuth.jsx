@@ -1,4 +1,4 @@
-import { createContext, useContext, useEffect, useState } from 'react'
+import { createContext, useContext, useEffect, useState, useRef } from 'react'
 import { supabase } from '../supabase/client'
 
 const AuthContext = createContext({})
@@ -15,6 +15,8 @@ export const AuthProvider = ({ children }) => {
   const [user, setUser] = useState(null)
   const [profile, setProfile] = useState(null)
   const [loading, setLoading] = useState(true)
+  const initializedRef = useRef(false)
+  const currentUserIdRef = useRef(null)
 
   useEffect(() => {
     // Timeout to prevent infinite loading
@@ -25,8 +27,9 @@ export const AuthProvider = ({ children }) => {
     // Get initial session
     const getInitialSession = async () => {
       try {
+        console.log('🔐 Getting initial session...')
         const { data: { session }, error } = await supabase.auth.getSession()
-        
+
         if (error) {
           console.error('Error getting session:', error)
           setLoading(false)
@@ -34,16 +37,20 @@ export const AuthProvider = ({ children }) => {
         }
 
         if (session?.user) {
+          console.log('👤 User found:', session.user.id)
           setUser(session.user)
           // Fetch profile and wait for it to complete
-          fetchUserProfile(session.user.id).catch(error => {
+          await fetchUserProfile(session.user.id).catch(error => {
             console.error('Initial profile fetch failed:', error)
             setProfile(null)
           })
+        } else {
+          console.log('❌ No session found')
         }
       } catch (error) {
         console.error('Error in getInitialSession:', error)
       } finally {
+        console.log('✅ Setting loading to false')
         clearTimeout(loadingTimeout)
         setLoading(false)
       }
@@ -51,30 +58,36 @@ export const AuthProvider = ({ children }) => {
 
     getInitialSession()
 
-    // Listen for auth changes with debouncing
+    // Listen for auth changes
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
       async (event, session) => {
-        // Only log significant events, ignore redundant SIGNED_IN events
-        if (event !== 'SIGNED_IN' || !user) {
-          console.log('Auth event:', event)
+        console.log('Auth event:', event)
+
+        // Skip INITIAL_SESSION if we already initialized
+        if (event === 'INITIAL_SESSION' && initializedRef.current) {
+          return
         }
 
-        // Skip redundant SIGNED_IN events if user is already set
-        if (event === 'SIGNED_IN' && user && session?.user?.id === user.id) {
-          return
+        if (event === 'INITIAL_SESSION') {
+          initializedRef.current = true
         }
 
         try {
           if (session?.user) {
-            setUser(session.user)
-            // Only fetch profile if user changed or not already loaded
-            if (!user || session.user.id !== user.id || !profile) {
-              fetchUserProfile(session.user.id).catch(error => {
-                console.error('Profile fetch failed:', error)
-                setProfile(null)
-              })
+            // Skip if same user to prevent duplicate fetches
+            if (currentUserIdRef.current === session.user.id) {
+              console.log('Same user, skipping duplicate fetch')
+              return
             }
+
+            currentUserIdRef.current = session.user.id
+            setUser(session.user)
+            await fetchUserProfile(session.user.id).catch(error => {
+              console.error('Profile fetch failed:', error)
+              setProfile(null)
+            })
           } else {
+            currentUserIdRef.current = null
             setUser(null)
             setProfile(null)
           }
@@ -94,40 +107,29 @@ export const AuthProvider = ({ children }) => {
   }, [])
 
   const fetchUserProfile = async (userId) => {
-    // Set timeout for profile fetch to prevent hanging
-    const timeoutPromise = new Promise((_, reject) => 
-      setTimeout(() => reject(new Error('Profile fetch timeout')), 3000)
-    )
-    
     try {
+      console.log('📝 Fetching profile for user:', userId)
+
+      // Add timeout to prevent hanging
+      const timeoutPromise = new Promise((_, reject) =>
+        setTimeout(() => reject(new Error('Profile fetch timeout')), 3000)
+      )
+
       const fetchPromise = supabase
-        .from('users')
-        .select('*')
-        .eq('id', userId)
+        .rpc('get_user_profile', { user_id: userId })
         .single()
 
-      // Race between fetch and timeout
       const { data, error } = await Promise.race([fetchPromise, timeoutPromise])
 
       if (error) {
-        // If profile doesn't exist, we'll set profile to null but still continue
-        if (error.code === 'PGRST116') {
-          // User profile not found - this is expected for new users
-          setProfile(null)
-        } else {
-          console.error('Error fetching user profile:', error)
-          setProfile(null)
-        }
+        console.error('❌ Error fetching user profile:', error)
+        setProfile(null)
       } else {
+        console.log('✅ Profile fetched:', data)
         setProfile(data)
       }
     } catch (error) {
-      if (error.message === 'Profile fetch timeout') {
-        console.warn('Profile fetch timed out - continuing without profile')
-      } else {
-        console.error('Error in fetchUserProfile:', error)
-      }
-      
+      console.error('❌ Error in fetchUserProfile:', error)
       setProfile(null)
     }
   }

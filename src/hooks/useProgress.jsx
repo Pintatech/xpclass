@@ -305,7 +305,7 @@ export const ProgressProvider = ({ children }) => {
     if (!user || !profile) return
 
     try {
-      // Get today's date in Vietnam timezone (for streak logic)
+      // Get today's date in Vietnam timezone
       const vietnamToday = getVietnamDate()
       const lastActivity = profile.last_activity_date
 
@@ -313,17 +313,14 @@ export const ProgressProvider = ({ children }) => {
 
       let newStreakCount = profile.streak_count || 0
 
+      // Only increment if this is a new day (not consecutive)
       if (lastActivity) {
-        // Calculate days difference using Vietnam timezone
         const daysDiff = daysDifferenceVietnam(vietnamToday, lastActivity)
         console.log('🔥 Days difference (Vietnam time):', daysDiff)
 
-        if (daysDiff === 1) {
-          // Consecutive day
+        if (daysDiff > 0) {
+          // New day - increment total days count
           newStreakCount += 1
-        } else if (daysDiff > 1) {
-          // Streak broken
-          newStreakCount = 1
         }
         // If daysDiff === 0, it's the same day, no change
       } else {
@@ -335,8 +332,8 @@ export const ProgressProvider = ({ children }) => {
         .from('users')
         .update({
           streak_count: newStreakCount,
-          last_activity_date: vietnamToday, // Store Vietnam date for streak logic
-          updated_at: new Date().toISOString() // Keep UTC for updated_at
+          last_activity_date: vietnamToday,
+          updated_at: new Date().toISOString()
         })
         .eq('id', user.id)
 

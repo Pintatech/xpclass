@@ -61,11 +61,11 @@ const FlashcardExercise = () => {
           *,
           units:unit_id (
             *,
-            levels:level_id (*)
+            courses:course_id (*)
           )
         `)
         .eq('id', sessionId)
-        .single()
+        .maybeSingle()
 
       if (error) throw error
       setSession(data)
@@ -84,7 +84,7 @@ const FlashcardExercise = () => {
         .select('*')
         .eq('id', exerciseId)
         .eq('exercise_type', 'flashcard')
-        .single()
+        .maybeSingle()
 
       if (error) throw error
 

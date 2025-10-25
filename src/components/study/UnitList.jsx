@@ -496,7 +496,11 @@ const UnitList = () => {
           fill_blank: '/study/fill-blank',
           snake_ladder: '/study/snake-ladder',
           two_player: '/study/two-player-game',
-          multiple_choice: '/study/multiple-choice'
+          multiple_choice: '/study/multiple-choice',
+          drag_drop: '/study/drag-drop',
+          ai_fill_blank: '/study/ai-fill-blank',
+          dropdown: '/study/dropdown',
+          pronunciation: '/study/pronunciation'
         }
         const exercisePath = paths[exercise.exercise_type] || '/study/flashcard'
         // Use course route
@@ -634,6 +638,13 @@ const UnitList = () => {
     const isLocked = !canAccess
     const progressPercentage = progress?.progress_percentage || 0
 
+    // Determine shadow color based on status
+    const getShadowColor = () => {
+      if (status === 'completed') return '0 4px 0 0 #46a302' // Green shadow
+      if (progressPercentage > 0) return '0 4px 0 0 #cc7800' // Orange shadow
+      return '0 4px 0 0 rgba(0, 0, 0, 0.4)' // Darker gray shadow
+    }
+
     return (
       <div
         key={session.id}
@@ -641,12 +652,15 @@ const UnitList = () => {
         className={`block ${isLocked ? 'cursor-not-allowed' : 'cursor-pointer'} w-full h-full`}
       >
         <div
-          className={`relative overflow-hidden rounded-lg border border-gray-400 transition-all duration-300 ${
+          className={`relative overflow-hidden rounded-lg transition-all duration-300 ${
             isLocked
               ? 'opacity-60'
-              : 'hover:shadow-md hover:scale-105 hover:border-gray-500'
+              : 'hover:scale-105'
           } w-full h-full bg-gray-200`}
-          style={{ aspectRatio: '1' }}
+          style={{
+            aspectRatio: '1',
+            boxShadow: getShadowColor()
+          }}
         >
           {/* Progress bar from bottom */}
           {progressPercentage > 0 && status !== 'completed' && (
@@ -658,7 +672,7 @@ const UnitList = () => {
 
           {/* Completed overlay */}
           {status === 'completed' && (
-            <div className="absolute inset-0 bg-green-500 z-10" />
+            <div className="absolute inset-0 z-10" style={{ backgroundColor: '#58cc02' }} />
           )}
 
           {/* Crown icon for completed sessions */}
