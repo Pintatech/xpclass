@@ -87,11 +87,17 @@ const AssignExerciseModal = ({ sessionId, onClose, onAssigned }) => {
         return {
           ...folder,
           display_name: hierarchy.join(' > '),
-          indent_level: hierarchy.length - 1
+          indent_level: hierarchy.length - 1,
+          full_path: hierarchy.join(' > ')
         }
       })
 
-      setFolders(foldersWithHierarchy || [])
+      // Sort by full path to keep parent-child folders together
+      const sortedFolders = foldersWithHierarchy?.sort((a, b) => {
+        return a.full_path.localeCompare(b.full_path, undefined, { numeric: true, sensitivity: 'base' })
+      })
+
+      setFolders(sortedFolders || [])
     } catch (err) {
       console.error('Error fetching folders:', err)
     }

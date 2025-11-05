@@ -852,6 +852,7 @@ const MultipleChoiceExercise = () => {
                   {currentQuestion.audio_url && (
                     <div className="mt-4">
                       <AudioPlayer
+                        key={currentQuestionIndex}
                         audioUrl={currentQuestion.audio_url}
                         maxPlays={currentQuestion.max_audio_plays || 0}
                         variant="outline"
@@ -996,6 +997,7 @@ const MultipleChoiceExercise = () => {
                       {question.audio_url && (
                         <div className="mt-4">
                           <AudioPlayer
+                            key={questionIndex}
                             audioUrl={question.audio_url}
                             maxPlays={question.max_audio_plays || 0}
                             variant="outline"

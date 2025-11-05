@@ -995,7 +995,15 @@ const UnitList = () => {
                         <p className="text-sm text-gray-600">Avg Completion</p>
                         <p className="text-2xl font-bold text-gray-900">
                           {courseStudents.length > 0
-                            ? Math.round(studentProgress.filter(p => p.status === 'completed').length / courseStudents.length)
+                            ? Math.round(
+                                courseStudents.reduce((sum, { student_id }) => {
+                                  const studentData = studentProgress.filter(p => p.user_id === student_id)
+                                  const completed = studentData.filter(p => p.status === 'completed').length
+                                  const total = studentData.length
+                                  const completionRate = total > 0 ? (completed / total) * 100 : 0
+                                  return sum + completionRate
+                                }, 0) / courseStudents.length
+                              )
                             : 0}%
                         </p>
                       </div>
@@ -1196,7 +1204,7 @@ const UnitList = () => {
                       ))}
                     </div>
                   ) : (
-                    <div className="text-center py-8 bg-gray-50 rounded-lg border-2 border-dashed border-gray-300">        
+                    <div className="text-center py-8 bg-gray-50 rounded-lg border-2 border-dashed border-gray-300">
                       {canCreateContent() ? (
                         <Button
                           onClick={() => {

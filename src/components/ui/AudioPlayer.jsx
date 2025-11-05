@@ -11,6 +11,8 @@ import Button from './Button'
  * @param {string} className - Additional CSS classes
  * @param {function} onPlayComplete - Callback when audio finishes playing
  * @param {function} onLimitReached - Callback when play limit is reached
+ * @param {number} externalPlayCount - External play count (for shared limits across multiple instances)
+ * @param {function} onPlay - Callback when play button is clicked (to increment external count)
  */
 const AudioPlayer = ({
   audioUrl,
@@ -19,12 +21,17 @@ const AudioPlayer = ({
   className = '',
   onPlayComplete,
   onLimitReached,
-  disabled = false
+  disabled = false,
+  externalPlayCount,
+  onPlay
 }) => {
-  const [playCount, setPlayCount] = useState(0)
+  const [internalPlayCount, setInternalPlayCount] = useState(0)
   const [isPlaying, setIsPlaying] = useState(false)
   const [hasReachedLimit, setHasReachedLimit] = useState(false)
   const audioRef = useRef(null)
+
+  // Use external play count if provided, otherwise use internal
+  const playCount = externalPlayCount !== undefined ? externalPlayCount : internalPlayCount
 
   // Check if limit is reached
   useEffect(() => {
@@ -66,7 +73,13 @@ const AudioPlayer = ({
     // Play the audio
     audioRef.current.play()
       .then(() => {
-        setPlayCount(prev => prev + 1)
+        // If external play count is managed, call onPlay callback
+        if (onPlay) {
+          onPlay()
+        } else {
+          // Otherwise use internal state
+          setInternalPlayCount(prev => prev + 1)
+        }
       })
       .catch(err => {
         console.error('Error playing audio:', err)

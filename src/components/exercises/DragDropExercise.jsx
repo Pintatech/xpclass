@@ -273,22 +273,37 @@ const DragDropExercise = () => {
     const question = exercise.content.questions[questionIndex]
     const userAnswer = userAnswers[questionIndex] || {}
 
-    // Convert user answer to array in correct order
-    const userOrder = question.drop_zones.map(zone => userAnswer[zone.id] || null)
-    const correctOrder = question.correct_order
+    // Convert user answer to array with text values
+    const userOrder = question.drop_zones.map(zone => {
+      const itemId = userAnswer[zone.id]
+      if (!itemId) return null
+      const item = question.items.find(i => i.id === itemId)
+      return item ? item.text : null
+    })
+
+    // Convert correct order to text values
+    const correctOrder = question.correct_order.map(itemId => {
+      if (!itemId) return null
+      const item = question.items.find(i => i.id === itemId)
+      return item ? item.text : null
+    })
 
     const isAnswerCorrect = JSON.stringify(userOrder) === JSON.stringify(correctOrder)
     setIsCorrect(isAnswerCorrect)
     setShowResult(true)
 
-    // Calculate feedback for each drop zone
+    // Calculate feedback for each drop zone based on text values
     const feedback = {}
     question.drop_zones.forEach((zone, index) => {
       const userItemId = userAnswer[zone.id]
-      const correctItemId = correctOrder[index]
+      const correctItemId = question.correct_order[index]
 
       if (userItemId) {
-        feedback[zone.id] = userItemId === correctItemId ? 'correct' : 'incorrect'
+        const userItem = question.items.find(i => i.id === userItemId)
+        const correctItem = question.items.find(i => i.id === correctItemId)
+
+        // Compare by text content, not ID
+        feedback[zone.id] = userItem?.text === correctItem?.text ? 'correct' : 'incorrect'
       }
     })
 
@@ -324,21 +339,39 @@ const DragDropExercise = () => {
       const totalTimeSpent = startTime ? Math.floor((currentTime - startTime) / 1000) : 0
       setTimeSpent(totalTimeSpent)
 
-      // Check if all questions are completed
+      // Check if all questions are completed (compare by text values)
       const allQuestionsCompleted = exercise.content.questions.every((_, index) => {
         const userAnswer = userAnswers[index] || {}
         const question = exercise.content.questions[index]
-        const userOrder = question.drop_zones.map(zone => userAnswer[zone.id] || null)
-        const correctOrder = question.correct_order
+        const userOrder = question.drop_zones.map(zone => {
+          const itemId = userAnswer[zone.id]
+          if (!itemId) return null
+          const item = question.items.find(i => i.id === itemId)
+          return item ? item.text : null
+        })
+        const correctOrder = question.correct_order.map(itemId => {
+          if (!itemId) return null
+          const item = question.items.find(i => i.id === itemId)
+          return item ? item.text : null
+        })
         return JSON.stringify(userOrder) === JSON.stringify(correctOrder)
       })
 
-      // Calculate score based on correct answers
+      // Calculate score based on correct answers (compare by text values)
       const correctAnswers = exercise.content.questions.filter((_, index) => {
         const userAnswer = userAnswers[index] || {}
         const question = exercise.content.questions[index]
-        const userOrder = question.drop_zones.map(zone => userAnswer[zone.id] || null)
-        const correctOrder = question.correct_order
+        const userOrder = question.drop_zones.map(zone => {
+          const itemId = userAnswer[zone.id]
+          if (!itemId) return null
+          const item = question.items.find(i => i.id === itemId)
+          return item ? item.text : null
+        })
+        const correctOrder = question.correct_order.map(itemId => {
+          if (!itemId) return null
+          const item = question.items.find(i => i.id === itemId)
+          return item ? item.text : null
+        })
         return JSON.stringify(userOrder) === JSON.stringify(correctOrder)
       }).length
 

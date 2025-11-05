@@ -49,6 +49,11 @@ const PronunciationExercise = () => {
   const [audioUrl, setAudioUrl] = useState(null)
   const [showExplanation, setShowExplanation] = useState(false)
 
+  // Timer state
+  const [timeRemaining, setTimeRemaining] = useState(null)
+  const [timerActive, setTimerActive] = useState(false)
+  const timerIntervalRef = useRef(null)
+
   // Azure Speech SDK refs
   const recognizerRef = useRef(null)
   const audioConfigRef = useRef(null)
@@ -78,6 +83,62 @@ const PronunciationExercise = () => {
       markExerciseCompleted()
     }
   }, [isQuizComplete, questionResults.length])
+
+  // Timer management - start timer when question changes
+  useEffect(() => {
+    if (questions.length > 0 && currentQuestionIndex < questions.length) {
+      const currentQuestion = questions[currentQuestionIndex]
+      const timeLimit = currentQuestion?.time_limit || 0
+
+      // Clear any existing timer
+      if (timerIntervalRef.current) {
+        clearInterval(timerIntervalRef.current)
+      }
+
+      if (timeLimit > 0) {
+        setTimeRemaining(timeLimit)
+        setTimerActive(true)
+      } else {
+        setTimeRemaining(null)
+        setTimerActive(false)
+      }
+    }
+
+    return () => {
+      if (timerIntervalRef.current) {
+        clearInterval(timerIntervalRef.current)
+      }
+    }
+  }, [currentQuestionIndex, questions])
+
+  // Timer countdown
+  useEffect(() => {
+    if (timerActive && timeRemaining !== null && timeRemaining > 0) {
+      timerIntervalRef.current = setInterval(() => {
+        setTimeRemaining(prev => {
+          if (prev <= 1) {
+            clearInterval(timerIntervalRef.current)
+            setTimerActive(false)
+            // Auto-submit when time runs out
+            handleTimeUp()
+            return 0
+          }
+          return prev - 1
+        })
+      }, 1000)
+    }
+
+    return () => {
+      if (timerIntervalRef.current) {
+        clearInterval(timerIntervalRef.current)
+      }
+    }
+  }, [timerActive, timeRemaining])
+
+  const handleTimeUp = () => {
+    // Auto-submit with current scores (or 0 if not recorded)
+    handleNextQuestion()
+  }
 
   const fetchSessionInfo = async () => {
     try {
@@ -401,6 +462,21 @@ const PronunciationExercise = () => {
               ></div>
             </div>
           </div>
+
+          {/* Timer */}
+          {timeRemaining !== null && (
+            <div className="mt-4 p-3 bg-orange-50 border border-orange-200 rounded-lg">
+              <div className="flex items-center justify-between">
+                <span className="text-sm font-medium text-orange-800">Time Remaining</span>
+                <span className={`text-2xl font-bold ${timeRemaining <= 10 ? 'text-red-600 animate-pulse' : 'text-orange-600'}`}>
+                  {Math.floor(timeRemaining / 60)}:{String(timeRemaining % 60).padStart(2, '0')}
+                </span>
+              </div>
+              {timeRemaining <= 10 && (
+                <p className="text-xs text-red-600 mt-1">⚠️ Question will auto-submit soon!</p>
+              )}
+            </div>
+          )}
         </div>
 
         {/* XP Notification */}
@@ -513,38 +589,50 @@ const PronunciationExercise = () => {
               </div>
 
               {/* Pronunciation Results */}
-              {showExplanation && pronunciationScore !== null && (
+              {showExplanation && (
                 <div className="space-y-4">
-                  <div className="p-4 bg-blue-50 border border-blue-200 rounded-lg">
-                    <h3 className="font-semibold text-blue-900 mb-3">Your Pronunciation:</h3>
-                    <div className="space-y-2">
-                      <div className="flex justify-between items-center">
-                        <span className="text-sm text-gray-700">Overall Score:</span>
-                        <span className={`text-2xl font-bold ${getScoreColor(pronunciationScore)}`}>
-                          {Math.round(pronunciationScore)}%
-                        </span>
+                  {pronunciationScore !== null && typeof pronunciationScore === 'number' && !isNaN(pronunciationScore) ? (
+                    <div className="p-4 bg-blue-50 border border-blue-200 rounded-lg">
+                      <h3 className="font-semibold text-blue-900 mb-3">Your Pronunciation:</h3>
+                      <div className="space-y-2">
+                        <div className="flex justify-between items-center">
+                          <span className="text-sm text-gray-700">Overall Score:</span>
+                          <span className={`text-2xl font-bold ${getScoreColor(pronunciationScore)}`}>
+                            {Math.round(pronunciationScore)}%
+                          </span>
+                        </div>
+                        <div className="flex justify-between items-center">
+                          <span className="text-sm text-gray-700">Accuracy:</span>
+                          <span className={`font-semibold ${getScoreColor(accuracyScore)}`}>
+                            {Math.round(accuracyScore || 0)}%
+                          </span>
+                        </div>
+                        <div className="flex justify-between items-center">
+                          <span className="text-sm text-gray-700">Fluency:</span>
+                          <span className={`font-semibold ${getScoreColor(fluencyScore)}`}>
+                            {Math.round(fluencyScore || 0)}%
+                          </span>
+                        </div>
+                        <div className="flex justify-between items-center">
+                          <span className="text-sm text-gray-700">Completeness:</span>
+                          <span className={`font-semibold ${getScoreColor(completenessScore)}`}>
+                            {Math.round(completenessScore || 0)}%
+                          </span>
+                        </div>
                       </div>
-                      <div className="flex justify-between items-center">
-                        <span className="text-sm text-gray-700">Accuracy:</span>
-                        <span className={`font-semibold ${getScoreColor(accuracyScore)}`}>
-                          {Math.round(accuracyScore)}%
-                        </span>
-                      </div>
-                      <div className="flex justify-between items-center">
-                        <span className="text-sm text-gray-700">Fluency:</span>
-                        <span className={`font-semibold ${getScoreColor(fluencyScore)}`}>
-                          {Math.round(fluencyScore)}%
-                        </span>
-                      </div>
-                      <div className="flex justify-between items-center">
-                        <span className="text-sm text-gray-700">Completeness:</span>
-                        <span className={`font-semibold ${getScoreColor(completenessScore)}`}>
-                          {Math.round(completenessScore)}%
-                        </span>
-                      </div>
+                      <p className="mt-3 text-sm text-blue-800">{getScoreMessage(pronunciationScore)}</p>
                     </div>
-                    <p className="mt-3 text-sm text-blue-800">{getScoreMessage(pronunciationScore)}</p>
-                  </div>
+                  ) : (
+                    <div className="p-4 bg-red-50 border border-red-200 rounded-lg">
+                      <h3 className="font-semibold text-red-900 mb-2">Recording Issue</h3>
+                      <p className="text-sm text-red-700">
+                        {transcription || 'Could not analyze your pronunciation. Please try recording again.'}
+                      </p>
+                      <p className="text-xs text-red-600 mt-2">
+                        Make sure your microphone is working and you spoke clearly.
+                      </p>
+                    </div>
+                  )}
 
                   {/* Next Button */}
                   <div className="flex justify-center md:justify-end">
