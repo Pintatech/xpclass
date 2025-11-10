@@ -70,8 +70,68 @@ const DragDropExercise = () => {
   const [timeSpent, setTimeSpent] = useState(0)
   const [itemFeedback, setItemFeedback] = useState({}) // Track correct/incorrect for each item
   const [isBatmanMoving, setIsBatmanMoving] = useState(false)
+  const [currentMeme, setCurrentMeme] = useState('')
+  const [showMeme, setShowMeme] = useState(false)
   const { user } = useAuth()
   const { completeExerciseWithXP } = useProgress()
+
+  // Meme arrays
+  const correctMemes = [
+    'https://xpclass.vn/leaderboard/correct_image/plus12.png',
+    'https://xpclass.vn/leaderboard/correct_image/plus13.png',
+    'https://xpclass.vn/leaderboard/correct_image/plus14.png',
+    'https://xpclass.vn/leaderboard/correct_image/plus32.png',
+    'https://xpclass.vn/leaderboard/correct_image/plus34.png',
+    'https://xpclass.vn/leaderboard/correct_image/drake%20yes.jpg',
+    'https://xpclass.vn/leaderboard/correct_image/tapping%20head.jpg'
+  ]
+
+  const wrongMemes = [
+    'https://xpclass.vn/leaderboard/wrong_image/Black-Girl-Wat.png',
+    'https://xpclass.vn/leaderboard/wrong_image/drake.jpg',
+    'https://xpclass.vn/leaderboard/wrong_image/leo%20laugh.jpg',
+    'https://xpclass.vn/leaderboard/wrong_image/nick%20young.jpg',
+    'https://xpclass.vn/leaderboard/wrong_image/tom.jpg',
+    'https://xpclass.vn/leaderboard/wrong_image/you-guys-are-getting-paid.jpg'
+  ]
+
+  // Sound URLs
+  const correctSounds = [
+    'https://xpclass.vn/leaderboard/sound/lingo.mp3',
+  ]
+
+  const wrongSounds = [
+    'https://xpclass.vn/leaderboard/sound/Bruh.mp3'
+  ]
+
+  // Function to play sound and show meme
+  const playFeedback = (isCorrect) => {
+    // Select random meme
+    const memes = isCorrect ? correctMemes : wrongMemes
+    const randomMeme = memes[Math.floor(Math.random() * memes.length)]
+
+    // Select random sound
+    const sounds = isCorrect ? correctSounds : wrongSounds
+    const randomSound = sounds[Math.floor(Math.random() * sounds.length)]
+
+    // Show meme
+    setCurrentMeme(randomMeme)
+    setShowMeme(true)
+
+    // Play sound
+    try {
+      const audio = new Audio(randomSound)
+      audio.volume = 0.5
+      audio.play().catch(e => console.log('Could not play sound:', e))
+    } catch (e) {
+      console.log('Sound not supported:', e)
+    }
+
+    // Hide meme after 2 seconds
+    setTimeout(() => {
+      setShowMeme(false)
+    }, 2000)
+  }
 
   useEffect(() => {
     fetchExercise()
@@ -291,6 +351,9 @@ const DragDropExercise = () => {
     const isAnswerCorrect = JSON.stringify(userOrder) === JSON.stringify(correctOrder)
     setIsCorrect(isAnswerCorrect)
     setShowResult(true)
+
+    // Play feedback (meme + sound)
+    playFeedback(isAnswerCorrect)
 
     // Calculate feedback for each drop zone based on text values
     const feedback = {}
@@ -573,6 +636,18 @@ const DragDropExercise = () => {
             </div>
           </div>
         </div>
+
+        {/* Meme Overlay */}
+        {showMeme && (
+          <div className="fixed inset-0 flex items-center justify-center z-50 pointer-events-none">
+            <img
+              src={currentMeme}
+              alt="Reaction meme"
+              className="rounded-lg shadow-2xl"
+              style={{ width: '200px', height: 'auto' }}
+            />
+          </div>
+        )}
 
         {/* Main Content */}
         <div className="w-full max-w-4xl min-w-0 mx-auto rounded-lg p-4 md:p-8 bg-white shadow-md border border-gray-200" style={{ userSelect: 'none' }}>
