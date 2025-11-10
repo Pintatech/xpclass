@@ -220,10 +220,16 @@ const MultipleChoiceExercise = () => {
           const shuffledOptions = shuffledOptionsMap.map(item => item.option)
           const newCorrectIndex = shuffledOptionsMap.findIndex(item => item.originalIndex === q.correct_answer)
 
+          // Shuffle option_explanations in the same order as options
+          const shuffledOptionExplanations = q.option_explanations
+            ? shuffledOptionsMap.map(item => q.option_explanations[item.originalIndex])
+            : undefined
+
           return {
             ...q,
             options: shuffledOptions,
             correct_answer: newCorrectIndex,
+            option_explanations: shuffledOptionExplanations,
             _originalOptions: q.options, // Keep original for reference
             _originalCorrectAnswer: q.correct_answer
           }
