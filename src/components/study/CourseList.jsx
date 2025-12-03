@@ -5,8 +5,7 @@ import { useAuth } from '../../hooks/useAuth'
 import Card from '../ui/Card'
 import Button from '../ui/Button'
 // Thay spinner bằng skeleton để tránh chớp màn hình khi điều hướng
-import { 
-  Star, 
+import {  
   Lock, 
   CheckCircle, 
   BookOpen, 

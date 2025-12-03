@@ -2,7 +2,7 @@ import React, { useEffect, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { supabase } from '../../supabase/client';
 import { useAuth } from '../../hooks/useAuth';
-import { ArrowLeft } from 'lucide-react';
+import { ArrowLeft, Eye, X, CheckCircle, XCircle } from 'lucide-react';
 
 const TeacherExerciseScores = () => {
   const { user, isAdmin } = useAuth();
@@ -19,6 +19,9 @@ const TeacherExerciseScores = () => {
   const [progressRows, setProgressRows] = useState([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
+  const [selectedStudent, setSelectedStudent] = useState(null);
+  const [studentAttempts, setStudentAttempts] = useState([]);
+  const [loadingAttempts, setLoadingAttempts] = useState(false);
 
   useEffect(() => {
     if (user) loadCourses();
@@ -163,6 +166,74 @@ const TeacherExerciseScores = () => {
   const selectedCourseData = courses.find(c => c.id === selectedCourse);
   const selectedExerciseData = exercises.find(e => e.id === selectedExercise);
 
+  const fetchStudentAttempts = async (studentId, studentName) => {
+    if (!selectedExercise) return;
+
+    setLoadingAttempts(true);
+    setSelectedStudent({ id: studentId, name: studentName });
+
+    try {
+      // Fetch question attempts
+      const { data: attemptsData, error: attemptsError } = await supabase
+        .from('question_attempts')
+        .select('*')
+        .eq('user_id', studentId)
+        .eq('exercise_id', selectedExercise)
+        .order('created_at', { ascending: false });
+
+      if (attemptsError) throw attemptsError;
+
+      // Fetch exercise content to get actual questions
+      const { data: exerciseData, error: exerciseError } = await supabase
+        .from('exercises')
+        .select('content')
+        .eq('id', selectedExercise)
+        .single();
+
+      if (exerciseError) throw exerciseError;
+
+      // Group by question_id to show latest attempt
+      const latestAttempts = {};
+      (attemptsData || []).forEach(attempt => {
+        if (!latestAttempts[attempt.question_id] ||
+            new Date(attempt.created_at) > new Date(latestAttempts[attempt.question_id].created_at)) {
+          latestAttempts[attempt.question_id] = attempt;
+        }
+      });
+
+      // Match attempts with actual question text from exercise content
+      const attemptsWithQuestions = Object.values(latestAttempts).map(attempt => {
+        let questionText = 'Question not found';
+
+        // Try to find the question in exercise content
+        if (exerciseData?.content?.questions) {
+          const question = exerciseData.content.questions.find(q => q.id === attempt.question_id);
+          if (question) {
+            // Remove HTML tags and trim for cleaner display
+            questionText = question.question?.replace(/<[^>]*>/g, '').trim() || question.question || 'Question not found';
+          }
+        }
+
+        return {
+          ...attempt,
+          questionText
+        };
+      });
+
+      setStudentAttempts(attemptsWithQuestions);
+    } catch (err) {
+      console.error('Error fetching student attempts:', err);
+      setError(err.message);
+    } finally {
+      setLoadingAttempts(false);
+    }
+  };
+
+  const closeModal = () => {
+    setSelectedStudent(null);
+    setStudentAttempts([]);
+  };
+
   return (
     <div className="space-y-6">
       <div className="flex items-center space-x-4">
@@ -248,6 +319,7 @@ const TeacherExerciseScores = () => {
                 <th className="text-left py-3 px-6 text-gray-500 font-medium">Attempts</th>
                 <th className="text-left py-3 px-6 text-gray-500 font-medium">Time</th>
                 <th className="text-left py-3 px-6 text-gray-500 font-medium">Completed</th>
+                <th className="text-left py-3 px-6 text-gray-500 font-medium">Actions</th>
               </tr>
             </thead>
             <tbody className="divide-y">
@@ -272,6 +344,18 @@ const TeacherExerciseScores = () => {
                     </td>
                     <td className="py-3 px-6 text-sm">{p?.time_spent ? Math.round((p.time_spent || 0)/60)+'m' : '—'}</td>
                     <td className="py-3 px-6 text-sm">{p?.completed_at ? new Date(p.completed_at).toLocaleString() : '—'}</td>
+                    <td className="py-3 px-6 text-sm">
+                      {p && (
+                        <button
+                          onClick={() => fetchStudentAttempts(st.id, st.full_name)}
+                          className="flex items-center space-x-1 text-blue-600 hover:text-blue-800 transition-colors"
+                          title="View detailed attempts"
+                        >
+                          <Eye className="w-4 h-4" />
+                          <span>View Details</span>
+                        </button>
+                      )}
+                    </td>
                   </tr>
                 );
               })}
@@ -282,6 +366,149 @@ const TeacherExerciseScores = () => {
 
       {error && (
         <div className="text-sm text-red-600">{error}</div>
+      )}
+
+      {/* Student Attempts Modal */}
+      {selectedStudent && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-lg shadow-xl max-w-4xl w-full max-h-[90vh] overflow-hidden">
+            {/* Modal Header */}
+            <div className="flex items-center justify-between p-6 border-b">
+              <div>
+                <h2 className="text-2xl font-bold text-gray-900">Question Attempts</h2>
+                <p className="text-sm text-gray-600 mt-1">
+                  {selectedStudent.name} • {selectedExerciseData?.title}
+                </p>
+              </div>
+              <button
+                onClick={closeModal}
+                className="text-gray-400 hover:text-gray-600 transition-colors"
+              >
+                <X className="w-6 h-6" />
+              </button>
+            </div>
+
+            {/* Modal Body */}
+            <div className="p-6 overflow-y-auto max-h-[calc(90vh-120px)]">
+              {loadingAttempts ? (
+                <div className="flex items-center justify-center py-12">
+                  <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
+                  <p className="ml-3 text-gray-600">Loading attempts...</p>
+                </div>
+              ) : studentAttempts.length === 0 ? (
+                <div className="text-center py-12">
+                  <p className="text-gray-600">No question attempts found for this student.</p>
+                </div>
+              ) : (
+                <div className="space-y-4">
+                  {/* Summary Stats */}
+                  <div className="grid grid-cols-3 gap-4 mb-6">
+                    <div className="bg-green-50 border border-green-200 rounded-lg p-4">
+                      <div className="flex items-center space-x-2">
+                        <CheckCircle className="w-5 h-5 text-green-600" />
+                        <span className="text-sm text-gray-600">Correct</span>
+                      </div>
+                      <p className="text-2xl font-bold text-green-700 mt-1">
+                        {studentAttempts.filter(a => a.is_correct).length}
+                      </p>
+                    </div>
+                    <div className="bg-red-50 border border-red-200 rounded-lg p-4">
+                      <div className="flex items-center space-x-2">
+                        <XCircle className="w-5 h-5 text-red-600" />
+                        <span className="text-sm text-gray-600">Incorrect</span>
+                      </div>
+                      <p className="text-2xl font-bold text-red-700 mt-1">
+                        {studentAttempts.filter(a => !a.is_correct).length}
+                      </p>
+                    </div>
+                    <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
+                      <div className="flex items-center space-x-2">
+                        <span className="text-sm text-gray-600">Accuracy</span>
+                      </div>
+                      <p className="text-2xl font-bold text-blue-700 mt-1">
+                        {Math.round((studentAttempts.filter(a => a.is_correct).length / studentAttempts.length) * 100)}%
+                      </p>
+                    </div>
+                  </div>
+
+                  {/* Questions List */}
+                  <div className="space-y-3">
+                    {studentAttempts.map((attempt, index) => (
+                      <div
+                        key={attempt.id}
+                        className={`border-2 rounded-lg p-4 ${
+                          attempt.is_correct
+                            ? 'bg-green-50 border-green-200'
+                            : 'bg-red-50 border-red-200'
+                        }`}
+                      >
+                        <div className="flex items-start justify-between">
+                          <div className="flex-1">
+                            <div className="flex items-center space-x-2 mb-2">
+                              {attempt.is_correct ? (
+                                <CheckCircle className="w-5 h-5 text-green-600 flex-shrink-0" />
+                              ) : (
+                                <XCircle className="w-5 h-5 text-red-600 flex-shrink-0" />
+                              )}
+                              <h4 className="font-semibold text-gray-900">
+                                Question {index + 1}
+                              </h4>
+                              <span className={`text-xs px-2 py-1 rounded-full ${
+                                attempt.is_correct
+                                  ? 'bg-green-200 text-green-800'
+                                  : 'bg-red-200 text-red-800'
+                              }`}>
+                                {attempt.is_correct ? 'Correct' : 'Incorrect'}
+                              </span>
+                            </div>
+
+                            <div className="ml-7 space-y-2">
+                              {attempt.questionText && (
+                                <div className="mb-3 p-3 bg-gray-50 border border-gray-200 rounded">
+                                  <p className="text-sm font-medium text-gray-700 mb-1">Question:</p>
+                                  <p className="text-sm text-gray-900">{attempt.questionText}</p>
+                                </div>
+                              )}
+                              <div>
+                                <p className="text-sm font-medium text-gray-700">Student's Answer:</p>
+                                <p className={`text-sm ${
+                                  attempt.is_correct ? 'text-green-700' : 'text-red-700'
+                                }`}>
+                                  {attempt.selected_answer || 'No answer'}
+                                </p>
+                              </div>
+
+                              {!attempt.is_correct && (
+                                <div>
+                                  <p className="text-sm font-medium text-gray-700">Correct Answer:</p>
+                                  <p className="text-sm text-green-700">
+                                    {attempt.correct_answer}
+                                  </p>
+                                </div>
+                              )}
+
+                              <div className="flex items-center space-x-4 text-xs text-gray-500 mt-2">
+                                {attempt.response_time && (
+                                  <span>Response time: {(attempt.response_time / 1000).toFixed(1)}s</span>
+                                )}
+                                {attempt.attempt_number && (
+                                  <span>Attempt #{attempt.attempt_number}</span>
+                                )}
+                                {attempt.created_at && (
+                                  <span>{new Date(attempt.created_at).toLocaleString()}</span>
+                                )}
+                              </div>
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
       )}
     </div>
   );

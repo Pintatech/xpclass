@@ -46,7 +46,6 @@ const UnitList = () => {
   const [userStats, setUserStats] = useState({ xp: 0, streak: 0 })
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState(null)
-  const [sidebarOpen, setSidebarOpen] = useState(true)
   const [levels, setLevels] = useState([])
   const [allUnits, setAllUnits] = useState([])
   const [showAddUnitModal, setShowAddUnitModal] = useState(false)
@@ -59,32 +58,6 @@ const UnitList = () => {
   const { canCreateContent } = usePermissions()
 
   // Skeletons
-  const SkeletonSidebarItem = ({ withChildren = false }) => (
-    <div className="border-b border-gray-100 animate-pulse">
-      <div className="p-3">
-        <div className="flex items-center space-x-3">
-          <div className="w-8 h-8 rounded-lg bg-gray-200" />
-          <div className="flex-1 min-w-0">
-            <div className="h-3 bg-gray-200 rounded w-2/3 mb-1" />
-            <div className="h-2 bg-gray-100 rounded w-1/3" />
-          </div>
-        </div>
-      </div>
-      {withChildren && (
-        <div className="ml-6 space-y-1 pb-3">
-          {Array.from({ length: 3 }).map((_, j) => (
-            <div key={j} className="px-2">
-              <div className="h-7 bg-gray-50 rounded-lg flex items-center px-2">
-                <div className="w-4 h-4 bg-gray-200 rounded mr-3" />
-                <div className="h-3 bg-gray-200 rounded w-1/2" />
-              </div>
-            </div>
-          ))}
-        </div>
-      )}
-    </div>
-  )
-
   const SkeletonCard = () => (
     <div className="relative overflow-hidden bg-white border rounded-lg p-6 animate-pulse">
       <div className="flex items-center space-x-3 mb-2">
@@ -119,18 +92,14 @@ const UnitList = () => {
       setLoading(true)
       setError(null)
 
-      // Fetch all data in parallel
-      const [levelResult, allLevelsResult, allUnitsResult] = await Promise.all([
-        supabase.from('courses').select('*').eq('id', currentId).single(),
-        supabase.from('courses').select('*').order('level_number'),
-        supabase.from('units').select('*').order('unit_number')
-      ])
+      // Fetch level data
+      const { data: levelData, error: levelError } = await supabase
+        .from('courses')
+        .select('*')
+        .eq('id', currentId)
+        .single()
 
-      if (levelResult.error) throw levelResult.error
-      if (allLevelsResult.error) throw allLevelsResult.error
-      if (allUnitsResult.error) throw allUnitsResult.error
-
-      const levelData = levelResult.data
+      if (levelError) throw levelError
 
       // For students, verify they are enrolled in this course
       if (profile?.role === 'user') {
@@ -362,8 +331,6 @@ const UnitList = () => {
       setSessions(sessionsData || [])
       setUnitProgress(progressMap)
       setSessionProgress(sessionProgressMap)
-      setLevels(allLevelsResult.data || [])
-      setAllUnits(allUnitsResult.data || [])
     } catch (err) {
       console.error('Error fetching units:', err)
       setError('Không thể tải danh sách unit')
@@ -770,17 +737,6 @@ const UnitList = () => {
   if (loading && units.length === 0) {
     return (
       <div className="flex h-screen bg-gray-50">
-        {/* Sidebar skeleton */}
-        <div className="w-80 transition-all duration-300 bg-white border-r border-gray-200 flex flex-col">
-          <div className="p-4 border-b border-gray-200">
-            <div className="h-4 bg-gray-200 rounded w-32 animate-pulse" />
-          </div>
-          <div className="flex-1 overflow-y-auto">
-            {Array.from({ length: 4 }).map((_, i) => (
-              <SkeletonSidebarItem key={i} withChildren />
-            ))}
-          </div>
-        </div>
         {/* Main content skeleton */}
         <div className="flex-1 flex flex-col overflow-hidden p-6">
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
@@ -818,111 +774,9 @@ const UnitList = () => {
   const theme = getThemeColors(level.color_theme)
 
   return (
-    <div className="flex h-screen bg-gray-50">
-      {/* Left Sidebar - Hidden on mobile */}
-      <div className={`hidden md:flex ${sidebarOpen ? 'w-80' : 'w-16'} transition-all duration-300 bg-white border-r border-gray-200 flex-col order-first`}>
-        {/* Sidebar Header */}
-        <div className="p-4 border-b border-gray-200">
-          <div className="flex items-center justify-between">
-            {sidebarOpen && (
-              <h2 className="text-lg font-semibold text-gray-900">Navigation</h2>
-            )}
-            <Button
-              variant="ghost"
-              size="sm"
-              onClick={() => setSidebarOpen(!sidebarOpen)}
-              title={sidebarOpen ? "Collapse sidebar" : "Expand sidebar"}
-            >
-              <ArrowLeft className={`w-4 h-4 transition-transform ${sidebarOpen ? 'rotate-180' : 'rotate-0'}`} />
-            </Button>
-          </div>
-        </div>
-
-        {/* Sidebar Content */}
-        <div className="flex-1 overflow-y-auto">
-          {levels.map((levelItem) => (
-            <div key={levelItem.id} className="border-b border-gray-100">
-              <div className="p-3">
-                <Link
-                  to={`/study/course/${levelItem.id}`}
-                  className={`flex items-center space-x-3 p-2 rounded-lg transition-colors ${
-                    levelItem.id === currentId
-                      ? 'bg-blue-100 text-blue-700'
-                      : 'hover:bg-gray-100'
-                  }`}
-                >
-                  <div className={`w-8 h-8 rounded-lg flex items-center justify-center text-sm font-bold ${
-                    levelItem.id === currentId
-                      ? 'bg-blue-200'
-                      : 'bg-gray-200'
-                  }`}>
-                    {levelItem.level_number}
-                  </div>
-                  {sidebarOpen && (
-                    <div className="flex-1 min-w-0">
-                      <div className="font-medium truncate">{levelItem.title}</div>
-                      <div className="text-xs text-gray-500 truncate">{levelItem.difficulty_label}</div>
-                    </div>
-                  )}
-                </Link>
-              </div>
-
-              {/* Sessions for this level */}
-              {levelItem.id === currentId && sidebarOpen && (
-                <div className="ml-6 space-y-1 pb-3">
-                  {sessions
-                    .sort((a, b) => {
-                      // Create unit map for sorting
-                      const unitMap = {}
-                      units.forEach(unit => {
-                        unitMap[unit.id] = unit.unit_number || 0
-                      })
-
-                      // First sort by unit number, then by session number
-                      const unitNumA = unitMap[a.unit_id] || 0
-                      const unitNumB = unitMap[b.unit_id] || 0
-                      const unitDiff = unitNumA - unitNumB
-                      if (unitDiff !== 0) return unitDiff
-                      return (a.session_number || 0) - (b.session_number || 0)
-                    })
-                    .map((sessionItem) => {
-                      const progress = sessionProgress[sessionItem.id]
-                      const isCompleted = progress?.status === 'completed'
-                      return (
-                        <div
-                          key={sessionItem.id}
-                          onClick={() => handleSessionClick(sessionItem)}
-                          className={`flex items-center space-x-3 p-2 rounded-lg transition-colors hover:bg-gray-50 cursor-pointer`}
-                        >
-                          <div className={`w-3 h-3 rounded ${
-                            progress?.status === 'completed' ? 'bg-green-500' :
-                            (progress?.progress_percentage || 0) > 0 ? 'bg-orange-300' :
-                            'bg-gray-300'
-                          }`}>
-                          </div>
-                          <div className="flex-1 min-w-0">
-                            <div className="font-medium truncate text-sm">{sessionItem.title}</div>
-                            {progress && (
-                              <div className="text-xs text-gray-500 truncate">
-                                {progress.progress_percentage || 0}% • {progress.xp_earned || 0} XP
-                              </div>
-                            )}
-                          </div>
-                          {isCompleted && (
-                            <Crown className="w-3 h-3 text-yellow-600" />
-                          )}
-                        </div>
-                      )
-                    })}
-                </div>
-              )}
-            </div>
-          ))}
-        </div>
-      </div>
-
+    <div className="flex h-screen bg-gray-500">
       {/* Main Content */}
-      <div className="flex-1 flex flex-col overflow-hidden w-full md:w-auto">
+      <div className="flex-1 flex flex-col overflow-hidden w-full">
         {/* Header */}
         <div className="bg-white border-b border-gray-200 p-6">
           <div className="flex items-center justify-between">

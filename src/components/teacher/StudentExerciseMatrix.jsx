@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { supabase } from '../../supabase/client';
 import { useAuth } from '../../hooks/useAuth';
-import { CheckCircle, XCircle, Clock, Minus, RotateCcw } from 'lucide-react';
+import { CheckCircle, XCircle, Clock, Minus, RotateCcw, Eye, X } from 'lucide-react';
 
 const StudentExerciseMatrix = ({ selectedCourse }) => {
   const { user, isAdmin } = useAuth();
@@ -9,6 +9,9 @@ const StudentExerciseMatrix = ({ selectedCourse }) => {
   const [exercises, setExercises] = useState([]);
   const [progressMatrix, setProgressMatrix] = useState(new Map());
   const [loading, setLoading] = useState(false);
+  const [selectedCell, setSelectedCell] = useState(null);
+  const [questionAttempts, setQuestionAttempts] = useState([]);
+  const [loadingAttempts, setLoadingAttempts] = useState(false);
 
   useEffect(() => {
     if (selectedCourse) {
@@ -87,14 +90,14 @@ const StudentExerciseMatrix = ({ selectedCourse }) => {
 
       if (assignmentsError) throw assignmentsError;
 
-      // Build exercises list with session info
-      const exerciseList = [];
+      // Build exercises list with session info - deduplicate by exercise ID
+      const exerciseMap = new Map();
       const exerciseIds = [];
       (assignments || []).forEach(assignment => {
         const exercise = assignment.exercise;
-        if (exercise?.id) {
+        if (exercise?.id && !exerciseMap.has(exercise.id)) {
           const session = sessions.find(s => s.id === assignment.session_id);
-          exerciseList.push({
+          exerciseMap.set(exercise.id, {
             ...exercise,
             session_title: session?.title || 'Unknown Session',
             session_number: session?.session_number || 0
@@ -102,6 +105,8 @@ const StudentExerciseMatrix = ({ selectedCourse }) => {
           exerciseIds.push(exercise.id);
         }
       });
+
+      const exerciseList = Array.from(exerciseMap.values());
 
       // Sort exercises by session number and title
       exerciseList.sort((a, b) => {
@@ -177,6 +182,71 @@ const StudentExerciseMatrix = ({ selectedCourse }) => {
     if (percentage >= 75) return 'bg-blue-200 text-blue-800';
     if (percentage >= 60) return 'bg-yellow-200 text-yellow-800';
     return 'bg-red-200 text-red-800';
+  };
+
+  const fetchQuestionAttempts = async (studentId, studentName, exerciseId, exerciseTitle) => {
+    setLoadingAttempts(true);
+    setSelectedCell({ studentId, studentName, exerciseId, exerciseTitle });
+
+    try {
+      // Fetch question attempts
+      const { data: attemptsData, error: attemptsError } = await supabase
+        .from('question_attempts')
+        .select('*')
+        .eq('user_id', studentId)
+        .eq('exercise_id', exerciseId)
+        .order('created_at', { ascending: false });
+
+      if (attemptsError) throw attemptsError;
+
+      // Fetch exercise content to get actual questions
+      const { data: exerciseData, error: exerciseError } = await supabase
+        .from('exercises')
+        .select('content')
+        .eq('id', exerciseId)
+        .single();
+
+      if (exerciseError) throw exerciseError;
+
+      // Group by question_id to show latest attempt for each question
+      const latestAttempts = {};
+      (attemptsData || []).forEach(attempt => {
+        if (!latestAttempts[attempt.question_id] ||
+            new Date(attempt.created_at) > new Date(latestAttempts[attempt.question_id].created_at)) {
+          latestAttempts[attempt.question_id] = attempt;
+        }
+      });
+
+      // Match attempts with actual question text from exercise content
+      const attemptsWithQuestions = Object.values(latestAttempts).map(attempt => {
+        let questionText = 'Question not found';
+
+        // Try to find the question in exercise content
+        if (exerciseData?.content?.questions) {
+          const question = exerciseData.content.questions.find(q => q.id === attempt.question_id);
+          if (question) {
+            // Remove HTML tags and trim for cleaner display
+            questionText = question.question?.replace(/<[^>]*>/g, '').trim() || question.question || 'Question not found';
+          }
+        }
+
+        return {
+          ...attempt,
+          questionText
+        };
+      });
+
+      setQuestionAttempts(attemptsWithQuestions);
+    } catch (err) {
+      console.error('Error fetching question attempts:', err);
+    } finally {
+      setLoadingAttempts(false);
+    }
+  };
+
+  const closeModal = () => {
+    setSelectedCell(null);
+    setQuestionAttempts([]);
   };
 
   if (!selectedCourse) {
@@ -272,19 +342,30 @@ const StudentExerciseMatrix = ({ selectedCourse }) => {
                       key={`${student.id}-${exercise.id}`}
                       className="px-2 py-3 text-center border-r"
                     >
-                      <div className="flex items-center justify-center space-x-1">
-                        {getStatusIcon(progress)}
-                        {scorePercentage !== null && (
-                          <span
-                            className={`text-xs px-1.5 py-0.5 rounded-full font-medium ${getScoreColor(scorePercentage)}`}
+                      <div className="flex flex-col items-center justify-center space-y-1">
+                        <div className="flex items-center space-x-1">
+                          {getStatusIcon(progress)}
+                          {scorePercentage !== null && (
+                            <span
+                              className={`text-xs px-1.5 py-0.5 rounded-full font-medium ${getScoreColor(scorePercentage)}`}
+                            >
+                              {scorePercentage}%
+                            </span>
+                          )}
+                          {progress?.attempts && (
+                            <span className="text-xs text-gray-500">
+                              {progress.attempts}x
+                            </span>
+                          )}
+                        </div>
+                        {progress && (
+                          <button
+                            onClick={() => fetchQuestionAttempts(student.id, student.full_name, exercise.id, exercise.title)}
+                            className="text-blue-600 hover:text-blue-800 transition-colors"
+                            title="View question attempts"
                           >
-                            {scorePercentage}%
-                          </span>
-                        )}
-                        {progress?.attempts && (
-                          <span className="text-xs text-gray-500">
-                            {progress.attempts}x
-                          </span>
+                            <Eye className="w-3 h-3" />
+                          </button>
                         )}
                       </div>
                     </td>
@@ -334,6 +415,150 @@ const StudentExerciseMatrix = ({ selectedCourse }) => {
           </div>
         </div>
       </div>
+
+      {/* Question Attempts Modal */}
+      {selectedCell && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-lg shadow-xl max-w-4xl w-full max-h-[90vh] overflow-hidden">
+            {/* Modal Header */}
+            <div className="flex items-center justify-between p-6 border-b">
+              <div>
+                <h2 className="text-2xl font-bold text-gray-900">Question Attempts</h2>
+                <p className="text-sm text-gray-600 mt-1">
+                  {selectedCell.studentName} • {selectedCell.exerciseTitle}
+                </p>
+              </div>
+              <button
+                onClick={closeModal}
+                className="text-gray-400 hover:text-gray-600 transition-colors"
+              >
+                <X className="w-6 h-6" />
+              </button>
+            </div>
+
+            {/* Modal Body */}
+            <div className="p-6 overflow-y-auto max-h-[calc(90vh-120px)]">
+              {loadingAttempts ? (
+                <div className="flex items-center justify-center py-12">
+                  <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
+                  <p className="ml-3 text-gray-600">Loading attempts...</p>
+                </div>
+              ) : questionAttempts.length === 0 ? (
+                <div className="text-center py-12">
+                  <p className="text-gray-600">No question attempts found for this exercise.</p>
+                  <p className="text-sm text-gray-500 mt-2">This exercise may not have detailed question tracking.</p>
+                </div>
+              ) : (
+                <div className="space-y-4">
+                  {/* Summary Stats */}
+                  <div className="grid grid-cols-3 gap-4 mb-6">
+                    <div className="bg-green-50 border border-green-200 rounded-lg p-4">
+                      <div className="flex items-center space-x-2">
+                        <CheckCircle className="w-5 h-5 text-green-600" />
+                        <span className="text-sm text-gray-600">Correct</span>
+                      </div>
+                      <p className="text-2xl font-bold text-green-700 mt-1">
+                        {questionAttempts.filter(a => a.is_correct).length}
+                      </p>
+                    </div>
+                    <div className="bg-red-50 border border-red-200 rounded-lg p-4">
+                      <div className="flex items-center space-x-2">
+                        <XCircle className="w-5 h-5 text-red-600" />
+                        <span className="text-sm text-gray-600">Incorrect</span>
+                      </div>
+                      <p className="text-2xl font-bold text-red-700 mt-1">
+                        {questionAttempts.filter(a => !a.is_correct).length}
+                      </p>
+                    </div>
+                    <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
+                      <div className="flex items-center space-x-2">
+                        <span className="text-sm text-gray-600">Accuracy</span>
+                      </div>
+                      <p className="text-2xl font-bold text-blue-700 mt-1">
+                        {Math.round((questionAttempts.filter(a => a.is_correct).length / questionAttempts.length) * 100)}%
+                      </p>
+                    </div>
+                  </div>
+
+                  {/* Questions List */}
+                  <div className="space-y-3">
+                    {questionAttempts.map((attempt, index) => (
+                      <div
+                        key={attempt.id}
+                        className={`border-2 rounded-lg p-4 ${
+                          attempt.is_correct
+                            ? 'bg-green-50 border-green-200'
+                            : 'bg-red-50 border-red-200'
+                        }`}
+                      >
+                        <div className="flex items-start justify-between">
+                          <div className="flex-1">
+                            <div className="flex items-center space-x-2 mb-2">
+                              {attempt.is_correct ? (
+                                <CheckCircle className="w-5 h-5 text-green-600 flex-shrink-0" />
+                              ) : (
+                                <XCircle className="w-5 h-5 text-red-600 flex-shrink-0" />
+                              )}
+                              <h4 className="font-semibold text-gray-900">
+                                Question {index + 1}
+                              </h4>
+                              <span className={`text-xs px-2 py-1 rounded-full ${
+                                attempt.is_correct
+                                  ? 'bg-green-200 text-green-800'
+                                  : 'bg-red-200 text-red-800'
+                              }`}>
+                                {attempt.is_correct ? 'Correct' : 'Incorrect'}
+                              </span>
+                            </div>
+
+                            <div className="ml-7 space-y-2">
+                              {attempt.questionText && (
+                                <div className="mb-3 p-3 bg-gray-50 border border-gray-200 rounded">
+                                  <p className="text-sm font-medium text-gray-700 mb-1">Question:</p>
+                                  <p className="text-sm text-gray-900">{attempt.questionText}</p>
+                                </div>
+                              )}
+                              <div>
+                                <p className="text-sm font-medium text-gray-700">Student's Answer:</p>
+                                <p className={`text-sm ${
+                                  attempt.is_correct ? 'text-green-700' : 'text-red-700'
+                                }`}>
+                                  {attempt.selected_answer || 'No answer'}
+                                </p>
+                              </div>
+
+                              {!attempt.is_correct && (
+                                <div>
+                                  <p className="text-sm font-medium text-gray-700">Correct Answer:</p>
+                                  <p className="text-sm text-green-700">
+                                    {attempt.correct_answer}
+                                  </p>
+                                </div>
+                              )}
+
+                              <div className="flex items-center space-x-4 text-xs text-gray-500 mt-2">
+                                {attempt.response_time && (
+                                  <span>Response time: {(attempt.response_time / 1000).toFixed(1)}s</span>
+                                )}
+                                {attempt.attempt_number && (
+                                  <span>Attempt #{attempt.attempt_number}</span>
+                                )}
+                                {attempt.created_at && (
+                                  <span>{new Date(attempt.created_at).toLocaleString()}</span>
+                                )}
+                              </div>
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };

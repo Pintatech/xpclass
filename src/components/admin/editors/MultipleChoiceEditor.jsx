@@ -700,13 +700,16 @@ const MultipleChoiceEditor = ({ questions, onQuestionsChange, settings, onSettin
   const processBulkImport = () => {
     try {
       // First, try to detect if this is Moodle Cloze format
-      if (bulkText.includes('{1:MCV:') || bulkText.includes('{1:MC:') || bulkText.includes('{1:MULTICHOICE:') || bulkText.includes('{=')) {
+      if (bulkText.includes('{1:MCV:') || bulkText.includes('{1:MC:') || bulkText.includes('{1:MCVS:') || bulkText.includes('{=')) {
         processMoodleCloze()
         return
       }
 
+      // Remove block comments /* */ from the text
+      const textWithoutComments = bulkText.replace(/\/\*[\s\S]*?\*\//g, '')
+
       // Original simple format processing
-      const lines = bulkText.split('\n').filter(line => line.trim())
+      const lines = textWithoutComments.split('\n').filter(line => line.trim())
       const newQuestions = []
 
       let currentQuestion = null
@@ -716,7 +719,7 @@ const MultipleChoiceEditor = ({ questions, onQuestionsChange, settings, onSettin
         const trimmedLine = line.trim()
 
         // Question line (starts with Q: or number.)
-        if (trimmedLine.match(/^(Q:|Question|\d+[\.):])/i)) {
+        if (trimmedLine.match(/^(Q:|Question\s*\d+|Quest\s*\d+|\d+[\.):])/i)) {
           if (currentQuestion) {
             newQuestions.push(currentQuestion)
           }
@@ -737,7 +740,7 @@ const MultipleChoiceEditor = ({ questions, onQuestionsChange, settings, onSettin
             : expl
         }
         // Continue question text (if not an option or explanation)
-        else if (currentQuestion && !trimmedLine.match(/^[A-Za-z][\.):]|^\d+[\.)]|^(Explanation|Answer):/i) && trimmedLine) {
+        else if (currentQuestion && !trimmedLine.match(/^[A-Za-z][\.):]|^\d+[\.)]|^(Explanation|Answer):|^(True|False)|^=/i) && trimmedLine) {
           // Add line break if question already has content
           if (currentQuestion.question) {
             currentQuestion.question += '\n' + line
@@ -745,17 +748,35 @@ const MultipleChoiceEditor = ({ questions, onQuestionsChange, settings, onSettin
             currentQuestion.question = line
           }
         }
-        // Answer options (A:, B:, C:, D: or 1., 2., 3., 4.)
-        else if (trimmedLine.match(/^[A-Za-z][\.):]|^\d+[\.)]/)) {
+        // Answer options (A:, B:, C:, D: or 1., 2., 3., 4. or True/False or =)
+        else if (trimmedLine.match(/^[A-Za-z][\.):]|^\d+[\.)]|^(True|False)|^=/i)) {
           if (currentQuestion) {
-            const optionText = trimmedLine.replace(/^[A-Za-z\d][\.):]?\s*/, '')
-            // Check if this is marked as correct (contains *)
-            if (optionText.includes('*') || trimmedLine.includes('*')) {
-              currentQuestion.correct_answer = optionCounter
-              currentQuestion.options.push(optionText.replace('*', '').trim())
-            } else {
-            currentQuestion.options.push(optionText)
+            // Remove prefix: A., B:, 1., 2), or =
+            let optionText = trimmedLine.replace(/^[A-Za-z\d][\.):]?\s*/, '').replace(/^=\s*/, '')
+            let optionExplanation = ''
+
+            // Check for per-option explanation after #
+            if (optionText.includes('#')) {
+              const [before, after] = optionText.split('#')
+              optionText = before.trim()
+              optionExplanation = (after || '').trim()
             }
+
+            // Check if this is marked as correct (contains * or starts with =)
+            const isCorrect = optionText.includes('*') || trimmedLine.startsWith('=')
+            optionText = optionText.replace('*', '').trim()
+
+            if (isCorrect) {
+              currentQuestion.correct_answer = optionCounter
+            }
+
+            // Initialize option_explanations array if not exists
+            if (!currentQuestion.option_explanations) {
+              currentQuestion.option_explanations = []
+            }
+
+            currentQuestion.options.push(optionText)
+            currentQuestion.option_explanations.push(optionExplanation)
             optionCounter++
           }
         }
@@ -895,7 +916,7 @@ const MultipleChoiceEditor = ({ questions, onQuestionsChange, settings, onSettin
               correct_answer: correctIndex,
             explanation: explanationText,
             option_explanations: optionExplanations,
-              shuffle_options: false
+              shuffle_options: true
             })
 
             // Reset accumulated text after creating question

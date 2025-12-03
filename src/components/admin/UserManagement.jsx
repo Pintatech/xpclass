@@ -8,14 +8,11 @@ import {
   ArrowLeft,
   Search,
   Filter,
-  MoreHorizontal,
   UserPlus,
   Shield,
-  Mail,
   Ban,
   CheckCircle,
   Users,
-  Edit,
   Trash2,
   AlertCircle
 } from 'lucide-react'
