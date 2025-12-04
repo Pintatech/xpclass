@@ -789,7 +789,7 @@ const ExerciseList = () => {
   const theme = getThemeColors(session.color_theme || unit.color_theme || level.color_theme)
 
   return (
-    <div className="flex  bg-gray-50">
+    <div className="flex  bg-gray-50 -mx-4 -my-6 ">
       {/* Left Sidebar - Hidden on mobile */}
       <div className={`hidden md:flex ${sidebarOpen ? 'w-80' : 'w-16'} transition-all duration-300 bg-white border-r border-gray-200 flex-col order-first`}>
         {/* Sidebar Header */}
@@ -915,37 +915,7 @@ const ExerciseList = () => {
 
         {/* Content Area */}
         <div className="flex-1 overflow-y-auto p-6">
-          {/* Session progress summary */}
-          <Card className={`mb-6 bg-gradient-to-r from-${session.color_theme || unit.color_theme || level.color_theme}-50 to-${session.color_theme || unit.color_theme || level.color_theme}-100 border-${session.color_theme || unit.color_theme || level.color_theme}-200`}>
-            <Card.Content className="p-6">
-              <div className="grid grid-cols-4 gap-6 text-center">
-                <div>
-                  <div className={`text-2xl font-bold ${theme.text}`}>
-                    {userProgress.filter(p => p.status === 'completed').length}
-                  </div>
-                  <div className="text-sm text-gray-600">Exercises hoàn thành</div>
-                </div>
-                <div>
-                  <div className={`text-2xl font-bold ${theme.text}`}>
-                    {exercises.length}
-                  </div>
-                  <div className="text-sm text-gray-600">Tổng exercises</div>
-                </div>
-                <div>
-                  <div className={`text-2xl font-bold ${theme.text}`}>
-                    {userProgress.reduce((total, p) => total + (p.score || 0), 0)}
-                  </div>
-                  <div className="text-sm text-gray-600">Điểm số</div>
-                </div>
-                <div>
-                  <div className={`text-2xl font-bold ${theme.text}`}>
-                    {session.xp_reward || 50}
-                  </div>
-                  <div className="text-sm text-gray-600">XP thưởng</div>
-                </div>
-              </div>
-            </Card.Content>
-          </Card>
+
 
           {/* Add Exercise Button */}
           {canCreateContent() && (

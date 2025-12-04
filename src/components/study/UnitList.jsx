@@ -774,7 +774,7 @@ const UnitList = () => {
   const theme = getThemeColors(level.color_theme)
 
   return (
-    <div className="flex bg-gray-100">
+    <div className="flex bg-white -mx-4 -my-6">
       {/* Main Content */}
       <div className="flex-1 flex flex-col overflow-hidden w-full">
         {/* Header */}
@@ -974,31 +974,7 @@ const UnitList = () => {
             </div>
           )}
 
-          {/* Level progress summary */}
-          <Card className={`mb-6 bg-gradient-to-r from-${level.color_theme}-50 to-${level.color_theme}-100 border-${level.color_theme}-200`}>
-            <Card.Content className="p-6">
-              <div className="grid grid-cols-3 gap-6 text-center">
-                <div>
-                  <div className={`text-2xl font-bold ${theme.text}`}>
-                    {Object.values(sessionProgress).filter(p => p.status === 'completed').length}
-                  </div>
-                  <div className="text-sm text-gray-600">Sessions hoàn thành</div>
-                </div>
-                <div>
-                  <div className={`text-2xl font-bold ${theme.text}`}>
-                    {Object.values(sessionProgress).reduce((total, p) => total + (p.xp_earned || 0), 0)}
-                  </div>
-                  <div className="text-sm text-gray-600">XP đã kiếm</div>
-                </div>
-                <div>
-                  <div className={`text-2xl font-bold ${theme.text}`}>
-                    {Math.round(Object.values(sessionProgress).reduce((total, p) => total + (p.progress_percentage || 0), 0) / Math.max(sessions.length, 1))}%
-                  </div>
-                  <div className="text-sm text-gray-600">Tổng tiến độ</div>
-                </div>
-              </div>
-            </Card.Content>
-          </Card>
+          
 
           {/* Units with Sessions */}
           <div className="space-y-8">

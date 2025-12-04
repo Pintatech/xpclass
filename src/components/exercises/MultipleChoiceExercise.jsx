@@ -52,6 +52,159 @@ const MultipleChoiceExercise = () => {
   // Meme and sound state
   const [currentMeme, setCurrentMeme] = useState('')
   const [showMeme, setShowMeme] = useState(false)
+  const [hasPlayedPassAudio, setHasPlayedPassAudio] = useState(false)
+  const [passGif, setPassGif] = useState('')
+
+  // Pass celebration GIFs
+  const passGifs = [
+    "https://xpclass.vn/leaderboard/end_gif/end 1.gif",
+    "https://xpclass.vn/leaderboard/end_gif/end 2.gif",
+    "https://xpclass.vn/leaderboard/end_gif/end 3.gif",
+    "https://xpclass.vn/leaderboard/end_gif/end 4.gif",
+    "https://xpclass.vn/leaderboard/end_gif/end 5.gif",
+    "https://xpclass.vn/leaderboard/end_gif/end 6.gif",
+    "https://xpclass.vn/leaderboard/end_gif/end 7.gif",
+    "https://xpclass.vn/leaderboard/end_gif/end 8.gif"
+  ]
+
+  // Play pass audio and show GIF when quiz is completed and passed
+  useEffect(() => {
+    if (isQuizComplete && !hasPlayedPassAudio) {
+      const correctAnswers = questionResults.filter(r => r.isCorrect).length
+      const totalQuestions = questionResults.length
+      const score = Math.round((correctAnswers / totalQuestions) * 100)
+      const passed = score >= 75
+
+      if (passed) {
+        // Play audio
+        const audio = new Audio('https://xpclass.vn/leaderboard/sound/Pedro%20Pedro%20Pedro.mp3')
+        audio.play().catch(err => console.log('Audio play failed:', err))
+
+        // Show random celebration GIF
+        const randomGif = passGifs[Math.floor(Math.random() * passGifs.length)]
+        setPassGif(randomGif)
+
+        // Trigger confetti
+        createBetterConfetti()
+
+        setHasPlayedPassAudio(true)
+      }
+    }
+  }, [isQuizComplete, hasPlayedPassAudio, questionResults])
+
+  // Confetti function
+  const createBetterConfetti = () => {
+    // Set up confetti explosion points
+    const explosionPoints = [
+      { x: '20%', y: '20%' },
+      { x: '80%', y: '20%' },
+      { x: '50%', y: '50%' },
+      { x: '20%', y: '80%' },
+      { x: '80%', y: '80%' }
+    ];
+
+    // Bright, vibrant colors
+    const colors = [
+      '#FF3366', '#36FF33', '#3366FF', '#FFFF33',
+      '#FF33FF', '#33FFFF', '#FF8833', '#88FF33',
+      '#FF3388', '#8833FF', '#33FF88', '#3388FF'
+    ];
+
+    // Create multiple explosions
+    explosionPoints.forEach((point, index) => {
+      setTimeout(() => {
+        createConfettiExplosion(point.x, point.y, colors);
+      }, index * 300);
+    });
+
+    // Create occasional random explosions
+    for (let i = 0; i < 20; i++) {
+      setTimeout(() => {
+        const x = Math.random() * 80 + 10 + '%';
+        const y = Math.random() * 80 + 10 + '%';
+        createConfettiExplosion(x, y, colors);
+      }, 1500 + i * 800);
+    }
+  };
+
+  // Function to create a single confetti explosion
+  const createConfettiExplosion = (x, y, colors) => {
+    const viewportWidth = window.innerWidth;
+    const viewportHeight = window.innerHeight;
+    const xPos = parseInt(x) * viewportWidth / 100;
+    const yPos = parseInt(y) * viewportHeight / 100;
+
+    for (let i = 0; i < 40; i++) {
+      const confetti = document.createElement('div');
+      confetti.className = 'confetti';
+
+      const color = colors[Math.floor(Math.random() * colors.length)];
+      const size = Math.random() * 10 + 5;
+      const angle = Math.random() * 360;
+      const velocity = Math.random() * 20 + 10;
+
+      const shapeType = Math.floor(Math.random() * 3);
+      if (shapeType === 0) {
+        confetti.style.borderRadius = '0';
+      } else if (shapeType === 1) {
+        confetti.style.borderRadius = '50%';
+      } else {
+        confetti.style.borderRadius = '50%';
+        confetti.style.width = `${size}px`;
+        confetti.style.height = `${size * (0.5 + Math.random())}px`;
+      }
+
+      confetti.style.position = 'fixed';
+      confetti.style.left = `${xPos}px`;
+      confetti.style.top = `${yPos}px`;
+      confetti.style.width = `${size}px`;
+      confetti.style.height = `${size}px`;
+      confetti.style.backgroundColor = color;
+      confetti.style.boxShadow = `0 0 ${size / 2}px ${color}`;
+      confetti.style.zIndex = '9999';
+      confetti.style.pointerEvents = 'none';
+
+      document.body.appendChild(confetti);
+
+      const startTime = Date.now();
+      const duration = Math.random() * 3000 + 2000;
+
+      const vx = Math.cos(angle * Math.PI / 180) * velocity;
+      const vy = Math.sin(angle * Math.PI / 180) * velocity;
+      const gravity = 0.3;
+
+      const rotationSpeed = (Math.random() - 0.5) * 15;
+      let rotation = 0;
+
+      const animate = () => {
+        const elapsed = Date.now() - startTime;
+        const progress = elapsed / duration;
+
+        if (progress >= 1) {
+          if (document.body.contains(confetti)) {
+            document.body.removeChild(confetti);
+          }
+          return;
+        }
+
+        const currentX = xPos + vx * elapsed / 40;
+        const currentY = yPos + vy * elapsed / 40 + 0.5 * gravity * (elapsed / 40) ** 2;
+
+        rotation += rotationSpeed;
+
+        const opacity = 1 - progress;
+
+        confetti.style.left = `${currentX}px`;
+        confetti.style.top = `${currentY}px`;
+        confetti.style.transform = `rotate(${rotation}deg)`;
+        confetti.style.opacity = opacity.toString();
+
+        requestAnimationFrame(animate);
+      };
+
+      requestAnimationFrame(animate);
+    }
+  };
 
   // Meme arrays - you can replace these URLs with your own memes
   const correctMemes = [
@@ -483,7 +636,7 @@ const MultipleChoiceExercise = () => {
 
     // Set retry mode first
     setIsRetryMode(true)
-    
+
     // Show only wrong questions for retry
     setQuestions(wrongQuestions)
     setCurrentQuestionIndex(0)
@@ -493,7 +646,9 @@ const MultipleChoiceExercise = () => {
     setIsQuizComplete(false)
     setWrongQuestions([])
     setStartTime(Date.now())
-    
+    setHasPlayedPassAudio(false) // Reset audio flag
+    setPassGif('') // Reset GIF
+
     // Reset all answers for all-at-once mode
     setAllAnswers({})
     setShowAllResults(false)
@@ -744,8 +899,21 @@ const MultipleChoiceExercise = () => {
 
               // Normal mode
               const passed = score >= 75
+
               return (
                 <>
+                  {/* Show celebration GIF if passed */}
+                  {passed && passGif && (
+                    <div className="mb-4">
+                      <img
+                        src={passGif}
+                        alt="Celebration"
+                        className="mx-auto rounded-lg shadow-lg"
+                        style={{ maxWidth: '300px', width: '100%', height: 'auto' }}
+                      />
+                    </div>
+                  )}
+
                   <div className={`w-16 h-16 md:w-20 md:h-20 mx-auto mb-3 ${passed ? 'bg-green-100' : 'bg-orange-100'} rounded-full flex items-center justify-center`}>
                     {passed ? (
                       <CheckCircle className="w-8 h-8 md:w-10 md:h-10 text-green-500" />

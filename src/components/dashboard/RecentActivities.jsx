@@ -1,8 +1,10 @@
 import React, { useState, useEffect } from 'react'
+import { useNavigate } from 'react-router-dom'
 import { supabase } from '../../supabase/client'
 import { Clock, Star, Trophy, BookOpen, Edit3, HelpCircle, Award, Crown } from 'lucide-react'
 
 const RecentActivities = () => {
+  const navigate = useNavigate()
   const [activities, setActivities] = useState([])
   const [loading, setLoading] = useState(true)
 
@@ -10,109 +12,91 @@ const RecentActivities = () => {
     fetchRecentActivities()
   }, [])
 
+  const handleUserClick = (userId) => {
+    navigate(`/profile/${userId}`)
+  }
+
 
   const fetchRecentActivities = async () => {
     try {
       setLoading(true)
 
-      // Fetch exercise completions
+      // Fetch exercise completions with user and exercise data in one query
       const { data: exerciseData, error: exerciseError } = await supabase
         .from('user_progress')
         .select(`
           id,
           completed_at,
           user_id,
-          exercise_id
+          exercise_id,
+          users:user_id (
+            id,
+            full_name,
+            avatar_url
+          ),
+          exercises:exercise_id (
+            id,
+            title,
+            exercise_type,
+            xp_reward
+          )
         `)
         .eq('status', 'completed')
         .not('completed_at', 'is', null)
         .order('completed_at', { ascending: false })
-        .limit(15)
+        .limit(20)
 
       if (exerciseError) throw exerciseError
 
-      // Fetch achievement claims
+      // Fetch achievement claims with user and achievement data in one query
       const { data: achievementData, error: achievementError } = await supabase
         .from('user_achievements')
         .select(`
           id,
           user_id,
           achievement_id,
-          claimed_at
+          claimed_at,
+          users:user_id (
+            id,
+            full_name,
+            avatar_url
+          ),
+          achievements:achievement_id (
+            id,
+            title,
+            xp_reward
+          )
         `)
         .not('claimed_at', 'is', null)
         .order('claimed_at', { ascending: false })
-        .limit(15)
+        .limit(20)
 
       if (achievementError) throw achievementError
 
-      // Combine all activities
-      const allActivities = []
-
       // Process exercise completions
-      for (const progress of exerciseData || []) {
-        try {
-          const { data: userData } = await supabase
-            .from('users')
-            .select('id, full_name, avatar_url')
-            .eq('id', progress.user_id)
-            .single()
-
-          const { data: exerciseDetails } = await supabase
-            .from('exercises')
-            .select('id, title, exercise_type, xp_reward')
-            .eq('id', progress.exercise_id)
-            .single()
-
-          if (userData && exerciseDetails) {
-            allActivities.push({
-              ...progress,
-              type: 'exercise',
-              activity_date: progress.completed_at,
-              users: userData,
-              exercises: exerciseDetails
-            })
-          }
-        } catch (err) {
-          console.log('Skipping exercise activity:', err)
-        }
-      }
+      const exerciseActivities = (exerciseData || [])
+        .filter(progress => progress.users && progress.exercises)
+        .map(progress => ({
+          ...progress,
+          type: 'exercise',
+          activity_date: progress.completed_at
+        }))
 
       // Process achievement claims
-      for (const achievement of achievementData || []) {
-        try {
-          const { data: userData } = await supabase
-            .from('users')
-            .select('id, full_name, avatar_url')
-            .eq('id', achievement.user_id)
-            .single()
+      const achievementActivities = (achievementData || [])
+        .filter(achievement => achievement.users && achievement.achievements)
+        .map(achievement => ({
+          ...achievement,
+          type: 'achievement',
+          activity_date: achievement.claimed_at
+        }))
 
-          const { data: achievementDetails } = await supabase
-            .from('achievements')
-            .select('id, title, xp_reward')
-            .eq('id', achievement.achievement_id)
-            .single()
-
-          if (userData && achievementDetails) {
-            allActivities.push({
-              ...achievement,
-              type: 'achievement',
-              activity_date: achievement.claimed_at,
-              users: userData,
-              achievements: achievementDetails
-            })
-          }
-        } catch (err) {
-          console.log('Skipping achievement activity:', err)
-        }
-      }
-
-      // Sort all activities by date and limit to 10
-      const sortedActivities = allActivities
+      // Combine and sort all activities by date, limit to 20
+      const allActivities = [...exerciseActivities, ...achievementActivities]
         .sort((a, b) => new Date(b.activity_date) - new Date(a.activity_date))
         .slice(0, 20)
 
-      setActivities(sortedActivities)
+      setActivities(allActivities)
     } catch (error) {
       console.error('Error fetching recent activities:', error)
       setActivities([])
@@ -223,15 +207,18 @@ const RecentActivities = () => {
             return (
               <div key={`achievement-${activity.id}`} className="flex items-center space-x-3 p-3 rounded-lg hover:bg-yellow-50 transition-colors border-l-4 border-yellow-400">
                 {/* User Avatar */}
-                <div className="flex-shrink-0">
+                <div
+                  className="flex-shrink-0 cursor-pointer"
+                  onClick={() => handleUserClick(activity.users.id)}
+                >
                   {activity.users.avatar_url ? (
                     <img
                       src={activity.users.avatar_url}
                       alt={activity.users.full_name}
-                      className="w-8 h-8 rounded-full object-cover"
+                      className="w-8 h-8 rounded-full object-cover hover:ring-2 hover:ring-yellow-400 transition-all"
                     />
                   ) : (
-                    <div className="w-8 h-8 rounded-full bg-yellow-100 flex items-center justify-center">
+                    <div className="w-8 h-8 rounded-full bg-yellow-100 flex items-center justify-center hover:ring-2 hover:ring-yellow-400 transition-all">
                       <span className="text-sm font-medium text-yellow-600">
                         {activity.users.full_name?.charAt(0) || 'U'}
                       </span>
@@ -243,7 +230,10 @@ const RecentActivities = () => {
                 <div className="flex-1 min-w-0">
                   <div className="flex items-center space-x-2">
                     <img src="https://xpclass.vn/xpclass/icon/achievement.svg" alt="achievement" className="w-4 h-4 flex-shrink-0" />
-                    <span className="text-sm font-medium text-gray-900 truncate">
+                    <span
+                      className="text-sm font-medium text-gray-900 truncate cursor-pointer hover:text-yellow-600 transition-colors"
+                      onClick={() => handleUserClick(activity.users.id)}
+                    >
                       {activity.users.full_name || 'Người dùng'}
                     </span>
                   </div>
@@ -265,15 +255,18 @@ const RecentActivities = () => {
             return (
               <div key={`exercise-${activity.id}`} className="flex items-center space-x-3 p-3 rounded-lg hover:bg-gray-50 transition-colors">
                 {/* User Avatar */}
-                <div className="flex-shrink-0">
+                <div
+                  className="flex-shrink-0 cursor-pointer"
+                  onClick={() => handleUserClick(activity.users.id)}
+                >
                   {activity.users.avatar_url ? (
                     <img
                       src={activity.users.avatar_url}
                       alt={activity.users.full_name}
-                      className="w-8 h-8 rounded-full object-cover"
+                      className="w-8 h-8 rounded-full object-cover hover:ring-2 hover:ring-blue-400 transition-all"
                     />
                   ) : (
-                    <div className="w-8 h-8 rounded-full bg-blue-100 flex items-center justify-center">
+                    <div className="w-8 h-8 rounded-full bg-blue-100 flex items-center justify-center hover:ring-2 hover:ring-blue-400 transition-all">
                       <span className="text-sm font-medium text-blue-600">
                         {activity.users.full_name?.charAt(0) || 'U'}
                       </span>
@@ -285,7 +278,10 @@ const RecentActivities = () => {
                 <div className="flex-1 min-w-0">
                   <div className="flex items-center space-x-2">
                     <IconComponent className="w-4 h-4 text-blue-600 flex-shrink-0" />
-                    <span className="text-sm font-medium text-gray-900 truncate">
+                    <span
+                      className="text-sm font-medium text-gray-900 truncate cursor-pointer hover:text-blue-600 transition-colors"
+                      onClick={() => handleUserClick(activity.users.id)}
+                    >
                       {activity.users.full_name || 'Người dùng'}
                     </span>
                   </div>
