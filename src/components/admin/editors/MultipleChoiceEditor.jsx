@@ -1517,30 +1517,15 @@ Good morning in Vietnamese is {1:MC:=Chào buổi sáng#Correct explanation~Chà
               </label>
             </div>
 
-            {/* Explanation */}
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
-                Explanation (Optional)
-                <span className="ml-2 text-xs text-gray-500">
-                  (Ctrl+B: Bold, Ctrl+I: Italic, Ctrl+U: Underline, Ctrl+Z: Undo)
-                </span>
-              </label>
-              <textarea
-                ref={(el) => (explanationInputRefs.current[index] = el)}
-                value={question.explanation || ''}
-                onChange={(e) => updateQuestion(index, 'explanation', e.target.value)}
-                onKeyDown={(e) => handleKeyboardShortcut(e, index, 'explanation')}
-                className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
-                rows={2}
-                placeholder="Explain why this is the correct answer..."
-              />
-              {question.original_text && (
+            {/* Original Import Text */}
+            {question.original_text && (
+              <div>
                 <details className="mt-2">
                   <summary className="text-xs text-gray-600 cursor-pointer">Original import text</summary>
                   <pre className="mt-1 p-2 bg-gray-50 border rounded text-xs whitespace-pre-wrap">{question.original_text}</pre>
                 </details>
-              )}
-            </div>
+              </div>
+            )}
 
             {/* Audio URL */}
             <div>

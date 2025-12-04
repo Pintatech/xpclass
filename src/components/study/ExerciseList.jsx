@@ -789,7 +789,7 @@ const ExerciseList = () => {
   const theme = getThemeColors(session.color_theme || unit.color_theme || level.color_theme)
 
   return (
-    <div className="flex min-h-screen bg-gray-50">
+    <div className="flex  bg-gray-50">
       {/* Left Sidebar - Hidden on mobile */}
       <div className={`hidden md:flex ${sidebarOpen ? 'w-80' : 'w-16'} transition-all duration-300 bg-white border-r border-gray-200 flex-col order-first`}>
         {/* Sidebar Header */}

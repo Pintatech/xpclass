@@ -103,7 +103,6 @@ const AdminDashboard = () => {
 
       const [unitsResult, sessionsResult, exercisesResult, usersResult] = await Promise.all([
         supabase.from('units').select('id', { count: 'exact' }),
-        supabase.from('units').select('id', { count: 'exact' }),
         supabase.from('sessions').select('id', { count: 'exact' }),
         supabase.from('exercises').select('id, is_active', { count: 'exact' }),
         supabase.from('users').select('id, created_at', { count: 'exact' })

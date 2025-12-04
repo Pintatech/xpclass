@@ -774,7 +774,7 @@ const UnitList = () => {
   const theme = getThemeColors(level.color_theme)
 
   return (
-    <div className="flex h-screen bg-gray-500">
+    <div className="flex bg-gray-100">
       {/* Main Content */}
       <div className="flex-1 flex flex-col overflow-hidden w-full">
         {/* Header */}

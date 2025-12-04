@@ -232,7 +232,7 @@ const Leaderboard = () => {
         created_at
       `)
       .order('xp', { ascending: false })
-      .limit(50)
+      .limit(10)
 
     if (usersError) throw usersError
 

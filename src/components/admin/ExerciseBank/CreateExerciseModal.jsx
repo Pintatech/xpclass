@@ -48,11 +48,11 @@ const CreateExerciseModal = ({ folders, selectedFolder, onClose, onCreated }) =>
           exercise_type: formData.exercise_type,
           content: formData.content,
           folder_id: formData.folder_id || null,
-          difficulty_level: formData.difficulty_level,
+          difficulty_level: 1,
           xp_reward: formData.xp_reward,
-          category: formData.category.trim() || null,
-          tags: formData.tags.length > 0 ? formData.tags : null,
-          estimated_duration: formData.estimated_duration,
+          category: null,
+          tags: null,
+          estimated_duration: 5,
           is_in_bank: true,
           is_active: true,
           session_id: null, // Not assigned to session yet
@@ -178,7 +178,7 @@ const CreateExerciseModal = ({ folders, selectedFolder, onClose, onCreated }) =>
             </div>
           </div>
 
-          {/* Folder and Category */}
+          {/* Folder and XP Reward */}
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-2">
@@ -196,39 +196,6 @@ const CreateExerciseModal = ({ folders, selectedFolder, onClose, onCreated }) =>
 
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-2">
-                Category
-              </label>
-              <input
-                type="text"
-                value={formData.category}
-                onChange={(e) => handleChange('category', e.target.value)}
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                placeholder="e.g., Beginner, Grammar"
-              />
-            </div>
-          </div>
-
-          {/* Difficulty, XP, Duration */}
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
-                Difficulty Level
-              </label>
-              <select
-                value={formData.difficulty_level}
-                onChange={(e) => handleChange('difficulty_level', parseInt(e.target.value))}
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-              >
-                <option value={1}>Level 1 (Easy)</option>
-                <option value={2}>Level 2 (Medium)</option>
-                <option value={3}>Level 3 (Hard)</option>
-                <option value={4}>Level 4 (Very Hard)</option>
-                <option value={5}>Level 5 (Expert)</option>
-              </select>
-            </div>
-
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
                 XP Reward
               </label>
               <input
@@ -240,64 +207,6 @@ const CreateExerciseModal = ({ folders, selectedFolder, onClose, onCreated }) =>
                 max="100"
               />
             </div>
-
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
-                Duration (minutes)
-              </label>
-              <input
-                type="number"
-                value={formData.estimated_duration}
-                onChange={(e) => handleChange('estimated_duration', parseInt(e.target.value))}
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                min="1"
-                max="60"
-              />
-            </div>
-          </div>
-
-          {/* Tags */}
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">
-              Tags
-            </label>
-            <div className="flex space-x-2 mb-2">
-              <input
-                type="text"
-                value={tagInput}
-                onChange={(e) => setTagInput(e.target.value)}
-                onKeyPress={handleTagKeyPress}
-                className="flex-1 px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                placeholder="Enter tag and press Enter"
-              />
-              <button
-                type="button"
-                onClick={addTag}
-                className="px-4 py-2 bg-gray-100 text-gray-700 hover:bg-gray-200 rounded-lg transition-colors"
-              >
-                Add
-              </button>
-            </div>
-            {formData.tags.length > 0 && (
-              <div className="flex flex-wrap gap-2">
-                {formData.tags.map((tag, index) => (
-                  <span
-                    key={index}
-                    className="inline-flex items-center px-3 py-1 rounded-full text-sm bg-blue-50 text-blue-700"
-                  >
-                    <Tag className="w-3 h-3 mr-1" />
-                    {tag}
-                    <button
-                      type="button"
-                      onClick={() => removeTag(index)}
-                      className="ml-2 text-blue-500 hover:text-blue-700"
-                    >
-                      ×
-                    </button>
-                  </span>
-                ))}
-              </div>
-            )}
           </div>
 
           {/* Exercise Content Editors */}

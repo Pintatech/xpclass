@@ -95,10 +95,10 @@ const EditExerciseModal = ({ isOpen, onClose, exercise, onUpdate }) => {
           title: formData.title.trim(),
           description: formData.description.trim(),
           exercise_type: formData.exercise_type,
-          difficulty_level: formData.difficulty_level,
+          difficulty_level: 1,
           xp_reward: formData.xp_reward,
-          estimated_duration: formData.estimated_duration,
-          tags: formData.tags,
+          estimated_duration: 5,
+          tags: [],
           folder_id: formData.folder_id,
           content: content,
           updated_at: new Date().toISOString()
@@ -280,18 +280,19 @@ const EditExerciseModal = ({ isOpen, onClose, exercise, onUpdate }) => {
 
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Difficulty Level
+                  Folder
                 </label>
                 <select
-                  value={formData.difficulty_level}
-                  onChange={(e) => handleInputChange('difficulty_level', parseInt(e.target.value))}
+                  value={formData.folder_id || ''}
+                  onChange={(e) => handleInputChange('folder_id', e.target.value || null)}
                   className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                 >
-                  <option value={1}>Level 1 (Beginner)</option>
-                  <option value={2}>Level 2 (Easy)</option>
-                  <option value={3}>Level 3 (Intermediate)</option>
-                  <option value={4}>Level 4 (Advanced)</option>
-                  <option value={5}>Level 5 (Expert)</option>
+                  <option value="">No folder</option>
+                  {folders.map(folder => (
+                    <option key={folder.id} value={folder.id}>
+                      {folder.name}
+                    </option>
+                  ))}
                 </select>
               </div>
 
@@ -308,64 +309,6 @@ const EditExerciseModal = ({ isOpen, onClose, exercise, onUpdate }) => {
                   className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                 />
               </div>
-
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Estimated Duration (minutes)
-                </label>
-                <input
-                  type="number"
-                  min="1"
-                  max="60"
-                  value={formData.estimated_duration}
-                  onChange={(e) => handleInputChange('estimated_duration', parseInt(e.target.value))}
-                  className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                />
-              </div>
-
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Folder
-                </label>
-                <select
-                  value={formData.folder_id || ''}
-                  onChange={(e) => handleInputChange('folder_id', e.target.value || null)}
-                  className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                >
-                  <option value="">No folder</option>
-                  {folders.map(folder => (
-                    <option key={folder.id} value={folder.id}>
-                      {folder.name}
-                    </option>
-                  ))}
-                </select>
-              </div>
-            </div>
-
-            <div className="mb-6">
-              <label className="block text-sm font-medium text-gray-700 mb-2">
-                Description
-              </label>
-              <textarea
-                value={formData.description}
-                onChange={(e) => handleInputChange('description', e.target.value)}
-                className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                rows={3}
-                placeholder="Enter exercise description"
-              />
-            </div>
-
-            <div className="mb-6">
-              <label className="block text-sm font-medium text-gray-700 mb-2">
-                Tags (comma-separated)
-              </label>
-              <input
-                type="text"
-                value={formData.tags.join(', ')}
-                onChange={handleTagChange}
-                className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                placeholder="e.g., grammar, vocabulary, beginner"
-              />
             </div>
 
             {/* Content Editor */}

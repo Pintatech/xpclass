@@ -12,14 +12,18 @@ const StudentExerciseMatrix = ({ selectedCourse }) => {
   const [selectedCell, setSelectedCell] = useState(null);
   const [questionAttempts, setQuestionAttempts] = useState([]);
   const [loadingAttempts, setLoadingAttempts] = useState(false);
+  const [showAllExercises, setShowAllExercises] = useState(false);
+  const [allExercisesFetched, setAllExercisesFetched] = useState(false);
 
   useEffect(() => {
     if (selectedCourse) {
-      fetchMatrixData();
+      setShowAllExercises(false);
+      setAllExercisesFetched(false);
+      fetchMatrixData(15);
     }
   }, [selectedCourse]);
 
-  const fetchMatrixData = async () => {
+  const fetchMatrixData = async (limit = null) => {
     if (!selectedCourse) return;
 
     try {
@@ -106,30 +110,35 @@ const StudentExerciseMatrix = ({ selectedCourse }) => {
         }
       });
 
-      const exerciseList = Array.from(exerciseMap.values());
+      let exerciseList = Array.from(exerciseMap.values());
 
-      // Sort exercises by session number and title
+      // Sort exercises alphabetically by title (descending)
       exerciseList.sort((a, b) => {
-        if (a.session_number !== b.session_number) {
-          return a.session_number - b.session_number;
-        }
-        return a.title.localeCompare(b.title);
+        return b.title.localeCompare(a.title);
       });
+
+      // Apply limit if specified
+      if (limit) {
+        exerciseList = exerciseList.slice(0, limit);
+      } else {
+        setAllExercisesFetched(true);
+      }
 
       setExercises(exerciseList);
 
-      if (studentList.length === 0 || exerciseIds.length === 0) {
+      if (studentList.length === 0 || exerciseList.length === 0) {
         setProgressMatrix(new Map());
         return;
       }
 
-      // Fetch user progress for all students and exercises
+      // Fetch user progress for all students and limited exercises
+      const limitedExerciseIds = exerciseList.map(ex => ex.id);
       const studentIds = studentList.map(s => s.id);
       const { data: progressData, error: progressError } = await supabase
         .from('user_progress')
         .select('user_id, exercise_id, status, score, max_score, attempts, completed_at')
         .in('user_id', studentIds)
-        .in('exercise_id', exerciseIds);
+        .in('exercise_id', limitedExerciseIds);
 
       if (progressError) throw progressError;
 
@@ -274,6 +283,13 @@ const StudentExerciseMatrix = ({ selectedCourse }) => {
     );
   }
 
+  const handleShowAllExercises = async () => {
+    if (!allExercisesFetched) {
+      await fetchMatrixData(); // Fetch all exercises
+    }
+    setShowAllExercises(true);
+  };
+
   return (
     <div className="bg-white rounded-lg shadow-sm border">
       <div className="p-4 border-b border-gray-200">
@@ -281,16 +297,26 @@ const StudentExerciseMatrix = ({ selectedCourse }) => {
           <div>
             <h3 className="text-lg font-semibold text-gray-900">Student-Exercise Matrix</h3>
             <p className="text-sm text-gray-600">
-              {students.length} students • {exercises.length} exercises
+              {students.length} students • {exercises.length} exercises {!showAllExercises && !allExercisesFetched && '(showing first 15)'}
             </p>
           </div>
-          <button
-            onClick={fetchMatrixData}
-            className="flex items-center space-x-2 px-3 py-1 text-sm text-gray-600 hover:text-gray-900 border rounded"
-          >
-            <RotateCcw className="w-4 h-4" />
-            <span>Refresh</span>
-          </button>
+          <div className="flex items-center space-x-2">
+            {!allExercisesFetched && !showAllExercises && (
+              <button
+                onClick={handleShowAllExercises}
+                className="px-3 py-1 text-sm text-blue-600 hover:text-blue-800 border border-blue-600 hover:border-blue-800 rounded"
+              >
+                Show All Exercises
+              </button>
+            )}
+            <button
+              onClick={() => fetchMatrixData(showAllExercises ? null : 15)}
+              className="flex items-center space-x-2 px-3 py-1 text-sm text-gray-600 hover:text-gray-900 border rounded"
+            >
+              <RotateCcw className="w-4 h-4" />
+              <span>Refresh</span>
+            </button>
+          </div>
         </div>
       </div>
 
