@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { supabase } from '../../supabase/client';
 import { useAuth } from '../../hooks/useAuth';
 import StudentExerciseMatrix from './StudentExerciseMatrix';
+import UnitProgressView from './UnitProgressView';
 import {
   BookOpen,
   Users,
@@ -32,7 +33,7 @@ const TeacherDashboard = () => {
   const [courseSessionIds, setCourseSessionIds] = useState([]);
   const [loading, setLoading] = useState(false);
   const [expandedStudent, setExpandedStudent] = useState(null);
-  const [currentView, setCurrentView] = useState('overview'); // 'overview' or 'matrix'
+  const [currentView, setCurrentView] = useState('overview'); // 'overview', 'matrix', or 'unit-progress'
   const [hasLoadedCourses, setHasLoadedCourses] = useState(false);
 
   useEffect(() => {
@@ -344,15 +345,6 @@ const TeacherDashboard = () => {
           }
         </p>
         </div>
-        <div className="flex space-x-3">
-          <button
-            onClick={() => navigate('/teacher/exercises')}
-            className="flex items-center space-x-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
-          >
-            <BarChart className="w-4 h-4" />
-            <span>Exercise Scores</span>
-          </button>
-        </div>
       </div>
 
       {/* Course Selection */}
@@ -406,6 +398,17 @@ const TeacherDashboard = () => {
               >
                 <Grid className="w-4 h-4" />
                 <span>Exercise Matrix</span>
+              </button>
+              <button
+                onClick={() => setCurrentView('unit-progress')}
+                className={`flex items-center space-x-2 px-4 py-2 rounded-lg transition-colors ${
+                  currentView === 'unit-progress'
+                    ? 'bg-blue-600 text-white'
+                    : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                }`}
+              >
+                <BookOpen className="w-4 h-4" />
+                <span>Unit Progress</span>
               </button>
             </div>
           </div>
@@ -594,6 +597,11 @@ const TeacherDashboard = () => {
       {/* Student Exercise Matrix */}
       {selectedCourse && currentView === 'matrix' && (
         <StudentExerciseMatrix selectedCourse={selectedCourse} />
+      )}
+
+      {/* Unit Progress View */}
+      {selectedCourse && currentView === 'unit-progress' && (
+        <UnitProgressView selectedCourse={selectedCourse} />
       )}
 
       {/* No Courses */}

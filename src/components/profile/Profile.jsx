@@ -8,22 +8,15 @@ import Card from '../ui/Card'
 import Button from '../ui/Button'
 import LoadingSpinner from '../ui/LoadingSpinner'
 import {
-  User,
-  Star,
   Trophy,
   Target,
   BookOpen,
   Clock,
-  Flame,
   Calendar,
   Mail,
   Edit3,
-  Settings,
   Award,
-  TrendingUp,
   Activity,
-  CheckCircle,
-  PlayCircle,
   Crown,
   Zap,
   Shield,
@@ -516,11 +509,11 @@ const Profile = () => {
 
   const getTierBgColor = (tier) => {
     const colors = {
-      bronze: 'bg-amber-100',
-      silver: 'bg-gray-100',
-      gold: 'bg-yellow-100',
-      platinum: 'bg-purple-100',
-      diamond: 'bg-cyan-100'
+      bronze: 'bg-yellow-100',
+      silver: 'bg-gray-300',
+      gold: 'bg-amber-300',
+      platinum: 'bg-purple-400',
+      diamond: 'bg-cyan-500'
     }
     return colors[tier] || 'bg-gray-100'
   }
@@ -1107,9 +1100,7 @@ const Profile = () => {
                         </div>
                         <div className="text-sm font-medium text-gray-600">{badge.badge_name}</div>
                         <div className="text-xs text-gray-500">{badge.xp_required} XP</div>
-                        <div className="text-xs text-red-500 mt-1">
-                          {badge.xp_required - (stats.totalXP || 0)} XP needed
-                        </div>
+                        
                       </div>
                     ))}
                   </div>

@@ -4,7 +4,12 @@ import { supabase } from '../../supabase/client'
 import {
   BookOpen,
   Trophy,
-  X
+  X,
+  ChevronDown,
+  ChevronRight,
+  CheckCircle,
+  Clock,
+  Circle
 } from 'lucide-react'
 
 const AdminOverview = () => {
@@ -14,6 +19,8 @@ const AdminOverview = () => {
   const [selectedCourse, setSelectedCourse] = useState(null)
   const [courseStudents, setCourseStudents] = useState([])
   const [loadingStudents, setLoadingStudents] = useState(false)
+  const [expandedStudent, setExpandedStudent] = useState(null)
+  const [studentUnitProgress, setStudentUnitProgress] = useState(new Map())
 
   useEffect(() => {
     fetchCourseCompletionStats()
@@ -138,7 +145,7 @@ const AdminOverview = () => {
       // Get sessions
       const { data: sessions } = await supabase
         .from('sessions')
-        .select('id')
+        .select('id, unit_id')
         .in('unit_id', unitIds)
 
       const sessionIds = (sessions || []).map(s => s.id)
@@ -207,6 +214,9 @@ const AdminOverview = () => {
 
       setCourseStudents(studentsWithCompletion)
 
+      // Calculate unit-by-unit progress for detailed view
+      await fetchUnitProgress(courseId, units, sessions, assignments, enrollments, progress)
+
     } catch (error) {
       console.error('Error fetching course students:', error)
     } finally {
@@ -214,9 +224,99 @@ const AdminOverview = () => {
     }
   }
 
+  const fetchUnitProgress = async (courseId, units, sessions, assignments, enrollments, progress) => {
+    try {
+      // Get full unit data with titles
+      const { data: unitsData } = await supabase
+        .from('units')
+        .select('id, title, unit_number')
+        .eq('course_id', courseId)
+        .eq('is_active', true)
+        .order('unit_number', { ascending: false })
+
+      if (!unitsData) return
+
+      // Fetch exercises via assignments (assignments has session_id and exercise info)
+      const sessionIds = sessions.map(s => s.id)
+      const { data: assignmentsData } = await supabase
+        .from('exercise_assignments')
+        .select(`
+          session_id,
+          exercise:exercises(id)
+        `)
+        .in('session_id', sessionIds)
+
+      // Extract exercises from assignments
+      const exercisesData = (assignmentsData || [])
+        .filter(a => a.exercise?.id)
+        .map(a => ({
+          id: a.exercise.id,
+          session_id: a.session_id
+        }))
+
+      // Build mapping: session -> unit
+      const sessionToUnit = new Map();
+      sessions.forEach(s => sessionToUnit.set(s.id, s.unit_id))
+
+      // Build mapping: exercise -> unit
+      const exerciseToUnit = new Map();
+      exercisesData.forEach(e => {
+        const unitId = sessionToUnit.get(e.session_id)
+        if (unitId) exerciseToUnit.set(e.id, unitId)
+      })
+
+      // Count exercises per unit
+      const unitExerciseCounts = new Map();
+      exercisesData.forEach(e => {
+        const unitId = exerciseToUnit.get(e.id)
+        if (unitId) {
+          unitExerciseCounts.set(unitId, (unitExerciseCounts.get(unitId) || 0) + 1)
+        }
+      })
+
+      // Count completed exercises per student per unit
+      const studentUnitCompleted = new Map();
+      (progress || []).forEach(p => {
+        const unitId = exerciseToUnit.get(p.exercise_id)
+        if (unitId && p.status === 'completed') {
+          const key = `${p.user_id}-${unitId}`
+          studentUnitCompleted.set(key, (studentUnitCompleted.get(key) || 0) + 1)
+        }
+      })
+
+      // Build final progress map with percentages
+      const progressMap = new Map();
+      enrollments.forEach(enrollment => {
+        const student = enrollment.student
+        unitsData.forEach(unit => {
+          const key = `${student.id}-${unit.id}`
+          const completed = studentUnitCompleted.get(key) || 0
+          const total = unitExerciseCounts.get(unit.id) || 0
+          const percentage = total > 0 ? Math.round((completed / total) * 100) : 0
+
+          progressMap.set(key, {
+            unitId: unit.id,
+            unitTitle: unit.title,
+            unitNumber: unit.unit_number,
+            completed,
+            total,
+            percentage,
+            status: percentage === 100 ? 'completed' : percentage > 0 ? 'in_progress' : 'not_started'
+          })
+        })
+      })
+
+      setStudentUnitProgress(progressMap)
+    } catch (error) {
+      console.error('Error fetching unit progress:', error)
+    }
+  }
+
   const closeModal = () => {
     setSelectedCourse(null)
     setCourseStudents([])
+    setExpandedStudent(null)
+    setStudentUnitProgress(new Map())
   }
 
   if (loading) {
@@ -310,42 +410,111 @@ const AdminOverview = () => {
                   <p className="text-gray-600">No students enrolled in this course.</p>
                 </div>
               ) : (
-                <div className="space-y-3">
-                  {courseStudents.map((student, index) => (
-                    <div
-                      key={student.id}
-                      className="flex items-center justify-between p-4 bg-gray-50 rounded-lg hover:bg-gray-100 transition-colors"
-                    >
-                      <div className="flex items-center space-x-4 flex-1">
-                        <div className="w-10 h-10 bg-blue-100 rounded-full flex items-center justify-center">
-                          <span className="text-blue-600 font-semibold text-sm">
-                            {student.full_name?.charAt(0).toUpperCase() || '?'}
-                          </span>
-                        </div>
-                        <div className="flex-1">
-                          <div className="text-sm font-medium text-gray-900">
-                            {student.full_name || 'No name'}
+                <div className="space-y-2">
+                  {courseStudents.map((student, index) => {
+                    const isExpanded = expandedStudent === student.id
+                    // Get unit progress for this student
+                    const unitKeys = Array.from(studentUnitProgress.keys())
+                      .filter(key => key.startsWith(`${student.id}-`))
+                    const allStudentUnits = unitKeys
+                      .map(key => studentUnitProgress.get(key))
+                    const studentUnits = allStudentUnits
+                      .filter(unit => unit.total > 0) // Only show units with exercises
+                      .sort((a, b) => b.unitNumber - a.unitNumber)
+                      .slice(0, 3) // Show only the 3 latest units
+
+                    return (
+                      <div key={student.id}>
+                        <div
+                          className="flex items-center justify-between p-4 bg-gray-50 rounded-lg hover:bg-gray-100 transition-colors"
+                        >
+                          <div className="flex items-center space-x-4 flex-1">
+                            <button
+                              onClick={() => setExpandedStudent(isExpanded ? null : student.id)}
+                              className="p-1 hover:bg-gray-200 rounded"
+                            >
+                              {isExpanded ? (
+                                <ChevronDown className="w-4 h-4 text-gray-400" />
+                              ) : (
+                                <ChevronRight className="w-4 h-4 text-gray-400" />
+                              )}
+                            </button>
+                            <div className="w-10 h-10 bg-blue-100 rounded-full flex items-center justify-center">
+                              <span className="text-blue-600 font-semibold text-sm">
+                                {student.full_name?.charAt(0).toUpperCase() || '?'}
+                              </span>
+                            </div>
+                            <div className="flex-1">
+                              <div className="text-sm font-medium text-gray-900">
+                                {student.full_name || 'No name'}
+                              </div>
+                              <div className="text-xs text-gray-600">{student.email}</div>
+                            </div>
                           </div>
-                          <div className="text-xs text-gray-600">{student.email}</div>
-                        </div>
-                      </div>
-                      <div className="flex items-center space-x-4">
-                        <div className="text-right">
-                          <div className="text-xs text-gray-500">
-                            {student.completed}/{student.total} exercises
+                          <div className="flex items-center space-x-4">
+                            <div className="text-right">
+                              <div className="text-xs text-gray-500">
+                                {student.completed}/{student.total} exercises
+                              </div>
+                            </div>
+                            <div className={`text-lg font-bold px-3 py-1 rounded-full ${
+                              student.completionRate >= 90 ? 'bg-green-200 text-green-800' :
+                              student.completionRate >= 75 ? 'bg-blue-200 text-blue-800' :
+                              student.completionRate >= 60 ? 'bg-yellow-200 text-yellow-800' :
+                              'bg-red-200 text-red-800'
+                            }`}>
+                              {student.completionRate}%
+                            </div>
                           </div>
                         </div>
-                        <div className={`text-lg font-bold px-3 py-1 rounded-full ${
-                          student.completionRate >= 90 ? 'bg-green-200 text-green-800' :
-                          student.completionRate >= 75 ? 'bg-blue-200 text-blue-800' :
-                          student.completionRate >= 60 ? 'bg-yellow-200 text-yellow-800' :
-                          'bg-red-200 text-red-800'
-                        }`}>
-                          {student.completionRate}%
-                        </div>
+                        {isExpanded && studentUnits.length > 0 && (
+                          <div className="ml-12 mt-2 p-4 bg-white border rounded-lg">
+                            <h4 className="text-sm font-semibold text-gray-900 mb-3">Progress by Unit</h4>
+                            <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+                              {studentUnits.map(unit => {
+                                const getProgressBadge = () => {
+                                  if (unit.status === 'completed') {
+                                    return (
+                                      <div className="flex items-center px-3 py-1 rounded-full bg-green-100 text-green-800">
+                                        <CheckCircle className="w-4 h-4 mr-1" />
+                                        <span className="text-sm font-medium">{unit.percentage}%</span>
+                                      </div>
+                                    )
+                                  } else if (unit.status === 'in_progress') {
+                                    return (
+                                      <div className="flex items-center px-3 py-1 rounded-full bg-yellow-100 text-yellow-800">
+                                        <Clock className="w-4 h-4 mr-1" />
+                                        <span className="text-sm font-medium">{unit.percentage}%</span>
+                                      </div>
+                                    )
+                                  } else {
+                                    return (
+                                      <div className="flex items-center px-3 py-1 rounded-full bg-gray-100 text-gray-600">
+                                        <Circle className="w-4 h-4 mr-1" />
+                                        <span className="text-sm font-medium">{unit.percentage}%</span>
+                                      </div>
+                                    )
+                                  }
+                                }
+
+                                return (
+                                  <div key={unit.unitId} className="p-3 bg-gray-50 rounded border">
+                                    <div className="flex items-center justify-between mb-2">
+                                      <h5 className="text-sm font-medium text-gray-900">{unit.unitTitle}</h5>
+                                      {getProgressBadge()}
+                                    </div>
+                                    <div className="text-xs text-gray-600">
+                                      Exercises: {unit.completed} / {unit.total}
+                                    </div>
+                                  </div>
+                                )
+                              })}
+                            </div>
+                          </div>
+                        )}
                       </div>
-                    </div>
-                  ))}
+                    )
+                  })}
                 </div>
               )}
             </div>

@@ -32,8 +32,12 @@ const Dashboard = () => {
   useEffect(() => {
     if (profile) {
       fetchCourses()
+      if (profile.role === 'user') {
+        fetchMostRecentExercise()
+      } else {
+        setRecent(getRecentExercise())
+      }
     }
-    setRecent(getRecentExercise())
   }, [profile])
 
   const fetchCourses = async () => {
@@ -119,6 +123,122 @@ const Dashboard = () => {
     }
   }
 
+  const fetchMostRecentExercise = async () => {
+    try {
+      // 1. Get student's enrolled courses
+      const { data: enrollments, error: enrollError } = await supabase
+        .from('course_enrollments')
+        .select('course_id')
+        .eq('student_id', profile.id)
+        .eq('is_active', true)
+
+      if (enrollError) throw enrollError
+      if (!enrollments || enrollments.length === 0) return
+
+      const courseIds = enrollments.map(e => e.course_id)
+
+      // 2. Get all units from these courses, ordered by unit_number DESC
+      const { data: units, error: unitsError } = await supabase
+        .from('units')
+        .select('id, course_id, unit_number, title')
+        .in('course_id', courseIds)
+        .eq('is_active', true)
+        .order('unit_number', { ascending: false })
+
+      if (unitsError) throw unitsError
+      if (!units || units.length === 0) return
+
+      // 3. Get all sessions from ALL units, ordered by unit_number DESC, session_number DESC
+      const unitIds = units.map(u => u.id)
+      const { data: allSessions, error: sessionsError } = await supabase
+        .from('sessions')
+        .select('id, unit_id, session_number, title')
+        .in('unit_id', unitIds)
+        .eq('is_active', true)
+        .order('session_number', { ascending: false })
+
+      if (sessionsError) throw sessionsError
+      if (!allSessions || allSessions.length === 0) return
+
+      // Sort sessions by unit order first, then session number
+      const unitOrderMap = new Map(units.map((u, idx) => [u.id, idx]))
+      const sortedSessions = allSessions.sort((a, b) => {
+        const unitOrderA = unitOrderMap.get(a.unit_id)
+        const unitOrderB = unitOrderMap.get(b.unit_id)
+        if (unitOrderA !== unitOrderB) return unitOrderA - unitOrderB
+        return b.session_number - a.session_number
+      })
+
+      // 4. Get student's progress for all exercises
+      const { data: userProgress, error: progressError } = await supabase
+        .from('user_progress')
+        .select('exercise_id, status')
+        .eq('user_id', profile.id)
+
+      if (progressError) throw progressError
+
+      const completedExercises = new Set(
+        (userProgress || [])
+          .filter(p => p.status === 'completed')
+          .map(p => p.exercise_id)
+      )
+
+      // 5. Find first session with incomplete exercises
+      let targetSession = null
+      let targetUnit = null
+
+      for (const session of sortedSessions) {
+        // Get exercises from this session
+        const { data: assignments, error: assignmentsError } = await supabase
+          .from('exercise_assignments')
+          .select(`
+            exercise_id,
+            exercises (
+              id,
+              title,
+              exercise_type,
+              content
+            )
+          `)
+          .eq('session_id', session.id)
+          .order('order_index', { ascending: true })
+
+        if (assignmentsError) continue
+        if (!assignments || assignments.length === 0) continue
+
+        // Check if there are any incomplete exercises
+        const hasIncomplete = assignments.some(a => !completedExercises.has(a.exercise_id))
+
+        if (hasIncomplete) {
+          targetSession = session
+          targetUnit = units.find(u => u.id === session.unit_id)
+          break
+        }
+      }
+
+      // If no incomplete session found, default to the latest session
+      if (!targetSession) {
+        targetSession = sortedSessions[0]
+        targetUnit = units.find(u => u.id === targetSession.unit_id)
+      }
+
+      if (!targetSession || !targetUnit) return
+
+      // 6. Build the navigation path
+      const continuePath = `/study/course/${targetUnit.course_id}/unit/${targetUnit.id}/session/${targetSession.id}`
+
+      setRecent({
+        id: targetSession.id,
+        title: `${targetUnit.title} - ${targetSession.title}`,
+        imageUrl: null,
+        continuePath
+      })
+
+    } catch (error) {
+      console.error('Error fetching most recent exercise:', error)
+    }
+  }
+
   // Get greeting message based on Vietnam time
   const getGreetingMessage = () => {
     // Get Vietnam hour
@@ -142,7 +262,7 @@ const Dashboard = () => {
       {/* Header with Blue Background */}
       <div className="relative -mx-4 md:-mx-6 lg:-mx-8 -mt-6 md:-mt-6 lg:-mt-6 -mb-4 md:-mb-6 lg:-mb-8">
         {/* Blue Background */}
-        <div className="relative h-48 md:h-56 overflow-hidden bg-gradient-to-br from-blue-600 to-blue-800">
+        <div className="relative h-48 md:h-56 overflow-hidden bg-blue-600">
           {/* Dark overlay for better text readability */}
           <div className="absolute inset-0 bg-black/20" />
           
@@ -150,9 +270,9 @@ const Dashboard = () => {
           <div className="absolute inset-0 flex flex-col justify-between p-6">
             {/* XP and Streak stats */}
             <div className="flex justify-between">
-              <div className="bg-white/90 backdrop-blur-sm rounded-full px-4 py-3 flex items-center space-x-2">
-                <Flame className="w-5 h-5 text-orange-500 fill-orange-500" />
-                <span className="font-bold text-gray-800">{profile?.streak_count || 0}</span>
+              <div className="bg-white/90 backdrop-blur-sm rounded-full px-4 flex items-center space-x-2">
+                <Flame className="w-5 h-5 text-red-500 fill-orange-500" />
+                <span className="font-bold text-orange-500">{profile?.streak_count || 0}</span>
               </div>
               <div className="bg-white/90 backdrop-blur-sm rounded-full px-4 py-3 flex items-center space-x-2 border-2 border-blue-700">
                 <img src="https://xpclass.vn/xpclass/icon/xp_small.svg" alt="XP" className="w-5 h-5" />
@@ -161,7 +281,7 @@ const Dashboard = () => {
             </div>
 
             {/* Welcome text with avatar - moved closer to top */}
-            <div className="text-white -mt-16">
+            <div className="text-white mt-5">
               <div className="flex items-center space-x-4 mb-4">
                 <div className="w-16 h-16 bg-white/20 backdrop-blur-sm rounded-full flex items-center justify-center text-2xl font-bold overflow-hidden border-2 border-white/30">
                   {profile?.avatar_url ? (
@@ -181,11 +301,6 @@ const Dashboard = () => {
                   <p className="text-base md:text-lg opacity-90 drop-shadow-md max-w-2xl">
                     {getGreetingMessage()}
                   </p>
-                  <div className="text-sm opacity-75 mt-1">
-                    🕒 {currentTime.toLocaleString('vi-VN', {
-                      timeZone: 'Asia/Ho_Chi_Minh'
-                    })} (VN)
-                  </div>
                 </div>
               </div>
             </div>
@@ -213,16 +328,32 @@ const Dashboard = () => {
                   <div className="font-semibold text-gray-500">{recent.title}</div>
                 </div>
               </div>
-              <Button onClick={() => navigate(recent.continuePath)}>
-                Tiếp tục
+              <Button
+                className="!bg-blue-600 hover:!bg-blue-700 hover:scale-110 active:scale-95 shadow-lg hover:shadow-xl transition-transform will-change-transform"
+                style={{
+                  animation: 'scalePulse 2s ease-in-out infinite',
+                  backfaceVisibility: 'hidden',
+                  WebkitFontSmoothing: 'antialiased'
+                }}
+                onMouseEnter={(e) => e.currentTarget.style.animation = 'none'}
+                onMouseLeave={(e) => e.currentTarget.style.animation = 'scalePulse 2s ease-in-out infinite'}
+                onClick={() => navigate(recent.continuePath)}
+              >
+                Tiếp tục✨
               </Button>
+              <style>{`
+                @keyframes scalePulse {
+                  0%, 100% { transform: scale(1) translateZ(0); }
+                  50% { transform: scale(1.05) translateZ(0); }
+                }
+              `}</style>
             </div>
           </Card.Content>
         </Card>
       )}
 
       {/* My Assignments Button - Only for students */}
-      {profile?.role === 'user' && (
+      {/* {profile?.role === 'user' && (
         <Card className="bg-gradient-to-r from-blue-500 to-blue-600 text-white hover:from-blue-600 hover:to-blue-700 transition-all cursor-pointer" onClick={() => navigate('/study/my-assignments')}>
           <Card.Content className="p-4">
             <div className="flex items-center justify-between">
@@ -241,7 +372,7 @@ const Dashboard = () => {
             </div>
           </Card.Content>
         </Card>
-      )}
+      )} */}
 
       {/* Recent Activities and Levels Grid */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">

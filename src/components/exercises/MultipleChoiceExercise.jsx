@@ -914,13 +914,7 @@ const MultipleChoiceExercise = () => {
                     </div>
                   )}
 
-                  <div className={`w-16 h-16 md:w-20 md:h-20 mx-auto mb-3 ${passed ? 'bg-green-100' : 'bg-orange-100'} rounded-full flex items-center justify-center`}>
-                    {passed ? (
-                      <CheckCircle className="w-8 h-8 md:w-10 md:h-10 text-green-500" />
-                    ) : (
-                      <XCircle className="w-8 h-8 md:w-10 md:h-10 text-orange-500" />
-                    )}
-                  </div>
+                
                   <h2 className={`text-lg md:text-2xl font-bold mb-2 ${passed ? 'text-green-800' : 'text-orange-800'}`}>
                     {passed ? 'Hoàn thành bài quiz!' : 'Cần cải thiện!'}
                   </h2>

@@ -4,7 +4,6 @@ import { supabase } from '../../supabase/client'
 import { useAuth } from '../../hooks/useAuth'
 import { usePermissions } from '../../hooks/usePermissions'
 import { useProgress } from '../../hooks/useProgress'
-import Card from '../ui/Card'
 import Button from '../ui/Button'
 import AssignExerciseModal from './AssignExerciseModal'
 import AssignToStudentModal from '../admin/AssignToStudentModal'
@@ -27,23 +26,9 @@ import { CSS } from '@dnd-kit/utilities'
 // Skeleton loading sẽ thay cho spinner
 import {
   ArrowLeft,
-  Star,
   Lock,
-  CheckCircle,
   BookOpen,
-  Clock,
-  ArrowRight,
-  Target,
-  PlayCircle,
-  Mic,
-  Edit3,
-  Music,
-  Video,
-  Image,
-  HelpCircle,
-  CheckSquare,
   ChevronRight,
-  Crown,
   Plus,
   Edit,
   Trash2,
@@ -67,7 +52,6 @@ const ExerciseList = () => {
   const [sessionProgress, setSessionProgress] = useState({})
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState(null)
-  const [sidebarOpen, setSidebarOpen] = useState(true)
   const [levels, setLevels] = useState([])
   const [units, setUnits] = useState([])
   const [showAssignExerciseModal, setShowAssignExerciseModal] = useState(false)
@@ -603,6 +587,13 @@ const ExerciseList = () => {
     const isLocked = !canAccess
     const ExerciseIcon = getExerciseIcon(exercise.exercise_type)
 
+    // Check if this is the first incomplete exercise
+    const isFirstIncomplete = !isLocked && status !== 'completed' &&
+      exercises.slice(0, index).every((ex, i) => {
+        const exStatus = getExerciseStatus(ex, i).status
+        return exStatus === 'completed' || !getExerciseStatus(ex, i).canAccess
+      })
+
     const handleExerciseClick = () => {
       if (!isLocked) {
         navigate(`${getExercisePath(exercise)}?exerciseId=${exercise.id}&sessionId=${sessionId}&levelId=${levelId}&unitId=${unitId}`)
@@ -612,13 +603,41 @@ const ExerciseList = () => {
     return (
       <div
         ref={setNodeRef}
-        style={style}
-        className={`flex items-center p-4 rounded-lg border transition-all duration-200 ${
+        style={{
+          ...style,
+          animation: isFirstIncomplete ? 'scalePulse 2s ease-in-out infinite' : undefined
+        }}
+        className={`relative flex items-center p-4 rounded-lg border transition-all duration-200 overflow-hidden shadow-md ${
           isLocked
             ? 'opacity-60 cursor-not-allowed bg-gray-50 border-gray-200'
-            : 'hover:shadow-md hover:bg-gray-50 border-gray-300'
-        } ${status === 'completed' ? 'border-green-200 bg-green-50' : ''}`}
+            : 'bg-white border-gray-300'
+        } ${status === 'completed' ? 'border-green-400 bg-green-300' : ''}`}
       >
+        {/* Shining effect - only for completed exercises */}
+        {status === 'completed' && (
+          <div
+            className="absolute inset-0 -translate-x-full animate-shimmer bg-gradient-to-r from-transparent via-white/20 to-transparent"
+            style={{
+              animation: 'shimmer 4s infinite'
+            }}
+          />
+        )}
+        {/* Right-aligned check mark for completed exercises */}
+        {status === 'completed' && (
+          <div className="absolute inset-0 flex items-center justify-end pr-4 pointer-events-none">
+            <img src="https://xpclass.vn/xpclass/icon/green_check.svg" alt="Completed" className="w-16 h-16 opacity-30" />
+          </div>
+        )}
+        <style jsx>{`
+          @keyframes shimmer {
+            0% { transform: translateX(-100%); }
+            100% { transform: translateX(100%); }
+          }
+          @keyframes scalePulse {
+            0%, 100% { transform: scale(1); }
+            50% { transform: scale(1.02); }
+          }
+        `}</style>
         {/* Drag Handle - Only show for admins/teachers */}
         {canCreateContent() && (
           <div
@@ -694,9 +713,6 @@ const ExerciseList = () => {
                   </button>
                 </div>
               )}
-              {status === 'completed' && (
-                <CheckCircle className="w-5 h-5 text-green-600" />
-              )}
               {isLocked && (
                 <Lock className="w-4 h-4 text-gray-400" />
               )}
@@ -704,13 +720,21 @@ const ExerciseList = () => {
           </div>
 
           <div className="mt-1 flex items-center space-x-4 text-sm text-gray-600">
-            <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-gray-100 text-gray-800">
-              {getExerciseTypeLabel(exercise.exercise_type)}
+            <span className={`inline-flex items-center gap-1 px-2 py-1 rounded-full text-s ${
+              status === 'completed'
+                ? 'bg-amber-100 text-amber-800 font-bold'
+                : 'bg-gray-100 text-gray-600 font-medium'
+            }`}>
+              <img
+                src="https://xpclass.vn/xpclass/icon/xp_small.svg"
+                alt="XP"
+                className={`w-4 h-4 ${status === 'completed' ? '' : 'grayscale'}`}
+              />
+              {exercise.xp_reward || 10} XP
             </span>
             {progress && progress.score && (
               <span>Score: {progress.score}%</span>
             )}
-            <span>Exercise {index + 1}</span>
           </div>
         </div>
 
@@ -789,125 +813,22 @@ const ExerciseList = () => {
   const theme = getThemeColors(session.color_theme || unit.color_theme || level.color_theme)
 
   return (
-    <div className="flex  bg-gray-50 -mx-4 -my-6 ">
-      {/* Left Sidebar - Hidden on mobile */}
-      <div className={`hidden md:flex ${sidebarOpen ? 'w-80' : 'w-16'} transition-all duration-300 bg-white border-r border-gray-200 flex-col order-first`}>
-        {/* Sidebar Header */}
-        <div className="p-4 border-b border-gray-200">
-          <div className="flex items-center justify-between">
-            {sidebarOpen && (
-              <h2 className="text-lg font-semibold text-gray-900">Navigation</h2>
-            )}
-            <Button
-              variant="ghost"
-              size="sm"
-              onClick={() => setSidebarOpen(!sidebarOpen)}
-              title={sidebarOpen ? "Collapse sidebar" : "Expand sidebar"}
-            >
-              <ArrowLeft className={`w-4 h-4 transition-transform ${sidebarOpen ? 'rotate-180' : 'rotate-0'}`} />
-            </Button>
-          </div>
-        </div>
-
-        {/* Sidebar Content */}
-        <div className="flex-1 overflow-y-auto">
-          {levels.map((levelItem) => (
-            <div key={levelItem.id} className="border-b border-gray-100">
-              <div className="p-3">
-                <Link
-                  to={`/study/level/${levelItem.id}`}
-                  className={`flex items-center space-x-3 p-2 rounded-lg transition-colors ${
-                    levelItem.id === levelId
-                      ? 'bg-blue-100 text-blue-700'
-                      : 'hover:bg-gray-100'
-                  }`}
-                >
-                  <div className={`w-8 h-8 rounded-lg flex items-center justify-center text-sm font-bold ${
-                    levelItem.id === levelId
-                      ? 'bg-blue-200'
-                      : 'bg-gray-200'
-                  }`}>
-                    {levelItem.level_number}
-                  </div>
-                  {sidebarOpen && (
-                    <div className="flex-1 min-w-0">
-                      <div className="font-medium truncate">{levelItem.title}</div>
-                      <div className="text-xs text-gray-500 truncate">{levelItem.difficulty_label}</div>
-                    </div>
-                  )}
-                </Link>
-              </div>
-
-              {/* Sessions for this level */}
-              {levelItem.id === levelId && sidebarOpen && (
-                <div className="ml-6 space-y-1 pb-3">
-                  {allLevelSessions && allLevelSessions.length > 0 ? allLevelSessions
-                    .sort((a, b) => {
-                      // Create unit map for sorting
-                      const unitMap = {}
-                      units.forEach(unit => {
-                        unitMap[unit.id] = unit.unit_number || 0
-                      })
-
-                      // First sort by unit number, then by session number
-                      const unitNumA = unitMap[a.unit_id] || 0
-                      const unitNumB = unitMap[b.unit_id] || 0
-                      const unitDiff = unitNumA - unitNumB
-                      if (unitDiff !== 0) return unitDiff
-                      return (a.session_number || 0) - (b.session_number || 0)
-                    })
-                    .map((sessionItem) => {
-                      const progress = sessionProgress[sessionItem.id]
-                      const isCompleted = progress?.status === 'completed'
-                      return (
-                        <div
-                          key={sessionItem.id}
-                          onClick={() => handleSessionClick(sessionItem)}
-                          className={`flex items-center space-x-3 p-2 rounded-lg transition-colors hover:bg-gray-50 cursor-pointer ${
-                            sessionItem.id === sessionId
-                              ? 'bg-blue-100 text-blue-700'
-                              : ''
-                          }`}
-                        >
-                          <div className={`w-3 h-3 rounded ${
-                            progress?.status === 'completed' ? 'bg-green-500' :
-                            (progress?.progress_percentage || 0) > 0 ? 'bg-orange-300' :
-                            'bg-gray-300'
-                          }`}>
-                          </div>
-                          <div className="flex-1 min-w-0">
-                            <div className="font-medium truncate text-sm">{sessionItem.title}</div>
-                            {progress && (
-                              <div className="text-xs text-gray-500 truncate">
-                                {progress.progress_percentage || 0}% • {progress.xp_earned || 0} XP
-                              </div>
-                            )}
-                          </div>
-                          {isCompleted && (
-                            <Crown className="w-3 h-3 text-yellow-600" />
-                          )}
-                        </div>
-                      )
-                    }) : (
-                    <div className="p-2 text-sm text-gray-500">No sessions found</div>
-                  )}
-                </div>
-              )}
-            </div>
-          ))}
-        </div>
-      </div>
-
+    <div className="flex bg-gray-50 -mx-4 -my-6">
       {/* Main Content */}
-      <div className="flex-1 flex flex-col w-full md:w-auto">
+      <div className="flex-1 flex flex-col w-full">
         {/* Header */}
         <div className="bg-white border-b border-gray-200 p-6">
           <div className="flex items-center justify-between">
             <div className="flex items-center space-x-4">
-              
+              <button
+                onClick={() => navigate(`/study/course/${currentId}`)}
+                className="p-2 hover:bg-gray-100 rounded-lg transition-colors"
+              >
+                <ArrowLeft className="w-6 h-6 text-gray-600" />
+              </button>
               <div>
-                <h1 className="text-3xl font-bold text-gray-900">{session.title}</h1>
-                <p className="text-gray-600">{session.description}</p>
+                <h2 className="text-2xl font-bold text-gray-900">{session.title}</h2>
+                <p className="text-gray-600 font-bold">{unit.title}</p>
               </div>
             </div>
           </div>

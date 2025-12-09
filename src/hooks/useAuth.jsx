@@ -15,114 +15,56 @@ export const AuthProvider = ({ children }) => {
   const [user, setUser] = useState(null)
   const [profile, setProfile] = useState(null)
   const [loading, setLoading] = useState(true)
-  const initializedRef = useRef(false)
-  const currentUserIdRef = useRef(null)
 
   useEffect(() => {
-    // Timeout to prevent infinite loading
-    const loadingTimeout = setTimeout(() => {
-      setLoading(false)
-    }, 10000) // 10 seconds timeout
-
-    // Get initial session
-    const getInitialSession = async () => {
-      try {
-        console.log('🔐 Getting initial session...')
-        const { data: { session }, error } = await supabase.auth.getSession()
-
-        if (error) {
-          console.error('Error getting session:', error)
-          setLoading(false)
-          return
-        }
-
-        if (session?.user) {
-          console.log('👤 User found:', session.user.id)
-          setUser(session.user)
-          // Fetch profile and wait for it to complete
-          await fetchUserProfile(session.user.id).catch(error => {
-            console.error('Initial profile fetch failed:', error)
-            setProfile(null)
-          })
-        } else {
-          console.log('❌ No session found')
-        }
-      } catch (error) {
-        console.error('Error in getInitialSession:', error)
-      } finally {
-        console.log('✅ Setting loading to false')
-        clearTimeout(loadingTimeout)
-        setLoading(false)
-      }
-    }
-
-    getInitialSession()
-
-    // Listen for auth changes
+    // Listen for auth changes - handles initial session automatically
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
       async (event, session) => {
-        console.log('Auth event:', event)
-
-        // Skip INITIAL_SESSION if we already initialized
-        if (event === 'INITIAL_SESSION' && initializedRef.current) {
-          return
-        }
-
-        if (event === 'INITIAL_SESSION') {
-          initializedRef.current = true
-        }
+        console.log('🔐 Auth event:', event)
 
         try {
           if (session?.user) {
-            // Skip if same user to prevent duplicate fetches
-            if (currentUserIdRef.current === session.user.id) {
-              console.log('Same user, skipping duplicate fetch')
-              return
-            }
-
-            currentUserIdRef.current = session.user.id
             setUser(session.user)
-            await fetchUserProfile(session.user.id).catch(error => {
-              console.error('Profile fetch failed:', error)
-              setProfile(null)
-            })
+            // INITIAL_SESSION: Fired on page load with existing session
+            // TOKEN_REFRESHED: Fired after user signs in successfully
+            if (event === 'INITIAL_SESSION' || event === 'TOKEN_REFRESHED') {
+              await fetchUserProfile(session.user.id)
+            }
           } else {
-            currentUserIdRef.current = null
             setUser(null)
             setProfile(null)
           }
         } catch (error) {
-          console.error('Error in auth state change:', error)
+          console.error('❌ Error in auth state change:', error)
         } finally {
-          clearTimeout(loadingTimeout)
           setLoading(false)
         }
       }
     )
 
-    return () => {
-      subscription.unsubscribe()
-      clearTimeout(loadingTimeout)
-    }
+    return () => subscription.unsubscribe()
   }, [])
 
   const fetchUserProfile = async (userId) => {
     try {
       console.log('📝 Fetching profile for user:', userId)
 
-      // Add timeout to prevent hanging
+      // Add timeout to prevent infinite hanging
       const timeoutPromise = new Promise((_, reject) =>
-        setTimeout(() => reject(new Error('Profile fetch timeout')), 3000)
+        setTimeout(() => reject(new Error('Profile fetch timeout after 5s')), 5000)
       )
 
       const fetchPromise = supabase
-        .rpc('get_user_profile', { user_id: userId })
+        .from('users')
+        .select('*')
+        .eq('id', userId)
         .single()
 
       const { data, error } = await Promise.race([fetchPromise, timeoutPromise])
 
       if (error) {
         console.error('❌ Error fetching user profile:', error)
+        console.error('❌ Error details:', JSON.stringify(error))
         setProfile(null)
       } else {
         console.log('✅ Profile fetched:', data)
@@ -130,6 +72,7 @@ export const AuthProvider = ({ children }) => {
       }
     } catch (error) {
       console.error('❌ Error in fetchUserProfile:', error)
+      console.error('❌ Error type:', error.message)
       setProfile(null)
     }
   }

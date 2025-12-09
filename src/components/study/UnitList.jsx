@@ -14,16 +14,12 @@ import {
   Lock,
   CheckCircle,
   BookOpen,
-  ArrowRight,
-  Target,
-  PlayCircle,
   Play,
   Circle,
   Flame,
   Crown,
   Plus,
   Edit,
-  MoreVertical,
   List,
   Trash2,
   Users,
@@ -700,13 +696,7 @@ const UnitList = () => {
             <div className="absolute inset-0 z-10" style={{ backgroundColor: '#58cc02' }} />
           )}
 
-          {/* Crown icon for completed sessions */}
-          {status === 'completed' && (
-            <div className="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 z-20">
-              <Crown className="w-6 h-6 text-yellow-300" />
-            </div>
-          )}
-
+          
           {/* Lock overlay */}
           {isLocked && (
             <div className="absolute top-1 right-1 z-40">

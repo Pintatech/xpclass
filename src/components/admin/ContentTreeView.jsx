@@ -1,12 +1,12 @@
-import React, { useState, useEffect } from 'react';
-import { supabase } from '../../supabase/client';
-import { 
-  Plus, 
-  Edit, 
-  Trash2, 
-  Save, 
-  X, 
-  AlertCircle, 
+import React, { useState, useEffect } from "react";
+import { supabase } from "../../supabase/client";
+import {
+  Plus,
+  Edit,
+  Trash2,
+  Save,
+  X,
+  AlertCircle,
   CheckCircle,
   ChevronDown,
   ChevronRight,
@@ -16,8 +16,8 @@ import {
   PlayCircle,
   Copy,
   Eye,
-  EyeOff
-} from 'lucide-react';
+  EyeOff,
+} from "lucide-react";
 
 const ContentTreeView = () => {
   const [treeData, setTreeData] = useState([]);
@@ -25,7 +25,7 @@ const ContentTreeView = () => {
   const [loading, setLoading] = useState(false);
   const [notification, setNotification] = useState(null);
   const [showModal, setShowModal] = useState(false);
-  const [modalType, setModalType] = useState('');
+  const [modalType, setModalType] = useState("");
   const [editingItem, setEditingItem] = useState(null);
   const [parentContext, setParentContext] = useState(null);
 
@@ -33,7 +33,7 @@ const ContentTreeView = () => {
     fetchTreeData();
   }, []);
 
-  const showNotification = (message, type = 'success') => {
+  const showNotification = (message, type = "success") => {
     setNotification({ message, type });
     setTimeout(() => setNotification(null), 5000);
   };
@@ -43,18 +43,26 @@ const ContentTreeView = () => {
       setLoading(true);
 
       // Try courses table first, fallback to levels table
-      let coursesResult = await supabase.from('courses').select('*').order('level_number');
+      let coursesResult = await supabase
+        .from("courses")
+        .select("*")
+        .order("level_number");
 
-      if (coursesResult.error && coursesResult.error.code === 'PGRST205') {
-        console.log('Courses table not found in content tree, trying levels table...');
-        coursesResult = await supabase.from('levels').select('*').order('level_number');
+      if (coursesResult.error && coursesResult.error.code === "PGRST205") {
+        console.log(
+          "Courses table not found in content tree, trying levels table..."
+        );
+        coursesResult = await supabase
+          .from("levels")
+          .select("*")
+          .order("level_number");
       }
 
       // Fetch other data
       const [unitsResult, sessionsResult, exercisesResult] = await Promise.all([
-        supabase.from('units').select('*').order('unit_number'),
-        supabase.from('sessions').select('*').order('session_number'),
-        supabase.from('exercises').select('*').order('order_index')
+        supabase.from("units").select("*").order("unit_number"),
+        supabase.from("sessions").select("*").order("session_number"),
+        supabase.from("exercises").select("*").order("order_index"),
       ]);
 
       const courses = coursesResult.data || [];
@@ -63,34 +71,34 @@ const ContentTreeView = () => {
       const exercises = exercisesResult.data || [];
 
       // Build tree structure
-      const tree = courses.map(course => ({
+      const tree = courses.map((course) => ({
         ...course,
-        type: 'course',
+        type: "course",
         children: units
-          .filter(unit => unit.course_id === course.id)
-          .map(unit => ({
+          .filter((unit) => unit.course_id === course.id)
+          .map((unit) => ({
             ...unit,
-            type: 'unit',
+            type: "unit",
             children: sessions
-              .filter(session => session.unit_id === unit.id)
-              .map(session => ({
+              .filter((session) => session.unit_id === unit.id)
+              .map((session) => ({
                 ...session,
-                type: 'session',
+                type: "session",
                 children: exercises
-                  .filter(exercise => exercise.session_id === session.id)
-                  .map(exercise => ({
+                  .filter((exercise) => exercise.session_id === session.id)
+                  .map((exercise) => ({
                     ...exercise,
-                    type: 'exercise',
-                    children: []
-                  }))
-              }))
-          }))
+                    type: "exercise",
+                    children: [],
+                  })),
+              })),
+          })),
       }));
 
       setTreeData(tree);
     } catch (error) {
-      console.error('Error fetching tree data:', error);
-      showNotification('Error loading content tree: ' + error.message, 'error');
+      console.error("Error fetching tree data:", error);
+      showNotification("Error loading content tree: " + error.message, "error");
     } finally {
       setLoading(false);
     }
@@ -109,7 +117,7 @@ const ContentTreeView = () => {
   const expandAll = () => {
     const allIds = new Set();
     const collectIds = (nodes) => {
-      nodes.forEach(node => {
+      nodes.forEach((node) => {
         allIds.add(node.id);
         if (node.children?.length > 0) {
           collectIds(node.children);
@@ -144,20 +152,24 @@ const ContentTreeView = () => {
 
     try {
       setLoading(true);
-      const tableName = item.type === 'exercise' ? 'exercises' : `${item.type}s`;
-      
+      const tableName =
+        item.type === "exercise" ? "exercises" : `${item.type}s`;
+
       const { error } = await supabase
         .from(tableName)
         .delete()
-        .eq('id', item.id);
+        .eq("id", item.id);
 
       if (error) throw error;
-      
+
       showNotification(`${item.type} deleted successfully!`);
       await fetchTreeData();
     } catch (error) {
-      console.error('Error deleting item:', error);
-      showNotification(`Error deleting ${item.type}: ` + error.message, 'error');
+      console.error("Error deleting item:", error);
+      showNotification(
+        `Error deleting ${item.type}: ` + error.message,
+        "error"
+      );
     } finally {
       setLoading(false);
     }
@@ -166,22 +178,21 @@ const ContentTreeView = () => {
   const handleSave = async (formData) => {
     try {
       setLoading(true);
-      const tableName = modalType === 'exercise' ? 'exercises' : `${modalType}s`;
+      const tableName =
+        modalType === "exercise" ? "exercises" : `${modalType}s`;
 
       if (editingItem) {
         // Update existing item
         const { error } = await supabase
           .from(tableName)
           .update(formData)
-          .eq('id', editingItem.id);
+          .eq("id", editingItem.id);
 
         if (error) throw error;
         showNotification(`${modalType} updated successfully!`);
       } else {
         // Create new item
-        const { error } = await supabase
-          .from(tableName)
-          .insert(formData);
+        const { error } = await supabase.from(tableName).insert(formData);
 
         if (error) throw error;
         showNotification(`${modalType} created successfully!`);
@@ -192,8 +203,8 @@ const ContentTreeView = () => {
       setParentContext(null);
       await fetchTreeData();
     } catch (error) {
-      console.error('Error saving item:', error);
-      showNotification(`Error saving ${modalType}: ` + error.message, 'error');
+      console.error("Error saving item:", error);
+      showNotification(`Error saving ${modalType}: ` + error.message, "error");
     } finally {
       setLoading(false);
     }
@@ -201,26 +212,36 @@ const ContentTreeView = () => {
 
   const copyId = (id) => {
     navigator.clipboard.writeText(id);
-    showNotification('ID copied to clipboard!');
+    showNotification("ID copied to clipboard!");
   };
 
   const getNodeIcon = (type) => {
     switch (type) {
-      case 'level': return BookOpen;
-      case 'unit': return FileText;
-      case 'session': return Settings;
-      case 'exercise': return PlayCircle;
-      default: return FileText;
+      case "level":
+        return BookOpen;
+      case "unit":
+        return FileText;
+      case "session":
+        return Settings;
+      case "exercise":
+        return PlayCircle;
+      default:
+        return FileText;
     }
   };
 
   const getNodeColor = (type) => {
     switch (type) {
-      case 'level': return 'blue';
-      case 'unit': return 'green';
-      case 'session': return 'purple';
-      case 'exercise': return 'orange';
-      default: return 'gray';
+      case "level":
+        return "blue";
+      case "unit":
+        return "green";
+      case "session":
+        return "purple";
+      case "exercise":
+        return "orange";
+      default:
+        return "gray";
     }
   };
 
@@ -232,7 +253,7 @@ const ContentTreeView = () => {
 
     return (
       <div className="select-none">
-        <div 
+        <div
           className={`flex items-center py-2 px-2 rounded hover:bg-gray-50 group`}
           style={{ paddingLeft: `${depth * 24 + 8}px` }}
         >
@@ -253,7 +274,9 @@ const ContentTreeView = () => {
           </div>
 
           {/* Node Icon */}
-          <div className={`w-6 h-6 rounded-full bg-${color}-100 flex items-center justify-center mr-3`}>
+          <div
+            className={`w-6 h-6 rounded-full bg-${color}-100 flex items-center justify-center mr-3`}
+          >
             <IconComponent className={`w-4 h-4 text-${color}-600`} />
           </div>
 
@@ -261,39 +284,43 @@ const ContentTreeView = () => {
           <div className="flex-1 min-w-0">
             <div className="flex items-center gap-2">
               <h4 className="font-medium text-gray-900 truncate">
-                {node.type === 'level' && `Level ${node.level_number}: `}
-                {node.type === 'unit' && `Unit ${node.unit_number}: `}
-                {node.type === 'session' && `Session ${node.session_number}: `}
+                {node.type === "level" && `Level ${node.level_number}: `}
+                {node.type === "unit" && `Unit ${node.unit_number}: `}
+                {node.type === "session" && `Session ${node.session_number}: `}
                 {node.title}
               </h4>
-              
+
               {/* Badges */}
               <div className="flex items-center gap-1">
-                {node.type === 'level' && (
-                  <span className={`px-2 py-1 text-xs rounded-full ${
-                    node.difficulty_label === 'Beginner' 
-                      ? 'bg-green-100 text-green-700'
-                      : node.difficulty_label === 'Intermediate'
-                      ? 'bg-yellow-100 text-yellow-700'
-                      : 'bg-red-100 text-red-700'
-                  }`}>
+                {node.type === "level" && (
+                  <span
+                    className={`px-2 py-1 text-xs rounded-full ${
+                      node.difficulty_label === "Beginner"
+                        ? "bg-green-100 text-green-700"
+                        : node.difficulty_label === "Intermediate"
+                        ? "bg-yellow-100 text-yellow-700"
+                        : "bg-red-100 text-red-700"
+                    }`}
+                  >
                     {node.difficulty_label}
                   </span>
                 )}
-                
-                {node.type === 'session' && (
-                  <span className={`px-2 py-1 text-xs rounded-full ${
-                    node.session_type === 'content' 
-                      ? 'bg-blue-100 text-blue-700'
-                      : node.session_type === 'vocabulary'
-                      ? 'bg-green-100 text-green-700'
-                      : 'bg-purple-100 text-purple-700'
-                  }`}>
+
+                {node.type === "session" && (
+                  <span
+                    className={`px-2 py-1 text-xs rounded-full ${
+                      node.session_type === "content"
+                        ? "bg-blue-100 text-blue-700"
+                        : node.session_type === "vocabulary"
+                        ? "bg-green-100 text-green-700"
+                        : "bg-purple-100 text-purple-700"
+                    }`}
+                  >
                     {node.session_type}
                   </span>
                 )}
 
-                {node.type === 'exercise' && (
+                {node.type === "exercise" && (
                   <span className="px-2 py-1 text-xs bg-orange-100 text-orange-700 rounded-full">
                     {node.exercise_type}
                   </span>
@@ -310,30 +337,34 @@ const ContentTreeView = () => {
 
             {/* Meta Info */}
             <div className="flex items-center gap-4 mt-1 text-xs text-gray-500">
-              {node.type === 'level' && (
+              {node.type === "level" && (
                 <>
                   <span>{node.children?.length || 0} units</span>
                   <span>{node.unlock_requirement} XP to unlock</span>
                 </>
               )}
-              {node.type === 'unit' && (
+              {node.type === "unit" && (
                 <>
                   <span>{node.children?.length || 0} sessions</span>
-                  {node.estimated_duration && <span>{node.estimated_duration} min</span>}
+                  {node.estimated_duration && (
+                    <span>{node.estimated_duration} min</span>
+                  )}
                 </>
               )}
-              {node.type === 'session' && (
+              {node.type === "session" && (
                 <>
                   <span>{node.children?.length || 0} exercises</span>
                   <span>Difficulty: {node.difficulty_level}/5</span>
                   <span>{node.xp_reward} XP</span>
                 </>
               )}
-              {node.type === 'exercise' && (
+              {node.type === "exercise" && (
                 <>
                   <span>Order: {node.order_index}</span>
                   <span>{node.xp_reward} XP</span>
-                  {node.estimated_duration && <span>{node.estimated_duration} min</span>}
+                  {node.estimated_duration && (
+                    <span>{node.estimated_duration} min</span>
+                  )}
                 </>
               )}
             </div>
@@ -348,7 +379,7 @@ const ContentTreeView = () => {
             >
               <Copy className="w-4 h-4" />
             </button>
-            
+
             <button
               onClick={() => handleEdit(node)}
               className={`p-1 text-${color}-600 hover:text-${color}-800 rounded`}
@@ -356,7 +387,7 @@ const ContentTreeView = () => {
             >
               <Edit className="w-4 h-4" />
             </button>
-            
+
             <button
               onClick={() => handleDelete(node)}
               className="p-1 text-red-600 hover:text-red-800 rounded"
@@ -364,18 +395,27 @@ const ContentTreeView = () => {
             >
               <Trash2 className="w-4 h-4" />
             </button>
-            
+
             {/* Add child button */}
-            {node.type !== 'exercise' && (
+            {node.type !== "exercise" && (
               <button
                 onClick={() => {
-                  const childType = node.type === 'level' ? 'unit' 
-                    : node.type === 'unit' ? 'session' 
-                    : 'exercise';
+                  const childType =
+                    node.type === "level"
+                      ? "unit"
+                      : node.type === "unit"
+                      ? "session"
+                      : "exercise";
                   handleCreate(childType, node);
                 }}
                 className={`p-1 text-${color}-600 hover:text-${color}-800 rounded`}
-                title={`Add ${node.type === 'level' ? 'unit' : node.type === 'unit' ? 'session' : 'exercise'}`}
+                title={`Add ${
+                  node.type === "level"
+                    ? "unit"
+                    : node.type === "unit"
+                    ? "session"
+                    : "exercise"
+                }`}
               >
                 <Plus className="w-4 h-4" />
               </button>
@@ -386,7 +426,7 @@ const ContentTreeView = () => {
         {/* Children */}
         {hasChildren && isExpanded && (
           <div>
-            {node.children.map(child => (
+            {node.children.map((child) => (
               <TreeNode key={child.id} node={child} depth={depth + 1} />
             ))}
           </div>
@@ -401,7 +441,9 @@ const ContentTreeView = () => {
       <div className="flex justify-between items-center">
         <div>
           <h2 className="text-2xl font-bold text-gray-900">Content Tree</h2>
-          <p className="text-gray-600">Hierarchical view of all learning content</p>
+          <p className="text-gray-600">
+            Hierarchical view of all learning content
+          </p>
         </div>
         <div className="flex items-center gap-3">
           <button
@@ -419,7 +461,7 @@ const ContentTreeView = () => {
             Collapse All
           </button>
           <button
-            onClick={() => handleCreate('level')}
+            onClick={() => handleCreate("level")}
             className="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition-colors flex items-center gap-2"
           >
             <Plus className="w-4 h-4" />
@@ -438,10 +480,14 @@ const ContentTreeView = () => {
         ) : treeData.length === 0 ? (
           <div className="p-8 text-center">
             <div className="text-6xl mb-4">🌳</div>
-            <h3 className="text-lg font-medium text-gray-900 mb-2">No content yet</h3>
-            <p className="text-gray-600 mb-4">Create your first level to start building your content tree</p>
+            <h3 className="text-lg font-medium text-gray-900 mb-2">
+              No content yet
+            </h3>
+            <p className="text-gray-600 mb-4">
+              Create your first level to start building your content tree
+            </p>
             <button
-              onClick={() => handleCreate('level')}
+              onClick={() => handleCreate("level")}
               className="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700"
             >
               Create First Level
@@ -449,7 +495,7 @@ const ContentTreeView = () => {
           </div>
         ) : (
           <div className="p-4">
-            {treeData.map(node => (
+            {treeData.map((node) => (
               <TreeNode key={node.id} node={node} />
             ))}
           </div>
@@ -505,13 +551,15 @@ const ContentTreeView = () => {
 
       {/* Notification */}
       {notification && (
-        <div className={`fixed top-4 right-4 p-4 rounded-lg shadow-lg z-50 ${
-          notification.type === 'error' 
-            ? 'bg-red-500 text-white' 
-            : 'bg-green-500 text-white'
-        }`}>
+        <div
+          className={`fixed top-4 right-4 p-4 rounded-lg shadow-lg z-50 ${
+            notification.type === "error"
+              ? "bg-red-500 text-white"
+              : "bg-green-500 text-white"
+          }`}
+        >
           <div className="flex items-center gap-2">
-            {notification.type === 'error' ? (
+            {notification.type === "error" ? (
               <AlertCircle className="w-5 h-5" />
             ) : (
               <CheckCircle className="w-5 h-5" />
@@ -528,48 +576,48 @@ const ContentTreeView = () => {
 const UniversalModal = ({ type, item, parent, onSave, onCancel, loading }) => {
   const [formData, setFormData] = useState(() => {
     const base = {
-      title: item?.title || '',
-      description: item?.description || ''
+      title: item?.title || "",
+      description: item?.description || "",
     };
 
     switch (type) {
-      case 'level':
+      case "level":
         return {
           ...base,
-          level_number: item?.level_number || '',
-          difficulty_label: item?.difficulty_label || 'Beginner',
-          color_theme: item?.color_theme || 'blue',
-          unlock_requirement: item?.unlock_requirement || 0
+          level_number: item?.level_number || "",
+          difficulty_label: item?.difficulty_label || "Beginner",
+          color_theme: item?.color_theme || "blue",
+          unlock_requirement: item?.unlock_requirement || 0,
         };
-      case 'unit':
+      case "unit":
         return {
           ...base,
-          level_id: parent?.id || item?.level_id || '',
-          unit_number: item?.unit_number || '',
-          color_theme: item?.color_theme || 'green',
-          estimated_duration: item?.estimated_duration || ''
+          level_id: parent?.id || item?.level_id || "",
+          unit_number: item?.unit_number || "",
+          color_theme: item?.color_theme || "green",
+          estimated_duration: item?.estimated_duration || "",
         };
-      case 'session':
+      case "session":
         return {
           ...base,
-          unit_id: parent?.id || item?.unit_id || '',
-          session_number: item?.session_number || '',
-          session_type: item?.session_type || 'content',
+          unit_id: parent?.id || item?.unit_id || "",
+          session_number: item?.session_number || "",
+          session_type: item?.session_type || "content",
           difficulty_level: item?.difficulty_level || 1,
           xp_reward: item?.xp_reward || 50,
-          estimated_duration: item?.estimated_duration || ''
+          estimated_duration: item?.estimated_duration || "",
         };
-      case 'exercise':
+      case "exercise":
         return {
           ...base,
-          session_id: parent?.id || item?.session_id || '',
-          exercise_type: item?.exercise_type || 'combined_learning',
+          session_id: parent?.id || item?.session_id || "",
+          exercise_type: item?.exercise_type || "combined_learning",
           difficulty_level: item?.difficulty_level || 1,
           xp_reward: item?.xp_reward || 25,
           order_index: item?.order_index || 1,
           is_active: item?.is_active ?? true,
-          estimated_duration: item?.estimated_duration || '',
-          content: item?.content || {}
+          estimated_duration: item?.estimated_duration || "",
+          content: item?.content || {},
         };
       default:
         return base;
@@ -582,28 +630,40 @@ const UniversalModal = ({ type, item, parent, onSave, onCancel, loading }) => {
     const newErrors = {};
 
     if (!formData.title?.trim()) {
-      newErrors.title = 'Title is required';
+      newErrors.title = "Title is required";
     }
 
     if (!formData.description?.trim()) {
-      newErrors.description = 'Description is required';
+      newErrors.description = "Description is required";
     }
 
     // Type-specific validation
-    if (type === 'level' && (!formData.level_number || formData.level_number < 1)) {
-      newErrors.level_number = 'Level number must be greater than 0';
+    if (
+      type === "level" &&
+      (!formData.level_number || formData.level_number < 1)
+    ) {
+      newErrors.level_number = "Level number must be greater than 0";
     }
 
-    if (type === 'unit' && (!formData.unit_number || formData.unit_number < 1)) {
-      newErrors.unit_number = 'Unit number must be greater than 0';
+    if (
+      type === "unit" &&
+      (!formData.unit_number || formData.unit_number < 1)
+    ) {
+      newErrors.unit_number = "Unit number must be greater than 0";
     }
 
-    if (type === 'session' && (!formData.session_number || formData.session_number < 1)) {
-      newErrors.session_number = 'Session number must be greater than 0';
+    if (
+      type === "session" &&
+      (!formData.session_number || formData.session_number < 1)
+    ) {
+      newErrors.session_number = "Session number must be greater than 0";
     }
 
-    if (type === 'exercise' && (!formData.order_index || formData.order_index < 1)) {
-      newErrors.order_index = 'Order index must be greater than 0';
+    if (
+      type === "exercise" &&
+      (!formData.order_index || formData.order_index < 1)
+    ) {
+      newErrors.order_index = "Order index must be greater than 0";
     }
 
     setErrors(newErrors);
@@ -615,23 +675,31 @@ const UniversalModal = ({ type, item, parent, onSave, onCancel, loading }) => {
     if (validateForm()) {
       // Convert numeric fields
       const processedData = { ...formData };
-      
-      if (type === 'level') {
+
+      if (type === "level") {
         processedData.level_number = parseInt(formData.level_number);
-        processedData.unlock_requirement = parseInt(formData.unlock_requirement);
-      } else if (type === 'unit') {
+        processedData.unlock_requirement = parseInt(
+          formData.unlock_requirement
+        );
+      } else if (type === "unit") {
         processedData.unit_number = parseInt(formData.unit_number);
-        processedData.estimated_duration = formData.estimated_duration ? parseInt(formData.estimated_duration) : null;
-      } else if (type === 'session') {
+        processedData.estimated_duration = formData.estimated_duration
+          ? parseInt(formData.estimated_duration)
+          : null;
+      } else if (type === "session") {
         processedData.session_number = parseInt(formData.session_number);
         processedData.difficulty_level = parseInt(formData.difficulty_level);
         processedData.xp_reward = parseInt(formData.xp_reward);
-        processedData.estimated_duration = formData.estimated_duration ? parseInt(formData.estimated_duration) : null;
-      } else if (type === 'exercise') {
+        processedData.estimated_duration = formData.estimated_duration
+          ? parseInt(formData.estimated_duration)
+          : null;
+      } else if (type === "exercise") {
         processedData.difficulty_level = parseInt(formData.difficulty_level);
         processedData.xp_reward = parseInt(formData.xp_reward);
         processedData.order_index = parseInt(formData.order_index);
-        processedData.estimated_duration = formData.estimated_duration ? parseInt(formData.estimated_duration) : null;
+        processedData.estimated_duration = formData.estimated_duration
+          ? parseInt(formData.estimated_duration)
+          : null;
       }
 
       onSave(processedData);
@@ -639,14 +707,14 @@ const UniversalModal = ({ type, item, parent, onSave, onCancel, loading }) => {
   };
 
   const handleInputChange = (field, value) => {
-    setFormData(prev => ({ ...prev, [field]: value }));
+    setFormData((prev) => ({ ...prev, [field]: value }));
     if (errors[field]) {
-      setErrors(prev => ({ ...prev, [field]: null }));
+      setErrors((prev) => ({ ...prev, [field]: null }));
     }
   };
 
   const getModalTitle = () => {
-    const action = item ? 'Edit' : 'Create';
+    const action = item ? "Edit" : "Create";
     return `${action} ${type.charAt(0).toUpperCase() + type.slice(1)}`;
   };
 
@@ -655,7 +723,10 @@ const UniversalModal = ({ type, item, parent, onSave, onCancel, loading }) => {
       <div className="bg-white rounded-xl max-w-2xl w-full max-h-[90vh] overflow-y-auto">
         <div className="p-6 border-b border-gray-200 flex justify-between items-center">
           <h2 className="text-xl font-bold text-gray-800">{getModalTitle()}</h2>
-          <button onClick={onCancel} className="text-gray-500 hover:text-gray-700">
+          <button
+            onClick={onCancel}
+            className="text-gray-500 hover:text-gray-700"
+          >
             <X className="w-6 h-6" />
           </button>
         </div>
@@ -669,9 +740,9 @@ const UniversalModal = ({ type, item, parent, onSave, onCancel, loading }) => {
             <input
               type="text"
               value={formData.title}
-              onChange={(e) => handleInputChange('title', e.target.value)}
+              onChange={(e) => handleInputChange("title", e.target.value)}
               className={`w-full p-3 border rounded-lg focus:ring-2 focus:ring-blue-500 ${
-                errors.title ? 'border-red-300' : 'border-gray-300'
+                errors.title ? "border-red-300" : "border-gray-300"
               }`}
               placeholder={`Enter ${type} title...`}
             />
@@ -686,9 +757,9 @@ const UniversalModal = ({ type, item, parent, onSave, onCancel, loading }) => {
             </label>
             <textarea
               value={formData.description}
-              onChange={(e) => handleInputChange('description', e.target.value)}
+              onChange={(e) => handleInputChange("description", e.target.value)}
               className={`w-full p-3 border rounded-lg focus:ring-2 focus:ring-blue-500 ${
-                errors.description ? 'border-red-300' : 'border-gray-300'
+                errors.description ? "border-red-300" : "border-gray-300"
               }`}
               rows="3"
               placeholder={`Describe this ${type}...`}
@@ -699,7 +770,7 @@ const UniversalModal = ({ type, item, parent, onSave, onCancel, loading }) => {
           </div>
 
           {/* Type-specific fields */}
-          {type === 'level' && (
+          {type === "level" && (
             <div className="grid grid-cols-2 gap-4">
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">
@@ -709,13 +780,17 @@ const UniversalModal = ({ type, item, parent, onSave, onCancel, loading }) => {
                   type="number"
                   min="1"
                   value={formData.level_number}
-                  onChange={(e) => handleInputChange('level_number', e.target.value)}
+                  onChange={(e) =>
+                    handleInputChange("level_number", e.target.value)
+                  }
                   className={`w-full p-3 border rounded-lg focus:ring-2 focus:ring-blue-500 ${
-                    errors.level_number ? 'border-red-300' : 'border-gray-300'
+                    errors.level_number ? "border-red-300" : "border-gray-300"
                   }`}
                 />
                 {errors.level_number && (
-                  <p className="text-red-600 text-sm mt-1">{errors.level_number}</p>
+                  <p className="text-red-600 text-sm mt-1">
+                    {errors.level_number}
+                  </p>
                 )}
               </div>
               <div>
@@ -724,7 +799,9 @@ const UniversalModal = ({ type, item, parent, onSave, onCancel, loading }) => {
                 </label>
                 <select
                   value={formData.difficulty_label}
-                  onChange={(e) => handleInputChange('difficulty_label', e.target.value)}
+                  onChange={(e) =>
+                    handleInputChange("difficulty_label", e.target.value)
+                  }
                   className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
                 >
                   <option value="Beginner">Beginner</option>
@@ -735,7 +812,7 @@ const UniversalModal = ({ type, item, parent, onSave, onCancel, loading }) => {
             </div>
           )}
 
-          {type === 'unit' && (
+          {type === "unit" && (
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">
                 Unit Number *
@@ -744,18 +821,22 @@ const UniversalModal = ({ type, item, parent, onSave, onCancel, loading }) => {
                 type="number"
                 min="1"
                 value={formData.unit_number}
-                onChange={(e) => handleInputChange('unit_number', e.target.value)}
+                onChange={(e) =>
+                  handleInputChange("unit_number", e.target.value)
+                }
                 className={`w-full p-3 border rounded-lg focus:ring-2 focus:ring-blue-500 ${
-                  errors.unit_number ? 'border-red-300' : 'border-gray-300'
+                  errors.unit_number ? "border-red-300" : "border-gray-300"
                 }`}
               />
               {errors.unit_number && (
-                <p className="text-red-600 text-sm mt-1">{errors.unit_number}</p>
+                <p className="text-red-600 text-sm mt-1">
+                  {errors.unit_number}
+                </p>
               )}
             </div>
           )}
 
-          {type === 'session' && (
+          {type === "session" && (
             <div className="grid grid-cols-2 gap-4">
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">
@@ -765,13 +846,17 @@ const UniversalModal = ({ type, item, parent, onSave, onCancel, loading }) => {
                   type="number"
                   min="1"
                   value={formData.session_number}
-                  onChange={(e) => handleInputChange('session_number', e.target.value)}
+                  onChange={(e) =>
+                    handleInputChange("session_number", e.target.value)
+                  }
                   className={`w-full p-3 border rounded-lg focus:ring-2 focus:ring-blue-500 ${
-                    errors.session_number ? 'border-red-300' : 'border-gray-300'
+                    errors.session_number ? "border-red-300" : "border-gray-300"
                   }`}
                 />
                 {errors.session_number && (
-                  <p className="text-red-600 text-sm mt-1">{errors.session_number}</p>
+                  <p className="text-red-600 text-sm mt-1">
+                    {errors.session_number}
+                  </p>
                 )}
               </div>
               <div>
@@ -780,7 +865,9 @@ const UniversalModal = ({ type, item, parent, onSave, onCancel, loading }) => {
                 </label>
                 <select
                   value={formData.session_type}
-                  onChange={(e) => handleInputChange('session_type', e.target.value)}
+                  onChange={(e) =>
+                    handleInputChange("session_type", e.target.value)
+                  }
                   className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
                 >
                   <option value="content">Content</option>
@@ -793,7 +880,7 @@ const UniversalModal = ({ type, item, parent, onSave, onCancel, loading }) => {
             </div>
           )}
 
-          {type === 'exercise' && (
+          {type === "exercise" && (
             <div className="grid grid-cols-2 gap-4">
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">
@@ -801,7 +888,9 @@ const UniversalModal = ({ type, item, parent, onSave, onCancel, loading }) => {
                 </label>
                 <select
                   value={formData.exercise_type}
-                  onChange={(e) => handleInputChange('exercise_type', e.target.value)}
+                  onChange={(e) =>
+                    handleInputChange("exercise_type", e.target.value)
+                  }
                   className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
                 >
                   <option value="flashcard">Flashcard</option>
@@ -817,13 +906,17 @@ const UniversalModal = ({ type, item, parent, onSave, onCancel, loading }) => {
                   type="number"
                   min="1"
                   value={formData.order_index}
-                  onChange={(e) => handleInputChange('order_index', e.target.value)}
+                  onChange={(e) =>
+                    handleInputChange("order_index", e.target.value)
+                  }
                   className={`w-full p-3 border rounded-lg focus:ring-2 focus:ring-blue-500 ${
-                    errors.order_index ? 'border-red-300' : 'border-gray-300'
+                    errors.order_index ? "border-red-300" : "border-gray-300"
                   }`}
                 />
                 {errors.order_index && (
-                  <p className="text-red-600 text-sm mt-1">{errors.order_index}</p>
+                  <p className="text-red-600 text-sm mt-1">
+                    {errors.order_index}
+                  </p>
                 )}
               </div>
             </div>
@@ -851,7 +944,7 @@ const UniversalModal = ({ type, item, parent, onSave, onCancel, loading }) => {
               ) : (
                 <>
                   <Save className="w-4 h-4" />
-                  {item ? 'Update' : 'Create'}
+                  {item ? "Update" : "Create"}
                 </>
               )}
             </button>
@@ -863,5 +956,3 @@ const UniversalModal = ({ type, item, parent, onSave, onCancel, loading }) => {
 };
 
 export default ContentTreeView;
-
-
