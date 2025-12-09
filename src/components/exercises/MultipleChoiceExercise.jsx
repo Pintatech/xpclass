@@ -781,6 +781,7 @@ const MultipleChoiceExercise = () => {
   return (
     <div className="px-4 pt-6 pb-12">
       <div className="max-w-4xl mx-auto space-y-6">
+        
       {/* Header */}
       <div className="bg-white rounded-lg shadow-sm p-4 md:p-5 border border-gray-200">
         <div className="flex items-center justify-between gap-4">
@@ -989,7 +990,14 @@ const MultipleChoiceExercise = () => {
         <>
           {/* One-by-one mode */}
           {viewMode === 'one-by-one' && (
-            <div className="w-full max-w-4xl min-w-0 mx-auto rounded-lg p-4 md:p-8 bg-white shadow-md mt-6 border border-gray-200">
+            <div className="w-full max-w-4xl min-w-0 mx-auto mt-6 bg-white rounded-lg shadow-[0_2px_10px_rgba(0,0,0,0.1),0_10px_20px_rgba(0,0,0,0.05)] relative before:content-[''] before:absolute before:top-0 before:left-0 before:right-0 before:h-full before:bg-gradient-to-b before:from-gray-50 before:to-transparent before:opacity-30 before:pointer-events-none before:rounded-lg">
+              {/* Colored circles on top right */}
+              <div className="absolute top-4 right-6 md:right-10 flex gap-2 z-20">
+                <div className="w-3 h-3 rounded-full bg-red-500"></div>
+                <div className="w-3 h-3 rounded-full bg-yellow-500"></div>
+                <div className="w-3 h-3 rounded-full bg-green-500"></div>
+              </div>
+              <div className="relative z-10 p-4 md:p-8 pt-8 border-l-4 border-blue-400">
               <div className="space-y-4 md:space-y-6">
                 {/* Question - single unified version */}
                 <div className="mb-6">
@@ -1035,17 +1043,8 @@ const MultipleChoiceExercise = () => {
                       {currentQuestion.options.map((option, index) => {
                         let buttonClass = "w-full p-3 md:p-4 text-left border-2 rounded-lg transition-all duration-200 text-sm md:text-base font-medium "
 
-                        // Hover color sets per index: pink, orange, yellow, green
-                        const hoverStylesByIndex = [
-                          "hover:border-pink-400 hover:bg-pink-50",
-                          "hover:border-orange-400 hover:bg-orange-50",
-                          "hover:border-yellow-400 hover:bg-yellow-50",
-                          "hover:border-green-400 hover:bg-green-50",
-                        ]
-                        const hoverStyles = hoverStylesByIndex[index % hoverStylesByIndex.length]
-
                         if (selectedAnswer === null) {
-                          buttonClass += `border-gray-300 bg-white ${hoverStyles} cursor-pointer hover:shadow-sm`
+                          buttonClass += `bg-white border-gray-200 cursor-pointer hover:shadow-sm`
                         } else {
                           if (index === selectedAnswer) {
                             // Show only the selected answer - green if correct, red if wrong
@@ -1061,13 +1060,61 @@ const MultipleChoiceExercise = () => {
                           }
                         }
 
+                        // Get border color for shadow - match the border colors from buttonClass
+                        let shadowColor = '#e5e7eb' // gray-200 default (matches border-gray-200)
+                        if (selectedAnswer !== null) {
+                          if (index === selectedAnswer) {
+                            const isCorrect = index === currentQuestion.correct_answer
+                            shadowColor = isCorrect ? '#22c55e' : '#ef4444' // green-500 or red-500
+                          } else {
+                            shadowColor = '#e5e7eb' // gray-200
+                          }
+                        }
+
                         return (
                           <button
                             key={index}
                             onClick={() => handleAnswerSelect(index)}
                             disabled={selectedAnswer !== null}
-                            className={buttonClass}
+                            className={`w-full border-none rounded-lg transition-all duration-100 text-sm md:text-base font-medium`}
+                            style={{
+                              padding: 0,
+                              borderRadius: '0.75em',
+                              backgroundColor: shadowColor
+                            }}
                           >
+                            <div
+                              className={buttonClass}
+                              style={{
+                                display: 'block',
+                                boxSizing: 'border-box',
+                                transform: selectedAnswer === null ? 'translateY(-0.2em)' : 'translateY(0)',
+                                transition: 'transform 0.1s ease',
+                                padding: '0.75em 1.5em',
+                                borderRadius: '0.75em'
+                              }}
+                              onMouseEnter={(e) => {
+                                if (selectedAnswer === null) {
+                                  e.currentTarget.style.transform = 'translateY(-0.33em)'
+                                  // Keep the same shadow color on hover
+                                }
+                              }}
+                              onMouseLeave={(e) => {
+                                if (selectedAnswer === null) {
+                                  e.currentTarget.style.transform = 'translateY(-0.2em)'
+                                }
+                              }}
+                              onMouseDown={(e) => {
+                                if (selectedAnswer === null) {
+                                  e.currentTarget.style.transform = 'translateY(0)'
+                                }
+                              }}
+                              onMouseUp={(e) => {
+                                if (selectedAnswer === null) {
+                                  e.currentTarget.style.transform = 'translateY(-0.33em)'
+                                }
+                              }}
+                            >
                             <div className="flex items-center justify-between gap-3">
                               <div className="flex-1">
                                 <RichTextRenderer
@@ -1087,6 +1134,7 @@ const MultipleChoiceExercise = () => {
                                   </>
                                 )}
                               </div>
+                            </div>
                             </div>
                           </button>
                         )
@@ -1125,6 +1173,7 @@ const MultipleChoiceExercise = () => {
                     </div>
                   </div>
                 )}
+              </div>
               </div>
             </div>
           )}
@@ -1201,16 +1250,24 @@ const MultipleChoiceExercise = () => {
                             if (isSelected) {
                               buttonClass += "border-blue-500 bg-blue-50 text-blue-900 shadow-sm"
                             } else {
-                              // Hover color sets per index: pink, orange, yellow, green
-                              const hoverStylesByIndex = [
-                                "hover:border-pink-400 hover:bg-pink-50",
-                                "hover:border-orange-400 hover:bg-orange-50",
-                                "hover:border-yellow-400 hover:bg-yellow-50",
-                                "hover:border-green-400 hover:bg-green-50",
-                              ]
-                              const hoverStyles = hoverStylesByIndex[optionIndex % hoverStylesByIndex.length]
-                              buttonClass += `border-gray-300 bg-white ${hoverStyles} cursor-pointer hover:shadow-sm`
+                              buttonClass += `bg-white border-gray-200 cursor-pointer hover:shadow-sm`
                             }
+                          }
+
+                          // Get shadow color based on state - match border colors
+                          let shadowColor = '#e5e7eb' // gray-200 default (matches border-gray-200)
+                          if (showAllResults) {
+                            if (isSelected && isCorrect) {
+                              shadowColor = '#22c55e' // green-500
+                            } else if (isSelected && !isCorrect) {
+                              shadowColor = '#ef4444' // red-500
+                            } else if (!isSelected && isCorrect) {
+                              shadowColor = '#4ade80' // green-400
+                            } else {
+                              shadowColor = '#e5e7eb' // gray-200
+                            }
+                          } else if (isSelected) {
+                            shadowColor = '#3b82f6' // blue-500 (matches border-blue-500)
                           }
 
                           return (
@@ -1218,8 +1275,45 @@ const MultipleChoiceExercise = () => {
                               key={optionIndex}
                               onClick={() => handleAllAtOnceAnswerSelect(questionIndex, optionIndex)}
                               disabled={showAllResults}
-                              className={buttonClass}
+                              className={`w-full border-none rounded-lg transition-all duration-100 text-sm md:text-base font-medium`}
+                              style={{
+                                padding: 0,
+                                borderRadius: '0.75em',
+                                backgroundColor: shadowColor
+                              }}
                             >
+                              <div
+                                className={buttonClass}
+                                style={{
+                                  display: 'block',
+                                  boxSizing: 'border-box',
+                                  transform: !showAllResults ? 'translateY(-0.2em)' : 'translateY(0)',
+                                  transition: 'transform 0.1s ease',
+                                  padding: '0.75em 1.5em',
+                                  borderRadius: '0.75em'
+                                }}
+                                onMouseEnter={(e) => {
+                                  if (!showAllResults) {
+                                    e.currentTarget.style.transform = 'translateY(-0.33em)'
+                                    // Keep the same shadow color on hover
+                                  }
+                                }}
+                                onMouseLeave={(e) => {
+                                  if (!showAllResults) {
+                                    e.currentTarget.style.transform = 'translateY(-0.2em)'
+                                  }
+                                }}
+                                onMouseDown={(e) => {
+                                  if (!showAllResults) {
+                                    e.currentTarget.style.transform = 'translateY(0)'
+                                  }
+                                }}
+                                onMouseUp={(e) => {
+                                  if (!showAllResults) {
+                                    e.currentTarget.style.transform = 'translateY(-0.33em)'
+                                  }
+                                }}
+                              >
                               <div className="flex items-center justify-between gap-3">
                                 <div className="flex-1">
                                   <RichTextRenderer
@@ -1243,6 +1337,7 @@ const MultipleChoiceExercise = () => {
                                     </>
                                   )}
                                 </div>
+                              </div>
                               </div>
                             </button>
                           )
