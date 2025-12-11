@@ -1,7 +1,98 @@
 import React from 'react'
+import AudioPlayer from './AudioPlayer'
 
 // Rich Text Renderer Component for Multiple Choice Questions
 // Supports HTML formatting: bold, italic, underline, images, etc.
+
+// Helper function to parse content and extract audio tags with their positions
+const parseContentWithAudio = (content) => {
+  if (!content || typeof content !== 'string') {
+    return [{ type: 'text', content }]
+  }
+
+  const segments = []
+  const audioRegex = /<audio([^>]*)>(?:<source[^>]*>)?<\/audio>|<audio([^>]*)\/>/gi
+  let lastIndex = 0
+  let match
+
+  while ((match = audioRegex.exec(content)) !== null) {
+    // Add text before the audio tag
+    if (match.index > lastIndex) {
+      segments.push({
+        type: 'text',
+        content: content.substring(lastIndex, match.index)
+      })
+    }
+
+    // Extract audio URL from attributes
+    const attrs = match[1] || match[2] || ''
+    const srcMatch = attrs.match(/src=["']([^"']+)["']/)
+
+    if (srcMatch) {
+      // Extract max_plays attribute if present
+      const maxPlaysMatch = attrs.match(/data-max-plays=["'](\d+)["']/)
+      const maxPlays = maxPlaysMatch ? parseInt(maxPlaysMatch[1]) : 0
+
+      segments.push({
+        type: 'audio',
+        url: srcMatch[1],
+        maxPlays: maxPlays
+      })
+    }
+
+    lastIndex = audioRegex.lastIndex
+  }
+
+  // Add remaining text after last audio tag
+  if (lastIndex < content.length) {
+    segments.push({
+      type: 'text',
+      content: content.substring(lastIndex)
+    })
+  }
+
+  return segments.length > 0 ? segments : [{ type: 'text', content }]
+}
+
+// Wrapper component that renders content with inline AudioPlayer components
+export const RichTextWithAudio = ({
+  content,
+  className = '',
+  allowImages = true,
+  allowLinks = false,
+  style = {}
+}) => {
+  const segments = parseContentWithAudio(content)
+
+  return (
+    <div className={className} style={style}>
+      {segments.map((segment, index) => {
+        if (segment.type === 'audio') {
+          return (
+            <div key={index} className="my-4">
+              <AudioPlayer
+                audioUrl={segment.url}
+                maxPlays={segment.maxPlays}
+                variant="outline"
+              />
+            </div>
+          )
+        } else {
+          return (
+            <RichTextRenderer
+              key={index}
+              content={segment.content}
+              allowImages={allowImages}
+              allowLinks={allowLinks}
+              className=""
+              style={{}}
+            />
+          )
+        }
+      })}
+    </div>
+  )
+}
 
 const RichTextRenderer = ({
   content,

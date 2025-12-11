@@ -2,10 +2,7 @@ import { Link, useLocation } from 'react-router-dom'
 import { useAuth } from '../../hooks/useAuth'
 import { useStudentLevels } from '../../hooks/useStudentLevels'
 import {
-  Trophy,
   TrendingUp,
-  HelpCircle,
-  Settings,
   LogOut,
   User,
   Shield,
@@ -14,7 +11,7 @@ import {
 
 const TopNavigation = () => {
   const { profile, signOut, isAdmin, isTeacher } = useAuth()
-  const { currentBadge, currentLevel } = useStudentLevels()
+  const { currentBadge } = useStudentLevels()
   const location = useLocation()
 
   const navItems = [
@@ -130,9 +127,6 @@ const TopNavigation = () => {
               <Link to="/profile" className="p-2 rounded-lg text-gray-600 hover:text-primary-600 hover:bg-gray-100 transition-colors">
                 <User size={20} />
               </Link>
-              <button className="p-2 rounded-lg text-gray-600 hover:text-primary-600 hover:bg-gray-100 transition-colors">
-                <Settings size={20} />
-              </button>
               <button
                 onClick={handleSignOut}
                 className="p-2 rounded-lg text-red-600 hover:bg-red-100 transition-colors"

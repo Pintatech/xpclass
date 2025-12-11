@@ -12,7 +12,7 @@ const DropdownExercise = () => {
   const location = useLocation()
   const navigate = useNavigate()
   const { user } = useAuth()
-  const { completeExerciseWithXP } = useProgress()
+  const { startExercise, completeExerciseWithXP } = useProgress()
   const [exercise, setExercise] = useState(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState(null)
@@ -35,6 +35,15 @@ const DropdownExercise = () => {
   useEffect(() => {
     loadExercise()
   }, [])
+
+  useEffect(() => {
+    // Track when student enters the exercise
+    const urlParams = new URLSearchParams(location.search)
+    const exerciseId = urlParams.get('exerciseId')
+    if (exerciseId && user) {
+      startExercise(exerciseId)
+    }
+  }, [user])
 
   useEffect(() => {
     // Initialize user answers when questions change

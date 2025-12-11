@@ -5,6 +5,7 @@ import { ArrowLeft, RotateCcw, CheckCircle, XCircle, Play, Pause } from 'lucide-
 import LoadingSpinner from '../ui/LoadingSpinner'
 import { useAuth } from '../../hooks/useAuth'
 import { useProgress } from '../../hooks/useProgress'
+import { useFeedback } from '../../hooks/useFeedback'
 
 // Convert simple markdown/HTML to safe HTML for preview
 const markdownToHtml = (text) => {
@@ -70,73 +71,18 @@ const DragDropExercise = () => {
   const [timeSpent, setTimeSpent] = useState(0)
   const [itemFeedback, setItemFeedback] = useState({}) // Track correct/incorrect for each item
   const [isBatmanMoving, setIsBatmanMoving] = useState(false)
-  const [currentMeme, setCurrentMeme] = useState('')
-  const [showMeme, setShowMeme] = useState(false)
   const [animatingItems, setAnimatingItems] = useState({}) // Track items being animated
   const { user } = useAuth()
-  const { completeExerciseWithXP } = useProgress()
-
-  // Meme arrays
-  const correctMemes = [
-    'https://xpclass.vn/leaderboard/correct_image/plus12.png',
-    'https://xpclass.vn/leaderboard/correct_image/plus13.png',
-    'https://xpclass.vn/leaderboard/correct_image/plus14.png',
-    'https://xpclass.vn/leaderboard/correct_image/plus32.png',
-    'https://xpclass.vn/leaderboard/correct_image/plus34.png',
-    'https://xpclass.vn/leaderboard/correct_image/drake%20yes.jpg',
-    'https://xpclass.vn/leaderboard/correct_image/tapping%20head.jpg'
-  ]
-
-  const wrongMemes = [
-    'https://xpclass.vn/leaderboard/wrong_image/Black-Girl-Wat.png',
-    'https://xpclass.vn/leaderboard/wrong_image/drake.jpg',
-    'https://xpclass.vn/leaderboard/wrong_image/leo%20laugh.jpg',
-    'https://xpclass.vn/leaderboard/wrong_image/nick%20young.jpg',
-    'https://xpclass.vn/leaderboard/wrong_image/tom.jpg',
-    'https://xpclass.vn/leaderboard/wrong_image/you-guys-are-getting-paid.jpg'
-  ]
-
-  // Sound URLs
-  const correctSounds = [
-    'https://xpclass.vn/leaderboard/sound/lingo.mp3',
-  ]
-
-  const wrongSounds = [
-    'https://xpclass.vn/leaderboard/sound/Bruh.mp3'
-  ]
-
-  // Function to play sound and show meme
-  const playFeedback = (isCorrect) => {
-    // Select random meme
-    const memes = isCorrect ? correctMemes : wrongMemes
-    const randomMeme = memes[Math.floor(Math.random() * memes.length)]
-
-    // Select random sound
-    const sounds = isCorrect ? correctSounds : wrongSounds
-    const randomSound = sounds[Math.floor(Math.random() * sounds.length)]
-
-    // Show meme
-    setCurrentMeme(randomMeme)
-    setShowMeme(true)
-
-    // Play sound
-    try {
-      const audio = new Audio(randomSound)
-      audio.volume = 0.5
-      audio.play().catch(e => console.log('Could not play sound:', e))
-    } catch (e) {
-      console.log('Sound not supported:', e)
-    }
-
-    // Hide meme after 2 seconds
-    setTimeout(() => {
-      setShowMeme(false)
-    }, 2000)
-  }
+  const { startExercise, completeExerciseWithXP } = useProgress()
+  const { currentMeme, showMeme, playFeedback } = useFeedback()
 
   useEffect(() => {
     fetchExercise()
-  }, [exerciseId])
+    // Track when student enters the exercise
+    if (exerciseId && user) {
+      startExercise(exerciseId)
+    }
+  }, [exerciseId, user])
 
   // Start time tracking when exercise loads
   useEffect(() => {
@@ -951,13 +897,15 @@ const DragDropExercise = () => {
                 disabled={!questionsChecked[currentQuestionIndex]}
                 className={`px-6 py-2 rounded-lg transition-all ${
                   questionsChecked[currentQuestionIndex]
-                    ? 'bg-green-600 text-white hover:bg-green-700'
+                    ? 'text-white hover:brightness-110'
                     : 'bg-gray-300 text-gray-500 cursor-not-allowed'
                 }`}
                 style={{
+                  backgroundColor: questionsChecked[currentQuestionIndex] ? '#58cc02' : undefined,
                   boxShadow: questionsChecked[currentQuestionIndex]
-                    ? '0 4px 0 0 #46a302'
-                    : '0 4px 0 0 #b7b7b7'
+                    ? '0 4px 0 0 #58a700'
+                    : '0 4px 0 0 #b7b7b7',
+                  transform: 'translateY(-4px)'
                 }}
                 title={!questionsChecked[currentQuestionIndex] ? 'Please check your answer first' : ''}
               >

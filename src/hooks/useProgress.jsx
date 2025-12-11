@@ -67,6 +67,49 @@ export const ProgressProvider = ({ children }) => {
     }
   }
 
+  const startExercise = async (exerciseId) => {
+    if (!user) return { error: 'No user logged in' }
+
+    try {
+      // Check if exercise progress already exists
+      const { data: existingProgress } = await supabase
+        .from('user_progress')
+        .select('id, first_attempt_at, status')
+        .eq('user_id', user.id)
+        .eq('exercise_id', exerciseId)
+        .maybeSingle()
+
+      // Only create/update if no first_attempt_at exists
+      if (!existingProgress?.first_attempt_at) {
+        const { data, error } = await supabase
+          .from('user_progress')
+          .upsert({
+            user_id: user.id,
+            exercise_id: exerciseId,
+            status: 'in_progress',
+            first_attempt_at: new Date().toISOString(),
+            attempts: 0,
+            created_at: new Date().toISOString(),
+            updated_at: new Date().toISOString()
+          }, {
+            onConflict: 'user_id,exercise_id'
+          })
+          .select()
+
+        if (error) throw error
+
+        console.log('📝 Exercise started, tracking entry time:', exerciseId)
+        return { data, error: null }
+      } else {
+        console.log('📝 Exercise already has entry time, skipping:', exerciseId)
+        return { data: existingProgress, error: null }
+      }
+    } catch (error) {
+      console.error('Error starting exercise:', error)
+      return { data: null, error }
+    }
+  }
+
   const updateExerciseProgress = async (exerciseId, progressData) => {
     if (!user) return { error: 'No user logged in' }
 
@@ -211,8 +254,17 @@ export const ProgressProvider = ({ children }) => {
       // Sanitize client-provided progress data (remove columns not present in DB)
       const { xp_earned: _omitXpEarned, attempts: _omitAttempts, score: _omitScore, max_score: _omitMaxScore, ...safeProgressData } = progressData || {}
 
+      // Calculate time_spent from timestamps (server-side calculation)
+      const firstAttempt = existingProgressData?.first_attempt_at || new Date().toISOString()
+      let calculatedTimeSpent = 0
+      if (finalCompletedAt && firstAttempt) {
+        calculatedTimeSpent = Math.floor((new Date(finalCompletedAt) - new Date(firstAttempt)) / 1000)
+        // Cap at 30 minutes (1800 seconds) to avoid counting idle time
+        calculatedTimeSpent = Math.min(calculatedTimeSpent, 1800)
+      }
+
       // Save progress with best score logic
-      console.log(`💾 Upserting progress with attempts: ${newAttempts}, status: ${finalStatus}`)
+      console.log(`💾 Upserting progress with attempts: ${newAttempts}, status: ${finalStatus}, time_spent: ${calculatedTimeSpent}s`)
       const { data, error } = await supabase
         .from('user_progress')
         .upsert({
@@ -223,7 +275,8 @@ export const ProgressProvider = ({ children }) => {
           score: finalScore,
           max_score: finalMaxScore,
           attempts: newAttempts,
-          first_attempt_at: existingProgressData?.first_attempt_at || new Date().toISOString(),
+          first_attempt_at: firstAttempt,
+          time_spent: calculatedTimeSpent,
           ...safeProgressData,
           updated_at: new Date().toISOString()
         }, {
@@ -245,7 +298,8 @@ export const ProgressProvider = ({ children }) => {
             score: finalScore,
             max_score: finalMaxScore,
             attempts: newAttempts,
-            first_attempt_at: existingProgressData?.first_attempt_at || new Date().toISOString(),
+            first_attempt_at: firstAttempt,
+            time_spent: calculatedTimeSpent,
             ...safeProgressData,
             updated_at: new Date().toISOString()
           })
@@ -501,6 +555,7 @@ export const ProgressProvider = ({ children }) => {
     userProgress,
     achievements,
     loading,
+    startExercise,
     updateExerciseProgress,
     addXP,
     completeExerciseWithXP,

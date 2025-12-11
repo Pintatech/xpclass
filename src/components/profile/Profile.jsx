@@ -179,11 +179,16 @@ const Profile = () => {
         ? Math.round(completed.reduce((sum, p) => sum + (p.score || 0), 0) / completed.length)
         : 0
 
+      // Calculate total practice time from all completed exercises (in seconds, convert to minutes)
+      const totalPracticeTimeMinutes = Math.floor(
+        completed.reduce((sum, p) => sum + (p.time_spent || 0), 0) / 60
+      )
+
       const newStats = {
         totalXP,
         exercisesCompleted,
         streakCount: userData?.streak_count || 0,
-        totalPracticeTime: userData?.total_practice_time || 0,
+        totalPracticeTime: totalPracticeTimeMinutes,
         averageScore,
         levelsCompleted: 0, // We can calculate this if needed
         unitsCompleted: 0,  // We can calculate this if needed

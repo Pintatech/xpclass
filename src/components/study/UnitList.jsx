@@ -17,7 +17,6 @@ import {
   Play,
   Circle,
   Flame,
-  Crown,
   Plus,
   Edit,
   List,
@@ -50,6 +49,13 @@ const UnitList = () => {
   const [showTeacherView, setShowTeacherView] = useState(false)
   const [courseStudents, setCourseStudents] = useState([])
   const [studentProgress, setStudentProgress] = useState([])
+  const [unitRewards, setUnitRewards] = useState({})
+  const [claimingReward, setClaimingReward] = useState(null)
+  const [showRewardModal, setShowRewardModal] = useState(false)
+  const [rewardAmount, setRewardAmount] = useState(0)
+  const [showChestSelection, setShowChestSelection] = useState(false)
+  const [selectedChest, setSelectedChest] = useState(null)
+  const [claimingUnitId, setClaimingUnitId] = useState(null)
   const { user, profile, isTeacher, isAdmin } = useAuth()
   const { canCreateContent } = usePermissions()
 
@@ -202,29 +208,16 @@ const UnitList = () => {
         return
       }
 
-      // Calculate progress for each unit
+      // Calculate progress for each unit - PLACEHOLDER, will be updated after sessionProgressMap is ready
       const progressMap = {}
       unitsData?.forEach(unit => {
-        const unitSessions = sessionsData?.filter(s => s.unit_id === unit.id) || []
-        const completedExercisesInUnit = progressData?.filter(p =>
-          p.exercises?.sessions?.unit_id === unit.id &&
-          p.status === 'completed'
-        ) || []
-
-        const totalSessions = unitSessions.length
-        // Count unique sessions that have completed exercises
-        const completedSessionIds = new Set(completedExercisesInUnit.map(p => p.exercises.session_id))
-        const sessionsCompleted = completedSessionIds.size
-        const progressPercentage = totalSessions > 0 ? Math.round((sessionsCompleted / totalSessions) * 100) : 0
-
         progressMap[unit.id] = {
           unit_id: unit.id,
-          total_sessions: totalSessions,
-          sessions_completed: sessionsCompleted,
-          progress_percentage: progressPercentage,
-          status: sessionsCompleted === totalSessions && totalSessions > 0 ? 'completed' :
-                 sessionsCompleted > 0 ? 'in_progress' : 'not_started',
-          xp_earned: completedExercisesInUnit.reduce((total, p) => total + (p.score || 0), 0)
+          total_sessions: 0,
+          sessions_completed: 0,
+          progress_percentage: 0,
+          status: 'not_started',
+          xp_earned: 0
         }
       })
 
@@ -322,16 +315,165 @@ const UnitList = () => {
         }
       })
 
+      // NOW calculate unit progress based on sessionProgressMap
+      unitsData?.forEach(unit => {
+        const unitSessions = sessionsData?.filter(s => s.unit_id === unit.id) || []
+        const totalSessions = unitSessions.length
+
+        // Count sessions where ALL exercises are completed
+        const completedSessions = unitSessions.filter(session => {
+          const sessionProg = sessionProgressMap[session.id]
+          return sessionProg?.status === 'completed'
+        })
+        const sessionsCompleted = completedSessions.length
+        const progressPercentage = totalSessions > 0 ? Math.round((sessionsCompleted / totalSessions) * 100) : 0
+
+        progressMap[unit.id] = {
+          unit_id: unit.id,
+          total_sessions: totalSessions,
+          sessions_completed: sessionsCompleted,
+          progress_percentage: progressPercentage,
+          status: sessionsCompleted === totalSessions && totalSessions > 0 ? 'completed' :
+                 sessionsCompleted > 0 ? 'in_progress' : 'not_started',
+          xp_earned: completedSessions.reduce((sum, s) => sum + (sessionProgressMap[s.id]?.xp_earned || 0), 0)
+        }
+      })
+
       setLevel(levelData)
       setUnits(unitsData || [])
       setSessions(sessionsData || [])
       setUnitProgress(progressMap)
       setSessionProgress(sessionProgressMap)
+
+      // Fetch unit rewards
+      await fetchUnitRewards()
     } catch (err) {
       console.error('Error fetching units:', err)
       setError('Không thể tải danh sách unit')
     } finally {
       setLoading(false)
+    }
+  }
+
+  const fetchUnitRewards = async () => {
+    if (!user) return
+
+    try {
+      const { data, error } = await supabase
+        .from('unit_reward_claims')
+        .select('unit_id, xp_awarded, claimed_at')
+        .eq('user_id', user.id)
+
+      if (error) {
+        console.error('Error fetching unit rewards:', error)
+        return
+      }
+
+      // Convert array to object for easy lookup: { "unit_id": { claimed: true, xp: 15, claimed_at: "..." } }
+      const rewardsMap = {}
+      data?.forEach(claim => {
+        rewardsMap[claim.unit_id] = {
+          claimed: true,
+          xp: claim.xp_awarded,
+          claimed_at: claim.claimed_at
+        }
+      })
+
+      setUnitRewards(rewardsMap)
+    } catch (err) {
+      console.error('Error fetching unit rewards:', err)
+    }
+  }
+
+  const isUnitComplete = (unitId) => {
+    const progress = unitProgress[unitId]
+    return progress && progress.total_sessions > 0 && progress.sessions_completed === progress.total_sessions
+  }
+
+  const handleClaimReward = async (unitId) => {
+    if (!user || claimingReward || unitRewards[unitId]?.claimed) return
+    if (!isUnitComplete(unitId)) return
+
+    // Show chest selection modal
+    setClaimingUnitId(unitId)
+    setShowChestSelection(true)
+  }
+
+  const handleChestSelect = async (chestNumber) => {
+    if (!claimingUnitId || selectedChest !== null) return
+
+    setSelectedChest(chestNumber)
+    setClaimingReward(claimingUnitId)
+
+    // Play chest opening sound
+    const audio = new Audio('https://xpclass.vn/xpclass/sound/chest_sound.mp3')
+    audio.play().catch(err => console.error('Error playing sound:', err))
+
+    try {
+      // Generate random XP between 5 and 20
+      const xp = Math.floor(Math.random() * 16) + 5
+
+      // Insert claim record
+      const { error: claimError } = await supabase
+        .from('unit_reward_claims')
+        .insert({
+          user_id: user.id,
+          unit_id: claimingUnitId,
+          full_name: profile?.full_name || null,
+          xp_awarded: xp
+        })
+
+      if (claimError) throw claimError
+
+      // Update user's total XP
+      const { data: currentUser, error: fetchError } = await supabase
+        .from('users')
+        .select('xp')
+        .eq('id', user.id)
+        .single()
+
+      if (fetchError) throw fetchError
+
+      const { error: updateError } = await supabase
+        .from('users')
+        .update({
+          xp: (currentUser?.xp || 0) + xp,
+          updated_at: new Date().toISOString()
+        })
+        .eq('id', user.id)
+
+      if (updateError) throw updateError
+
+      // Wait for GIF to complete before showing XP
+      setTimeout(() => {
+        setRewardAmount(xp)
+
+        // Show XP for 1.5 seconds then close
+        setTimeout(() => {
+          setUnitRewards(prev => ({
+            ...prev,
+            [claimingUnitId]: {
+              claimed: true,
+              xp: xp,
+              claimed_at: new Date().toISOString()
+            }
+          }))
+
+          setShowChestSelection(false)
+          setClaimingReward(null)
+          setSelectedChest(null)
+          setClaimingUnitId(null)
+          setRewardAmount(0)
+        }, 1500)
+      }, 2000)
+
+    } catch (err) {
+      console.error('Error claiming reward:', err)
+      alert('Không thể nhận phần thưởng. Vui lòng thử lại!')
+      setClaimingReward(null)
+      setSelectedChest(null)
+      setShowChestSelection(false)
+      setClaimingUnitId(null)
     }
   }
 
@@ -994,32 +1136,94 @@ const UnitList = () => {
                         </button>
                       )}
                     </div>
-                    {canCreateContent() && (
-                      <div className="flex items-center space-x-1">
-                        <button
-                          onClick={() => handleEditUnit(unit)}
-                          className="p-2 text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded-lg transition-colors"
-                          title="Edit unit"
-                        >
-                          <Edit className="w-4 h-4" />
-                        </button>
-                        <button
-                          onClick={() => handleDeleteUnit(unit)}
-                          className="p-2 text-red-400 hover:text-red-600 hover:bg-red-100 rounded-lg transition-colors"
-                          title="Delete unit"
-                        >
-                          <Trash2 className="w-4 h-4" />
-                        </button>
-                      </div>
-                    )}
+                    <div className="flex items-center space-x-2">
+                      {/* Unit Reward Chest */}
+                      {!canCreateContent() && (
+                        <div className="relative">
+                          {(() => {
+                            const unitComplete = isUnitComplete(unit.id)
+                            const rewardClaimed = unitRewards[unit.id]?.claimed
+                            const isClaiming = claimingReward === unit.id
+
+                            if (rewardClaimed) {
+                              // Already claimed - show empty/opened chest
+                              return (
+                                <div className="w-12 h-12 cursor-not-allowed" title="Reward claimed">
+                                  <img
+                                    src="https://xpclass.vn/xpclass/icon/chest_opened.png"
+                                    alt="Reward claimed"
+                                    className="w-full h-full object-contain"
+                                  />
+                                </div>
+                              )
+                            } else if (isClaiming) {
+                              // Claiming - show GIF animation
+                              return (
+                                <div className="w-12 h-12">
+                                  <img
+                                    src="https://xpclass.vn/xpclass/icon/chest_opening.gif"
+                                    alt="Opening chest"
+                                    className="w-full h-full object-contain animate-bounce"
+                                  />
+                                </div>
+                              )
+                            } else if (unitComplete) {
+                              // Complete but not claimed - show unlocked chest
+                              return (
+                                <button
+                                  onClick={() => handleClaimReward(unit.id)}
+                                  className="w-12 h-12 hover:scale-110 transition-transform cursor-pointer"
+                                  title="Click to claim reward!"
+                                >
+                                  <img
+                                    src="https://xpclass.vn/xpclass/icon/chest_ready.png"
+                                    alt="Claim reward"
+                                    className="w-full h-full object-contain animate-pulse"
+                                  />
+                                </button>
+                              )
+                            } else {
+                              // Not complete - show locked chest
+                              return (
+                                <div className="w-12 h-12 cursor-not-allowed" title="Hoàn thành tất cả các bài học để mở khóa!">
+                                  <img
+                                    src="https://xpclass.vn/xpclass/icon/chest_locked.png"
+                                    alt="Locked reward"
+                                    className="w-full h-full object-contain"
+                                  />
+                                </div>
+                              )
+                            }
+                          })()}
+                        </div>
+                      )}
+                      {canCreateContent() && (
+                        <div className="flex items-center space-x-1">
+                          <button
+                            onClick={() => handleEditUnit(unit)}
+                            className="p-2 text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded-lg transition-colors"
+                            title="Edit unit"
+                          >
+                            <Edit className="w-4 h-4" />
+                          </button>
+                          <button
+                            onClick={() => handleDeleteUnit(unit)}
+                            className="p-2 text-red-400 hover:text-red-600 hover:bg-red-100 rounded-lg transition-colors"
+                            title="Delete unit"
+                          >
+                            <Trash2 className="w-4 h-4" />
+                          </button>
+                        </div>
+                      )}
+                    </div>
                   </div>
 
                   {/* Sessions Grid for this Unit */}
                   {unitSessions.length > 0 ? (
-                    <div className="grid grid-cols-3 md:grid-cols-6 lg:grid-cols-8 xl:grid-cols-10 gap-6" style={{ gridAutoFlow: 'dense' }}>
+                    <div className="grid grid-cols-4 md:grid-cols-6 lg:grid-cols-8 xl:grid-cols-10 gap-6" style={{ gridAutoFlow: 'dense' }}>
                       {unitSessions.map((session, index) => (
                         <div key={session.id} className="flex justify-center items-start">
-                          <div style={{ width: '80px', height: '80px' }}>
+                          <div style={{ width: '60px', height: '60px' }}>
                             {renderSessionCard(session, index)}
                           </div>
                         </div>
@@ -1109,6 +1313,73 @@ const UnitList = () => {
           }}
           onUpdated={handleUnitUpdated}
         />
+      )}
+
+      {/* Chest Selection Modal */}
+      {showChestSelection && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-lg shadow-2xl p-4 sm:p-8 max-w-2xl w-full text-center">
+            <h2 className="text-2xl sm:text-3xl font-bold text-gray-900 mb-2">Choose Your Reward!</h2>
+            <p className="text-sm sm:text-lg text-gray-600 mb-4 sm:mb-8">Pick one chest to reveal your XP reward</p>
+
+            <div className="flex justify-center items-center gap-2 sm:gap-8">
+              {[1, 2, 3].map((chestNum) => (
+                <button
+                  key={chestNum}
+                  onClick={() => handleChestSelect(chestNum)}
+                  disabled={selectedChest !== null}
+                  className="relative group flex-shrink-0"
+                >
+                  <div className="w-20 h-20 sm:w-32 sm:h-32 transition-transform transform group-hover:scale-110">
+                    <img
+                      src={selectedChest === chestNum
+                        ? "https://xpclass.vn/xpclass/icon/chest_cropped_once.gif"
+                        : "https://xpclass.vn/xpclass/icon/chest_image.png"
+                      }
+                      alt={`Chest ${chestNum}`}
+                      className="w-full h-full object-contain"
+                    />
+                  </div>
+                  {selectedChest === chestNum && rewardAmount > 0 ? (
+                    <div className="absolute inset-0 flex items-center justify-center">
+                      <div className="bg-gradient-to-r from-yellow-400 to-orange-500 text-white rounded-lg py-2 px-4 text-xl font-bold shadow-lg animate-bounce">
+                        +{rewardAmount} XP
+                      </div>
+                    </div>
+                  ) : selectedChest === null && (
+                    <div className="absolute inset-0 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
+                      <div className="bg-yellow-500 text-white rounded-full w-12 h-12 flex items-center justify-center text-2xl font-bold">
+                        ?
+                      </div>
+                    </div>
+                  )}
+                </button>
+              ))}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Reward Modal */}
+      {showRewardModal && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+          <div className="bg-white rounded-lg shadow-2xl p-8 max-w-md w-full mx-4 text-center animate-bounce">
+            <div className="mb-4">
+              <div className="w-24 h-24 mx-auto bg-yellow-100 rounded-full flex items-center justify-center">
+                <span className="text-6xl">🎉</span>
+              </div>
+            </div>
+            <h2 className="text-3xl font-bold text-gray-900 mb-2">Congratulations!</h2>
+            <p className="text-lg text-gray-600 mb-4">You completed the unit!</p>
+            <div className="bg-gradient-to-r from-yellow-400 to-orange-500 text-white rounded-lg py-4 px-6 mb-4">
+              <div className="flex items-center justify-center space-x-2">
+                <Star className="w-8 h-8" fill="white" />
+                <span className="text-4xl font-bold">+{rewardAmount} XP</span>
+              </div>
+            </div>
+            <p className="text-sm text-gray-500">Keep up the great work!</p>
+          </div>
+        </div>
       )}
     </div>
   )

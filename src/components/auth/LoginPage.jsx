@@ -28,14 +28,14 @@ const LoginPage = () => {
 
     try {
       // Check if input is email or username
-      let loginEmail = email
+      let loginEmail = email.trim()
 
-      if (!email.includes('@')) {
-        // It's a username, lookup the email from users table
+      if (!loginEmail.includes('@')) {
+        // It's a username, lookup the email from users table (case-insensitive)
         const { data, error: lookupError } = await supabase
           .from('users')
           .select('email')
-          .eq('username', email)
+          .ilike('username', loginEmail)
           .single()
 
         if (lookupError || !data) {

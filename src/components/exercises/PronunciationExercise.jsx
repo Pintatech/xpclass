@@ -16,12 +16,19 @@ const PronunciationExercise = () => {
   const location = useLocation()
   const navigate = useNavigate()
   const { user } = useAuth()
-  const { completeExerciseWithXP } = useProgress()
+  const { startExercise, completeExerciseWithXP } = useProgress()
 
   // URL params
   const searchParams = new URLSearchParams(location.search)
   const exerciseId = searchParams.get('exerciseId')
   const sessionId = searchParams.get('sessionId')
+
+  // Track when student enters the exercise
+  useEffect(() => {
+    if (exerciseId && user) {
+      startExercise(exerciseId)
+    }
+  }, [exerciseId, user])
 
   // Exercise state
   const [exercise, setExercise] = useState(null)

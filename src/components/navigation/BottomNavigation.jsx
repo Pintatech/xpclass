@@ -1,5 +1,5 @@
-import { Link, useLocation, useNavigate } from 'react-router-dom'
-import { Trophy, TrendingUp, HelpCircle, ChevronLeft, ChevronRight, User } from 'lucide-react'
+import { Link, useLocation} from 'react-router-dom'
+import { TrendingUp, User } from 'lucide-react'
 import Button from '../ui/Button'
 
 const BottomNavigation = () => {

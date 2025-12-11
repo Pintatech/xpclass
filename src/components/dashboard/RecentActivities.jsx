@@ -21,33 +21,6 @@ const RecentActivities = () => {
     try {
       setLoading(true)
 
-      // Fetch exercise completions with user and exercise data in one query
-      const { data: exerciseData, error: exerciseError } = await supabase
-        .from('user_progress')
-        .select(`
-          id,
-          completed_at,
-          user_id,
-          exercise_id,
-          users:user_id (
-            id,
-            full_name,
-            avatar_url
-          ),
-          exercises:exercise_id (
-            id,
-            title,
-            exercise_type,
-            xp_reward
-          )
-        `)
-        .eq('status', 'completed')
-        .not('completed_at', 'is', null)
-        .order('completed_at', { ascending: false })
-        .limit(20)
-
-      if (exerciseError) throw exerciseError
-
       // Fetch achievement claims with user and achievement data in one query
       const { data: achievementData, error: achievementError } = await supabase
         .from('user_achievements')
@@ -73,15 +46,6 @@ const RecentActivities = () => {
 
       if (achievementError) throw achievementError
 
-      // Process exercise completions
-      const exerciseActivities = (exerciseData || [])
-        .filter(progress => progress.users && progress.exercises)
-        .map(progress => ({
-          ...progress,
-          type: 'exercise',
-          activity_date: progress.completed_at
-        }))
-
       // Process achievement claims
       const achievementActivities = (achievementData || [])
         .filter(achievement => achievement.users && achievement.achievements)
@@ -91,12 +55,7 @@ const RecentActivities = () => {
           activity_date: achievement.claimed_at
         }))
 
-      // Combine and sort all activities by date, limit to 20
-      const allActivities = [...exerciseActivities, ...achievementActivities]
-        .sort((a, b) => new Date(b.activity_date) - new Date(a.activity_date))
-        .slice(0, 20)
-
-      setActivities(allActivities)
+      setActivities(achievementActivities)
     } catch (error) {
       console.error('Error fetching recent activities:', error)
       setActivities([])
@@ -105,59 +64,6 @@ const RecentActivities = () => {
     }
   }
 
-  const getExerciseIcon = (exerciseType) => {
-    const IconImg = ({ src, className = '' }) => (
-      <img src={src} alt="" className={className} />
-    )
-    switch (exerciseType) {
-      case 'flashcard':
-        return BookOpen
-      case 'fill_blank':
-        return (props) => <IconImg src="https://xpclass.vn/xpclass/icon/fill_blank.svg" {...props} />
-      case 'ai_fill_blank':
-        return (props) => <IconImg src="https://xpclass.vn/xpclass/icon/fill_blank.svg" {...props} />
-      case 'drag_drop':
-        return (props) => <IconImg src="https://xpclass.vn/xpclass/icon/drag_drop.svg" {...props} />
-      case 'multiple_choice':
-        return (props) => <IconImg src="https://xpclass.vn/xpclass/icon/multiple_choice.svg" {...props} />
-      case 'dropdown':
-        return (props) => <IconImg src="https://xpclass.vn/xpclass/icon/drop_down.svg" {...props} />
-      default:
-        return BookOpen
-    }
-  }
-
-  const getExerciseTypeLabel = (exerciseType) => {
-    switch (exerciseType) {
-      case 'flashcard':
-        return 'Flashcard'
-      case 'fill_blank':
-        return 'Fill in the Blank'
-      case 'multiple_choice':
-        return 'Multiple Choice'
-      default:
-        return 'Exercise'
-    }
-  }
-
-  const formatTimeAgo = (timestamp) => {
-    const now = new Date()
-    const time = new Date(timestamp)
-    const diffInSeconds = Math.floor((now - time) / 1000)
-
-    if (diffInSeconds < 60) {
-      return 'Vừa xong'
-    } else if (diffInSeconds < 3600) {
-      const minutes = Math.floor(diffInSeconds / 60)
-      return `${minutes} phút trước`
-    } else if (diffInSeconds < 86400) {
-      const hours = Math.floor(diffInSeconds / 3600)
-      return `${hours} giờ trước`
-    } else {
-      const days = Math.floor(diffInSeconds / 86400)
-      return `${days} ngày trước`
-    }
-  }
 
   if (loading) {
     return (
@@ -202,103 +108,51 @@ const RecentActivities = () => {
       </div>
       
       <div className="space-y-3 max-h-96 overflow-y-auto">
-        {activities.map((activity) => {
-          if (activity.type === 'achievement') {
-            return (
-              <div key={`achievement-${activity.id}`} className="flex items-center space-x-3 p-3 rounded-lg hover:bg-yellow-50 transition-colors border-l-4 border-yellow-400">
-                {/* User Avatar */}
-                <div
-                  className="flex-shrink-0 cursor-pointer"
+        {activities.map((activity) => (
+          <div key={`achievement-${activity.id}`} className="flex items-center space-x-3 p-3 rounded-lg hover:bg-yellow-50 transition-colors">
+            {/* User Avatar */}
+            <div
+              className="flex-shrink-0 cursor-pointer"
+              onClick={() => handleUserClick(activity.users.id)}
+            >
+              {activity.users.avatar_url ? (
+                <img
+                  src={activity.users.avatar_url}
+                  alt={activity.users.full_name}
+                  className="w-8 h-8 rounded-full object-cover hover:ring-2 hover:ring-yellow-400 transition-all"
+                />
+              ) : (
+                <div className="w-8 h-8 rounded-full bg-yellow-100 flex items-center justify-center hover:ring-2 hover:ring-yellow-400 transition-all">
+                  <span className="text-sm font-medium text-yellow-600">
+                    {activity.users.full_name?.charAt(0) || 'U'}
+                  </span>
+                </div>
+              )}
+            </div>
+
+            {/* Activity Content */}
+            <div className="flex-1 min-w-0">
+              <div className="flex items-center space-x-2">
+                <img src="https://xpclass.vn/xpclass/icon/achievement.svg" alt="achievement" className="w-4 h-4 flex-shrink-0" />
+                <span
+                  className="text-sm font-medium text-gray-900 truncate cursor-pointer hover:text-yellow-600 transition-colors"
                   onClick={() => handleUserClick(activity.users.id)}
                 >
-                  {activity.users.avatar_url ? (
-                    <img
-                      src={activity.users.avatar_url}
-                      alt={activity.users.full_name}
-                      className="w-8 h-8 rounded-full object-cover hover:ring-2 hover:ring-yellow-400 transition-all"
-                    />
-                  ) : (
-                    <div className="w-8 h-8 rounded-full bg-yellow-100 flex items-center justify-center hover:ring-2 hover:ring-yellow-400 transition-all">
-                      <span className="text-sm font-medium text-yellow-600">
-                        {activity.users.full_name?.charAt(0) || 'U'}
-                      </span>
-                    </div>
-                  )}
-                </div>
-
-                {/* Activity Content */}
-                <div className="flex-1 min-w-0">
-                  <div className="flex items-center space-x-2">
-                    <img src="https://xpclass.vn/xpclass/icon/achievement.svg" alt="achievement" className="w-4 h-4 flex-shrink-0" />
-                    <span
-                      className="text-sm font-medium text-gray-900 truncate cursor-pointer hover:text-yellow-600 transition-colors"
-                      onClick={() => handleUserClick(activity.users.id)}
-                    >
-                      {activity.users.full_name || 'Người dùng'}
-                    </span>
-                  </div>
-                  <p className="text-sm text-gray-600 truncate">
-                    đạt thành tích <span className="font-medium text-yellow-700">{activity.achievements.title}</span>
-                  </p>
-                </div>
-
-                {/* XP Reward */}
-                <div className="flex items-center space-x-1 text-yellow-600 font-medium">
-                  <Star className="w-4 h-4" />
-                  <span className="text-sm">+{activity.achievements.xp_reward || 0}</span>
-                </div>
+                  {activity.users.full_name || 'Người dùng'}
+                </span>
               </div>
-            )
-          } else {
-            const IconComponent = getExerciseIcon(activity.exercises.exercise_type)
+              <p className="text-sm text-gray-600 truncate">
+                đạt thành tích <span className="font-medium text-yellow-700">{activity.achievements.title}</span>
+              </p>
+            </div>
 
-            return (
-              <div key={`exercise-${activity.id}`} className="flex items-center space-x-3 p-3 rounded-lg hover:bg-gray-50 transition-colors">
-                {/* User Avatar */}
-                <div
-                  className="flex-shrink-0 cursor-pointer"
-                  onClick={() => handleUserClick(activity.users.id)}
-                >
-                  {activity.users.avatar_url ? (
-                    <img
-                      src={activity.users.avatar_url}
-                      alt={activity.users.full_name}
-                      className="w-8 h-8 rounded-full object-cover hover:ring-2 hover:ring-blue-400 transition-all"
-                    />
-                  ) : (
-                    <div className="w-8 h-8 rounded-full bg-blue-100 flex items-center justify-center hover:ring-2 hover:ring-blue-400 transition-all">
-                      <span className="text-sm font-medium text-blue-600">
-                        {activity.users.full_name?.charAt(0) || 'U'}
-                      </span>
-                    </div>
-                  )}
-                </div>
-
-                {/* Activity Content */}
-                <div className="flex-1 min-w-0">
-                  <div className="flex items-center space-x-2">
-                    <IconComponent className="w-4 h-4 text-blue-600 flex-shrink-0" />
-                    <span
-                      className="text-sm font-medium text-gray-900 truncate cursor-pointer hover:text-blue-600 transition-colors"
-                      onClick={() => handleUserClick(activity.users.id)}
-                    >
-                      {activity.users.full_name || 'Người dùng'}
-                    </span>
-                  </div>
-                  <p className="text-sm text-gray-600 truncate">
-                    hoàn thành <span className="font-medium">{activity.exercises.title}</span>
-                  </p>
-                </div>
-
-                {/* XP Reward */}
-                <div className="flex items-center space-x-1 text-green-600 font-medium">
-                  <Star className="w-4 h-4" />
-                  <span className="text-sm">+{activity.exercises.xp_reward || 0}</span>
-                </div>
-              </div>
-            )
-          }
-        })}
+            {/* XP Reward */}
+            <div className="flex items-center space-x-1 text-yellow-600 font-medium">
+              <Star className="w-4 h-4" />
+              <span className="text-sm">+{activity.achievements.xp_reward || 0}</span>
+            </div>
+          </div>
+        ))}
       </div>
 
     </div>
