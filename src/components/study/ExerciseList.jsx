@@ -7,6 +7,7 @@ import { useProgress } from '../../hooks/useProgress'
 import Button from '../ui/Button'
 import AssignExerciseModal from './AssignExerciseModal'
 import AssignToStudentModal from '../admin/AssignToStudentModal'
+import EditExerciseModal from '../admin/ExerciseBank/EditExerciseModal'
 import {
   DndContext,
   closestCenter,
@@ -56,6 +57,7 @@ const ExerciseList = () => {
   const [units, setUnits] = useState([])
   const [showAssignExerciseModal, setShowAssignExerciseModal] = useState(false)
   const [assignToStudentExercise, setAssignToStudentExercise] = useState(null)
+  const [editingExercise, setEditingExercise] = useState(null)
   const { user, profile } = useAuth()
   const { canCreateContent } = usePermissions()
   const { userProgress, fetchUserProgress } = useProgress()
@@ -636,8 +638,7 @@ const ExerciseList = () => {
                   <button
                     onClick={(e) => {
                       e.stopPropagation()
-                      // TODO: Add edit functionality
-                      alert('Edit functionality coming soon!')
+                      setEditingExercise(exercise)
                     }}
                     className="p-1 text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded transition-colors"
                     title="Edit exercise"
@@ -849,6 +850,14 @@ const ExerciseList = () => {
         isOpen={!!assignToStudentExercise}
         onClose={() => setAssignToStudentExercise(null)}
         exercise={assignToStudentExercise}
+      />
+
+      {/* Edit Exercise Modal */}
+      <EditExerciseModal
+        isOpen={!!editingExercise}
+        onClose={() => setEditingExercise(null)}
+        exercise={editingExercise}
+        onUpdate={fetchData}
       />
     </div>
   )

@@ -202,10 +202,7 @@ const ExerciseBankCard = ({ exercise, viewMode, onUpdate, onEdit }) => {
     setShowMenu(false)
   }
 
-  const handleMove = () => {
-    // TODO: Implement move exercise to different folder
-    setShowMenu(false)
-  }
+
 
   const TypeIcon = getTypeIcon(exercise.exercise_type)
 
@@ -305,13 +302,7 @@ const ExerciseBankCard = ({ exercise, viewMode, onUpdate, onEdit }) => {
                     <Copy className="w-3 h-3" />
                     <span>Duplicate</span>
                   </button>
-                  <button
-                    onClick={handleMove}
-                    className="w-full text-left px-3 py-2 text-sm hover:bg-gray-50 flex items-center space-x-2"
-                  >
-                    <Move className="w-3 h-3" />
-                    <span>Move</span>
-                  </button>
+            
                   <hr className="my-1" />
                   <button
                     onClick={handleDelete}
@@ -421,13 +412,7 @@ const ExerciseBankCard = ({ exercise, viewMode, onUpdate, onEdit }) => {
                   <Copy className="w-3 h-3" />
                   <span>Duplicate</span>
                 </button>
-                <button
-                  onClick={handleMove}
-                  className="w-full text-left px-3 py-2 text-sm hover:bg-gray-50 flex items-center space-x-2"
-                >
-                  <Move className="w-3 h-3" />
-                  <span>Move</span>
-                </button>
+                
                 <hr className="my-1" />
                 <button
                   onClick={handleDelete}

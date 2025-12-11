@@ -4,7 +4,6 @@ import { saveRecentExercise } from '../../utils/recentExercise'
 import { useAuth } from '../../hooks/useAuth'
 import { useProgress } from '../../hooks/useProgress'
 import { supabase } from '../../supabase/client'
-import Card from '../ui/Card'
 import Button from '../ui/Button'
 import LoadingSpinner from '../ui/LoadingSpinner'
 import RichTextRenderer from '../ui/RichTextRenderer'
@@ -654,83 +653,6 @@ const MultipleChoiceExercise = () => {
     setShowAllResults(false)
   }
 
-  const goToNextExercise = async () => {
-    console.log('🚀 Going to next exercise...', { sessionId, exerciseId })
-
-    if (!sessionId) {
-      console.log('❌ No sessionId, going back to study')
-      navigate('/study')
-      return
-    }
-
-    try {
-      // Try different ordering methods since 'order_index' might not exist
-      const { data: exercises, error } = await supabase
-        .from('exercises')
-        .select('*')
-        .eq('session_id', sessionId)
-        .order('created_at')  // Use created_at instead of order_index
-
-      if (error) throw error
-
-      console.log('📚 Found exercises:', exercises?.length)
-      console.log('🔍 Current exercise ID:', exerciseId)
-
-      if (!exercises || exercises.length === 0) {
-        console.log('❌ No exercises found, going back to session')
-        if (session) {
-          navigate(`/study/course/${session.units?.course_id}/unit/${session.unit_id}/session/${sessionId}`)
-        } else {
-          navigate('/study')
-        }
-        return
-      }
-
-      const currentIndex = exercises.findIndex(ex => ex.id === exerciseId)
-      console.log('📍 Current exercise index:', currentIndex)
-
-      if (currentIndex !== -1 && currentIndex < exercises.length - 1) {
-        const nextExercise = exercises[currentIndex + 1]
-        console.log('➡️ Next exercise:', nextExercise.title, nextExercise.exercise_type)
-
-        const paths = {
-          flashcard: '/study/flashcard',
-          fill_blank: '/study/fill-blank',
-          multiple_choice: '/study/multiple-choice',
-          video: '/study/video',
-          quiz: '/study/quiz',
-          listening: '/study/listening',
-          speaking: '/study/speaking',
-          pronunciation: '/study/pronunciation'
-        }
-
-        const exercisePath = paths[nextExercise.exercise_type] || '/study/flashcard'
-        const nextUrl = `${exercisePath}?exerciseId=${nextExercise.id}&sessionId=${sessionId}`
-
-        console.log('🔗 Navigating to:', nextUrl)
-        navigate(nextUrl)
-      } else {
-        // No more exercises, go back to session
-        console.log('✅ No more exercises, going back to session')
-        if (session && session.units) {
-          const backUrl = `/study/course/${session.units.course_id}/unit/${session.unit_id}/session/${sessionId}`
-          console.log('🔙 Going back to:', backUrl)
-          navigate(backUrl)
-        } else {
-          console.log('❌ No session info, going to study dashboard')
-          navigate('/study')
-        }
-      }
-    } catch (err) {
-      console.error('❌ Error fetching next exercise:', err)
-      // Fallback navigation
-      if (session && session.units) {
-        navigate(`/study/course/${session.units.course_id}/unit/${session.unit_id}/session/${sessionId}`)
-      } else {
-        navigate('/study')
-      }
-    }
-  }
 
 
   // Handle bottom nav back
@@ -991,6 +913,7 @@ const MultipleChoiceExercise = () => {
           {/* One-by-one mode */}
           {viewMode === 'one-by-one' && (
             <div className="w-full max-w-4xl min-w-0 mx-auto mt-6 bg-white rounded-lg shadow-[0_2px_10px_rgba(0,0,0,0.1),0_10px_20px_rgba(0,0,0,0.05)] relative before:content-[''] before:absolute before:top-0 before:left-0 before:right-0 before:h-full before:bg-gradient-to-b before:from-gray-50 before:to-transparent before:opacity-30 before:pointer-events-none before:rounded-lg">
+              
               {/* Colored circles on top right */}
               <div className="absolute top-4 right-6 md:right-10 flex gap-2 z-20">
                 <div className="w-3 h-3 rounded-full bg-blue-500"></div>
@@ -999,8 +922,10 @@ const MultipleChoiceExercise = () => {
               </div>
               <div className="relative z-10 p-4 md:p-8 pt-8 border-l-4 border-blue-400">
               <div className="space-y-4 md:space-y-6">
+
                 {/* Question - single unified version */}
                 <div className="mb-6">
+
               {/* Intro above question (optional) */}
               {currentQuestion.intro && String(currentQuestion.intro).trim() && (
                 <div className="mb-4">
@@ -1011,6 +936,7 @@ const MultipleChoiceExercise = () => {
                   />
                 </div>
               )}
+              
                   <RichTextRenderer
                     content={currentQuestion.question}
                     className="question-text"

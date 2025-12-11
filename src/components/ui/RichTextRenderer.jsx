@@ -45,17 +45,6 @@ const RichTextRenderer = ({
     // Links: [text](url)
     html = html.replace(/\[([^\]]+)\]\(([^)]+)\)/g, '<a href="$2" target="_blank" rel="noopener noreferrer">$1</a>')
 
-    // Bold: **text** or __text__ - must come before italic
-    html = html.replace(/\*\*([^*]+)\*\*/g, '<strong>$1</strong>')
-    html = html.replace(/__([^_]+)__/g, '<strong>$1</strong>')
-
-    // Italic: *text* (single asterisk, not double)
-    // Use a more careful approach to avoid matching ** markers
-    html = html.replace(/(?<!\*)\*([^*\n]+?)\*(?!\*)/g, '<em>$1</em>')
-
-    // Strikethrough: ~~text~~
-    html = html.replace(/~~([^~]+)~~/g, '<del>$1</del>')
-
     return html
   }
 
