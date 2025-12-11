@@ -1,5 +1,4 @@
 import { Routes, Route, Navigate } from 'react-router-dom'
-import CourseList from './CourseList'
 import UnitList from './UnitList'
 import ExerciseList from './ExerciseList'
 import UnitSessionManager from './UnitSessionManager'

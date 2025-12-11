@@ -388,55 +388,6 @@ const ExerciseList = () => {
     }
   }, [fetchData])
 
-  const handleSessionClick = async (session) => {
-    try {
-      // Check how many exercises this session has
-      const { data: exercises, error } = await supabase
-        .from('exercises')
-        .select('*')
-        .eq('session_id', session.id)
-        .eq('is_active', true)
-        .order('order_index')
-
-      if (error) throw error
-
-      if (exercises && exercises.length === 1) {
-        // If only one exercise, navigate directly to the exercise
-        const exercise = exercises[0]
-        const paths = {
-          flashcard: '/study/flashcard',
-          fill_blank: '/study/fill-blank',
-          snake_ladder: '/study/snake-ladder',
-          two_player: '/study/two-player-game',
-          multiple_choice: '/study/multiple-choice',
-          drag_drop: '/study/drag-drop',
-          dropdown: '/study/dropdown',
-          ai_fill_blank: '/study/ai-fill-blank'
-        }
-        const exercisePath = paths[exercise.exercise_type] || '/study/flashcard'
-        navigate(`${exercisePath}?exerciseId=${exercise.id}&sessionId=${session.id}&levelId=${levelId || ''}&courseId=${level?.id || ''}&unitId=${session.unit_id}`)
-      } else if (exercises && exercises.length > 1) {
-        // If multiple exercises, go to exercise list
-        {
-          const base = levelId ? `/study/level/${levelId}` : `/study/course/${level?.id}`
-          navigate(`${base}/unit/${session.unit_id}/session/${session.id}`)
-        }
-      } else {
-        // If no exercises, go to exercise list
-        {
-          const base = levelId ? `/study/level/${levelId}` : `/study/course/${level?.id}`
-          navigate(`${base}/unit/${session.unit_id}/session/${session.id}`)
-        }
-      }
-    } catch (err) {
-      console.error('Error checking exercises:', err)
-      // Fallback to exercise list
-      {
-        const base = levelId ? `/study/level/${levelId}` : `/study/course/${level?.id}`
-        navigate(`${base}/unit/${session.unit_id}/session/${session.id}`)
-      }
-    }
-  }
 
   // Refresh progress when userProgress changes
   useEffect(() => {
@@ -493,15 +444,7 @@ const ExerciseList = () => {
     return colors[exerciseType] || 'text-gray-600 bg-gray-100'
   }
 
-  const getExerciseTypeLabel = (exerciseType) => {
-    const labels = {
-      flashcard: 'Flashcard',
-      fill_blank: 'Fill in the Blank',
-      multiple_choice: 'Multiple Choice',
-      dropdown: 'Dropdown',
-    }
-    return labels[exerciseType] || exerciseType
-  }
+  
 
   const getThemeColors = (colorTheme) => {
     const themes = {
@@ -628,7 +571,7 @@ const ExerciseList = () => {
             <img src="https://xpclass.vn/xpclass/icon/green_check.svg" alt="Completed" className="w-16 h-16 opacity-30" />
           </div>
         )}
-        <style jsx>{`
+        <style>{`
           @keyframes shimmer {
             0% { transform: translateX(-100%); }
             100% { transform: translateX(100%); }

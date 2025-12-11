@@ -1016,10 +1016,12 @@ const UnitList = () => {
 
                   {/* Sessions Grid for this Unit */}
                   {unitSessions.length > 0 ? (
-                    <div className="grid grid-cols-4 md:grid-cols-6 lg:grid-cols-8 xl:grid-cols-10 gap-3">
+                    <div className="grid grid-cols-3 md:grid-cols-6 lg:grid-cols-8 xl:grid-cols-10 gap-6" style={{ gridAutoFlow: 'dense' }}>
                       {unitSessions.map((session, index) => (
-                        <div key={session.id} style={{ width: '60px', height: '60px' }}>
-                          {renderSessionCard(session, index)}
+                        <div key={session.id} className="flex justify-center items-start">
+                          <div style={{ width: '80px', height: '80px' }}>
+                            {renderSessionCard(session, index)}
+                          </div>
                         </div>
                       ))}
                     </div>

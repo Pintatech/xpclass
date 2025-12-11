@@ -72,6 +72,7 @@ const DragDropExercise = () => {
   const [isBatmanMoving, setIsBatmanMoving] = useState(false)
   const [currentMeme, setCurrentMeme] = useState('')
   const [showMeme, setShowMeme] = useState(false)
+  const [animatingItems, setAnimatingItems] = useState({}) // Track items being animated
   const { user } = useAuth()
   const { completeExerciseWithXP } = useProgress()
 
@@ -276,17 +277,17 @@ const DragDropExercise = () => {
   const handleItemClick = (itemId, questionIndex) => {
     const userAnswer = userAnswers[questionIndex] || {}
     const question = exercise.content.questions[questionIndex]
-    
+
     // Check if item is already placed
     const isAlreadyPlaced = Object.values(userAnswer).includes(itemId)
-    
+
     if (isAlreadyPlaced) {
-      // If already placed, remove it from current zone
+      // If already placed, remove it from current zone (instant, no animation)
       const newAnswers = { ...userAnswers }
       if (!newAnswers[questionIndex]) {
         newAnswers[questionIndex] = {}
       }
-      
+
       // Find and remove from current zone
       Object.keys(newAnswers[questionIndex]).forEach(zone => {
         if (newAnswers[questionIndex][zone] === itemId) {
@@ -297,16 +298,78 @@ const DragDropExercise = () => {
     } else {
       // Find next available drop zone
       const availableZone = question.drop_zones.find(zone => !userAnswer[zone.id])
-      
+
       if (availableZone) {
-        // Place item in next available zone
-        const newAnswers = { ...userAnswers }
-        if (!newAnswers[questionIndex]) {
-          newAnswers[questionIndex] = {}
+        // Play whoosh sound
+        try {
+          const audio = new Audio('https://xpclass.vn/xpclass/sound/whoosh_transition.mp3')
+          audio.volume = 0.5
+          audio.play().catch(e => console.log('Could not play sound:', e))
+        } catch (e) {
+          console.log('Sound not supported:', e)
         }
-        
-        newAnswers[questionIndex][availableZone.id] = itemId
-        setUserAnswers(newAnswers)
+
+        // Get positions for animation
+        const itemElement = document.querySelector(`[data-item-id="${itemId}"]`)
+        const zoneElement = document.querySelector(`[data-zone-id="${availableZone.id}"]`)
+
+        if (itemElement && zoneElement) {
+          const itemRect = itemElement.getBoundingClientRect()
+          const zoneRect = zoneElement.getBoundingClientRect()
+
+          // Create flying clone
+          const clone = itemElement.cloneNode(true)
+          clone.style.position = 'fixed'
+          clone.style.left = `${itemRect.left}px`
+          clone.style.top = `${itemRect.top}px`
+          clone.style.width = `${itemRect.width}px`
+          clone.style.height = `${itemRect.height}px`
+          clone.style.margin = '0'
+          clone.style.zIndex = '1000'
+          clone.style.pointerEvents = 'none'
+          clone.style.transition = 'none'
+          clone.style.willChange = 'transform, left, top'
+          document.body.appendChild(clone)
+
+          // Force reflow to ensure element is rendered
+          clone.offsetHeight
+
+          // Add transition after element is rendered
+          clone.style.transition = 'all 0.5s ease-in-out'
+
+          // Trigger animation
+          requestAnimationFrame(() => {
+            requestAnimationFrame(() => {
+              clone.style.left = `${zoneRect.left}px`
+              clone.style.top = `${zoneRect.top}px`
+              clone.style.transform = 'scale(0.9)'
+              clone.style.opacity = '0.8'
+            })
+          })
+
+          // Remove clone and place item after animation
+          setTimeout(() => {
+            document.body.removeChild(clone)
+
+            // Place item in next available zone
+            const newAnswers = { ...userAnswers }
+            if (!newAnswers[questionIndex]) {
+              newAnswers[questionIndex] = {}
+            }
+
+            newAnswers[questionIndex][availableZone.id] = itemId
+            setUserAnswers(newAnswers)
+          }, 520)
+        } else {
+          // Fallback: place immediately if elements not found
+          const newAnswers = { ...userAnswers }
+          if (!newAnswers[questionIndex]) {
+            newAnswers[questionIndex] = {}
+          }
+
+          newAnswers[questionIndex][availableZone.id] = itemId
+          setUserAnswers(newAnswers)
+        }
       }
     }
   }
@@ -650,7 +713,13 @@ const DragDropExercise = () => {
         )}
 
         {/* Main Content */}
-        <div className="w-full max-w-4xl min-w-0 mx-auto rounded-lg p-4 md:p-8 bg-white shadow-md border border-gray-200" style={{ userSelect: 'none' }}>
+        <div className="w-full max-w-4xl min-w-0 mx-auto rounded-lg p-4 md:p-8 bg-white shadow-md border border-gray-200 border-l-4 border-l-blue-400 relative" style={{ userSelect: 'none' }}>
+          {/* Colored circles on top right */}
+          <div className="absolute top-4 right-6 md:right-10 flex gap-2 z-20">
+            <div className="w-3 h-3 rounded-full bg-red-500"></div>
+            <div className="w-3 h-3 rounded-full bg-yellow-500"></div>
+            <div className="w-3 h-3 rounded-full bg-green-500"></div>
+          </div>
           {/* Question with inline drop zones */}
           <div className="mb-8 p-4">
             <h2 className="text-lg font-semibold text-gray-800 mb-4 leading-relaxed">
@@ -711,24 +780,71 @@ const DragDropExercise = () => {
             <div className="flex flex-wrap gap-2">
               {randomizedItems.map((item) => {
                 const isUsed = Object.values(userAnswer).includes(item.id)
+                const isDisabled = isUsed || questionsChecked[currentQuestionIndex]
+
+                // Determine shadow color based on state
+                let shadowColor = '#93c5fd' // blue-300 default
+                if (isUsed) {
+                  shadowColor = '#e5e7eb' // gray-200
+                }
+
                 return (
                   <div
                     key={item.id}
+                    data-item-id={item.id}
                     draggable={!isUsed && !questionsChecked[currentQuestionIndex]}
                     onDragStart={(e) => !questionsChecked[currentQuestionIndex] && handleDragStart(e, item.id, currentQuestionIndex)}
                     onTouchStart={(e) => !questionsChecked[currentQuestionIndex] && handleTouchStart(e, item.id, currentQuestionIndex)}
                     onTouchMove={handleTouchMove}
                     onTouchEnd={handleTouchEnd}
                     onClick={() => !questionsChecked[currentQuestionIndex] && handleItemClick(item.id, currentQuestionIndex)}
-                    className={`px-2 py-1 rounded transition-all select-none text-m ${
-                      isUsed
-                        ? 'bg-gray-100 text-gray-400 cursor-not-allowed'
-                        : questionsChecked[currentQuestionIndex]
-                          ? 'bg-blue-50 text-blue-700 cursor-default'
-                          : 'bg-blue-50 text-blue-700 cursor-pointer hover:bg-blue-100 active:bg-blue-200'
-                    }`}
+                    className="border-none rounded-lg transition-all duration-100"
+                    style={{
+                      padding: 0,
+                      borderRadius: '0.75em',
+                      backgroundColor: shadowColor,
+                      cursor: isUsed ? 'not-allowed' : questionsChecked[currentQuestionIndex] ? 'default' : 'pointer'
+                    }}
                   >
-                    {item.text}
+                    <div
+                      className={`select-none text-m rounded-lg ${
+                        isUsed
+                          ? 'bg-gray-100 text-gray-400'
+                          : questionsChecked[currentQuestionIndex]
+                            ? 'bg-blue-50 text-blue-700'
+                            : 'bg-blue-50 text-blue-700 hover:bg-blue-100'
+                      }`}
+                      style={{
+                        display: 'block',
+                        boxSizing: 'border-box',
+                        transform: isDisabled ? 'translateY(0)' : 'translateY(-0.2em)',
+                        transition: 'transform 0.1s ease',
+                        padding: '0.5em 1em',
+                        borderRadius: '0.75em'
+                      }}
+                      onMouseEnter={(e) => {
+                        if (!isDisabled) {
+                          e.currentTarget.style.transform = 'translateY(-0.33em)'
+                        }
+                      }}
+                      onMouseLeave={(e) => {
+                        if (!isDisabled) {
+                          e.currentTarget.style.transform = 'translateY(-0.2em)'
+                        }
+                      }}
+                      onMouseDown={(e) => {
+                        if (!isDisabled) {
+                          e.currentTarget.style.transform = 'translateY(0)'
+                        }
+                      }}
+                      onMouseUp={(e) => {
+                        if (!isDisabled) {
+                          e.currentTarget.style.transform = 'translateY(-0.33em)'
+                        }
+                      }}
+                    >
+                      {item.text}
+                    </div>
                   </div>
                 )
               })}

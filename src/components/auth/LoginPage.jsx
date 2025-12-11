@@ -27,9 +27,29 @@ const LoginPage = () => {
     setError('')
 
     try {
-      const { error } = await signIn(email, password)
+      // Check if input is email or username
+      let loginEmail = email
+
+      if (!email.includes('@')) {
+        // It's a username, lookup the email from users table
+        const { data, error: lookupError } = await supabase
+          .from('users')
+          .select('email')
+          .eq('username', email)
+          .single()
+
+        if (lookupError || !data) {
+          setError('Không tìm thấy tài khoản với username này')
+          setLoading(false)
+          return
+        }
+
+        loginEmail = data.email
+      }
+
+      const { error } = await signIn(loginEmail, password)
       if (error) {
-        setError('Email hoặc mật khẩu không chính xác')
+        setError('Email/Username hoặc mật khẩu không chính xác')
       }
     } catch (err) {
       setError('Có lỗi xảy ra, vui lòng thử lại')
@@ -53,136 +73,200 @@ const LoginPage = () => {
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-purple-50 flex items-center justify-center px-4">
-      <div className="max-w-md w-full space-y-8">
-        {/* Logo & Title */}
-        <div className="text-center">
-          <div className="flex justify-center mb-4">
-            <div className="w-32 h-32  rounded-2xl flex items-center justify-center text-white font-bold text-2xl">
-              <img src="https://xpclass.vn/xpclass/Asset%205.png" alt="Logo" width={96} height={96} />
-            </div>
-          </div>
-          <h2 className="text-3xl font-bold text-gray-900 mb-2">
-            Welcome back, player!
-          </h2>
-          <p className="text-gray-600">
-            Log in to level up!
-          </p>
-        </div>
+    <div
+      className="min-h-screen flex items-center justify-center px-4 relative"
+      style={{
+        
+        backgroundPosition: 'center',
+        backgroundRepeat: 'no-repeat'
+      }}
+    >
+      <style>{`
+        .neomorphic-card {
+          background: #ffffff;
+          border-radius: 15px;
+          box-shadow: 15px 15px 30px rgba(0, 0, 0, 0.3), 0 0 0 rgba(0, 0, 0, 0);
+        }
 
-        {/* Login Form */}
-        <div className="bg-white rounded-2xl shadow-xl p-8">
-          <form onSubmit={handleSubmit} className="space-y-6">
+        .neomorphic-input {
+          position: relative;
+          width: 100%;
+        }
+
+        .custom-border-input {
+          width: 100%;
+          padding: 10px;
+          outline: none;
+          background: transparent;
+          color: #1e40af;
+          font-size: 1em;
+          border: none;
+          border-left: 2px solid #2563eb;
+          border-bottom: 2px solid #2563eb;
+          border-bottom-left-radius: 8px;
+        }
+
+        .neomorphic-input span {
+          position: absolute;
+          left: 0;
+          top: 0;
+          transform: translateY(-4px);
+          margin-left: 10px;
+          padding: 10px;
+          pointer-events: none;
+          font-size: 14px;
+          color: #1e40af;
+          text-transform: none;
+          transition: 0.5s;
+          letter-spacing: normal;
+          border-radius: 8px;
+          z-index: 2;
+        }
+
+        .neomorphic-input input:valid ~ span,
+        .neomorphic-input input:focus ~ span {
+          transform: translateX(156px) translateY(-15px);
+          font-size: 0.8em;
+          padding: 5px 10px;
+          background: #2563eb;
+          letter-spacing: 0.2em;
+          color: #fff;
+        }
+
+        .neomorphic-input.email-input input:valid ~ span,
+        .neomorphic-input.email-input input:focus ~ span {
+          transform: translateX(156px) translateY(-15px);
+        }
+
+        .neomorphic-button {
+          height: 45px;
+          width: 120px;
+          border-radius: 8px;
+          border: 2px solid #2563eb;
+          cursor: pointer;
+          background-color: #2563eb;
+          transition: 0.5s;
+          text-transform: none;
+          font-size: 14px;
+          letter-spacing: normal;
+          color: white;
+          font-weight: normal;
+        }
+
+        .neomorphic-button:hover:not(:disabled) {
+          background-color: #1d4ed8;
+        }
+
+        .neomorphic-button:disabled {
+          opacity: 0.5;
+          cursor: not-allowed;
+        }
+
+        .signup-title {
+          color: #1e40af;
+          text-transform: none;
+          letter-spacing: normal;
+          display: block;
+          font-weight: normal;
+          font-size: x-large;
+          margin-top: 1.5em;
+          margin-bottom: 1em;
+        }
+      `}</style>
+
+      <div className="flex flex-col items-center justify-center min-h-screen">
+        {/* Neomorphic Card */}
+        <div className="neomorphic-card flex flex-col items-center justify-center min-h-[550px] w-[90vw] md:w-[400px] lg:w-[400px] gap-8 p-8 pt-24 relative">
+          {/* Logo - Top Left */}
+          <div className="absolute top-4 left-4">
+            <img src="https://xpclass.vn/xpclass/Asset%205.png" alt="Logo" width={64} height={64} />
+          </div>
+
+          {/* Top right dots */}
+          <div className="absolute top-4 right-4 flex gap-2">
+            <div className="w-3 h-3 rounded-full bg-blue-500"></div>
+            <div className="w-3 h-3 rounded-full bg-purple-500"></div>
+            <div className="w-3 h-3 rounded-full bg-pink-500"></div>
+          </div>
+
+          <a className="signup-title">Welcome back, player!</a>
+
+          <form onSubmit={handleSubmit} className="w-full flex flex-col items-center gap-8">
             {error && (
-              <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-lg">
+              <div className="bg-red-50 border-2 border-red-400 text-red-700 px-4 py-2 rounded-lg text-sm w-full">
                 {error}
               </div>
             )}
 
-            {/* Email Field */}
-            <div>
-              <label htmlFor="email" className="block text-sm font-medium text-gray-700 mb-2">
-                Email
-              </label>
-              <div className="relative">
-                <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                  <Mail className="h-5 w-5 text-gray-400" />
-                </div>
-                <input
-                  id="email"
-                  name="email"
-                  type="email"
-                  required
-                  value={email}
-                  onChange={(e) => setEmail(e.target.value)}
-                  className="input pl-10"
-                  placeholder="Nhập email của bạn"
-                />
-              </div>
+            {/* Email/Username Field */}
+            <div className="neomorphic-input email-input w-[280px]">
+              <input
+                type="text"
+                required
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                className="custom-border-input"
+              />
+              <span>Username</span>
             </div>
 
             {/* Password Field */}
-            <div>
-              <label htmlFor="password" className="block text-sm font-medium text-gray-700 mb-2">
-                Mật khẩu
-              </label>
-              <div className="relative">
-                <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                  <Lock className="h-5 w-5 text-gray-400" />
-                </div>
-                <input
-                  id="password"
-                  name="password"
-                  type={showPassword ? 'text' : 'password'}
-                  required
-                  value={password}
-                  onChange={(e) => setPassword(e.target.value)}
-                  className="input pl-10 pr-10"
-                  placeholder="Nhập mật khẩu"
-                />
-                <button
-                  type="button"
-                  className="absolute inset-y-0 right-0 pr-3 flex items-center"
-                  onClick={() => setShowPassword(!showPassword)}
-                >
-                  {showPassword ? (
-                    <EyeOff className="h-5 w-5 text-gray-400" />
-                  ) : (
-                    <Eye className="h-5 w-5 text-gray-400" />
-                  )}
-                </button>
-              </div>
+            <div className="neomorphic-input w-[280px]">
+              <input
+                type={showPassword ? 'text' : 'password'}
+                required
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                className="custom-border-input"
+              />
+              <span>Password</span>
+              <button
+                type="button"
+                className="absolute right-2 top-2 text-blue-600"
+                onClick={() => setShowPassword(!showPassword)}
+              >
+                {showPassword ? <EyeOff className="h-5 w-5" /> : <Eye className="h-5 w-5" />}
+              </button>
             </div>
 
             {/* Submit Button */}
-            <Button
+            <button
               type="submit"
-              loading={loading}
-              className="w-full"
-              size="lg"
+              disabled={loading}
+              className="neomorphic-button mb-6"
             >
-              Đăng nhập
-            </Button>
+              {loading ? 'Loading...' : 'Đăng nhập'}
+            </button>
           </form>
-
-          {/* OAuth Divider */}
-          <div className="my-6 relative">
-            <div className="absolute inset-0 flex items-center" aria-hidden="true">
-              <div className="w-full border-t border-gray-200" />
-            </div>
-            <div className="relative flex justify-center text-sm">
-              <span className="px-2 bg-white text-gray-500">Hoặc</span>
-            </div>
-          </div>
 
           {/* Google Sign-In */}
           <button
             type="button"
             onClick={handleGoogleSignIn}
             disabled={loading}
-            className="w-full border border-gray-300 hover:bg-gray-50 text-gray-700 rounded-lg px-4 py-2 flex items-center justify-center gap-2 disabled:opacity-50"
+            className="w-[280px] border-2 border-blue-600 hover:bg-blue-600 hover:text-white text-blue-700 rounded-lg px-4 py-2 flex items-center justify-center gap-2 disabled:opacity-50 transition-all duration-300"
           >
             <img
               src="https://www.gstatic.com/firebasejs/ui/2.0.0/images/auth/google.svg"
               alt="Google"
               className="w-5 h-5"
             />
-            <span>Đăng nhập với Google</span>
+            <span className="text-sm font-medium">Google</span>
           </button>
 
           {/* Links */}
-          <div className="mt-6 text-center space-y-2">
-            <Link 
-              to="/forgot-password" 
-              className="text-sm text-primary-600 hover:text-primary-500"
+          <div className="text-center space-y-2 mb-4">
+            <Link
+              to="/forgot-password"
+              className="text-xs text-blue-600 hover:text-blue-800 block"
             >
               Quên mật khẩu?
             </Link>
-            <div className="text-sm text-gray-600">
+            <div className="text-xs text-gray-600">
               Chưa có tài khoản?{' '}
-              <Link 
-                to="/register" 
-                className="text-primary-600 hover:text-primary-500 font-medium"
+              <Link
+                to="/register"
+                className="text-blue-600 hover:text-blue-800 font-medium"
               >
                 Đăng ký ngay
               </Link>

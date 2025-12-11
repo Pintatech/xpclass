@@ -993,9 +993,9 @@ const MultipleChoiceExercise = () => {
             <div className="w-full max-w-4xl min-w-0 mx-auto mt-6 bg-white rounded-lg shadow-[0_2px_10px_rgba(0,0,0,0.1),0_10px_20px_rgba(0,0,0,0.05)] relative before:content-[''] before:absolute before:top-0 before:left-0 before:right-0 before:h-full before:bg-gradient-to-b before:from-gray-50 before:to-transparent before:opacity-30 before:pointer-events-none before:rounded-lg">
               {/* Colored circles on top right */}
               <div className="absolute top-4 right-6 md:right-10 flex gap-2 z-20">
-                <div className="w-3 h-3 rounded-full bg-red-500"></div>
-                <div className="w-3 h-3 rounded-full bg-yellow-500"></div>
-                <div className="w-3 h-3 rounded-full bg-green-500"></div>
+                <div className="w-3 h-3 rounded-full bg-blue-500"></div>
+                <div className="w-3 h-3 rounded-full bg-purple-500"></div>
+                <div className="w-3 h-3 rounded-full bg-pink-500"></div>
               </div>
               <div className="relative z-10 p-4 md:p-8 pt-8 border-l-4 border-blue-400">
               <div className="space-y-4 md:space-y-6">
