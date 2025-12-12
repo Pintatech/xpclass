@@ -462,8 +462,8 @@ const Leaderboard = () => {
           {/* 2nd Place */}
           {leaderboardData[1] && (
             <div className="order-1">
-              <Card className="text-center p-2 md:p-6 bg-gradient-to-br from-gray-50 to-gray-100 border-gray-300">
-                <div className="w-16 h-16 md:w-20 md:h-20 rounded-full mx-auto mb-2 md:mb-4 flex items-center justify-center border-2 border-gray-400 overflow-hidden">
+              <Card className="text-center p-2 md:p-6 bg-gradient-to-t from-gray-400/80 to-gray-100/80 border-white border-t-0">
+                <div className="w-12 h-12 md:w-20 md:h-20 rounded-full mx-auto mb-2 md:mb-4 flex items-center justify-center border-2 border-gray-400 overflow-hidden">
                   {leaderboardData[1].avatar ? (
                     leaderboardData[1].avatar.startsWith('http') ? (
                       <img
@@ -511,7 +511,7 @@ const Leaderboard = () => {
           {/* 1st Place */}
           {leaderboardData[0] && (
             <div className="order-2">
-              <Card className="text-center p-2 md:p-6 bg-gradient-to-br from-yellow-50 to-yellow-100 border-yellow-300 md:transform md:scale-105">
+              <Card className="text-center p-2 md:p-6 bg-gradient-to-t from-yellow-600/80 to-yellow-100/80 border-white border-t-0 md:transform md:scale-105">
                 <Crown className="w-6 h-6 md:w-8 md:h-8 text-yellow-500 mx-auto mb-1 md:mb-2" />
                 <div className="w-14 h-14 md:w-20 md:h-20 rounded-full mx-auto mb-2 md:mb-4 flex items-center justify-center border-2 border-yellow-500 overflow-hidden">
                   {leaderboardData[0].avatar ? (
@@ -548,7 +548,7 @@ const Leaderboard = () => {
                     <SimpleBadge badge={leaderboardData[0].badge} size="medium" showName={false} />
                   </div>
                 </div>
-                <div className="text-sm md:text-xl font-bold text-yellow-600 mt-1 md:mt-2">
+                <div className="text-sm md:text-xl font-semibold text-white-900 mt-1 md:mt-2">
                   <div className="flex items-center justify-center gap-1">
                     {leaderboardData[0].xp.toLocaleString()}
                     <img src="https://xpclass.vn/xpclass/icon/xp_small.svg" alt="XP" className="w-3 md:w-5 h-3 md:h-5" />
@@ -565,7 +565,7 @@ const Leaderboard = () => {
           {/* 3rd Place */}
           {leaderboardData[2] && (
             <div className="order-3">
-              <Card className="text-center p-2 md:p-6 bg-gradient-to-br from-orange-50 to-orange-100 border-orange-300">
+              <Card className="text-center p-2 md:p-6 bg-gradient-to-t from-orange-600/80 to-orange-50/80 border-white border-t-0">
                 <div className="w-8 h-8 md:w-14 md:h-14 rounded-full mx-auto mb-2 md:mb-4 flex items-center justify-center border-2 border-orange-400 overflow-hidden">
                   {leaderboardData[2].avatar ? (
                     leaderboardData[2].avatar.startsWith('http') ? (

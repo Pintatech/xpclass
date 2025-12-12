@@ -65,7 +65,7 @@ export const AuthProvider = ({ children }) => {
       if (error) {
         console.error('❌ Error fetching user profile:', error)
         console.error('❌ Error details:', JSON.stringify(error))
-        setProfile(null)
+        // Don't set profile to null - keep existing profile data
       } else {
         console.log('✅ Profile fetched:', data)
         setProfile(data)
@@ -73,7 +73,7 @@ export const AuthProvider = ({ children }) => {
     } catch (error) {
       console.error('❌ Error in fetchUserProfile:', error)
       console.error('❌ Error type:', error.message)
-      setProfile(null)
+      // Don't set profile to null - keep existing profile data
     }
   }
 
