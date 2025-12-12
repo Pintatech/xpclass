@@ -454,25 +454,16 @@ const Leaderboard = () => {
             </Button>
           ))}
         </div>
-        <Button
-          onClick={fetchLeaderboardData}
-          variant="ghost"
-          size="sm"
-          className="ml-4"
-          title="Làm mới"
-        >
-          <RefreshCw className="w-4 h-4" />
-        </Button>
       </div>
 
       {/* Top 3 Podium */}
       {leaderboardData.length > 0 && (
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-2 md:gap-4 mb-4 md:mb-8">
+        <div className="grid grid-cols-3 gap-2 md:gap-4 mb-4 md:mb-8 items-end">
           {/* 2nd Place */}
           {leaderboardData[1] && (
-            <div className="md:order-1 order-2">
-              <Card className="text-center p-3 md:p-6 bg-gradient-to-br from-gray-50 to-gray-100 border-gray-300">
-                <div className="w-12 h-12 md:w-16 md:h-16 rounded-full mx-auto mb-2 md:mb-4 flex items-center justify-center border-2 border-gray-400 overflow-hidden">
+            <div className="order-1">
+              <Card className="text-center p-2 md:p-6 bg-gradient-to-br from-gray-50 to-gray-100 border-gray-300">
+                <div className="w-16 h-16 md:w-20 md:h-20 rounded-full mx-auto mb-2 md:mb-4 flex items-center justify-center border-2 border-gray-400 overflow-hidden">
                   {leaderboardData[1].avatar ? (
                     leaderboardData[1].avatar.startsWith('http') ? (
                       <img
@@ -493,7 +484,7 @@ const Leaderboard = () => {
                   <span className="text-2xl hidden">{leaderboardData[1].name.charAt(0).toUpperCase()}</span>
                 </div>
                 <div
-                  className="font-bold text-gray-900 text-sm md:text-base cursor-pointer hover:text-blue-600 transition-colors truncate"
+                  className="font-bold text-gray-900 text-xs md:text-base cursor-pointer hover:text-blue-600 transition-colors break-words text-center"
                   onClick={() => handleProfileClick(leaderboardData[1].id)}
                 >
                   {leaderboardData[1].name}
@@ -504,13 +495,13 @@ const Leaderboard = () => {
                     onClick={() => handleBadgeClick(leaderboardData[1].badge)}
                     className="cursor-pointer"
                   >
-                    <SimpleBadge badge={leaderboardData[1].badge} size="small" showName={false} />
+                    <SimpleBadge badge={leaderboardData[1].badge} size="xs" showName={false} />
                   </div>
                 </div>
-                <div className="text-lg font-semibold text-gray-900 mt-2">
+                <div className="text-sm md:text-lg font-semibold text-gray-900 mt-1 md:mt-2">
                   <div className="flex items-center justify-center gap-1">
                     {leaderboardData[1].xp.toLocaleString()}
-                    <img src="https://xpclass.vn/xpclass/icon/xp_small.svg" alt="XP" className="w-4 h-4" />
+                    <img src="https://xpclass.vn/xpclass/icon/xp_small.svg" alt="XP" className="w-3 md:w-4 h-3 md:h-4" />
                   </div>
                 </div>
               </Card>
@@ -519,8 +510,8 @@ const Leaderboard = () => {
 
           {/* 1st Place */}
           {leaderboardData[0] && (
-            <div className="md:order-2 order-1">
-              <Card className="text-center p-3 md:p-6 bg-gradient-to-br from-yellow-50 to-yellow-100 border-yellow-300 md:transform md:scale-105">
+            <div className="order-2">
+              <Card className="text-center p-2 md:p-6 bg-gradient-to-br from-yellow-50 to-yellow-100 border-yellow-300 md:transform md:scale-105">
                 <Crown className="w-6 h-6 md:w-8 md:h-8 text-yellow-500 mx-auto mb-1 md:mb-2" />
                 <div className="w-14 h-14 md:w-20 md:h-20 rounded-full mx-auto mb-2 md:mb-4 flex items-center justify-center border-2 border-yellow-500 overflow-hidden">
                   {leaderboardData[0].avatar ? (
@@ -543,7 +534,7 @@ const Leaderboard = () => {
                   <span className="text-3xl hidden">{leaderboardData[0].name.charAt(0).toUpperCase()}</span>
                 </div>
                 <div
-                  className="font-bold text-gray-900 text-base md:text-lg cursor-pointer hover:text-blue-600 transition-colors truncate"
+                  className="font-bold text-gray-900 text-xs md:text-lg cursor-pointer hover:text-blue-600 transition-colors break-words text-center"
                   onClick={() => handleProfileClick(leaderboardData[0].id)}
                 >
                   {leaderboardData[0].name}
@@ -557,13 +548,13 @@ const Leaderboard = () => {
                     <SimpleBadge badge={leaderboardData[0].badge} size="medium" showName={false} />
                   </div>
                 </div>
-                <div className="text-xl font-bold text-yellow-600 mt-2">
+                <div className="text-sm md:text-xl font-bold text-yellow-600 mt-1 md:mt-2">
                   <div className="flex items-center justify-center gap-1">
                     {leaderboardData[0].xp.toLocaleString()}
-                    <img src="https://xpclass.vn/xpclass/icon/xp_small.svg" alt="XP" className="w-5 h-5" />
+                    <img src="https://xpclass.vn/xpclass/icon/xp_small.svg" alt="XP" className="w-3 md:w-5 h-3 md:h-5" />
                   </div>
                 </div>
-                <div className="flex items-center justify-center mt-2 text-yellow-600">
+                <div className="hidden md:flex items-center justify-center mt-2 text-yellow-600">
                   <Star size={16} fill="currentColor" />
                   <span className="ml-1 text-sm">Vua học tập</span>
                 </div>
@@ -573,9 +564,9 @@ const Leaderboard = () => {
 
           {/* 3rd Place */}
           {leaderboardData[2] && (
-            <div className="md:order-3 order-3">
-              <Card className="text-center p-3 md:p-6 bg-gradient-to-br from-orange-50 to-orange-100 border-orange-300">
-                <div className="w-12 h-12 md:w-16 md:h-16 rounded-full mx-auto mb-2 md:mb-4 flex items-center justify-center border-2 border-orange-400 overflow-hidden">
+            <div className="order-3">
+              <Card className="text-center p-2 md:p-6 bg-gradient-to-br from-orange-50 to-orange-100 border-orange-300">
+                <div className="w-8 h-8 md:w-14 md:h-14 rounded-full mx-auto mb-2 md:mb-4 flex items-center justify-center border-2 border-orange-400 overflow-hidden">
                   {leaderboardData[2].avatar ? (
                     leaderboardData[2].avatar.startsWith('http') ? (
                       <img
@@ -596,7 +587,7 @@ const Leaderboard = () => {
                   <span className="text-2xl hidden">{leaderboardData[2].name.charAt(0).toUpperCase()}</span>
                 </div>
                 <div
-                  className="font-bold text-gray-900 text-sm md:text-base cursor-pointer hover:text-blue-600 transition-colors truncate"
+                  className="font-bold text-gray-900 text-xs md:text-base cursor-pointer hover:text-blue-600 transition-colors break-words text-center"
                   onClick={() => handleProfileClick(leaderboardData[2].id)}
                 >
                   {leaderboardData[2].name}
@@ -610,10 +601,10 @@ const Leaderboard = () => {
                     <SimpleBadge badge={leaderboardData[2].badge} size="small" showName={false} />
                   </div>
                 </div>
-                <div className="text-lg font-semibold text-gray-900 mt-2">
+                <div className="text-sm md:text-lg font-semibold text-gray-900 mt-1 md:mt-2">
                   <div className="flex items-center justify-center gap-1">
                     {leaderboardData[2].xp.toLocaleString()}
-                    <img src="https://xpclass.vn/xpclass/icon/xp_small.svg" alt="XP" className="w-4 h-4" />
+                    <img src="https://xpclass.vn/xpclass/icon/xp_small.svg" alt="XP" className="w-3 md:w-4 h-3 md:h-4" />
                   </div>
                 </div>
               </Card>
@@ -624,25 +615,20 @@ const Leaderboard = () => {
 
       {/* Full Leaderboard */}
       <Card>
-        <Card.Header>
-          <h3 className="text-lg font-semibold text-gray-900 flex items-center">
-            <Trophy className="w-5 h-5 mr-2 text-yellow-600" />
-            Bảng xếp hạng chi tiết
-          </h3>
-        </Card.Header>
+
         <Card.Content className="p-0">
           <div className="space-y-2">
-            {leaderboardData.map((user) => (
+            {leaderboardData.slice(3).map((user) => (
               <div
                 key={user.id}
-                className={`p-4 border-l-4 ${getRankColor(user.rank)} flex items-center justify-between`}
+                className={`py-2 md:py-4 md:px-4 ${getRankColor(user.rank)} flex items-center justify-between`}
               >
-                <div className="flex items-center space-x-4">
-                  <div className="flex items-center justify-center w-8 h-8">
+                <div className="flex items-center space-x-2 md:space-x-4">
+                  <div className="flex items-center justify-center w-6 md:w-8 h-6 md:h-8">
                     {getRankIcon(user.rank)}
                   </div>
 
-                  <div className="w-12 h-12 rounded-full flex items-center justify-center border-2 border-gray-300 overflow-hidden">
+                  <div className="w-10 md:w-12 h-10 md:h-12 rounded-full flex items-center justify-center border-2 border-gray-300 overflow-hidden">
                     {user.avatar ? (
                       user.avatar.startsWith('http') ? (
                         <img
@@ -658,9 +644,9 @@ const Leaderboard = () => {
                         <span className="text-lg">{user.avatar}</span>
                       )
                     ) : (
-                      <span className="text-lg">{user.name.charAt(0).toUpperCase()}</span>
+                      <span className="text-sm">{user.name.charAt(0).toUpperCase()}</span>
                     )}
-                    <span className="text-lg hidden">{user.name.charAt(0).toUpperCase()}</span>
+                    <span className="text-sm hidden">{user.name.charAt(0).toUpperCase()}</span>
                   </div>
 
                   <div>
@@ -676,7 +662,8 @@ const Leaderboard = () => {
                         onClick={() => handleBadgeClick(user.badge)}
                         className="cursor-pointer"
                       >
-                        <SimpleBadge badge={user.badge} size="small" showName={false} />
+                        <SimpleBadge badge={user.badge} size="xs" showName={false} className="md:hidden" />
+                        <SimpleBadge badge={user.badge} size="small" showName={false} className="hidden md:block" />
                       </div>
                       <span className="text-sm text-gray-600">• {user.completedExercises} bài tập</span>
                     </div>
@@ -684,7 +671,7 @@ const Leaderboard = () => {
                 </div>
 
                 <div className="text-right">
-                  <div className="font-bold text-lg text-gray-900 flex items-center gap-2 justify-end">
+                  <div className="font-bold text-sm text-gray-900 flex items-center gap-2 justify-end">
                     {user.xp.toLocaleString()}
                     <img src="https://xpclass.vn/xpclass/icon/xp_small.svg" alt="XP" className="w-5 h-5" />
                   </div>

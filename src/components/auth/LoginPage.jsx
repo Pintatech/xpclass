@@ -83,9 +83,15 @@ const LoginPage = () => {
     >
       <style>{`
         .neomorphic-card {
-          background: #ffffff;
-          border-radius: 15px;
-          box-shadow: 15px 15px 30px rgba(0, 0, 0, 0.3), 0 0 0 rgba(0, 0, 0, 0);
+          background: transparent;
+        }
+
+        @media (min-width: 768px) {
+          .neomorphic-card {
+            background: #ffffff;
+            border-radius: 15px;
+            box-shadow: 15px 15px 30px rgba(0, 0, 0, 0.3), 0 0 0 rgba(0, 0, 0, 0);
+          }
         }
 
         .neomorphic-input {
@@ -175,15 +181,15 @@ const LoginPage = () => {
       `}</style>
 
       <div className="flex flex-col items-center justify-center min-h-screen">
-        {/* Neomorphic Card */}
-        <div className="neomorphic-card flex flex-col items-center justify-center min-h-[550px] w-[90vw] md:w-[400px] lg:w-[400px] gap-8 p-8 pt-24 relative">
+        {/* Neomorphic Card - no card on mobile, card on md+ */}
+        <div className="neomorphic-card flex flex-col items-center justify-center min-h-[550px] md:min-h-[650px] w-full md:w-[400px] lg:w-[400px] gap-8 p-8 pt-24 md:pt-32 relative">
           {/* Logo - Top Left */}
-          <div className="absolute top-4 left-4">
+          <div className="absolute top-1 md:top-6 left-4">
             <img src="https://xpclass.vn/xpclass/Asset%205.png" alt="Logo" width={64} height={64} />
           </div>
 
           {/* Top right dots */}
-          <div className="absolute top-4 right-4 flex gap-2">
+          <div className="absolute top-4 md:top-8 right-4 flex gap-2">
             <div className="w-3 h-3 rounded-full bg-blue-500"></div>
             <div className="w-3 h-3 rounded-full bg-purple-500"></div>
             <div className="w-3 h-3 rounded-full bg-pink-500"></div>

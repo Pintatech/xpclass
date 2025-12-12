@@ -1,12 +1,11 @@
-import { useState, useEffect } from 'react'
-import { Link, useParams, useNavigate } from 'react-router-dom'
-import { supabase } from '../../supabase/client'
-import { useAuth } from '../../hooks/useAuth'
-import { usePermissions } from '../../hooks/usePermissions'
-import Card from '../ui/Card'
-import Button from '../ui/Button'
-import AddUnitModal from './AddUnitModal'
-import EditUnitModal from './EditUnitModal'
+import { useState, useEffect } from "react";
+import { useParams, useNavigate } from "react-router-dom";
+import { supabase } from "../../supabase/client";
+import { useAuth } from "../../hooks/useAuth";
+import { usePermissions } from "../../hooks/usePermissions";
+import Button from "../ui/Button";
+import AddUnitModal from "./AddUnitModal";
+import EditUnitModal from "./EditUnitModal";
 // Thay spinner bằng skeleton để điều hướng mượt hơn
 import {
   ArrowLeft,
@@ -14,50 +13,46 @@ import {
   Lock,
   CheckCircle,
   BookOpen,
-  Play,
-  Circle,
   Flame,
   Plus,
   Edit,
   List,
   Trash2,
   Users,
-  BarChart3
-} from 'lucide-react'
+  BarChart3,
+} from "lucide-react";
 
 const UnitList = () => {
-  const { levelId: rawLevelId, courseId: rawCourseId } = useParams()
-  const sanitizeId = (v) => (v && v !== 'undefined' && v !== 'null') ? v : null
-  const levelId = sanitizeId(rawLevelId)
-  const courseId = sanitizeId(rawCourseId)
+  const { levelId: rawLevelId, courseId: rawCourseId } = useParams();
+  const sanitizeId = (v) => (v && v !== "undefined" && v !== "null" ? v : null);
+  const levelId = sanitizeId(rawLevelId);
+  const courseId = sanitizeId(rawCourseId);
   // Support both level and course routes for backward compatibility
-  const currentId = courseId || levelId
-  const navigate = useNavigate()
-  const [level, setLevel] = useState(null)
-  const [units, setUnits] = useState([])
-  const [sessions, setSessions] = useState([])
-  const [unitProgress, setUnitProgress] = useState({})
-  const [sessionProgress, setSessionProgress] = useState({})
-  const [userStats, setUserStats] = useState({ xp: 0, streak: 0 })
-  const [loading, setLoading] = useState(true)
-  const [error, setError] = useState(null)
-  const [levels, setLevels] = useState([])
-  const [allUnits, setAllUnits] = useState([])
-  const [showAddUnitModal, setShowAddUnitModal] = useState(false)
-  const [showEditUnitModal, setShowEditUnitModal] = useState(false)
-  const [editingUnit, setEditingUnit] = useState(null)
-  const [showTeacherView, setShowTeacherView] = useState(false)
-  const [courseStudents, setCourseStudents] = useState([])
-  const [studentProgress, setStudentProgress] = useState([])
-  const [unitRewards, setUnitRewards] = useState({})
-  const [claimingReward, setClaimingReward] = useState(null)
-  const [showRewardModal, setShowRewardModal] = useState(false)
-  const [rewardAmount, setRewardAmount] = useState(0)
-  const [showChestSelection, setShowChestSelection] = useState(false)
-  const [selectedChest, setSelectedChest] = useState(null)
-  const [claimingUnitId, setClaimingUnitId] = useState(null)
-  const { user, profile, isTeacher, isAdmin } = useAuth()
-  const { canCreateContent } = usePermissions()
+  const currentId = courseId || levelId;
+  const navigate = useNavigate();
+  const [level, setLevel] = useState(null);
+  const [units, setUnits] = useState([]);
+  const [sessions, setSessions] = useState([]);
+  const [unitProgress, setUnitProgress] = useState({});
+  const [sessionProgress, setSessionProgress] = useState({});
+  const [userStats, setUserStats] = useState({ xp: 0, streak: 0 });
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
+  const [showAddUnitModal, setShowAddUnitModal] = useState(false);
+  const [showEditUnitModal, setShowEditUnitModal] = useState(false);
+  const [editingUnit, setEditingUnit] = useState(null);
+  const [showTeacherView, setShowTeacherView] = useState(false);
+  const [courseStudents, setCourseStudents] = useState([]);
+  const [studentProgress, setStudentProgress] = useState([]);
+  const [unitRewards, setUnitRewards] = useState({});
+  const [claimingReward, setClaimingReward] = useState(null);
+  const [showRewardModal, setShowRewardModal] = useState(false);
+  const [rewardAmount, setRewardAmount] = useState(0);
+  const [showChestSelection, setShowChestSelection] = useState(false);
+  const [selectedChest, setSelectedChest] = useState(null);
+  const [claimingUnitId, setClaimingUnitId] = useState(null);
+  const { user, profile, isTeacher, isAdmin } = useAuth();
+  const { canCreateContent } = usePermissions();
 
   // Skeletons
   const SkeletonCard = () => (
@@ -71,99 +66,103 @@ const UnitList = () => {
       </div>
       <div className="h-3 bg-gray-100 rounded w-2/3 mt-2" />
     </div>
-  )
+  );
 
   useEffect(() => {
     if (user && currentId) {
-      fetchLevelAndUnits()
+      fetchLevelAndUnits();
     }
-  }, [user, currentId])
+  }, [user, currentId]);
 
   useEffect(() => {
     if (showTeacherView && sessions.length > 0) {
-      fetchTeacherViewData()
+      fetchTeacherViewData();
     }
-  }, [showTeacherView, sessions])
+  }, [showTeacherView, sessions]);
 
   const fetchLevelAndUnits = async () => {
     if (!currentId) {
-      setLoading(false)
-      return
+      setLoading(false);
+      return;
     }
     try {
-      setLoading(true)
-      setError(null)
+      setLoading(true);
+      setError(null);
 
       // Fetch level data
       const { data: levelData, error: levelError } = await supabase
-        .from('courses')
-        .select('*')
-        .eq('id', currentId)
-        .single()
+        .from("courses")
+        .select("*")
+        .eq("id", currentId)
+        .single();
 
-      if (levelError) throw levelError
+      if (levelError) throw levelError;
 
       // For students, verify they are enrolled in this course
-      if (profile?.role === 'user') {
+      if (profile?.role === "user") {
         const { data: enrollmentData, error: enrollmentError } = await supabase
-          .from('course_enrollments')
-          .select('id')
-          .eq('student_id', user.id)
-          .eq('course_id', currentId)
-          .eq('is_active', true)
-          .single()
+          .from("course_enrollments")
+          .select("id")
+          .eq("student_id", user.id)
+          .eq("course_id", currentId)
+          .eq("is_active", true)
+          .single();
 
         if (enrollmentError || !enrollmentData) {
-          console.error('Student not enrolled in this course:', enrollmentError)
-          setError('Bạn chưa được ghi danh vào khóa học này')
-          navigate('/study')
-          return
+          console.error(
+            "Student not enrolled in this course:",
+            enrollmentError
+          );
+          setError("Bạn chưa được ghi danh vào khóa học này");
+          navigate("/study");
+          return;
         }
       }
 
       // Fetch user stats (XP and streak)
       const { data: userData, error: userError } = await supabase
-        .from('users')
-        .select('xp, streak_count')
-        .eq('id', user.id)
-        .single()
+        .from("users")
+        .select("xp, streak_count")
+        .eq("id", user.id)
+        .single();
 
       if (userError) {
-        console.error('Error fetching user stats:', userError)
+        console.error("Error fetching user stats:", userError);
       } else {
         setUserStats({
           xp: userData?.xp || 0,
-          streak: userData?.streak_count || 0
-        })
+          streak: userData?.streak_count || 0,
+        });
       }
 
       // Fetch units for this level
       const { data: unitsData, error: unitsError } = await supabase
-        .from('units')
-        .select('*')
-        .eq('course_id', currentId)
-        .eq('is_active', true)
-        .order('unit_number')
+        .from("units")
+        .select("*")
+        .eq("course_id", currentId)
+        .eq("is_active", true)
+        .order("unit_number");
 
-      if (unitsError) throw unitsError
+      if (unitsError) throw unitsError;
 
       // Fetch sessions for these units to calculate progress
       const { data: sessionsData, error: sessionsError } = await supabase
-        .from('sessions')
-        .select('*')
-        .in('unit_id', unitsData?.map(u => u.id) || [])
-        .eq('is_active', true)
-        .order('session_number')
+        .from("sessions")
+        .select("*")
+        .in("unit_id", unitsData?.map((u) => u.id) || [])
+        .eq("is_active", true)
+        .order("session_number");
 
-      if (sessionsError) throw sessionsError
+      if (sessionsError) throw sessionsError;
 
       // Get all session IDs for these units
-      const sessionIds = sessionsData?.map(s => s.id) || []
-      
+      const sessionIds = sessionsData?.map((s) => s.id) || [];
+
       // Fetch user's progress for exercises in these sessions
       const { data: progressData, error: progressError } = await supabase
-        .from('user_progress')
-        .select(`
+        .from("user_progress")
+        .select(
+          `
           *,
           exercises!inner(
             id,
@@ -173,660 +172,557 @@ const UnitList = () => {
               unit_id
             )
           )
-        `)
-        .eq('user_id', user.id)
-        .in('exercises.session_id', sessionIds)
+        `
+        )
+        .eq("user_id", user.id)
+        .in("exercises.session_id", sessionIds);
 
       if (progressError) {
-        console.error('Progress fetch error:', progressError)
+        console.error("Progress fetch error:", progressError);
         // If the complex query fails, try a simpler approach
         const { data: simpleProgressData, error: simpleError } = await supabase
-          .from('user_progress')
-          .select('*')
-          .eq('user_id', user.id)
-        
-        if (simpleError) throw simpleError
-        
+          .from("user_progress")
+          .select("*")
+          .eq("user_id", user.id);
+
+        if (simpleError) throw simpleError;
+
         // Calculate progress for each unit with simple data
-        const progressMap = {}
-        unitsData?.forEach(unit => {
-          const unitSessions = sessionsData?.filter(s => s.unit_id === unit.id) || []
-          const totalSessions = unitSessions.length
-          
+        const progressMap = {};
+        unitsData?.forEach((unit) => {
+          const unitSessions =
+            sessionsData?.filter((s) => s.unit_id === unit.id) || [];
+          const totalSessions = unitSessions.length;
+
           progressMap[unit.id] = {
             unit_id: unit.id,
             total_sessions: totalSessions,
             sessions_completed: 0,
             progress_percentage: 0,
-            status: 'not_started',
-            xp_earned: 0
-          }
-        })
-        setUnitProgress(progressMap)
-        setSessions([])
-        setSessionProgress({})
-        return
+            status: "not_started",
+            xp_earned: 0,
+          };
+        });
+        setUnitProgress(progressMap);
+        setSessions([]);
+        setSessionProgress({});
+        return;
       }
 
       // Calculate progress for each unit - PLACEHOLDER, will be updated after sessionProgressMap is ready
-      const progressMap = {}
-      unitsData?.forEach(unit => {
+      const progressMap = {};
+      unitsData?.forEach((unit) => {
         progressMap[unit.id] = {
           unit_id: unit.id,
           total_sessions: 0,
           sessions_completed: 0,
           progress_percentage: 0,
-          status: 'not_started',
-          xp_earned: 0
-        }
-      })
+          status: "not_started",
+          xp_earned: 0,
+        };
+      });
 
       // Calculate session progress
-      const sessionProgressMap = {}
+      const sessionProgressMap = {};
 
       // Fetch user's session progress (explicit session_progress rows)
-      const { data: sessionProgressData, error: sessionProgressError } = await supabase
-        .from('session_progress')
-        .select('*')
-        .eq('user_id', user.id)
-        .in('session_id', sessionIds)
+      const { data: sessionProgressData, error: sessionProgressError } =
+        await supabase
+          .from("session_progress")
+          .select("*")
+          .eq("user_id", user.id)
+          .in("session_id", sessionIds);
 
       if (sessionProgressError) {
-        console.error('Error fetching session progress:', sessionProgressError)
+        console.error("Error fetching session progress:", sessionProgressError);
       }
 
       // Fetch all assigned exercises for these sessions via linking table
       const { data: allAssignments, error: assignmentsErr } = await supabase
-        .from('exercise_assignments')
-        .select(`
+        .from("exercise_assignments")
+        .select(
+          `
           id,
           session_id,
           exercise:exercises(id, xp_reward, is_active)
-        `)
-        .in('session_id', sessionIds)
+        `
+        )
+        .in("session_id", sessionIds);
 
       if (assignmentsErr) {
-        console.error('Error fetching exercise assignments:', assignmentsErr)
+        console.error("Error fetching exercise assignments:", assignmentsErr);
       }
 
       const exerciseIds = (allAssignments || [])
-        .map(a => a.exercise?.id)
-        .filter(Boolean)
+        .map((a) => a.exercise?.id)
+        .filter(Boolean);
 
       // Fetch user's completed exercises among these
       const { data: userCompleted, error: userProgErr } = await supabase
-        .from('user_progress')
-        .select('exercise_id, status')
-        .eq('user_id', user.id)
-        .in('exercise_id', exerciseIds)
+        .from("user_progress")
+        .select("exercise_id, status")
+        .eq("user_id", user.id)
+        .in("exercise_id", exerciseIds);
 
       if (userProgErr) {
-        console.error('Error fetching user progress:', userProgErr)
+        console.error("Error fetching user progress:", userProgErr);
       }
 
       // Build maps
-      const sessionIdToExercises = {}
-      ;(allAssignments || []).forEach(a => {
-        const ex = a.exercise
-        if (!ex) return
-        if (!sessionIdToExercises[a.session_id]) sessionIdToExercises[a.session_id] = []
+      const sessionIdToExercises = {};
+      (allAssignments || []).forEach((a) => {
+        const ex = a.exercise;
+        if (!ex) return;
+        if (!sessionIdToExercises[a.session_id])
+          sessionIdToExercises[a.session_id] = [];
         sessionIdToExercises[a.session_id].push({
           id: ex.id,
           session_id: a.session_id,
           xp_reward: ex.xp_reward,
-          is_active: ex.is_active
-        })
-      })
+          is_active: ex.is_active,
+        });
+      });
 
       const completedSet = new Set(
-        (userCompleted || []).filter(p => p.status === 'completed').map(p => p.exercise_id)
-      )
+        (userCompleted || [])
+          .filter((p) => p.status === "completed")
+          .map((p) => p.exercise_id)
+      );
 
       // Seed with DB rows first
-      sessionProgressData?.forEach(progress => {
-        sessionProgressMap[progress.session_id] = progress
-      })
+      sessionProgressData?.forEach((progress) => {
+        sessionProgressMap[progress.session_id] = progress;
+      });
 
       // Fill/override computed fields
-      sessionsData?.forEach(s => {
-        const list = sessionIdToExercises[s.id] || []
-        const total = list.length
-        const completedCount = list.filter(ex => completedSet.has(ex.id)).length
+      sessionsData?.forEach((s) => {
+        const list = sessionIdToExercises[s.id] || [];
+        const total = list.length;
+        const completedCount = list.filter((ex) =>
+          completedSet.has(ex.id)
+        ).length;
         const xpEarned = list
-          .filter(ex => completedSet.has(ex.id))
-          .reduce((sum, ex) => sum + (ex.xp_reward || 0), 0)
-        const percentage = total > 0 ? Math.round((completedCount / total) * 100) : 0
+          .filter((ex) => completedSet.has(ex.id))
+          .reduce((sum, ex) => sum + (ex.xp_reward || 0), 0);
+        const percentage =
+          total > 0 ? Math.round((completedCount / total) * 100) : 0;
 
-        const existing = sessionProgressMap[s.id]
+        const existing = sessionProgressMap[s.id];
         if (existing) {
           sessionProgressMap[s.id] = {
             ...existing,
             xp_earned: Math.max(existing.xp_earned || 0, xpEarned),
-            progress_percentage: Math.max(existing.progress_percentage || 0, percentage)
-          }
+            progress_percentage: Math.max(
+              existing.progress_percentage || 0,
+              percentage
+            ),
+          };
         } else {
           sessionProgressMap[s.id] = {
             user_id: user.id,
             session_id: s.id,
-            status: total > 0 && completedCount === total ? 'completed' : 'in_progress',
+            status:
+              total > 0 && completedCount === total
+                ? "completed"
+                : "in_progress",
             xp_earned: xpEarned,
-            progress_percentage: percentage
-          }
+            progress_percentage: percentage,
+          };
         }
-      })
+      });
 
       // NOW calculate unit progress based on sessionProgressMap
-      unitsData?.forEach(unit => {
-        const unitSessions = sessionsData?.filter(s => s.unit_id === unit.id) || []
-        const totalSessions = unitSessions.length
+      unitsData?.forEach((unit) => {
+        const unitSessions =
+          sessionsData?.filter((s) => s.unit_id === unit.id) || [];
+        const totalSessions = unitSessions.length;
 
         // Count sessions where ALL exercises are completed
-        const completedSessions = unitSessions.filter(session => {
-          const sessionProg = sessionProgressMap[session.id]
-          return sessionProg?.status === 'completed'
-        })
-        const sessionsCompleted = completedSessions.length
-        const progressPercentage = totalSessions > 0 ? Math.round((sessionsCompleted / totalSessions) * 100) : 0
+        const completedSessions = unitSessions.filter((session) => {
+          const sessionProg = sessionProgressMap[session.id];
+          return sessionProg?.status === "completed";
+        });
+        const sessionsCompleted = completedSessions.length;
+        const progressPercentage =
+          totalSessions > 0
+            ? Math.round((sessionsCompleted / totalSessions) * 100)
+            : 0;
 
         progressMap[unit.id] = {
           unit_id: unit.id,
           total_sessions: totalSessions,
           sessions_completed: sessionsCompleted,
           progress_percentage: progressPercentage,
-          status: sessionsCompleted === totalSessions && totalSessions > 0 ? 'completed' :
-                 sessionsCompleted > 0 ? 'in_progress' : 'not_started',
-          xp_earned: completedSessions.reduce((sum, s) => sum + (sessionProgressMap[s.id]?.xp_earned || 0), 0)
-        }
-      })
+          status:
+            sessionsCompleted === totalSessions && totalSessions > 0
+              ? "completed"
+              : sessionsCompleted > 0
+              ? "in_progress"
+              : "not_started",
+          xp_earned: completedSessions.reduce(
+            (sum, s) => sum + (sessionProgressMap[s.id]?.xp_earned || 0),
+            0
+          ),
+        };
+      });
 
-      setLevel(levelData)
-      setUnits(unitsData || [])
-      setSessions(sessionsData || [])
-      setUnitProgress(progressMap)
-      setSessionProgress(sessionProgressMap)
+      setLevel(levelData);
+      setUnits(unitsData || []);
+      setSessions(sessionsData || []);
+      setUnitProgress(progressMap);
+      setSessionProgress(sessionProgressMap);
 
       // Fetch unit rewards
-      await fetchUnitRewards()
+      await fetchUnitRewards();
     } catch (err) {
-      console.error('Error fetching units:', err)
-      setError('Không thể tải danh sách unit')
+      console.error("Error fetching units:", err);
+      setError("Không thể tải danh sách unit");
     } finally {
-      setLoading(false)
+      setLoading(false);
     }
-  }
+  };
 
   const fetchUnitRewards = async () => {
-    if (!user) return
+    if (!user) return;
 
     try {
       const { data, error } = await supabase
-        .from('unit_reward_claims')
-        .select('unit_id, xp_awarded, claimed_at')
-        .eq('user_id', user.id)
+        .from("unit_reward_claims")
+        .select("unit_id, xp_awarded, claimed_at")
+        .eq("user_id", user.id);
 
       if (error) {
-        console.error('Error fetching unit rewards:', error)
-        return
+        console.error("Error fetching unit rewards:", error);
+        return;
       }
 
       // Convert array to object for easy lookup: { "unit_id": { claimed: true, xp: 15, claimed_at: "..." } }
-      const rewardsMap = {}
-      data?.forEach(claim => {
+      const rewardsMap = {};
+      data?.forEach((claim) => {
         rewardsMap[claim.unit_id] = {
           claimed: true,
           xp: claim.xp_awarded,
-          claimed_at: claim.claimed_at
-        }
-      })
+          claimed_at: claim.claimed_at,
+        };
+      });
 
-      setUnitRewards(rewardsMap)
+      setUnitRewards(rewardsMap);
     } catch (err) {
-      console.error('Error fetching unit rewards:', err)
+      console.error("Error fetching unit rewards:", err);
     }
-  }
+  };
 
   const isUnitComplete = (unitId) => {
-    const progress = unitProgress[unitId]
-    return progress && progress.total_sessions > 0 && progress.sessions_completed === progress.total_sessions
-  }
+    const progress = unitProgress[unitId];
+    return (
+      progress &&
+      progress.total_sessions > 0 &&
+      progress.sessions_completed === progress.total_sessions
+    );
+  };
 
   const handleClaimReward = async (unitId) => {
-    if (!user || claimingReward || unitRewards[unitId]?.claimed) return
-    if (!isUnitComplete(unitId)) return
+    if (!user || claimingReward || unitRewards[unitId]?.claimed) return;
+    if (!isUnitComplete(unitId)) return;
 
     // Show chest selection modal
-    setClaimingUnitId(unitId)
-    setShowChestSelection(true)
-  }
+    setClaimingUnitId(unitId);
+    setShowChestSelection(true);
+  };
 
   const handleChestSelect = async (chestNumber) => {
-    if (!claimingUnitId || selectedChest !== null) return
+    if (!claimingUnitId || selectedChest !== null) return;
 
-    setSelectedChest(chestNumber)
-    setClaimingReward(claimingUnitId)
+    setSelectedChest(chestNumber);
+    setClaimingReward(claimingUnitId);
 
     // Play chest opening sound
-    const audio = new Audio('https://xpclass.vn/xpclass/sound/chest_sound.mp3')
-    audio.play().catch(err => console.error('Error playing sound:', err))
+    const audio = new Audio("https://xpclass.vn/xpclass/sound/chest_sound.mp3");
+    audio.play().catch((err) => console.error("Error playing sound:", err));
 
     try {
       // Generate random XP between 5 and 20
-      const xp = Math.floor(Math.random() * 16) + 5
+      const xp = Math.floor(Math.random() * 16) + 5;
 
       // Insert claim record
       const { error: claimError } = await supabase
-        .from('unit_reward_claims')
+        .from("unit_reward_claims")
         .insert({
           user_id: user.id,
           unit_id: claimingUnitId,
           full_name: profile?.full_name || null,
-          xp_awarded: xp
-        })
+          xp_awarded: xp,
+        });
 
-      if (claimError) throw claimError
+      if (claimError) throw claimError;
 
       // Update user's total XP
       const { data: currentUser, error: fetchError } = await supabase
-        .from('users')
-        .select('xp')
-        .eq('id', user.id)
-        .single()
+        .from("users")
+        .select("xp")
+        .eq("id", user.id)
+        .single();
 
-      if (fetchError) throw fetchError
+      if (fetchError) throw fetchError;
 
       const { error: updateError } = await supabase
-        .from('users')
+        .from("users")
         .update({
           xp: (currentUser?.xp || 0) + xp,
-          updated_at: new Date().toISOString()
+          updated_at: new Date().toISOString(),
         })
-        .eq('id', user.id)
+        .eq("id", user.id);
 
-      if (updateError) throw updateError
+      if (updateError) throw updateError;
 
       // Wait for GIF to complete before showing XP
       setTimeout(() => {
-        setRewardAmount(xp)
+        setRewardAmount(xp);
 
         // Show XP for 1.5 seconds then close
         setTimeout(() => {
-          setUnitRewards(prev => ({
+          setUnitRewards((prev) => ({
             ...prev,
             [claimingUnitId]: {
               claimed: true,
               xp: xp,
-              claimed_at: new Date().toISOString()
-            }
-          }))
+              claimed_at: new Date().toISOString(),
+            },
+          }));
 
-          setShowChestSelection(false)
-          setClaimingReward(null)
-          setSelectedChest(null)
-          setClaimingUnitId(null)
-          setRewardAmount(0)
-        }, 1500)
-      }, 2000)
-
+          setShowChestSelection(false);
+          setClaimingReward(null);
+          setSelectedChest(null);
+          setClaimingUnitId(null);
+          setRewardAmount(0);
+        }, 1500);
+      }, 2000);
     } catch (err) {
-      console.error('Error claiming reward:', err)
-      alert('Không thể nhận phần thưởng. Vui lòng thử lại!')
-      setClaimingReward(null)
-      setSelectedChest(null)
-      setShowChestSelection(false)
-      setClaimingUnitId(null)
+      console.error("Error claiming reward:", err);
+      alert("Không thể nhận phần thưởng. Vui lòng thử lại!");
+      setClaimingReward(null);
+      setSelectedChest(null);
+      setShowChestSelection(false);
+      setClaimingUnitId(null);
     }
-  }
+  };
 
   const handleUnitCreated = (newUnit) => {
-    setUnits(prev => [...prev, newUnit])
-    setShowAddUnitModal(false)
+    setUnits((prev) => [...prev, newUnit]);
+    setShowAddUnitModal(false);
     // Show success message
-    alert('Unit created successfully!')
-  }
+    alert("Unit created successfully!");
+  };
 
   const handleUnitUpdated = (updatedUnit) => {
-    setUnits(prev => prev.map(unit => unit.id === updatedUnit.id ? updatedUnit : unit))
-    setShowEditUnitModal(false)
-    setEditingUnit(null)
+    setUnits((prev) =>
+      prev.map((unit) => (unit.id === updatedUnit.id ? updatedUnit : unit))
+    );
+    setShowEditUnitModal(false);
+    setEditingUnit(null);
     // Show success message
-    alert('Unit updated successfully!')
-  }
+    alert("Unit updated successfully!");
+  };
 
   const handleEditUnit = (unit) => {
-    setEditingUnit(unit)
-    setShowEditUnitModal(true)
-  }
+    setEditingUnit(unit);
+    setShowEditUnitModal(true);
+  };
 
   const fetchTeacherViewData = async () => {
-    if (!currentId || (!isTeacher() && !isAdmin())) return
+    if (!currentId || (!isTeacher() && !isAdmin())) return;
 
     try {
       // Fetch students enrolled in this course
       const { data: enrollments, error: enrollError } = await supabase
-        .from('course_enrollments')
-        .select(`
+        .from("course_enrollments")
+        .select(
+          `
           student_id,
           student:users!student_id(
             id,
             full_name,
             email
           )
-        `)
-        .eq('course_id', currentId)
-        .eq('is_active', true)
+        `
+        )
+        .eq("course_id", currentId)
+        .eq("is_active", true);
 
-      if (enrollError) throw enrollError
+      if (enrollError) throw enrollError;
 
       // Get exercise IDs for this course
       const { data: exerciseAssignments, error: exError } = await supabase
-        .from('exercise_assignments')
-        .select('exercise_id')
-        .in('session_id', sessions.map(s => s.id))
+        .from("exercise_assignments")
+        .select("exercise_id")
+        .in(
+          "session_id",
+          sessions.map((s) => s.id)
+        );
 
-      if (exError) throw exError
+      if (exError) throw exError;
 
-      const exerciseIds = [...new Set(exerciseAssignments.map(a => a.exercise_id))]
+      const exerciseIds = [
+        ...new Set(exerciseAssignments.map((a) => a.exercise_id)),
+      ];
 
       // Fetch progress for all students
-      const studentIds = enrollments.map(e => e.student_id)
+      const studentIds = enrollments.map((e) => e.student_id);
       const { data: progress, error: progError } = await supabase
-        .from('user_progress')
-        .select('*')
-        .in('user_id', studentIds)
-        .in('exercise_id', exerciseIds)
+        .from("user_progress")
+        .select("*")
+        .in("user_id", studentIds)
+        .in("exercise_id", exerciseIds);
 
-      if (progError) throw progError
+      if (progError) throw progError;
 
-      setCourseStudents(enrollments || [])
-      setStudentProgress(progress || [])
+      setCourseStudents(enrollments || []);
+      setStudentProgress(progress || []);
     } catch (error) {
-      console.error('Error fetching teacher view data:', error)
+      console.error("Error fetching teacher view data:", error);
     }
-  }
+  };
 
   const handleDeleteUnit = async (unit) => {
     const confirmDelete = window.confirm(
       `Are you sure you want to delete the unit "${unit.title}"?\n\nThis will also delete all sessions and exercises in this unit. This action cannot be undone.`
-    )
+    );
 
-    if (!confirmDelete) return
+    if (!confirmDelete) return;
 
     try {
-      const { error } = await supabase
-        .from('units')
-        .delete()
-        .eq('id', unit.id)
+      const { error } = await supabase.from("units").delete().eq("id", unit.id);
 
-      if (error) throw error
+      if (error) throw error;
 
       // Remove from local state
-      setUnits(prev => prev.filter(u => u.id !== unit.id))
+      setUnits((prev) => prev.filter((u) => u.id !== unit.id));
       // Remove sessions for this unit
-      setSessions(prev => prev.filter(s => s.unit_id !== unit.id))
+      setSessions((prev) => prev.filter((s) => s.unit_id !== unit.id));
 
-      alert('Unit deleted successfully!')
+      alert("Unit deleted successfully!");
     } catch (err) {
-      console.error('Error deleting unit:', err)
-      alert('Failed to delete unit: ' + (err.message || 'Unknown error'))
+      console.error("Error deleting unit:", err);
+      alert("Failed to delete unit: " + (err.message || "Unknown error"));
     }
-  }
-
-  const getSessionStatusColor = (status, progress) => {
-    if (status === 'completed') {
-      return 'bg-green-500' // Green for completed
-    }
-
-    const progressPercentage = progress?.progress_percentage || 0
-
-    if (progressPercentage > 0) {
-      return 'bg-blue-500' // Blue for in progress
-    }
-
-    return 'bg-gray-300' // Gray for not started
-  }
-
-  const getThemeColors = (colorTheme) => {
-    const themes = {
-      green: {
-        bg: 'from-green-400 to-emerald-500',
-        text: 'text-green-700',
-        border: 'border-green-200',
-        icon: 'bg-green-100 text-green-600'
-      },
-      blue: {
-        bg: 'from-blue-400 to-indigo-500', 
-        text: 'text-blue-700',
-        border: 'border-blue-200',
-        icon: 'bg-blue-100 text-blue-600'
-      },
-      purple: {
-        bg: 'from-purple-400 to-pink-500',
-        text: 'text-purple-700', 
-        border: 'border-purple-200',
-        icon: 'bg-purple-100 text-purple-600'
-      },
-      orange: {
-        bg: 'from-orange-400 to-red-500',
-        text: 'text-orange-700',
-        border: 'border-orange-200', 
-        icon: 'bg-orange-100 text-orange-600'
-      }
-    }
-    return themes[colorTheme] || themes.blue
-  }
+  };
 
   const getSessionStatus = (session, index) => {
-    const progress = sessionProgress[session.id]
+    const progress = sessionProgress[session.id];
 
     // All sessions are now always available (unlocked)
     if (!progress) {
-      return { status: 'available', canAccess: true }
+      return { status: "available", canAccess: true };
     }
 
     return {
       status: progress.status,
-      canAccess: true // Always allow access
-    }
-  }
+      canAccess: true, // Always allow access
+    };
+  };
 
   const handleSessionClick = async (session) => {
     try {
       // Check how many exercises this session has using the exercise_assignments table
       const { data: assignments, error: assignmentsError } = await supabase
-        .from('exercise_assignments')
-        .select(`
+        .from("exercise_assignments")
+        .select(
+          `
           id,
           exercise:exercises!inner(
             id,
             exercise_type,
             is_active
           )
-        `)
-        .eq('session_id', session.id)
-        .eq('exercise.is_active', true)
+        `
+        )
+        .eq("session_id", session.id)
+        .eq("exercise.is_active", true);
 
-      if (assignmentsError) throw assignmentsError
+      if (assignmentsError) throw assignmentsError;
 
       const exercises = (assignments || [])
-        .map(a => a.exercise)
-        .filter(Boolean)
+        .map((a) => a.exercise)
+        .filter(Boolean);
 
       if (exercises && exercises.length === 1) {
         // If only one exercise, navigate directly to the exercise
-        const exercise = exercises[0]
+        const exercise = exercises[0];
         const paths = {
-          flashcard: '/study/flashcard',
-          fill_blank: '/study/fill-blank',
-          snake_ladder: '/study/snake-ladder',
-          two_player: '/study/two-player-game',
-          multiple_choice: '/study/multiple-choice',
-          drag_drop: '/study/drag-drop',
-          ai_fill_blank: '/study/ai-fill-blank',
-          dropdown: '/study/dropdown',
-          pronunciation: '/study/pronunciation'
-        }
-        const exercisePath = paths[exercise.exercise_type] || '/study/flashcard'
+          flashcard: "/study/flashcard",
+          fill_blank: "/study/fill-blank",
+          snake_ladder: "/study/snake-ladder",
+          two_player: "/study/two-player-game",
+          multiple_choice: "/study/multiple-choice",
+          drag_drop: "/study/drag-drop",
+          ai_fill_blank: "/study/ai-fill-blank",
+          dropdown: "/study/dropdown",
+          pronunciation: "/study/pronunciation",
+        };
+        const exercisePath =
+          paths[exercise.exercise_type] || "/study/flashcard";
         // Use course route
-        const base = levelId ? `/study/level/${levelId}` : `/study/course/${currentId}`
-        navigate(`${exercisePath}?exerciseId=${exercise.id}&sessionId=${session.id}`)
+        const base = levelId
+          ? `/study/level/${levelId}`
+          : `/study/course/${currentId}`;
+        navigate(
+          `${exercisePath}?exerciseId=${exercise.id}&sessionId=${session.id}`
+        );
       } else if (exercises && exercises.length > 1) {
         // If multiple exercises, go to exercise list
-        const base = levelId ? `/study/level/${levelId}` : `/study/course/${currentId}`
-        navigate(`${base}/unit/${session.unit_id}/session/${session.id}`)
+        const base = levelId
+          ? `/study/level/${levelId}`
+          : `/study/course/${currentId}`;
+        navigate(`${base}/unit/${session.unit_id}/session/${session.id}`);
       } else {
         // If no exercises, go to exercise list
-        const base = levelId ? `/study/level/${levelId}` : `/study/course/${currentId}`
-        navigate(`${base}/unit/${session.unit_id}/session/${session.id}`)
+        const base = levelId
+          ? `/study/level/${levelId}`
+          : `/study/course/${currentId}`;
+        navigate(`${base}/unit/${session.unit_id}/session/${session.id}`);
       }
     } catch (err) {
-      console.error('Error checking exercises:', err)
+      console.error("Error checking exercises:", err);
       // Fallback to exercise list
-      const base = levelId ? `/study/level/${levelId}` : `/study/course/${currentId}`
-      navigate(`${base}/unit/${session.unit_id}/session/${session.id}`)
+      const base = levelId
+        ? `/study/level/${levelId}`
+        : `/study/course/${currentId}`;
+      navigate(`${base}/unit/${session.unit_id}/session/${session.id}`);
     }
-  }
-
-  const getUnitStatus = (unit, index) => {
-    const progress = unitProgress[unit.id]
-
-    // All units are now always available (unlocked)
-    if (!progress) {
-      return { status: 'available', canAccess: true }
-    }
-
-    return {
-      status: progress.status,
-      canAccess: true // Always allow access
-    }
-  }
-
-  const renderUnitCard = (unit, index) => {
-    const { status, canAccess } = getUnitStatus(unit, index)
-    const progress = unitProgress[unit.id]
-    const theme = getThemeColors(unit.color_theme || level?.color_theme)
-    const isLocked = !canAccess
-
-    return (
-      <Card 
-        key={unit.id} 
-        className={`relative overflow-hidden transition-all duration-300 bg-white border-2 border-blue-800 ${
-          isLocked 
-            ? 'opacity-60 cursor-not-allowed' 
-            : 'hover:shadow-lg hover:scale-105 cursor-pointer'
-        }`}
-      >
-        <div className="relative p-6">
-          {/* Header */}
-          <div className="flex items-center justify-between mb-1">
-            <div className="flex items-center space-x-3">
-              <div className={`w-12 h-12 rounded-full flex items-center justify-center ${
-                isLocked ? 'bg-gray-100 text-gray-600' :
-                status === 'completed' ? 'bg-green-100 text-green-600' :
-                status === 'in_progress' ? 'bg-white' :
-                'bg-gray-100 text-gray-400'
-              }`}>
-                {isLocked ? (
-                  <Lock className="w-6 h-6" />
-                ) : status === 'completed' ? (
-                  <CheckCircle className="w-6 h-6" />
-                ) : status === 'in_progress' ? (
-                  <div className="w-4 h-4 bg-blue-600 rounded-full flex items-center justify-center">
-                    <Play className="w-2 h-2 text-white fill-white" />
-                  </div>
-                ) : (
-                  <Circle className="w-4 h-4 fill-gray-400" />
-                )}
-              </div>
-              <div>
-                <h3 className="text-lg font-bold text-gray-900">{unit.title}</h3>
-               
-              </div>
-            </div>
-            
-            
-          </div>
-
-          
-          {/* Sessions info (if started) */}
-          {progress && (
-            <div className="mb-4 ml-16 -mt-2">
-              <div className="text-sm">
-                <span className={`font-bold ${
-                  progress.sessions_completed === progress.total_sessions 
-                    ? 'text-green-600' 
-                    : 'text-blue-600'
-                }`}>
-                  {progress.sessions_completed}/{progress.total_sessions} sessions
-                </span>
-              </div>
-            </div>
-          )}
-
-          
-
-          {/* Action button */}
-          <div className="flex justify-start ml-16">
-            {isLocked ? (
-              <Button disabled>
-                <Lock className="w-4 h-4 mr-2" />
-                Hoàn thành unit trước
-              </Button>
-            ) : (
-              <Link to={`/study/level/${levelId}/unit/${unit.id}`}>
-                <Button className="bg-blue-800 hover:bg-green-700 text-white rounded-full px-4 py-2">
-                  {status === 'completed' ? 'Xem lại' : 
-                   status === 'in_progress' ? 'Tiếp tục' : 'Bắt đầu'}
-                </Button>
-              </Link>
-            )}
-          </div>
-        </div>
-
-        {/* Lock overlay */}
-        {isLocked && (
-          <div className="absolute inset-0 bg-gray-900 bg-opacity-10 flex items-center justify-center">
-            <div className="text-center">
-              <Lock className="w-8 h-8 text-gray-400 mx-auto mb-2" />
-              <p className="text-sm text-gray-500">Hoàn thành unit trước</p>
-            </div>
-          </div>
-        )}
-      </Card>
-    )
-  }
+  };
 
   const renderSessionCard = (session, index) => {
-    const { status, canAccess } = getSessionStatus(session, index)
-    const progress = sessionProgress[session.id]
-    const isLocked = !canAccess
-    const progressPercentage = progress?.progress_percentage || 0
+    const { status, canAccess } = getSessionStatus(session, index);
+    const progress = sessionProgress[session.id];
+    const isLocked = !canAccess;
+    const progressPercentage = progress?.progress_percentage || 0;
 
     // Determine shadow color based on status
     const getShadowColor = () => {
-      if (status === 'completed') return '0 4px 0 0 #46a302' // Green shadow
-      if (progressPercentage > 0) return '0 4px 0 0 #cc7800' // Orange shadow
-      return '0 4px 0 0 rgba(0, 0, 0, 0.4)' // Darker gray shadow
-    }
+      if (status === "completed") return "0 4px 0 0 #46a302"; // Green shadow
+      if (progressPercentage > 0) return "0 4px 0 0 #cc7800"; // Orange shadow
+      return "0 4px 0 0 rgba(0, 0, 0, 0.4)"; // Darker gray shadow
+    };
 
     return (
       <div
         key={session.id}
         onClick={() => !isLocked && handleSessionClick(session)}
-        className={`block ${isLocked ? 'cursor-not-allowed' : 'cursor-pointer'} w-full h-full`}
+        className={`block ${
+          isLocked ? "cursor-not-allowed" : "cursor-pointer"
+        } w-full h-full`}
       >
         <div
           className={`relative overflow-hidden rounded-lg transition-all duration-300 ${
-            isLocked
-              ? 'opacity-60'
-              : 'hover:scale-105'
+            isLocked ? "opacity-60" : "hover:scale-105"
           } w-full h-full bg-gray-200`}
           style={{
-            aspectRatio: '1',
-            boxShadow: getShadowColor()
+            aspectRatio: "1",
+            boxShadow: getShadowColor(),
           }}
         >
           {/* Progress bar from bottom */}
-          {progressPercentage > 0 && status !== 'completed' && (
+          {progressPercentage > 0 && status !== "completed" && (
             <div
               className="absolute bottom-0 left-0 right-0 bg-orange-300 transition-all duration-300 z-10"
               style={{ height: `${progressPercentage}%` }}
@@ -834,11 +730,13 @@ const UnitList = () => {
           )}
 
           {/* Completed overlay */}
-          {status === 'completed' && (
-            <div className="absolute inset-0 z-10" style={{ backgroundColor: '#58cc02' }} />
+          {status === "completed" && (
+            <div
+              className="absolute inset-0 z-10"
+              style={{ backgroundColor: "#58cc02" }}
+            />
           )}
 
-          
           {/* Lock overlay */}
           {isLocked && (
             <div className="absolute top-1 right-1 z-40">
@@ -849,7 +747,7 @@ const UnitList = () => {
           )}
 
           {/* Progress badge */}
-          {!status === 'completed' && progressPercentage > 0 && (
+          {!status === "completed" && progressPercentage > 0 && (
             <div className="absolute top-1 left-1 z-40 px-1.5 py-0.5 rounded-full text-[10px] font-semibold bg-white/90 text-gray-800 shadow">
               {progressPercentage}%
             </div>
@@ -863,8 +761,8 @@ const UnitList = () => {
           </div>
         </div>
       </div>
-    )
-  }
+    );
+  };
 
   if (loading && units.length === 0) {
     return (
@@ -878,7 +776,7 @@ const UnitList = () => {
           </div>
         </div>
       </div>
-    )
+    );
   }
 
   if (error) {
@@ -889,21 +787,19 @@ const UnitList = () => {
           Thử lại
         </Button>
       </div>
-    )
+    );
   }
 
   if (!level) {
     return (
       <div className="text-center py-12">
         <div className="text-gray-600 mb-4">Không tìm thấy level</div>
-        <Button onClick={() => navigate('/study')} variant="outline">
+        <Button onClick={() => navigate("/study")} variant="outline">
           Quay lại
         </Button>
       </div>
-    )
+    );
   }
-
-  const theme = getThemeColors(level.color_theme)
 
   return (
     <div className="flex bg-white -mx-4 -my-6">
@@ -916,7 +812,7 @@ const UnitList = () => {
               <Button
                 variant="ghost"
                 size="sm"
-                onClick={() => navigate('/study')}
+                onClick={() => navigate("/study")}
               >
                 <ArrowLeft className="w-4 h-4 mr-2" />
                 Quay lại
@@ -930,8 +826,12 @@ const UnitList = () => {
                   onClick={() => setShowTeacherView(!showTeacherView)}
                   className="flex items-center gap-2"
                 >
-                  {showTeacherView ? <Users className="w-4 h-4" /> : <BarChart3 className="w-4 h-4" />}
-                  {showTeacherView ? 'Student View' : 'Teacher View'}
+                  {showTeacherView ? (
+                    <Users className="w-4 h-4" />
+                  ) : (
+                    <BarChart3 className="w-4 h-4" />
+                  )}
+                  {showTeacherView ? "Student View" : "Teacher View"}
                 </Button>
               )}
             </div>
@@ -941,11 +841,15 @@ const UnitList = () => {
               <div className="flex items-center space-x-4">
                 <div className="bg-orange-100 rounded-full px-4 py-2 flex items-center space-x-2">
                   <Flame className="w-5 h-5 text-orange-500" />
-                  <span className="font-bold text-gray-800">{userStats.streak}</span>
+                  <span className="font-bold text-gray-800">
+                    {userStats.streak}
+                  </span>
                 </div>
                 <div className="bg-yellow-100 rounded-full px-4 py-2 flex items-center space-x-2">
                   <Star className="w-5 h-5 text-yellow-500" />
-                  <span className="font-bold text-gray-800">{userStats.xp}</span>
+                  <span className="font-bold text-gray-800">
+                    {userStats.xp}
+                  </span>
                 </div>
               </div>
             )}
@@ -961,7 +865,9 @@ const UnitList = () => {
                 <h2 className="text-2xl font-bold text-gray-900 mb-4">
                   Teacher Dashboard - {level?.title}
                 </h2>
-                <p className="text-gray-600 mb-6">Viewing student progress for this course</p>
+                <p className="text-gray-600 mb-6">
+                  Viewing student progress for this course
+                </p>
 
                 {/* Course Stats */}
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-6">
@@ -969,8 +875,12 @@ const UnitList = () => {
                     <div className="flex items-center gap-3">
                       <Users className="w-8 h-8 text-blue-600" />
                       <div>
-                        <p className="text-sm text-gray-600">Enrolled Students</p>
-                        <p className="text-2xl font-bold text-gray-900">{courseStudents.length}</p>
+                        <p className="text-sm text-gray-600">
+                          Enrolled Students
+                        </p>
+                        <p className="text-2xl font-bold text-gray-900">
+                          {courseStudents.length}
+                        </p>
                       </div>
                     </div>
                   </div>
@@ -983,14 +893,20 @@ const UnitList = () => {
                           {courseStudents.length > 0
                             ? Math.round(
                                 courseStudents.reduce((sum, { student_id }) => {
-                                  const studentData = studentProgress.filter(p => p.user_id === student_id)
-                                  const completed = studentData.filter(p => p.status === 'completed').length
-                                  const total = studentData.length
-                                  const completionRate = total > 0 ? (completed / total) * 100 : 0
-                                  return sum + completionRate
+                                  const studentData = studentProgress.filter(
+                                    (p) => p.user_id === student_id
+                                  );
+                                  const completed = studentData.filter(
+                                    (p) => p.status === "completed"
+                                  ).length;
+                                  const total = studentData.length;
+                                  const completionRate =
+                                    total > 0 ? (completed / total) * 100 : 0;
+                                  return sum + completionRate;
                                 }, 0) / courseStudents.length
                               )
-                            : 0}%
+                            : 0}
+                          %
                         </p>
                       </div>
                     </div>
@@ -1002,8 +918,15 @@ const UnitList = () => {
                         <p className="text-sm text-gray-600">Avg Score</p>
                         <p className="text-2xl font-bold text-gray-900">
                           {studentProgress.length > 0
-                            ? Math.round(studentProgress.reduce((sum, p) => sum + ((p.score / p.max_score) * 100 || 0), 0) / studentProgress.length)
-                            : 0}%
+                            ? Math.round(
+                                studentProgress.reduce(
+                                  (sum, p) =>
+                                    sum + ((p.score / p.max_score) * 100 || 0),
+                                  0
+                                ) / studentProgress.length
+                              )
+                            : 0}
+                          %
                         </p>
                       </div>
                     </div>
@@ -1012,37 +935,58 @@ const UnitList = () => {
 
                 {/* Student List */}
                 <div className="border-t border-gray-200">
-                  <h3 className="text-xl font-semibold text-gray-900 p-6 border-b border-gray-200">Student Progress</h3>
+                  <h3 className="text-xl font-semibold text-gray-900 p-6 border-b border-gray-200">
+                    Student Progress
+                  </h3>
                   {courseStudents.length === 0 ? (
                     <div className="p-8 text-center">
                       <Users className="w-16 h-16 text-gray-400 mx-auto mb-4" />
-                      <h3 className="text-lg font-medium text-gray-900 mb-2">No Students Enrolled</h3>
-                      <p className="text-gray-600">No students are currently enrolled in this course.</p>
+                      <h3 className="text-lg font-medium text-gray-900 mb-2">
+                        No Students Enrolled
+                      </h3>
+                      <p className="text-gray-600">
+                        No students are currently enrolled in this course.
+                      </p>
                     </div>
                   ) : (
                     <div className="divide-y divide-gray-200">
                       {courseStudents.map(({ student_id, student }) => {
-                        const studentProgressData = studentProgress.filter(p => p.user_id === student_id)
-                        const completed = studentProgressData.filter(p => p.status === 'completed').length
-                        const total = studentProgressData.length
-                        const completionRate = total > 0 ? Math.round((completed / total) * 100) : 0
+                        const studentProgressData = studentProgress.filter(
+                          (p) => p.user_id === student_id
+                        );
+                        const completed = studentProgressData.filter(
+                          (p) => p.status === "completed"
+                        ).length;
+                        const total = studentProgressData.length;
+                        const completionRate =
+                          total > 0 ? Math.round((completed / total) * 100) : 0;
 
                         const scores = studentProgressData
-                          .filter(p => p.score !== null && (p.max_score || 0) > 0)
-                          .map(p => (p.score / p.max_score) * 100)
+                          .filter(
+                            (p) => p.score !== null && (p.max_score || 0) > 0
+                          )
+                          .map((p) => (p.score / p.max_score) * 100);
 
-                        const averageScore = scores.length > 0
-                          ? Math.round(scores.reduce((sum, score) => sum + score, 0) / scores.length)
-                          : 0
+                        const averageScore =
+                          scores.length > 0
+                            ? Math.round(
+                                scores.reduce((sum, score) => sum + score, 0) /
+                                  scores.length
+                              )
+                            : 0;
 
-                        const totalTime = studentProgressData.reduce((sum, p) => sum + (p.time_spent || 0), 0)
+                        const totalTime = studentProgressData.reduce(
+                          (sum, p) => sum + (p.time_spent || 0),
+                          0
+                        );
 
                         const getScoreColor = (score) => {
-                          if (score >= 90) return 'text-green-600 bg-green-100'
-                          if (score >= 75) return 'text-blue-600 bg-blue-100'
-                          if (score >= 60) return 'text-yellow-600 bg-yellow-100'
-                          return 'text-red-600 bg-red-100'
-                        }
+                          if (score >= 90) return "text-green-600 bg-green-100";
+                          if (score >= 75) return "text-blue-600 bg-blue-100";
+                          if (score >= 60)
+                            return "text-yellow-600 bg-yellow-100";
+                          return "text-red-600 bg-red-100";
+                        };
 
                         return (
                           <div key={student_id} className="p-6">
@@ -1051,41 +995,67 @@ const UnitList = () => {
                                 <div className="flex-shrink-0">
                                   <div className="w-12 h-12 bg-blue-100 rounded-full flex items-center justify-center">
                                     <span className="text-blue-600 font-semibold">
-                                      {student.full_name.charAt(0).toUpperCase()}
+                                      {student.full_name
+                                        .charAt(0)
+                                        .toUpperCase()}
                                     </span>
                                   </div>
                                 </div>
                                 <div>
-                                  <h3 className="text-lg font-medium text-gray-900">{student.full_name}</h3>
-                                  <p className="text-sm text-gray-600">{student.email}</p>
+                                  <h3 className="text-lg font-medium text-gray-900">
+                                    {student.full_name}
+                                  </h3>
+                                  <p className="text-sm text-gray-600">
+                                    {student.email}
+                                  </p>
                                 </div>
                               </div>
 
                               <div className="flex items-center space-x-6">
                                 <div className="text-center">
-                                  <div className="text-sm font-medium text-gray-900">{completed}/{total}</div>
-                                  <div className="text-xs text-gray-500">Completed</div>
+                                  <div className="text-sm font-medium text-gray-900">
+                                    {completed}/{total}
+                                  </div>
+                                  <div className="text-xs text-gray-500">
+                                    Completed
+                                  </div>
                                 </div>
                                 <div className="text-center">
-                                  <div className={`text-sm font-medium px-2 py-1 rounded-full ${getScoreColor(averageScore)}`}>
+                                  <div
+                                    className={`text-sm font-medium px-2 py-1 rounded-full ${getScoreColor(
+                                      averageScore
+                                    )}`}
+                                  >
                                     {averageScore}%
                                   </div>
-                                  <div className="text-xs text-gray-500">Avg Score</div>
+                                  <div className="text-xs text-gray-500">
+                                    Avg Score
+                                  </div>
                                 </div>
                                 <div className="text-center">
-                                  <div className="text-sm font-medium text-gray-900">{Math.round(totalTime / 60)}m</div>
-                                  <div className="text-xs text-gray-500">Study Time</div>
+                                  <div className="text-sm font-medium text-gray-900">
+                                    {Math.round(totalTime / 60)}m
+                                  </div>
+                                  <div className="text-xs text-gray-500">
+                                    Study Time
+                                  </div>
                                 </div>
                                 <div className="text-center">
-                                  <div className={`text-sm font-medium px-2 py-1 rounded-full ${getScoreColor(completionRate)}`}>
+                                  <div
+                                    className={`text-sm font-medium px-2 py-1 rounded-full ${getScoreColor(
+                                      completionRate
+                                    )}`}
+                                  >
                                     {completionRate}%
                                   </div>
-                                  <div className="text-xs text-gray-500">Progress</div>
+                                  <div className="text-xs text-gray-500">
+                                    Progress
+                                  </div>
                                 </div>
                               </div>
                             </div>
                           </div>
-                        )
+                        );
                       })}
                     </div>
                   )}
@@ -1096,199 +1066,230 @@ const UnitList = () => {
             <>
               {/* Hero Image Section */}
               {level?.thumbnail_url && (
-            <div className="mb-6 relative h-48 rounded-xl overflow-hidden">
-              <img
-                src={level.thumbnail_url}
-                alt={level.title}
-                className="w-full h-full object-cover"
-              />
-              <div className="absolute inset-0 bg-black/30" />
-            </div>
-          )}
+                <div className="mb-6 relative h-48 rounded-xl overflow-hidden">
+                  <img
+                    src={level.thumbnail_url}
+                    alt={level.title}
+                    className="w-full h-full object-cover"
+                  />
+                  <div className="absolute inset-0 bg-black/30" />
+                </div>
+              )}
 
-          
+              {/* Units with Sessions */}
+              <div className="space-y-8">
+                {units.map((unit) => {
+                  const unitSessions = sessions
+                    .filter((session) => session.unit_id === unit.id)
+                    .sort(
+                      (a, b) =>
+                        (a.session_number || 0) - (b.session_number || 0)
+                    );
 
-          {/* Units with Sessions */}
-          <div className="space-y-8">
-            {units.map((unit) => {
-              const unitSessions = sessions
-                .filter(session => session.unit_id === unit.id)
-                .sort((a, b) => (a.session_number || 0) - (b.session_number || 0))
+                  const progress = unitProgress[unit.id];
 
-              const progress = unitProgress[unit.id]
+                  return (
+                    <div
+                      key={unit.id}
+                      className="bg-white rounded-lg border border-gray-200 p-4"
+                    >
+                      {/* Unit Header */}
+                      <div className="mb-3 flex items-center justify-between">
+                        <div className="flex items-center space-x-3">
+                          <h2 className="text-lg font-bold text-gray-900">
+                            {unit.title}
+                          </h2>
+                          {canCreateContent() && (
+                            <button
+                              onClick={() => {
+                                const base = levelId
+                                  ? `/study/level/${levelId}`
+                                  : `/study/course/${currentId}`;
+                                navigate(`${base}/unit/${unit.id}`);
+                              }}
+                              className="p-2 text-blue-400 hover:text-blue-600 hover:bg-blue-100 rounded-lg transition-colors"
+                              title="Manage sessions"
+                            >
+                              <List className="w-4 h-4" />
+                            </button>
+                          )}
+                        </div>
+                        <div className="flex items-center space-x-2">
+                          {/* Unit Reward Chest */}
+                          {!canCreateContent() && (
+                            <div className="relative">
+                              {(() => {
+                                const unitComplete = isUnitComplete(unit.id);
+                                const rewardClaimed =
+                                  unitRewards[unit.id]?.claimed;
+                                const isClaiming = claimingReward === unit.id;
 
-              return (
-                <div key={unit.id} className="bg-white rounded-lg border border-gray-200 p-4">
-                  {/* Unit Header */}
-                  <div className="mb-3 flex items-center justify-between">
-                    <div className="flex items-center space-x-3">
-                      <h2 className="text-lg font-bold text-gray-900">{unit.title}</h2>
-                      {canCreateContent() && (
-                        <button
-                          onClick={() => {
-                            const base = levelId ? `/study/level/${levelId}` : `/study/course/${currentId}`
-                            navigate(`${base}/unit/${unit.id}`)
-                          }}
-                          className="p-2 text-blue-400 hover:text-blue-600 hover:bg-blue-100 rounded-lg transition-colors"
-                          title="Manage sessions"
+                                if (rewardClaimed) {
+                                  // Already claimed - show empty/opened chest
+                                  return (
+                                    <div
+                                      className="w-12 h-12 cursor-not-allowed"
+                                      title="Reward claimed"
+                                    >
+                                      <img
+                                        src="https://xpclass.vn/xpclass/icon/chest_opened.png"
+                                        alt="Reward claimed"
+                                        className="w-full h-full object-contain"
+                                      />
+                                    </div>
+                                  );
+                                } else if (isClaiming) {
+                                  // Claiming - show GIF animation
+                                  return (
+                                    <div className="w-12 h-12">
+                                      <img
+                                        src="https://xpclass.vn/xpclass/icon/chest_opening.gif"
+                                        alt="Opening chest"
+                                        className="w-full h-full object-contain animate-bounce"
+                                      />
+                                    </div>
+                                  );
+                                } else if (unitComplete) {
+                                  // Complete but not claimed - show unlocked chest
+                                  return (
+                                    <button
+                                      onClick={() => handleClaimReward(unit.id)}
+                                      className="w-12 h-12 hover:scale-110 transition-transform cursor-pointer"
+                                      title="Click to claim reward!"
+                                    >
+                                      <img
+                                        src="https://xpclass.vn/xpclass/icon/chest_ready.png"
+                                        alt="Claim reward"
+                                        className="w-full h-full object-contain animate-pulse"
+                                      />
+                                    </button>
+                                  );
+                                } else {
+                                  // Not complete - show locked chest
+                                  return (
+                                    <div
+                                      className="w-12 h-12 cursor-not-allowed"
+                                      title="Hoàn thành tất cả các bài học để mở khóa!"
+                                    >
+                                      <img
+                                        src="https://xpclass.vn/xpclass/icon/chest_locked.png"
+                                        alt="Locked reward"
+                                        className="w-full h-full object-contain"
+                                      />
+                                    </div>
+                                  );
+                                }
+                              })()}
+                            </div>
+                          )}
+                          {canCreateContent() && (
+                            <div className="flex items-center space-x-1">
+                              <button
+                                onClick={() => handleEditUnit(unit)}
+                                className="p-2 text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded-lg transition-colors"
+                                title="Edit unit"
+                              >
+                                <Edit className="w-4 h-4" />
+                              </button>
+                              <button
+                                onClick={() => handleDeleteUnit(unit)}
+                                className="p-2 text-red-400 hover:text-red-600 hover:bg-red-100 rounded-lg transition-colors"
+                                title="Delete unit"
+                              >
+                                <Trash2 className="w-4 h-4" />
+                              </button>
+                            </div>
+                          )}
+                        </div>
+                      </div>
+
+                      {/* Sessions Grid for this Unit */}
+                      {unitSessions.length > 0 ? (
+                        <div
+                          className="grid grid-cols-4 md:grid-cols-6 lg:grid-cols-8 xl:grid-cols-10 gap-6"
+                          style={{ gridAutoFlow: "dense" }}
                         >
-                          <List className="w-4 h-4" />
-                        </button>
+                          {unitSessions.map((session, index) => (
+                            <div
+                              key={session.id}
+                              className="flex justify-center items-start"
+                            >
+                              <div style={{ width: "60px", height: "60px" }}>
+                                {renderSessionCard(session, index)}
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                      ) : (
+                        <div className="text-center py-8 bg-gray-50 rounded-lg border-2 border-dashed border-gray-300">
+                          {canCreateContent() ? (
+                            <Button
+                              onClick={() => {
+                                const base = levelId
+                                  ? `/study/level/${levelId}`
+                                  : `/study/course/${currentId}`;
+                                navigate(`${base}/unit/${unit.id}`);
+                              }}
+                              className="bg-green-600 text-white hover:bg-green-700"
+                            >
+                              <Plus className="w-4 h-4 mr-2" />
+                              Add Sessions
+                            </Button>
+                          ) : (
+                            <p className="text-sm text-gray-500">
+                              Sessions will be available soon
+                            </p>
+                          )}
+                        </div>
                       )}
                     </div>
-                    <div className="flex items-center space-x-2">
-                      {/* Unit Reward Chest */}
-                      {!canCreateContent() && (
-                        <div className="relative">
-                          {(() => {
-                            const unitComplete = isUnitComplete(unit.id)
-                            const rewardClaimed = unitRewards[unit.id]?.claimed
-                            const isClaiming = claimingReward === unit.id
-
-                            if (rewardClaimed) {
-                              // Already claimed - show empty/opened chest
-                              return (
-                                <div className="w-12 h-12 cursor-not-allowed" title="Reward claimed">
-                                  <img
-                                    src="https://xpclass.vn/xpclass/icon/chest_opened.png"
-                                    alt="Reward claimed"
-                                    className="w-full h-full object-contain"
-                                  />
-                                </div>
-                              )
-                            } else if (isClaiming) {
-                              // Claiming - show GIF animation
-                              return (
-                                <div className="w-12 h-12">
-                                  <img
-                                    src="https://xpclass.vn/xpclass/icon/chest_opening.gif"
-                                    alt="Opening chest"
-                                    className="w-full h-full object-contain animate-bounce"
-                                  />
-                                </div>
-                              )
-                            } else if (unitComplete) {
-                              // Complete but not claimed - show unlocked chest
-                              return (
-                                <button
-                                  onClick={() => handleClaimReward(unit.id)}
-                                  className="w-12 h-12 hover:scale-110 transition-transform cursor-pointer"
-                                  title="Click to claim reward!"
-                                >
-                                  <img
-                                    src="https://xpclass.vn/xpclass/icon/chest_ready.png"
-                                    alt="Claim reward"
-                                    className="w-full h-full object-contain animate-pulse"
-                                  />
-                                </button>
-                              )
-                            } else {
-                              // Not complete - show locked chest
-                              return (
-                                <div className="w-12 h-12 cursor-not-allowed" title="Hoàn thành tất cả các bài học để mở khóa!">
-                                  <img
-                                    src="https://xpclass.vn/xpclass/icon/chest_locked.png"
-                                    alt="Locked reward"
-                                    className="w-full h-full object-contain"
-                                  />
-                                </div>
-                              )
-                            }
-                          })()}
-                        </div>
-                      )}
-                      {canCreateContent() && (
-                        <div className="flex items-center space-x-1">
-                          <button
-                            onClick={() => handleEditUnit(unit)}
-                            className="p-2 text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded-lg transition-colors"
-                            title="Edit unit"
-                          >
-                            <Edit className="w-4 h-4" />
-                          </button>
-                          <button
-                            onClick={() => handleDeleteUnit(unit)}
-                            className="p-2 text-red-400 hover:text-red-600 hover:bg-red-100 rounded-lg transition-colors"
-                            title="Delete unit"
-                          >
-                            <Trash2 className="w-4 h-4" />
-                          </button>
-                        </div>
-                      )}
+                  );
+                })}
+                {/* Add Unit Button */}
+                {canCreateContent() && (
+                  <div className="bg-white rounded-lg border-2 border-dashed border-gray-300 p-8 text-center hover:border-blue-400 transition-colors">
+                    <div className="flex flex-col items-center space-y-3">
+                      <div className="w-12 h-12 bg-blue-100 rounded-lg flex items-center justify-center">
+                        <Plus className="w-6 h-6 text-blue-600" />
+                      </div>
+                      <div>
+                        <p className="text-gray-600">
+                          Create a new learning unit for this level
+                        </p>
+                      </div>
+                      <Button
+                        onClick={() => setShowAddUnitModal(true)}
+                        className="bg-blue-600 text-white hover:bg-blue-700"
+                      >
+                        <Plus className="w-4 h-4 mr-2" />
+                        Create Unit
+                      </Button>
                     </div>
                   </div>
+                )}
+              </div>
 
-                  {/* Sessions Grid for this Unit */}
-                  {unitSessions.length > 0 ? (
-                    <div className="grid grid-cols-4 md:grid-cols-6 lg:grid-cols-8 xl:grid-cols-10 gap-6" style={{ gridAutoFlow: 'dense' }}>
-                      {unitSessions.map((session, index) => (
-                        <div key={session.id} className="flex justify-center items-start">
-                          <div style={{ width: '60px', height: '60px' }}>
-                            {renderSessionCard(session, index)}
-                          </div>
-                        </div>
-                      ))}
-                    </div>
-                  ) : (
-                    <div className="text-center py-8 bg-gray-50 rounded-lg border-2 border-dashed border-gray-300">
-                      {canCreateContent() ? (
-                        <Button
-                          onClick={() => {
-                            const base = levelId ? `/study/level/${levelId}` : `/study/course/${currentId}`
-                            navigate(`${base}/unit/${unit.id}`)
-                          }}
-                          className="bg-green-600 text-white hover:bg-green-700"
-                        >
-                          <Plus className="w-4 h-4 mr-2" />
-                          Add Sessions
-                        </Button>
-                      ) : (
-                        <p className="text-sm text-gray-500">Sessions will be available soon</p>
-                      )}
-                    </div>
+              {/* Empty state */}
+              {units.length === 0 && (
+                <div className="text-center py-12">
+                  <BookOpen className="w-16 h-16 text-gray-400 mx-auto mb-4" />
+                  <h3 className="text-lg font-medium text-gray-900 mb-2">
+                    Chưa có unit nào
+                  </h3>
+                  <p className="text-gray-600">
+                    Các unit học tập sẽ sớm được cập nhật!
+                  </p>
+                  {canCreateContent() && (
+                    <Button
+                      onClick={() => setShowAddUnitModal(true)}
+                      className="mt-4 bg-blue-600 text-white hover:bg-blue-700"
+                    >
+                      <Plus className="w-4 h-4 mr-2" />
+                      Create First Unit
+                    </Button>
                   )}
                 </div>
-              )
-            })}
-            {/* Add Unit Button */}
-            {canCreateContent() && (
-              <div className="bg-white rounded-lg border-2 border-dashed border-gray-300 p-8 text-center hover:border-blue-400 transition-colors">
-                <div className="flex flex-col items-center space-y-3">
-                  <div className="w-12 h-12 bg-blue-100 rounded-lg flex items-center justify-center">
-                    <Plus className="w-6 h-6 text-blue-600" />
-                  </div>
-                  <div>
-                    <p className="text-gray-600">Create a new learning unit for this level</p>
-                  </div>
-                  <Button
-                    onClick={() => setShowAddUnitModal(true)}
-                    className="bg-blue-600 text-white hover:bg-blue-700"
-                  >
-                    <Plus className="w-4 h-4 mr-2" />
-                    Create Unit
-                  </Button>
-                </div>
-              </div>
-            )}
-          </div>
-
-          {/* Empty state */}
-          {units.length === 0 && (
-            <div className="text-center py-12">
-              <BookOpen className="w-16 h-16 text-gray-400 mx-auto mb-4" />
-              <h3 className="text-lg font-medium text-gray-900 mb-2">Chưa có unit nào</h3>
-              <p className="text-gray-600">Các unit học tập sẽ sớm được cập nhật!</p>
-              {canCreateContent() && (
-                <Button
-                  onClick={() => setShowAddUnitModal(true)}
-                  className="mt-4 bg-blue-600 text-white hover:bg-blue-700"
-                >
-                  <Plus className="w-4 h-4 mr-2" />
-                  Create First Unit
-                </Button>
               )}
-            </div>
-          )}
             </>
           )}
         </div>
@@ -1308,8 +1309,8 @@ const UnitList = () => {
         <EditUnitModal
           unit={editingUnit}
           onClose={() => {
-            setShowEditUnitModal(false)
-            setEditingUnit(null)
+            setShowEditUnitModal(false);
+            setEditingUnit(null);
           }}
           onUpdated={handleUnitUpdated}
         />
@@ -1319,8 +1320,12 @@ const UnitList = () => {
       {showChestSelection && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
           <div className="bg-white rounded-lg shadow-2xl p-4 sm:p-8 max-w-2xl w-full text-center">
-            <h2 className="text-2xl sm:text-3xl font-bold text-gray-900 mb-2">Choose Your Reward!</h2>
-            <p className="text-sm sm:text-lg text-gray-600 mb-4 sm:mb-8">Pick one chest to reveal your XP reward</p>
+            <h2 className="text-2xl sm:text-3xl font-bold text-gray-900 mb-2">
+              Choose Your Reward!
+            </h2>
+            <p className="text-sm sm:text-lg text-gray-600 mb-4 sm:mb-8">
+              Pick one chest to reveal your XP reward
+            </p>
 
             <div className="flex justify-center items-center gap-2 sm:gap-8">
               {[1, 2, 3].map((chestNum) => (
@@ -1332,9 +1337,10 @@ const UnitList = () => {
                 >
                   <div className="w-20 h-20 sm:w-32 sm:h-32 transition-transform transform group-hover:scale-110">
                     <img
-                      src={selectedChest === chestNum
-                        ? "https://xpclass.vn/xpclass/icon/chest_cropped_once.gif"
-                        : "https://xpclass.vn/xpclass/icon/chest_image.png"
+                      src={
+                        selectedChest === chestNum
+                          ? "https://xpclass.vn/xpclass/icon/chest_cropped_once.gif"
+                          : "https://xpclass.vn/xpclass/icon/chest_image.png"
                       }
                       alt={`Chest ${chestNum}`}
                       className="w-full h-full object-contain"
@@ -1346,12 +1352,14 @@ const UnitList = () => {
                         +{rewardAmount} XP
                       </div>
                     </div>
-                  ) : selectedChest === null && (
-                    <div className="absolute inset-0 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
-                      <div className="bg-yellow-500 text-white rounded-full w-12 h-12 flex items-center justify-center text-2xl font-bold">
-                        ?
+                  ) : (
+                    selectedChest === null && (
+                      <div className="absolute inset-0 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
+                        <div className="bg-yellow-500 text-white rounded-full w-12 h-12 flex items-center justify-center text-2xl font-bold">
+                          ?
+                        </div>
                       </div>
-                    </div>
+                    )
                   )}
                 </button>
               ))}
@@ -1369,8 +1377,12 @@ const UnitList = () => {
                 <span className="text-6xl">🎉</span>
               </div>
             </div>
-            <h2 className="text-3xl font-bold text-gray-900 mb-2">Congratulations!</h2>
-            <p className="text-lg text-gray-600 mb-4">You completed the unit!</p>
+            <h2 className="text-3xl font-bold text-gray-900 mb-2">
+              Congratulations!
+            </h2>
+            <p className="text-lg text-gray-600 mb-4">
+              You completed the unit!
+            </p>
             <div className="bg-gradient-to-r from-yellow-400 to-orange-500 text-white rounded-lg py-4 px-6 mb-4">
               <div className="flex items-center justify-center space-x-2">
                 <Star className="w-8 h-8" fill="white" />
@@ -1382,7 +1394,7 @@ const UnitList = () => {
         </div>
       )}
     </div>
-  )
-}
+  );
+};
 
-export default UnitList
+export default UnitList;

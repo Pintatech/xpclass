@@ -124,6 +124,7 @@ const SimpleBadge = ({ badge, size = 'medium', className = '', showName = false 
   if (!badge) return null
 
   const sizeClasses = {
+    xs: 'max-w-6 max-h-6',
     small: 'max-w-8 max-h-8',
     medium: 'max-w-12 max-h-12',
     large: 'max-w-16 max-h-16',
@@ -131,6 +132,7 @@ const SimpleBadge = ({ badge, size = 'medium', className = '', showName = false 
   }
 
   const fallbackSizeClasses = {
+    xs: 'w-6 h-6',
     small: 'w-8 h-8',
     medium: 'w-12 h-12',
     large: 'w-16 h-16',
@@ -138,6 +140,7 @@ const SimpleBadge = ({ badge, size = 'medium', className = '', showName = false 
   }
 
   const textSizeClasses = {
+    xs: 'text-[10px]',
     small: 'text-xs',
     medium: 'text-sm',
     large: 'text-base',

@@ -82,6 +82,11 @@ export const AuthProvider = ({ children }) => {
       email,
       password
     })
+
+    if (!error && data.user) {
+      window.location.reload()
+    }
+
     return { data, error }
   }
 
