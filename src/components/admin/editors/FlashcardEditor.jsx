@@ -6,10 +6,6 @@ import {
   Upload,
   Download,
   X,
-  Eye,
-  EyeOff,
-  Video,
-  Image
 } from 'lucide-react'
 
 const FlashcardEditor = ({ cards, onCardsChange }) => {
@@ -30,7 +26,7 @@ const FlashcardEditor = ({ cards, onCardsChange }) => {
       front: '',
       back: '',
       image: '',
-      videoUrls: ['']
+      videoUrls: [] // Keep for backwards compatibility
     }
     const updatedCards = [...localCards, newCard]
     setLocalCards(updatedCards)
@@ -38,9 +34,13 @@ const FlashcardEditor = ({ cards, onCardsChange }) => {
   }
 
   const updateCard = (index, field, value) => {
-    const updatedCards = localCards.map((card, i) =>
-      i === index ? { ...card, [field]: value } : card
-    )
+    const updatedCards = localCards.map((card, i) => {
+      if (i === index) {
+        // Preserve all existing fields including videoUrls if they exist
+        return { ...card, [field]: value }
+      }
+      return card
+    })
     setLocalCards(updatedCards)
     onCardsChange(updatedCards)
   }
@@ -51,41 +51,6 @@ const FlashcardEditor = ({ cards, onCardsChange }) => {
     onCardsChange(updatedCards)
   }
 
-  const addVideoUrl = (cardIndex) => {
-    const updatedCards = localCards.map((card, i) =>
-      i === cardIndex
-        ? { ...card, videoUrls: [...(card.videoUrls || []), ''] }
-        : card
-    )
-    setLocalCards(updatedCards)
-    onCardsChange(updatedCards)
-  }
-
-  const removeVideoUrl = (cardIndex, videoIndex) => {
-    const updatedCards = localCards.map((card, i) =>
-      i === cardIndex
-        ? {
-            ...card,
-            videoUrls: card.videoUrls.filter((_, vi) => vi !== videoIndex)
-          }
-        : card
-    )
-    setLocalCards(updatedCards)
-    onCardsChange(updatedCards)
-  }
-
-  const updateVideoUrl = (cardIndex, videoIndex, value) => {
-    const updatedCards = localCards.map((card, i) =>
-      i === cardIndex
-        ? {
-            ...card,
-            videoUrls: card.videoUrls.map((url, vi) => vi === videoIndex ? value : url)
-          }
-        : card
-    )
-    setLocalCards(updatedCards)
-    onCardsChange(updatedCards)
-  }
 
   const handleCSVTextChange = (text) => {
     setCsvText(text)
@@ -271,42 +236,6 @@ const FlashcardEditor = ({ cards, onCardsChange }) => {
               </div>
             </div>
 
-            {/* Video URLs */}
-            <div className="mt-4">
-              <div className="flex justify-between items-center mb-2">
-                <label className="block text-sm font-medium text-gray-700">
-                  Video URLs
-                </label>
-                <button
-                  type="button"
-                  onClick={() => addVideoUrl(index)}
-                  className="text-blue-600 hover:text-blue-800 text-sm"
-                >
-                  <Plus className="w-4 h-4 inline mr-1" />
-                  Add Video
-                </button>
-              </div>
-              <div className="space-y-2">
-                {(card.videoUrls || []).map((videoUrl, videoIndex) => (
-                  <div key={videoIndex} className="flex gap-2">
-                    <input
-                      type="url"
-                      value={videoUrl}
-                      onChange={(e) => updateVideoUrl(index, videoIndex, e.target.value)}
-                      className="flex-1 p-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
-                      placeholder="https://youtube.com/watch?v=..."
-                    />
-                    <button
-                      type="button"
-                      onClick={() => removeVideoUrl(index, videoIndex)}
-                      className="text-red-600 hover:text-red-800"
-                    >
-                      <Trash2 className="w-4 h-4" />
-                    </button>
-                  </div>
-                ))}
-              </div>
-            </div>
           </div>
         ))}
 

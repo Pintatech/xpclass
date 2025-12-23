@@ -9,7 +9,6 @@ import Button from '../ui/Button'
 import LoadingSpinner from '../ui/LoadingSpinner'
 import RichTextRenderer, { RichTextWithAudio } from '../ui/RichTextRenderer'
 import { CheckCircle, XCircle, ArrowRight, RotateCcw, Star } from 'lucide-react'
-import AudioPlayer from '../ui/AudioPlayer'
 
 const MultipleChoiceExercise = () => {
   const location = useLocation()

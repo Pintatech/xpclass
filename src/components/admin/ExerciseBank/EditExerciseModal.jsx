@@ -136,8 +136,8 @@ const EditExerciseModal = ({ isOpen, onClose, exercise, onUpdate }) => {
       case 'flashcard':
         return (
           <FlashcardEditor
-            flashcards={content.flashcards || []}
-            onFlashcardsChange={(flashcards) => handleContentChange({ ...content, flashcards })}
+            cards={content.cards || content.flashcards || []}
+            onCardsChange={(cards) => handleContentChange({ ...content, cards })}
           />
         )
       case 'multiple_choice':

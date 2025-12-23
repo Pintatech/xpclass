@@ -16,6 +16,7 @@ const Dashboard = () => {
   const [loading, setLoading] = useState(true)
   const [recent, setRecent] = useState(null)
   const [currentTime, setCurrentTime] = useState(new Date())
+  const [courseProgress, setCourseProgress] = useState({})
   const navigate = useNavigate()
 
   // Update current time every second
@@ -33,6 +34,7 @@ const Dashboard = () => {
       fetchCourses()
       if (profile.role === 'user') {
         fetchMostRecentExercise()
+        fetchCourseProgress()
       } else {
         setRecent(getRecentExercise())
       }
@@ -238,6 +240,92 @@ const Dashboard = () => {
     }
   }
 
+  const fetchCourseProgress = async () => {
+    try {
+      if (!profile?.id) return
+
+      // Get all user progress
+      const { data: userProgress, error: progressError } = await supabase
+        .from('user_progress')
+        .select('exercise_id, status')
+        .eq('user_id', profile.id)
+
+      if (progressError) throw progressError
+
+      const completedExerciseIds = new Set(
+        (userProgress || [])
+          .filter(p => p.status === 'completed')
+          .map(p => p.exercise_id)
+      )
+
+      // Get all courses
+      const { data: enrollments, error: enrollError } = await supabase
+        .from('course_enrollments')
+        .select('course_id')
+        .eq('student_id', profile.id)
+        .eq('is_active', true)
+
+      if (enrollError) throw enrollError
+
+      const courseIds = enrollments?.map(e => e.course_id) || []
+      if (courseIds.length === 0) return
+
+      // For each course, get total exercises and calculate progress
+      const progressData = {}
+
+      for (const courseId of courseIds) {
+        // Get all units for this course
+        const { data: units, error: unitsError } = await supabase
+          .from('units')
+          .select('id')
+          .eq('course_id', courseId)
+          .eq('is_active', true)
+
+        if (unitsError) continue
+        if (!units || units.length === 0) continue
+
+        const unitIds = units.map(u => u.id)
+
+        // Get all sessions for these units
+        const { data: sessions, error: sessionsError } = await supabase
+          .from('sessions')
+          .select('id')
+          .in('unit_id', unitIds)
+          .eq('is_active', true)
+
+        if (sessionsError) continue
+        if (!sessions || sessions.length === 0) continue
+
+        const sessionIds = sessions.map(s => s.id)
+
+        // Get all exercises for these sessions
+        const { data: assignments, error: assignError } = await supabase
+          .from('exercise_assignments')
+          .select('exercise_id')
+          .in('session_id', sessionIds)
+
+        if (assignError) continue
+        if (!assignments || assignments.length === 0) continue
+
+        const totalExercises = assignments.length
+        const completedCount = assignments.filter(a =>
+          completedExerciseIds.has(a.exercise_id)
+        ).length
+
+        progressData[courseId] = {
+          total: totalExercises,
+          completed: completedCount,
+          percentage: totalExercises > 0 ? Math.round((completedCount / totalExercises) * 100) : 0
+        }
+      }
+
+      setCourseProgress(progressData)
+
+    } catch (error) {
+      console.error('Error fetching course progress:', error)
+    }
+  }
+
   // Get greeting message based on Vietnam time
   const getGreetingMessage = () => {
     // Get Vietnam hour
@@ -259,9 +347,9 @@ const Dashboard = () => {
   return (
     <div className="space-y-8">
       {/* Header with Blue Background */}
-      <div className="relative -mx-4 md:-mx-6 lg:-mx-8 -mt-6 md:-mt-6 lg:-mt-6 -mb-4 md:-mb-6 lg:-mb-8">
+      <div className="relative -mx-4 md:-mx-6 lg:mx-0 -mt-6 md:-mt-6 lg:-mt-6 -mb-4 md:-mb-6 lg:mb-0">
         {/* Blue Background */}
-        <div className="relative h-48 md:h-56 overflow-hidden bg-blue-600">
+        <div className="relative h-48 md:h-56 overflow-hidden bg-blue-600 lg:rounded-lg">
           {/* Dark overlay for better text readability */}
           <div className="absolute inset-0 bg-black/20" />
           
@@ -382,14 +470,14 @@ const Dashboard = () => {
 
         {/* Courses List */}
         <div className="lg:col-span-2">
-          <h2 className="text-2xl font-bold text-gray-900 mb-6">Chương trình học </h2>
+          
           {loading ? (
             <div className="text-center py-8">
               <div className="inline-block animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
               <p className="text-gray-600 mt-2">Đang tải...</p>
             </div>
           ) : (
-            <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
+            <div className="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-3 gap-4">
               {courses.map((course) => {
                 const isLocked = !course.is_active
 
@@ -426,17 +514,33 @@ const Dashboard = () => {
                           </div>
                         </div>
                       )}
-                      
-                      {/* Text Overlay */}
-                      <div className="absolute bottom-0 left-0 right-0 bg-black bg-opacity-20 p-2">
-                        <h3 className="font-semibold text-white text-sm mb-1 line-clamp-2">
-                          {course.title}
-                        </h3>
-                        <p className="text-xs text-gray-200">
-                          {course.difficulty_label}
-                        </p>
-                      </div>
+
                     </div>
+
+                    {/* Progress Bar */}
+                    {!isLocked && profile?.role === 'user' && courseProgress[course.id] && (
+                      <div className="px-3 py-2 bg-gray-50">
+                        <div className="flex items-center justify-between text-xs text-gray-600 mb-1">
+                          <span>Tiến độ</span>
+                          <span className="font-semibold">{courseProgress[course.id].percentage}%</span>
+                        </div>
+                        <div className="w-full bg-gray-200 rounded-full h-2 overflow-hidden">
+                          <div
+                            className={`h-full rounded-full transition-all duration-500 ${
+                              courseProgress[course.id].percentage < 30
+                                ? 'bg-red-500'
+                                : courseProgress[course.id].percentage < 70
+                                ? 'bg-yellow-500'
+                                : 'bg-blue-700'
+                            }`}
+                            style={{ width: `${courseProgress[course.id].percentage}%` }}
+                          />
+                        </div>
+                        <div className="text-xs text-gray-500 mt-1">
+                          {courseProgress[course.id].completed}/{courseProgress[course.id].total} bài tập
+                        </div>
+                      </div>
+                    )}
                   </div>
                 )
 

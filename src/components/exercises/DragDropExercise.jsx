@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react'
 import { useLocation, useNavigate } from 'react-router-dom'
 import { supabase } from '../../supabase/client'
-import { ArrowLeft, RotateCcw, CheckCircle, XCircle, Play, Pause } from 'lucide-react'
+import { RotateCcw, CheckCircle, XCircle} from 'lucide-react'
 import LoadingSpinner from '../ui/LoadingSpinner'
 import { useAuth } from '../../hooks/useAuth'
 import { useProgress } from '../../hooks/useProgress'

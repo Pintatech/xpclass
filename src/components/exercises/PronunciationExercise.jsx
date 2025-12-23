@@ -4,7 +4,6 @@ import { useAuth } from '../../hooks/useAuth'
 import { useProgress } from '../../hooks/useProgress'
 import { supabase } from '../../supabase/client'
 import { saveRecentExercise } from '../../utils/recentExercise'
-import Card from '../ui/Card'
 import Button from '../ui/Button'
 import LoadingSpinner from '../ui/LoadingSpinner'
 import RichTextRenderer from '../ui/RichTextRenderer'
@@ -218,6 +217,16 @@ const PronunciationExercise = () => {
     }
 
     try {
+      // Clean up any existing recognizer
+      if (recognizerRef.current) {
+        recognizerRef.current.close()
+        recognizerRef.current = null
+      }
+      if (audioConfigRef.current) {
+        audioConfigRef.current.close()
+        audioConfigRef.current = null
+      }
+
       setIsRecording(true)
       setPronunciationScore(null)
       setAccuracyScore(null)
@@ -225,6 +234,7 @@ const PronunciationExercise = () => {
       setCompletenessScore(null)
       setWordScores([])
       setTranscription('')
+      setShowExplanation(false)
 
       const speechConfig = sdk.SpeechConfig.fromSubscription(AZURE_SPEECH_KEY, AZURE_SPEECH_REGION)
       speechConfig.speechRecognitionLanguage = 'en-US'
@@ -232,7 +242,14 @@ const PronunciationExercise = () => {
       audioConfigRef.current = sdk.AudioConfig.fromDefaultMicrophoneInput()
 
       // Configure pronunciation assessment
-      const referenceText = currentQuestion.text
+      // Strip HTML tags from reference text
+      const tempDiv = document.createElement('div')
+      tempDiv.innerHTML = currentQuestion.text
+      const referenceText = (tempDiv.textContent || tempDiv.innerText || '').trim()
+
+      console.log('Reference text being sent to Azure:', referenceText)
+      console.log('Current question text:', currentQuestion.text)
+
       const pronunciationAssessmentConfig = new sdk.PronunciationAssessmentConfig(
         referenceText,
         sdk.PronunciationAssessmentGradingSystem.HundredMark,
@@ -246,48 +263,48 @@ const PronunciationExercise = () => {
       // Apply pronunciation assessment config
       pronunciationAssessmentConfig.applyTo(recognizerRef.current)
 
-      // Handle recognition results
-      recognizerRef.current.recognized = (s, e) => {
-        if (e.result.reason === sdk.ResultReason.RecognizedSpeech) {
-          const pronunciationResult = sdk.PronunciationAssessmentResult.fromResult(e.result)
+      // Use recognizeOnceAsync for single-phrase pronunciation assessment
+      // This properly handles completeness scoring unlike continuous recognition
+      recognizerRef.current.recognizeOnceAsync(
+        (result) => {
+          console.log('Recognition completed')
+          if (result.reason === sdk.ResultReason.RecognizedSpeech) {
+            const pronunciationResult = sdk.PronunciationAssessmentResult.fromResult(result)
 
-          setTranscription(e.result.text)
-          setPronunciationScore(pronunciationResult.pronunciationScore)
-          setAccuracyScore(pronunciationResult.accuracyScore)
-          setFluencyScore(pronunciationResult.fluencyScore)
-          setCompletenessScore(pronunciationResult.completenessScore)
+            console.log('Azure Pronunciation Result:', {
+              pronunciationScore: pronunciationResult.pronunciationScore,
+              accuracyScore: pronunciationResult.accuracyScore,
+              fluencyScore: pronunciationResult.fluencyScore,
+              completenessScore: pronunciationResult.completenessScore,
+              prosodyScore: pronunciationResult.prosodyScore
+            })
 
-          // Get word-level scores
-          const words = e.result.properties.getProperty(sdk.PropertyId.SpeechServiceResponse_JsonResult)
-          if (words) {
-            const parsedWords = JSON.parse(words)
-            if (parsedWords.NBest && parsedWords.NBest[0] && parsedWords.NBest[0].Words) {
-              setWordScores(parsedWords.NBest[0].Words)
+            setTranscription(result.text)
+            setPronunciationScore(pronunciationResult.pronunciationScore)
+            setAccuracyScore(pronunciationResult.accuracyScore)
+            setFluencyScore(pronunciationResult.fluencyScore)
+            setCompletenessScore(pronunciationResult.completenessScore)
+
+            // Get word-level scores
+            const words = result.properties.getProperty(sdk.PropertyId.SpeechServiceResponse_JsonResult)
+            if (words) {
+              const parsedWords = JSON.parse(words)
+              console.log('Full Azure Response:', parsedWords)
+              if (parsedWords.NBest && parsedWords.NBest[0] && parsedWords.NBest[0].Words) {
+                setWordScores(parsedWords.NBest[0].Words)
+              }
             }
+
+            setShowExplanation(true)
+            setIsRecording(false)
+          } else if (result.reason === sdk.ResultReason.NoMatch) {
+            setTranscription('Could not understand speech. Please try again.')
+            setIsRecording(false)
           }
-
-          setShowExplanation(true)
-          stopRecording()
-        } else if (e.result.reason === sdk.ResultReason.NoMatch) {
-          setTranscription('Could not understand speech. Please try again.')
-          stopRecording()
-        }
-      }
-
-      // Handle errors
-      recognizerRef.current.canceled = (s, e) => {
-        console.error('Recognition canceled:', e.errorDetails)
-        setTranscription('Error: ' + e.errorDetails)
-        stopRecording()
-      }
-
-      // Start continuous recognition
-      recognizerRef.current.startContinuousRecognitionAsync(
-        () => {
-          console.log('Recognition started')
         },
         (err) => {
-          console.error('Failed to start recognition:', err)
+          console.error('Failed to recognize speech:', err)
+          setTranscription('Error: ' + err)
           setIsRecording(false)
         }
       )
@@ -301,17 +318,14 @@ const PronunciationExercise = () => {
 
   const stopRecording = () => {
     if (recognizerRef.current) {
-      recognizerRef.current.stopContinuousRecognitionAsync(
-        () => {
-          console.log('Recognition stopped')
-          setIsRecording(false)
-        },
-        (err) => {
-          console.error('Failed to stop recognition:', err)
-          setIsRecording(false)
-        }
-      )
+      recognizerRef.current.close()
+      recognizerRef.current = null
     }
+    if (audioConfigRef.current) {
+      audioConfigRef.current.close()
+      audioConfigRef.current = null
+    }
+    setIsRecording(false)
   }
 
   // Removed playAudio function - now using AudioPlayer component
@@ -397,7 +411,7 @@ const PronunciationExercise = () => {
   const getScoreMessage = (score) => {
     if (score >= 90) return 'Excellent!'
     if (score >= 80) return 'Great!'
-    if (score >= 70) return 'Good!'
+    if (score >= 70) return 'Okay!'
     if (score >= 60) return 'Fair'
     return 'Keep practicing!'
   }
@@ -433,7 +447,7 @@ const PronunciationExercise = () => {
   }
 
   return (
-    <div className="px-4 pt-6 pb-12">
+    <div className="px-4">
       <div className="max-w-4xl mx-auto space-y-6">
         {/* Header */}
         <div className="bg-white rounded-lg shadow-sm p-4 md:p-5 border border-gray-200">
@@ -555,9 +569,9 @@ const PronunciationExercise = () => {
               {/* Question Text */}
               <div className="mb-6">
                 <div className="text-center">
-                  <h3 className="text-xl md:text-3xl font-bold text-gray-900 mb-4">
-                    {currentQuestion.text}
-                  </h3>
+                  <div className="text-xl md:text-3xl font-bold text-gray-900 mb-4">
+                    <RichTextRenderer content={currentQuestion.text} />
+                  </div>
                   {currentQuestion.phonetic && (
                     <p className="text-lg md:text-xl text-gray-600 mb-4">
                       /{currentQuestion.phonetic}/
@@ -599,36 +613,103 @@ const PronunciationExercise = () => {
               {showExplanation && (
                 <div className="space-y-4">
                   {pronunciationScore !== null && typeof pronunciationScore === 'number' && !isNaN(pronunciationScore) ? (
-                    <div className="p-4 bg-blue-50 border border-blue-200 rounded-lg">
-                      <h3 className="font-semibold text-blue-900 mb-3">Your Pronunciation:</h3>
-                      <div className="space-y-2">
-                        <div className="flex justify-between items-center">
-                          <span className="text-sm text-gray-700">Overall Score:</span>
-                          <span className={`text-2xl font-bold ${getScoreColor(pronunciationScore)}`}>
-                            {Math.round(pronunciationScore)}%
-                          </span>
+                    <>
+                      {/* Expected text with Azure word-level scores */}
+                      {transcription && (
+                        <div className="p-4 bg-gray-50 border border-gray-200 rounded-lg">
+                          <h3 className="font-semibold text-gray-900 mb-3">Pronunciation Assessment:</h3>
+                          <div className="text-lg leading-relaxed">
+                            {(() => {
+                              // Strip HTML tags from expected text
+                              const tempDiv = document.createElement('div')
+                              tempDiv.innerHTML = currentQuestion.text
+                              const plainText = tempDiv.textContent || tempDiv.innerText || ''
+                              const expectedWords = plainText.trim().split(/\s+/).filter(w => w.length > 0)
+
+                              // Create a map of spoken words with their scores (case-insensitive)
+                              const spokenWordsMap = {}
+                              wordScores.forEach(word => {
+                                const wordText = word.Word.toLowerCase()
+                                if (!spokenWordsMap[wordText]) {
+                                  spokenWordsMap[wordText] = []
+                                }
+                                spokenWordsMap[wordText].push(word.PronunciationAssessment?.AccuracyScore || 0)
+                              })
+
+                              return expectedWords.map((expectedWord, index) => {
+                                let score = 0
+                                let textColor = 'text-red-600' // Missing or not pronounced
+
+                                // Check if this word was spoken (case-insensitive)
+                                const expectedWordLower = expectedWord.toLowerCase()
+                                if (spokenWordsMap[expectedWordLower] && spokenWordsMap[expectedWordLower].length > 0) {
+                                  score = spokenWordsMap[expectedWordLower].shift() // Get first occurrence
+                                  if (score >= 80) {
+                                    textColor = 'text-green-600'
+                                  } else if (score >= 60) {
+                                    textColor = 'text-yellow-600'
+                                  }
+                                }
+
+                                return (
+                                  <span
+                                    key={index}
+                                    className={`inline-block px-1 font-semibold ${textColor}`}
+                                    title={score > 0 ? `${Math.round(score)}% accuracy` : 'Not pronounced or missing'}
+                                  >
+                                    {expectedWord}
+                                  </span>
+                                )
+                              })
+                            })()}
+                          </div>
+                          <p className="text-sm text-gray-600 mt-2">You said: "{transcription}"</p>
                         </div>
-                        <div className="flex justify-between items-center">
-                          <span className="text-sm text-gray-700">Accuracy:</span>
-                          <span className={`font-semibold ${getScoreColor(accuracyScore)}`}>
-                            {Math.round(accuracyScore || 0)}%
-                          </span>
+                      )}
+
+                      <div className="p-6 rounded-lg text-center">
+                        <h3 className="font-semibold text-blue-900 mb-4">Pronunciation Score</h3>
+                        <div className="flex justify-center items-center mb-4">
+                          <div className="relative w-40 h-40">
+                            <svg className="w-40 h-40 transform -rotate-90">
+                              {/* Background circle */}
+                              <circle
+                                cx="80"
+                                cy="80"
+                                r="70"
+                                stroke="#e5e7eb"
+                                strokeWidth="16"
+                                fill="none"
+                              />
+                              {/* Progress circle */}
+                              <circle
+                                cx="80"
+                                cy="80"
+                                r="70"
+                                stroke={
+                                  pronunciationScore >= 90 ? '#22c55e' :
+                                  pronunciationScore >= 80 ? '#3b82f6' :
+                                  pronunciationScore >= 70 ? '#eab308' :
+                                  '#ef4444'
+                                }
+                                strokeWidth="16"
+                                fill="none"
+                                strokeDasharray={`${2 * Math.PI * 70}`}
+                                strokeDashoffset={`${2 * Math.PI * 70 * (1 - pronunciationScore / 100)}`}
+                                strokeLinecap="round"
+                              />
+                            </svg>
+                            {/* Score text in center */}
+                            <div className="absolute inset-0 flex items-center justify-center">
+                              <span className="text-4xl font-bold text-gray-900">
+                                {Math.round(pronunciationScore)}
+                              </span>
+                            </div>
+                          </div>
                         </div>
-                        <div className="flex justify-between items-center">
-                          <span className="text-sm text-gray-700">Fluency:</span>
-                          <span className={`font-semibold ${getScoreColor(fluencyScore)}`}>
-                            {Math.round(fluencyScore || 0)}%
-                          </span>
-                        </div>
-                        <div className="flex justify-between items-center">
-                          <span className="text-sm text-gray-700">Completeness:</span>
-                          <span className={`font-semibold ${getScoreColor(completenessScore)}`}>
-                            {Math.round(completenessScore || 0)}%
-                          </span>
-                        </div>
+                        <p className="text-lg text-blue-800 font-medium">{getScoreMessage(pronunciationScore)}</p>
                       </div>
-                      <p className="mt-3 text-sm text-blue-800">{getScoreMessage(pronunciationScore)}</p>
-                    </div>
+                    </>
                   ) : (
                     <div className="p-4 bg-red-50 border border-red-200 rounded-lg">
                       <h3 className="font-semibold text-red-900 mb-2">Recording Issue</h3>

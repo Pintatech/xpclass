@@ -7,6 +7,7 @@ import { supabase } from '../../supabase/client'
 import AchievementBadgeBar from './AchievementBadgeBar'
 import Card from '../ui/Card'
 import Button from '../ui/Button'
+import LoadingSpinner from '../ui/LoadingSpinner'
 import {
   TrendingUp,
   Target,
@@ -28,7 +29,6 @@ const Progress = () => {
   const [selectedPeriod, setSelectedPeriod] = useState('week')
   const [weeklyData, setWeeklyData] = useState([])
   const [monthlyData, setMonthlyData] = useState([])
-  const [activityCalendar, setActivityCalendar] = useState([])
   const [loading, setLoading] = useState(true)
 
   const completedExercises = getCompletedExercises()
@@ -50,7 +50,6 @@ const Progress = () => {
     if (user && userProgress) {
       fetchWeeklyData()
       fetchMonthlyData()
-      fetchActivityCalendar()
       // checkAndAwardAchievements() // Disabled until SQL functions are fixed
     }
   }, [user, userProgress])
@@ -325,60 +324,14 @@ const Progress = () => {
     }
   }
 
-  const fetchActivityCalendar = async () => {
-    try {
-      // Get last 30 days activity
-      const calendar = []
-      for (let i = 29; i >= 0; i--) {
-        const date = new Date()
-        date.setDate(date.getDate() - i)
-        const dateStr = date.toISOString().split('T')[0]
-
-        const dayProgress = userProgress.filter(p =>
-          p.completed_at && p.completed_at.startsWith(dateStr)
-        )
-
-        const dayXp = dayProgress.reduce((total, p) => total + (p.xp_earned || 0), 0)
-        const hasActivity = dayXp > 0
-        const intensity = Math.min(dayXp / 100, 1) // Normalize XP to 0-1 scale
-
-        calendar.push({
-          date: dateStr,
-          hasActivity,
-          intensity,
-          xp: dayXp
-        })
-      }
-
-      setActivityCalendar(calendar)
-    } catch (error) {
-      console.error('Error fetching activity calendar:', error)
-      setActivityCalendar([])
-    }
-  }
-
-  // Helper function to get icon component from string
-  const getIconComponent = (iconName) => {
-    const icons = {
-      Star,
-      Flame,
-      Trophy,
-      Target
-    }
-    return icons[iconName] || Star
-  }
-
   // Get current data based on selected period
   const currentData = selectedPeriod === 'week' ? weeklyData : monthlyData
   const maxExercises = Math.max(...currentData.map(d => d.exercises), 5) // Prevent division by 0, minimum 5 for better scaling
 
   if (loading) {
     return (
-      <div className="space-y-8">
-        <div>
-          <h1 className="text-3xl font-bold text-gray-900 mb-2">Tiến độ học tập</h1>
-          <p className="text-gray-600">Đang tải dữ liệu...</p>
-        </div>
+      <div className="flex justify-center items-center min-h-64">
+        <LoadingSpinner size="lg" />
       </div>
     )
   }
@@ -558,37 +511,7 @@ const Progress = () => {
           </Card.Content>
         </Card>
 
-        <Card>
-          <Card.Header>
-            <h3 className="text-lg font-semibold text-gray-900 flex items-center">
-              <Calendar className="w-5 h-5 mr-2 text-green-600" />
-              Lịch học tập
-            </h3>
-          </Card.Header>
-          <Card.Content>
-            <div className="grid grid-cols-7 gap-1">
-              {activityCalendar.map((day, index) => (
-                <div
-                  key={index}
-                  className={`w-4 h-4 rounded-sm ${
-                    day.hasActivity
-                      ? day.intensity > 0.7
-                        ? 'bg-green-600'
-                        : day.intensity > 0.4
-                        ? 'bg-green-400'
-                        : 'bg-green-200'
-                      : 'bg-gray-100'
-                  }`}
-                  title={day.hasActivity ? `${day.xp} 🪙 - ${day.date}` : `Không có hoạt động - ${day.date}`}
-                />
-              ))}
-            </div>
-            <div className="flex justify-between text-xs text-gray-600 mt-2">
-              <span>Ít</span>
-              <span>Nhiều</span>
-            </div>
-          </Card.Content>
-        </Card>
+        
       </div>
 
       {/* Achievements */}

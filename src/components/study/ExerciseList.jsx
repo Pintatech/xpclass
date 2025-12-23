@@ -416,7 +416,6 @@ const ExerciseList = () => {
     )
 
     const icons = {
-      flashcard: BookOpen,
       fill_blank: (props) => (
         <IconImg src="https://xpclass.vn/xpclass/icon/fill_blank.svg" {...props} />
       ),
@@ -432,6 +431,9 @@ const ExerciseList = () => {
       ai_fill_blank: (props) => (
         <IconImg src="https://xpclass.vn/xpclass/icon/fill_blank.svg" {...props} />
       ),
+      flashcard: (props) => (
+        <IconImg src={"https://xpclass.vn/xpclass/icon/flashcard.svg"} {...props} />
+      )
     }
     return icons[exerciseType] || BookOpen
   }

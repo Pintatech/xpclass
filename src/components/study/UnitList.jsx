@@ -1340,7 +1340,7 @@ const UnitList = () => {
                       src={
                         selectedChest === chestNum
                           ? "https://xpclass.vn/xpclass/icon/chest_cropped_once.gif"
-                          : "https://xpclass.vn/xpclass/icon/chest_image.png"
+                          : "https://xpclass.vn/xpclass/image/chest_cropped_once1.gif"
                       }
                       alt={`Chest ${chestNum}`}
                       className="w-full h-full object-contain"
