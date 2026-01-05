@@ -103,6 +103,21 @@ const AudioPlayer = ({
     }
   }
 
+  // Reset audio player when audioUrl changes
+  useEffect(() => {
+    // Stop current audio if playing
+    if (audioRef.current) {
+      audioRef.current.pause()
+      audioRef.current = null
+    }
+
+    // Reset state
+    setIsPlaying(false)
+    setProgress(0)
+    setInternalPlayCount(0)
+    setHasReachedLimit(false)
+  }, [audioUrl])
+
   // Cleanup on unmount
   useEffect(() => {
     return () => {

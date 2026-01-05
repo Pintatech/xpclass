@@ -449,6 +449,7 @@ const PronunciationExercise = () => {
   return (
     <div className="px-4">
       <div className="max-w-4xl mx-auto space-y-6">
+
         {/* Header */}
         <div className="bg-white rounded-lg shadow-sm p-4 md:p-5 border border-gray-200">
           <div className="flex items-center justify-between gap-4">
@@ -456,15 +457,6 @@ const PronunciationExercise = () => {
               <p className="text-xs md:text-sm font-medium text-gray-500 truncate mb-1">
                 {exercise?.title}
               </p>
-              <h1 className="text-lg md:text-2xl font-bold text-gray-900">Pronunciation Practice</h1>
-            </div>
-            <div className="text-right flex-shrink-0">
-              <div className="text-xl md:text-3xl font-bold text-blue-600">
-                {currentQuestionNumber}/{totalQuestions}
-              </div>
-              <div className="text-xs md:text-sm text-gray-500">
-                Questions
-              </div>
             </div>
           </div>
 
@@ -564,8 +556,14 @@ const PronunciationExercise = () => {
 
         {/* Question Display */}
         {!isQuizComplete && (
-          <div className="w-full max-w-4xl mx-auto rounded-lg p-4 md:p-8 bg-white shadow-md border border-gray-200">
-            <div className="space-y-4 md:space-y-6">
+          <div className="w-full max-w-4xl mx-auto rounded-lg p-4 md:p-8 bg-white shadow-md border border-gray-200 border-l-4 border-l-blue-400 relative">
+            {/* Colored circles on top right */}
+            <div className="absolute top-4 right-6 md:right-10 flex gap-2 z-20">
+              <div className="w-3 h-3 rounded-full bg-red-500"></div>
+              <div className="w-3 h-3 rounded-full bg-yellow-500"></div>
+              <div className="w-3 h-3 rounded-full bg-green-500"></div>
+            </div>
+            <div className="space-y-4 md:space-y-6 pt-4">
               {/* Question Text */}
               <div className="mb-6">
                 <div className="text-center">
@@ -604,9 +602,6 @@ const PronunciationExercise = () => {
                     <Mic className="w-8 h-8 text-white" />
                   )}
                 </button>
-                <p className="text-center text-gray-600 font-medium">
-                  {isRecording ? 'Recording... Speak now!' : 'Tap to start recording'}
-                </p>
               </div>
 
               {/* Pronunciation Results */}
