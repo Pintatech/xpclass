@@ -751,8 +751,15 @@ const MultipleChoiceEditor = ({ questions, onQuestionsChange, settings, onSettin
         // Answer options (A:, B:, C:, D: or 1., 2., 3., 4. or True/False or =)
         else if (trimmedLine.match(/^[A-Za-z][\.):]|^\d+[\.)]|^(True|False)|^=/i)) {
           if (currentQuestion) {
-            // Remove prefix: A., B:, 1., 2), or =
-            let optionText = trimmedLine.replace(/^[A-Za-z\d][\.):]?\s*/, '').replace(/^=\s*/, '')
+            // Remove prefix: A., B:, a., b., 1., 2), or =
+            // Check if line starts with = (correct answer in Moodle format)
+            const startsWithEquals = trimmedLine.startsWith('=')
+
+            // Remove all possible prefixes
+            let optionText = trimmedLine
+              .replace(/^=\s*/, '')                   // Remove = prefix first (Moodle format)
+              .replace(/^[A-Za-z]\s*[.:)]\s*/i, '')   // Remove single letter prefix like "a.", "A:", "B)"
+              .replace(/^\d+\s*[.:)]\s*/, '')         // Remove number prefixes like "1.", "2)"
             let optionExplanation = ''
 
             // Check for per-option explanation after #
@@ -762,8 +769,8 @@ const MultipleChoiceEditor = ({ questions, onQuestionsChange, settings, onSettin
               optionExplanation = (after || '').trim()
             }
 
-            // Check if this is marked as correct (contains * or starts with =)
-            const isCorrect = optionText.includes('*') || trimmedLine.startsWith('=')
+            // Check if this is marked as correct (contains * or started with =)
+            const isCorrect = optionText.includes('*') || startsWithEquals
             optionText = optionText.replace('*', '').trim()
 
             if (isCorrect) {

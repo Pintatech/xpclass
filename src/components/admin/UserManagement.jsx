@@ -16,6 +16,7 @@ import {
   Trash2,
   AlertCircle
 } from 'lucide-react'
+import BulkUserImport from './BulkUserImport'
 
 const UserManagement = () => {
   const { user: currentUser } = useAuth()
@@ -27,6 +28,7 @@ const UserManagement = () => {
   const [notification, setNotification] = useState(null)
   const [editingUser, setEditingUser] = useState(null)
   const [showEditModal, setShowEditModal] = useState(false)
+  const [showBulkImport, setShowBulkImport] = useState(false)
 
   useEffect(() => {
     fetchUsers()
@@ -72,6 +74,7 @@ const UserManagement = () => {
       const formattedUsers = data.map(user => ({
         id: user.id,
         name: user.full_name || 'No Name',
+        username: user.username || '',
         email: user.email,
         role: user.role || 'user',
         level: user.current_level || 1,
@@ -238,7 +241,7 @@ const UserManagement = () => {
             <p className="text-gray-600">Quản lý tài khoản và quyền người dùng</p>
           </div>
         </div>
-        <Button>
+        <Button onClick={() => setShowBulkImport(true)}>
           <UserPlus className="w-4 h-4 mr-2" />
           Thêm người dùng
         </Button>
@@ -293,6 +296,7 @@ const UserManagement = () => {
               <thead className="bg-gray-50 border-b">
                 <tr>
                   <th className="text-left py-3 px-6 font-medium text-gray-500">Người dùng</th>
+                  <th className="text-left py-3 px-6 font-medium text-gray-500">Username</th>
                   <th className="text-left py-3 px-6 font-medium text-gray-500">Vai trò</th>
                   <th className="text-left py-3 px-6 font-medium text-gray-500">Cohorts</th>
                   <th className="text-left py-3 px-6 font-medium text-gray-500">Tiến độ</th>
@@ -314,6 +318,11 @@ const UserManagement = () => {
                           <div className="text-sm text-gray-600">{user.email}</div>
                         </div>
                       </div>
+                    </td>
+                    <td className="py-4 px-6">
+                      <span className="text-sm font-mono text-gray-700">
+                        {user.username || <span className="text-gray-400">—</span>}
+                      </span>
                     </td>
                     <td className="py-4 px-6">
                       <span className={`inline-flex items-center px-2 py-1 rounded-full text-xs ${getRoleColor(user.role)}`}>
@@ -448,6 +457,17 @@ const UserManagement = () => {
             <span>{notification.message}</span>
           </div>
         </div>
+      )}
+
+      {/* Bulk Import Modal */}
+      {showBulkImport && (
+        <BulkUserImport
+          onClose={() => setShowBulkImport(false)}
+          onSuccess={() => {
+            fetchUsers()
+            showNotification('Users imported successfully!')
+          }}
+        />
       )}
     </div>
   )

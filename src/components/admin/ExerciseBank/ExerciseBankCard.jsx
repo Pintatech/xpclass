@@ -1,4 +1,4 @@
-import React, { useState } from 'react'
+import { useState } from 'react'
 import { supabase } from '../../../supabase/client'
 import {
   BookOpen,
@@ -9,7 +9,6 @@ import {
   Edit,
   Trash2,
   Copy,
-  Move,
   Eye,
   Star,
   Clock,
@@ -17,7 +16,7 @@ import {
   FolderOpen
 } from 'lucide-react'
 
-const ExerciseBankCard = ({ exercise, viewMode, onUpdate, onEdit }) => {
+const ExerciseBankCard = ({ exercise, viewMode, onUpdate, onEdit, readOnly = false }) => {
   const [showMenu, setShowMenu] = useState(false)
   const [showAssignments, setShowAssignments] = useState(false)
   const [assignments, setAssignments] = useState([])
@@ -68,6 +67,35 @@ const ExerciseBankCard = ({ exercise, viewMode, onUpdate, onEdit }) => {
       default:
         return 'bg-gray-100 text-gray-800'
     }
+  }
+
+  const handlePreview = () => {
+    // Build the appropriate URL based on exercise type
+    const getExerciseUrl = () => {
+      switch (exercise.exercise_type) {
+        case 'flashcard':
+          return `/study/flashcards?exerciseId=${exercise.id}`
+        case 'pronunciation':
+          return `/study/pronunciation?exerciseId=${exercise.id}`
+        case 'fill_blank':
+          return `/study/fill-blank?exerciseId=${exercise.id}`
+        case 'multiple_choice':
+          return `/study/multiple-choice?exerciseId=${exercise.id}`
+        case 'drag_drop':
+          return `/study/drag-drop?exerciseId=${exercise.id}`
+        case 'ai_fill_blank':
+          return `/study/ai-fill-blank?exerciseId=${exercise.id}`
+        default:
+          return null
+      }
+    }
+
+    const url = getExerciseUrl()
+    if (url) {
+      // Open in new tab
+      window.open(url, '_blank')
+    }
+    setShowMenu(false)
   }
 
   const handleEdit = () => {
@@ -282,35 +310,46 @@ const ExerciseBankCard = ({ exercise, viewMode, onUpdate, onEdit }) => {
               {showMenu && (
                 <div className="absolute right-0 top-10 bg-white rounded-lg shadow-lg border border-gray-200 py-1 z-10 min-w-[160px]">
                   <button
+                    onClick={handlePreview}
+                    className="w-full text-left px-3 py-2 text-sm hover:bg-gray-50 flex items-center space-x-2"
+                  >
+                    <Eye className="w-3 h-3" />
+                    <span>Preview</span>
+                  </button>
+                  <button
                     onClick={openAssignments}
                     className="w-full text-left px-3 py-2 text-sm hover:bg-gray-50 flex items-center space-x-2"
                   >
                     <FolderOpen className="w-3 h-3" />
                     <span>Assignments</span>
                   </button>
-                  <button
-                    onClick={handleEdit}
-                    className="w-full text-left px-3 py-2 text-sm hover:bg-gray-50 flex items-center space-x-2"
-                  >
-                    <Edit className="w-3 h-3" />
-                    <span>Edit</span>
-                  </button>
-                  <button
-                    onClick={handleDuplicate}
-                    className="w-full text-left px-3 py-2 text-sm hover:bg-gray-50 flex items-center space-x-2"
-                  >
-                    <Copy className="w-3 h-3" />
-                    <span>Duplicate</span>
-                  </button>
-            
-                  <hr className="my-1" />
-                  <button
-                    onClick={handleDelete}
-                    className="w-full text-left px-3 py-2 text-sm hover:bg-gray-50 text-red-600 flex items-center space-x-2"
-                  >
-                    <Trash2 className="w-3 h-3" />
-                    <span>Delete</span>
-                  </button>
+                  {!readOnly && (
+                    <>
+                      <button
+                        onClick={handleEdit}
+                        className="w-full text-left px-3 py-2 text-sm hover:bg-gray-50 flex items-center space-x-2"
+                      >
+                        <Edit className="w-3 h-3" />
+                        <span>Edit</span>
+                      </button>
+                      <button
+                        onClick={handleDuplicate}
+                        className="w-full text-left px-3 py-2 text-sm hover:bg-gray-50 flex items-center space-x-2"
+                      >
+                        <Copy className="w-3 h-3" />
+                        <span>Duplicate</span>
+                      </button>
+
+                      <hr className="my-1" />
+                      <button
+                        onClick={handleDelete}
+                        className="w-full text-left px-3 py-2 text-sm hover:bg-gray-50 text-red-600 flex items-center space-x-2"
+                      >
+                        <Trash2 className="w-3 h-3" />
+                        <span>Delete</span>
+                      </button>
+                    </>
+                  )}
                 </div>
               )}
             </div>
@@ -392,35 +431,46 @@ const ExerciseBankCard = ({ exercise, viewMode, onUpdate, onEdit }) => {
             {showMenu && (
               <div className="absolute right-0 top-6 bg-white rounded-lg shadow-lg border border-gray-200 py-1 z-10 min-w-[140px]">
                 <button
+                  onClick={handlePreview}
+                  className="w-full text-left px-3 py-2 text-sm hover:bg-gray-50 flex items-center space-x-2"
+                >
+                  <Eye className="w-3 h-3" />
+                  <span>Preview</span>
+                </button>
+                <button
                   onClick={openAssignments}
                   className="w-full text-left px-3 py-2 text-sm hover:bg-gray-50 flex items-center space-x-2"
                 >
                   <FolderOpen className="w-3 h-3" />
                   <span>Assignments</span>
                 </button>
-                <button
-                  onClick={handleEdit}
-                  className="w-full text-left px-3 py-2 text-sm hover:bg-gray-50 flex items-center space-x-2"
-                >
-                  <Edit className="w-3 h-3" />
-                  <span>Edit</span>
-                </button>
-                <button
-                  onClick={handleDuplicate}
-                  className="w-full text-left px-3 py-2 text-sm hover:bg-gray-50 flex items-center space-x-2"
-                >
-                  <Copy className="w-3 h-3" />
-                  <span>Duplicate</span>
-                </button>
-                
-                <hr className="my-1" />
-                <button
-                  onClick={handleDelete}
-                  className="w-full text-left px-3 py-2 text-sm hover:bg-gray-50 text-red-600 flex items-center space-x-2"
-                >
-                  <Trash2 className="w-3 h-3" />
-                  <span>Delete</span>
-                </button>
+                {!readOnly && (
+                  <>
+                    <button
+                      onClick={handleEdit}
+                      className="w-full text-left px-3 py-2 text-sm hover:bg-gray-50 flex items-center space-x-2"
+                    >
+                      <Edit className="w-3 h-3" />
+                      <span>Edit</span>
+                    </button>
+                    <button
+                      onClick={handleDuplicate}
+                      className="w-full text-left px-3 py-2 text-sm hover:bg-gray-50 flex items-center space-x-2"
+                    >
+                      <Copy className="w-3 h-3" />
+                      <span>Duplicate</span>
+                    </button>
+
+                    <hr className="my-1" />
+                    <button
+                      onClick={handleDelete}
+                      className="w-full text-left px-3 py-2 text-sm hover:bg-gray-50 text-red-600 flex items-center space-x-2"
+                    >
+                      <Trash2 className="w-3 h-3" />
+                      <span>Delete</span>
+                    </button>
+                  </>
+                )}
               </div>
             )}
           </div>

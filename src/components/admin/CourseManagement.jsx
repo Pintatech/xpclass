@@ -212,10 +212,6 @@ const CourseManagement = () => {
     }
   };
 
-  const copyCourseId = (courseId) => {
-    navigator.clipboard.writeText(courseId);
-    showNotification('Course ID copied to clipboard!');
-  };
 
   const handleToggleLock = async (courseId, newStatus) => {
     try {
@@ -241,10 +237,6 @@ const CourseManagement = () => {
     <div className="space-y-6">
       {/* Header */}
       <div className="flex justify-between items-center">
-        <div>
-          <h2 className="text-2xl font-bold text-gray-900">Course Management</h2>
-          <p className="text-gray-600">Create and manage learning courses</p>
-        </div>
         <button
           onClick={() => {
             setEditingCourse(null);
@@ -293,15 +285,11 @@ const CourseManagement = () => {
                   <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                     Title & Description
                   </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    Difficulty
-                  </th>
+
                   <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                     Teachers
                   </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    Requirements
-                  </th>
+
                   <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                     Status
                   </th>
@@ -310,6 +298,8 @@ const CourseManagement = () => {
                   </th>
                 </tr>
               </thead>
+
+              
               <tbody className="divide-y divide-gray-200">
                 {courses.map((course) => (
                   <tr key={course.id} className="hover:bg-gray-50">
@@ -335,16 +325,7 @@ const CourseManagement = () => {
                         <div className="w-10 h-10 bg-blue-100 rounded-full flex items-center justify-center">
                           <span className="text-blue-800 font-bold">{course.level_number}</span>
                         </div>
-                        <div>
-                          <div className="text-sm text-gray-500">Course {course.level_number}</div>
-                          <button
-                            onClick={() => copyCourseId(course.id)}
-                            className="text-xs text-blue-600 hover:underline flex items-center gap-1"
-                          >
-                            <Copy className="w-3 h-3" />
-                            Copy ID
-                          </button>
-                        </div>
+
                       </div>
                     </td>
                     <td className="px-6 py-4">
@@ -353,34 +334,19 @@ const CourseManagement = () => {
                         <div className="text-sm text-gray-600">{course.description}</div>
                       </div>
                     </td>
-                    <td className="px-6 py-4">
-                      <span className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${
-                        course.difficulty_label === 'Beginner'
-                          ? 'bg-green-100 text-green-800'
-                          : course.difficulty_label === 'Intermediate'
-                          ? 'bg-yellow-100 text-yellow-800'
-                          : 'bg-red-100 text-red-800'
-                      }`}>
-                        {course.difficulty_label}
-                      </span>
-                    </td>
+
                     <td className="px-6 py-4">
                       {course.course_teachers && course.course_teachers.length > 0 ? (
                         <div className="space-y-1">
                           {course.course_teachers.map((ct, index) => (
                             <div key={index}>
                               <div className="text-sm font-medium text-gray-900">{ct.teacher.full_name}</div>
-                              <div className="text-sm text-gray-600">{ct.teacher.email}</div>
                             </div>
                           ))}
                         </div>
                       ) : (
                         <span className="text-sm text-gray-500 italic">No teachers assigned</span>
                       )}
-                    </td>
-                    <td className="px-6 py-4">
-                      <div className="text-sm text-gray-900">{course.unlock_requirement} XP</div>
-                      <div className="text-sm text-gray-600">to unlock</div>
                     </td>
                     <td className="px-6 py-4">
                       <div className="flex items-center gap-2">

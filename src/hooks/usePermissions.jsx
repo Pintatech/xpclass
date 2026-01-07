@@ -1,17 +1,17 @@
 import { useAuth } from './useAuth'
 
 export const usePermissions = () => {
-  const { user, isAdmin } = useAuth()
+  const { user, profile, isAdmin } = useAuth()
 
   const canCreateContent = () => {
-    // Allow admins and authenticated users to create content
-    // You can customize this logic based on your requirements
-    return user && (isAdmin() || user.role === 'admin' || user.role === 'teacher')
+    // Allow admins and teachers to create content
+    // Check profile.role from users table, not user.role from auth
+    return user && (isAdmin() || profile?.role === 'admin' || profile?.role === 'teacher')
   }
 
   const canEditContent = () => {
     // Similar to create, but you might have different rules
-    return user && (isAdmin() || user.role === 'admin' || user.role === 'teacher')
+    return user && (isAdmin() || profile?.role === 'admin' || profile?.role === 'teacher')
   }
 
   const canDeleteContent = () => {

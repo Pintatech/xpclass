@@ -4,19 +4,13 @@ import {
   FolderOpen,
   Plus,
   Search,
-  Filter,
   Grid,
   List,
   BookOpen,
   Edit3,
   Mic,
-  Headphones,
   HelpCircle,
-  MoreVertical,
-  Edit,
-  Trash2,
   Copy,
-  Move,
   Brain
 } from 'lucide-react'
 import FolderTree from './ExerciseBank/FolderTree'
@@ -25,7 +19,7 @@ import CreateExerciseModal from './ExerciseBank/CreateExerciseModal'
 import CreateFolderModal from './ExerciseBank/CreateFolderModal'
 import EditExerciseModal from './ExerciseBank/EditExerciseModal'
 
-const ExerciseBank = () => {
+const ExerciseBank = ({ readOnly = false }) => {
   const [folders, setFolders] = useState([])
   const [exercises, setExercises] = useState([])
   const [folderCounts, setFolderCounts] = useState({})
@@ -207,13 +201,15 @@ const ExerciseBank = () => {
           <div className="p-4 border-b border-gray-200">
             <div className="flex items-center justify-between mb-4">
               <h2 className="text-lg font-semibold text-gray-900">Exercise Bank</h2>
-              <button
-                onClick={handleCreateFolder}
-                className="p-2 text-gray-500 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"
-                title="Create Folder"
-              >
-                <Plus className="w-4 h-4" />
-              </button>
+              {!readOnly && (
+                <button
+                  onClick={handleCreateFolder}
+                  className="p-2 text-gray-500 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"
+                  title="Create Folder"
+                >
+                  <Plus className="w-4 h-4" />
+                </button>
+              )}
             </div>
           </div>
 
@@ -224,6 +220,7 @@ const ExerciseBank = () => {
               selectedFolder={selectedFolder}
               onSelectFolder={setSelectedFolder}
               onFolderUpdate={fetchFolders}
+              readOnly={readOnly}
             />
           </div>
         </div>
@@ -251,15 +248,17 @@ const ExerciseBank = () => {
                 </nav>
               </div>
 
-              <div className="flex items-center space-x-3">
-                <button
-                  onClick={handleCreateExercise}
-                  className="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition-colors flex items-center space-x-2"
-                >
-                  <Plus className="w-4 h-4" />
-                  <span>New Exercise</span>
-                </button>
-              </div>
+              {!readOnly && (
+                <div className="flex items-center space-x-3">
+                  <button
+                    onClick={handleCreateExercise}
+                    className="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition-colors flex items-center space-x-2"
+                  >
+                    <Plus className="w-4 h-4" />
+                    <span>New Exercise</span>
+                  </button>
+                </div>
+              )}
             </div>
 
             {/* Search and Filters */}
@@ -346,6 +345,7 @@ const ExerciseBank = () => {
                     viewMode={viewMode}
                     onUpdate={fetchExercises}
                     onEdit={handleEditExercise}
+                    readOnly={readOnly}
                   />
                 ))}
               </div>

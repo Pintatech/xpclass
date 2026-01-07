@@ -173,74 +173,71 @@ const SessionManagement = () => {
 
   return (
     <div className="space-y-6">
-      {/* Header */}
-      <div className="flex justify-between items-center">
-        <div>
-          <h2 className="text-2xl font-bold text-gray-900">Session Management</h2>
-          <p className="text-gray-600">Create and manage learning sessions within units</p>
-        </div>
-        <button
-          onClick={() => {
-            setEditingSession(null);
-            setShowModal(true);
-          }}
-          className="bg-purple-600 text-white px-4 py-2 rounded-lg hover:bg-purple-700 transition-colors flex items-center gap-2"
-        >
-          <Plus className="w-4 h-4" />
-          Create Session
-        </button>
-      </div>
+
 
       {/* Filters */}
       <div className="bg-white rounded-lg shadow-sm border p-4">
-        <div className="flex flex-wrap items-center gap-4">
-          <div>
-            <label className="text-sm font-medium text-gray-700 mr-2">Course:</label>
-            <select
-              value={filterLevel}
-              onChange={(e) => {
-                setFilterLevel(e.target.value);
-                setFilterUnit(''); // Reset unit filter when course changes
-              }}
-              className="p-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500"
-            >
-              <option value="">All Courses</option>
-              {levels.map(level => (
-                <option key={level.id} value={level.id}>
-                  Level {level.level_number}: {level.title}
-                </option>
-              ))}
-            </select>
+        <div className="flex items-center justify-between gap-4">
+          <div className="flex flex-wrap items-center gap-4">
+            <div>
+              <label className="text-sm font-medium text-gray-700 mr-2">Course:</label>
+              <select
+                value={filterLevel}
+                onChange={(e) => {
+                  setFilterLevel(e.target.value);
+                  setFilterUnit(''); // Reset unit filter when course changes
+                }}
+                className="p-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500"
+              >
+                <option value="">All Courses</option>
+                {levels.map(level => (
+                  <option key={level.id} value={level.id}>
+                    Level {level.level_number}: {level.title}
+                  </option>
+                ))}
+              </select>
+            </div>
+
+            <div>
+              <label className="text-sm font-medium text-gray-700 mr-2">Unit:</label>
+              <select
+                value={filterUnit}
+                onChange={(e) => setFilterUnit(e.target.value)}
+                className="p-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500"
+                disabled={!filterLevel}
+              >
+                <option value="">All Units</option>
+                {availableUnits.map(unit => (
+                  <option key={unit.id} value={unit.id}>
+                    Unit {unit.unit_number}: {unit.title}
+                  </option>
+                ))}
+              </select>
+            </div>
+
+            {(filterLevel || filterUnit) && (
+              <button
+                onClick={() => {
+                  setFilterLevel('');
+                  setFilterUnit('');
+                }}
+                className="text-sm text-gray-600 hover:text-gray-800"
+              >
+                Clear Filters
+              </button>
+            )}
           </div>
 
-          <div>
-            <label className="text-sm font-medium text-gray-700 mr-2">Unit:</label>
-            <select
-              value={filterUnit}
-              onChange={(e) => setFilterUnit(e.target.value)}
-              className="p-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500"
-              disabled={!filterLevel}
-            >
-              <option value="">All Units</option>
-              {availableUnits.map(unit => (
-                <option key={unit.id} value={unit.id}>
-                  Unit {unit.unit_number}: {unit.title}
-                </option>
-              ))}
-            </select>
-          </div>
-
-          {(filterLevel || filterUnit) && (
-            <button
-              onClick={() => {
-                setFilterLevel('');
-                setFilterUnit('');
-              }}
-              className="text-sm text-gray-600 hover:text-gray-800"
-            >
-              Clear Filters
-            </button>
-          )}
+          <button
+            onClick={() => {
+              setEditingSession(null);
+              setShowModal(true);
+            }}
+            className="bg-purple-600 text-white px-4 py-2 rounded-lg hover:bg-purple-700 transition-colors flex items-center gap-2"
+          >
+            <Plus className="w-4 h-4" />
+            Create Session
+          </button>
         </div>
       </div>
 

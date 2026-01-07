@@ -5,12 +5,8 @@ import {
   Copy,
   ChevronUp,
   ChevronDown,
-  Eye,
-  EyeOff,
-  Upload,
   Check,
   HelpCircle,
-  X,
   GripVertical,
   Target
 } from 'lucide-react'
@@ -40,8 +36,6 @@ const DragDropEditor = ({ questions, onQuestionsChange }) => {
   const [localQuestions, setLocalQuestions] = useState((questions || []).map((q, i) => normalizeQuestion(q, i)))
   const [bulkImportMode, setBulkImportMode] = useState(false)
   const [bulkText, setBulkText] = useState('')
-  const [previewOpen, setPreviewOpen] = useState({})
-  const [draggedItem, setDraggedItem] = useState(null)
 
   useEffect(() => {
     setLocalQuestions((questions || []).map((q, i) => normalizeQuestion(q, i)))
@@ -222,14 +216,14 @@ const DragDropEditor = ({ questions, onQuestionsChange }) => {
       lines.forEach((line, index) => {
         const trimmedLine = line.trim()
 
-        // Question line (starts with Q: or number.)
-        if (trimmedLine.match(/^(Q:|Question|\d+[\.):])/i)) {
+        // Question line (starts with Q:, Quest, Question or number.)
+        if (trimmedLine.match(/^(Q:|Quest\s*\d+|Question\s*\d+|\d+)\s*[:.)]/i)) {
           if (currentQuestion) {
             newQuestions.push(currentQuestion)
           }
           currentQuestion = {
             id: `q${Date.now()}_${questionCounter++}`,
-            question: trimmedLine.replace(/^(Q:|Question|\d+[\.):])\s*/i, ''),
+            question: trimmedLine.replace(/^(Q:|Quest\s*\d+|Question\s*\d+|\d+)\s*[:.)]?\s*/i, ''),
             items: [],
             correct_order: [],
             drop_zones: [],
@@ -240,6 +234,23 @@ const DragDropEditor = ({ questions, onQuestionsChange }) => {
               max_attempts: 3,
               time_limit: 300
             }
+          }
+        }
+        // Auto-extract items from [brackets] - e.g., [This] [is] [a] [sentence].
+        else if (currentQuestion && trimmedLine.includes('[') && trimmedLine.includes(']')) {
+          const bracketMatches = trimmedLine.match(/\[([^\]]+)\]/g)
+          if (bracketMatches && bracketMatches.length > 0) {
+            const items = bracketMatches.map((match, idx) => ({
+              id: `item_${Date.now()}_${idx}`,
+              text: match.replace(/[[\]]/g, '').trim(),
+              type: 'word',
+              image: ''
+            }))
+            currentQuestion.items = items
+            // Set correct order to match the bracket order
+            currentQuestion.correct_order = items.map(item => item.text)
+            // Replace the question text with the bracketed sentence
+            currentQuestion.question = trimmedLine
           }
         }
         // Items line (starts with Items:)
@@ -276,14 +287,24 @@ const DragDropEditor = ({ questions, onQuestionsChange }) => {
       }
 
       if (newQuestions.length > 0) {
-        const updatedQuestions = [...localQuestions, ...newQuestions]
-        setLocalQuestions(updatedQuestions)
-        onQuestionsChange(updatedQuestions)
-        setBulkText('')
-        setBulkImportMode(false)
-        alert(`Successfully imported ${newQuestions.length} questions!`)
+        // Filter out questions that don't have items
+        const validQuestions = newQuestions.filter(q => q.items && q.items.length > 0)
+
+        if (validQuestions.length > 0) {
+          const updatedQuestions = [...localQuestions, ...validQuestions]
+          setLocalQuestions(updatedQuestions)
+          onQuestionsChange(updatedQuestions)
+          setBulkText('')
+          setBulkImportMode(false)
+          alert(`Successfully imported ${validQuestions.length} questions!`)
+        } else {
+          alert('No valid questions found. Make sure each question has items in [brackets].')
+        }
+      } else {
+        alert('No questions found. Format: Quest 1:\\n[item1] [item2] [item3]')
       }
     } catch (error) {
+      console.error('Bulk import error:', error)
       alert('Error processing bulk import. Please check your format.')
     }
   }

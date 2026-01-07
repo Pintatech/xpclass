@@ -135,48 +135,44 @@ const UnitManagement = () => {
 
   return (
     <div className="space-y-6">
-      {/* Header */}
-      <div className="flex justify-between items-center">
-        <div>
-          <h2 className="text-2xl font-bold text-gray-900">Unit Management</h2>
-          <p className="text-gray-600">Create and manage learning units within levels</p>
-        </div>
-        <button
-          onClick={() => {
-            setEditingUnit(null);
-            setShowModal(true);
-          }}
-          className="bg-green-600 text-white px-4 py-2 rounded-lg hover:bg-green-700 transition-colors flex items-center gap-2"
-        >
-          <Plus className="w-4 h-4" />
-          Create Unit
-        </button>
-      </div>
 
       {/* Filter */}
       <div className="bg-white rounded-lg shadow-sm border p-4">
-        <div className="flex items-center gap-4">
-          <label className="text-sm font-medium text-gray-700">Filter by Course:</label>
-          <select
-            value={filterLevel}
-            onChange={(e) => setFilterLevel(e.target.value)}
-            className="p-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500"
-          >
-            <option value="">All Courses</option>
-            {levels.map(level => (
-              <option key={level.id} value={level.id}>
-                Level {level.level_number}: {level.title}
-              </option>
-            ))}
-          </select>
-          {filterLevel && (
-            <button
-              onClick={() => setFilterLevel('')}
-              className="text-sm text-gray-600 hover:text-gray-800"
+        <div className="flex items-center justify-between gap-4">
+          <div className="flex items-center gap-4">
+            <label className="text-sm font-medium text-gray-700">Filter by Course:</label>
+            <select
+              value={filterLevel}
+              onChange={(e) => setFilterLevel(e.target.value)}
+              className="p-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500"
             >
-              Clear Filter
-            </button>
-          )}
+              <option value="">All Courses</option>
+              {levels.map(level => (
+                <option key={level.id} value={level.id}>
+                  Level {level.level_number}: {level.title}
+                </option>
+              ))}
+            </select>
+            {filterLevel && (
+              <button
+                onClick={() => setFilterLevel('')}
+                className="text-sm text-gray-600 hover:text-gray-800"
+              >
+                Clear Filter
+              </button>
+            )}
+          </div>
+
+          <button
+            onClick={() => {
+              setEditingUnit(null);
+              setShowModal(true);
+            }}
+            className="bg-green-600 text-white px-4 py-2 rounded-lg hover:bg-green-700 transition-colors flex items-center gap-2"
+          >
+            <Plus className="w-4 h-4" />
+            Create Unit
+          </button>
         </div>
       </div>
 

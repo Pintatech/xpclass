@@ -516,35 +516,23 @@ const MultipleChoiceExercise = () => {
             <p className="text-xs md:text-sm font-medium text-gray-500 truncate mb-1">
               {isRetryMode ? 'Ôn lại câu sai' : exercise?.title}
             </p>
-            <h1 className="text-lg md:text-2xl font-bold text-gray-900">Trắc nghiệm</h1>
           </div>
-          <div className="text-right flex-shrink-0">
-            <div className="text-xl md:text-3xl font-bold text-blue-600">
-              {viewMode === 'one-by-one' ? `${currentQuestionNumber}/${totalQuestions}` : `${Object.keys(allAnswers).length}/${totalQuestions}`}
-            </div>
-            <div className="text-xs md:text-sm text-gray-500">
-              Câu hỏi
-            </div>
+          {/* Target info */}
+          <div className="flex items-center gap-2 text-xs md:text-sm text-gray-600">
+            <span className="inline-block w-2 h-2 rounded-full bg-green-500"></span>
+            <span>≥ 75% để hoàn thành</span>
           </div>
         </div>
 
 
         {/* Progress Bar inside header */}
         <div className="mt-4 relative">
-          <div className="flex items-center justify-between mb-2">
-            <span className="text-xs md:text-sm text-gray-600">Tiến độ</span>
-            <span className="text-xs md:text-sm font-semibold text-blue-600">
-              {viewMode === 'one-by-one' 
-                ? `${Math.round((currentQuestionNumber / totalQuestions) * 100)}%`
-                : `${Math.round((Object.keys(allAnswers).length / totalQuestions) * 100)}%`
-              }
-            </span>
-          </div>
+
           <div className="w-full bg-gray-200 rounded-full h-2.5 relative overflow-visible">
             <div
               className="bg-blue-600 h-2.5 rounded-full transition-all duration-[3000ms]"
-              style={{ 
-                width: viewMode === 'one-by-one' 
+              style={{
+                width: viewMode === 'one-by-one'
                   ? `${(currentQuestionNumber / totalQuestions) * 100}%`
                   : `${(Object.keys(allAnswers).length / totalQuestions) * 100}%`
               }}
@@ -562,12 +550,6 @@ const MultipleChoiceExercise = () => {
               />
             )}
           </div>
-        </div>
-
-        {/* Target info */}
-        <div className="mt-3 flex items-center gap-2 text-xs md:text-sm text-gray-600">
-          <span className="inline-block w-2 h-2 rounded-full bg-green-500"></span>
-          <span>Cần đạt ≥ 75% để hoàn thành</span>
         </div>
       </div>
 

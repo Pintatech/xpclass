@@ -8,17 +8,10 @@ import {
   BookOpen,
   Users,
   Trophy,
-  TrendingUp,
-  Clock,
-  Target,
-  Star,
-  BarChart3,
-  Calendar,
-  Award,
   ChevronDown,
   ChevronRight,
-  BarChart,
-  Grid
+  Grid,
+  Eye
 } from 'lucide-react';
 
 const TeacherDashboard = () => {
@@ -332,20 +325,19 @@ const TeacherDashboard = () => {
 
   return (
     <div className="space-y-6">
-      {/* Header */}
-      <div className="flex justify-between items-start">
-      <div>
-        <h1 className="text-3xl font-bold text-gray-900">
-          {isAdmin() ? 'Admin Teacher Dashboard' : 'Teacher Dashboard'}
-        </h1>
-        <p className="text-gray-600 mt-2">
-          {isAdmin() 
-            ? 'Monitor all students\' progress and performance across all courses' 
-            : 'Monitor your students\' progress and performance'
-          }
-        </p>
+      {/* Quick Actions */}
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+          <div
+            onClick={() => navigate('/teacher/exercise-bank')}
+            className="bg-gradient-to-br from-blue-50 to-blue-100 p-6 rounded-lg shadow-sm hover:shadow-md cursor-pointer transition-all border border-blue-200"
+          >
+            <div className="flex items-center space-x-3 mb-2">
+              <Eye className="w-8 h-8 text-blue-600" />
+              <h3 className="font-semibold text-gray-800">Exercise Bank</h3>
+            </div>
+            <p className="text-sm text-gray-600">Browse and preview all exercises</p>
+          </div>
         </div>
-      </div>
 
       {/* Course Selection */}
       {courses.length > 0 && (

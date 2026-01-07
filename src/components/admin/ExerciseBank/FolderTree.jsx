@@ -18,7 +18,7 @@ import {
 import CreateFolderModal from './CreateFolderModal'
 import EditFolderModal from './EditFolderModal'
 
-const FolderTree = ({ folders, folderCounts = {}, selectedFolder, onSelectFolder, onFolderUpdate }) => {
+const FolderTree = ({ folders, folderCounts = {}, selectedFolder, onSelectFolder, onFolderUpdate, readOnly = false }) => {
   const [expandedFolders, setExpandedFolders] = useState(new Set())
   const [contextMenu, setContextMenu] = useState(null)
   const [showCreateModalFor, setShowCreateModalFor] = useState(null)
@@ -127,19 +127,21 @@ const FolderTree = ({ folders, folderCounts = {}, selectedFolder, onSelectFolder
           </div>
 
           {/* Context Menu Button */}
-          <button
-            onClick={(e) => {
-              e.stopPropagation()
-              setContextMenu(contextMenu?.id === folder.id ? null : folder)
-            }}
-            className="p-1 opacity-0 group-hover:opacity-100 hover:bg-gray-200 rounded transition-opacity"
-          >
-            <MoreVertical className="w-3 h-3 text-gray-500" />
-          </button>
+          {!readOnly && (
+            <button
+              onClick={(e) => {
+                e.stopPropagation()
+                setContextMenu(contextMenu?.id === folder.id ? null : folder)
+              }}
+              className="p-1 opacity-0 group-hover:opacity-100 hover:bg-gray-200 rounded transition-opacity"
+            >
+              <MoreVertical className="w-3 h-3 text-gray-500" />
+            </button>
+          )}
         </div>
 
         {/* Context Menu */}
-        {contextMenu?.id === folder.id && (
+        {!readOnly && contextMenu?.id === folder.id && (
           <div className="absolute right-4 bg-white rounded-lg shadow-lg border border-gray-200 py-1 z-10">
             <button
               onClick={() => {

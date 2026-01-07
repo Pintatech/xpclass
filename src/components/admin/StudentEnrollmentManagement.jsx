@@ -267,13 +267,6 @@ const StudentEnrollmentManagement = () => {
 
   return (
     <div className="space-y-6">
-      {/* Header */}
-      <div className="flex justify-between items-center">
-        <div>
-          <h2 className="text-2xl font-bold text-gray-900">Student Enrollment Management</h2>
-          <p className="text-gray-600">Assign students to courses</p>
-        </div>
-      </div>
 
       {/* Course Selection */}
       <div className="bg-white rounded-lg shadow-sm border p-6">

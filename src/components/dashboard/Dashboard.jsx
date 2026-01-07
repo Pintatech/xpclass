@@ -73,8 +73,34 @@ const Dashboard = () => {
         const enrolledCourses = data?.map(enrollment => enrollment.courses).filter(Boolean) || []
         console.log('Fetched enrolled courses:', enrolledCourses)
         setCourses(enrolledCourses)
+      } else if (profile?.role === 'teacher') {
+        // Teacher: fetch only assigned courses
+        const { data, error } = await supabase
+          .from('course_teachers')
+          .select(`
+            courses (
+              id,
+              title,
+              description,
+              thumbnail_url,
+              level_number,
+              difficulty_label,
+              color_theme,
+              is_active
+            )
+          `)
+          .eq('teacher_id', profile.id)
+          .eq('courses.is_active', true)
+          .order('level_number', { foreignTable: 'courses' })
+
+        if (error) throw error
+
+        // Extract courses from the teacher assignments
+        const assignedCourses = data?.map(assignment => assignment.courses).filter(Boolean) || []
+        console.log('Fetched assigned courses for teacher:', assignedCourses)
+        setCourses(assignedCourses)
       } else {
-        // Admin/Teacher: fetch all courses
+        // Admin: fetch all courses
         let { data, error } = await supabase
           .from('courses')
           .select(`
