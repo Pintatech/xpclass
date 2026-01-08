@@ -274,7 +274,8 @@ const AIFillBlankExercise = () => {
   const showResult = showResults[currentQuestionIndex]
 
   return (
-    <div className="min-h-screen bg-gray-50">
+    <div className="min-h-screen bg-white">
+      
       {/* Header */}
       <div className="bg-white shadow-sm border-b">
         <div className="max-w-4xl mx-auto px-4 py-4">
@@ -294,7 +295,7 @@ const AIFillBlankExercise = () => {
       </div>
 
       {/* Main Content */}
-      <div className="max-w-4xl mx-auto px-4 py-8">
+      <div className="max-w-4xl mx-auto py-8">
         <div className="bg-white rounded-lg shadow-md p-6 border border-gray-200">
           {/* Question */}
           <div className="mb-8">

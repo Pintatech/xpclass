@@ -115,19 +115,28 @@ const AIFillBlankEditor = ({ questions, onQuestionsChange }) => {
 
   const generateAIPrompt = (questionIndex) => {
     const question = localQuestions[questionIndex]
-    const prompt = `Score this fill-in-the-blank answer for the question: "${question.question}"
+    const prompt = `Đánh giá câu trả lời điền vào chỗ trống cho câu hỏi: "${question.question}"
 
-Expected answers: ${question.expected_answers.join(', ')}
+Đáp án mong đợi: ${question.expected_answers.join(', ')}
 
-Consider:
-- Exact matches should score 100
-- Partial matches should score 50-90 based on similarity
-- Conceptual understanding should be rewarded
-- Minor spelling/grammar errors should not heavily penalize
-- Completely wrong answers should score 0-30
+Yêu cầu đánh giá:
+1. Điểm số từ 0-100 dựa trên độ chính xác và sự hiểu biết
+2. Mức độ tin cậy từ 0-100
+3. Giải thích CHI TIẾT (2-4 câu) bao gồm:
+   - Tại sao câu trả lời đúng/sai
+   - So sánh với đáp án đúng
+   - Điểm mạnh hoặc điểm cần cải thiện
+   - Gợi ý học tập (nếu câu trả lời không hoàn hảo)
 
-Provide a score (0-100), confidence level (0-100), and brief explanation.`
-    
+Tiêu chí chấm điểm:
+- Khớp chính xác: 100 điểm
+- Khớp một phần: 50-90 điểm (dựa vào mức độ tương đồng)
+- Hiểu khái niệm đúng: được khen thưởng
+- Lỗi chính tả/ngữ pháp nhỏ: không bị phạt nặng
+- Hoàn toàn sai: 0-30 điểm
+
+Trả lời bằng tiếng Việt với giải thích chi tiết, khuyến khích học sinh.`
+
     updateQuestion(questionIndex, 'ai_prompt', prompt)
   }
 

@@ -227,39 +227,24 @@ const UserManagement = () => {
 
   return (
     <div className="space-y-6">
-      {/* Header */}
-      <div className="flex items-center justify-between">
-        <div className="flex items-center space-x-4">
-          <Link to="/admin">
-            <Button variant="ghost" size="sm">
-              <ArrowLeft className="w-4 h-4 mr-2" />
-              Quay lại
-            </Button>
-          </Link>
-          <div>
-            <h1 className="text-2xl font-bold text-gray-900">Quản lý người dùng</h1>
-            <p className="text-gray-600">Quản lý tài khoản và quyền người dùng</p>
-          </div>
-        </div>
-        <Button onClick={() => setShowBulkImport(true)}>
-          <UserPlus className="w-4 h-4 mr-2" />
-          Thêm người dùng
-        </Button>
-      </div>
 
-      {/* Filters */}
+      {/* Users Table */}
       <Card>
-        <Card.Content>
-          <div className="flex flex-col md:flex-row gap-4">
+        <Card.Header>
+          <div className="flex items-center gap-4">
+            <h3 className="text-lg font-semibold text-gray-900 whitespace-nowrap">
+              Danh sách người dùng ({filteredUsers.length})
+            </h3>
+
             {/* Search */}
-            <div className="flex-1 relative">
+            <div className="relative w-64">
               <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-5 h-5" />
               <input
                 type="text"
-                placeholder="Tìm kiếm theo tên hoặc email..."
+                placeholder="Tìm kiếm..."
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
-                className="input pl-10"
+                className="input pl-10 w-full"
               />
             </div>
 
@@ -277,17 +262,13 @@ const UserManagement = () => {
                 <option value="admin">Quản trị</option>
               </select>
             </div>
-          </div>
-        </Card.Content>
-      </Card>
 
-      {/* Users Table */}
-      <Card>
-        <Card.Header>
-          <div className="flex items-center justify-between">
-            <h3 className="text-lg font-semibold text-gray-900">
-              Danh sách người dùng ({filteredUsers.length})
-            </h3>
+            <div className="ml-auto">
+              <Button onClick={() => setShowBulkImport(true)}>
+                <UserPlus className="w-4 h-4 mr-2" />
+                Thêm người dùng
+              </Button>
+            </div>
           </div>
         </Card.Header>
         <Card.Content className="p-0">
@@ -297,12 +278,11 @@ const UserManagement = () => {
                 <tr>
                   <th className="text-left py-3 px-6 font-medium text-gray-500">Người dùng</th>
                   <th className="text-left py-3 px-6 font-medium text-gray-500">Username</th>
-                  <th className="text-left py-3 px-6 font-medium text-gray-500">Vai trò</th>
                   <th className="text-left py-3 px-6 font-medium text-gray-500">Cohorts</th>
                   <th className="text-left py-3 px-6 font-medium text-gray-500">Tiến độ</th>
                   <th className="text-left py-3 px-6 font-medium text-gray-500">Trạng thái</th>
                   <th className="text-left py-3 px-6 font-medium text-gray-500">Hoạt động cuối</th>
-                  <th className="text-center py-3 px-6 font-medium text-gray-500">Hành động</th>
+                  <th className="text-center py-3 px-6 font-medium text-gray-500">Vai trò</th>
                 </tr>
               </thead>
               <tbody className="divide-y">
@@ -324,13 +304,7 @@ const UserManagement = () => {
                         {user.username || <span className="text-gray-400">—</span>}
                       </span>
                     </td>
-                    <td className="py-4 px-6">
-                      <span className={`inline-flex items-center px-2 py-1 rounded-full text-xs ${getRoleColor(user.role)}`}>
-                        {user.role === 'admin' && <Shield className="w-3 h-3 mr-1" />}
-                        {user.role === 'teacher' && <Users className="w-3 h-3 mr-1" />}
-                        {getRoleLabel(user.role)}
-                      </span>
-                    </td>
+
                     <td className="py-4 px-6 text-sm text-gray-700">
                       {user.cohorts.length === 0 ? (
                         <span className="text-gray-400">—</span>

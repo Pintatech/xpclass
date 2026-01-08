@@ -4,6 +4,7 @@ import { supabase } from '../../supabase/client';
 import { useAuth } from '../../hooks/useAuth';
 import StudentExerciseMatrix from './StudentExerciseMatrix';
 import UnitProgressView from './UnitProgressView';
+import LessonReportView from './LessonReportView';
 import {
   BookOpen,
   Users,
@@ -11,7 +12,8 @@ import {
   ChevronDown,
   ChevronRight,
   Grid,
-  Eye
+  Eye,
+  BarChart3
 } from 'lucide-react';
 
 const TeacherDashboard = () => {
@@ -339,70 +341,84 @@ const TeacherDashboard = () => {
           </div>
         </div>
 
-      {/* Course Selection */}
+      {/* Course Selection & View Toggle */}
       {courses.length > 0 && (
         <div className="bg-white rounded-lg shadow-sm border p-6">
-          <label className="block text-sm font-medium text-gray-700 mb-2">
-            Select Course
-          </label>
-          <select
-            value={selectedCourse}
-            onChange={(e) => setSelectedCourse(e.target.value)}
-            className="w-full max-w-md p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
-          >
-            {courses.map(course => (
-              <option key={course.id} value={course.id}>
-                Course {course.level_number}: {course.title}
-                {isAdmin() && course.teacher_id !== user.id ? ' (Other Teacher)' : ''}
-              </option>
-            ))}
-          </select>
-          {selectedCourseData && (
-            <p className="text-sm text-gray-600 mt-2">{selectedCourseData.description}</p>
-          )}
-        </div>
-      )}
-
-      {/* View Toggle */}
-      {selectedCourse && (
-        <div className="bg-white rounded-lg shadow-sm border p-4">
-          <div className="flex items-center space-x-4">
-            <span className="text-sm font-medium text-gray-700">View:</span>
-            <div className="flex space-x-2">
-              <button
-                onClick={() => setCurrentView('overview')}
-                className={`flex items-center space-x-2 px-4 py-2 rounded-lg transition-colors ${
-                  currentView === 'overview'
-                    ? 'bg-blue-600 text-white'
-                    : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
-                }`}
+          <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-6">
+            {/* Course Selection */}
+            <div className="flex-1">
+              <span className="block text-sm font-medium text-gray-700 mb-2">
+                Select Course
+              </span>
+              <select
+                value={selectedCourse}
+                onChange={(e) => setSelectedCourse(e.target.value)}
+                className="w-full max-w-md p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
               >
-                <Users className="w-4 h-4" />
-                <span>Student Overview</span>
-              </button>
-              <button
-                onClick={() => setCurrentView('matrix')}
-                className={`flex items-center space-x-2 px-4 py-2 rounded-lg transition-colors ${
-                  currentView === 'matrix'
-                    ? 'bg-blue-600 text-white'
-                    : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
-                }`}
-              >
-                <Grid className="w-4 h-4" />
-                <span>Exercise Matrix</span>
-              </button>
-              <button
-                onClick={() => setCurrentView('unit-progress')}
-                className={`flex items-center space-x-2 px-4 py-2 rounded-lg transition-colors ${
-                  currentView === 'unit-progress'
-                    ? 'bg-blue-600 text-white'
-                    : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
-                }`}
-              >
-                <BookOpen className="w-4 h-4" />
-                <span>Unit Progress</span>
-              </button>
+                {courses.map(course => (
+                  <option key={course.id} value={course.id}>
+                    Course {course.level_number}: {course.title}
+                    {isAdmin() && course.teacher_id !== user.id ? ' (Other Teacher)' : ''}
+                  </option>
+                ))}
+              </select>
+              {selectedCourseData && (
+                <p className="text-sm text-gray-600 mt-2">{selectedCourseData.description}</p>
+              )}
             </div>
+
+            {/* View Toggle */}
+            {selectedCourse && (
+              <div className="flex-shrink-0">
+                <span className="block text-sm font-medium text-gray-700 mb-2">View:</span>
+                <div className="flex flex-wrap gap-2">
+                  <button
+                    onClick={() => setCurrentView('overview')}
+                    className={`flex items-center space-x-2 px-4 py-2 rounded-lg transition-colors ${
+                      currentView === 'overview'
+                        ? 'bg-blue-600 text-white'
+                        : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                    }`}
+                  >
+                    <Users className="w-4 h-4" />
+                    <span>Overview</span>
+                  </button>
+                  <button
+                    onClick={() => setCurrentView('matrix')}
+                    className={`flex items-center space-x-2 px-4 py-2 rounded-lg transition-colors ${
+                      currentView === 'matrix'
+                        ? 'bg-blue-600 text-white'
+                        : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                    }`}
+                  >
+                    <Grid className="w-4 h-4" />
+                    <span>Matrix</span>
+                  </button>
+                  <button
+                    onClick={() => setCurrentView('unit-progress')}
+                    className={`flex items-center space-x-2 px-4 py-2 rounded-lg transition-colors ${
+                      currentView === 'unit-progress'
+                        ? 'bg-blue-600 text-white'
+                        : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                    }`}
+                  >
+                    <BookOpen className="w-4 h-4" />
+                    <span>Units</span>
+                  </button>
+                  <button
+                    onClick={() => setCurrentView('lesson-report')}
+                    className={`flex items-center space-x-2 px-4 py-2 rounded-lg transition-colors ${
+                      currentView === 'lesson-report'
+                        ? 'bg-blue-600 text-white'
+                        : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                    }`}
+                  >
+                    <BarChart3 className="w-4 h-4" />
+                    <span>Lessons</span>
+                  </button>
+                </div>
+              </div>
+            )}
           </div>
         </div>
       )}
@@ -428,8 +444,13 @@ const TeacherDashboard = () => {
                 <BookOpen className="w-8 h-8 text-green-600" />
               </div>
               <div className="ml-4">
-                <p className="text-sm font-medium text-gray-600">Total Exercises</p>
-                <p className="text-2xl font-bold text-gray-900">{courseStats.totalExercises || 0}</p>
+                <p className="text-sm font-medium text-gray-600">Average Score</p>
+                <p className="text-2xl font-bold text-gray-900">
+                  {students.length > 0
+                    ? Math.round(students.reduce((sum, student) =>
+                        sum + getStudentStats(student.student_id).averageScore, 0) / students.length)
+                    : 0}%
+                </p>
               </div>
             </div>
           </div>
@@ -594,6 +615,11 @@ const TeacherDashboard = () => {
       {/* Unit Progress View */}
       {selectedCourse && currentView === 'unit-progress' && (
         <UnitProgressView selectedCourse={selectedCourse} />
+      )}
+
+      {/* Lesson Report View */}
+      {selectedCourse && currentView === 'lesson-report' && (
+        <LessonReportView selectedCourse={selectedCourse} />
       )}
 
       {/* No Courses */}

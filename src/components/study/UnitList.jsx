@@ -711,14 +711,51 @@ const UnitList = () => {
         className={`block ${
           isLocked ? "cursor-not-allowed" : "cursor-pointer"
         } w-full h-full`}
+        style={{
+          padding: 0,
+          borderRadius: '0.5rem',
+          backgroundColor: 'transparent'
+        }}
       >
         <div
-          className={`relative overflow-hidden rounded-lg transition-all duration-300 ${
-            isLocked ? "opacity-60" : "hover:scale-105"
+          className={`relative overflow-hidden rounded-lg transition-all duration-100 ${
+            isLocked ? "opacity-60" : ""
           } w-full h-full bg-gray-200`}
           style={{
             aspectRatio: "1",
             boxShadow: getShadowColor(),
+            transform: isLocked ? 'translateY(0)' : 'translateY(-0.2em)',
+            transition: 'transform 0.1s ease, box-shadow 0.1s ease'
+          }}
+          onMouseEnter={(e) => {
+            if (!isLocked) {
+              e.currentTarget.style.transform = 'translateY(-0.33em)'
+            }
+          }}
+          onMouseLeave={(e) => {
+            if (!isLocked) {
+              e.currentTarget.style.transform = 'translateY(-0.2em)'
+            }
+          }}
+          onMouseDown={(e) => {
+            if (!isLocked) {
+              e.currentTarget.style.transform = 'translateY(0)'
+            }
+          }}
+          onMouseUp={(e) => {
+            if (!isLocked) {
+              e.currentTarget.style.transform = 'translateY(-0.33em)'
+            }
+          }}
+          onTouchStart={(e) => {
+            if (!isLocked) {
+              e.currentTarget.style.transform = 'translateY(0)'
+            }
+          }}
+          onTouchEnd={(e) => {
+            if (!isLocked) {
+              e.currentTarget.style.transform = 'translateY(-0.2em)'
+            }
           }}
         >
           {/* Progress bar from bottom */}

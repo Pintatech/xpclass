@@ -6,6 +6,7 @@ import { useProgress } from '../../hooks/useProgress'
 import { useFeedback } from '../../hooks/useFeedback'
 import { supabase } from '../../supabase/client'
 import Button from '../ui/Button'
+import Button3D from '../ui/Button3D'
 import LoadingSpinner from '../ui/LoadingSpinner'
 import RichTextRenderer, { RichTextWithAudio } from '../ui/RichTextRenderer'
 import { CheckCircle, XCircle, ArrowRight, RotateCcw, Star } from 'lucide-react'
@@ -226,6 +227,9 @@ const MultipleChoiceExercise = () => {
 
     const isCorrect = answerIndex === currentQuestion.correct_answer
     const responseTime = Date.now() - startTime
+
+    // Add delay to see the click animation
+    await new Promise(resolve => setTimeout(resolve, 200))
 
     setSelectedAnswer(answerIndex)
     setShowExplanation(true)
@@ -506,7 +510,7 @@ const MultipleChoiceExercise = () => {
   }
 
   return (
-    <div className="px-4 pt-6 pb-12">
+    <div className="px-2 md:pt-2 pb-12">
       <div className="max-w-4xl mx-auto space-y-6">
         
       {/* Header */}
@@ -666,7 +670,7 @@ const MultipleChoiceExercise = () => {
             )}
 
             {/* Back to exercise list */}
-            <Button
+            <Button3D
               onClick={() => {
                 if (session && session.units) {
                   navigate(`/study/course/${session.units.course_id}/unit/${session.unit_id}/session/${sessionId}`)
@@ -674,10 +678,13 @@ const MultipleChoiceExercise = () => {
                   navigate('/study')
                 }
               }}
-              className="w-full bg-blue-500 hover:bg-blue-600 text-white"
+              color="blue"
+              size="md"
+              fullWidth={true}
+              className="flex items-center justify-center"
             >
               Quay lại danh sách bài tập
-            </Button>
+            </Button3D>
           </div>
         </div>
       )}
@@ -707,7 +714,7 @@ const MultipleChoiceExercise = () => {
                 <div className="w-3 h-3 rounded-full bg-purple-500"></div>
                 <div className="w-3 h-3 rounded-full bg-pink-500"></div>
               </div>
-              <div className="relative z-10 p-4 md:p-8 pt-8 border-l-4 border-blue-400">
+              <div className="relative z-10 p-4 md:p-8 pt-8 border-l-4 border-blue-400 rounded-l-lg">
               <div className="space-y-4 md:space-y-6">
 
                 {/* Question - single unified version */}
@@ -819,6 +826,16 @@ const MultipleChoiceExercise = () => {
                                   e.currentTarget.style.transform = 'translateY(-0.33em)'
                                 }
                               }}
+                              onTouchStart={(e) => {
+                                if (selectedAnswer === null) {
+                                  e.currentTarget.style.transform = 'translateY(0)'
+                                }
+                              }}
+                              onTouchEnd={(e) => {
+                                if (selectedAnswer === null) {
+                                  e.currentTarget.style.transform = 'translateY(-0.2em)'
+                                }
+                              }}
                             >
                             <div className="flex items-center justify-between gap-3">
                               <div className="flex-1">
@@ -862,19 +879,22 @@ const MultipleChoiceExercise = () => {
 
                     {/* Next Button - full width on mobile, centered on desktop */}
                     <div className="flex justify-center md:justify-end">
-                      <Button
+                      <Button3D
                         onClick={handleNextQuestion}
-                        className="w-full md:w-auto bg-blue-600 hover:bg-blue-700 text-white text-base md:text-lg px-6 md:px-8 py-3 md:py-4 rounded-lg font-semibold shadow-sm hover:shadow-md transition-all"
+                        color="blue"
+                        size="md"
+                        fullWidth={false}
+                        className="flex items-center justify-center gap-2 md:w-auto"
                       >
                         {currentQuestionIndex < questions.length - 1 ? (
                           <>
                             Câu tiếp theo
-                            <ArrowRight className="w-5 h-5 ml-2" />
+                            <ArrowRight className="w-5 h-5" />
                           </>
                         ) : (
                           'Hoàn thành'
                         )}
-                      </Button>
+                      </Button3D>
                     </div>
                   </div>
                 )}
@@ -1010,6 +1030,16 @@ const MultipleChoiceExercise = () => {
                                     e.currentTarget.style.transform = 'translateY(-0.33em)'
                                   }
                                 }}
+                                onTouchStart={(e) => {
+                                  if (!showAllResults) {
+                                    e.currentTarget.style.transform = 'translateY(0)'
+                                  }
+                                }}
+                                onTouchEnd={(e) => {
+                                  if (!showAllResults) {
+                                    e.currentTarget.style.transform = 'translateY(-0.2em)'
+                                  }
+                                }}
                               >
                               <div className="flex items-center justify-between gap-3">
                                 <div className="flex-1">
@@ -1061,13 +1091,16 @@ const MultipleChoiceExercise = () => {
               {/* Submit Button */}
               {!showAllResults && (
                 <div className="flex justify-center mt-8">
-                  <Button
+                  <Button3D
                     onClick={handleSubmitAllAnswers}
-                    className="bg-green-600 hover:bg-green-700 text-white text-lg px-8 py-4 rounded-lg font-semibold shadow-sm hover:shadow-md transition-all"
+                    color="green"
+                    size="lg"
+                    fullWidth={false}
                     disabled={Object.keys(allAnswers).length < questions.length}
+                    className="flex items-center justify-center gap-2"
                   >
                     Nộp bài ({Object.keys(allAnswers).length}/{questions.length})
-                  </Button>
+                  </Button3D>
                 </div>
               )}
             </div>

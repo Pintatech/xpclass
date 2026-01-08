@@ -401,78 +401,79 @@ const Progress = () => {
       {/* Level Progress */}
       <LevelProgressBar showNextBadge={true} />
 
-      {/* Weekly Activity */}
-      <Card>
-        <Card.Header className="flex items-center justify-between">
-          <h3 className="text-lg font-semibold text-gray-900 flex items-center">
-            <BarChart3 className="w-5 h-5 mr-2 text-primary-600" />
-            Hoạt động tuần này
-          </h3>
-          <div className="flex space-x-2">
-            {['week', 'month'].map((period) => (
-              <Button
-                key={period}
-                variant={selectedPeriod === period ? 'primary' : 'ghost'}
-                size="sm"
-                onClick={() => setSelectedPeriod(period)}
-              >
-                {period === 'week' ? 'Tuần' : 'Tháng'}
-              </Button>
-            ))}
-          </div>
-        </Card.Header>
-        <Card.Content>
-          <div className="space-y-6">
-            {/* Exercise Chart */}
-            <div>
-              <h4 className="text-sm font-medium text-gray-700 mb-3">
-                {selectedPeriod === 'week' ? 'Bài tập hoàn thành hàng ngày' : 'Bài tập hoàn thành theo tuần'}
-              </h4>
-              <div className="flex items-end justify-between h-32 bg-gray-50 rounded-lg p-3">
-                {currentData.map((item, index) => {
-                  const heightPercentage = item.exercises > 0 ? Math.max((item.exercises / maxExercises) * 100, 10) : 5
-                  const itemCount = currentData.length
-                  return (
-                    <div key={index} className="flex flex-col items-center justify-end h-full" style={{ width: `calc(100% / ${itemCount} - 8px)` }}>
-                      <div
-                        className={`w-full rounded-t transition-all duration-300 ${
-                          item.exercises > 0
-                            ? 'bg-blue-500 hover:bg-blue-600'
-                            : 'bg-gray-300'
-                        }`}
-                        style={{
-                          height: `${heightPercentage}%`,
-                          minHeight: item.exercises > 0 ? '12px' : '4px'
-                        }}
-                        title={`${item.exercises} bài tập - ${item.xp} 🪙`}
-                      />
-                      <div className="text-xs text-gray-600 mt-1 font-medium">
-                        {selectedPeriod === 'week' ? item.day : item.week}
-                      </div>
-                    </div>
-                  )
-                })}
-              </div>
-            </div>
-
-            {/* Summary */}
-            <div className={`grid gap-2 ${selectedPeriod === 'week' ? 'grid-cols-7' : 'grid-cols-4'}`}>
-              {currentData.map((item, index) => (
-                <div key={index} className="text-center p-2 bg-gray-50 rounded-lg">
-                  <div className="text-xs font-medium text-gray-600">
-                    {selectedPeriod === 'week' ? item.day : item.week}
-                  </div>
-                  <div className="text-sm font-semibold text-gray-900">{item.exercises}</div>
-                  <div className="text-xs text-gray-500">bài tập</div>
-                </div>
+      {/* Weekly Activity and Exercise Progress in same row */}
+      <div className="grid md:grid-cols-2 gap-6">
+        {/* Weekly Activity */}
+        <Card>
+          <Card.Header className="flex items-center justify-between">
+            <h3 className="text-lg font-semibold text-gray-900 flex items-center">
+              <BarChart3 className="w-5 h-5 mr-2 text-primary-600" />
+              Hoạt động tuần này
+            </h3>
+            <div className="flex space-x-2">
+              {['week', 'month'].map((period) => (
+                <Button
+                  key={period}
+                  variant={selectedPeriod === period ? 'primary' : 'ghost'}
+                  size="sm"
+                  onClick={() => setSelectedPeriod(period)}
+                >
+                  {period === 'week' ? 'Tuần' : 'Tháng'}
+                </Button>
               ))}
             </div>
-          </div>
-        </Card.Content>
-      </Card>
+          </Card.Header>
+          <Card.Content>
+            <div className="space-y-6">
+              {/* Exercise Chart */}
+              <div>
+                <h4 className="text-sm font-medium text-gray-700 mb-3">
+                  {selectedPeriod === 'week' ? 'Bài tập hoàn thành hàng ngày' : 'Bài tập hoàn thành theo tuần'}
+                </h4>
+                <div className="flex items-end justify-between h-32 bg-gray-50 rounded-lg p-3">
+                  {currentData.map((item, index) => {
+                    const heightPercentage = item.exercises > 0 ? Math.max((item.exercises / maxExercises) * 100, 10) : 5
+                    const itemCount = currentData.length
+                    return (
+                      <div key={index} className="flex flex-col items-center justify-end h-full" style={{ width: `calc(100% / ${itemCount} - 8px)` }}>
+                        <div
+                          className={`w-full rounded-t transition-all duration-300 ${
+                            item.exercises > 0
+                              ? 'bg-blue-500 hover:bg-blue-600'
+                              : 'bg-gray-300'
+                          }`}
+                          style={{
+                            height: `${heightPercentage}%`,
+                            minHeight: item.exercises > 0 ? '12px' : '4px'
+                          }}
+                          title={`${item.exercises} bài tập - ${item.xp} 🪙`}
+                        />
+                        <div className="text-xs text-gray-600 mt-1 font-medium">
+                          {selectedPeriod === 'week' ? item.day : item.week}
+                        </div>
+                      </div>
+                    )
+                  })}
+                </div>
+              </div>
 
-      {/* Exercise Progress */}
-      <div className="grid md:grid-cols-2 gap-6">
+              {/* Summary */}
+              <div className={`grid gap-2 ${selectedPeriod === 'week' ? 'grid-cols-7' : 'grid-cols-4'}`}>
+                {currentData.map((item, index) => (
+                  <div key={index} className="text-center p-2 bg-gray-50 rounded-lg">
+                    <div className="text-xs font-medium text-gray-600">
+                      {selectedPeriod === 'week' ? item.day : item.week}
+                    </div>
+                    <div className="text-sm font-semibold text-gray-900">{item.exercises}</div>
+                    <div className="text-xs text-gray-500">bài tập</div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          </Card.Content>
+        </Card>
+
+        {/* Exercise Progress */}
         <Card>
           <Card.Header>
             <h3 className="text-lg font-semibold text-gray-900 flex items-center">
@@ -510,8 +511,6 @@ const Progress = () => {
             </div>
           </Card.Content>
         </Card>
-
-        
       </div>
 
       {/* Achievements */}

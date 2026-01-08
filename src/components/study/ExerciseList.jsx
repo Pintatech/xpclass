@@ -100,10 +100,10 @@ const ExerciseList = () => {
     </div>
   )
 
-  const handleExercisesAssigned = (assignedExercises) => {
-    setExercises(prev => [...prev, ...assignedExercises])
+  const handleExercisesAssigned = async () => {
     setShowAssignExerciseModal(false)
-    alert(`${assignedExercises.length} exercise${assignedExercises.length !== 1 ? 's' : ''} assigned successfully!`)
+    // Refetch data to get the proper structure with assignment IDs
+    await fetchData()
   }
 
   const handleDeleteExercise = async (exercise) => {
@@ -124,8 +124,6 @@ const ExerciseList = () => {
 
       // Remove from local state
       setExercises(prev => prev.filter(e => e.id !== exercise.id))
-
-      alert('Exercise removed from session successfully!')
     } catch (err) {
       console.error('Error removing exercise:', err)
       alert('Failed to remove exercise: ' + (err.message || 'Unknown error'))
@@ -637,16 +635,18 @@ const ExerciseList = () => {
                   >
                     <UserPlus className="w-4 h-4" />
                   </button>
-                  <button
-                    onClick={(e) => {
-                      e.stopPropagation()
-                      setEditingExercise(exercise)
-                    }}
-                    className="p-1 text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded transition-colors"
-                    title="Edit exercise"
-                  >
-                    <Edit className="w-4 h-4" />
-                  </button>
+                  {profile?.role === 'admin' && (
+                    <button
+                      onClick={(e) => {
+                        e.stopPropagation()
+                        setEditingExercise(exercise)
+                      }}
+                      className="p-1 text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded transition-colors"
+                      title="Edit exercise"
+                    >
+                      <Edit className="w-4 h-4" />
+                    </button>
+                  )}
                   <button
                     onClick={(e) => {
                       e.stopPropagation()
@@ -759,7 +759,7 @@ const ExerciseList = () => {
   const theme = getThemeColors(session.color_theme || unit.color_theme || level.color_theme)
 
   return (
-    <div className="flex bg-gray-50 -mx-4 -my-6">
+    <div className="flex bg-white -mx-4 -my-6">
       {/* Main Content */}
       <div className="flex-1 flex flex-col w-full">
         {/* Header */}

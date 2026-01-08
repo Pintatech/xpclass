@@ -1,6 +1,0 @@
-email,password,username,full_name,avatar,role,cohort
-student1@example.com,password123,nguyenvana,Nguyen Van A,https://i.pravatar.cc/150?img=1,user,Class A
-student2@example.com,password123,tranthib,Tran Thi B,,user,Class A
-student3@example.com,password123,levanc,Le Van C,https://i.pravatar.cc/150?img=3,user,Class B
-teacher1@example.com,teacher123,phamthid,Pham Thi D,https://i.pravatar.cc/150?img=5,teacher,
-admin1@example.com,admin123,hoangvane,Hoang Van E,,admin,

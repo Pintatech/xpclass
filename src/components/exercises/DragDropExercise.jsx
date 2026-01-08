@@ -3,6 +3,7 @@ import { useLocation, useNavigate } from 'react-router-dom'
 import { supabase } from '../../supabase/client'
 import { RotateCcw, CheckCircle, XCircle} from 'lucide-react'
 import LoadingSpinner from '../ui/LoadingSpinner'
+import Button3D from '../ui/Button3D'
 import { useAuth } from '../../hooks/useAuth'
 import { useProgress } from '../../hooks/useProgress'
 import { useFeedback } from '../../hooks/useFeedback'
@@ -598,7 +599,7 @@ const DragDropExercise = () => {
   })
 
   return (
-    <div className="px-4 pt-6 pb-12">
+    <div className="px-2 md:pt-2 pb-12">
       <div className="max-w-4xl mx-auto space-y-6">
         {/* Header */}
         <div className="bg-white rounded-lg shadow-sm p-4 md:p-5 border border-gray-200">
@@ -607,26 +608,11 @@ const DragDropExercise = () => {
               <p className="text-xs md:text-sm font-medium text-gray-500 truncate mb-1">
                 {exercise?.title}
               </p>
-              <h1 className="text-lg md:text-2xl font-bold text-gray-900">Drag & Drop</h1>
-            </div>
-            <div className="text-right flex-shrink-0">
-              <div className="text-xl md:text-3xl font-bold text-blue-600">
-                {currentQuestionIndex + 1}/{exercise?.content?.questions?.length || 0}
-              </div>
-              <div className="text-xs md:text-sm text-gray-500">
-                Question
-              </div>
             </div>
           </div>
 
           {/* Progress Bar inside header */}
           <div className="mt-4 relative">
-            <div className="flex items-center justify-between mb-2">
-              <span className="text-xs md:text-sm text-gray-600">Progress</span>
-              <span className="text-xs md:text-sm font-semibold text-blue-600">
-                {Math.round(((currentQuestionIndex + 1) / (exercise?.content?.questions?.length || 1)) * 100)}%
-              </span>
-            </div>
             <div className="w-full bg-gray-200 rounded-full h-2.5 relative overflow-visible">
               <div
                 className="bg-blue-600 h-2.5 rounded-full transition-all duration-[3000ms]"
@@ -788,6 +774,16 @@ const DragDropExercise = () => {
                           e.currentTarget.style.transform = 'translateY(-0.33em)'
                         }
                       }}
+                      onTouchStart={(e) => {
+                        if (!isDisabled) {
+                          e.currentTarget.style.transform = 'translateY(0)'
+                        }
+                      }}
+                      onTouchEnd={(e) => {
+                        if (!isDisabled) {
+                          e.currentTarget.style.transform = 'translateY(-0.2em)'
+                        }
+                      }}
                     >
                       {item.text}
                     </div>
@@ -847,88 +843,57 @@ const DragDropExercise = () => {
 
           {/* Actions */}
           <div className="flex flex-wrap gap-3 p-4">
-            <button
+            <Button3D
               onClick={() => checkAnswer(currentQuestionIndex)}
-              className={`px-6 py-2 rounded-lg flex items-center gap-2 transition-all ${
-                questionsChecked[currentQuestionIndex]
-                  ? 'bg-gray-600 text-white hover:bg-gray-700'
-                  : 'bg-blue-600 text-white hover:bg-blue-700'
-              }`}
-              style={{
-                boxShadow: questionsChecked[currentQuestionIndex]
-                  ? '0 4px 0 0 #282e37'
-                  : '0 4px 0 0 #1c47a6'
-              }}
+              color={questionsChecked[currentQuestionIndex] ? 'gray' : 'blue'}
+              size="sm"
+              className="flex items-center justify-center gap-2"
             >
               <CheckCircle className="w-4 h-4" />
               {questionsChecked[currentQuestionIndex] ? 'Checked' : 'Check'}
-            </button>
+            </Button3D>
 
-            <button
+            <Button3D
               onClick={() => resetQuestion(currentQuestionIndex)}
-              className={`px-6 py-2 text-white rounded-lg flex items-center gap-2 transition-all ${
-                showResult && !isCorrect
-                  ? 'bg-green-600 hover:bg-green-700'
-                  : 'bg-gray-600 hover:bg-gray-700'
-              }`}
-              style={{
-                boxShadow: showResult && !isCorrect
-                  ? '0 4px 0 0 #46a302'
-                  : '0 4px 0 0 #282e37'
-              }}
+              color={showResult && !isCorrect ? 'green' : 'gray'}
+              size="sm"
+              className="flex items-center justify-center gap-2"
             >
               <RotateCcw className="w-4 h-4" />
               Reset
-            </button>
+            </Button3D>
 
             {currentQuestionIndex > 0 && (
-              <button
+              <Button3D
                 onClick={prevQuestion}
-                className="px-6 py-2 bg-gray-500 text-white rounded-lg hover:bg-gray-600"
-                style={{ boxShadow: '0 4px 0 0 #4b505b' }}
+                color="gray"
+                size="sm"
+                className="flex items-center justify-center gap-2"
               >
                 Previous
-              </button>
+              </Button3D>
             )}
 
             {currentQuestionIndex < exercise.content.questions.length - 1 ? (
-              <button
+              <Button3D
                 onClick={nextQuestion}
                 disabled={!questionsChecked[currentQuestionIndex]}
-                className={`px-6 py-2 rounded-lg transition-all ${
-                  questionsChecked[currentQuestionIndex]
-                    ? 'text-white hover:brightness-110'
-                    : 'bg-gray-300 text-gray-500 cursor-not-allowed'
-                }`}
-                style={{
-                  backgroundColor: questionsChecked[currentQuestionIndex] ? '#58cc02' : undefined,
-                  boxShadow: questionsChecked[currentQuestionIndex]
-                    ? '0 4px 0 0 #58a700'
-                    : '0 4px 0 0 #b7b7b7',
-                  transform: 'translateY(-4px)'
-                }}
-                title={!questionsChecked[currentQuestionIndex] ? 'Please check your answer first' : ''}
+                color="green"
+                size="sm"
+                className="flex items-center justify-center gap-2"
               >
                 Next
-              </button>
+              </Button3D>
             ) : (
-              <button
+              <Button3D
                 onClick={handleFinishExercise}
                 disabled={!questionsChecked[currentQuestionIndex]}
-                className={`px-6 py-2 rounded-lg transition-all ${
-                  questionsChecked[currentQuestionIndex]
-                    ? 'bg-blue-600 text-white hover:bg-blue-700'
-                    : 'bg-gray-300 text-gray-500 cursor-not-allowed'
-                }`}
-                style={{
-                  boxShadow: questionsChecked[currentQuestionIndex]
-                    ? '0 4px 0 0 #1c47a6'
-                    : '0 4px 0 0 #b7b7b7'
-                }}
-                title={!questionsChecked[currentQuestionIndex] ? 'Please check your answer first' : ''}
+                color="blue"
+                size="sm"
+                className="flex items-center justify-center gap-2"
               >
                 Finish
-              </button>
+              </Button3D>
             )}
           </div>
         </div>

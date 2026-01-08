@@ -545,7 +545,7 @@ const Dashboard = () => {
 
                     {/* Progress Bar */}
                     {!isLocked && profile?.role === 'user' && courseProgress[course.id] && (
-                      <div className="px-3 py-2 bg-gray-50">
+                      <div className="px-3 py-2 bg-gray-50 mb-1">
                         <div className="flex items-center justify-between text-xs text-gray-600 mb-1">
                           <span>Tiến độ</span>
                           <span className="font-semibold">{courseProgress[course.id].percentage}%</span>
@@ -561,9 +561,6 @@ const Dashboard = () => {
                             }`}
                             style={{ width: `${courseProgress[course.id].percentage}%` }}
                           />
-                        </div>
-                        <div className="text-xs text-gray-500 mt-1">
-                          {courseProgress[course.id].completed}/{courseProgress[course.id].total} bài tập
                         </div>
                       </div>
                     )}

@@ -1,10 +1,12 @@
 import React, { useState, useEffect } from 'react';
 import { supabase } from '../../supabase/client';
 import { useAuth } from '../../hooks/useAuth';
-import { CheckCircle, XCircle, Clock, Minus, RotateCcw, Eye, X } from 'lucide-react';
+import { CheckCircle, XCircle, Clock, Minus, RotateCcw, Eye, X, ChevronDown } from 'lucide-react';
 
 const StudentExerciseMatrix = ({ selectedCourse }) => {
   const { user, isAdmin } = useAuth();
+  const [units, setUnits] = useState([]);
+  const [selectedUnit, setSelectedUnit] = useState('all');
   const [students, setStudents] = useState([]);
   const [exercises, setExercises] = useState([]);
   const [progressMatrix, setProgressMatrix] = useState(new Map());
@@ -17,11 +19,34 @@ const StudentExerciseMatrix = ({ selectedCourse }) => {
 
   useEffect(() => {
     if (selectedCourse) {
+      fetchUnits();
+    }
+  }, [selectedCourse]);
+
+  useEffect(() => {
+    if (selectedCourse) {
       setShowAllExercises(false);
       setAllExercisesFetched(false);
       fetchMatrixData(15);
     }
-  }, [selectedCourse]);
+  }, [selectedCourse, selectedUnit]);
+
+  const fetchUnits = async () => {
+    try {
+      const { data, error } = await supabase
+        .from('units')
+        .select('id, title, unit_number')
+        .eq('course_id', selectedCourse)
+        .order('unit_number');
+
+      if (error) throw error;
+
+      setUnits(data || []);
+      setSelectedUnit('all'); // Reset to "All Units" when course changes
+    } catch (error) {
+      console.error('Error fetching units:', error);
+    }
+  };
 
   const fetchMatrixData = async (limit = null) => {
     if (!selectedCourse) return;
@@ -48,15 +73,21 @@ const StudentExerciseMatrix = ({ selectedCourse }) => {
       const studentList = (enrollments || []).map(enrollment => enrollment.student);
       setStudents(studentList);
 
-      // Get units in this course
-      const { data: units, error: unitsError } = await supabase
-        .from('units')
-        .select('id')
-        .eq('course_id', selectedCourse);
+      // Get units in this course (filter by selected unit if not 'all')
+      let unitIds = [];
+      if (selectedUnit === 'all') {
+        const { data: units, error: unitsError } = await supabase
+          .from('units')
+          .select('id')
+          .eq('course_id', selectedCourse);
 
-      if (unitsError) throw unitsError;
+        if (unitsError) throw unitsError;
 
-      const unitIds = (units || []).map(u => u.id);
+        unitIds = (units || []).map(u => u.id);
+      } else {
+        unitIds = [selectedUnit];
+      }
+
       if (unitIds.length === 0) {
         setExercises([]);
         setProgressMatrix(new Map());
@@ -162,22 +193,6 @@ const StudentExerciseMatrix = ({ selectedCourse }) => {
     return progressMatrix.get(`${studentId}-${exerciseId}`);
   };
 
-  const getStatusIcon = (progress) => {
-    if (!progress) {
-      return <Minus className="w-4 h-4 text-gray-400" />;
-    }
-
-    switch (progress.status) {
-      case 'completed':
-        return <CheckCircle className="w-4 h-4 text-green-600" />;
-      case 'attempted':
-      case 'in_progress':
-        return <Clock className="w-4 h-4 text-yellow-600" />;
-      default:
-        return <XCircle className="w-4 h-4 text-red-600" />;
-    }
-  };
-
   const getScorePercentage = (progress) => {
     if (!progress || !progress.max_score || progress.score === null) {
       return null;
@@ -187,8 +202,8 @@ const StudentExerciseMatrix = ({ selectedCourse }) => {
 
   const getScoreColor = (percentage) => {
     if (percentage === null) return 'bg-gray-100';
-    if (percentage >= 90) return 'bg-green-200 text-green-800';
-    if (percentage >= 75) return 'bg-blue-200 text-blue-800';
+    if (percentage >= 90) return 'bg-green-500 text-white';
+    if (percentage >= 75) return 'bg-blue-500 text-white';
     if (percentage >= 60) return 'bg-yellow-200 text-yellow-800';
     return 'bg-red-200 text-red-800';
   };
@@ -293,29 +308,53 @@ const StudentExerciseMatrix = ({ selectedCourse }) => {
   return (
     <div className="bg-white rounded-lg shadow-sm border">
       <div className="p-4 border-b border-gray-200">
-        <div className="flex items-center justify-between">
-          <div>
+        <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
+          <div className="flex-1">
             <h3 className="text-lg font-semibold text-gray-900">Student-Exercise Matrix</h3>
             <p className="text-sm text-gray-600">
               {students.length} students • {exercises.length} exercises {!showAllExercises && !allExercisesFetched && '(showing first 15)'}
             </p>
           </div>
-          <div className="flex items-center space-x-2">
-            {!allExercisesFetched && !showAllExercises && (
+
+          <div className="flex flex-col sm:flex-row items-start sm:items-center gap-3">
+            {/* Unit Selection */}
+            <div className="flex items-center gap-2">
+              <span className="text-sm font-medium text-gray-700 whitespace-nowrap">Unit:</span>
+              <div className="relative">
+                <select
+                  value={selectedUnit}
+                  onChange={(e) => setSelectedUnit(e.target.value)}
+                  className="appearance-none bg-white border border-gray-300 rounded px-3 py-1.5 pr-8 text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                >
+                  <option value="all">All Units</option>
+                  {units.map(unit => (
+                    <option key={unit.id} value={unit.id}>
+                      Unit {unit.unit_number}: {unit.title}
+                    </option>
+                  ))}
+                </select>
+                <ChevronDown className="absolute right-2 top-1/2 transform -translate-y-1/2 w-4 h-4 text-gray-400 pointer-events-none" />
+              </div>
+            </div>
+
+            {/* Action Buttons */}
+            <div className="flex items-center space-x-2">
+              {!allExercisesFetched && !showAllExercises && (
+                <button
+                  onClick={handleShowAllExercises}
+                  className="px-3 py-1.5 text-sm text-blue-600 hover:text-blue-800 border border-blue-600 hover:border-blue-800 rounded whitespace-nowrap"
+                >
+                  Show All
+                </button>
+              )}
               <button
-                onClick={handleShowAllExercises}
-                className="px-3 py-1 text-sm text-blue-600 hover:text-blue-800 border border-blue-600 hover:border-blue-800 rounded"
+                onClick={() => fetchMatrixData(showAllExercises ? null : 15)}
+                className="flex items-center space-x-2 px-3 py-1.5 text-sm text-gray-600 hover:text-gray-900 border rounded"
               >
-                Show All Exercises
+                <RotateCcw className="w-4 h-4" />
+                <span>Refresh</span>
               </button>
-            )}
-            <button
-              onClick={() => fetchMatrixData(showAllExercises ? null : 15)}
-              className="flex items-center space-x-2 px-3 py-1 text-sm text-gray-600 hover:text-gray-900 border rounded"
-            >
-              <RotateCcw className="w-4 h-4" />
-              <span>Refresh</span>
-            </button>
+            </div>
           </div>
         </div>
       </div>
@@ -370,7 +409,6 @@ const StudentExerciseMatrix = ({ selectedCourse }) => {
                     >
                       <div className="flex flex-col items-center justify-center space-y-1">
                         <div className="flex items-center space-x-1">
-                          {getStatusIcon(progress)}
                           {scorePercentage !== null && (
                             <span
                               className={`text-xs px-1.5 py-0.5 rounded-full font-medium ${getScoreColor(scorePercentage)}`}
@@ -407,24 +445,9 @@ const StudentExerciseMatrix = ({ selectedCourse }) => {
       <div className="p-4 border-t border-gray-200 bg-gray-50">
         <h4 className="text-sm font-medium text-gray-900 mb-2">Legend:</h4>
         <div className="flex flex-wrap gap-4 text-xs text-gray-600">
+         
           <div className="flex items-center space-x-1">
-            <CheckCircle className="w-4 h-4 text-green-600" />
-            <span>Completed</span>
-          </div>
-          <div className="flex items-center space-x-1">
-            <Clock className="w-4 h-4 text-yellow-600" />
-            <span>In Progress</span>
-          </div>
-          <div className="flex items-center space-x-1">
-            <XCircle className="w-4 h-4 text-red-600" />
-            <span>Failed/Error</span>
-          </div>
-          <div className="flex items-center space-x-1">
-            <Minus className="w-4 h-4 text-gray-400" />
-            <span>Not Started</span>
-          </div>
-          <div className="flex items-center space-x-1">
-            <span className="px-1.5 py-0.5 bg-green-200 text-green-800 rounded-full">90%+</span>
+            <span className="px-1.5 py-0.5 bg-green-400 text-green-800 rounded-full">90%+</span>
             <span>Excellent</span>
           </div>
           <div className="flex items-center space-x-1">

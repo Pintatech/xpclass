@@ -6,10 +6,10 @@ const BottomNavigation = () => {
   const location = useLocation()
 
   const navItems = [
-    { path: '/', imageSrc: 'https://xpclass.vn/momtek/svg%20icon/home.svg', label: 'Home' },
-    { path: '/leaderboard', imageSrc: 'https://xpclass.vn/momtek/svg%20icon/leaderboard.svg', label: 'Leaderboard' },
-    { path: '/progress', icon: TrendingUp, label: 'Progress' },
-    { path: '/profile', icon: User, label: 'Account' },
+    { path: '/', imageSrc: 'https://xpclass.vn/xpclass/icon/home.svg', label: 'Home' },
+    { path: '/leaderboard', imageSrc: 'https://xpclass.vn/xpclass/icon/leaderboard.svg', label: 'Leaderboard' },
+    { path: '/progress', imageSrc: 'https://xpclass.vn/xpclass/icon/progress.svg', label: 'Progress' },
+    { path: '/profile', imageSrc: 'https://xpclass.vn/xpclass/icon/account.svg', label: 'Account' },
   ]
 
   return (

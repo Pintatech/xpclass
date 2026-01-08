@@ -21,20 +21,23 @@ const Layout = () => {
   ]
 
   const hideBottomNav = exercisePaths.some(p => location.pathname.startsWith(p))
+  const hideTopNav = location.pathname.startsWith('/study/multiple-choice') || location.pathname.startsWith('/study/drag-drop')
 
   if (loading) {
     return <LoadingSpinner />
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-purple-50">
+    <div className="min-h-screen bg-white">
       {/* Top Navigation - Desktop */}
-      <div className="hidden md:block">
-        <TopNavigation />
-      </div>
+      {!hideTopNav && (
+        <div className="hidden md:block">
+          <TopNavigation />
+        </div>
+      )}
 
       {/* Main Content */}
-      <main className="md:pt-16 pb-16 md:pb-0">
+      <main className={hideTopNav ? "pb-16 md:pb-0" : "md:pt-16 pb-16 md:pb-0"}>
         <div className="container mx-auto px-4 py-6 max-w-7xl">
           <Outlet />
         </div>

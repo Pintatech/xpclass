@@ -15,9 +15,9 @@ const TopNavigation = () => {
   const location = useLocation()
 
   const navItems = [
-    { path: '/', imageSrc: 'https://xpclass.vn/momtek/svg%20icon/home.svg', label: 'Trang chủ' },
-    { path: '/leaderboard', imageSrc: 'https://xpclass.vn/momtek/svg%20icon/leaderboard.svg', label: 'Xếp hạng' },
-    { path: '/progress', icon: TrendingUp, label: 'Tiến độ' },
+    { path: '/', imageSrc: 'https://xpclass.vn/xpclass/icon/home.svg', label: 'Trang chủ' },
+    { path: '/leaderboard', imageSrc: 'https://xpclass.vn/xpclass/icon/leaderboard.svg', label: 'Xếp hạng' },
+    { path: '/progress', imageSrc: 'https://xpclass.vn/xpclass/icon/progress.svg', label: 'Tiến độ' },
   ]
 
   const handleSignOut = async () => {

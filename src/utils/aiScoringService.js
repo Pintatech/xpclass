@@ -3,13 +3,17 @@
 
 export const callAIScoring = async (question, userAnswer, expectedAnswers, context = 'educational assessment', language = 'en') => {
   try {
-    // For now, we'll use a mock AI service
-    // In production, this would call OpenAI API or similar
-    const mockResponse = await mockAIScoring(question, userAnswer, expectedAnswers, context)
-    return mockResponse
+    console.log('🤖 Calling AI Scoring with language:', language)
+    // Use MegaLLM AI service for scoring
+    const aiResponse = await callMegaLLMScoring(question, userAnswer, expectedAnswers, context, language)
+    console.log('✅ AI Response received:', aiResponse)
+    return aiResponse
   } catch (error) {
-    console.error('AI scoring error:', error)
-    throw error
+    console.error('❌ AI scoring error:', error)
+    // Fallback to mock scoring if AI service fails
+    console.warn('⚠️ Falling back to mock scoring')
+    const mockResponse = await mockAIScoring(question, userAnswer, expectedAnswers, context, language)
+    return mockResponse
   }
 }
 
@@ -134,15 +138,42 @@ const generateExplanation = (similarity, userAnswer, expected) => {
   }
 }
 
-// Real AI API integration (for production use)
-export const callOpenAIScoring = async (question, userAnswer, expectedAnswers, context) => {
-  const API_KEY = process.env.REACT_APP_OPENAI_API_KEY
-  
+// MegaLLM AI integration
+export const callMegaLLMScoring = async (question, userAnswer, expectedAnswers, context, language = 'en') => {
+  const API_KEY = import.meta.env.VITE_MEGALLM_API_KEY || 'sk-mega-90798a7547487b440a37b054ffbb33cbc57d85cf86929b52bb894def833d784e'
+
   if (!API_KEY) {
-    throw new Error('OpenAI API key not configured')
+    throw new Error('MegaLLM API key not configured')
   }
-  
-  const prompt = `
+
+  const prompt = language === 'vi'
+    ? `
+Bạn là trợ lý AI giáo dục chấm điểm câu trả lời điền vào chỗ trống.
+
+Câu hỏi: "${question}"
+Câu trả lời của học sinh: "${userAnswer}"
+Đáp án mong đợi: ${JSON.stringify(expectedAnswers)}
+Ngữ cảnh: ${context}
+
+Hãy đánh giá câu trả lời của học sinh và cung cấp:
+1. Điểm số từ 0-100 dựa trên độ chính xác và sự hiểu biết
+2. Giải thích CHI TIẾT bằng tiếng Việt (2-4 câu) về:
+   - Tại sao câu trả lời đúng/sai
+   - So sánh với đáp án đúng
+Cân nhắc:
+- Khớp chính xác nên được 100 điểm
+- Khớp một phần nên được 50-90 điểm
+- Sự hiểu biết về khái niệm nên được khen thưởng
+- Lỗi chính tả/ngữ pháp nhỏ không nên bị phạt nặng
+- Câu trả lời hoàn toàn sai nên được 0-30 điểm
+
+Trả lời theo định dạng JSON:
+{
+  "score": number,
+  "explanation": "string (2-4 câu giải thích chi tiết)"
+}
+`
+    : `
 You are an educational AI assistant scoring a fill-in-the-blank question.
 
 Question: "${question}"
@@ -152,8 +183,9 @@ Context: ${context}
 
 Please evaluate the student's answer and provide:
 1. A score from 0-100 based on correctness and understanding
-2. A confidence level from 0-100
-3. A brief explanation of your scoring
+2. A DETAILED explanation (2-4 sentences) covering:
+   - Why the answer is correct/incorrect
+   - Comparison with the expected answer
 
 Consider:
 - Exact matches should score 100
@@ -165,50 +197,86 @@ Consider:
 Respond in JSON format:
 {
   "score": number,
-  "confidence": number,
-  "explanation": "string"
+  "explanation": "string (2-4 detailed sentences)"
 }
 `
 
   try {
-    const response = await fetch('https://api.openai.com/v1/chat/completions', {
+    console.log('📤 Sending request to MegaLLM API...')
+    console.log('Language:', language)
+    console.log('Prompt preview:', prompt.substring(0, 200) + '...')
+
+    const response = await fetch('https://ai.megallm.io/v1/chat/completions', {
       method: 'POST',
       headers: {
         'Authorization': `Bearer ${API_KEY}`,
         'Content-Type': 'application/json',
       },
       body: JSON.stringify({
-        model: 'gpt-3.5-turbo',
+        model: 'openai-gpt-oss-20b',
         messages: [
           {
             role: 'system',
-            content: 'You are an educational AI assistant that scores student answers fairly and provides helpful feedback.'
+            content: language === 'vi'
+              ? 'Bạn là trợ lý AI giáo dục chấm điểm câu trả lời của học sinh một cách công bằng và cung cấp phản hồi chi tiết, hữu ích bằng tiếng Việt. Hãy giải thích rõ ràng và khuyến khích học sinh.'
+              : 'You are an educational AI assistant that scores student answers fairly and provides detailed, helpful feedback. Explain clearly and encourage students.'
           },
           {
             role: 'user',
             content: prompt
           }
         ],
-        max_tokens: 300,
+        max_tokens: 1000,
         temperature: 0.3
       })
     })
 
+    console.log('📥 MegaLLM API response status:', response.status)
+
     if (!response.ok) {
-      throw new Error(`OpenAI API error: ${response.status}`)
+      const errorText = await response.text()
+      throw new Error(`MegaLLM API error: ${response.status} - ${errorText}`)
     }
 
     const data = await response.json()
+    console.log('📦 Full API response:', JSON.stringify(data, null, 2))
     const content = data.choices[0].message.content
-    
+    console.log('📝 Raw AI response content:', content)
+
     try {
-      return JSON.parse(content)
+      // Try to parse JSON response
+      let jsonMatch = content.match(/\{[\s\S]*\}/)
+
+      // If JSON is incomplete (common with token limits), try to fix it
+      if (!jsonMatch || content.includes('"explanation":') && !content.trim().endsWith('}')) {
+        console.warn('⚠️ Incomplete JSON detected, attempting to repair...')
+        // Try to extract what we have and close it properly
+        const scoreMatch = content.match(/"score":\s*(\d+)/)
+        const explanationMatch = content.match(/"explanation":\s*"([^"]*(?:[^"\\]|\\.)*?)(?:"|\s*$)/)
+
+        if (scoreMatch) {
+          const repairedJson = {
+            score: parseInt(scoreMatch[1]),
+            explanation: explanationMatch ? explanationMatch[1].trim() + '...' : 'Response was cut off due to length limits.'
+          }
+          console.log('✨ Repaired JSON:', repairedJson)
+          return repairedJson
+        }
+      }
+
+      if (jsonMatch) {
+        const parsed = JSON.parse(jsonMatch[0])
+        console.log('✨ Parsed AI result:', parsed)
+        return parsed
+      }
+      throw new Error('No JSON found in response')
     } catch (parseError) {
-      console.error('Failed to parse OpenAI response:', content)
+      console.error('Failed to parse MegaLLM response:', content)
+      console.error('Parse error:', parseError)
       throw new Error('Invalid response from AI service')
     }
   } catch (error) {
-    console.error('OpenAI API error:', error)
+    console.error('MegaLLM API error:', error)
     throw error
   }
 }
