@@ -1,6 +1,6 @@
 import { Outlet, useLocation } from 'react-router-dom'
 import { useAuth } from '../hooks/useAuth'
-import TopNavigation from './navigation/TopNavigation'
+import LeftSidebar from './navigation/LeftSidebar'
 import BottomNavigation from './navigation/BottomNavigation'
 import LoadingSpinner from './ui/LoadingSpinner'
 
@@ -21,7 +21,7 @@ const Layout = () => {
   ]
 
   const hideBottomNav = exercisePaths.some(p => location.pathname.startsWith(p))
-  const hideTopNav = location.pathname.startsWith('/study/multiple-choice') || location.pathname.startsWith('/study/drag-drop')
+  const hideSidebar = location.pathname.startsWith('/study/multiple-choice') || location.pathname.startsWith('/study/drag-drop')
 
   if (loading) {
     return <LoadingSpinner />
@@ -29,15 +29,11 @@ const Layout = () => {
 
   return (
     <div className="min-h-screen bg-white">
-      {/* Top Navigation - Desktop */}
-      {!hideTopNav && (
-        <div className="hidden md:block">
-          <TopNavigation />
-        </div>
-      )}
+      {/* Left Sidebar - Desktop and Mobile */}
+      {!hideSidebar && <LeftSidebar />}
 
       {/* Main Content */}
-      <main className={hideTopNav ? "pb-16 md:pb-0" : "md:pt-16 pb-16 md:pb-0"}>
+      <main className={`${hideSidebar ? 'lg:pl-0' : 'lg:pl-64'} min-h-screen pb-16 lg:pb-0`}>
         <div className="container mx-auto px-4 py-6 max-w-7xl">
           <Outlet />
         </div>
@@ -45,7 +41,7 @@ const Layout = () => {
 
       {/* Bottom Navigation - Mobile (hidden on exercise/question UIs) */}
       {!hideBottomNav && (
-        <div className="md:hidden">
+        <div className="lg:hidden">
           <BottomNavigation />
         </div>
       )}
