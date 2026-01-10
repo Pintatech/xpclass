@@ -418,12 +418,11 @@ const ImageHotspotEditor = ({ content, onContentChange }) => {
             >
               <img
                 ref={imageRef}
-                src={import.meta.env.DEV ? imageUrl.replace('https://xpclass.vn', '/proxy-image') : imageUrl}
+                src={imageUrl.replace('https://xpclass.vn', '/proxy-image')}
                 alt="Exercise"
                 className="w-full h-auto"
                 onLoad={handleImageLoad}
                 onError={handleImageError}
-                crossOrigin="anonymous"
               />
               {imageLoaded && (
                 <svg
@@ -833,15 +832,14 @@ const ImageHotspotEditor = ({ content, onContentChange }) => {
                   </label>
                   {urlModal.type === 'image' ? (
                     <img
-                      src={import.meta.env.DEV ? urlInput.replace('https://xpclass.vn', '/proxy-image') : urlInput}
+                      src={urlInput.replace('https://xpclass.vn', '/proxy-image')}
                       alt="Preview"
                       className="max-w-full rounded border"
                       onError={(e) => e.target.style.display = 'none'}
-                      crossOrigin="anonymous"
                     />
                   ) : (
                     <audio
-                      src={import.meta.env.DEV ? urlInput.replace('https://xpclass.vn', '/proxy-image') : urlInput}
+                      src={urlInput.replace('https://xpclass.vn', '/proxy-image')}
                       controls
                       className="w-full"
                     />

@@ -5,6 +5,7 @@
   "installCommand": "npm install",
   "devCommand": "npm run dev",
   "rewrites": [
+    { "source": "/proxy-image/:path*", "destination": "https://xpclass.vn/:path*" },
     { "source": "/api/(.*)", "destination": "/api/$1" },
     { "source": "/(.*)", "destination": "/index.html" }
   ]

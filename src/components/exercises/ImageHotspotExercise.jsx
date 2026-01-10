@@ -479,10 +479,9 @@ const ImageHotspotExercise = () => {
               <div ref={containerRef} className="relative">
                 <img
                   ref={imageRef}
-                  src={import.meta.env.DEV ? exercise.content.image_url.replace('https://xpclass.vn', '/proxy-image') : exercise.content.image_url}
+                  src={exercise.content.image_url.replace('https://xpclass.vn', '/proxy-image')}
                   alt="Exercise"
                   className="w-full h-auto rounded"
-                  crossOrigin="anonymous"
                 />
                 <svg
                   className="absolute top-0 left-0 w-full h-full"
