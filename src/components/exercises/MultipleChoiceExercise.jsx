@@ -10,6 +10,7 @@ import Button3D from '../ui/Button3D'
 import LoadingSpinner from '../ui/LoadingSpinner'
 import RichTextRenderer, { RichTextWithAudio } from '../ui/RichTextRenderer'
 import { CheckCircle, XCircle, ArrowRight, RotateCcw, Star } from 'lucide-react'
+import ExerciseHeader from './ExerciseHeader'
 
 const MultipleChoiceExercise = () => {
   const location = useLocation()
@@ -512,50 +513,23 @@ const MultipleChoiceExercise = () => {
   return (
     <div className="px-2 md:pt-2 pb-12">
       <div className="max-w-4xl mx-auto space-y-6">
-        
+
       {/* Header */}
-      <div className="bg-white rounded-lg shadow-sm p-4 md:p-5 border border-gray-200">
-        <div className="flex items-center justify-between gap-4">
-          <div className="flex-1 min-w-0">
-            <p className="text-xs md:text-sm font-medium text-gray-500 truncate mb-1">
-              {isRetryMode ? 'Ôn lại câu sai' : exercise?.title}
-            </p>
-          </div>
-          {/* Target info */}
-          <div className="flex items-center gap-2 text-xs md:text-sm text-gray-600">
-            <span className="inline-block w-2 h-2 rounded-full bg-green-500"></span>
-            <span>≥ 75% để hoàn thành</span>
-          </div>
-        </div>
-
-
-        {/* Progress Bar inside header */}
-        <div className="mt-4 relative">
-
-          <div className="w-full bg-gray-200 rounded-full h-2.5 relative overflow-visible">
-            <div
-              className="bg-blue-600 h-2.5 rounded-full transition-all duration-[3000ms]"
-              style={{
-                width: viewMode === 'one-by-one'
-                  ? `${(currentQuestionNumber / totalQuestions) * 100}%`
-                  : `${(Object.keys(allAnswers).length / totalQuestions) * 100}%`
-              }}
-            ></div>
-            {/* Running Batman Animation - moves with and stays with progress bar */}
-            {viewMode === 'one-by-one' && (
-              <img
-                src={isBatmanMoving ? "https://xpclass.vn/LMS_enhance/gif/Left%20running/batman.gif" : "https://xpclass.vn/xpclass/materials/batman_standing.gif"}
-                alt="Running Batman"
-                className="absolute -top-8 h-12 transition-all duration-[3000ms]"
-                style={{
-                  left: `calc(${(currentQuestionNumber / totalQuestions) * 100}% - 24px)`,
-                  zIndex: 10
-                }}
-              />
-            )}
-          </div>
-        </div>
-      </div>
+      <ExerciseHeader
+        title={exercise?.title}
+        progressPercentage={
+          viewMode === 'one-by-one'
+            ? (currentQuestionNumber / totalQuestions) * 100
+            : (Object.keys(allAnswers).length / totalQuestions) * 100
+        }
+        isBatmanMoving={isBatmanMoving}
+        isRetryMode={isRetryMode}
+        retryModeText="Ôn lại câu sai"
+        targetInfo="≥ 75% để hoàn thành"
+        showBatman={viewMode === 'one-by-one'}
+        showProgressLabel={false}
+        showQuestionCounter={false}
+      />
 
       {/* Global Intro (exercise.content.settings/intros) */}
       {exercise?.content?.intro && String(exercise.content.intro).trim() && (

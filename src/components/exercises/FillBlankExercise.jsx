@@ -7,6 +7,7 @@ import { saveRecentExercise } from '../../utils/recentExercise'
 import LoadingSpinner from '../ui/LoadingSpinner'
 import { Check, X, RotateCcw, HelpCircle, ArrowLeft } from 'lucide-react'
 import RichTextRenderer from '../ui/RichTextRenderer'
+import ExerciseHeader from './ExerciseHeader'
 
 const FillBlankExercise = () => {
   const location = useLocation()
@@ -28,6 +29,7 @@ const FillBlankExercise = () => {
   const [showCorrectAnswers, setShowCorrectAnswers] = useState(false)
   const [retryMode, setRetryMode] = useState(false)
   const [retryQuestions, setRetryQuestions] = useState([])
+  const [isBatmanMoving, setIsBatmanMoving] = useState(false)
 
   const questions = exercise?.content?.questions || []
   const currentQuestion = questions[currentQuestionIndex]
@@ -249,6 +251,10 @@ const FillBlankExercise = () => {
       // Find next retry question
       const currentRetryIndex = retryQuestions.indexOf(currentQuestionIndex)
       if (currentRetryIndex < retryQuestions.length - 1) {
+        // Trigger Batman movement
+        setIsBatmanMoving(true)
+        setTimeout(() => setIsBatmanMoving(false), 3000)
+
         // Move to next retry question
         setCurrentQuestionIndex(retryQuestions[currentRetryIndex + 1])
         setShowResults(false)
@@ -270,6 +276,10 @@ const FillBlankExercise = () => {
 
     // Normal mode navigation
     if (currentQuestionIndex < questions.length - 1) {
+      // Trigger Batman movement
+      setIsBatmanMoving(true)
+      setTimeout(() => setIsBatmanMoving(false), 3000)
+
       setQuestionScores(prev => [...prev, currentScore])
 
       setCurrentQuestionIndex(prev => prev + 1)
@@ -282,7 +292,7 @@ const FillBlankExercise = () => {
       const currentScore = score
       const finalScores = [...questionScores, currentScore]
       const averageScore = finalScores.reduce((sum, s) => sum + s, 0) / finalScores.length
-      
+
       setQuestionScores(finalScores)
       setTotalScore(averageScore)
       setExerciseCompleted(true)
@@ -780,47 +790,18 @@ const FillBlankExercise = () => {
     <div className="px-4 pt-6 pb-12">
       <div className="max-w-4xl mx-auto space-y-6">
       {/* Header */}
-      <div className="bg-white rounded-lg shadow-sm p-4 md:p-5 border border-gray-200">
-        <div className="flex items-center justify-between gap-4 mb-4">
-          <div className="flex-1 min-w-0">
-            <p className="text-xs md:text-sm font-medium text-gray-500 truncate mb-1">
-              {retryMode ? 'Retry Wrong Questions' : exercise?.title}
-            </p>
-            <h1 className="text-lg md:text-2xl font-bold text-gray-900">Fill in the Blank</h1>
-          </div>
-          <div className="text-right flex-shrink-0">
-            <div className="text-xl md:text-3xl font-bold text-blue-600">
-              {currentQuestionIndex + 1}/{questions.length}
-            </div>
-            <div className="text-xs md:text-sm text-gray-500">
-              Question
-            </div>
-          </div>
-        </div>
-
-        {/* Progress Bar inside header */}
-        <div className="mt-4">
-          <div className="flex items-center justify-between mb-2">
-            <span className="text-xs md:text-sm text-gray-600">Progress</span>
-            <span className="text-xs md:text-sm font-semibold text-blue-600">
-              {retryMode
-                ? Math.round(((retryQuestions.indexOf(currentQuestionIndex) + 1) / retryQuestions.length) * 100)
-                : Math.round(((currentQuestionIndex + 1) / questions.length) * 100)
-              }%
-            </span>
-          </div>
-          <div className="w-full bg-gray-200 rounded-full h-2.5">
-            <div
-              className={`h-2.5 rounded-full transition-all duration-300 ${retryMode ? 'bg-yellow-600' : 'bg-blue-600'}`}
-              style={{
-                width: retryMode
-                  ? `${((retryQuestions.indexOf(currentQuestionIndex) + 1) / retryQuestions.length) * 100}%`
-                  : `${((currentQuestionIndex + 1) / questions.length) * 100}%`
-              }}
-            />
-          </div>
-        </div>
-      </div>
+      <ExerciseHeader
+        title={exercise?.title}
+        totalQuestions={questions.length}
+        progressPercentage={
+          retryMode
+            ? ((retryQuestions.indexOf(currentQuestionIndex) + 1) / retryQuestions.length) * 100
+            : ((currentQuestionIndex + 1) / questions.length) * 100
+        }
+        isBatmanMoving={isBatmanMoving}
+        isRetryMode={retryMode}
+        showProgressLabel={false}
+      />
 
       {/* Global Intro (exercise.content.intro) */}
       {exercise?.content?.intro && String(exercise.content.intro).trim() && (

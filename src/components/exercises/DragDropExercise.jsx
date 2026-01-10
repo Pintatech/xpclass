@@ -7,6 +7,7 @@ import Button3D from '../ui/Button3D'
 import { useAuth } from '../../hooks/useAuth'
 import { useProgress } from '../../hooks/useProgress'
 import { useFeedback } from '../../hooks/useFeedback'
+import ExerciseHeader from './ExerciseHeader'
 
 // Convert simple markdown/HTML to safe HTML for preview
 const markdownToHtml = (text) => {
@@ -602,35 +603,13 @@ const DragDropExercise = () => {
     <div className="px-2 md:pt-2 pb-12">
       <div className="max-w-4xl mx-auto space-y-6">
         {/* Header */}
-        <div className="bg-white rounded-lg shadow-sm p-4 md:p-5 border border-gray-200">
-          <div className="flex items-center justify-between gap-4">
-            <div className="flex-1 min-w-0">
-              <p className="text-xs md:text-sm font-medium text-gray-500 truncate mb-1">
-                {exercise?.title}
-              </p>
-            </div>
-          </div>
-
-          {/* Progress Bar inside header */}
-          <div className="mt-4 relative">
-            <div className="w-full bg-gray-200 rounded-full h-2.5 relative overflow-visible">
-              <div
-                className="bg-blue-600 h-2.5 rounded-full transition-all duration-[3000ms]"
-                style={{ width: `${((currentQuestionIndex + 1) / (exercise?.content?.questions?.length || 1)) * 100}%` }}
-              />
-              {/* Running Batman Animation - moves with and stays with progress bar */}
-              <img
-                src={isBatmanMoving ? "https://xpclass.vn/LMS_enhance/gif/Left%20running/batman.gif" : "https://xpclass.vn/xpclass/materials/batman_standing.gif"}
-                alt="Running Batman"
-                className="absolute -top-8 h-12 transition-all duration-[3000ms]"
-                style={{
-                  left: `calc(${((currentQuestionIndex + 1) / (exercise?.content?.questions?.length || 1)) * 100}% - 24px)`,
-                  zIndex: 10
-                }}
-              />
-            </div>
-          </div>
-        </div>
+        <ExerciseHeader
+          title={exercise?.title}
+          progressPercentage={((currentQuestionIndex + 1) / (exercise?.content?.questions?.length || 1)) * 100}
+          isBatmanMoving={isBatmanMoving}
+          showProgressLabel={false}
+          showQuestionCounter={false}
+        />
 
         {/* Meme Overlay */}
         {showMeme && (

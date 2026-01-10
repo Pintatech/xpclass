@@ -7,6 +7,7 @@ import Button3D from '../ui/Button3D'
 import { useAuth } from '../../hooks/useAuth'
 import { useProgress } from '../../hooks/useProgress'
 import { useFeedback } from '../../hooks/useFeedback'
+import ExerciseHeader from './ExerciseHeader'
 
 const ImageHotspotExercise = () => {
   const location = useLocation()
@@ -33,9 +34,36 @@ const ImageHotspotExercise = () => {
   const [imageScale, setImageScale] = useState(1)
   const [isBatmanMoving, setIsBatmanMoving] = useState(false)
   const [isSubmitted, setIsSubmitted] = useState(false)
+  const [prevProgress, setPrevProgress] = useState(0)
 
   const imageRef = useRef(null)
   const containerRef = useRef(null)
+
+  // Extract media elements from question HTML
+  const extractMediaFromQuestion = (questionHtml) => {
+    if (!questionHtml) return { textOnly: '', mediaHtml: '' }
+
+    const parser = new DOMParser()
+    const doc = parser.parseFromString(questionHtml, 'text/html')
+
+    // Find all img and audio elements
+    const mediaElements = doc.querySelectorAll('img, audio')
+    let mediaHtml = ''
+
+    mediaElements.forEach(el => {
+      mediaHtml += el.outerHTML
+      el.remove() // Remove from document
+    })
+
+    // Get remaining text content
+    const textOnly = doc.body.innerHTML.trim()
+
+    return { textOnly, mediaHtml }
+  }
+
+  const { textOnly: questionText, mediaHtml: questionMedia } = exercise
+    ? extractMediaFromQuestion(exercise.content.question)
+    : { textOnly: '', mediaHtml: '' }
 
   // Fetch exercise
   useEffect(() => {
@@ -80,6 +108,26 @@ const ImageHotspotExercise = () => {
       }
     }
   }, [exercise])
+
+  // Trigger Batman movement when progress increases
+  useEffect(() => {
+    const totalHotspots = exercise?.content?.hotspots?.length || 0
+    const filledHotspots = Object.keys(userAnswers).length
+    const completedHotspots = Object.keys(userAnswers).filter(
+      hsId => hotspotFeedback[hsId]?.correct
+    ).length
+
+    const currentProgress = isSubmitted
+      ? (totalHotspots > 0 ? (completedHotspots / totalHotspots) * 100 : 0)
+      : (totalHotspots > 0 ? (filledHotspots / totalHotspots) * 100 : 0)
+
+    if (currentProgress > prevProgress) {
+      setIsBatmanMoving(true)
+      setTimeout(() => setIsBatmanMoving(false), 3000)
+    }
+
+    setPrevProgress(currentProgress)
+  }, [userAnswers, hotspotFeedback, isSubmitted, exercise, prevProgress])
 
   const fetchExercise = async () => {
     try {
@@ -252,8 +300,8 @@ const ImageHotspotExercise = () => {
       const isAnswered = !!answer
       const isCorrect = feedback?.correct
 
-      let fillColor = 'rgba(104, 72, 72, 0.1)'
-      let strokeColor = '#152236ff'
+      let fillColor = 'rgba(243, 242, 242, 0.1)'
+      let strokeColor = '#1522368f'
       let strokeWidth = 2
 
       if (selectedLabel && !isSubmitted) {
@@ -387,44 +435,21 @@ const ImageHotspotExercise = () => {
     <div className="px-2 md:pt-2 pb-12">
       <div className="max-w-6xl mx-auto space-y-6">
         {/* Header */}
-        <div className="bg-white rounded-lg shadow-sm p-4 md:p-5 border border-gray-200">
-          <div className="flex items-center justify-between gap-4 mb-4">
-            <div className="flex-1 min-w-0">
-              <p className="text-xs md:text-sm font-medium text-gray-500 truncate mb-1">
-                {exercise.title}
-              </p>
-              {exercise.content.question && (
-                <p className="text-sm text-gray-700">
-                  {exercise.content.question}
-                </p>
-              )}
-            </div>
-          </div>
-
-          {/* Progress Bar */}
-          <div className="relative">
-            <div className="w-full bg-gray-200 rounded-full h-2.5 relative overflow-visible">
+        <ExerciseHeader
+          title={exercise.title}
+          progressPercentage={progress}
+          isBatmanMoving={isBatmanMoving}
+          showProgressLabel={false}
+          showQuestionCounter={false}
+          customContent={
+            questionText && (
               <div
-                className="bg-blue-600 h-2.5 rounded-full transition-all duration-1000"
-                style={{ width: `${progress}%` }}
+                className="text-sm text-gray-700 prose prose-sm max-w-none"
+                dangerouslySetInnerHTML={{ __html: questionText }}
               />
-              {/* Running Batman Animation */}
-              <img
-                src={
-                  isBatmanMoving
-                    ? 'https://xpclass.vn/LMS_enhance/gif/Left%20running/batman.gif'
-                    : 'https://xpclass.vn/xpclass/materials/batman_standing.gif'
-                }
-                alt="Progress Batman"
-                className="absolute -top-8 h-12 transition-all duration-1000"
-                style={{
-                  left: `calc(${progress}% - 24px)`,
-                  zIndex: 10
-                }}
-              />
-            </div>
-          </div>
-        </div>
+            )
+          }
+        />
 
         {/* Meme Overlay */}
         {showMeme && currentMeme && (
@@ -442,7 +467,15 @@ const ImageHotspotExercise = () => {
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
           {/* Image with hotspots */}
           <div className="lg:col-span-2">
-            <div className="bg-white rounded-lg shadow-md p-4 border border-gray-200">
+            <div className="bg-white rounded-lg shadow-md p-4 border border-gray-200 space-y-4">
+              {/* Question Media (images and audio from question HTML) */}
+              {questionMedia && (
+                <div
+                  className="prose prose-sm max-w-none"
+                  dangerouslySetInnerHTML={{ __html: questionMedia }}
+                />
+              )}
+
               <div ref={containerRef} className="relative">
                 <img
                   ref={imageRef}

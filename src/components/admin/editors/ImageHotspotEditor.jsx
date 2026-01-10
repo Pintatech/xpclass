@@ -6,8 +6,6 @@ const ImageHotspotEditor = ({ content, onContentChange }) => {
   const [hotspots, setHotspots] = useState(content?.hotspots || [])
   const [labels, setLabels] = useState(content?.labels || [])
   const [question, setQuestion] = useState(content?.question || '')
-  const [questionImageUrl, setQuestionImageUrl] = useState(content?.question_image_url || '')
-  const [questionAudioUrl, setQuestionAudioUrl] = useState(content?.question_audio_url || '')
   const [explanation, setExplanation] = useState(content?.explanation || '')
   const [settings, setSettings] = useState({
     shuffle_labels: true,
@@ -27,10 +25,14 @@ const ImageHotspotEditor = ({ content, onContentChange }) => {
   const [dragOffset, setDragOffset] = useState({ x: 0, y: 0 })
   const [urlModal, setUrlModal] = useState({ isOpen: false, type: '' })
   const [urlInput, setUrlInput] = useState('')
+  const [imageSize, setImageSize] = useState('medium')
+  const [customSize, setCustomSize] = useState('400')
+  const [audioControls, setAudioControls] = useState({ controls: true, autoplay: false, loop: false })
 
   const canvasRef = useRef(null)
   const imageRef = useRef(null)
   const containerRef = useRef(null)
+  const questionTextareaRef = useRef(null)
 
   // Update parent when content changes
   useEffect(() => {
@@ -39,13 +41,11 @@ const ImageHotspotEditor = ({ content, onContentChange }) => {
       hotspots,
       labels,
       question,
-      question_image_url: questionImageUrl,
-      question_audio_url: questionAudioUrl,
       explanation,
       settings
     }
     onContentChange(updatedContent)
-  }, [imageUrl, hotspots, labels, question, questionImageUrl, questionAudioUrl, explanation, settings])
+  }, [imageUrl, hotspots, labels, question, explanation, settings, onContentChange])
 
   // Calculate image scale when image loads or container resizes
   useEffect(() => {
@@ -223,14 +223,38 @@ const ImageHotspotEditor = ({ content, onContentChange }) => {
     ))
   }
 
+  const insertAtCursor = (htmlTag) => {
+    const textarea = questionTextareaRef.current
+    if (!textarea) return
+
+    const start = textarea.selectionStart
+    const end = textarea.selectionEnd
+    const text = question
+    const before = text.substring(0, start)
+    const after = text.substring(end)
+
+    const newText = before + htmlTag + after
+    setQuestion(newText)
+
+    // Set cursor position after inserted text
+    setTimeout(() => {
+      textarea.focus()
+      const newPosition = start + htmlTag.length
+      textarea.setSelectionRange(newPosition, newPosition)
+    }, 0)
+  }
+
   const handleOpenImageModal = () => {
     setUrlModal({ isOpen: true, type: 'image' })
     setUrlInput('')
+    setImageSize('medium')
+    setCustomSize('400')
   }
 
   const handleOpenAudioModal = () => {
     setUrlModal({ isOpen: true, type: 'audio' })
     setUrlInput('')
+    setAudioControls({ controls: true, autoplay: false, loop: false })
   }
 
   const handleUrlSubmit = () => {
@@ -238,9 +262,22 @@ const ImageHotspotEditor = ({ content, onContentChange }) => {
     if (!trimmedUrl) return
 
     if (urlModal.type === 'image') {
-      setQuestionImageUrl(trimmedUrl)
+      let sizeStyle = ''
+      if (imageSize === 'small') sizeStyle = 'style="width: 200px"'
+      else if (imageSize === 'medium') sizeStyle = 'style="width: 400px"'
+      else if (imageSize === 'large') sizeStyle = 'style="width: 600px"'
+      else if (imageSize === 'full') sizeStyle = 'style="width: 100%"'
+      else if (imageSize === 'custom' && customSize) sizeStyle = `style="width: ${customSize}px"`
+
+      insertAtCursor(`\n<img src="${trimmedUrl}" alt="" ${sizeStyle} />\n`)
     } else if (urlModal.type === 'audio') {
-      setQuestionAudioUrl(trimmedUrl)
+      const attrs = []
+      if (audioControls.controls) attrs.push('controls')
+      if (audioControls.autoplay) attrs.push('autoplay')
+      if (audioControls.loop) attrs.push('loop')
+      const audioAttrs = attrs.join(' ')
+
+      insertAtCursor(`<audio src="${trimmedUrl}" ${audioAttrs}></audio>`)
     }
 
     setUrlModal({ isOpen: false, type: '' })
@@ -304,11 +341,12 @@ const ImageHotspotEditor = ({ content, onContentChange }) => {
           Question/Instructions
         </label>
         <textarea
+          ref={questionTextareaRef}
           value={question}
           onChange={(e) => setQuestion(e.target.value)}
           placeholder="Label the parts of the diagram by clicking a label then clicking the correct location."
-          rows={2}
-          className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+          rows={4}
+          className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent font-mono text-sm"
         />
 
         {/* Media Buttons */}
@@ -332,45 +370,6 @@ const ImageHotspotEditor = ({ content, onContentChange }) => {
             Add Audio
           </button>
         </div>
-
-        {/* Display current media */}
-        {questionImageUrl && (
-          <div className="p-2 bg-blue-50 border border-blue-200 rounded-lg">
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-2">
-                <ImageIcon className="w-4 h-4 text-blue-600" />
-                <span className="text-sm text-blue-700">Image added</span>
-              </div>
-              <button
-                type="button"
-                onClick={() => setQuestionImageUrl('')}
-                className="text-red-600 hover:text-red-800"
-              >
-                <X className="w-4 h-4" />
-              </button>
-            </div>
-            <img src={questionImageUrl.replace('https://xpclass.vn', '/proxy-image')} alt="Question" className="mt-2 max-w-xs rounded" />
-          </div>
-        )}
-
-        {questionAudioUrl && (
-          <div className="p-2 bg-blue-50 border border-blue-200 rounded-lg">
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-2">
-                <Music className="w-4 h-4 text-blue-600" />
-                <span className="text-sm text-blue-700">Audio added</span>
-              </div>
-              <button
-                type="button"
-                onClick={() => setQuestionAudioUrl('')}
-                className="text-red-600 hover:text-red-800"
-              >
-                <X className="w-4 h-4" />
-              </button>
-            </div>
-            <audio src={questionAudioUrl.replace('https://xpclass.vn', '/proxy-image')} controls className="mt-2 w-full" />
-          </div>
-        )}
       </div>
 
       {/* Validation Messages */}
@@ -711,6 +710,119 @@ const ImageHotspotEditor = ({ content, onContentChange }) => {
                   autoFocus
                 />
               </div>
+
+              {/* Image Size Options */}
+              {urlModal.type === 'image' && (
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    Image Size
+                  </label>
+                  <div className="space-y-2">
+                    <label className="flex items-center gap-2">
+                      <input
+                        type="radio"
+                        name="imageSize"
+                        value="small"
+                        checked={imageSize === 'small'}
+                        onChange={(e) => setImageSize(e.target.value)}
+                        className="text-blue-600"
+                      />
+                      <span className="text-sm">Small (200px)</span>
+                    </label>
+                    <label className="flex items-center gap-2">
+                      <input
+                        type="radio"
+                        name="imageSize"
+                        value="medium"
+                        checked={imageSize === 'medium'}
+                        onChange={(e) => setImageSize(e.target.value)}
+                        className="text-blue-600"
+                      />
+                      <span className="text-sm">Medium (400px)</span>
+                    </label>
+                    <label className="flex items-center gap-2">
+                      <input
+                        type="radio"
+                        name="imageSize"
+                        value="large"
+                        checked={imageSize === 'large'}
+                        onChange={(e) => setImageSize(e.target.value)}
+                        className="text-blue-600"
+                      />
+                      <span className="text-sm">Large (600px)</span>
+                    </label>
+                    <label className="flex items-center gap-2">
+                      <input
+                        type="radio"
+                        name="imageSize"
+                        value="full"
+                        checked={imageSize === 'full'}
+                        onChange={(e) => setImageSize(e.target.value)}
+                        className="text-blue-600"
+                      />
+                      <span className="text-sm">Full Width</span>
+                    </label>
+                    <label className="flex items-center gap-2">
+                      <input
+                        type="radio"
+                        name="imageSize"
+                        value="custom"
+                        checked={imageSize === 'custom'}
+                        onChange={(e) => setImageSize(e.target.value)}
+                        className="text-blue-600"
+                      />
+                      <span className="text-sm">Custom</span>
+                      {imageSize === 'custom' && (
+                        <input
+                          type="number"
+                          value={customSize}
+                          onChange={(e) => setCustomSize(e.target.value)}
+                          className="ml-2 w-20 px-2 py-1 border border-gray-300 rounded text-sm"
+                          placeholder="px"
+                        />
+                      )}
+                    </label>
+                  </div>
+                </div>
+              )}
+
+              {/* Audio Control Options */}
+              {urlModal.type === 'audio' && (
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    Audio Controls
+                  </label>
+                  <div className="space-y-2">
+                    <label className="flex items-center gap-2">
+                      <input
+                        type="checkbox"
+                        checked={audioControls.controls}
+                        onChange={(e) => setAudioControls({ ...audioControls, controls: e.target.checked })}
+                        className="rounded text-blue-600"
+                      />
+                      <span className="text-sm">Show controls</span>
+                    </label>
+                    <label className="flex items-center gap-2">
+                      <input
+                        type="checkbox"
+                        checked={audioControls.autoplay}
+                        onChange={(e) => setAudioControls({ ...audioControls, autoplay: e.target.checked })}
+                        className="rounded text-blue-600"
+                      />
+                      <span className="text-sm">Autoplay</span>
+                    </label>
+                    <label className="flex items-center gap-2">
+                      <input
+                        type="checkbox"
+                        checked={audioControls.loop}
+                        onChange={(e) => setAudioControls({ ...audioControls, loop: e.target.checked })}
+                        className="rounded text-blue-600"
+                      />
+                      <span className="text-sm">Loop</span>
+                    </label>
+                  </div>
+                </div>
+              )}
 
               {/* Preview */}
               {urlInput && (
