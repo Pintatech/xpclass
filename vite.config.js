@@ -13,6 +13,11 @@ export default defineConfig({
         changeOrigin: true,
         rewrite: (path) => path.replace(/^\/api\/audio/, '')
       },
+      '/proxy-image': {
+        target: 'https://xpclass.vn',
+        changeOrigin: true,
+        rewrite: (path) => path.replace(/^\/proxy-image/, '')
+      },
       // Gợi ý: dùng `vercel dev` để phục vụ /api. Nếu không, xoá proxy này để tránh vòng lặp.
     }
   },

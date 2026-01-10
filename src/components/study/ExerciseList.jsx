@@ -34,7 +34,8 @@ import {
   Edit,
   Trash2,
   GripVertical,
-  UserPlus
+  UserPlus,
+  Image
 } from 'lucide-react'
 
 const ExerciseList = () => {
@@ -431,7 +432,8 @@ const ExerciseList = () => {
       ),
       flashcard: (props) => (
         <IconImg src={"https://xpclass.vn/xpclass/icon/flashcard.svg"} {...props} />
-      )
+      ),
+      image_hotspot: () => Image
     }
     return icons[exerciseType] || BookOpen
   }
@@ -442,6 +444,7 @@ const ExerciseList = () => {
       fill_blank: 'text-purple-600 bg-purple-100',
       multiple_choice: 'text-orange-600 bg-orange-100',
       dropdown: 'text-indigo-600 bg-indigo-100',
+      image_hotspot: 'text-cyan-600 bg-cyan-100',
     }
     return colors[exerciseType] || 'text-gray-600 bg-gray-100'
   }
@@ -502,6 +505,7 @@ const ExerciseList = () => {
       dropdown: '/study/dropdown',
       ai_fill_blank: '/study/ai-fill-blank',
       pronunciation: '/study/pronunciation',
+      image_hotspot: '/study/image-hotspot',
     }
 
     const basePath = paths[exercise.exercise_type] || '/study/flashcard'

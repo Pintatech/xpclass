@@ -13,7 +13,8 @@ import {
   Star,
   Clock,
   Tag,
-  FolderOpen
+  FolderOpen,
+  Image
 } from 'lucide-react'
 
 const ExerciseBankCard = ({ exercise, viewMode, onUpdate, onEdit, readOnly = false }) => {
@@ -32,6 +33,14 @@ const ExerciseBankCard = ({ exercise, viewMode, onUpdate, onEdit, readOnly = fal
         return Edit3
       case 'multiple_choice':
         return HelpCircle
+      case 'image_hotspot':
+        return Image
+      case 'drag_drop':
+        return Copy
+      case 'dropdown':
+        return HelpCircle
+      case 'ai_fill_blank':
+        return Edit3
       default:
         return BookOpen
     }
@@ -47,6 +56,14 @@ const ExerciseBankCard = ({ exercise, viewMode, onUpdate, onEdit, readOnly = fal
         return 'Fill in the Blank'
       case 'multiple_choice':
         return 'Multiple Choice'
+      case 'image_hotspot':
+        return 'Image Hotspot'
+      case 'drag_drop':
+        return 'Drag & Drop'
+      case 'dropdown':
+        return 'Dropdown'
+      case 'ai_fill_blank':
+        return 'AI Fill Blank'
       default:
         return 'Exercise'
     }
@@ -85,6 +102,8 @@ const ExerciseBankCard = ({ exercise, viewMode, onUpdate, onEdit, readOnly = fal
           return `/study/drag-drop?exerciseId=${exercise.id}`
         case 'ai_fill_blank':
           return `/study/ai-fill-blank?exerciseId=${exercise.id}`
+        case 'image_hotspot':
+          return `/study/image-hotspot?exerciseId=${exercise.id}`
         default:
           return null
       }

@@ -1,3 +1,4 @@
+import React from 'react'
 import { BrowserRouter as Router, Routes, Route, Outlet } from 'react-router-dom'
 import { AuthProvider } from './hooks/useAuth'
 import { ProgressProvider } from './hooks/useProgress'

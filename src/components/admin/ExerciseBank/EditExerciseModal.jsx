@@ -8,6 +8,7 @@ import SmartDragDropEditor from '../editors/SmartDragDropEditor'
 import AIFillBlankEditor from '../editors/AIFillBlankEditor'
 import SimpleDropdownEditor from '../editors/SimpleDropdownEditor'
 import PronunciationEditor from '../editors/PronunciationEditor'
+import ImageHotspotEditor from '../editors/ImageHotspotEditor'
 
 const EditExerciseModal = ({ isOpen, onClose, exercise, onUpdate }) => {
   const [formData, setFormData] = useState({
@@ -208,6 +209,13 @@ const EditExerciseModal = ({ isOpen, onClose, exercise, onUpdate }) => {
             />
           </>
         )
+      case 'image_hotspot':
+        return (
+          <ImageHotspotEditor
+            content={content}
+            onContentChange={(newContent) => handleContentChange(newContent)}
+          />
+        )
       default:
         return (
           <div className="text-center py-8 text-gray-500">
@@ -266,8 +274,8 @@ const EditExerciseModal = ({ isOpen, onClose, exercise, onUpdate }) => {
                 </label>
                 <select
                   value={formData.exercise_type}
-                  onChange={(e) => handleInputChange('exercise_type', e.target.value)}
-                  className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                  disabled
+                  className="w-full p-3 border border-gray-300 rounded-lg bg-gray-100 cursor-not-allowed"
                 >
                   <option value="flashcard">Flashcard</option>
                   <option value="multiple_choice">Multiple Choice</option>
@@ -275,7 +283,10 @@ const EditExerciseModal = ({ isOpen, onClose, exercise, onUpdate }) => {
                   <option value="dropdown">Dropdown</option>
                   <option value="drag_drop">Drag & Drop</option>
                   <option value="ai_fill_blank">AI Fill Blank</option>
+                  <option value="pronunciation">Pronunciation</option>
+                  <option value="image_hotspot">Image Hotspot</option>
                 </select>
+                <p className="text-xs text-gray-500 mt-1">Exercise type cannot be changed after creation</p>
               </div>
 
               <div>

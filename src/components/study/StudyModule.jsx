@@ -11,6 +11,7 @@ import DragDropExercise from '../exercises/DragDropExercise'
 import AIFillBlankExercise from '../exercises/AIFillBlankExercise'
 import DropdownExercise from '../exercises/DropdownExercise'
 import PronunciationExercise from '../exercises/PronunciationExercise'
+import ImageHotspotExercise from '../exercises/ImageHotspotExercise'
 
 const StudyModule = () => {
   return (
@@ -39,6 +40,7 @@ const StudyModule = () => {
       <Route path="ai-fill-blank" element={<AIFillBlankExercise />} />
       <Route path="dropdown" element={<DropdownExercise />} />
       <Route path="pronunciation" element={<PronunciationExercise />} />
+      <Route path="image-hotspot" element={<ImageHotspotExercise />} />
     </Routes>
   )
 }

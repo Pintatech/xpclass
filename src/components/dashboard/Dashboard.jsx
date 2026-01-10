@@ -371,7 +371,7 @@ const Dashboard = () => {
   }
 
   return (
-    <div className="space-y-8 pt-8">
+    <div className="space-y-8 md:pt-8">
       {/* Header with Blue Background */}
       <div className="relative -mx-4 md:-mx-6 lg:mx-0 -mt-6 md:-mt-6 lg:-mt-6 -mb-4 md:-mb-6 lg:mb-0">
         {/* Blue Background */}

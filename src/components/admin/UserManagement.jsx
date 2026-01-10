@@ -290,9 +290,6 @@ const UserManagement = () => {
                   <tr key={user.id} className="hover:bg-gray-50">
                     <td className="py-4 px-6">
                       <div className="flex items-center space-x-3">
-                        <div className="w-10 h-10 bg-gradient-to-r from-primary-600 to-secondary-600 rounded-full flex items-center justify-center text-white font-medium">
-                          {user.name.charAt(0)}
-                        </div>
                         <div>
                           <div className="font-medium text-gray-900">{user.name}</div>
                           <div className="text-sm text-gray-600">{user.email}</div>
