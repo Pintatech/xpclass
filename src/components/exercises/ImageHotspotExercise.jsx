@@ -4,6 +4,7 @@ import { supabase } from '../../supabase/client'
 import { CheckCircle, XCircle, RotateCcw } from 'lucide-react'
 import LoadingSpinner from '../ui/LoadingSpinner'
 import Button3D from '../ui/Button3D'
+import AudioPlayer from '../ui/AudioPlayer'
 import { useAuth } from '../../hooks/useAuth'
 import { useProgress } from '../../hooks/useProgress'
 import { useFeedback } from '../../hooks/useFeedback'
@@ -41,29 +42,39 @@ const ImageHotspotExercise = () => {
 
   // Extract media elements from question HTML
   const extractMediaFromQuestion = (questionHtml) => {
-    if (!questionHtml) return { textOnly: '', mediaHtml: '' }
+    if (!questionHtml) return { textOnly: '', imageHtml: '', audioUrls: [] }
 
     const parser = new DOMParser()
     const doc = parser.parseFromString(questionHtml, 'text/html')
 
-    // Find all img and audio elements
-    const mediaElements = doc.querySelectorAll('img, audio')
-    let mediaHtml = ''
+    // Find all img elements
+    const imgElements = doc.querySelectorAll('img')
+    let imageHtml = ''
+    imgElements.forEach(el => {
+      imageHtml += el.outerHTML
+      el.remove()
+    })
 
-    mediaElements.forEach(el => {
-      mediaHtml += el.outerHTML
-      el.remove() // Remove from document
+    // Find all audio elements and extract src
+    const audioElements = doc.querySelectorAll('audio')
+    const audioUrls = []
+    audioElements.forEach(el => {
+      const src = el.getAttribute('src') || el.querySelector('source')?.getAttribute('src')
+      if (src) {
+        audioUrls.push(src)
+      }
+      el.remove()
     })
 
     // Get remaining text content
     const textOnly = doc.body.innerHTML.trim()
 
-    return { textOnly, mediaHtml }
+    return { textOnly, imageHtml, audioUrls }
   }
 
-  const { textOnly: questionText, mediaHtml: questionMedia } = exercise
+  const { textOnly: questionText, imageHtml: questionImages, audioUrls: questionAudio } = exercise
     ? extractMediaFromQuestion(exercise.content.question)
-    : { textOnly: '', mediaHtml: '' }
+    : { textOnly: '', imageHtml: '', audioUrls: [] }
 
   // Fetch exercise
   useEffect(() => {
@@ -468,12 +479,26 @@ const ImageHotspotExercise = () => {
           {/* Image with hotspots */}
           <div className="lg:col-span-2">
             <div className="bg-white rounded-lg shadow-md p-4 border border-gray-200 space-y-4">
-              {/* Question Media (images and audio from question HTML) */}
-              {questionMedia && (
+              {/* Question Images from question HTML */}
+              {questionImages && (
                 <div
                   className="prose prose-sm max-w-none"
-                  dangerouslySetInnerHTML={{ __html: questionMedia }}
+                  dangerouslySetInnerHTML={{ __html: questionImages }}
                 />
+              )}
+
+              {/* Question Audio using AudioPlayer component */}
+              {questionAudio && questionAudio.length > 0 && (
+                <div className="space-y-2">
+                  {questionAudio.map((audioUrl, index) => (
+                    <AudioPlayer
+                      key={index}
+                      audioUrl={audioUrl}
+                      variant="outline"
+                      className="w-full"
+                    />
+                  ))}
+                </div>
               )}
 
               <div ref={containerRef} className="relative">

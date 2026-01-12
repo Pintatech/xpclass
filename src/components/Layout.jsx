@@ -17,7 +17,8 @@ const Layout = () => {
     '/study/listening',
     '/study/speaking',
     '/study/pronunciation',
-    '/study/drag-drop'
+    '/study/drag-drop',
+    '/study/hotspot'
   ]
 
   const hideBottomNav = exercisePaths.some(p => location.pathname.startsWith(p))

@@ -11,7 +11,9 @@ const parseContentWithAudio = (content) => {
   }
 
   const segments = []
-  const audioRegex = /<audio([^>]*)>(?:<source[^>]*>)?<\/audio>|<audio([^>]*)\/>/gi
+  // Updated regex to handle audio tags with any attributes including controls
+  // Match any audio tag: <audio...>...</audio> or <audio.../>
+  const audioRegex = /<audio[^>]*>.*?<\/audio>|<audio[^>]*\/>/gis
   let lastIndex = 0
   let match
 
@@ -24,13 +26,13 @@ const parseContentWithAudio = (content) => {
       })
     }
 
-    // Extract audio URL from attributes
-    const attrs = match[1] || match[2] || ''
-    const srcMatch = attrs.match(/src=["']([^"']+)["']/)
+    // Extract audio URL from the matched audio tag
+    const audioTag = match[0]
+    const srcMatch = audioTag.match(/src\s*=\s*["']([^"']+)["']/)
 
     if (srcMatch) {
       // Extract max_plays attribute if present
-      const maxPlaysMatch = attrs.match(/data-max-plays=["'](\d+)["']/)
+      const maxPlaysMatch = audioTag.match(/data-max-plays\s*=\s*["'](\d+)["']/)
       const maxPlays = maxPlaysMatch ? parseInt(maxPlaysMatch[1]) : 0
 
       segments.push({

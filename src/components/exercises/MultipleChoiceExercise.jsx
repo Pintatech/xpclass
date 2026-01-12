@@ -534,7 +534,7 @@ const MultipleChoiceExercise = () => {
       {/* Global Intro (exercise.content.settings/intros) */}
       {exercise?.content?.intro && String(exercise.content.intro).trim() && (
         <div className="w-full max-w-4xl min-w-0 mx-auto rounded-lg p-4 md:p-6 bg-white shadow-sm border border-gray-200">
-          <RichTextRenderer content={exercise.content.intro} allowImages={true} allowLinks={false} />
+          <RichTextWithAudio content={exercise.content.intro} allowImages={true} allowLinks={false} />
         </div>
       )}
 
@@ -697,7 +697,7 @@ const MultipleChoiceExercise = () => {
               {/* Intro above question (optional) */}
               {currentQuestion.intro && String(currentQuestion.intro).trim() && (
                 <div className="mb-4">
-                  <RichTextRenderer
+                  <RichTextWithAudio
                     content={currentQuestion.intro}
                     allowImages={true}
                     allowLinks={false}
@@ -889,7 +889,7 @@ const MultipleChoiceExercise = () => {
                       {/* Intro above question (optional) */}
                       {question.intro && String(question.intro).trim() && (
                         <div className="mb-4">
-                          <RichTextRenderer
+                          <RichTextWithAudio
                             content={question.intro}
                             allowImages={true}
                             allowLinks={false}
