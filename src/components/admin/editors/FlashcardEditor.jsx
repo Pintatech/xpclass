@@ -6,6 +6,7 @@ import {
   Upload,
   Download,
   X,
+  Video,
 } from 'lucide-react'
 
 const FlashcardEditor = ({ cards, onCardsChange }) => {
@@ -47,6 +48,43 @@ const FlashcardEditor = ({ cards, onCardsChange }) => {
 
   const removeCard = (index) => {
     const updatedCards = localCards.filter((_, i) => i !== index)
+    setLocalCards(updatedCards)
+    onCardsChange(updatedCards)
+  }
+
+  const addVideoUrl = (cardIndex) => {
+    const updatedCards = localCards.map((card, i) => {
+      if (i === cardIndex) {
+        const videoUrls = card.videoUrls || []
+        return { ...card, videoUrls: [...videoUrls, ''] }
+      }
+      return card
+    })
+    setLocalCards(updatedCards)
+    onCardsChange(updatedCards)
+  }
+
+  const updateVideoUrl = (cardIndex, videoIndex, value) => {
+    const updatedCards = localCards.map((card, i) => {
+      if (i === cardIndex) {
+        const videoUrls = [...(card.videoUrls || [])]
+        videoUrls[videoIndex] = value
+        return { ...card, videoUrls }
+      }
+      return card
+    })
+    setLocalCards(updatedCards)
+    onCardsChange(updatedCards)
+  }
+
+  const removeVideoUrl = (cardIndex, videoIndex) => {
+    const updatedCards = localCards.map((card, i) => {
+      if (i === cardIndex) {
+        const videoUrls = (card.videoUrls || []).filter((_, vi) => vi !== videoIndex)
+        return { ...card, videoUrls }
+      }
+      return card
+    })
     setLocalCards(updatedCards)
     onCardsChange(updatedCards)
   }
@@ -192,7 +230,7 @@ const FlashcardEditor = ({ cards, onCardsChange }) => {
                   value={card.front || ''}
                   onChange={(e) => updateCard(index, 'front', e.target.value)}
                   className="w-full p-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
-                  rows={3}
+                  rows={1}
                   placeholder="Front of the card"
                 />
               </div>
@@ -206,7 +244,7 @@ const FlashcardEditor = ({ cards, onCardsChange }) => {
                   value={card.back || ''}
                   onChange={(e) => updateCard(index, 'back', e.target.value)}
                   className="w-full p-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
-                  rows={3}
+                  rows={1}
                   placeholder="Back of the card"
                 />
               </div>
@@ -234,6 +272,68 @@ const FlashcardEditor = ({ cards, onCardsChange }) => {
                   />
                 )}
               </div>
+            </div>
+
+            {/* Video URLs */}
+            <div className="mt-4">
+              <div className="flex justify-between items-center mb-2">
+                <label className="block text-sm font-medium text-gray-700">
+                  Video URLs {card.videoUrls && card.videoUrls.length > 0 && `(${card.videoUrls.length})`}
+                </label>
+                <button
+                  type="button"
+                  onClick={() => addVideoUrl(index)}
+                  className="flex items-center gap-1 px-2 py-1 bg-orange-600 text-white text-xs rounded hover:bg-orange-700"
+                >
+                  <Plus className="w-3 h-3" />
+                  Add Video
+                </button>
+              </div>
+
+              {card.videoUrls && card.videoUrls.length > 0 ? (
+                <div className="space-y-2">
+                  {card.videoUrls.map((videoUrl, videoIndex) => (
+                    <div key={videoIndex} className="flex gap-2 items-start">
+                      {/* Video Thumbnail */}
+                      {videoUrl && (
+                        <div className="flex-shrink-0">
+                          <video
+                            src={videoUrl}
+                            className="w-20 h-20 rounded border object-cover cursor-pointer hover:opacity-80 transition-opacity"
+                            onClick={(e) => {
+                              e.target.requestFullscreen?.() || e.target.webkitRequestFullscreen?.()
+                            }}
+                            onError={(e) => e.target.style.display = 'none'}
+                            title="Click to view fullscreen"
+                          />
+                        </div>
+                      )}
+                      <div className="flex-1">
+                        <input
+                          type="url"
+                          value={videoUrl || ''}
+                          onChange={(e) => updateVideoUrl(index, videoIndex, e.target.value)}
+                          className="w-full p-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 text-sm"
+                          placeholder="https://example.com/video.mp4"
+                        />
+                      </div>
+                      <button
+                        type="button"
+                        onClick={() => removeVideoUrl(index, videoIndex)}
+                        className="text-red-600 hover:text-red-800 p-2"
+                        title="Remove video"
+                      >
+                        <X className="w-4 h-4" />
+                      </button>
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <div className="text-sm text-gray-500 italic flex items-center gap-2 p-3 bg-gray-50 rounded border border-gray-200">
+                  <Video className="w-4 h-4" />
+                  No videos added. Click &quot;Add Video&quot; to add video URLs.
+                </div>
+              )}
             </div>
 
           </div>

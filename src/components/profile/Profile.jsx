@@ -534,8 +534,15 @@ const Profile = () => {
   return (
     <div className="max-w-4xl mx-auto space-y-6">
       {/* Profile Header */}
-      <Card className="!bg-blue-500 text-white">
-        <Card.Content className="p-6">
+      <Card className="!bg-gradient-to-r from-blue-600 to-purple-600 text-white relative overflow-hidden">
+        {/* Background Image */}
+        <div
+          className="absolute inset-0 bg-cover bg-center bg-no-repeat"
+          style={{ backgroundImage: "url('https://xpclass.vn/xpclass/image/blue_dashboard_hero_section.jpeg')" }}
+        />
+        {/* Dark overlay for better text readability */}
+        <div className="absolute inset-0 bg-black/30" />
+        <Card.Content className="p-6 relative z-10">
           <div className="flex items-center justify-between">
             <div className="flex items-center space-x-4">
               <div

@@ -374,10 +374,15 @@ const Dashboard = () => {
     <div className="space-y-8 md:pt-8">
       {/* Header with Blue Background */}
       <div className="relative -mx-4 md:-mx-6 lg:mx-0 -mt-6 md:-mt-6 lg:-mt-6 -mb-4 md:-mb-6 lg:mb-0">
-        {/* Blue Background */}
-        <div className="relative h-48 md:h-56 overflow-hidden bg-blue-600 lg:rounded-lg">
+        {/* Background Image */}
+        <div className="relative h-48 md:h-56 overflow-hidden lg:rounded-lg bg-gradient-to-r from-blue-600 to-purple-600">
+          {/* Background Image */}
+          <div
+            className="absolute inset-0 bg-cover bg-center bg-no-repeat"
+            style={{ backgroundImage: "url('https://xpclass.vn/xpclass/image/blue_dashboard_hero_section.jpeg')" }}
+          />
           {/* Dark overlay for better text readability */}
-          <div className="absolute inset-0 bg-black/20" />
+          <div className="absolute inset-0 bg-black/30" />
           
           {/* Content overlay */}
           <div className="absolute inset-0 flex flex-col justify-between p-6">

@@ -5,7 +5,7 @@ import { useAuth } from "../../hooks/useAuth";
 import { supabase } from "../../supabase/client";
 import Button from "../ui/Button";
 import LoadingSpinner from "../ui/LoadingSpinner";
-import { Volume2, ChevronLeft, ChevronRight, Mic } from "lucide-react";
+import { Volume2, ChevronLeft, ChevronRight, Mic, Video, Image } from "lucide-react";
 
 const FlashcardExercise = () => {
   const location = useLocation();
@@ -22,6 +22,9 @@ const FlashcardExercise = () => {
   const [isRecording, setIsRecording] = useState(false);
   const [recognition, setRecognition] = useState(null);
   const [pronunciationResult, setPronunciationResult] = useState(null);
+  const [mediaMode, setMediaMode] = useState('image'); // 'image' or 'video'
+  const [currentVideoIndex, setCurrentVideoIndex] = useState(0);
+  const [videoRefs, setVideoRefs] = useState([]);
 
   // Get exerciseId and sessionId from URL search params
   const searchParams = new URLSearchParams(location.search);
@@ -203,8 +206,12 @@ const FlashcardExercise = () => {
     }
     // Stop any speech synthesis
     speechSynth.cancel();
+    // Pause all videos
+    pauseAllVideos();
     // Reset flip state and video index
     setIsFlipped(false);
+    setMediaMode('image');
+    setCurrentVideoIndex(0);
     setCurrentCard(index);
   };
 
@@ -260,6 +267,25 @@ const FlashcardExercise = () => {
     const prevIndex =
       (currentCard - 1 + displayedCards.length) % displayedCards.length;
     handleCardSelect(prevIndex);
+  };
+
+  const toggleMediaMode = () => {
+    const newMode = mediaMode === 'image' ? 'video' : 'image';
+
+    if (newMode === 'image') {
+      pauseAllVideos();
+    }
+    setMediaMode(newMode);
+    setCurrentVideoIndex(0);
+  };
+
+  const pauseAllVideos = () => {
+    videoRefs.forEach(videoRef => {
+      if (videoRef) {
+        videoRef.pause();
+        videoRef.currentTime = 0;
+      }
+    });
   };
 
   // Initialize speech recognition
@@ -339,6 +365,20 @@ const FlashcardExercise = () => {
     // No-op here; marking is handled on user action
   }, [exerciseId]);
 
+  // Auto-play video when switching to video mode or changing video index
+  useEffect(() => {
+    if (mediaMode === 'video' && videoRefs[currentVideoIndex]) {
+      const videoElement = videoRefs[currentVideoIndex];
+      const playPromise = videoElement.play();
+
+      if (playPromise !== undefined) {
+        playPromise.catch(error => {
+          console.log('Auto-play prevented:', error);
+        });
+      }
+    }
+  }, [mediaMode, currentVideoIndex, videoRefs]);
+
   // Bottom nav Back: go back to session view
   useEffect(() => {
     const handleBottomNavBack = () => {
@@ -350,6 +390,8 @@ const FlashcardExercise = () => {
         setCurrentAudio(null);
       }
       speechSynth.cancel();
+      // Pause all videos
+      pauseAllVideos();
       // Navigate back to session view
       if (session && session.units && session.units.levels) {
         const unitId = session.units.id;
@@ -412,124 +454,204 @@ const FlashcardExercise = () => {
   }
 
   return (
-    
-      <div className="max-w-6xl mx-auto space-y-6 px-4 py-6">
+
+      <div className="max-w-6xl mx-auto space-y-4 sm:space-y-6 px-2 sm:px-4 py-4 sm:py-6">
         {/* Main Card Display with Right Side Thumbnails */}
-        <div className="flex gap-4 max-w-full mx-auto px-4">
+        <div className="flex flex-col lg:flex-row gap-4 max-w-full mx-auto">
           {/* Main Card */}
-          <div className="flex-1 max-w-2xl mx-auto">
+          <div className="flex-1 max-w-2xl mx-auto w-full">
             <div className="bg-white rounded-lg shadow-md overflow-hidden border border-gray-200">
               <div className="relative">
                 {/* Card Content - Front or Back */}
                 <div className="aspect-square relative">
-                  {!isFlipped ? (
-                    // Front side - Image with front text
+                  {mediaMode === 'image' ? (
+                    // Image mode - show image with front/back text based on flip state
+                    !isFlipped ? (
+                      // Front side - Image with front text
+                      <>
+                        <img
+                          src={currentFlashcard?.image}
+                          alt={currentFlashcard?.front}
+                          className="w-full h-full object-cover"
+                        />
+                        {/* Overlay with front text */}
+                        <div className="absolute inset-0 bg-black/40 flex items-center justify-center px-4">
+                          <div className="text-center text-white">
+                            <h2 className="text-2xl sm:text-3xl md:text-4xl lg:text-5xl font-bold mb-2 drop-shadow-lg break-words max-w-full">
+                              {currentFlashcard?.front}
+                            </h2>
+                          </div>
+                        </div>
+
+                        {/* Pronunciation Result Overlay */}
+                        {pronunciationResult && (
+                          <div className="absolute inset-0 bg-black/80 flex items-center justify-center z-10">
+                            <div className="text-center text-white p-8">
+                              {pronunciationResult.error ? (
+                                <>
+                                  <div className="text-6xl mb-4">❌</div>
+                                  <h3 className="text-2xl font-bold">Error</h3>
+                                  <p className="text-lg mt-2">Please try again</p>
+                                </>
+                              ) : (
+                                <>
+                                  <div className="text-8xl font-bold mb-4">
+                                    {pronunciationResult.accuracy}%
+                                  </div>
+                                  <div className="text-4xl mb-4">
+                                    {pronunciationResult.isCorrect ? "✅" : "❌"}
+                                  </div>
+                                  <h3 className="text-2xl font-bold mb-2">
+                                    {pronunciationResult.isCorrect ? "Great!" : "Try Again"}
+                                  </h3>
+                                  <p className="text-lg">
+                                    You said: &quot;{pronunciationResult.transcript}&quot;
+                                  </p>
+                                  <p className="text-sm mt-2 text-gray-300">
+                                    Target: &quot;{pronunciationResult.targetWord}&quot;
+                                  </p>
+                                </>
+                              )}
+                            </div>
+                          </div>
+                        )}
+                      </>
+                    ) : (
+                      // Back side - Image with back text
+                      <>
+                        <img
+                          src={currentFlashcard?.image}
+                          alt={currentFlashcard?.back}
+                          className="w-full h-full object-cover"
+                        />
+                        {/* Overlay with back text */}
+                        <div className="absolute inset-0 bg-black/40 flex items-center justify-center px-4">
+                          <div className="text-center text-white">
+                            <h2 className="text-2xl sm:text-3xl md:text-4xl lg:text-5xl font-bold mb-2 drop-shadow-lg break-words max-w-full">
+                              {currentFlashcard?.back}
+                            </h2>
+                          </div>
+                        </div>
+                      </>
+                    )
+                  ) : (
+                    // Video mode - show video with text overlay
                     <>
-                      <img
-                        src={currentFlashcard?.image}
-                        alt={currentFlashcard?.front}
+                      <video
+                        ref={(el) => {
+                          if (el && !videoRefs[currentVideoIndex]) {
+                            const newRefs = [...videoRefs];
+                            newRefs[currentVideoIndex] = el;
+                            setVideoRefs(newRefs);
+                          }
+                        }}
+                        src={currentFlashcard?.videoUrls?.[currentVideoIndex]}
                         className="w-full h-full object-cover"
+                        controls
+                        autoPlay
+                        playsInline
+                        muted
+                        onError={() => {
+                          console.error('Video failed to load:', currentFlashcard?.videoUrls?.[currentVideoIndex]);
+                        }}
                       />
-                      {/* Overlay with front text */}
-                      <div className="absolute inset-0 bg-black/40 flex items-center justify-center">
+                      {/* Text overlay - respects flip state */}
+                      <div className="absolute inset-0 bg-black/30 flex items-center justify-center px-4 pointer-events-none">
                         <div className="text-center text-white">
-                          <h2 className="text-4xl md:text-5xl font-bold mb-2 drop-shadow-lg">
-                            {currentFlashcard?.front}
+                          <h2 className="text-2xl sm:text-3xl md:text-4xl lg:text-5xl font-bold mb-2 drop-shadow-lg break-words max-w-full">
+                            {isFlipped ? currentFlashcard?.back : currentFlashcard?.front}
                           </h2>
                         </div>
                       </div>
 
-                      {/* Pronunciation Result Overlay */}
-                      {pronunciationResult && (
-                        <div className="absolute inset-0 bg-black/80 flex items-center justify-center z-10">
-                          <div className="text-center text-white p-8">
-                            {pronunciationResult.error ? (
-                              <>
-                                <div className="text-6xl mb-4">❌</div>
-                                <h3 className="text-2xl font-bold">Error</h3>
-                                <p className="text-lg mt-2">Please try again</p>
-                              </>
-                            ) : (
-                              <>
-                                <div className="text-8xl font-bold mb-4">
-                                  {pronunciationResult.accuracy}%
+                      {/* Video thumbnails navigation - only for multiple videos */}
+                      {currentFlashcard?.videoUrls?.length > 1 && (
+                        <div className="absolute top-4 left-4 flex flex-row gap-2 z-10">
+                          {currentFlashcard.videoUrls.map((videoUrl, videoIndex) => (
+                            <button
+                              key={videoIndex}
+                              onClick={() => {
+                                if (videoRefs[currentVideoIndex]) {
+                                  videoRefs[currentVideoIndex].pause();
+                                }
+                                setCurrentVideoIndex(videoIndex);
+                              }}
+                              className={`relative w-8 h-8 sm:w-8 sm:h-8 rounded-lg overflow-hidden border-2 transition-all duration-200 ${
+                                currentVideoIndex === videoIndex
+                                  ? "border-blue-500 ring-2 ring-blue-400 scale-105"
+                                  : "border-white/50 hover:border-white hover:scale-105"
+                              }`}
+                              title={`Video ${videoIndex + 1}`}
+                            >
+                              <video
+                                src={videoUrl}
+                                className="w-full h-full object-cover pointer-events-none"
+                                muted
+                              />
+                              {currentVideoIndex === videoIndex && (
+                                <div className="absolute inset-0 bg-blue-500/20 flex items-center justify-center">
                                 </div>
-                                <div className="text-4xl mb-4">
-                                  {pronunciationResult.isCorrect ? "✅" : "❌"}
-                                </div>
-                                <h3 className="text-2xl font-bold mb-2">
-                                  {pronunciationResult.isCorrect ? "Great!" : "Try Again"}
-                                </h3>
-                                <p className="text-lg">
-                                  You said: "{pronunciationResult.transcript}"
-                                </p>
-                                <p className="text-sm mt-2 text-gray-300">
-                                  Target: "{pronunciationResult.targetWord}"
-                                </p>
-                              </>
-                            )}
-                          </div>
+                              )}
+                            </button>
+                          ))}
                         </div>
                       )}
-                    </>
-                  ) : (
-                    // Back side - Image with back text
-                    <>
-                      <img
-                        src={currentFlashcard?.image}
-                        alt={currentFlashcard?.back}
-                        className="w-full h-full object-cover"
-                      />
-                      {/* Overlay with back text */}
-                      <div className="absolute inset-0 bg-black/40 flex items-center justify-center">
-                        <div className="text-center text-white">
-                          <h2 className="text-4xl md:text-5xl font-bold mb-2 drop-shadow-lg">
-                            {currentFlashcard?.back}
-                          </h2>
-                        </div>
-                      </div>
                     </>
                   )}
                 </div>
 
                 {/* Controls */}
-                <div className="p-6 bg-white flex justify-center items-center space-x-4">
+                <div className="p-3 sm:p-4 md:p-6 bg-white flex justify-center items-center gap-2 sm:gap-3 md:gap-4">
                   <button
                     onClick={goToPreviousCard}
-                    className="w-12 h-12 bg-gray-600 hover:bg-gray-700 text-white rounded-full flex items-center justify-center transition-colors duration-200 shadow-lg hover:shadow-xl"
+                    className="w-10 h-10 sm:w-12 sm:h-12 bg-gray-600 hover:bg-gray-700 text-white rounded-full flex items-center justify-center transition-colors duration-200 shadow-lg hover:shadow-xl flex-shrink-0"
                     title="Previous Card"
                     disabled={displayedCards.length <= 1}
                   >
-                    <ChevronLeft className="w-6 h-6" />
+                    <ChevronLeft className="w-5 h-5 sm:w-6 sm:h-6" />
+                  </button>
+
+                  {/* Media toggle button */}
+                  <button
+                    onClick={toggleMediaMode}
+                    className="w-12 h-12 sm:w-12 sm:h-12 bg-orange-600 hover:bg-orange-700 text-white rounded-full flex items-center justify-center transition-colors duration-200 shadow-lg hover:shadow-xl flex-shrink-0 disabled:opacity-30 disabled:cursor-not-allowed"
+                    title={mediaMode === 'image' ? 'Switch to Video' : 'Switch to Image'}
+                    disabled={!currentFlashcard?.videoUrls || currentFlashcard.videoUrls.length === 0}
+                  >
+                    {mediaMode === 'image' ? (
+                      <Video className="w-5 h-5 sm:w-6 sm:h-6" />
+                    ) : (
+                      <Image className="w-5 h-5 sm:w-6 sm:h-6" />
+                    )}
                   </button>
 
                   <button
                     onClick={playAudio}
-                    className={`w-16 h-16 text-white rounded-full flex items-center justify-center transition-colors duration-200 shadow-lg hover:shadow-xl ${
+                    className={`w-12 h-12 sm:w-14 sm:h-14 md:w-16 md:h-16 text-white rounded-full flex items-center justify-center transition-colors duration-200 shadow-lg hover:shadow-xl flex-shrink-0 ${
                       speechSynth.speaking
                         ? "bg-red-600 hover:bg-red-700"
                         : "bg-blue-700 hover:bg-blue-800"
                     }`}
                     title={speechSynth.speaking ? "Stop Speech" : "Speak Text"}
                   >
-                    <Volume2 className="w-6 h-6" />
+                    <Volume2 className="w-5 h-5 sm:w-6 sm:h-6" />
                   </button>
 
                   <button
                     onClick={toggleRecording}
-                    className={`w-16 h-16 text-white rounded-full flex items-center justify-center transition-colors duration-200 shadow-lg hover:shadow-xl ${
+                    className={`w-12 h-12 sm:w-14 sm:h-14 md:w-16 md:h-16 text-white rounded-full flex items-center justify-center transition-colors duration-200 shadow-lg hover:shadow-xl flex-shrink-0 ${
                       isRecording
                         ? "bg-red-600 hover:bg-red-700 animate-pulse"
                         : "bg-purple-600 hover:bg-purple-700"
                     }`}
                     title={isRecording ? "Recording..." : "Practice Pronunciation"}
                   >
-                    <Mic className="w-6 h-6" />
+                    <Mic className="w-5 h-5 sm:w-6 sm:h-6" />
                   </button>
 
                   <button
                     onClick={flipCard}
-                    className="w-16 h-16 bg-green-600 hover:bg-green-700 text-white rounded-full flex items-center justify-center transition-colors duration-200 shadow-lg hover:shadow-xl"
+                    className="w-12 h-12 sm:w-14 sm:h-14 md:w-16 md:h-16 bg-green-600 hover:bg-green-700 text-white rounded-full flex items-center justify-center transition-colors duration-200 shadow-lg hover:shadow-xl flex-shrink-0"
                     title="Flip Card"
                   >
                     <div className="text-xs font-bold">FLIP</div>
@@ -537,11 +659,11 @@ const FlashcardExercise = () => {
 
                   <button
                     onClick={goToNextCard}
-                    className="w-12 h-12 bg-gray-600 hover:bg-gray-700 text-white rounded-full flex items-center justify-center transition-colors duration-200 shadow-lg hover:shadow-xl"
+                    className="w-10 h-10 sm:w-12 sm:h-12 bg-gray-600 hover:bg-gray-700 text-white rounded-full flex items-center justify-center transition-colors duration-200 shadow-lg hover:shadow-xl flex-shrink-0"
                     title="Next Card"
                     disabled={displayedCards.length <= 1}
                   >
-                    <ChevronRight className="w-6 h-6" />
+                    <ChevronRight className="w-5 h-5 sm:w-6 sm:h-6" />
                   </button>
                 </div>
               </div>
@@ -570,6 +692,14 @@ const FlashcardExercise = () => {
                         <p className="text-xs font-bold">{card.front}</p>
                       </div>
                     </div>
+                    {/* Video indicator */}
+                    {card.videoUrls && card.videoUrls.length > 0 && (
+                      <div className="absolute top-1 left-1">
+                        <div className="bg-orange-600 rounded-full p-1">
+                          <Video className="w-3 h-3 text-white" />
+                        </div>
+                      </div>
+                    )}
                     {currentCard === index && (
                       <div className="absolute top-1 right-1">
                         <div className="w-4 h-4 bg-blue-500 rounded-full"></div>
@@ -582,15 +712,15 @@ const FlashcardExercise = () => {
           </div>
 
           {/* Thumbnail Navigation - Mobile/Tablet fallback */}
-          <div className="lg:hidden">
-            <div className="grid gap-3 grid-cols-2 md:grid-cols-4">
+          <div className="lg:hidden w-full">
+            <div className="grid gap-2 sm:gap-3 grid-cols-3 sm:grid-cols-4 md:grid-cols-5">
               {displayedCards.map((card, index) => (
                 <button
                   key={card.id}
                   onClick={() => handleCardSelect(index)}
                   className={`relative aspect-square rounded-lg overflow-hidden transition-all duration-200 ${
                     currentCard === index
-                      ? "ring-4 ring-blue-500 scale-105"
+                      ? "ring-2 sm:ring-4 ring-blue-500 scale-105"
                       : "hover:scale-105 hover:shadow-lg"
                   }`}
                 >
@@ -599,14 +729,21 @@ const FlashcardExercise = () => {
                     alt={card.front}
                     className="w-full h-full object-cover"
                   />
-                  <div className="absolute inset-0 bg-black/50 flex items-center justify-center">
+                  <div className="absolute inset-0 bg-black/50 flex items-center justify-center p-1">
                     <div className="text-center text-white">
-                      <p className="text-sm font-bold">{card.front}</p>
+                      <p className="text-xs sm:text-sm font-bold line-clamp-2">{card.front}</p>
                     </div>
                   </div>
+                  {/* Video indicator */}
+                  {card.videoUrls && card.videoUrls.length > 0 && (
+                    <div className="absolute top-1 left-1 sm:top-2 sm:left-2">
+                      <div className="bg-orange-600 rounded-full p-1">
+                        <Video className="w-3 h-3 text-white" />
+                      </div>
+                    </div>
+                  )}
                   {currentCard === index && (
-                    <div className="absolute top-2 right-2">
-                      <div className="w-6 h-6 bg-blue-500 rounded-full"></div>
+                    <div className="absolute top-1 right-1 sm:top-2 sm:right-2">
                     </div>
                   )}
                 </button>

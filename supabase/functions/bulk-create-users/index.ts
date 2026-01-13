@@ -47,7 +47,7 @@ serve(async (req) => {
 
         if (authError) throw authError
 
-        // Create user profile in public.users table
+        // Create or update user profile in public.users table
         const profileData: any = {
           id: authData.user.id,
           email: user.email,
@@ -60,9 +60,13 @@ serve(async (req) => {
           profileData.avatar_url = user.avatar_url
         }
 
+        // Use upsert to handle both new users and existing users
         const { error: profileError } = await supabaseClient
           .from('users')
-          .insert(profileData)
+          .upsert(profileData, {
+            onConflict: 'id',
+            ignoreDuplicates: false
+          })
 
         if (profileError) throw profileError
 

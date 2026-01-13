@@ -196,11 +196,11 @@ export const parseFlashcardsFromCSV = (csvText) => {
 
 // Generate sample CSV template
 export const generateCSVTemplate = () => {
-  return `front,back,image
-Hello,Xin chào,https://example.com/hello.jpg
-Goodbye,Tạm biệt,https://example.com/goodbye.jpg
-Thank you,Cảm ơn,https://example.com/thanks.jpg
-Good morning,Chào buổi sáng,https://example.com/morning.jpg`
+  return `front,back,image,videoUrls
+Hello,Xin chào,https://example.com/hello.jpg,https://example.com/hello1.mp4|https://example.com/hello2.mp4
+Goodbye,Tạm biệt,https://example.com/goodbye.jpg,https://example.com/goodbye.mp4
+Thank you,Cảm ơn,https://example.com/thanks.jpg,
+Good morning,Chào buổi sáng,https://example.com/morning.jpg,https://example.com/morning.mp4`
 }
 
 // Validate flashcard data structure

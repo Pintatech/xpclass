@@ -317,94 +317,7 @@ const FillBlankEditor = ({ questions, onQuestionsChange, settings, onSettingsCha
             newQuestions.push(question)
           }
         }
-        // Check if this is a traditional format (Blank:/Answer:)
-        else if (trimmedLine.match(/^Blank:/i)) {
-          // This is handled by the traditional format logic below
-        }
-        // Answer line (starts with Answer:)
-        else if (trimmedLine.match(/^Answer:/i)) {
-          // This is handled by the traditional format logic below
-        }
-        // Explanation line (starts with Explanation:)
-        else if (trimmedLine.match(/^(Explanation|Answer):/i)) {
-          // This is handled by the traditional format logic below
-        }
       })
-
-      // If no questions were created with the new format, try traditional format
-      if (newQuestions.length === 0) {
-        let currentQuestion = null
-        let questionText = ''
-        let blanks = []
-
-        lines.forEach((line, index) => {
-          const trimmedLine = line.trim()
-
-          // Check if this is a new question (starts with Q: or number.)
-          if (trimmedLine.match(/^(Q:|Question|\d+[\.):])/i)) {
-            // Save previous question if exists
-            if (currentQuestion && questionText && blanks.length > 0) {
-              currentQuestion.question = questionText
-              currentQuestion.blanks = blanks
-              newQuestions.push(currentQuestion)
-            }
-
-            // Start new question
-            currentQuestion = {
-              id: `q${Date.now()}_${questionCounter++}`,
-              question: '',
-              blanks: [],
-              explanation: ''
-            }
-            questionText = trimmedLine.replace(/^(Q:|Question|\d+[\.):])\s*/i, '')
-            blanks = []
-          }
-          // Blank line (starts with Blank:)
-          else if (trimmedLine.match(/^Blank:/i)) {
-            if (currentQuestion) {
-              const blankText = trimmedLine.replace(/^Blank:\s*/i, '')
-              blanks.push({
-                text: blankText,
-                answer: '',
-                case_sensitive: false
-              })
-            }
-          }
-           // Answer line (starts with Answer:)
-           else if (trimmedLine.match(/^Answer:/i)) {
-             if (currentQuestion && blanks.length > 0) {
-               const answerText = trimmedLine.replace(/^Answer:\s*/i, '')
-               const lastBlank = blanks[blanks.length - 1]
-               // Support multiple answers separated by |, /, or ,
-               const answers = answerText.split(/[|/,]/).map(a => a.trim()).filter(a => a)
-               lastBlank.answer = answers.length > 0 ? answers.join(', ') : answerText
-             }
-           }
-          // Explanation line (starts with Explanation:)
-          else if (trimmedLine.match(/^(Explanation|Answer):/i)) {
-            if (currentQuestion) {
-              currentQuestion.explanation = trimmedLine.replace(/^(Explanation|Answer):\s*/i, '')
-            }
-          }
-          // Regular line (no blanks) - add to current question
-          else if (trimmedLine && !trimmedLine.match(/^Blank|^Answer|^Explanation/i)) {
-            if (currentQuestion) {
-              if (questionText) {
-                questionText += '\n' + line
-              } else {
-                questionText = line
-              }
-            }
-          }
-        })
-
-        // Save the last question
-        if (currentQuestion && questionText && blanks.length > 0) {
-          currentQuestion.question = questionText
-          currentQuestion.blanks = blanks
-          newQuestions.push(currentQuestion)
-        }
-      }
 
       if (newQuestions.length > 0) {
         const updatedQuestions = [...localQuestions, ...newQuestions]
@@ -428,26 +341,19 @@ const FillBlankEditor = ({ questions, onQuestionsChange, settings, onSettingsCha
     }
 
     const exportText = localQuestions.map((q, index) => {
+      // Simply export the question text as-is (already contains _____)
       let text = `${String.fromCharCode(65 + index)}. ${q.question}\n\n`
-      
-      // Check if question has blanks with hints (new format)
-      const hasHints = q.blanks.some(blank => blank.text && blank.text !== '')
-      
-      if (hasHints) {
-        // Export in new format with [answer] (hint)
+
+      // Note: The question text already has _____ blanks in it
+      // We could optionally add answer key below for reference
+      if (q.blanks && q.blanks.length > 0) {
+        text += 'Answers:\n'
         q.blanks.forEach((blank, blankIndex) => {
-          if (blank.text) {
-            text += `${blankIndex + 1}. [${blank.answer}] (${blank.text})\n\n`
-          }
+          text += `${blankIndex + 1}. ${blank.answer}\n`
         })
-      } else {
-        // Export in traditional format
-        q.blanks.forEach((blank, blankIndex) => {
-          text += `Blank: ${blank.text}\n`
-          text += `Answer: ${blank.answer}\n`
-        })
+        text += '\n'
       }
-      
+
       if (q.explanation) {
         text += `Explanation: ${q.explanation}\n`
       }
@@ -472,10 +378,10 @@ const FillBlankEditor = ({ questions, onQuestionsChange, settings, onSettingsCha
   const markdownToHtml = (text) => {
     if (!text) return ''
     let html = text
-    // Highlight blank underscores (___ or longer) with prominent blue styling
+    // Highlight blank underscores (_____ exactly 5 underscores) with prominent blue styling
     html = html.replace(
-      /(_{3,})/g,
-      '<span class="inline-block align-baseline text-blue-700 font-bold bg-blue-50 border border-blue-200 rounded px-1">$1</span>'
+      /(_{5})/g,
+      '<span class="inline-block align-baseline text-blue-700 font-bold bg-blue-50 border border-blue-200 rounded px-1">_____</span>'
     )
     // Images markdown ![](url)
     html = html.replace(/!\[(.*?)\]\((.*?)\)/g, (m, alt, url) => `<img src="${url}" alt="${alt || ''}" class="max-w-full h-auto rounded-lg my-2" />`)
@@ -532,6 +438,25 @@ const FillBlankEditor = ({ questions, onQuestionsChange, settings, onSettingsCha
           ref={introTextareaRef}
           value={intro || ''}
           onChange={(e) => onIntroChange && onIntroChange(e.target.value)}
+          onKeyDown={(e) => {
+            if ((e.ctrlKey || e.metaKey) && e.key === 'b') {
+              e.preventDefault()
+              const textarea = introTextareaRef.current
+              if (!textarea) return
+              const start = textarea.selectionStart
+              const end = textarea.selectionEnd
+              const current = intro || ''
+              const selectedText = current.slice(start, end)
+              if (selectedText) {
+                const newValue = current.slice(0, start) + `<b>${selectedText}</b>` + current.slice(end)
+                onIntroChange && onIntroChange(newValue)
+                setTimeout(() => {
+                  textarea.focus()
+                  textarea.setSelectionRange(start + 3, start + 3 + selectedText.length)
+                }, 0)
+              }
+            }
+          }}
           className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
           rows={2}
           placeholder="Enter introductory text for the fill-in-the-blank exercise..."
@@ -672,28 +597,27 @@ const FillBlankEditor = ({ questions, onQuestionsChange, settings, onSettingsCha
         <div className="p-4 bg-blue-50 border border-blue-200 rounded-lg">
           <h4 className="font-medium text-blue-900 mb-2">Bulk Import Questions</h4>
           <p className="text-sm text-blue-700 mb-3">
-            Format: A. Question text with [answer] (hint) blanks
+            Format: Use [answer] for blanks, or [answer] (hint) for blanks with hints
             <br />
-            Supports both formats: [answer] (hint) or traditional Blank:/Answer: format
+            Multiple answers: [answer1|answer2|answer3] or [answer1, answer2]
           </p>
           <textarea
             value={bulkText}
             onChange={(e) => setBulkText(e.target.value)}
             className="w-full p-3 border border-blue-300 rounded-lg h-40 font-mono text-sm"
                    placeholder={`A. Complete using the correct past perfect simple form of the verbs in brackets.
-    
-    1. By the time I arrived, everyone [had left] (leave)!
-    
-    2. Steve [had already seen] (already / see) the film, so he [hadn't come] (not / come) with us to the cinema.
-    
-    3. Tina [hadn't finished] (not / finish) doing the housework by seven o'clock, so she [had called] (call) Andrea to tell her she would be late.
-    
-    B. Fill in the blanks with the correct form.
-    
-    1. The capital of France is _____.
-    Blank: _____
-    Answer: Paris, Paris city
-    Explanation: Paris is the capital and largest city of France.`}
+
+1. By the time I arrived, everyone [had left] (leave)!
+
+2. Steve [had already seen] (already / see) the film, so he [hadn't come] (not / come) with us to the cinema.
+
+3. Tina [hadn't finished] (not / finish) doing the housework by seven o'clock, so she [had called] (call) Andrea to tell her she would be late.
+
+B. Fill in the blanks with the correct form.
+
+1. The capital of France is [Paris].
+
+2. Water boils at [100] degrees Celsius.`}
           />
           <div className="flex justify-end gap-2 mt-3">
             <button
@@ -799,10 +723,29 @@ const FillBlankEditor = ({ questions, onQuestionsChange, settings, onSettingsCha
               <textarea
                 value={question.question || ''}
                 onChange={(e) => updateQuestion(index, 'question', e.target.value)}
+                onKeyDown={(e) => {
+                  if ((e.ctrlKey || e.metaKey) && e.key === 'b') {
+                    e.preventDefault()
+                    const textarea = questionTextareasRef.current[index]
+                    if (!textarea) return
+                    const start = textarea.selectionStart
+                    const end = textarea.selectionEnd
+                    const current = question.question || ''
+                    const selectedText = current.slice(start, end)
+                    if (selectedText) {
+                      const newValue = current.slice(0, start) + `<b>${selectedText}</b>` + current.slice(end)
+                      updateQuestion(index, 'question', newValue)
+                      setTimeout(() => {
+                        textarea.focus()
+                        textarea.setSelectionRange(start + 3, start + 3 + selectedText.length)
+                      }, 0)
+                    }
+                  }
+                }}
                 ref={(el) => { questionTextareasRef.current[index] = el }}
                      className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
                      rows={3}
-                     placeholder="Enter your question with blanks (use _____ for blanks)... Example: By the time I arrived, everyone _____ (leave)! Steve _____ (already / see) the film, so he _____ (not / come) with us."
+                     placeholder="Enter your question with blanks (use exactly 5 underscores _____ for blanks)... Example: By the time I arrived, everyone _____ (leave)! Steve _____ (already / see) the film, so he _____ (not / come) with us."
               />
               {/* Preview */}
               {question.question && (

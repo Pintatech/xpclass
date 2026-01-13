@@ -240,6 +240,15 @@ CREATE TABLE public.sessions (
   CONSTRAINT sessions_pkey PRIMARY KEY (id),
   CONSTRAINT sessions_unit_id_fkey FOREIGN KEY (unit_id) REFERENCES public.units(id)
 );
+CREATE TABLE public.site_settings (
+  id uuid NOT NULL DEFAULT uuid_generate_v4(),
+  setting_key text NOT NULL UNIQUE,
+  setting_value text NOT NULL,
+  description text,
+  created_at timestamp with time zone DEFAULT now(),
+  updated_at timestamp with time zone DEFAULT now(),
+  CONSTRAINT site_settings_pkey PRIMARY KEY (id)
+);
 CREATE TABLE public.student_levels (
   id uuid NOT NULL DEFAULT uuid_generate_v4(),
   level_number integer NOT NULL UNIQUE,

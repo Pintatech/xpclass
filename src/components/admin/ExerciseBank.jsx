@@ -175,6 +175,7 @@ const ExerciseBank = ({ readOnly = false }) => {
     { value: 'pronunciation', label: 'Pronunciation', icon: Mic },
     { value: 'fill_blank', label: 'Fill in the Blank', icon: Edit3 },
     { value: 'multiple_choice', label: 'Multiple Choice', icon: HelpCircle },
+    { value: 'dropdown', label: 'Dropdown', icon: HelpCircle },
     { value: 'drag_drop', label: 'Drag & Drop', icon: Copy },
     { value: 'ai_fill_blank', label: 'Fill in AI Score', icon: Brain },
   ]

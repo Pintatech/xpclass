@@ -98,6 +98,8 @@ const ExerciseBankCard = ({ exercise, viewMode, onUpdate, onEdit, readOnly = fal
           return `/study/fill-blank?exerciseId=${exercise.id}`
         case 'multiple_choice':
           return `/study/multiple-choice?exerciseId=${exercise.id}`
+        case 'dropdown':
+          return `/study/dropdown?exerciseId=${exercise.id}`
         case 'drag_drop':
           return `/study/drag-drop?exerciseId=${exercise.id}`
         case 'ai_fill_blank':

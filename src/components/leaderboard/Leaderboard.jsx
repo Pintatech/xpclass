@@ -231,6 +231,7 @@ const Leaderboard = () => {
         avatar_url,
         created_at
       `)
+      .eq('role', 'user')
       .order('xp', { ascending: false })
       .limit(10)
 
@@ -273,6 +274,7 @@ const Leaderboard = () => {
         avatar_url,
         created_at
       `)
+      .eq('role', 'user')
       .limit(200) // Get more users for filtering
 
     if (usersError) throw usersError
@@ -406,33 +408,6 @@ const Leaderboard = () => {
       {/* Header */}
       <div className="text-center">
         <h1 className="text-3xl font-bold text-gray-900 mb-2">Bảng xếp hạng</h1>
-        <div className="text-gray-600">
-          <div className="flex items-center gap-2 justify-center">
-            {timeframe === 'week' && (
-              <>
-                <img src="https://xpclass.vn/xpclass/icon/xp_small.svg" alt="XP" className="w-5 h-5" />
-                kiếm được tuần này
-              </>
-            )}
-            {timeframe === 'month' && (
-              <>
-                <img src="https://xpclass.vn/xpclass/icon/xp_small.svg" alt="XP" className="w-5 h-5" />
-                kiếm được tháng này
-              </>
-            )}
-            {timeframe === 'all' && (
-              <>
-                Tổng <img src="https://xpclass.vn/xpclass/icon/xp_small.svg" alt="XP" className="w-5 h-5" /> tích lũy
-              </>
-            )}
-          </div>
-          {(timeframe === 'week' || timeframe === 'month') && countdownText && (
-            <div className="mt-1 text-sm text-blue-600 flex items-center justify-center gap-2">
-              <span>Kết thúc trong:</span>
-              <span className="font-semibold tabular-nums">{countdownText}</span>
-            </div>
-          )}
-        </div>
       </div>
 
       {/* Timeframe Filter */}
@@ -635,7 +610,7 @@ const Leaderboard = () => {
       <Card>
 
         <Card.Content className="p-0">
-          <div className="space-y-2">
+          <div className="divide-y divide-gray-200">
             {leaderboardData.slice(3).map((user) => (
               <div
                 key={user.id}
@@ -646,25 +621,34 @@ const Leaderboard = () => {
                     {getRankIcon(user.rank)}
                   </div>
 
-                  <div className="w-10 md:w-12 h-10 md:h-12 rounded-full flex items-center justify-center border-2 border-gray-300 overflow-hidden">
-                    {user.avatar ? (
-                      user.avatar.startsWith('http') ? (
-                        <img
-                          src={user.avatar}
-                          alt={user.name}
-                          className="w-full h-full object-cover"
-                          onError={(e) => {
-                            e.target.style.display = 'none'
-                            e.target.nextSibling.style.display = 'inline'
-                          }}
-                        />
+                  <div className="relative">
+                    <div className="w-10 md:w-12 h-10 md:h-12 rounded-full flex items-center justify-center border-2 border-gray-300 overflow-hidden">
+                      {user.avatar ? (
+                        user.avatar.startsWith('http') ? (
+                          <img
+                            src={user.avatar}
+                            alt={user.name}
+                            className="w-full h-full object-cover"
+                            onError={(e) => {
+                              e.target.style.display = 'none'
+                              e.target.nextSibling.style.display = 'inline'
+                            }}
+                          />
+                        ) : (
+                          <span className="text-lg">{user.avatar}</span>
+                        )
                       ) : (
-                        <span className="text-lg">{user.avatar}</span>
-                      )
-                    ) : (
-                      <span className="text-sm">{user.name.charAt(0).toUpperCase()}</span>
-                    )}
-                    <span className="text-sm hidden">{user.name.charAt(0).toUpperCase()}</span>
+                        <span className="text-sm">{user.name.charAt(0).toUpperCase()}</span>
+                      )}
+                      <span className="text-sm hidden">{user.name.charAt(0).toUpperCase()}</span>
+                    </div>
+                    <div
+                      className="absolute -bottom-1 -right-1 cursor-pointer scale-75 md:scale-100"
+                      title={user.badge.name}
+                      onClick={() => handleBadgeClick(user.badge)}
+                    >
+                      <SimpleBadge badge={user.badge} size="xs" showName={false} />
+                    </div>
                   </div>
 
                   <div>
@@ -674,17 +658,7 @@ const Leaderboard = () => {
                     >
                       {user.name}
                     </div>
-                    <div className="flex items-center space-x-2 mt-1">
-                      <div
-                        title={user.badge.name}
-                        onClick={() => handleBadgeClick(user.badge)}
-                        className="cursor-pointer"
-                      >
-                        <SimpleBadge badge={user.badge} size="xs" showName={false} className="md:hidden" />
-                        <SimpleBadge badge={user.badge} size="small" showName={false} className="hidden md:block" />
-                      </div>
-                      <span className="text-sm text-gray-600">• {user.completedExercises} bài tập</span>
-                    </div>
+
                   </div>
                 </div>
 

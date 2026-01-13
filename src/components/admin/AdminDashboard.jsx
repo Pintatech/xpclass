@@ -4,17 +4,10 @@
 import React, { useState, useEffect } from 'react';
 import { Routes, Route, useNavigate, useLocation } from 'react-router-dom';
 import { 
-  Plus, 
-  Edit, 
-  Trash2, 
-  Save, 
-  X, 
-  Eye, 
+  Edit,  
   AlertCircle, 
   CheckCircle, 
-  Copy, 
   Download, 
-  Upload,
   Users,
   BookOpen,
   BarChart3,
