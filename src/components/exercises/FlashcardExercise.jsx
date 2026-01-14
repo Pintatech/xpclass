@@ -454,20 +454,48 @@ const FlashcardExercise = () => {
   }
 
   return (
+      <>
+      <style>{`
+        .flip-card-container {
+          perspective: 1000px;
+        }
 
+        .flip-card-inner {
+          position: relative;
+          width: 100%;
+          transition: transform 0.4s;
+          transform-style: preserve-3d;
+        }
+
+        .flip-card-inner.flipped {
+          transform: rotateY(180deg);
+        }
+
+        .flip-card-front,
+        .flip-card-back {
+          position: absolute;
+          width: 100%;
+          height: 100%;
+          -webkit-backface-visibility: hidden;
+          backface-visibility: hidden;
+        }
+
+        .flip-card-back {
+          transform: rotateY(180deg);
+        }
+      `}</style>
       <div className="max-w-6xl mx-auto space-y-4 sm:space-y-6 px-2 sm:px-4 py-4 sm:py-6">
         {/* Main Card Display with Right Side Thumbnails */}
         <div className="flex flex-col lg:flex-row gap-4 max-w-full mx-auto">
           {/* Main Card */}
           <div className="flex-1 max-w-2xl mx-auto w-full">
-            <div className="bg-white rounded-lg shadow-md overflow-hidden border border-gray-200">
+            <div className="bg-white rounded-lg shadow-md overflow-hidden border border-gray-200 flip-card-container">
               <div className="relative">
                 {/* Card Content - Front or Back */}
-                <div className="aspect-square relative">
-                  {mediaMode === 'image' ? (
-                    // Image mode - show image with front/back text based on flip state
-                    !isFlipped ? (
-                      // Front side - Image with front text
+                <div className={`flip-card-inner aspect-square ${isFlipped ? 'flipped' : ''}`}>
+                  {/* Front Face */}
+                  <div className="flip-card-front aspect-square relative">
+                    {mediaMode === 'image' ? (
                       <>
                         <img
                           src={currentFlashcard?.image}
@@ -517,7 +545,73 @@ const FlashcardExercise = () => {
                         )}
                       </>
                     ) : (
-                      // Back side - Image with back text
+                      <>
+                        <video
+                          ref={(el) => {
+                            if (el && !videoRefs[currentVideoIndex]) {
+                              const newRefs = [...videoRefs];
+                              newRefs[currentVideoIndex] = el;
+                              setVideoRefs(newRefs);
+                            }
+                          }}
+                          src={currentFlashcard?.videoUrls?.[currentVideoIndex]}
+                          className="w-full h-full object-cover"
+                          controls
+                          autoPlay
+                          playsInline
+                          muted
+                          onError={() => {
+                            console.error('Video failed to load:', currentFlashcard?.videoUrls?.[currentVideoIndex]);
+                          }}
+                        />
+                        {/* Text overlay */}
+                        <div className="absolute inset-0 bg-black/30 flex items-center justify-center px-4 pointer-events-none">
+                          <div className="text-center text-white">
+                            <h2 className="text-2xl sm:text-3xl md:text-4xl lg:text-5xl font-bold mb-2 drop-shadow-lg break-words max-w-full">
+                              {currentFlashcard?.front}
+                            </h2>
+                          </div>
+                        </div>
+
+                        {/* Video thumbnails navigation */}
+                        {currentFlashcard?.videoUrls?.length > 1 && (
+                          <div className="absolute top-4 left-4 flex flex-row gap-2 z-10">
+                            {currentFlashcard.videoUrls.map((videoUrl, videoIndex) => (
+                              <button
+                                key={videoIndex}
+                                onClick={() => {
+                                  if (videoRefs[currentVideoIndex]) {
+                                    videoRefs[currentVideoIndex].pause();
+                                  }
+                                  setCurrentVideoIndex(videoIndex);
+                                }}
+                                className={`relative w-8 h-8 sm:w-8 sm:h-8 rounded-lg overflow-hidden border-2 transition-all duration-200 ${
+                                  currentVideoIndex === videoIndex
+                                    ? "border-blue-500 ring-2 ring-blue-400 scale-105"
+                                    : "border-white/50 hover:border-white hover:scale-105"
+                                }`}
+                                title={`Video ${videoIndex + 1}`}
+                              >
+                                <video
+                                  src={videoUrl}
+                                  className="w-full h-full object-cover pointer-events-none"
+                                  muted
+                                />
+                                {currentVideoIndex === videoIndex && (
+                                  <div className="absolute inset-0 bg-blue-500/20 flex items-center justify-center">
+                                  </div>
+                                )}
+                              </button>
+                            ))}
+                          </div>
+                        )}
+                      </>
+                    )}
+                  </div>
+
+                  {/* Back Face */}
+                  <div className="flip-card-back aspect-square relative">
+                    {mediaMode === 'image' ? (
                       <>
                         <img
                           src={currentFlashcard?.image}
@@ -533,71 +627,26 @@ const FlashcardExercise = () => {
                           </div>
                         </div>
                       </>
-                    )
-                  ) : (
-                    // Video mode - show video with text overlay
-                    <>
-                      <video
-                        ref={(el) => {
-                          if (el && !videoRefs[currentVideoIndex]) {
-                            const newRefs = [...videoRefs];
-                            newRefs[currentVideoIndex] = el;
-                            setVideoRefs(newRefs);
-                          }
-                        }}
-                        src={currentFlashcard?.videoUrls?.[currentVideoIndex]}
-                        className="w-full h-full object-cover"
-                        controls
-                        autoPlay
-                        playsInline
-                        muted
-                        onError={() => {
-                          console.error('Video failed to load:', currentFlashcard?.videoUrls?.[currentVideoIndex]);
-                        }}
-                      />
-                      {/* Text overlay - respects flip state */}
-                      <div className="absolute inset-0 bg-black/30 flex items-center justify-center px-4 pointer-events-none">
-                        <div className="text-center text-white">
-                          <h2 className="text-2xl sm:text-3xl md:text-4xl lg:text-5xl font-bold mb-2 drop-shadow-lg break-words max-w-full">
-                            {isFlipped ? currentFlashcard?.back : currentFlashcard?.front}
-                          </h2>
+                    ) : (
+                      <>
+                        <video
+                          src={currentFlashcard?.videoUrls?.[currentVideoIndex]}
+                          className="w-full h-full object-cover"
+                          controls
+                          playsInline
+                          muted
+                        />
+                        {/* Text overlay */}
+                        <div className="absolute inset-0 bg-black/30 flex items-center justify-center px-4 pointer-events-none">
+                          <div className="text-center text-white">
+                            <h2 className="text-2xl sm:text-3xl md:text-4xl lg:text-5xl font-bold mb-2 drop-shadow-lg break-words max-w-full">
+                              {currentFlashcard?.back}
+                            </h2>
+                          </div>
                         </div>
-                      </div>
-
-                      {/* Video thumbnails navigation - only for multiple videos */}
-                      {currentFlashcard?.videoUrls?.length > 1 && (
-                        <div className="absolute top-4 left-4 flex flex-row gap-2 z-10">
-                          {currentFlashcard.videoUrls.map((videoUrl, videoIndex) => (
-                            <button
-                              key={videoIndex}
-                              onClick={() => {
-                                if (videoRefs[currentVideoIndex]) {
-                                  videoRefs[currentVideoIndex].pause();
-                                }
-                                setCurrentVideoIndex(videoIndex);
-                              }}
-                              className={`relative w-8 h-8 sm:w-8 sm:h-8 rounded-lg overflow-hidden border-2 transition-all duration-200 ${
-                                currentVideoIndex === videoIndex
-                                  ? "border-blue-500 ring-2 ring-blue-400 scale-105"
-                                  : "border-white/50 hover:border-white hover:scale-105"
-                              }`}
-                              title={`Video ${videoIndex + 1}`}
-                            >
-                              <video
-                                src={videoUrl}
-                                className="w-full h-full object-cover pointer-events-none"
-                                muted
-                              />
-                              {currentVideoIndex === videoIndex && (
-                                <div className="absolute inset-0 bg-blue-500/20 flex items-center justify-center">
-                                </div>
-                              )}
-                            </button>
-                          ))}
-                        </div>
-                      )}
-                    </>
-                  )}
+                      </>
+                    )}
+                  </div>
                 </div>
 
                 {/* Controls */}
@@ -627,7 +676,8 @@ const FlashcardExercise = () => {
 
                   <button
                     onClick={playAudio}
-                    className={`w-12 h-12 sm:w-14 sm:h-14 md:w-16 md:h-16 text-white rounded-full flex items-center justify-center transition-colors duration-200 shadow-lg hover:shadow-xl flex-shrink-0 ${
+                    disabled={!currentFlashcard?.front || !currentFlashcard.front.trim()}
+                    className={`w-12 h-12 sm:w-14 sm:h-14 md:w-16 md:h-16 text-white rounded-full flex items-center justify-center transition-colors duration-200 shadow-lg hover:shadow-xl flex-shrink-0 disabled:opacity-30 disabled:cursor-not-allowed ${
                       speechSynth.speaking
                         ? "bg-red-600 hover:bg-red-700"
                         : "bg-blue-700 hover:bg-blue-800"
@@ -639,7 +689,8 @@ const FlashcardExercise = () => {
 
                   <button
                     onClick={toggleRecording}
-                    className={`w-12 h-12 sm:w-14 sm:h-14 md:w-16 md:h-16 text-white rounded-full flex items-center justify-center transition-colors duration-200 shadow-lg hover:shadow-xl flex-shrink-0 ${
+                    disabled={!currentFlashcard?.front || !currentFlashcard.front.trim()}
+                    className={`w-12 h-12 sm:w-14 sm:h-14 md:w-16 md:h-16 text-white rounded-full flex items-center justify-center transition-colors duration-200 shadow-lg hover:shadow-xl flex-shrink-0 disabled:opacity-30 disabled:cursor-not-allowed ${
                       isRecording
                         ? "bg-red-600 hover:bg-red-700 animate-pulse"
                         : "bg-purple-600 hover:bg-purple-700"
@@ -764,6 +815,7 @@ const FlashcardExercise = () => {
           </div>
         )}
       </div>
+      </>
   );
 };
 

@@ -91,7 +91,7 @@ const ExerciseBankCard = ({ exercise, viewMode, onUpdate, onEdit, readOnly = fal
     const getExerciseUrl = () => {
       switch (exercise.exercise_type) {
         case 'flashcard':
-          return `/study/flashcards?exerciseId=${exercise.id}`
+          return `/study/flashcard?exerciseId=${exercise.id}`
         case 'pronunciation':
           return `/study/pronunciation?exerciseId=${exercise.id}`
         case 'fill_blank':

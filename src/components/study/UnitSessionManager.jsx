@@ -123,7 +123,6 @@ const UnitSessionManager = () => {
           .eq('id', editingSession.id)
 
         if (error) throw error
-        alert('Session updated successfully!')
       } else {
         // Create new session
         const { error } = await supabase
@@ -131,7 +130,6 @@ const UnitSessionManager = () => {
           .insert(sessionData)
 
         if (error) throw error
-        alert('Session created successfully!')
       }
 
       setShowModal(false)
