@@ -1,9 +1,12 @@
 import React, { useState, useEffect } from 'react'
 import { Plus, Trash2, Wand2, Eye, EyeOff, HelpCircle, Brain, Image as ImageIcon, Music, Link as LinkIcon } from 'lucide-react'
+import RichTextRenderer from '../../ui/RichTextRenderer'
 
-const AIFillBlankEditor = ({ questions, onQuestionsChange }) => {
+const AIFillBlankEditor = ({ questions, onQuestionsChange, intro, onIntroChange }) => {
   const [localQuestions, setLocalQuestions] = useState([])
   const [previewMode, setPreviewMode] = useState({})
+  const [bulkImportMode, setBulkImportMode] = useState(false)
+  const [bulkText, setBulkText] = useState('')
 
   useEffect(() => {
     setLocalQuestions(questions || [])
@@ -140,37 +143,198 @@ Trả lời bằng tiếng Việt với giải thích chi tiết, khuyến khíc
     updateQuestion(questionIndex, 'ai_prompt', prompt)
   }
 
+  const processBulkImport = () => {
+    try {
+      const lines = bulkText.split('\n').filter(line => line.trim())
+      const newQuestions = []
+
+      let questionCounter = 0
+      let currentInstruction = ''
+      let accumulatedText = []
+
+      const processAccumulatedQuestion = () => {
+        if (accumulatedText.length === 0) return
+
+        const fullText = accumulatedText.join('\n')
+
+        // Look for expected answers in [answer1|answer2|answer3] format
+        const answerMatches = [...fullText.matchAll(/\[([^\]]+)\]/g)]
+
+        if (answerMatches.length === 0) {
+          accumulatedText = []
+          return
+        }
+
+        // Extract all answers (the brackets contain ONLY the expected answers)
+        const expectedAnswers = []
+        answerMatches.forEach((m) => {
+          const answer = m[1]
+          const answers = answer.split(/[|/]/).map(a => a.trim()).filter(a => a)
+          expectedAnswers.push(...answers)
+        })
+
+        // Remove brackets and their content to get the question text
+        const displayText = fullText.replace(/\[([^\]]+)\]/g, '')
+
+        if (expectedAnswers.length > 0) {
+          const question = {
+            id: `q${Date.now()}_${questionCounter++}`,
+            question: currentInstruction ? `${currentInstruction}\n\n${displayText}` : displayText,
+            expected_answers: expectedAnswers,
+            ai_prompt: '',
+            explanation: '',
+            settings: {
+              min_score: 70,
+              allow_partial_credit: true,
+              max_attempts: 3
+            }
+          }
+          newQuestions.push(question)
+        }
+
+        accumulatedText = []
+      }
+
+      lines.forEach((line) => {
+        const trimmedLine = line.trim()
+
+        // Check if this is an instruction line (starts with letter and period)
+        if (trimmedLine.match(/^[A-Z]\.\s+/)) {
+          processAccumulatedQuestion()
+          currentInstruction = trimmedLine
+        }
+        // Check if this line looks like a new numbered question
+        else if (trimmedLine.match(/^\d+\.\s+/)) {
+          processAccumulatedQuestion()
+          accumulatedText.push(trimmedLine)
+        }
+        // Regular line - add to accumulated text
+        else {
+          accumulatedText.push(trimmedLine)
+        }
+      })
+
+      // Process the last accumulated question
+      processAccumulatedQuestion()
+
+      if (newQuestions.length > 0) {
+        const updatedQuestions = [...localQuestions, ...newQuestions]
+        setLocalQuestions(updatedQuestions)
+        onQuestionsChange(updatedQuestions)
+        setBulkText('')
+        setBulkImportMode(false)
+        alert(`Successfully imported ${newQuestions.length} questions!`)
+      } else {
+        alert('No valid questions found. Please check your format.')
+      }
+    } catch (error) {
+      alert('Error processing bulk import. Please check your format.')
+    }
+  }
+
   return (
     <div className="space-y-6">
       {/* Header */}
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-3">
-          <div className="p-2 bg-purple-100 rounded-lg">
-            <Brain className="w-6 h-6 text-purple-600" />
+        </div>
+        <div className="flex gap-2">
+          <button
+            type="button"
+            onClick={() => setBulkImportMode(!bulkImportMode)}
+            className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
+          >
+            <Plus className="w-4 h-4" />
+            Bulk Import
+          </button>
+          <button
+            type="button"
+            onClick={addQuestion}
+            className="flex items-center gap-2 px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700"
+          >
+            <Plus className="w-4 h-4" />
+            Add Question
+          </button>
+        </div>
+      </div>
+
+      {/* Exercise Intro Section */}
+      <div className="bg-white p-4 border border-gray-200 rounded-lg">
+        <label className="block text-sm font-medium text-gray-700 mb-1">
+          Exercise Intro (Optional)
+        </label>
+        <textarea
+          value={intro || ''}
+          onChange={(e) => onIntroChange && onIntroChange(e.target.value)}
+          className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500"
+          rows={2}
+          placeholder="Enter introductory text for the AI fill-in-the-blank exercise..."
+        />
+
+        {intro && intro.trim() && (
+          <div className="mt-3 p-3 bg-white border rounded-lg">
+            <div className="text-xs text-gray-500 mb-2">Intro Preview</div>
+            <RichTextRenderer
+              content={intro}
+              allowImages
+              allowLinks
+              className="prose max-w-none"
+              style={{ whiteSpace: 'pre-wrap' }}
+            />
           </div>
-          <div>
-            <h3 className="text-lg font-semibold text-gray-900">AI Fill-in-the-Blank Questions</h3>
-            <p className="text-sm text-gray-600">Create questions that use AI to score student answers</p>
+        )}
+      </div>
+
+      {/* Bulk Import Mode */}
+      {bulkImportMode && (
+        <div className="p-4 bg-blue-50 border border-blue-200 rounded-lg">
+          <h4 className="font-medium text-blue-900 mb-2">Bulk Import AI Fill-in-the-Blank Questions</h4>
+          <p className="text-sm text-blue-700 mb-3">
+            Format: Place expected answers in brackets [answer1|answer2|answer3]
+            <br />
+            The brackets contain ONLY the expected answers. They will be removed from the question text shown to students.
+          </p>
+          <textarea
+            value={bulkText}
+            onChange={(e) => setBulkText(e.target.value)}
+            className="w-full p-3 border border-blue-300 rounded-lg h-40 font-mono text-sm"
+            placeholder={`A. Write about your weekend activities.
+
+1. Describe what you did last Saturday. [went to the beach|visited the beach|was at the beach]
+
+2. What food did you enjoy? [ate seafood|had seafood|enjoyed seafood]
+
+B. Combine these sentences using a relative clause.
+
+1. Friendly People is a comedy. It's my favourite programme. [Friendly People, which is my favourite programme, is a comedy.|Friendly People, which is a comedy, is my favourite programme.]`}
+          />
+          <div className="flex justify-end gap-2 mt-3">
+            <button
+              type="button"
+              onClick={() => setBulkImportMode(false)}
+              className="px-3 py-2 bg-gray-500 text-white rounded-lg hover:bg-gray-600 text-sm"
+            >
+              Cancel
+            </button>
+            <button
+              type="button"
+              onClick={processBulkImport}
+              className="px-3 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 text-sm"
+            >
+              Import Questions
+            </button>
           </div>
         </div>
-        <button
-          type="button"
-          onClick={addQuestion}
-          className="flex items-center gap-2 px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700"
-        >
-          <Plus className="w-4 h-4" />
-          Add Question
-        </button>
-      </div>
+      )}
 
       {/* Questions List */}
       <div className="space-y-4">
-        {localQuestions.length === 0 ? (
+        {localQuestions.length === 0 && !bulkImportMode ? (
           <div className="text-center py-8 text-gray-500">
             <Brain className="w-12 h-12 mx-auto mb-3 text-gray-300" />
-            <p>No AI fill-in-the-blank questions yet. Add your first question above!</p>
+            <p>No AI fill-in-the-blank questions yet. Click "Bulk Import" or "Add Question" to start!</p>
           </div>
-        ) : (
+        ) : localQuestions.length > 0 ? (
           localQuestions.map((question, index) => (
             <div key={question.id} className="bg-white border border-gray-200 rounded-lg p-6">
               <div className="flex items-center justify-between mb-4">
@@ -279,9 +443,6 @@ Trả lời bằng tiếng Việt với giải thích chi tiết, khuyến khíc
                         </div>
                       ))}
                     </div>
-                    <p className="text-xs text-gray-500 mt-1">
-                      Add multiple expected answers to give students more ways to be correct
-                    </p>
                   </div>
 
                   {/* AI Prompt */}
@@ -364,24 +525,7 @@ Trả lời bằng tiếng Việt với giải thích chi tiết, khuyến khíc
               )}
             </div>
           ))
-        )}
-      </div>
-
-      {/* Help Section */}
-      <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
-        <div className="flex items-start gap-3">
-          <HelpCircle className="w-5 h-5 text-blue-600 mt-0.5" />
-          <div>
-            <h4 className="font-medium text-blue-900 mb-2">AI Fill-in-the-Blank Tips</h4>
-            <ul className="text-sm text-blue-800 space-y-1">
-              <li>• Provide multiple expected answers to account for different ways students might respond</li>
-              <li>• Use clear, specific questions that have definitive answers</li>
-              <li>• Set appropriate minimum scores (70% is usually good for "correct")</li>
-              <li>• Customize AI prompts for subject-specific scoring criteria</li>
-              <li>• Test your questions with sample answers before publishing</li>
-            </ul>
-          </div>
-        </div>
+        ) : null}
       </div>
     </div>
   )

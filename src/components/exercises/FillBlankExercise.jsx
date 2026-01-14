@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react'
+import React, { useState, useEffect, useRef, useCallback } from 'react'
 import { useLocation, useNavigate } from 'react-router-dom'
 import { supabase } from '../../supabase/client'
 import { useAuth } from '../../hooks/useAuth'
@@ -31,6 +31,8 @@ const FillBlankExercise = () => {
   const [retryQuestions, setRetryQuestions] = useState([])
   const [isBatmanMoving, setIsBatmanMoving] = useState(false)
 
+  const inputRefs = useRef({})
+
   const questions = exercise?.content?.questions || []
   const currentQuestion = questions[currentQuestionIndex]
   const showAllQuestions = exercise?.content?.settings?.show_all_questions || false
@@ -58,6 +60,19 @@ const FillBlankExercise = () => {
       setUserAnswers(initialAnswers)
     }
   }, [questions])
+
+  useEffect(() => {
+    // Auto-focus the first blank when entering a question
+    if (!showResults && !exerciseCompleted && !showAllQuestions) {
+      const firstInput = inputRefs.current[currentQuestionIndex]?.[0]
+      if (firstInput) {
+        // Small delay to ensure DOM is ready
+        setTimeout(() => {
+          firstInput.focus()
+        }, 100)
+      }
+    }
+  }, [currentQuestionIndex, showResults, exerciseCompleted, showAllQuestions])
 
   const loadExercise = async () => {
     try {
@@ -174,6 +189,58 @@ const FillBlankExercise = () => {
     setScore(questionScore)
   }
 
+  const handleKeyDown = (e, questionIndex, blankIndex) => {
+    if (e.key === 'Enter') {
+      e.preventDefault()
+      e.stopPropagation() // Stop event from bubbling to global listener
+
+      // Don't do anything if results are already showing
+      if (showResults) return
+
+      // Get current question's blank count
+      const currentQ = questions[questionIndex]
+      const totalBlanks = currentQ.blanks.length
+
+      if (totalBlanks === 1) {
+        // Single blank: submit if filled
+        const value = userAnswers[questionIndex]?.[blankIndex]
+        if (value && value.trim()) {
+          if (showAllQuestions) {
+            // In show all mode, can't submit individual questions
+            // Move to next question's first blank if available
+            const nextQuestionIndex = questionIndex + 1
+            if (nextQuestionIndex < questions.length) {
+              const nextInput = inputRefs.current[nextQuestionIndex]?.[0]
+              if (nextInput) nextInput.focus()
+            }
+          } else {
+            // Single question mode: submit
+            handleSubmit()
+          }
+        }
+      } else {
+        // Multiple blanks: move to next blank
+        const nextBlankIndex = blankIndex + 1
+
+        if (nextBlankIndex < totalBlanks) {
+          // Focus next blank in same question
+          const nextInput = inputRefs.current[questionIndex]?.[nextBlankIndex]
+          if (nextInput) nextInput.focus()
+        } else {
+          // Last blank in question
+          // In "show all" mode, move to next question's first blank
+          if (showAllQuestions) {
+            const nextQuestionIndex = questionIndex + 1
+            if (nextQuestionIndex < questions.length) {
+              const nextInput = inputRefs.current[nextQuestionIndex]?.[0]
+              if (nextInput) nextInput.focus()
+            }
+          }
+        }
+      }
+    }
+  }
+
   const handleSubmitAll = async () => {
     setShowResults(true)
     setHasEdited(false)
@@ -238,7 +305,7 @@ const FillBlankExercise = () => {
     setShowExplanation(true)
   }
 
-  const handleNext = async () => {
+  const handleNext = useCallback(async () => {
     // Save current question score
     const currentScore = score
 
@@ -318,8 +385,25 @@ const FillBlankExercise = () => {
         console.error('Error marking fill_blank exercise completed:', err)
       }
     }
-  }
+  }, [score, retryMode, questionScores, currentQuestionIndex, retryQuestions, questions.length, location.search, exercise?.xp_reward, user, completeExerciseWithXP])
 
+  useEffect(() => {
+    // Handle Enter key to move to next question when results are showing
+    const handleGlobalKeyDown = (e) => {
+      if (e.key === 'Enter' && showResults && !showAllQuestions) {
+        e.preventDefault()
+        handleNext()
+      }
+    }
+
+    if (showResults && !showAllQuestions) {
+      window.addEventListener('keydown', handleGlobalKeyDown)
+    }
+
+    return () => {
+      window.removeEventListener('keydown', handleGlobalKeyDown)
+    }
+  }, [showResults, showAllQuestions, handleNext])
 
   const handleBackToSession = () => {
     const urlParams = new URLSearchParams(location.search)
@@ -545,6 +629,12 @@ const FillBlankExercise = () => {
           <span key={index} className="inline-block mx-1">
             <div className="relative">
               <input
+                ref={(el) => {
+                  if (!inputRefs.current[questionIndex]) {
+                    inputRefs.current[questionIndex] = {}
+                  }
+                  inputRefs.current[questionIndex][currentBlankIndex] = el
+                }}
                 type="text"
                 value={userAnswers[questionIndex]?.[currentBlankIndex] || ''}
                 onChange={(e) => {
@@ -556,6 +646,7 @@ const FillBlankExercise = () => {
                     }
                   }))
                 }}
+                onKeyDown={(e) => handleKeyDown(e, questionIndex, currentBlankIndex)}
                 disabled={showResults}
                 style={{ width: `${calculateBlankWidthForQuestion(questionIndex, currentBlankIndex)}px` }}
                 className={`px-1 py-1 border-0 border-b-2 bg-transparent text-center focus:outline-none ${
@@ -565,7 +656,7 @@ const FillBlankExercise = () => {
                     ? 'border-b-red-500 text-red-700'
                     : 'border-b-gray-400 focus:border-b-blue-500'
                 } ${showResults ? 'cursor-not-allowed opacity-75' : ''}`}
-                placeholder="?"
+                placeholder=" "
               />
               {blank?.text && (
                 <div className="absolute -bottom-6 left-0 text-xs text-gray-500 whitespace-nowrap">
@@ -664,7 +755,12 @@ const FillBlankExercise = () => {
           {/* Global Intro (exercise.content.intro) */}
           {exercise?.content?.intro && String(exercise.content.intro).trim() && (
             <div className="w-full max-w-4xl min-w-0 mx-auto rounded-lg p-4 md:p-6 bg-white shadow-sm border border-gray-200">
-              <RichTextRenderer content={exercise.content.intro} allowImages={true} allowLinks={false} />
+              <RichTextRenderer
+                content={exercise.content.intro}
+                allowImages={true}
+                allowLinks={false}
+                style={{ whiteSpace: 'pre-wrap' }}
+              />
             </div>
           )}
 
@@ -806,7 +902,12 @@ const FillBlankExercise = () => {
       {/* Global Intro (exercise.content.intro) */}
       {exercise?.content?.intro && String(exercise.content.intro).trim() && (
         <div className="w-full max-w-4xl min-w-0 mx-auto rounded-lg p-4 md:p-6 bg-white shadow-sm border border-gray-200">
-          <RichTextRenderer content={exercise.content.intro} allowImages={true} allowLinks={false} />
+          <RichTextRenderer
+            content={exercise.content.intro}
+            allowImages={true}
+            allowLinks={false}
+            style={{ whiteSpace: 'pre-wrap' }}
+          />
         </div>
       )}
 
@@ -854,15 +955,15 @@ const FillBlankExercise = () => {
                     onClick={handleShowAnswers}
                     className="flex items-center gap-1 px-4 py-2 text-sm bg-yellow-600 text-white rounded-lg hover:bg-yellow-700"
                   >
-                    <HelpCircle className="w-4 h-4" />
-                    Show Answers
+                  
+                    Show Key
                   </button>
                 )}
                 <button
                   onClick={handleNext}
                   className="flex items-center gap-1 px-4 py-2 text-sm bg-blue-600 text-white rounded-lg hover:bg-blue-700"
                 >
-                  {currentQuestionIndex < questions.length - 1 ? 'Next Question' : 'Finish Exercise'}
+                  {currentQuestionIndex < questions.length - 1 ? 'Next' : 'Finish Exercise'}
                 </button>
               </div>
             </div>

@@ -271,53 +271,96 @@ const FillBlankEditor = ({ questions, onQuestionsChange, settings, onSettingsCha
 
       let questionCounter = 0
       let currentInstruction = ''
+      let accumulatedText = [] // Accumulate lines that belong to the current question
 
-      lines.forEach((line, index) => {
+      const processAccumulatedQuestion = () => {
+        if (accumulatedText.length === 0) return
+
+        // Find which lines contain brackets
+        const linesWithBrackets = []
+        const linesWithoutBrackets = []
+
+        accumulatedText.forEach(line => {
+          if (line.includes('[') && line.includes(']')) {
+            linesWithBrackets.push(line)
+          } else {
+            linesWithoutBrackets.push(line)
+          }
+        })
+
+        if (linesWithBrackets.length === 0) {
+          // No brackets found, clear and return
+          accumulatedText = []
+          return
+        }
+
+        // Combine all text (lines with and without brackets)
+        const fullText = accumulatedText.join('\n')
+
+        const blanks = []
+        let displayText = fullText
+
+        // With hint: [answer] (hint)
+        const withHintMatches = [...fullText.matchAll(/\[([^\]]+)\]\s*\(([^)]+)\)/g)]
+        withHintMatches.forEach((m) => {
+          const answer = m[1]
+          // m[2] is the hint text, which we preserve in the display
+          const answers = answer.split(/[|/,]/).map(a => a.trim()).filter(a => a)
+          const answerText = answers.length > 0 ? answers.join(', ') : answer
+          blanks.push({ text: '', answer: answerText, case_sensitive: false })
+        })
+        // Replace with-hint occurrences with blank keeping hint text
+        displayText = displayText.replace(/\[([^\]]+)\]\s*\(([^)]+)\)/g, (m, a, h) => `_____ (${h})`)
+
+        // Without hint: [answer] not followed by (...)
+        const noHintMatches = [...fullText.matchAll(/\[([^\]]+)\](?!\s*\()/g)]
+        noHintMatches.forEach((m) => {
+          const answer = m[1]
+          const answers = answer.split(/[|/,]/).map(a => a.trim()).filter(a => a)
+          const answerText = answers.length > 0 ? answers.join(', ') : answer
+          blanks.push({ text: '', answer: answerText, case_sensitive: false })
+        })
+        // Replace no-hint occurrences with blank only
+        displayText = displayText.replace(/\[([^\]]+)\](?!\s*\()/g, '_____')
+
+        if (blanks.length > 0) {
+          const question = {
+            id: `q${Date.now()}_${questionCounter++}`,
+            question: currentInstruction ? `${currentInstruction}\n\n${displayText}` : displayText,
+            blanks: blanks,
+            explanation: ''
+          }
+          newQuestions.push(question)
+        }
+
+        // Clear accumulated text
+        accumulatedText = []
+      }
+
+      lines.forEach((line) => {
         const trimmedLine = line.trim()
 
         // Check if this is an instruction line (starts with letter and period)
         if (trimmedLine.match(/^[A-Z]\.\s+/)) {
+          // Process any accumulated question before changing instruction
+          processAccumulatedQuestion()
           currentInstruction = trimmedLine
         }
-        // Check if this line contains blanks with answers in brackets (with or without hint)
-        else if (trimmedLine.includes('[') && trimmedLine.includes(']')) {
-          const blanks = []
-          let displayText = trimmedLine
-
-          // With hint: [answer] (hint)
-          const withHintMatches = [...trimmedLine.matchAll(/\[([^\]]+)\]\s*\(([^)]+)\)/g)]
-          withHintMatches.forEach((m) => {
-            const answer = m[1]
-            const hint = m[2]
-            const answers = answer.split(/[|/,]/).map(a => a.trim()).filter(a => a)
-            const answerText = answers.length > 0 ? answers.join(', ') : answer
-            blanks.push({ text: '', answer: answerText, case_sensitive: false })
-          })
-          // Replace with-hint occurrences with blank keeping hint text
-          displayText = displayText.replace(/\[([^\]]+)\]\s*\(([^)]+)\)/g, (m, a, h) => `_____ (${h})`)
-
-          // Without hint: [answer] not followed by (...)
-          const noHintMatches = [...trimmedLine.matchAll(/\[([^\]]+)\](?!\s*\()/g)]
-          noHintMatches.forEach((m) => {
-            const answer = m[1]
-            const answers = answer.split(/[|/,]/).map(a => a.trim()).filter(a => a)
-            const answerText = answers.length > 0 ? answers.join(', ') : answer
-            blanks.push({ text: '', answer: answerText, case_sensitive: false })
-          })
-          // Replace no-hint occurrences with blank only
-          displayText = displayText.replace(/\[([^\]]+)\](?!\s*\()/g, '_____')
-
-          if (blanks.length > 0) {
-            const question = {
-              id: `q${Date.now()}_${questionCounter++}`,
-              question: currentInstruction ? `${currentInstruction}\n\n${displayText}` : displayText,
-              blanks: blanks,
-              explanation: ''
-            }
-            newQuestions.push(question)
-          }
+        // Check if this line looks like a new numbered question (e.g., "1.", "2.", etc.)
+        else if (trimmedLine.match(/^\d+\.\s+/)) {
+          // Process previous accumulated question
+          processAccumulatedQuestion()
+          // Start accumulating new question
+          accumulatedText.push(trimmedLine)
+        }
+        // Regular line - add to accumulated text
+        else {
+          accumulatedText.push(trimmedLine)
         }
       })
+
+      // Don't forget to process the last accumulated question
+      processAccumulatedQuestion()
 
       if (newQuestions.length > 0) {
         const updatedQuestions = [...localQuestions, ...newQuestions]
@@ -570,7 +613,13 @@ const FillBlankEditor = ({ questions, onQuestionsChange, settings, onSettingsCha
         {intro && intro.trim() && (
           <div className="mt-3 p-3 bg-white border rounded-lg">
             <div className="text-xs text-gray-500 mb-2">Intro Preview</div>
-            <RichTextRenderer content={markdownToHtml(intro)} allowImages allowLinks className="prose max-w-none" />
+            <RichTextRenderer
+              content={markdownToHtml(intro)}
+              allowImages
+              allowLinks
+              className="prose max-w-none"
+              style={{ whiteSpace: 'pre-wrap' }}
+            />
           </div>
         )}
       </div>

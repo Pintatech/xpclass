@@ -742,6 +742,10 @@ const ExerciseForm = ({ exercise, sessions, exerciseTypes, onSave, onCancel }) =
                     onQuestionsChange={(questions) => {
                       handleContentChange('questions', questions)
                     }}
+                    intro={formData.content.intro || ''}
+                    onIntroChange={(intro) => {
+                      handleContentChange('intro', intro)
+                    }}
                   />
                 </div>
               )}

@@ -317,6 +317,8 @@ const CreateExerciseModal = ({ folders, selectedFolder, onClose, onCreated }) =>
                 <AIFillBlankEditor
                   questions={formData.content.questions || []}
                   onQuestionsChange={(questions) => handleContentChange('questions', questions)}
+                  intro={formData.content.intro || ''}
+                  onIntroChange={(intro) => handleContentChange('intro', intro)}
                 />
               </div>
             )}

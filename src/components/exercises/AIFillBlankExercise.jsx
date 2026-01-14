@@ -5,6 +5,7 @@ import { useAuth } from '../../hooks/useAuth'
 import { ArrowLeft, CheckCircle, XCircle, Clock, RefreshCw } from 'lucide-react'
 import LoadingSpinner from '../ui/LoadingSpinner'
 import { callAIScoring as localAIScoring } from '../../utils/aiScoringService'
+import RichTextRenderer from '../ui/RichTextRenderer'
 
 const AIFillBlankExercise = () => {
   const location = useLocation()
@@ -295,7 +296,19 @@ const AIFillBlankExercise = () => {
       </div>
 
       {/* Main Content */}
-      <div className="max-w-4xl mx-auto py-8">
+      <div className="max-w-4xl mx-auto py-8 px-4">
+        {/* Exercise Intro */}
+        {exercise?.content?.intro && String(exercise.content.intro).trim() && (
+          <div className="mb-6 bg-blue-50 rounded-lg p-4 border border-blue-200">
+            <RichTextRenderer
+              content={exercise.content.intro}
+              allowImages={true}
+              allowLinks={false}
+              style={{ whiteSpace: 'pre-wrap' }}
+            />
+          </div>
+        )}
+
         <div className="bg-white rounded-lg shadow-md p-6 border border-gray-200">
           {/* Question */}
           <div className="mb-8">
@@ -339,9 +352,7 @@ const AIFillBlankExercise = () => {
                   }`}>
                     AI Score: {Math.round(aiScore.score)}%
                   </span>
-                  <span className="text-sm text-gray-600">
-                    (Confidence: {Math.round(aiScore.confidence)}%)
-                  </span>
+
                 </div>
                 <p className="text-sm text-gray-700">
                   <strong>AI Explanation:</strong> {aiScore.explanation}

@@ -7,6 +7,7 @@ import { saveRecentExercise } from '../../utils/recentExercise'
 import LoadingSpinner from '../ui/LoadingSpinner'
 import { Check, X, RotateCcw, HelpCircle, ArrowLeft, ChevronDown } from 'lucide-react'
 import RichTextRenderer from '../ui/RichTextRenderer'
+import ExerciseHeader from './ExerciseHeader'
 
 const DropdownExercise = () => {
   const location = useLocation()
@@ -28,6 +29,7 @@ const DropdownExercise = () => {
   const [showCorrectAnswers, setShowCorrectAnswers] = useState(false)
   const [retryMode, setRetryMode] = useState(false)
   const [retryQuestions, setRetryQuestions] = useState([])
+  const [isBatmanMoving, setIsBatmanMoving] = useState(false)
 
   const questions = exercise?.content?.questions || []
   const currentQuestion = questions[currentQuestionIndex]
@@ -161,6 +163,10 @@ const DropdownExercise = () => {
   const handleNext = async () => {
     // Save current question score
     const currentScore = score
+
+    // Animate batman moving
+    setIsBatmanMoving(true)
+    setTimeout(() => setIsBatmanMoving(false), 3000)
 
     if (retryMode) {
       // In retry mode, update the specific question score
@@ -521,48 +527,41 @@ const DropdownExercise = () => {
   }
 
   return (
-    <div className="min-h-screen bg-gray-50">
-      <div className="max-w-4xl mx-auto p-6">
-      {/* Header */}
-      <div className="flex items-center justify-between mb-6">
-        <button
-          onClick={() => navigate(-1)}
-          className="flex items-center gap-2 text-gray-600 hover:text-gray-800"
-        >
-          <ArrowLeft className="w-5 h-5" />
-          Back
-        </button>
-        <h1 className="text-xl font-semibold text-gray-900">{exercise.title}</h1>
-        <div className="w-20"></div> {/* Spacer for centering */}
-      </div>
+    <div className="px-4 pt-6 pb-12">
+      <div className="max-w-4xl mx-auto space-y-6">
+      {/* Header with Batman */}
+      <ExerciseHeader
+        title={exercise?.title}
+        currentQuestion={currentQuestionIndex + 1}
+        totalQuestions={questions.length}
+        progressPercentage={
+          retryMode
+            ? ((retryQuestions.indexOf(currentQuestionIndex) + 1) / retryQuestions.length) * 100
+            : ((currentQuestionIndex + 1) / questions.length) * 100
+        }
+        isBatmanMoving={isBatmanMoving}
+        isRetryMode={retryMode}
+        retryModeText={
+          retryMode
+            ? `Retry ${retryQuestions.indexOf(currentQuestionIndex) + 1} of ${retryQuestions.length} (Question ${currentQuestionIndex + 1})`
+            : ''
+        }
+        showBatman={true}
+        showQuestionCounter={true}
+        showProgressLabel={false}
+      />
 
-      {/* Progress */}
-      <div className="mb-6">
-        <div className="flex justify-between items-center mb-2">
-          <span className="text-sm font-medium text-gray-600">
-            {retryMode
-              ? `Retry ${retryQuestions.indexOf(currentQuestionIndex) + 1} of ${retryQuestions.length} (Question ${currentQuestionIndex + 1})`
-              : `Question ${currentQuestionIndex + 1} of ${questions.length}`
-            }
-          </span>
-          <span className="text-sm text-gray-500">
-            {retryMode ? 'Retry Wrong Questions' : 'Select from Dropdown'}
-          </span>
-        </div>
-        <div className="w-full bg-gray-200 rounded-full h-2">
-          <div
-            className={`h-2 rounded-full transition-all duration-300 ${retryMode ? 'bg-yellow-600' : 'bg-blue-600'}`}
-            style={{
-              width: retryMode
-                ? `${((retryQuestions.indexOf(currentQuestionIndex) + 1) / retryQuestions.length) * 100}%`
-                : `${((currentQuestionIndex + 1) / questions.length) * 100}%`
-            }}
-          />
-        </div>
-      </div>
+      {/* Back Button */}
+      <button
+        onClick={() => navigate(-1)}
+        className="flex items-center gap-2 text-gray-600 hover:text-gray-800 mb-4"
+      >
+        <ArrowLeft className="w-5 h-5" />
+        Back
+      </button>
 
       {/* Question */}
-      <div className="bg-white rounded-lg shadow-md p-6 mb-6 border border-gray-200" style={{ marginTop: '120px' }}>
+      <div className="bg-white rounded-lg shadow-md p-6 mb-6 border border-gray-200">
         <div className="text-lg leading-relaxed mb-4">
           {renderQuestionText()}
         </div>

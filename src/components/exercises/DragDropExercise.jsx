@@ -8,33 +8,21 @@ import { useAuth } from '../../hooks/useAuth'
 import { useProgress } from '../../hooks/useProgress'
 import { useFeedback } from '../../hooks/useFeedback'
 import ExerciseHeader from './ExerciseHeader'
+import RichTextRenderer from '../ui/RichTextRenderer'
 
-// Convert simple markdown/HTML to safe HTML for preview
-const markdownToHtml = (text) => {
-  if (!text) return ''
-  let html = text
-  // Images markdown ![](url)
-  html = html.replace(/!\[(.*?)\]\((.*?)\)/g, (m, alt, url) => `<img src="${url}" alt="${alt || ''}" class="max-w-full h-auto rounded-lg my-2" />`)
-  // Preserve HTML <img> adding styling
-  html = html.replace(/<img([^>]*?)>/g, (m, attrs) => `<img${attrs} class="max-w-full h-auto rounded-lg my-2" />`)
-  // Preserve HTML <audio>
-  html = html.replace(/<audio([^>]*?)>/g, (m, attrs) => `<audio${attrs} class="w-full my-2"></audio>`)
-  // Links [text](url)
-  html = html.replace(/\[(.*?)\]\((.*?)\)/g, (m, t, url) => `<a href="${url}" target="_blank" rel="noreferrer">${t || url}</a>`)
-  return html
-}
-
-// Render question text with HTML content and drop zones
+// Render question text with RichTextRenderer and drop zones
 const renderQuestionWithDropZones = (questionText, dropZones, renderDropZone) => {
   const parts = questionText.split(/\[DROP_ZONE_(\w+)\]/)
   return parts.map((part, index) => {
     if (index % 2 === 0) {
-      // This is regular text - render with HTML support
-      const htmlContent = markdownToHtml(part)
+      // This is regular text - render with RichTextRenderer for line break support
       return (
-        <span
+        <RichTextRenderer
           key={index}
-          dangerouslySetInnerHTML={{ __html: htmlContent }}
+          content={part}
+          allowImages={true}
+          allowLinks={true}
+          style={{ whiteSpace: 'pre-wrap', display: 'inline' }}
         />
       )
     } else {
@@ -672,8 +660,8 @@ const DragDropExercise = () => {
                           {item.text}
                         </span>
                       ) : (
-                        <span className="text-gray-600 text-lg min-w-[60px] inline-block">
-                          ___
+                        <span className="inline-block px-3 py-1 mx-1 min-w-[80px] text-center border-2 border-solid border-blue-200 bg-blue-50 rounded text-blue-400 font-medium">
+                          _____
                         </span>
                       )}
                     </span>

@@ -206,6 +206,8 @@ const EditExerciseModal = ({ isOpen, onClose, exercise, onUpdate }) => {
             <AIFillBlankEditor
               questions={content.questions || []}
               onQuestionsChange={(questions) => handleContentChange({ ...content, questions })}
+              intro={content.intro || ''}
+              onIntroChange={(intro) => handleContentChange({ ...content, intro })}
             />
           </>
         )
