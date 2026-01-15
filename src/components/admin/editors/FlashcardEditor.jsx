@@ -274,6 +274,20 @@ const FlashcardEditor = ({ cards, onCardsChange }) => {
               </div>
             </div>
 
+            {/* Audio URL */}
+            <div className="mt-4">
+              <label className="block text-sm font-medium text-gray-700 mb-1">
+                Audio URL
+              </label>
+              <input
+                type="url"
+                value={card.audioUrl || ''}
+                onChange={(e) => updateCard(index, 'audioUrl', e.target.value)}
+                className="w-full p-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
+                placeholder="https://example.com/audio.mp3"
+              />
+            </div>
+
             {/* Video URLs */}
             <div className="mt-4">
               <div className="flex justify-between items-center mb-2">

@@ -65,6 +65,7 @@ export const parseFlashcardsFromCSV = (csvText) => {
       'front': ['front', 'english', 'word', 'term', 'question'],
       'back': ['back', 'vietnamese', 'meaning', 'translation', 'answer'],
       'image': ['image', 'image_url', 'imageurl', 'img', 'picture'],
+      'audioUrl': ['audiourl', 'audio_url', 'audio', 'sound'],
       'videoUrls': ['videourls', 'video_urls', 'videos', 'videourl', 'video_url', 'video'],
       'id': ['id', 'index', 'number', '#']
     }
@@ -90,6 +91,7 @@ export const parseFlashcardsFromCSV = (csvText) => {
   }
 
   const imageIndex = getColumnIndex('image')
+  const audioIndex = getColumnIndex('audioUrl')
   const videoIndex = getColumnIndex('videoUrls')
   const idIndex = getColumnIndex('id')
 
@@ -118,6 +120,7 @@ export const parseFlashcardsFromCSV = (csvText) => {
         front,
         back,
         image: fields[imageIndex]?.trim() || '',
+        audioUrl: fields[audioIndex]?.trim() || '',
         videoUrls: []
       }
 
@@ -188,6 +191,7 @@ export const parseFlashcardsFromCSV = (csvText) => {
     summary: {
       total: flashcards.length,
       withImages: flashcards.filter(f => f.image).length,
+      withAudio: flashcards.filter(f => f.audioUrl).length,
       withVideos: flashcards.filter(f => f.videoUrls && f.videoUrls.length > 0).length,
       errors: errors.length
     }
@@ -196,11 +200,11 @@ export const parseFlashcardsFromCSV = (csvText) => {
 
 // Generate sample CSV template
 export const generateCSVTemplate = () => {
-  return `front,back,image,videoUrls
-Hello,Xin chào,https://example.com/hello.jpg,https://example.com/hello1.mp4|https://example.com/hello2.mp4
-Goodbye,Tạm biệt,https://example.com/goodbye.jpg,https://example.com/goodbye.mp4
-Thank you,Cảm ơn,https://example.com/thanks.jpg,
-Good morning,Chào buổi sáng,https://example.com/morning.jpg,https://example.com/morning.mp4`
+  return `front,back,image,audioUrl,videoUrls
+Hello,Xin chào,https://example.com/hello.jpg,https://example.com/hello.mp3,https://example.com/hello1.mp4|https://example.com/hello2.mp4
+Goodbye,Tạm biệt,https://example.com/goodbye.jpg,https://example.com/goodbye.mp3,https://example.com/goodbye.mp4
+Thank you,Cảm ơn,https://example.com/thanks.jpg,,
+Good morning,Chào buổi sáng,https://example.com/morning.jpg,https://example.com/morning.mp3,https://example.com/morning.mp4`
 }
 
 // Validate flashcard data structure
@@ -223,6 +227,10 @@ export const validateFlashcardData = (flashcards) => {
 
     if (card.image && typeof card.image !== 'string') {
       errors.push(`Card ${index + 1}: Image must be a URL string`)
+    }
+
+    if (card.audioUrl && typeof card.audioUrl !== 'string') {
+      errors.push(`Card ${index + 1}: Audio URL must be a string`)
     }
 
     if (card.videoUrls && !Array.isArray(card.videoUrls)) {
@@ -250,6 +258,7 @@ export const convertToExerciseContent = (flashcards, exerciseTitle = 'Imported F
         front: card.front.trim(),
         back: card.back.trim(),
         image: card.image?.trim() || '',
+        audioUrl: card.audioUrl?.trim() || '',
         videoUrls: (card.videoUrls || []).filter(url => url && url.trim())
       }))
     }

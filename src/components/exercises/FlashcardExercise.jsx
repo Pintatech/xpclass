@@ -274,18 +274,44 @@ const FlashcardExercise = () => {
   };
 
   const playAudio = () => {
-    // Stop current speech if speaking
-    if (speechSynth.speaking) {
-      speechSynth.cancel();
-      return;
-    }
-
     if (currentFlashcard) {
-      // Always speak the front text (English) regardless of flip state
-      const textToSpeak = currentFlashcard.front;
-      const language = "en-US";
+      // If there's a custom audio URL, play that instead of TTS
+      if (currentFlashcard.audioUrl && currentFlashcard.audioUrl.trim()) {
+        // Stop current speech if speaking
+        if (speechSynth.speaking) {
+          speechSynth.cancel();
+        }
 
-      speakText(textToSpeak, language);
+        // Stop current audio if playing
+        if (currentAudio) {
+          currentAudio.pause();
+          currentAudio.currentTime = 0;
+        }
+
+        // Play custom audio
+        const audio = new Audio(currentFlashcard.audioUrl);
+        audio.play().catch(err => {
+          console.error("Error playing audio:", err);
+          // Fallback to TTS if audio fails
+          const textToSpeak = currentFlashcard.front;
+          const language = "en-US";
+          speakText(textToSpeak, language);
+        });
+        setCurrentAudio(audio);
+      } else {
+        // Use text-to-speech as fallback
+        // Stop current speech if speaking
+        if (speechSynth.speaking) {
+          speechSynth.cancel();
+          return;
+        }
+
+        // Always speak the front text (English) regardless of flip state
+        const textToSpeak = currentFlashcard.front;
+        const language = "en-US";
+
+        speakText(textToSpeak, language);
+      }
     }
   };
 
