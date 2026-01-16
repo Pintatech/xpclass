@@ -621,7 +621,7 @@ const DragDropExercise = () => {
           </div>
           {/* Question with inline drop zones */}
           <div className="mb-8 p-4">
-            <h2 className="text-lg font-semibold text-gray-800 mb-4 leading-relaxed">
+            <h2 className="text-lg font-normal text-gray-900 mb-4 leading-relaxed">
               {renderQuestionWithDropZones(
                 currentQuestion.question,
                 currentQuestion.drop_zones,

@@ -681,7 +681,7 @@ const FlashcardExercise = () => {
         {/* Main Card Display with Right Side Thumbnails */}
         <div className="flex flex-col lg:flex-row gap-4 max-w-full mx-auto">
           {/* Main Card */}
-          <div className="flex-1 max-w-2xl mx-auto w-full">
+          <div className="flex-1 max-w-xl lg:max-w-xl mx-auto w-full">
             <div className="bg-white rounded-lg shadow-md overflow-hidden border border-gray-200 flip-card-container">
               <div className="relative">
                 {/* Card Content - Front or Back */}

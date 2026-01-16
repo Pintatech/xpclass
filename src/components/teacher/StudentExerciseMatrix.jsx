@@ -7,6 +7,8 @@ const StudentExerciseMatrix = ({ selectedCourse }) => {
   const { user, isAdmin } = useAuth();
   const [units, setUnits] = useState([]);
   const [selectedUnit, setSelectedUnit] = useState('all');
+  const [sessions, setSessions] = useState([]);
+  const [selectedSession, setSelectedSession] = useState('all');
   const [students, setStudents] = useState([]);
   const [exercises, setExercises] = useState([]);
   const [progressMatrix, setProgressMatrix] = useState(new Map());
@@ -15,6 +17,7 @@ const StudentExerciseMatrix = ({ selectedCourse }) => {
   const [questionAttempts, setQuestionAttempts] = useState([]);
   const [loadingAttempts, setLoadingAttempts] = useState(false);
   const [showAllExercises, setShowAllExercises] = useState(false);
+  const [averageMode, setAverageMode] = useState('all'); // 'all' or 'attempted'
   const [allExercisesFetched, setAllExercisesFetched] = useState(false);
 
   useEffect(() => {
@@ -24,12 +27,21 @@ const StudentExerciseMatrix = ({ selectedCourse }) => {
   }, [selectedCourse]);
 
   useEffect(() => {
+    if (selectedUnit !== 'all') {
+      fetchSessions();
+    } else {
+      setSessions([]);
+      setSelectedSession('all');
+    }
+  }, [selectedUnit]);
+
+  useEffect(() => {
     if (selectedCourse) {
       setShowAllExercises(false);
       setAllExercisesFetched(false);
       fetchMatrixData(15);
     }
-  }, [selectedCourse, selectedUnit]);
+  }, [selectedCourse, selectedUnit, selectedSession]);
 
   const fetchUnits = async () => {
     try {
@@ -45,6 +57,23 @@ const StudentExerciseMatrix = ({ selectedCourse }) => {
       setSelectedUnit('all'); // Reset to "All Units" when course changes
     } catch (error) {
       console.error('Error fetching units:', error);
+    }
+  };
+
+  const fetchSessions = async () => {
+    try {
+      const { data, error } = await supabase
+        .from('sessions')
+        .select('id, title, session_number')
+        .eq('unit_id', selectedUnit)
+        .order('session_number');
+
+      if (error) throw error;
+
+      setSessions(data || []);
+      setSelectedSession('all'); // Reset to "All Sessions" when unit changes
+    } catch (error) {
+      console.error('Error fetching sessions:', error);
     }
   };
 
@@ -94,16 +123,32 @@ const StudentExerciseMatrix = ({ selectedCourse }) => {
         return;
       }
 
-      // Get sessions in these units
-      const { data: sessions, error: sessionsError } = await supabase
-        .from('sessions')
-        .select('id, title, session_number, unit_id')
-        .in('unit_id', unitIds)
-        .order('session_number');
+      // Get sessions in these units (filter by selected session if not 'all')
+      let sessionIds = [];
+      let sessionsData = [];
 
-      if (sessionsError) throw sessionsError;
+      if (selectedSession !== 'all') {
+        sessionIds = [selectedSession];
+        const { data: sessionData, error: sessionError } = await supabase
+          .from('sessions')
+          .select('id, title, session_number, unit_id')
+          .eq('id', selectedSession)
+          .single();
 
-      const sessionIds = (sessions || []).map(s => s.id);
+        if (sessionError) throw sessionError;
+        sessionsData = sessionData ? [sessionData] : [];
+      } else {
+        const { data: sessions, error: sessionsError } = await supabase
+          .from('sessions')
+          .select('id, title, session_number, unit_id')
+          .in('unit_id', unitIds)
+          .order('session_number');
+
+        if (sessionsError) throw sessionsError;
+
+        sessionsData = sessions || [];
+        sessionIds = sessionsData.map(s => s.id);
+      }
       if (sessionIds.length === 0) {
         setExercises([]);
         setProgressMatrix(new Map());
@@ -131,7 +176,7 @@ const StudentExerciseMatrix = ({ selectedCourse }) => {
       (assignments || []).forEach(assignment => {
         const exercise = assignment.exercise;
         if (exercise?.id && !exerciseMap.has(exercise.id)) {
-          const session = sessions.find(s => s.id === assignment.session_id);
+          const session = sessionsData.find(s => s.id === assignment.session_id);
           exerciseMap.set(exercise.id, {
             ...exercise,
             session_title: session?.title || 'Unknown Session',
@@ -206,6 +251,27 @@ const StudentExerciseMatrix = ({ selectedCourse }) => {
     if (percentage >= 75) return 'bg-blue-500 text-white';
     if (percentage >= 60) return 'bg-yellow-200 text-yellow-800';
     return 'bg-red-200 text-red-800';
+  };
+
+  const getStudentAverage = (studentId) => {
+    if (exercises.length === 0) return null;
+
+    let totalPercentage = 0;
+    let count = 0;
+
+    exercises.forEach(exercise => {
+      const progress = getProgressForCell(studentId, exercise.id);
+      if (progress && progress.score !== null && progress.max_score) {
+        totalPercentage += (progress.score / progress.max_score) * 100;
+        count++;
+      } else if (averageMode === 'all') {
+        // Only count unattempted as 0% when in 'all' mode
+        count++;
+      }
+    });
+
+    if (count === 0) return null;
+    return Math.round(totalPercentage / count);
   };
 
   const fetchQuestionAttempts = async (studentId, studentName, exerciseId, exerciseTitle) => {
@@ -337,6 +403,28 @@ const StudentExerciseMatrix = ({ selectedCourse }) => {
               </div>
             </div>
 
+            {/* Session Selection - only show when a unit is selected */}
+            {selectedUnit !== 'all' && (
+              <div className="flex items-center gap-2">
+                <span className="text-sm font-medium text-gray-700 whitespace-nowrap">Lesson:</span>
+                <div className="relative">
+                  <select
+                    value={selectedSession}
+                    onChange={(e) => setSelectedSession(e.target.value)}
+                    className="appearance-none bg-white border border-gray-300 rounded px-3 py-1.5 pr-8 text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                  >
+                    <option value="all">All Lessons</option>
+                    {sessions.map(session => (
+                      <option key={session.id} value={session.id}>
+                        Lesson {session.session_number}: {session.title}
+                      </option>
+                    ))}
+                  </select>
+                  <ChevronDown className="absolute right-2 top-1/2 transform -translate-y-1/2 w-4 h-4 text-gray-400 pointer-events-none" />
+                </div>
+              </div>
+            )}
+
             {/* Action Buttons */}
             <div className="flex items-center space-x-2">
               {!allExercisesFetched && !showAllExercises && (
@@ -365,6 +453,18 @@ const StudentExerciseMatrix = ({ selectedCourse }) => {
             <tr>
               <th className="sticky left-0 bg-gray-50 px-4 py-3 text-left text-sm font-medium text-gray-900 border-r">
                 Student
+              </th>
+              <th className="px-3 py-3 text-center text-xs font-medium text-gray-900 min-w-[100px] border-r bg-gray-100">
+                <div className="space-y-1">
+                  <div>Average</div>
+                  <button
+                    onClick={() => setAverageMode(averageMode === 'all' ? 'attempted' : 'all')}
+                    className="text-xs px-2 py-0.5 rounded bg-gray-200 hover:bg-gray-300 text-gray-600 transition-colors"
+                    title={averageMode === 'all' ? 'Currently: All exercises (unattempted = 0%)' : 'Currently: Attempted only'}
+                  >
+                    {averageMode === 'all' ? 'All' : 'Attempted'}
+                  </button>
+                </div>
               </th>
               {exercises.map(exercise => (
                 <th
@@ -397,6 +497,19 @@ const StudentExerciseMatrix = ({ selectedCourse }) => {
                       <div className="text-xs text-gray-600">{student.email}</div>
                     </div>
                   </div>
+                </td>
+                {/* Average Column */}
+                <td className="px-2 py-3 text-center border-r bg-gray-50">
+                  {(() => {
+                    const avg = getStudentAverage(student.id);
+                    return avg !== null ? (
+                      <span className={`text-sm px-2 py-1 rounded-full font-semibold ${getScoreColor(avg)}`}>
+                        {avg}%
+                      </span>
+                    ) : (
+                      <span className="text-xs text-gray-400">-</span>
+                    );
+                  })()}
                 </td>
                 {exercises.map(exercise => {
                   const progress = getProgressForCell(student.id, exercise.id);

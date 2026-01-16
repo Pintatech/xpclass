@@ -3,6 +3,7 @@ import { useLocation, useNavigate } from 'react-router-dom'
 import { supabase } from '../../supabase/client'
 import { useAuth } from '../../hooks/useAuth'
 import { useProgress } from '../../hooks/useProgress'
+import { useFeedback } from '../../hooks/useFeedback'
 import { saveRecentExercise } from '../../utils/recentExercise'
 import LoadingSpinner from '../ui/LoadingSpinner'
 import { Check, X, RotateCcw, HelpCircle, ArrowLeft } from 'lucide-react'
@@ -14,6 +15,7 @@ const FillBlankExercise = () => {
   const navigate = useNavigate()
   const { user } = useAuth()
   const { startExercise, completeExerciseWithXP } = useProgress()
+  const { currentMeme, showMeme, playFeedback, playCelebration, passGif } = useFeedback()
   const [exercise, setExercise] = useState(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState(null)
@@ -30,6 +32,7 @@ const FillBlankExercise = () => {
   const [retryMode, setRetryMode] = useState(false)
   const [retryQuestions, setRetryQuestions] = useState([])
   const [isBatmanMoving, setIsBatmanMoving] = useState(false)
+  const [attemptNumber, setAttemptNumber] = useState(1)
 
   const inputRefs = useRef({})
 
@@ -176,17 +179,44 @@ const FillBlankExercise = () => {
     return calculatedWidth
   }
 
-  const handleSubmit = () => {
+  const handleSubmit = async () => {
     setShowResults(true)
     setHasEdited(false)
     setShowCorrectAnswers(false)
 
     // Calculate score for current question
-    const correctAnswers = currentQuestion.blanks.filter((_, blankIndex) =>
+    const correctBlanks = currentQuestion.blanks.filter((_, blankIndex) =>
       checkAnswer(blankIndex)
     ).length
-    const questionScore = (correctAnswers / currentQuestion.blanks.length) * 100
+    const questionScore = (correctBlanks / currentQuestion.blanks.length) * 100
     setScore(questionScore)
+
+    // Play feedback based on score
+    playFeedback(questionScore >= 80)
+
+    // Save question attempt to database
+    try {
+      const urlParams = new URLSearchParams(location.search)
+      const exerciseId = urlParams.get('exerciseId')
+
+      if (exerciseId && user) {
+        // Convert answers to comma-separated strings
+        const selectedAnswers = Object.values(userAnswers[currentQuestionIndex] || {}).join(', ')
+        const correctAnswers = currentQuestion.blanks.map(b => b.answer).join(', ')
+
+        await supabase.from('question_attempts').insert({
+          exercise_id: exerciseId,
+          question_id: currentQuestion.id || `q${currentQuestionIndex}`,
+          user_id: user.id,
+          selected_answer: selectedAnswers,
+          correct_answer: correctAnswers,
+          is_correct: questionScore === 100,
+          attempt_number: attemptNumber,
+        })
+      }
+    } catch (err) {
+      console.log('⚠️ Could not save question attempt:', err.message)
+    }
   }
 
   const handleKeyDown = (e, questionIndex, blankIndex) => {
@@ -269,10 +299,32 @@ const FillBlankExercise = () => {
     const averageScore = scores.reduce((sum, s) => sum + s, 0) / scores.length
     setTotalScore(averageScore)
 
+    // Play feedback based on overall score
+    playFeedback(averageScore >= 80)
+
+    const urlParams = new URLSearchParams(location.search)
+    const exerciseId = urlParams.get('exerciseId')
+
+    // Save all question attempts to database
+    if (exerciseId && user) {
+      try {
+        const attempts = questions.map((question, qIndex) => ({
+          exercise_id: exerciseId,
+          question_id: question.id || `q${qIndex}`,
+          user_id: user.id,
+          selected_answer: Object.values(userAnswers[qIndex] || {}).join(', '),
+          correct_answer: question.blanks.map(b => b.answer).join(', '),
+          is_correct: scores[qIndex] === 100,
+          attempt_number: attemptNumber,
+        }))
+        await supabase.from('question_attempts').insert(attempts)
+      } catch (err) {
+        console.log('⚠️ Could not save question attempts:', err.message)
+      }
+    }
+
     // Save progress
     try {
-      const urlParams = new URLSearchParams(location.search)
-      const exerciseId = urlParams.get('exerciseId')
       const roundedScore = Math.round(averageScore)
       const baseXP = exercise?.xp_reward || 10
       const bonusXP = roundedScore >= 80 ? Math.round(baseXP * 0.2) : 0
@@ -366,10 +418,16 @@ const FillBlankExercise = () => {
       setShowResults(false)
       setShowExplanation(false)
 
+      // Play celebration if passed
+      if (averageScore >= 80) {
+        playCelebration()
+      }
+
+      const urlParams = new URLSearchParams(location.search)
+      const exerciseId = urlParams.get('exerciseId')
+
       // Mark exercise completed with XP
       try {
-        const urlParams = new URLSearchParams(location.search)
-        const exerciseId = urlParams.get('exerciseId')
         const roundedScore = Math.round(averageScore)
         const baseXP = exercise?.xp_reward || 10
         const bonusXP = roundedScore >= 80 ? Math.round(baseXP * 0.2) : 0
@@ -385,7 +443,7 @@ const FillBlankExercise = () => {
         console.error('Error marking fill_blank exercise completed:', err)
       }
     }
-  }, [score, retryMode, questionScores, currentQuestionIndex, retryQuestions, questions.length, location.search, exercise?.xp_reward, user, completeExerciseWithXP])
+  }, [score, retryMode, questionScores, currentQuestionIndex, retryQuestions, questions.length, location.search, exercise?.xp_reward, user, completeExerciseWithXP, playCelebration])
 
   useEffect(() => {
     // Handle Enter key to move to next question when results are showing
@@ -484,13 +542,18 @@ const FillBlankExercise = () => {
 
     return (
       <div className="max-w-4xl mx-auto p-6">
+        {/* Pass GIF */}
+        {passGif && totalScore >= 80 && (
+          <div className="flex justify-center mb-6">
+            <img src={passGif} alt="Celebration" className="max-w-xs rounded-lg shadow-lg" />
+          </div>
+        )}
         <div className="bg-white rounded-lg shadow-lg p-8">
           <div className="text-center mb-8">
             <div className="w-20 h-20 mx-auto mb-4 bg-gradient-to-r from-purple-500 to-pink-500 rounded-full flex items-center justify-center">
               <Check className="w-10 h-10 text-white" />
             </div>
-            <h2 className="text-3xl font-bold text-gray-800 mb-2">Exercise Completed!</h2>
-            <p className="text-gray-600">{getScoreMessage(totalScore)}</p>
+            <p className="text-gray-600 font-bold">{getScoreMessage(totalScore)}</p>
           </div>
 
           <div className="text-center mb-8">
@@ -530,50 +593,57 @@ const FillBlankExercise = () => {
               <span className="text-sm sm:text-base">Back to Session</span>
             </button>
             <div className="flex flex-col sm:flex-row gap-2 sm:gap-3 w-full sm:w-auto">
+              {totalScore < 100 && (
+                <button
+                  onClick={() => {
+                    // Find questions with score < 80% (wrong questions)
+                    const wrongQuestions = questionScores
+                      .map((score, index) => ({ score, index }))
+                      .filter(q => q.score < 80)
+                      .map(q => q.index)
+
+                    if (wrongQuestions.length > 0) {
+                      // Increment attempt number
+                      setAttemptNumber(prev => prev + 1)
+
+                      // Reset scores for fresh calculation
+                      const newScores = [...questionScores]
+                      wrongQuestions.forEach(qIndex => {
+                        newScores[qIndex] = 0 // Reset wrong question scores
+                      })
+                      setQuestionScores(newScores)
+
+                      // Set retry mode
+                      setRetryMode(true)
+                      setRetryQuestions(wrongQuestions)
+
+                      // Start from first wrong question
+                      setExerciseCompleted(false)
+                      setCurrentQuestionIndex(wrongQuestions[0])
+                      setShowResults(false)
+                      setShowExplanation(false)
+                      setShowCorrectAnswers(false)
+                      setHasEdited(false)
+                      setTotalScore(0) // Reset total score
+                    } else {
+                      // No wrong questions, just restart all
+                      setAttemptNumber(prev => prev + 1)
+                      setExerciseCompleted(false)
+                      setCurrentQuestionIndex(0)
+                      setUserAnswers({})
+                      setQuestionScores([])
+                      setTotalScore(0)
+                    }
+                  }}
+                  className="w-full sm:w-auto px-4 sm:px-6 py-2 sm:py-3 bg-yellow-600 text-white rounded-lg hover:bg-yellow-700 transition-colors flex items-center justify-center gap-2"
+                >
+                  <RotateCcw className="w-4 h-4 sm:w-5 sm:h-5" />
+                  <span className="text-sm sm:text-base">Retry Wrong</span>
+                </button>
+              )}
               <button
                 onClick={() => {
-                  // Find questions with score < 80% (wrong questions)
-                  const wrongQuestions = questionScores
-                    .map((score, index) => ({ score, index }))
-                    .filter(q => q.score < 80)
-                    .map(q => q.index)
-
-                  if (wrongQuestions.length > 0) {
-                    // Reset scores for fresh calculation
-                    const newScores = [...questionScores]
-                    wrongQuestions.forEach(qIndex => {
-                      newScores[qIndex] = 0 // Reset wrong question scores
-                    })
-                    setQuestionScores(newScores)
-
-                    // Set retry mode
-                    setRetryMode(true)
-                    setRetryQuestions(wrongQuestions)
-
-                    // Start from first wrong question
-                    setExerciseCompleted(false)
-                    setCurrentQuestionIndex(wrongQuestions[0])
-                    setShowResults(false)
-                    setShowExplanation(false)
-                    setShowCorrectAnswers(false)
-                    setHasEdited(false)
-                    setTotalScore(0) // Reset total score
-                  } else {
-                    // No wrong questions, just restart all
-                    setExerciseCompleted(false)
-                    setCurrentQuestionIndex(0)
-                    setUserAnswers({})
-                    setQuestionScores([])
-                    setTotalScore(0)
-                  }
-                }}
-                className="w-full sm:w-auto px-4 sm:px-6 py-2 sm:py-3 bg-yellow-600 text-white rounded-lg hover:bg-yellow-700 transition-colors flex items-center justify-center gap-2"
-              >
-                <RotateCcw className="w-4 h-4 sm:w-5 sm:h-5" />
-                <span className="text-sm sm:text-base">Retry Wrong</span>
-              </button>
-              <button
-                onClick={() => {
+                  setAttemptNumber(prev => prev + 1)
                   setExerciseCompleted(false)
                   setCurrentQuestionIndex(0)
                   setUserAnswers({})
@@ -737,6 +807,16 @@ const FillBlankExercise = () => {
 
     return (
       <div className="px-4 pt-6 pb-12">
+        {/* Meme Overlay */}
+        {showMeme && currentMeme && (
+          <div className="fixed inset-0 flex items-center justify-center z-50 pointer-events-none">
+            <img
+              src={currentMeme}
+              alt="Feedback meme"
+              className="max-w-xs max-h-64 rounded-lg shadow-2xl"
+            />
+          </div>
+        )}
         <div className="max-w-4xl mx-auto space-y-6">
           {/* Header */}
           <div className="bg-white rounded-lg shadow-sm p-4 md:p-5 border border-gray-200 mb-6">
@@ -884,6 +964,16 @@ const FillBlankExercise = () => {
 
   return (
     <div className="px-4 pt-6 pb-12">
+      {/* Meme Overlay */}
+      {showMeme && currentMeme && (
+        <div className="fixed inset-0 flex items-center justify-center z-50 pointer-events-none">
+          <img
+            src={currentMeme}
+            alt="Feedback meme"
+            className="max-w-xs max-h-64 rounded-lg shadow-2xl"
+          />
+        </div>
+      )}
       <div className="max-w-4xl mx-auto space-y-6">
       {/* Header */}
       <ExerciseHeader
