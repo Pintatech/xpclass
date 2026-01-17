@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react'
 import { useLocation, useNavigate } from 'react-router-dom'
 import { supabase } from '../../supabase/client'
-import { RotateCcw, CheckCircle, XCircle} from 'lucide-react'
+import { RotateCcw, CheckCircle, XCircle, Star } from 'lucide-react'
 import LoadingSpinner from '../ui/LoadingSpinner'
 import Button3D from '../ui/Button3D'
 import { useAuth } from '../../hooks/useAuth'
@@ -9,21 +9,87 @@ import { useProgress } from '../../hooks/useProgress'
 import { useFeedback } from '../../hooks/useFeedback'
 import ExerciseHeader from './ExerciseHeader'
 import RichTextRenderer from '../ui/RichTextRenderer'
+import AudioPlayer from '../ui/AudioPlayer'
 
-// Render question text with RichTextRenderer and drop zones
+// Helper function to parse content and extract audio tags
+const parseContentWithAudio = (content) => {
+  if (!content || typeof content !== 'string') {
+    return [{ type: 'text', content }]
+  }
+
+  const segments = []
+  const audioRegex = /<audio[^>]*>.*?<\/audio>|<audio[^>]*\/>/gis
+  let lastIndex = 0
+  let match
+
+  while ((match = audioRegex.exec(content)) !== null) {
+    if (match.index > lastIndex) {
+      segments.push({
+        type: 'text',
+        content: content.substring(lastIndex, match.index)
+      })
+    }
+
+    const audioTag = match[0]
+    const srcMatch = audioTag.match(/src\s*=\s*["']([^"']+)["']/)
+
+    if (srcMatch) {
+      const maxPlaysMatch = audioTag.match(/data-max-plays\s*=\s*["'](\d+)["']/)
+      const maxPlays = maxPlaysMatch ? parseInt(maxPlaysMatch[1]) : 0
+
+      segments.push({
+        type: 'audio',
+        url: srcMatch[1],
+        maxPlays: maxPlays
+      })
+    }
+
+    lastIndex = audioRegex.lastIndex
+  }
+
+  if (lastIndex < content.length) {
+    segments.push({
+      type: 'text',
+      content: content.substring(lastIndex)
+    })
+  }
+
+  return segments.length > 0 ? segments : [{ type: 'text', content }]
+}
+
+// Render question text with inline audio and drop zones
 const renderQuestionWithDropZones = (questionText, dropZones, renderDropZone) => {
   const parts = questionText.split(/\[DROP_ZONE_(\w+)\]/)
   return parts.map((part, index) => {
     if (index % 2 === 0) {
-      // This is regular text - render with RichTextRenderer for line break support
+      // This is regular text - parse for audio and render inline
+      const segments = parseContentWithAudio(part)
       return (
-        <RichTextRenderer
-          key={index}
-          content={part}
-          allowImages={true}
-          allowLinks={true}
-          style={{ whiteSpace: 'pre-wrap', display: 'inline' }}
-        />
+        <span key={index} style={{ whiteSpace: 'pre-wrap' }}>
+          {segments.map((segment, segIndex) => {
+            if (segment.type === 'audio') {
+              return (
+                <span key={segIndex} className="inline-block align-middle mx-1">
+                  <AudioPlayer
+                    audioUrl={segment.url}
+                    maxPlays={segment.maxPlays}
+                    variant="outline"
+                  />
+                </span>
+              )
+            } else {
+              return (
+                <RichTextRenderer
+                  key={segIndex}
+                  content={segment.content}
+                  allowImages={true}
+                  allowLinks={true}
+                  style={{ display: 'inline' }}
+                />
+              )
+            }
+          })}
+        </span>
       )
     } else {
       // This is a drop zone ID
@@ -62,9 +128,14 @@ const DragDropExercise = () => {
   const [itemFeedback, setItemFeedback] = useState({}) // Track correct/incorrect for each item
   const [isBatmanMoving, setIsBatmanMoving] = useState(false)
   const [animatingItems, setAnimatingItems] = useState({}) // Track items being animated
+  const [pendingPlacements, setPendingPlacements] = useState({}) // Track zones with pending placements (item flying to them)
   const { user } = useAuth()
   const { startExercise, completeExerciseWithXP } = useProgress()
-  const { currentMeme, showMeme, playFeedback } = useFeedback()
+  const { currentMeme, showMeme, playFeedback, playCelebration, passGif } = useFeedback()
+  const [showResultScreen, setShowResultScreen] = useState(false)
+  const [questionResults, setQuestionResults] = useState([]) // Track results for each question
+  const [session, setSession] = useState(null)
+  const [hasPlayedPassAudio, setHasPlayedPassAudio] = useState(false)
 
   useEffect(() => {
     fetchExercise()
@@ -73,6 +144,50 @@ const DragDropExercise = () => {
       startExercise(exerciseId)
     }
   }, [exerciseId, user])
+
+  // Fetch session info for navigation
+  useEffect(() => {
+    const fetchSessionInfo = async () => {
+      try {
+        const { data, error } = await supabase
+          .from('sessions')
+          .select(`
+            *,
+            units:unit_id (
+              id,
+              title,
+              course_id
+            )
+          `)
+          .eq('id', sessionId)
+          .single()
+
+        if (error) throw error
+        setSession(data)
+      } catch (err) {
+        console.error('Error fetching session info:', err)
+      }
+    }
+
+    if (sessionId) {
+      fetchSessionInfo()
+    }
+  }, [sessionId])
+
+  // Play celebration when result screen shows and passed
+  useEffect(() => {
+    if (showResultScreen && !hasPlayedPassAudio && questionResults.length > 0) {
+      const correctAnswers = questionResults.filter(r => r.isCorrect).length
+      const totalQuestions = questionResults.length
+      const score = Math.round((correctAnswers / totalQuestions) * 100)
+      const passed = score >= 75
+
+      if (passed) {
+        playCelebration()
+        setHasPlayedPassAudio(true)
+      }
+    }
+  }, [showResultScreen, hasPlayedPassAudio, questionResults, playCelebration])
 
   // Start time tracking when exercise loads
   useEffect(() => {
@@ -213,9 +328,11 @@ const DragDropExercise = () => {
   const handleItemClick = (itemId, questionIndex) => {
     const userAnswer = userAnswers[questionIndex] || {}
     const question = exercise.content.questions[questionIndex]
+    const pending = pendingPlacements[questionIndex] || {}
 
-    // Check if item is already placed
+    // Check if item is already placed or has a pending placement
     const isAlreadyPlaced = Object.values(userAnswer).includes(itemId)
+    const hasPendingPlacement = Object.values(pending).includes(itemId)
 
     if (isAlreadyPlaced) {
       // If already placed, remove it from current zone (instant, no animation)
@@ -231,11 +348,22 @@ const DragDropExercise = () => {
         }
       })
       setUserAnswers(newAnswers)
-    } else {
-      // Find next available drop zone
-      const availableZone = question.drop_zones.find(zone => !userAnswer[zone.id])
+    } else if (!hasPendingPlacement) {
+      // Find next available drop zone (excluding zones with pending placements)
+      const availableZone = question.drop_zones.find(zone =>
+        !userAnswer[zone.id] && !pending[zone.id]
+      )
 
       if (availableZone) {
+        // Mark this zone as having a pending placement
+        setPendingPlacements(prev => ({
+          ...prev,
+          [questionIndex]: {
+            ...(prev[questionIndex] || {}),
+            [availableZone.id]: itemId
+          }
+        }))
+
         // Play whoosh sound
         try {
           const audio = new Audio('https://xpclass.vn/xpclass/sound/whoosh_transition.mp3')
@@ -288,13 +416,23 @@ const DragDropExercise = () => {
             document.body.removeChild(clone)
 
             // Place item in next available zone
-            const newAnswers = { ...userAnswers }
-            if (!newAnswers[questionIndex]) {
-              newAnswers[questionIndex] = {}
-            }
+            setUserAnswers(prev => {
+              const newAnswers = { ...prev }
+              if (!newAnswers[questionIndex]) {
+                newAnswers[questionIndex] = {}
+              }
+              newAnswers[questionIndex][availableZone.id] = itemId
+              return newAnswers
+            })
 
-            newAnswers[questionIndex][availableZone.id] = itemId
-            setUserAnswers(newAnswers)
+            // Clear the pending placement
+            setPendingPlacements(prev => {
+              const newPending = { ...prev }
+              if (newPending[questionIndex]) {
+                delete newPending[questionIndex][availableZone.id]
+              }
+              return newPending
+            })
           }, 520)
         } else {
           // Fallback: place immediately if elements not found
@@ -305,6 +443,15 @@ const DragDropExercise = () => {
 
           newAnswers[questionIndex][availableZone.id] = itemId
           setUserAnswers(newAnswers)
+
+          // Clear the pending placement
+          setPendingPlacements(prev => {
+            const newPending = { ...prev }
+            if (newPending[questionIndex]) {
+              delete newPending[questionIndex][availableZone.id]
+            }
+            return newPending
+          })
         }
       }
     }
@@ -381,6 +528,17 @@ const DragDropExercise = () => {
       ...prev,
       [questionIndex]: true
     }))
+
+    // Track question result
+    setQuestionResults(prev => {
+      // Remove any existing result for this question index
+      const filtered = prev.filter(r => r.questionIndex !== questionIndex)
+      return [...filtered, {
+        questionIndex,
+        questionId: question.id,
+        isCorrect: isAnswerCorrect
+      }]
+    })
 
     // Save progress on every question check, but don't increment attempts here
     if (user) {
@@ -468,13 +626,27 @@ const DragDropExercise = () => {
   const handleFinishExercise = async () => {
     console.log('🏁 Finishing exercise');
 
+    // Check if current question has been checked
+    if (!questionsChecked[currentQuestionIndex]) {
+      alert('Please check your answer before finishing.')
+      return
+    }
+
     // Trigger final save progress to complete the exercise
     if (user && exercise) {
       await saveProgress(currentQuestionIndex, true)
     }
 
-    // Navigate back
-    navigate(-1)
+    // Show result screen instead of navigating away
+    setShowResultScreen(true)
+  }
+
+  const handleBackToList = () => {
+    if (session && session.units) {
+      navigate(`/study/course/${session.units.course_id}/unit/${session.unit_id}/session/${sessionId}`)
+    } else {
+      navigate(-1)
+    }
   }
 
   const resetQuestion = (questionIndex) => {
@@ -611,7 +783,75 @@ const DragDropExercise = () => {
           </div>
         )}
 
+        {/* Result Screen */}
+        {showResultScreen && (
+          <div className="bg-white rounded-lg shadow-md p-4 md:p-8 text-center border border-gray-200">
+            <div className="mb-4">
+              {(() => {
+                const correctAnswers = questionResults.filter(r => r.isCorrect).length
+                const totalQuestions = exercise.content.questions.length
+                const score = Math.round((correctAnswers / totalQuestions) * 100)
+                const passed = score >= 75
+
+                return (
+                  <>
+                    {/* Show celebration GIF if passed */}
+                    {passed && passGif && (
+                      <div className="mb-4">
+                        <img
+                          src={passGif}
+                          alt="Celebration"
+                          className="mx-auto rounded-lg shadow-lg"
+                          style={{ maxWidth: '300px', width: '100%', height: 'auto' }}
+                        />
+                      </div>
+                    )}
+
+                    <h2 className={`text-lg md:text-2xl font-bold mb-2 ${passed ? 'text-green-800' : 'text-orange-800'}`}>
+                      {passed ? 'Tuyệt vời!' : 'Cần cải thiện!'}
+                    </h2>
+                    <p className="text-sm md:text-base text-gray-600 mb-2">
+                      Bạn đã trả lời đúng {correctAnswers}/{totalQuestions} câu ({score}%)
+                    </p>
+                    {!passed && (
+                      <p className="text-sm md:text-base text-orange-600 font-semibold mb-3">
+                        Cần đạt ít nhất 75% để hoàn thành bài tập
+                      </p>
+                    )}
+                    {xpEarnedThisSession > 0 && (
+                      <div className="flex items-center justify-center space-x-2 text-yellow-600 font-semibold text-sm md:text-base">
+                        <Star className="w-4 h-4 md:w-5 md:h-5" />
+                        <span>+{xpEarnedThisSession} XP earned!</span>
+                      </div>
+                    )}
+                    {xpEarnedThisSession === 0 && !passed && (
+                      <div className="flex items-center justify-center space-x-2 text-gray-500 text-sm md:text-base">
+                        <XCircle className="w-4 h-4 md:w-5 md:h-5" />
+                        <span>Không nhận được XP (điểm quá thấp)</span>
+                      </div>
+                    )}
+                  </>
+                )
+              })()}
+            </div>
+
+            <div className="space-y-4">
+              {/* Back to exercise list */}
+              <Button3D
+                onClick={handleBackToList}
+                color="blue"
+                size="md"
+                fullWidth={true}
+                className="flex items-center justify-center"
+              >
+                Quay lại danh sách bài tập
+              </Button3D>
+            </div>
+          </div>
+        )}
+
         {/* Main Content */}
+        {!showResultScreen && (
         <div className="w-full max-w-4xl min-w-0 mx-auto rounded-lg p-4 md:p-8 bg-white shadow-md border border-gray-200 border-l-4 border-l-blue-400 relative" style={{ userSelect: 'none' }}>
           {/* Colored circles on top right */}
           <div className="absolute top-4 right-6 md:right-10 flex gap-2 z-20">
@@ -752,7 +992,41 @@ const DragDropExercise = () => {
                         }
                       }}
                     >
-                      {item.text}
+                      <div
+                        className="flex items-center gap-2"
+                        onClick={(e) => {
+                          // Stop propagation if clicking on audio player
+                          if (e.target.closest('button')) {
+                            e.stopPropagation()
+                          }
+                        }}
+                        onMouseDown={(e) => {
+                          if (e.target.closest('button')) {
+                            e.stopPropagation()
+                          }
+                        }}
+                        onTouchStart={(e) => {
+                          if (e.target.closest('button')) {
+                            e.stopPropagation()
+                          }
+                        }}
+                      >
+                        {parseContentWithAudio(item.text).map((segment, segIndex) => {
+                          if (segment.type === 'audio') {
+                            return (
+                              <span key={segIndex} className="inline-block align-middle mx-1">
+                                <AudioPlayer
+                                  audioUrl={segment.url}
+                                  maxPlays={segment.maxPlays}
+                                  variant="outline"
+                                />
+                              </span>
+                            )
+                          } else {
+                            return <span key={segIndex}>{segment.content}</span>
+                          }
+                        })}
+                      </div>
                     </div>
                   </div>
                 )
@@ -785,26 +1059,6 @@ const DragDropExercise = () => {
                   {currentQuestion.explanation}
                 </p>
               )}
-            </div>
-          )}
-
-          {/* Exercise Completed */}
-          {exerciseCompleted && (
-            <div className="mb-6 p-6 bg-gradient-to-r from-green-50 to-blue-50 border-2 border-green-200 rounded-lg">
-              <div className="text-center">
-                <CheckCircle className="w-16 h-16 text-green-600 mx-auto mb-4" />
-                <h3 className="text-xl font-bold text-green-800 mb-2">
-                  🎉 Exercise Completed!
-                </h3>
-                <p className="text-green-700 mb-4">
-                  Great job! You've successfully completed all questions.
-                </p>
-                {xpEarnedThisSession > 0 && (
-                  <div className="text-sm text-green-600">
-                    XP Earned: {xpEarnedThisSession}
-                  </div>
-                )}
-              </div>
             </div>
           )}
 
@@ -864,6 +1118,7 @@ const DragDropExercise = () => {
             )}
           </div>
         </div>
+        )}
       </div>
     </div>
   )

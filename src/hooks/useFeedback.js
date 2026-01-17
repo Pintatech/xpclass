@@ -17,7 +17,7 @@ export const useFeedback = () => {
 'https://xpclass.vn/xpclass/meme/right_kid_thumb_up.png',
 'https://xpclass.vn/xpclass/meme/right_Leonardo-Dicaprio-Cheers.jpg',
 'https://xpclass.vn/xpclass/meme/right_not_bad_kid.png',
-'https://xpclass.vn/xpclass/meme/Fileright_pooh.PNG',
+'https://xpclass.vn/xpclass/meme/right_pooh.PNG',
 'https://xpclass.vn/xpclass/meme/right_Satisfied-Seal.jpg',
 'https://xpclass.vn/xpclass/meme/right_success_kid.png',
 'https://xpclass.vn/xpclass/meme/right_tapping_head.jpg'
@@ -56,7 +56,7 @@ export const useFeedback = () => {
   ];
 
   // Sound URLs
-  const correctSounds = ["https://xpclass.vn/xpclass/sound/correct-positive.wav"];
+  const correctSounds = ["https://xpclass.vn/xpclass/sound/correct.mp3"];
 
   const wrongSounds = ["https://xpclass.vn/leaderboard/sound/Bruh.mp3",
     "https://xpclass.vn/xpclass/sound/error.mp3",
@@ -108,7 +108,7 @@ export const useFeedback = () => {
     });
 
     // Play celebration sound
-    const audio = new Audio("https://xpclass.vn/xpclass/sound/yayy.mp3");
+    const audio = new Audio("https://xpclass.vn/xpclass/sound/victory.mp3");
     audio.play().catch((err) => console.log("Audio play failed:", err));
 
     // Show random celebration GIF

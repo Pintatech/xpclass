@@ -8,7 +8,7 @@ const ProtectedRoute = ({ children, requireAdmin = false }) => {
 
   if (loading) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-gray-50">
+      <div className="min-h-dvh flex items-center justify-center bg-white">
         <div className="text-center">
           <LoadingSpinner size="lg" />
           <div className="mt-4 text-gray-600">Đang xác thực...</div>
@@ -29,7 +29,7 @@ const ProtectedRoute = ({ children, requireAdmin = false }) => {
     // If profile is still loading (null but user exists), show loading
     if (profile === null && user) {
       return (
-        <div className="min-h-screen flex items-center justify-center bg-gray-50">
+        <div className="min-h-dvh flex items-center justify-center bg-white">
           <div className="text-center">
             <LoadingSpinner size="lg" />
             <div className="mt-4 text-gray-600">Đang kiểm tra quyền admin...</div>
