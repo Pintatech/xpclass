@@ -550,18 +550,34 @@ const ExerciseList = () => {
     }
 
     return (
-      <div
-        ref={setNodeRef}
-        style={{
-          ...style,
-          animation: isFirstIncomplete ? 'scalePulse 2s ease-in-out infinite' : undefined
-        }}
-        className={`relative flex items-center p-4 rounded-lg border transition-all duration-200 overflow-hidden shadow-md ${
-          isLocked
-            ? 'opacity-60 cursor-not-allowed bg-gray-50 border-gray-200'
-            : 'bg-white border-gray-300'
-        } ${status === 'completed' ? 'border-green-400 bg-green-300' : ''}`}
-      >
+      <div className="relative">
+        {/* Connecting line - positioned outside the card */}
+        {index < exercises.length - 1 && (
+          <div
+            className={`absolute w-1 ${
+              status === 'completed' && getExerciseStatus(exercises[index + 1], index + 1).status === 'completed'
+                ? 'bg-green-400'
+                : 'bg-gray-300'
+            }`}
+            style={{
+              left: canCreateContent() ? '77px' : '46px',
+              top: '80px',
+              height: 'calc(100% - 48px)',
+              zIndex: 1
+            }}
+          />
+        )}
+        <div
+          ref={setNodeRef}
+          style={{
+            ...style
+          }}
+          className={`relative flex items-center p-4 rounded-2xl transition-all duration-200 overflow-hidden ${
+            isLocked
+              ? 'opacity-60 cursor-not-allowed bg-gray-50'
+              : 'bg-white'
+          }`}
+        >
         {/* Shining effect - only for completed exercises */}
         {status === 'completed' && (
           <div
@@ -574,17 +590,13 @@ const ExerciseList = () => {
         {/* Right-aligned check mark for completed exercises */}
         {status === 'completed' && (
           <div className="absolute inset-0 flex items-center justify-end pr-4 pointer-events-none">
-            <img src="https://xpclass.vn/xpclass/icon/green_check.svg" alt="Completed" className="w-16 h-16 opacity-30" />
+            <img src="https://xpclass.vn/xpclass/icon/green_check.svg" alt="Completed" className="w-12 h-12 opacity-30" />
           </div>
         )}
         <style>{`
           @keyframes shimmer {
             0% { transform: translateX(-100%); }
             100% { transform: translateX(100%); }
-          }
-          @keyframes scalePulse {
-            0%, 100% { transform: scale(1); }
-            50% { transform: scale(1.02); }
           }
         `}</style>
         {/* Drag Handle - Only show for admins/teachers */}
@@ -601,100 +613,72 @@ const ExerciseList = () => {
 
         {/* Exercise Icon */}
         <div
-          className="flex-shrink-0 w-12 h-12 mr-4 cursor-pointer"
-          onClick={handleExerciseClick}
-        >
-          <div className={`w-full h-full rounded-lg flex items-center justify-center ${
-            isLocked ? 'bg-gray-100' :
-            status === 'completed' ? 'bg-green-100' :
-            getExerciseColor(exercise.exercise_type)
-          }`}>
-            <ExerciseIcon className={`w-6 h-6 ${
+          className={`relative flex-shrink-0 w-16 h-16 rounded-full flex items-center justify-center cursor-pointer border-4 z-10 ${
+              isLocked ? 'bg-gray-100 border-gray-300' :
+              status === 'completed' ? 'bg-green-100 border-green-400' :
+              getExerciseColor(exercise.exercise_type) + ' border-gray-300'
+            }`}
+            onClick={handleExerciseClick}
+          >
+            <ExerciseIcon className={`w-8 h-8 ${
               isLocked ? 'text-gray-400' :
               status === 'completed' ? 'text-green-600' :
               'text-current'
             }`} />
-          </div>
         </div>
+        <div className="mr-4" />
 
-        {/* Exercise Info */}
-        <div
-          className="flex-1 min-w-0 cursor-pointer"
-          onClick={handleExerciseClick}
-        >
-          <div className="flex items-center justify-between">
-            <h3 className="text-lg font-semibold text-gray-900 truncate">
+        {/* Exercise Title and Status */}
+        <div className={`flex-1 flex items-center justify-between border-2 border-b-4 rounded-xl px-6 py-4 ${
+          status === 'completed' ? 'bg-green-100 border-green-400' : 'border-gray-300'
+        }`}>
+          <div className="flex-1 min-w-0 cursor-pointer" onClick={handleExerciseClick}>
+            <h3 className="text-base font-medium text-gray-800">
               {exercise.title}
             </h3>
-            <div className="flex items-center space-x-2">
-              {canCreateContent() && (
-                <div className="flex items-center space-x-1">
-                  <button
-                    onClick={(e) => {
-                      e.stopPropagation()
-                      setAssignToStudentExercise(exercise)
-                    }}
-                    className="p-1 text-blue-400 hover:text-blue-600 hover:bg-blue-100 rounded transition-colors"
-                    title="Assign to individual student"
-                  >
-                    <UserPlus className="w-4 h-4" />
-                  </button>
-                  {profile?.role === 'admin' && (
-                    <button
-                      onClick={(e) => {
-                        e.stopPropagation()
-                        setEditingExercise(exercise)
-                      }}
-                      className="p-1 text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded transition-colors"
-                      title="Edit exercise"
-                    >
-                      <Edit className="w-4 h-4" />
-                    </button>
-                  )}
-                  <button
-                    onClick={(e) => {
-                      e.stopPropagation()
-                      handleDeleteExercise(exercise)
-                    }}
-                    className="p-1 text-red-400 hover:text-red-600 hover:bg-red-100 rounded transition-colors"
-                    title="Delete exercise"
-                  >
-                    <Trash2 className="w-4 h-4" />
-                  </button>
-                </div>
+          </div>
+
+          {/* Action Buttons */}
+          {canCreateContent() && (
+            <div className="flex items-center space-x-1">
+              <button
+                onClick={(e) => {
+                  e.stopPropagation()
+                  setAssignToStudentExercise(exercise)
+                }}
+                className="p-1 text-blue-400 hover:text-blue-600 hover:bg-blue-100 rounded transition-colors"
+                title="Assign to individual student"
+              >
+                <UserPlus className="w-4 h-4" />
+              </button>
+              {profile?.role === 'admin' && (
+                <button
+                  onClick={(e) => {
+                    e.stopPropagation()
+                    setEditingExercise(exercise)
+                  }}
+                  className="p-1 text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded transition-colors"
+                  title="Edit exercise"
+                >
+                  <Edit className="w-4 h-4" />
+                </button>
               )}
-              {isLocked && (
-                <Lock className="w-4 h-4 text-gray-400" />
-              )}
+              <button
+                onClick={(e) => {
+                  e.stopPropagation()
+                  handleDeleteExercise(exercise)
+                }}
+                className="p-1 text-red-400 hover:text-red-600 hover:bg-red-100 rounded transition-colors"
+                title="Delete exercise"
+              >
+                <Trash2 className="w-4 h-4" />
+              </button>
             </div>
-          </div>
+          )}
 
-          <div className="mt-1 flex items-center space-x-4 text-sm text-gray-600">
-            <span className={`inline-flex items-center gap-1 px-2 py-1 rounded-full text-s ${
-              status === 'completed'
-                ? 'bg-amber-100 text-amber-800 font-bold'
-                : 'bg-gray-100 text-gray-600 font-medium'
-            }`}>
-              <img
-                src="https://xpclass.vn/xpclass/icon/xp_small.svg"
-                alt="XP"
-                className={`w-4 h-4 ${status === 'completed' ? '' : 'grayscale'}`}
-              />
-              {exercise.xp_reward || 10} XP
-            </span>
-            {progress && progress.score && (
-              <span>Score: {progress.score}%</span>
-            )}
-          </div>
+          {isLocked && <Lock className="w-4 h-4 text-gray-400 ml-2" />}
         </div>
-
-        {/* Arrow */}
-        {!isLocked && (
-          <ChevronRight
-            className="w-5 h-5 text-gray-400 ml-4 cursor-pointer"
-            onClick={handleExerciseClick}
-          />
-        )}
+        </div>
       </div>
     )
   }
