@@ -58,9 +58,9 @@ export const useFeedback = () => {
   // Sound URLs
   const correctSounds = ["https://xpclass.vn/xpclass/sound/correct.mp3"];
 
-  const wrongSounds = ["https://xpclass.vn/leaderboard/sound/Bruh.mp3",
+  const wrongSounds = ["https://xpclass.vn/xpclass/sound/Bruh.mp3",
     "https://xpclass.vn/xpclass/sound/error.mp3",
-    "https://xpclass.vn/xpclass/sound/huh.mp3",
+    "https://xpclass.vn/xpclass/sound/ohhhroblox.mp3",
     "https://xpclass.vn/xpclass/sound/vineboom.mp3"
   ];
 

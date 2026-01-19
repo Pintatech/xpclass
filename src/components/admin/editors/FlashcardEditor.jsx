@@ -277,7 +277,7 @@ const FlashcardEditor = ({ cards, onCardsChange }) => {
             {/* Audio URL */}
             <div className="mt-4">
               <label className="block text-sm font-medium text-gray-700 mb-1">
-                Audio URL
+                Audio URL (optional - will use TTS if empty)
               </label>
               <input
                 type="url"
@@ -286,6 +286,9 @@ const FlashcardEditor = ({ cards, onCardsChange }) => {
                 className="w-full p-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
                 placeholder="https://example.com/audio.mp3"
               />
+              {card.audioUrl && (
+                <audio src={card.audioUrl} controls className="mt-2 w-full" />
+              )}
             </div>
 
             {/* Video URLs */}

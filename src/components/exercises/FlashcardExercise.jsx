@@ -5,7 +5,14 @@ import { useAuth } from "../../hooks/useAuth";
 import { supabase } from "../../supabase/client";
 import Button from "../ui/Button";
 import LoadingSpinner from "../ui/LoadingSpinner";
-import { Volume2, ChevronLeft, ChevronRight, Mic, Video, Image } from "lucide-react";
+import {
+  Volume2,
+  ChevronLeft,
+  ChevronRight,
+  Mic,
+  Video,
+  Image,
+} from "lucide-react";
 import { assessPronunciation } from "../../utils/azurePronunciationService";
 
 const FlashcardExercise = () => {
@@ -22,7 +29,7 @@ const FlashcardExercise = () => {
   const [speechSynth] = useState(window.speechSynthesis);
   const [isRecording, setIsRecording] = useState(false);
   const [pronunciationResult, setPronunciationResult] = useState(null);
-  const [mediaMode, setMediaMode] = useState('image'); // 'image' or 'video'
+  const [mediaMode, setMediaMode] = useState("image"); // 'image' or 'video'
   const [currentVideoIndex, setCurrentVideoIndex] = useState(0);
   const [videoRefs, setVideoRefs] = useState([]);
   const mediaRecorderRef = useRef(null);
@@ -153,7 +160,9 @@ const FlashcardExercise = () => {
 
     if (totalCards > 0 && practicedCards < totalCards) {
       // Show alert - must practice all cards
-      alert(`Please practice pronunciation for all ${totalCards} cards. You've practiced ${practicedCards} so far.`);
+      alert(
+        `Please practice pronunciation for all ${totalCards} cards. You've practiced ${practicedCards} so far.`
+      );
       return; // Block navigation
     }
 
@@ -162,12 +171,12 @@ const FlashcardExercise = () => {
     let status = "completed";
 
     if (practicedCards > 0) {
-      const scores = Object.values(cardScores).map(card => card.bestScore);
+      const scores = Object.values(cardScores).map((card) => card.bestScore);
       const totalScore = scores.reduce((sum, score) => sum + score, 0);
       finalScore = Math.round(totalScore / scores.length);
 
       // Determine status based on score threshold (75% = passing)
-      status = finalScore >= 75 ? 'completed' : 'attempted';
+      status = finalScore >= 75 ? "completed" : "attempted";
     }
 
     // Mark current exercise as completed for progress tracking
@@ -181,7 +190,7 @@ const FlashcardExercise = () => {
           status: status,
           completed_at: new Date().toISOString(),
           updated_at: new Date().toISOString(),
-          xp_earned: status === 'completed' ? xpReward : 0,
+          xp_earned: status === "completed" ? xpReward : 0,
         };
 
         // Add score if available
@@ -245,7 +254,7 @@ const FlashcardExercise = () => {
     pauseAllVideos();
     // Reset flip state and video index
     setIsFlipped(false);
-    setMediaMode('image');
+    setMediaMode("image");
     setCurrentVideoIndex(0);
     setCurrentCard(index);
   };
@@ -257,14 +266,50 @@ const FlashcardExercise = () => {
     if (text) {
       const utterance = new SpeechSynthesisUtterance(text);
       utterance.lang = lang;
-      utterance.rate = 0.8;
+      utterance.rate = 0.75;
       utterance.pitch = 1;
       utterance.volume = 0.8;
 
-      // Try to find a native voice for the language
+      // Try to find an English female voice
       const voices = speechSynth.getVoices();
-      const voice =
-        voices.find((v) => v.lang.startsWith(lang.split("-")[0])) || voices[0];
+      let voice = null;
+
+      if (lang.startsWith("en")) {
+        // Priority order for English female voices
+        const femaleVoiceNames = [
+          "Google UK English Female (en-GB)",
+          "Microsoft Mark",
+          "Samantha",
+          "Microsoft Zira",
+          "Google US English Female",
+          "Karen",
+          "Victoria",
+          "Fiona",
+        ];
+
+        // Try to find a voice matching our preferred female voices
+        voice = voices.find(
+          (v) =>
+            v.lang.startsWith("en") &&
+            femaleVoiceNames.some((name) => v.name.includes(name))
+        );
+
+        // Fallback: any English voice with "female" in the name
+        if (!voice) {
+          voice = voices.find(
+            (v) =>
+              v.lang.startsWith("en") && v.name.toLowerCase().includes("female")
+          );
+        }
+      }
+
+      // Fallback to any voice matching the language
+      if (!voice) {
+        voice =
+          voices.find((v) => v.lang.startsWith(lang.split("-")[0])) ||
+          voices[0];
+      }
+
       if (voice) {
         utterance.voice = voice;
       }
@@ -290,7 +335,7 @@ const FlashcardExercise = () => {
 
         // Play custom audio
         const audio = new Audio(currentFlashcard.audioUrl);
-        audio.play().catch(err => {
+        audio.play().catch((err) => {
           console.error("Error playing audio:", err);
           // Fallback to TTS if audio fails
           const textToSpeak = currentFlashcard.front;
@@ -331,9 +376,9 @@ const FlashcardExercise = () => {
   };
 
   const toggleMediaMode = () => {
-    const newMode = mediaMode === 'image' ? 'video' : 'image';
+    const newMode = mediaMode === "image" ? "video" : "image";
 
-    if (newMode === 'image') {
+    if (newMode === "image") {
       pauseAllVideos();
     }
     setMediaMode(newMode);
@@ -341,7 +386,7 @@ const FlashcardExercise = () => {
   };
 
   const pauseAllVideos = () => {
-    videoRefs.forEach(videoRef => {
+    videoRefs.forEach((videoRef) => {
       if (videoRef) {
         videoRef.pause();
         videoRef.currentTime = 0;
@@ -353,7 +398,10 @@ const FlashcardExercise = () => {
   const toggleRecording = async () => {
     if (isRecording) {
       // Stop recording
-      if (mediaRecorderRef.current && mediaRecorderRef.current.state === 'recording') {
+      if (
+        mediaRecorderRef.current &&
+        mediaRecorderRef.current.state === "recording"
+      ) {
         mediaRecorderRef.current.stop();
       }
       setIsRecording(false);
@@ -361,7 +409,7 @@ const FlashcardExercise = () => {
       // Start recording
       try {
         const stream = await navigator.mediaDevices.getUserMedia({
-          audio: true
+          audio: true,
         });
         const mediaRecorder = new MediaRecorder(stream);
         mediaRecorderRef.current = mediaRecorder;
@@ -375,33 +423,43 @@ const FlashcardExercise = () => {
 
         mediaRecorder.onstop = async () => {
           // Stop all tracks
-          stream.getTracks().forEach(track => track.stop());
+          stream.getTracks().forEach((track) => track.stop());
 
           // Create audio blob
-          const audioBlob = new Blob(audioChunksRef.current, { type: 'audio/webm' });
+          const audioBlob = new Blob(audioChunksRef.current, {
+            type: "audio/webm",
+          });
 
-          console.log('🎤 Recording stopped, blob size:', audioBlob.size);
+          console.log("🎤 Recording stopped, blob size:", audioBlob.size);
 
           // Show loading state
           setPronunciationResult({
-            loading: true
+            loading: true,
           });
 
           // Assess pronunciation using Azure
-          const referenceText = currentFlashcard?.front || '';
-          const result = await assessPronunciation(referenceText, audioBlob, 'en-US');
+          const referenceText = currentFlashcard?.front || "";
+          const result = await assessPronunciation(
+            referenceText,
+            audioBlob,
+            "en-US"
+          );
 
-          console.log('📊 Azure assessment result:', result);
+          console.log("📊 Azure assessment result:", result);
 
           if (result.success) {
             // Use syllable score as the main score (first word's first syllable)
-            const syllableScore = result.words?.[0]?.syllables?.[0]?.accuracyScore || result.overallScore;
+            const syllableScore =
+              result.words?.[0]?.syllables?.[0]?.accuracyScore ||
+              result.overallScore;
 
             // Update card scores - keep best score per card
             const cardId = currentFlashcard?.id;
-            setCardScores(prev => {
+            setCardScores((prev) => {
               const existing = prev[cardId];
-              const newBestScore = existing ? Math.max(existing.bestScore, syllableScore) : syllableScore;
+              const newBestScore = existing
+                ? Math.max(existing.bestScore, syllableScore)
+                : syllableScore;
               const newAttempts = existing ? existing.attempts + 1 : 1;
 
               return {
@@ -410,8 +468,8 @@ const FlashcardExercise = () => {
                   word: currentFlashcard?.front,
                   bestScore: newBestScore,
                   attempts: newAttempts,
-                  lastAttempt: new Date()
-                }
+                  lastAttempt: new Date(),
+                },
               };
             });
 
@@ -426,7 +484,7 @@ const FlashcardExercise = () => {
               feedback: result.feedback,
               words: result.words,
               isCorrect: syllableScore >= 70,
-              error: false
+              error: false,
             });
           } else {
             setPronunciationResult({
@@ -434,7 +492,7 @@ const FlashcardExercise = () => {
               targetWord: currentFlashcard?.front,
               accuracy: 0,
               isCorrect: false,
-              error: true
+              error: true,
             });
           }
 
@@ -445,15 +503,15 @@ const FlashcardExercise = () => {
         };
 
         mediaRecorder.onerror = (error) => {
-          console.error('MediaRecorder error:', error);
-          stream.getTracks().forEach(track => track.stop());
+          console.error("MediaRecorder error:", error);
+          stream.getTracks().forEach((track) => track.stop());
           setIsRecording(false);
           setPronunciationResult({
             transcript: "Recording error",
             targetWord: currentFlashcard?.front,
             accuracy: 0,
             isCorrect: false,
-            error: true
+            error: true,
           });
           setTimeout(() => {
             setPronunciationResult(null);
@@ -466,15 +524,14 @@ const FlashcardExercise = () => {
 
         // Auto-stop after 5 seconds
         setTimeout(() => {
-          if (mediaRecorder.state === 'recording') {
+          if (mediaRecorder.state === "recording") {
             mediaRecorder.stop();
             setIsRecording(false);
           }
         }, 5000);
-
       } catch (error) {
-        console.error('Error accessing microphone:', error);
-        alert('Failed to access microphone. Please check permissions.');
+        console.error("Error accessing microphone:", error);
+        alert("Failed to access microphone. Please check permissions.");
         setIsRecording(false);
       }
     }
@@ -488,13 +545,13 @@ const FlashcardExercise = () => {
 
   // Auto-play video when switching to video mode or changing video index
   useEffect(() => {
-    if (mediaMode === 'video' && videoRefs[currentVideoIndex]) {
+    if (mediaMode === "video" && videoRefs[currentVideoIndex]) {
       const videoElement = videoRefs[currentVideoIndex];
       const playPromise = videoElement.play();
 
       if (playPromise !== undefined) {
-        playPromise.catch(error => {
-          console.log('Auto-play prevented:', error);
+        playPromise.catch((error) => {
+          console.log("Auto-play prevented:", error);
         });
       }
     }
@@ -575,7 +632,7 @@ const FlashcardExercise = () => {
   }
 
   return (
-      <>
+    <>
       <style>{`
         .flip-card-container {
           perspective: 1000px;
@@ -685,10 +742,14 @@ const FlashcardExercise = () => {
             <div className="bg-white rounded-lg shadow-md overflow-hidden border border-gray-200 flip-card-container">
               <div className="relative">
                 {/* Card Content - Front or Back */}
-                <div className={`flip-card-inner aspect-square ${isFlipped ? 'flipped' : ''}`}>
+                <div
+                  className={`flip-card-inner aspect-square ${
+                    isFlipped ? "flipped" : ""
+                  }`}
+                >
                   {/* Front Face */}
                   <div className="flip-card-front aspect-square relative">
-                    {mediaMode === 'image' ? (
+                    {mediaMode === "image" ? (
                       <>
                         <img
                           src={currentFlashcard?.image}
@@ -711,13 +772,17 @@ const FlashcardExercise = () => {
                               {pronunciationResult.loading ? (
                                 <>
                                   <div className="animate-spin rounded-full h-16 w-16 border-t-2 border-b-2 border-white mx-auto mb-4"></div>
-                                  <h3 className="text-xl font-bold">Analyzing pronunciation...</h3>
+                                  <h3 className="text-xl font-bold">
+                                    Analyzing pronunciation...
+                                  </h3>
                                 </>
                               ) : pronunciationResult.error ? (
                                 <>
                                   <div className="text-6xl mb-4">❌</div>
                                   <h3 className="text-2xl font-bold">Error</h3>
-                                  <p className="text-lg mt-2">{pronunciationResult.transcript}</p>
+                                  <p className="text-lg mt-2">
+                                    {pronunciationResult.transcript}
+                                  </p>
                                 </>
                               ) : (
                                 <>
@@ -725,44 +790,65 @@ const FlashcardExercise = () => {
                                     {pronunciationResult.accuracy}%
                                   </div>
                                   <div className="text-4xl mb-6">
-                                    {pronunciationResult.isCorrect ? "✅" : "💪"}
+                                    {pronunciationResult.isCorrect
+                                      ? "✅"
+                                      : "💪"}
                                   </div>
 
                                   {/* Syllable and Phoneme breakdown */}
-                                  {pronunciationResult.words && pronunciationResult.words.length > 0 && (
-                                    <div className="mt-3 text-left bg-white/5 rounded-lg p-3 max-h-64 overflow-y-auto">
-                                      <div className="space-y-3">
-                                        {pronunciationResult.words.map((word, idx) => (
-                                          <div key={idx} className="space-y-2">
-
-                                            {/* Phoneme-level breakdown */}
-                                            {word.phonemes && word.phonemes.length > 0 && (
-                                              <div>
-                                                <div className="text-xs text-gray-400 mb-1">Phonemes:</div>
-                                                <div className="flex flex-wrap gap-1">
-                                                  {word.phonemes.map((phoneme, pIdx) => (
-                                                    <div
-                                                      key={pIdx}
-                                                      className={`px-2 py-1 rounded text-xs font-mono ${
-                                                        phoneme.accuracyScore >= 80
-                                                          ? 'bg-green-700'
-                                                          : phoneme.accuracyScore >= 60
-                                                          ? 'bg-yellow-700'
-                                                          : 'bg-red-700'
-                                                      }`}
-                                                      title={`Phoneme: ${phoneme.phoneme} - Score: ${phoneme.accuracyScore}%`}
-                                                    >
-                                                      {phoneme.phoneme} <span className="text-xs opacity-75">({phoneme.accuracyScore}%)</span>
+                                  {pronunciationResult.words &&
+                                    pronunciationResult.words.length > 0 && (
+                                      <div className="mt-3 text-left bg-white/5 rounded-lg p-3 max-h-64 overflow-y-auto">
+                                        <div className="space-y-3">
+                                          {pronunciationResult.words.map(
+                                            (word, idx) => (
+                                              <div
+                                                key={idx}
+                                                className="space-y-2"
+                                              >
+                                                {/* Phoneme-level breakdown */}
+                                                {word.phonemes &&
+                                                  word.phonemes.length > 0 && (
+                                                    <div>
+                                                      <div className="text-xs text-gray-400 mb-1">
+                                                        Phonemes:
+                                                      </div>
+                                                      <div className="flex flex-wrap gap-1">
+                                                        {word.phonemes.map(
+                                                          (phoneme, pIdx) => (
+                                                            <div
+                                                              key={pIdx}
+                                                              className={`px-2 py-1 rounded text-xs font-mono ${
+                                                                phoneme.accuracyScore >=
+                                                                80
+                                                                  ? "bg-green-700"
+                                                                  : phoneme.accuracyScore >=
+                                                                    60
+                                                                  ? "bg-yellow-700"
+                                                                  : "bg-red-700"
+                                                              }`}
+                                                              title={`Phoneme: ${phoneme.phoneme} - Score: ${phoneme.accuracyScore}%`}
+                                                            >
+                                                              {phoneme.phoneme}{" "}
+                                                              <span className="text-xs opacity-75">
+                                                                (
+                                                                {
+                                                                  phoneme.accuracyScore
+                                                                }
+                                                                %)
+                                                              </span>
+                                                            </div>
+                                                          )
+                                                        )}
+                                                      </div>
                                                     </div>
-                                                  ))}
-                                                </div>
+                                                  )}
                                               </div>
-                                            )}
-                                          </div>
-                                        ))}
+                                            )
+                                          )}
+                                        </div>
                                       </div>
-                                    </div>
-                                  )}
+                                    )}
                                 </>
                               )}
                             </div>
@@ -786,7 +872,10 @@ const FlashcardExercise = () => {
                           playsInline
                           muted
                           onError={() => {
-                            console.error('Video failed to load:', currentFlashcard?.videoUrls?.[currentVideoIndex]);
+                            console.error(
+                              "Video failed to load:",
+                              currentFlashcard?.videoUrls?.[currentVideoIndex]
+                            );
                           }}
                         />
                         {/* Text overlay */}
@@ -801,33 +890,34 @@ const FlashcardExercise = () => {
                         {/* Video thumbnails navigation */}
                         {currentFlashcard?.videoUrls?.length > 1 && (
                           <div className="absolute top-4 left-4 flex flex-row gap-2 z-10">
-                            {currentFlashcard.videoUrls.map((videoUrl, videoIndex) => (
-                              <button
-                                key={videoIndex}
-                                onClick={() => {
-                                  if (videoRefs[currentVideoIndex]) {
-                                    videoRefs[currentVideoIndex].pause();
-                                  }
-                                  setCurrentVideoIndex(videoIndex);
-                                }}
-                                className={`relative w-8 h-8 sm:w-8 sm:h-8 rounded-lg overflow-hidden border-2 transition-all duration-200 ${
-                                  currentVideoIndex === videoIndex
-                                    ? "border-blue-500 ring-2 ring-blue-400 scale-105"
-                                    : "border-white/50 hover:border-white hover:scale-105"
-                                }`}
-                                title={`Video ${videoIndex + 1}`}
-                              >
-                                <video
-                                  src={videoUrl}
-                                  className="w-full h-full object-cover pointer-events-none"
-                                  muted
-                                />
-                                {currentVideoIndex === videoIndex && (
-                                  <div className="absolute inset-0 bg-blue-500/20 flex items-center justify-center">
-                                  </div>
-                                )}
-                              </button>
-                            ))}
+                            {currentFlashcard.videoUrls.map(
+                              (videoUrl, videoIndex) => (
+                                <button
+                                  key={videoIndex}
+                                  onClick={() => {
+                                    if (videoRefs[currentVideoIndex]) {
+                                      videoRefs[currentVideoIndex].pause();
+                                    }
+                                    setCurrentVideoIndex(videoIndex);
+                                  }}
+                                  className={`relative w-8 h-8 sm:w-8 sm:h-8 rounded-lg overflow-hidden border-2 transition-all duration-200 ${
+                                    currentVideoIndex === videoIndex
+                                      ? "border-blue-500 ring-2 ring-blue-400 scale-105"
+                                      : "border-white/50 hover:border-white hover:scale-105"
+                                  }`}
+                                  title={`Video ${videoIndex + 1}`}
+                                >
+                                  <video
+                                    src={videoUrl}
+                                    className="w-full h-full object-cover pointer-events-none"
+                                    muted
+                                  />
+                                  {currentVideoIndex === videoIndex && (
+                                    <div className="absolute inset-0 bg-blue-500/20 flex items-center justify-center"></div>
+                                  )}
+                                </button>
+                              )
+                            )}
                           </div>
                         )}
                       </>
@@ -836,7 +926,7 @@ const FlashcardExercise = () => {
 
                   {/* Back Face */}
                   <div className="flip-card-back aspect-square relative">
-                    {mediaMode === 'image' ? (
+                    {mediaMode === "image" ? (
                       <>
                         <img
                           src={currentFlashcard?.image}
@@ -889,10 +979,17 @@ const FlashcardExercise = () => {
                   <button
                     onClick={toggleMediaMode}
                     className="button-3d btn-orange w-12 h-12 sm:w-12 sm:h-12 md:w-16 md:h-16 bg-orange-600 hover:bg-orange-700 text-white rounded-full flex items-center justify-center transition-colors duration-200 flex-shrink-0 disabled:opacity-30 disabled:cursor-not-allowed"
-                    title={mediaMode === 'image' ? 'Switch to Video' : 'Switch to Image'}
-                    disabled={!currentFlashcard?.videoUrls || currentFlashcard.videoUrls.length === 0}
+                    title={
+                      mediaMode === "image"
+                        ? "Switch to Video"
+                        : "Switch to Image"
+                    }
+                    disabled={
+                      !currentFlashcard?.videoUrls ||
+                      currentFlashcard.videoUrls.length === 0
+                    }
                   >
-                    {mediaMode === 'image' ? (
+                    {mediaMode === "image" ? (
                       <Video className="w-5 h-5 sm:w-6 sm:h-6" />
                     ) : (
                       <Image className="w-5 h-5 sm:w-6 sm:h-6" />
@@ -901,7 +998,9 @@ const FlashcardExercise = () => {
 
                   <button
                     onClick={playAudio}
-                    disabled={!currentFlashcard?.front || !currentFlashcard.front.trim()}
+                    disabled={
+                      !currentFlashcard?.front || !currentFlashcard.front.trim()
+                    }
                     className={`button-3d w-12 h-12 sm:w-14 sm:h-14 md:w-16 md:h-16 text-white rounded-full flex items-center justify-center transition-colors duration-200 flex-shrink-0 disabled:opacity-30 disabled:cursor-not-allowed ${
                       speechSynth.speaking
                         ? "btn-red bg-red-600 hover:bg-red-700"
@@ -914,13 +1013,17 @@ const FlashcardExercise = () => {
 
                   <button
                     onClick={toggleRecording}
-                    disabled={!currentFlashcard?.front || !currentFlashcard.front.trim()}
+                    disabled={
+                      !currentFlashcard?.front || !currentFlashcard.front.trim()
+                    }
                     className={`button-3d w-12 h-12 sm:w-14 sm:h-14 md:w-16 md:h-16 text-white rounded-full flex items-center justify-center transition-colors duration-200 flex-shrink-0 disabled:opacity-30 disabled:cursor-not-allowed ${
                       isRecording
                         ? "btn-red bg-red-600 hover:bg-red-700 animate-pulse"
                         : "btn-purple bg-purple-600 hover:bg-purple-700"
                     }`}
-                    title={isRecording ? "Recording..." : "Practice Pronunciation"}
+                    title={
+                      isRecording ? "Recording..." : "Practice Pronunciation"
+                    }
                   >
                     <Mic className="w-5 h-5 sm:w-6 sm:h-6" />
                   </button>
@@ -979,11 +1082,15 @@ const FlashcardExercise = () => {
                     {/* Practice indicator */}
                     {cardScores[card.id] && (
                       <div className="absolute bottom-1 right-1">
-                        <div className={`w-6 h-6 rounded-full flex items-center justify-center text-xs font-bold ${
-                          cardScores[card.id].bestScore >= 80 ? 'bg-green-500' :
-                          cardScores[card.id].bestScore >= 60 ? 'bg-yellow-500' :
-                          'bg-red-500'
-                        }`}>
+                        <div
+                          className={`w-6 h-6 rounded-full flex items-center justify-center text-xs font-bold ${
+                            cardScores[card.id].bestScore >= 80
+                              ? "bg-green-500"
+                              : cardScores[card.id].bestScore >= 60
+                              ? "bg-yellow-500"
+                              : "bg-red-500"
+                          }`}
+                        >
                           ✓
                         </div>
                       </div>
@@ -1019,7 +1126,9 @@ const FlashcardExercise = () => {
                   />
                   <div className="absolute inset-0 bg-black/50 flex items-center justify-center p-1">
                     <div className="text-center text-white">
-                      <p className="text-xs sm:text-sm font-bold line-clamp-2">{card.front}</p>
+                      <p className="text-xs sm:text-sm font-bold line-clamp-2">
+                        {card.front}
+                      </p>
                     </div>
                   </div>
                   {/* Video indicator */}
@@ -1033,18 +1142,21 @@ const FlashcardExercise = () => {
                   {/* Practice indicator */}
                   {cardScores[card.id] && (
                     <div className="absolute bottom-1 right-1 sm:bottom-2 sm:right-2">
-                      <div className={`w-5 h-5 sm:w-6 sm:h-6 rounded-full flex items-center justify-center text-xs font-bold ${
-                        cardScores[card.id].bestScore >= 80 ? 'bg-green-500' :
-                        cardScores[card.id].bestScore >= 60 ? 'bg-yellow-500' :
-                        'bg-red-500'
-                      }`}>
+                      <div
+                        className={`w-5 h-5 sm:w-6 sm:h-6 rounded-full flex items-center justify-center text-xs font-bold ${
+                          cardScores[card.id].bestScore >= 80
+                            ? "bg-green-500"
+                            : cardScores[card.id].bestScore >= 60
+                            ? "bg-yellow-500"
+                            : "bg-red-500"
+                        }`}
+                      >
                         ✓
                       </div>
                     </div>
                   )}
                   {currentCard === index && (
-                    <div className="absolute top-1 right-1 sm:top-2 sm:right-2">
-                    </div>
+                    <div className="absolute top-1 right-1 sm:top-2 sm:right-2"></div>
                   )}
                 </button>
               ))}
@@ -1064,7 +1176,7 @@ const FlashcardExercise = () => {
           </div>
         )}
       </div>
-      </>
+    </>
   );
 };
 

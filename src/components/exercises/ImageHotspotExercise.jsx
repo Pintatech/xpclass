@@ -201,7 +201,7 @@ const ImageHotspotExercise = () => {
 
     // Play whoosh sound
     try {
-      const audio = new Audio('https://xpclass.vn/xpclass/sound/whoosh_transition.mp3')
+      const audio = new Audio('https://xpclass.vn/xpclass/sound/pop.mp3')
       audio.volume = 0.5
       audio.play().catch(e => console.log('Could not play sound:', e))
     } catch (e) {
