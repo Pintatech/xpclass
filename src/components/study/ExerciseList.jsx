@@ -433,9 +433,9 @@ const ExerciseList = () => {
       flashcard: (props) => (
         <IconImg src={"https://xpclass.vn/xpclass/icon/flashcard.svg"} {...props} />
       ),
-      image_hotspot: () => Image
+      image_hotspot: (props) => <Image {...props} />
     }
-    return icons[exerciseType] || BookOpen
+    return icons[exerciseType] || ((props) => <BookOpen {...props} />)
   }
 
   const getExerciseColor = (exerciseType) => {
