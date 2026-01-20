@@ -22,7 +22,7 @@ const Layout = () => {
   ]
 
   const hideBottomNav = exercisePaths.some(p => location.pathname.startsWith(p))
-  const hideSidebar = location.pathname.startsWith('/study/multiple-choice') || location.pathname.startsWith('/study/drag-drop')
+  const hideSidebar = exercisePaths.some(p => location.pathname.startsWith(p))
 
   if (loading) {
     return <LoadingSpinner />

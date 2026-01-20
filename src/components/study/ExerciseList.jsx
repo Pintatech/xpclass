@@ -34,8 +34,7 @@ import {
   Edit,
   Trash2,
   GripVertical,
-  UserPlus,
-  Image
+  UserPlus
 } from 'lucide-react'
 
 const ExerciseList = () => {
@@ -433,7 +432,9 @@ const ExerciseList = () => {
       flashcard: (props) => (
         <IconImg src={"https://xpclass.vn/xpclass/icon/flashcard.svg"} {...props} />
       ),
-      image_hotspot: (props) => <Image {...props} />
+      image_hotspot: (props) => (
+        <IconImg src="https://xpclass.vn/xpclass/icon/hotspot.svg" {...props} />
+      )
     }
     return icons[exerciseType] || ((props) => <BookOpen {...props} />)
   }

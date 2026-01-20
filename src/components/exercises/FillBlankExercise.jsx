@@ -9,6 +9,7 @@ import LoadingSpinner from '../ui/LoadingSpinner'
 import { Check, X, RotateCcw, HelpCircle, ArrowLeft } from 'lucide-react'
 import RichTextRenderer from '../ui/RichTextRenderer'
 import ExerciseHeader from './ExerciseHeader'
+import AudioPlayer from '../ui/AudioPlayer'
 
 const FillBlankExercise = () => {
   const location = useLocation()
@@ -39,6 +40,35 @@ const FillBlankExercise = () => {
   const questions = exercise?.content?.questions || []
   const currentQuestion = questions[currentQuestionIndex]
   const showAllQuestions = exercise?.content?.settings?.show_all_questions || false
+
+  // Extract audio URLs from question content
+  const extractAudioUrls = (htmlContent) => {
+    if (!htmlContent) return []
+    const parser = new DOMParser()
+    const doc = parser.parseFromString(htmlContent, 'text/html')
+    const audioElements = doc.querySelectorAll('audio')
+    const audioUrls = []
+    audioElements.forEach(el => {
+      const src = el.getAttribute('src') || el.querySelector('source')?.getAttribute('src')
+      if (src) {
+        audioUrls.push(src)
+      }
+    })
+    return audioUrls
+  }
+
+  // Get audio URLs for current question
+  const currentQuestionAudio = currentQuestion?.question
+    ? extractAudioUrls(currentQuestion.question)
+    : []
+  const currentQuestionIntroAudio = currentQuestion?.intro
+    ? extractAudioUrls(currentQuestion.intro)
+    : []
+
+  // Get audio URLs for global exercise intro
+  const exerciseIntroAudio = exercise?.content?.intro
+    ? extractAudioUrls(exercise.content.intro)
+    : []
 
   useEffect(() => {
     loadExercise()
@@ -841,47 +871,91 @@ const FillBlankExercise = () => {
                 allowLinks={false}
                 style={{ whiteSpace: 'pre-wrap' }}
               />
+              {/* Audio players for global intro */}
+              {exerciseIntroAudio.length > 0 && (
+                <div className="mt-4 space-y-2">
+                  {exerciseIntroAudio.map((audioUrl, index) => (
+                    <AudioPlayer
+                      key={index}
+                      audioUrl={audioUrl}
+                      variant="outline"
+                    />
+                  ))}
+                </div>
+              )}
             </div>
           )}
 
           {/* All Questions */}
           <div className="space-y-8">
-            {questions.map((question, qIndex) => (
-              <div key={qIndex} className="bg-white rounded-lg shadow-md p-6 border border-gray-200">
-                <div className="flex items-center gap-2 mb-4">
-                  <span className="text-sm font-semibold text-blue-600">Question {qIndex + 1}</span>
-                  {showResults && questionScores[qIndex] !== undefined && (
-                    <span className={`text-sm font-medium ${
-                      questionScores[qIndex] >= 80 ? 'text-green-600' :
-                      questionScores[qIndex] >= 60 ? 'text-yellow-600' : 'text-red-600'
-                    }`}>
-                      ({Math.round(questionScores[qIndex])}%)
-                    </span>
+            {questions.map((question, qIndex) => {
+              const questionIntroAudio = question.intro ? extractAudioUrls(question.intro) : []
+              const questionAudio = question.question ? extractAudioUrls(question.question) : []
+
+              return (
+                <div key={qIndex} className="bg-white rounded-lg shadow-md p-6 border border-gray-200">
+                  <div className="flex items-center gap-2 mb-4">
+                    <span className="text-sm font-semibold text-blue-600">Question {qIndex + 1}</span>
+                    {showResults && questionScores[qIndex] !== undefined && (
+                      <span className={`text-sm font-medium ${
+                        questionScores[qIndex] >= 80 ? 'text-green-600' :
+                        questionScores[qIndex] >= 60 ? 'text-yellow-600' : 'text-red-600'
+                      }`}>
+                        ({Math.round(questionScores[qIndex])}%)
+                      </span>
+                    )}
+                  </div>
+                  {/* Intro above question (optional) */}
+                  {question.intro && String(question.intro).trim() && (
+                    <div className="mb-4">
+                      <RichTextRenderer
+                        content={question.intro}
+                        allowImages={true}
+                        allowLinks={false}
+                      />
+                    </div>
+                  )}
+
+                  {/* Audio players for intro */}
+                  {questionIntroAudio.length > 0 && (
+                    <div className="mb-4 space-y-2">
+                      {questionIntroAudio.map((audioUrl, index) => (
+                        <AudioPlayer
+                          key={index}
+                          audioUrl={audioUrl}
+                          variant="outline"
+                        />
+                      ))}
+                    </div>
+                  )}
+
+                  <div className="text-lg leading-relaxed">
+                    {renderQuestionText(qIndex)}
+                  </div>
+
+                  {/* Audio players for question */}
+                  {questionAudio.length > 0 && (
+                    <div className="mt-4 space-y-2">
+                      {questionAudio.map((audioUrl, index) => (
+                        <AudioPlayer
+                          key={index}
+                          audioUrl={audioUrl}
+                          variant="outline"
+                        />
+                      ))}
+                    </div>
+                  )}
+
+                  {/* Explanation for each question after submission */}
+                  {showResults && question.explanation && (
+                    <div className="mt-4 p-4 bg-blue-50 border border-blue-200 rounded-lg">
+                      <h4 className="font-medium text-blue-900 mb-1 text-sm">Explanation</h4>
+                      <p className="text-blue-800 text-sm">{question.explanation}</p>
+                    </div>
                   )}
                 </div>
-                {/* Intro above question (optional) */}
-                {question.intro && String(question.intro).trim() && (
-                  <div className="mb-4">
-                    <RichTextRenderer
-                      content={question.intro}
-                      allowImages={true}
-                      allowLinks={false}
-                    />
-                  </div>
-                )}
-                <div className="text-lg leading-relaxed">
-                  {renderQuestionText(qIndex)}
-                </div>
-
-                {/* Explanation for each question after submission */}
-                {showResults && question.explanation && (
-                  <div className="mt-4 p-4 bg-blue-50 border border-blue-200 rounded-lg">
-                    <h4 className="font-medium text-blue-900 mb-1 text-sm">Explanation</h4>
-                    <p className="text-blue-800 text-sm">{question.explanation}</p>
-                  </div>
-                )}
-              </div>
-            ))}
+              )
+            })}
           </div>
 
           {/* Results Summary and Actions */}
@@ -998,6 +1072,18 @@ const FillBlankExercise = () => {
             allowLinks={false}
             style={{ whiteSpace: 'pre-wrap' }}
           />
+          {/* Audio players for global intro */}
+          {exerciseIntroAudio.length > 0 && (
+            <div className="mt-4 space-y-2">
+              {exerciseIntroAudio.map((audioUrl, index) => (
+                <AudioPlayer
+                  key={index}
+                  audioUrl={audioUrl}
+                  variant="outline"
+                />
+              ))}
+            </div>
+          )}
         </div>
       )}
 
@@ -1013,9 +1099,36 @@ const FillBlankExercise = () => {
             />
           </div>
         )}
+
+        {/* Audio players for intro */}
+        {currentQuestionIntroAudio.length > 0 && (
+          <div className="mb-4 space-y-2">
+            {currentQuestionIntroAudio.map((audioUrl, index) => (
+              <AudioPlayer
+                key={index}
+                audioUrl={audioUrl}
+                variant="outline"
+              />
+            ))}
+          </div>
+        )}
+
         <div className="text-lg leading-relaxed mb-4">
           {renderQuestionText()}
         </div>
+
+        {/* Audio players for question */}
+        {currentQuestionAudio.length > 0 && (
+          <div className="mt-4 space-y-2">
+            {currentQuestionAudio.map((audioUrl, index) => (
+              <AudioPlayer
+                key={index}
+                audioUrl={audioUrl}
+                variant="outline"
+              />
+            ))}
+          </div>
+        )}
 
         {/* Results */}
         {showResults && (
