@@ -6,11 +6,12 @@ import { useProgress } from '../../hooks/useProgress'
 import { useFeedback } from '../../hooks/useFeedback'
 import { supabase } from '../../supabase/client'
 import Button from '../ui/Button'
-import Button3D from '../ui/Button3D'
 import LoadingSpinner from '../ui/LoadingSpinner'
 import RichTextRenderer, { RichTextWithAudio } from '../ui/RichTextRenderer'
-import { CheckCircle, XCircle, ArrowRight, RotateCcw, Star } from 'lucide-react'
+import { CheckCircle, XCircle, ArrowRight, Star } from 'lucide-react'
+import Button3D from '../ui/Button3D'
 import ExerciseHeader from './ExerciseHeader'
+import CelebrationScreen from '../ui/CelebrationScreen'
 
 const MultipleChoiceExercise = () => {
   const location = useLocation()
@@ -60,7 +61,7 @@ const MultipleChoiceExercise = () => {
       const correctAnswers = questionResults.filter(r => r.isCorrect).length
       const totalQuestions = questionResults.length
       const score = Math.round((correctAnswers / totalQuestions) * 100)
-      const passed = score >= 75
+      const passed = score >= 80
 
       if (passed) {
         playCelebration()
@@ -398,7 +399,7 @@ const MultipleChoiceExercise = () => {
     try {
       // Calculate XP
       const baseXP = exercise?.xp_reward || 10
-      const bonusXP = score >= 80 ? Math.round(baseXP * 0.2) : 0 // 20% bonus for good performance
+      const bonusXP = score >= 95 ? Math.round(baseXP * 0.2) : score >= 90 ? Math.round(baseXP * 0.1) : 0 // +20% if >=95%, +10% if >=90%
       const totalXP = baseXP + bonusXP
 
       console.log(`💰 Calculating XP: ${baseXP} base + ${bonusXP} bonus = ${totalXP} total`)
@@ -514,25 +515,27 @@ const MultipleChoiceExercise = () => {
     <div className="px-2 md:pt-2 pb-12">
       <div className="max-w-4xl mx-auto space-y-6">
 
-      {/* Header */}
-      <ExerciseHeader
-        title={exercise?.title}
-        progressPercentage={
-          viewMode === 'one-by-one'
-            ? (currentQuestionNumber / totalQuestions) * 100
-            : (Object.keys(allAnswers).length / totalQuestions) * 100
-        }
-        isBatmanMoving={isBatmanMoving}
-        isRetryMode={isRetryMode}
-        retryModeText="Ôn lại câu sai"
-        targetInfo="≥ 75% để hoàn thành"
-        showBatman={viewMode === 'one-by-one'}
-        showProgressLabel={false}
-        showQuestionCounter={false}
-      />
+      {/* Header - hide on celebration screen */}
+      {!isQuizComplete && (
+        <ExerciseHeader
+          title={exercise?.title}
+          progressPercentage={
+            viewMode === 'one-by-one'
+              ? (currentQuestionNumber / totalQuestions) * 100
+              : (Object.keys(allAnswers).length / totalQuestions) * 100
+          }
+          isBatmanMoving={isBatmanMoving}
+          isRetryMode={isRetryMode}
+          retryModeText="Ôn lại câu sai"
+          targetInfo="≥ 80% để hoàn thành"
+          showBatman={viewMode === 'one-by-one'}
+          showProgressLabel={false}
+          showQuestionCounter={false}
+        />
+      )}
 
-      {/* Global Intro (exercise.content.settings/intros) */}
-      {exercise?.content?.intro && String(exercise.content.intro).trim() && (
+      {/* Global Intro (exercise.content.settings/intros) - hide on celebration screen */}
+      {!isQuizComplete && exercise?.content?.intro && String(exercise.content.intro).trim() && (
         <div className="w-full max-w-4xl min-w-0 mx-auto rounded-lg p-4 md:p-6 bg-white shadow-sm border border-gray-200">
           <RichTextWithAudio content={exercise.content.intro} allowImages={true} allowLinks={false} />
         </div>
@@ -551,116 +554,24 @@ const MultipleChoiceExercise = () => {
 
       {/* Quiz Complete Screen */}
       {isQuizComplete && (
-        <div className="bg-white rounded-lg shadow-md p-4 md:p-8 text-center border border-gray-200">
-          <div className="mb-4">
-            {(() => {
-              const correctAnswers = questionResults.filter(r => r.isCorrect).length
-              const totalQuestions = questionResults.length
-              const score = Math.round((correctAnswers / totalQuestions) * 100)
-              
-              if (isRetryMode) {
-                // For retry mode, show different messaging
-                const allCorrect = correctAnswers === totalQuestions
-                return (
-                  <>
-                    <div className={`w-16 h-16 md:w-20 md:h-20 mx-auto mb-3 ${allCorrect ? 'bg-green-100' : 'bg-orange-100'} rounded-full flex items-center justify-center`}>
-                      {allCorrect ? (
-                        <CheckCircle className="w-8 h-8 md:w-10 md:h-10 text-green-500" />
-                      ) : (
-                        <XCircle className="w-8 h-8 md:w-10 md:h-10 text-orange-500" />
-                      )}
-                    </div>
-                    <h2 className={`text-lg md:text-2xl font-bold mb-2 ${allCorrect ? 'text-green-800' : 'text-orange-800'}`}>
-                      {allCorrect ? 'Đã hoàn thành ôn lại!' : 'Cần cải thiện thêm!'}
-                    </h2>
-                    <p className="text-sm md:text-base text-gray-600 mb-2">
-                      Bạn đã trả lời đúng {correctAnswers}/{totalQuestions} câu ôn lại ({score}%)
-                    </p>
-                    {!allCorrect && (
-                      <p className="text-sm md:text-base text-orange-600 font-semibold mb-3">
-                        Hãy tiếp tục luyện tập để cải thiện!
-                      </p>
-                    )}
-                  </>
-                )
-              }
-
-              // Normal mode
-              const passed = score >= 75
-
-              return (
-                <>
-                  {/* Show celebration GIF if passed */}
-                  {passed && passGif && (
-                    <div className="mb-4">
-                      <img
-                        src={passGif}
-                        alt="Celebration"
-                        className="mx-auto rounded-lg shadow-lg"
-                        style={{ maxWidth: '300px', width: '100%', height: 'auto' }}
-                      />
-                    </div>
-                  )}
-
-                
-                  <h2 className={`text-lg md:text-2xl font-bold mb-2 ${passed ? 'text-green-800' : 'text-orange-800'}`}>
-                    {passed ? 'Tuyệt vời!' : 'Cần cải thiện!'}
-                  </h2>
-                  <p className="text-sm md:text-base text-gray-600 mb-2">
-                    Bạn đã trả lời đúng {correctAnswers}/{totalQuestions} câu ({score}%)
-                  </p>
-                  {!passed && (
-                    <p className="text-sm md:text-base text-orange-600 font-semibold mb-3">
-                      Cần đạt ít nhất 75% để hoàn thành bài tập
-                    </p>
-                  )}
-                  {xpAwarded > 0 && (
-                    <div className="flex items-center justify-center space-x-2 text-yellow-600 font-semibold text-sm md:text-base">
-                      <Star className="w-4 h-4 md:w-5 md:h-5" />
-                      <span>+{xpAwarded} XP earned!</span>
-                    </div>
-                  )}
-                  {xpAwarded === 0 && !passed && (
-                    <div className="flex items-center justify-center space-x-2 text-gray-500 text-sm md:text-base">
-                      <XCircle className="w-4 h-4 md:w-5 md:h-5" />
-                      <span>Không nhận được XP (điểm quá thấp)</span>
-                    </div>
-                  )}
-                </>
-              )
-            })()}
-          </div>
-
-          <div className="space-y-4">
-            {/* Show wrong questions retry button */}
-            {!isRetryMode && wrongQuestions.length > 0 && (
-              <Button
-                onClick={handleRetryWrongQuestions}
-                className="w-full bg-orange-500 hover:bg-orange-600 text-white"
-              >
-                <RotateCcw className="w-4 h-4 mr-2" />
-                Ôn lại {wrongQuestions.length} câu sai
-              </Button>
-            )}
-
-            {/* Back to exercise list */}
-            <Button3D
-              onClick={() => {
-                if (session && session.units) {
-                  navigate(`/study/course/${session.units.course_id}/unit/${session.unit_id}/session/${sessionId}`)
-                } else {
-                  navigate('/study')
-                }
-              }}
-              color="blue"
-              size="md"
-              fullWidth={true}
-              className="flex items-center justify-center"
-            >
-              Quay lại danh sách bài tập
-            </Button3D>
-          </div>
-        </div>
+        <CelebrationScreen
+          score={Math.round((questionResults.filter(r => r.isCorrect).length / questionResults.length) * 100)}
+          correctAnswers={questionResults.filter(r => r.isCorrect).length}
+          totalQuestions={questionResults.length}
+          passThreshold={80}
+          xpAwarded={xpAwarded}
+          passGif={passGif}
+          isRetryMode={isRetryMode}
+          wrongQuestionsCount={isRetryMode ? 0 : wrongQuestions.length}
+          onRetryWrongQuestions={handleRetryWrongQuestions}
+          onBackToList={() => {
+            if (session && session.units) {
+              navigate(`/study/course/${session.units.course_id}/unit/${session.unit_id}/session/${sessionId}`)
+            } else {
+              navigate('/study')
+            }
+          }}
+        />
       )}
 
       {/* Meme Overlay */}

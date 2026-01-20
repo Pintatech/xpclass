@@ -312,14 +312,47 @@ export const ProgressProvider = ({ children }) => {
         }
       }
 
-      // Only award XP if score requirement is met AND not already completed
+      // Calculate bonus tier based on score: +20% if >=95%, +10% if >=90%, 0% otherwise
+      const getBonusTier = (scorePercent) => {
+        if (scorePercent >= 95) return 0.2
+        if (scorePercent >= 90) return 0.1
+        return 0
+      }
+
+      // Only award XP if score requirement is met
       let actualXpAwarded = 0
-      if (meetingRequirement && xpReward && xpReward > 0 && !isAlreadyCompleted) {
-        await addXP(xpReward)
-        actualXpAwarded = xpReward
-        console.log('💎 Awarded XP for passing score:', xpReward)
-      } else if (isAlreadyCompleted) {
-        console.log('🔄 No XP awarded - exercise already completed, but tracking attempts')
+      if (meetingRequirement && xpReward && xpReward > 0) {
+        if (!isAlreadyCompleted) {
+          // First completion - award full XP (base + bonus already calculated by component)
+          await addXP(xpReward)
+          actualXpAwarded = xpReward
+          console.log('💎 Awarded XP for first completion:', xpReward)
+        } else {
+          // Already completed - check if new score earns a higher bonus tier
+          const oldScorePercent = existingProgressData?.max_score
+            ? (existingProgressData.score / existingProgressData.max_score) * 100
+            : existingProgressData?.score || 0
+          const newScorePercent = progressData.score || 0
+
+          const oldBonusTier = getBonusTier(oldScorePercent)
+          const newBonusTier = getBonusTier(newScorePercent)
+
+          if (newBonusTier > oldBonusTier) {
+            // Calculate base XP from the xpReward (remove bonus component)
+            const currentBonusMultiplier = 1 + newBonusTier
+            const baseXP = Math.round(xpReward / currentBonusMultiplier)
+
+            // Award only the bonus difference
+            const bonusDifference = Math.round(baseXP * (newBonusTier - oldBonusTier))
+            if (bonusDifference > 0) {
+              await addXP(bonusDifference)
+              actualXpAwarded = bonusDifference
+              console.log(`💎 Awarded bonus XP difference: ${bonusDifference} (old tier: ${oldBonusTier * 100}%, new tier: ${newBonusTier * 100}%)`)
+            }
+          } else {
+            console.log('🔄 No additional XP - score did not reach higher bonus tier')
+          }
+        }
       } else if (!meetingRequirement) {
         console.log('❌ No XP awarded - score below 75% requirement')
       }

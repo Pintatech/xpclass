@@ -263,58 +263,75 @@ const FlashcardExercise = () => {
     // Stop any current speech
     speechSynth.cancel();
 
-    if (text) {
+    if (!text) return;
+
+    const speak = () => {
       const utterance = new SpeechSynthesisUtterance(text);
       utterance.lang = lang;
       utterance.rate = 0.75;
       utterance.pitch = 1;
       utterance.volume = 0.8;
 
-      // Try to find an English female voice
+      // Get available voices
       const voices = speechSynth.getVoices();
+
+      // Debug: log available voices
+      console.log("🔊 Available TTS voices:", voices.length, voices.map(v => `${v.name} (${v.lang})`));
+
+      // Simple approach: just find any English voice, don't be picky
       let voice = null;
 
       if (lang.startsWith("en")) {
-        // Priority order for English female voices
-        const femaleVoiceNames = [
-          "Google UK English Female (en-GB)",
-          "Microsoft Mark",
-          "Samantha",
-          "Microsoft Zira",
-          "Google US English Female",
-          "Karen",
-          "Victoria",
-          "Fiona",
-        ];
-
-        // Try to find a voice matching our preferred female voices
-        voice = voices.find(
-          (v) =>
-            v.lang.startsWith("en") &&
-            femaleVoiceNames.some((name) => v.name.includes(name))
+        // Try to find ANY English voice
+        voice = voices.find((v) =>
+          v.lang === "en-US" ||
+          v.lang === "en-GB" ||
+          v.lang.startsWith("en-") ||
+          v.lang === "en"
         );
 
-        // Fallback: any English voice with "female" in the name
+        // Still no voice? Try by name
         if (!voice) {
-          voice = voices.find(
-            (v) =>
-              v.lang.startsWith("en") && v.name.toLowerCase().includes("female")
+          voice = voices.find((v) =>
+            v.name.toLowerCase().includes("english")
           );
         }
       }
 
-      // Fallback to any voice matching the language
-      if (!voice) {
-        voice =
-          voices.find((v) => v.lang.startsWith(lang.split("-")[0])) ||
-          voices[0];
+      // Fallback to first available voice
+      if (!voice && voices.length > 0) {
+        voice = voices[0];
       }
 
       if (voice) {
+        console.log("🔊 Using voice:", voice.name, voice.lang);
         utterance.voice = voice;
+      } else {
+        console.log("🔊 No voice found, using default");
       }
 
       speechSynth.speak(utterance);
+    };
+
+    // On Android, voices may not be loaded yet - wait for them
+    const voices = speechSynth.getVoices();
+    if (voices.length > 0) {
+      speak();
+    } else {
+      // Wait for voices to load (Android needs this)
+      speechSynth.onvoiceschanged = () => {
+        speak();
+      };
+      // Fallback: try speaking anyway after a short delay
+      setTimeout(() => {
+        if (speechSynth.getVoices().length === 0) {
+          // Still no voices, speak without voice selection
+          const utterance = new SpeechSynthesisUtterance(text);
+          utterance.lang = lang;
+          utterance.rate = 0.75;
+          speechSynth.speak(utterance);
+        }
+      }, 100);
     }
   };
 

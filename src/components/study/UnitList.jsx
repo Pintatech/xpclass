@@ -38,12 +38,6 @@ const UnitList = () => {
   const [showAddUnitModal, setShowAddUnitModal] = useState(false);
   const [showEditUnitModal, setShowEditUnitModal] = useState(false);
   const [editingUnit, setEditingUnit] = useState(null);
-  const [unitRewards, setUnitRewards] = useState({});
-  const [claimingReward, setClaimingReward] = useState(null);
-  const [rewardAmount, setRewardAmount] = useState(0);
-  const [showChestSelection, setShowChestSelection] = useState(false);
-  const [selectedChest, setSelectedChest] = useState(null);
-  const [claimingUnitId, setClaimingUnitId] = useState(null);
   const { user, profile } = useAuth();
   const { canCreateContent } = usePermissions();
 
@@ -359,138 +353,11 @@ const UnitList = () => {
       setUnitProgress(progressMap);
       setSessionProgress(sessionProgressMap);
 
-      // Fetch unit rewards
-      await fetchUnitRewards();
     } catch (err) {
       console.error("Error fetching units:", err);
       setError("Không thể tải danh sách unit");
     } finally {
       setLoading(false);
-    }
-  };
-
-  const fetchUnitRewards = async () => {
-    if (!user) return;
-
-    try {
-      const { data, error } = await supabase
-        .from("unit_reward_claims")
-        .select("unit_id, xp_awarded, claimed_at")
-        .eq("user_id", user.id);
-
-      if (error) {
-        console.error("Error fetching unit rewards:", error);
-        return;
-      }
-
-      // Convert array to object for easy lookup: { "unit_id": { claimed: true, xp: 15, claimed_at: "..." } }
-      const rewardsMap = {};
-      data?.forEach((claim) => {
-        rewardsMap[claim.unit_id] = {
-          claimed: true,
-          xp: claim.xp_awarded,
-          claimed_at: claim.claimed_at,
-        };
-      });
-
-      setUnitRewards(rewardsMap);
-    } catch (err) {
-      console.error("Error fetching unit rewards:", err);
-    }
-  };
-
-  const isUnitComplete = (unitId) => {
-    const progress = unitProgress[unitId];
-    return (
-      progress &&
-      progress.total_sessions > 0 &&
-      progress.sessions_completed === progress.total_sessions
-    );
-  };
-
-  const handleClaimReward = async (unitId) => {
-    if (!user || claimingReward || unitRewards[unitId]?.claimed) return;
-    if (!isUnitComplete(unitId)) return;
-
-    // Show chest selection modal
-    setClaimingUnitId(unitId);
-    setShowChestSelection(true);
-  };
-
-  const handleChestSelect = async (chestNumber) => {
-    if (!claimingUnitId || selectedChest !== null) return;
-
-    setSelectedChest(chestNumber);
-    setClaimingReward(claimingUnitId);
-
-    // Play chest opening sound
-    const audio = new Audio("https://xpclass.vn/xpclass/sound/chest_sound.mp3");
-    audio.play().catch((err) => console.error("Error playing sound:", err));
-
-    try {
-      // Generate random XP between 5 and 20
-      const xp = Math.floor(Math.random() * 16) + 5;
-
-      // Insert claim record
-      const { error: claimError } = await supabase
-        .from("unit_reward_claims")
-        .insert({
-          user_id: user.id,
-          unit_id: claimingUnitId,
-          full_name: profile?.full_name || null,
-          xp_awarded: xp,
-        });
-
-      if (claimError) throw claimError;
-
-      // Update user's total XP
-      const { data: currentUser, error: fetchError } = await supabase
-        .from("users")
-        .select("xp")
-        .eq("id", user.id)
-        .single();
-
-      if (fetchError) throw fetchError;
-
-      const { error: updateError } = await supabase
-        .from("users")
-        .update({
-          xp: (currentUser?.xp || 0) + xp,
-          updated_at: new Date().toISOString(),
-        })
-        .eq("id", user.id);
-
-      if (updateError) throw updateError;
-
-      // Wait for GIF to complete before showing XP
-      setTimeout(() => {
-        setRewardAmount(xp);
-
-        // Show XP for 1.5 seconds then close
-        setTimeout(() => {
-          setUnitRewards((prev) => ({
-            ...prev,
-            [claimingUnitId]: {
-              claimed: true,
-              xp: xp,
-              claimed_at: new Date().toISOString(),
-            },
-          }));
-
-          setShowChestSelection(false);
-          setClaimingReward(null);
-          setSelectedChest(null);
-          setClaimingUnitId(null);
-          setRewardAmount(0);
-        }, 1500);
-      }, 2000);
-    } catch (err) {
-      console.error("Error claiming reward:", err);
-      alert("Không thể nhận phần thưởng. Vui lòng thử lại!");
-      setClaimingReward(null);
-      setSelectedChest(null);
-      setShowChestSelection(false);
-      setClaimingUnitId(null);
     }
   };
 
@@ -737,7 +604,7 @@ const UnitList = () => {
 
   if (loading && units.length === 0) {
     return (
-      <div className="flex h-screen bg-gray-50">
+      <div className="flex bg-white">
         {/* Main content skeleton */}
         <div className="flex-1 flex flex-col overflow-hidden p-6">
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
@@ -862,73 +729,6 @@ const UnitList = () => {
                           )}
                         </div>
                         <div className="flex items-center space-x-2">
-                          {/* Unit Reward Chest */}
-                          {!canCreateContent() && (
-                            <div className="relative">
-                              {(() => {
-                                const unitComplete = isUnitComplete(unit.id);
-                                const rewardClaimed =
-                                  unitRewards[unit.id]?.claimed;
-                                const isClaiming = claimingReward === unit.id;
-
-                                if (rewardClaimed) {
-                                  // Already claimed - show empty/opened chest
-                                  return (
-                                    <div
-                                      className="w-12 h-12 cursor-not-allowed"
-                                      title="Reward claimed"
-                                    >
-                                      <img
-                                        src="https://xpclass.vn/xpclass/icon/chest_opened.png"
-                                        alt="Reward claimed"
-                                        className="w-full h-full object-contain"
-                                      />
-                                    </div>
-                                  );
-                                } else if (isClaiming) {
-                                  // Claiming - show GIF animation
-                                  return (
-                                    <div className="w-12 h-12">
-                                      <img
-                                        src="https://xpclass.vn/xpclass/icon/chest_opening.gif"
-                                        alt="Opening chest"
-                                        className="w-full h-full object-contain animate-bounce"
-                                      />
-                                    </div>
-                                  );
-                                } else if (unitComplete) {
-                                  // Complete but not claimed - show unlocked chest
-                                  return (
-                                    <button
-                                      onClick={() => handleClaimReward(unit.id)}
-                                      className="w-12 h-12 hover:scale-110 transition-transform cursor-pointer"
-                                      title="Click to claim reward!"
-                                    >
-                                      <img
-                                        src="https://xpclass.vn/xpclass/icon/chest_ready.png"
-                                        alt="Claim reward"
-                                        className="w-full h-full object-contain animate-pulse"
-                                      />
-                                    </button>
-                                  );
-                                } else {
-                                  // Not complete - show locked chest
-                                  return (
-                                    <div
-                                      className="w-12 h-12 cursor-not-allowed"
-                                      title="Hoàn thành tất cả các bài học để mở khóa!"
-                                    >
-                                      <img
-                                        src="https://xpclass.vn/xpclass/icon/chest_locked.png"
-                                        alt="Locked reward"
-                                        className="w-full h-full object-contain"
-                                      />
-                                    </div>
-                                  );
-                                }
-                              })()}
-                            </div>
-                          )}
                           {canCreateContent() && (
                             <div className="flex items-center space-x-1">
                               <button
@@ -1062,57 +862,6 @@ const UnitList = () => {
         />
       )}
 
-      {/* Chest Selection Modal */}
-      {showChestSelection && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-lg shadow-2xl p-4 sm:p-8 max-w-2xl w-full text-center">
-            <h2 className="text-2xl sm:text-3xl font-bold text-gray-900 mb-2">
-              Choose Your Reward!
-            </h2>
-            <p className="text-sm sm:text-lg text-gray-600 mb-4 sm:mb-8">
-              Pick one chest to reveal your XP reward
-            </p>
-
-            <div className="flex justify-center items-center gap-2 sm:gap-8">
-              {[1, 2, 3].map((chestNum) => (
-                <button
-                  key={chestNum}
-                  onClick={() => handleChestSelect(chestNum)}
-                  disabled={selectedChest !== null}
-                  className="relative group flex-shrink-0"
-                >
-                  <div className="w-20 h-20 sm:w-32 sm:h-32 transition-transform transform group-hover:scale-110">
-                    <img
-                      src={
-                        selectedChest === chestNum
-                          ? "https://xpclass.vn/xpclass/icon/chest_cropped_once.gif"
-                          : "https://xpclass.vn/xpclass/image/chest_cropped_once1.gif"
-                      }
-                      alt={`Chest ${chestNum}`}
-                      className="w-full h-full object-contain"
-                    />
-                  </div>
-                  {selectedChest === chestNum && rewardAmount > 0 ? (
-                    <div className="absolute inset-0 flex items-center justify-center">
-                      <div className="bg-gradient-to-r from-yellow-400 to-orange-500 text-white rounded-lg py-2 px-4 text-xl font-bold shadow-lg animate-bounce">
-                        +{rewardAmount} XP
-                      </div>
-                    </div>
-                  ) : (
-                    selectedChest === null && (
-                      <div className="absolute inset-0 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
-                        <div className="bg-yellow-500 text-white rounded-full w-12 h-12 flex items-center justify-center text-2xl font-bold">
-                          ?
-                        </div>
-                      </div>
-                    )
-                  )}
-                </button>
-              ))}
-            </div>
-          </div>
-        </div>
-      )}
     </div>
   );
 };

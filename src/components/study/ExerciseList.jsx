@@ -34,7 +34,8 @@ import {
   Edit,
   Trash2,
   GripVertical,
-  UserPlus
+  UserPlus,
+  Star
 } from 'lucide-react'
 
 const ExerciseList = () => {
@@ -58,6 +59,12 @@ const ExerciseList = () => {
   const [showAssignExerciseModal, setShowAssignExerciseModal] = useState(false)
   const [assignToStudentExercise, setAssignToStudentExercise] = useState(null)
   const [editingExercise, setEditingExercise] = useState(null)
+  // Session reward states
+  const [sessionRewards, setSessionRewards] = useState({})
+  const [claimingReward, setClaimingReward] = useState(null)
+  const [rewardAmount, setRewardAmount] = useState(0)
+  const [showChestSelection, setShowChestSelection] = useState(false)
+  const [selectedChest, setSelectedChest] = useState(null)
   const { user, profile } = useAuth()
   const { canCreateContent } = usePermissions()
   const { userProgress, fetchUserProgress } = useProgress()
@@ -88,17 +95,6 @@ const ExerciseList = () => {
     </div>
   )
 
-  const SkeletonSidebarItem = ({ wide = false }) => (
-    <div className="p-3">
-      <div className="flex items-center space-x-3">
-        <div className={`rounded-lg bg-gray-200 ${wide ? 'w-8 h-8' : 'w-6 h-6'}`} />
-        <div className="flex-1 min-w-0">
-          <div className="h-3 bg-gray-200 rounded w-2/3 mb-1" />
-          <div className="h-2 bg-gray-100 rounded w-1/3" />
-        </div>
-      </div>
-    </div>
-  )
 
   const handleExercisesAssigned = async () => {
     setShowAssignExerciseModal(false)
@@ -484,7 +480,7 @@ const ExerciseList = () => {
 
   const getExerciseStatus = (exercise, index) => {
     const progress = userProgress.find(p => p.exercise_id === exercise.id)
-    
+
     // All exercises are now always available (unlocked)
     if (!progress) {
       return { status: 'available', canAccess: true }
@@ -494,6 +490,36 @@ const ExerciseList = () => {
       status: progress.status,
       canAccess: true // Always allow access
     }
+  }
+
+  // Get star count based on score: 95-100 = 3 stars, 90-95 = 2 stars, passed (<90) = 1 star, not passed = 0 stars
+  const getStarCount = (score, status) => {
+    if (status !== 'completed') return 0
+    if (score >= 95) return 3
+    if (score >= 90) return 2
+    if (score > 0) return 1
+    return 0
+  }
+
+  // Render stars component
+  const renderStars = (score, status) => {
+    const starCount = getStarCount(score, status)
+    if (starCount === 0) return null
+
+    return (
+      <div className="flex items-center gap-0.5">
+        {[1, 2, 3].map((i) => (
+          <Star
+            key={i}
+            className={`w-4 h-4 ${
+              i <= starCount
+                ? 'text-yellow-400 fill-yellow-400'
+                : 'text-gray-300'
+            }`}
+          />
+        ))}
+      </div>
+    )
   }
 
   const getExercisePath = (exercise) => {
@@ -513,6 +539,137 @@ const ExerciseList = () => {
     console.log('🔍 Exercise type:', exercise.exercise_type, 'Available paths:', Object.keys(paths), 'Selected path:', basePath)
     return basePath
   }
+
+  // Check if all exercises in the session are completed
+  const isSessionComplete = () => {
+    if (exercises.length === 0) return false
+    return exercises.every((exercise) => {
+      const progress = userProgress.find(p => p.exercise_id === exercise.id)
+      return progress?.status === 'completed'
+    })
+  }
+
+  // Fetch session rewards
+  const fetchSessionRewards = async () => {
+    if (!user || !sessionId) return
+
+    try {
+      const { data, error } = await supabase
+        .from('session_reward_claims')
+        .select('session_id, xp_awarded, claimed_at')
+        .eq('user_id', user.id)
+        .eq('session_id', sessionId)
+        .maybeSingle()
+
+      if (error) {
+        console.error('Error fetching session rewards:', error)
+        return
+      }
+
+      if (data) {
+        setSessionRewards({
+          [sessionId]: {
+            claimed: true,
+            xp: data.xp_awarded,
+            claimed_at: data.claimed_at
+          }
+        })
+      }
+    } catch (err) {
+      console.error('Error fetching session rewards:', err)
+    }
+  }
+
+  // Handle claiming session reward
+  const handleClaimReward = async () => {
+    if (!user || claimingReward || sessionRewards[sessionId]?.claimed) return
+    if (!isSessionComplete()) return
+
+    // Show chest selection modal
+    setShowChestSelection(true)
+  }
+
+  const handleChestSelect = async (chestNumber) => {
+    if (selectedChest !== null) return
+
+    setSelectedChest(chestNumber)
+    setClaimingReward(sessionId)
+
+    // Play chest opening sound
+    const audio = new Audio('https://xpclass.vn/xpclass/sound/chest_sound.mp3')
+    audio.play().catch((err) => console.error('Error playing sound:', err))
+
+    try {
+      // Generate random XP between 5 and 20
+      const xp = Math.floor(Math.random() * 16) + 5
+
+      // Insert claim record
+      const { error: claimError } = await supabase
+        .from('session_reward_claims')
+        .insert({
+          user_id: user.id,
+          session_id: sessionId,
+          full_name: profile?.full_name || null,
+          xp_awarded: xp
+        })
+
+      if (claimError) throw claimError
+
+      // Update user's total XP
+      const { data: currentUser, error: fetchError } = await supabase
+        .from('users')
+        .select('xp')
+        .eq('id', user.id)
+        .single()
+
+      if (fetchError) throw fetchError
+
+      const { error: updateError } = await supabase
+        .from('users')
+        .update({
+          xp: (currentUser?.xp || 0) + xp,
+          updated_at: new Date().toISOString()
+        })
+        .eq('id', user.id)
+
+      if (updateError) throw updateError
+
+      // Wait for GIF to complete before showing XP
+      setTimeout(() => {
+        setRewardAmount(xp)
+
+        // Show XP for 1.5 seconds then close
+        setTimeout(() => {
+          setSessionRewards((prev) => ({
+            ...prev,
+            [sessionId]: {
+              claimed: true,
+              xp: xp,
+              claimed_at: new Date().toISOString()
+            }
+          }))
+
+          setShowChestSelection(false)
+          setClaimingReward(null)
+          setSelectedChest(null)
+          setRewardAmount(0)
+        }, 1500)
+      }, 2000)
+    } catch (err) {
+      console.error('Error claiming reward:', err)
+      alert('Không thể nhận phần thưởng. Vui lòng thử lại!')
+      setClaimingReward(null)
+      setSelectedChest(null)
+      setShowChestSelection(false)
+    }
+  }
+
+  // Fetch session rewards on mount
+  useEffect(() => {
+    if (user && sessionId) {
+      fetchSessionRewards()
+    }
+  }, [user, sessionId])
 
   // Sortable Exercise Card Component
   const SortableExerciseCard = ({ exercise, index }) => {
@@ -563,7 +720,7 @@ const ExerciseList = () => {
             style={{
               left: canCreateContent() ? '77px' : '46px',
               top: '80px',
-              height: 'calc(100% - 48px)',
+              height: 'calc(100% - 30px)',
               zIndex: 1
             }}
           />
@@ -587,12 +744,6 @@ const ExerciseList = () => {
               animation: 'shimmer 4s infinite'
             }}
           />
-        )}
-        {/* Right-aligned check mark for completed exercises */}
-        {status === 'completed' && (
-          <div className="absolute inset-0 flex items-center justify-end pr-4 pointer-events-none">
-            <img src="https://xpclass.vn/xpclass/icon/green_check.svg" alt="Completed" className="w-12 h-12 opacity-30" />
-          </div>
         )}
         <style>{`
           @keyframes shimmer {
@@ -638,6 +789,9 @@ const ExerciseList = () => {
               {exercise.title}
             </h3>
           </div>
+
+          {/* Stars on the right */}
+          {!canCreateContent() && renderStars(progress?.score, status)}
 
           {/* Action Buttons */}
           {canCreateContent() && (
@@ -686,31 +840,7 @@ const ExerciseList = () => {
 
   if (loading && exercises.length === 0) {
     return (
-      <div className="flex h-screen bg-gray-50">
-        {/* Sidebar skeleton */}
-        <div className="w-80 transition-all duration-300 bg-white border-r border-gray-200 flex flex-col">
-          <div className="p-4 border-b border-gray-200">
-            <div className="h-4 bg-gray-200 rounded w-32 animate-pulse" />
-          </div>
-          <div className="flex-1 overflow-y-auto">
-            {Array.from({ length: 4 }).map((_, i) => (
-              <div key={i} className="border-b border-gray-100 animate-pulse">
-                <SkeletonSidebarItem wide />
-                <div className="ml-6 space-y-1 pb-3">
-                  {Array.from({ length: 3 }).map((_, j) => (
-                    <div key={j} className="px-2">
-                      <div className="h-7 bg-gray-50 hover:bg-gray-50 rounded-lg flex items-center px-2">
-                        <div className="w-4 h-4 bg-gray-200 rounded mr-3" />
-                        <div className="h-3 bg-gray-200 rounded w-1/2" />
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              </div>
-            ))}
-          </div>
-        </div>
-
+      <div className="flex bg-white">
         {/* Main content skeleton */}
         <div className="flex-1 flex flex-col overflow-hidden p-6">
           <div className="space-y-4">
@@ -766,6 +896,55 @@ const ExerciseList = () => {
                 <p className="text-gray-600 font-bold">{unit.title}</p>
               </div>
             </div>
+
+            {/* Session Progress Circle */}
+            {exercises.length > 0 && (
+              <div className="flex-shrink-0">
+                {(() => {
+                  const completedCount = exercises.filter(ex => {
+                    const progress = userProgress.find(p => p.exercise_id === ex.id)
+                    return progress?.status === 'completed'
+                  }).length
+                  const totalCount = exercises.length
+                  const percentage = Math.round((completedCount / totalCount) * 100)
+
+                  return (
+                    <div className="relative w-16 h-16">
+                      <svg className="w-16 h-16 transform -rotate-90">
+                        {/* Background circle */}
+                        <circle
+                          cx="32"
+                          cy="32"
+                          r="26"
+                          stroke="#e5e7eb"
+                          strokeWidth="5"
+                          fill="transparent"
+                        />
+                        {/* Progress circle */}
+                        <circle
+                          cx="32"
+                          cy="32"
+                          r="26"
+                          stroke={percentage === 100 ? '#22c55e' : '#f6c43b'}
+                          strokeWidth="5"
+                          fill="transparent"
+                          strokeLinecap="round"
+                          strokeDasharray={2 * Math.PI * 26}
+                          strokeDashoffset={2 * Math.PI * 26 - (percentage / 100) * 2 * Math.PI * 26}
+                          className="transition-all duration-500"
+                        />
+                      </svg>
+                      {/* Percentage text */}
+                      <div className="absolute inset-0 flex items-center justify-center">
+                        <span className={`text-sm font-bold ${percentage === 100 ? 'text-green-600' : 'text-gray-600'}`}>
+                          {percentage}%
+                        </span>
+                      </div>
+                    </div>
+                  )
+                })()}
+              </div>
+            )}
           </div>
         </div>
 
@@ -807,6 +986,78 @@ const ExerciseList = () => {
               </div>
             </SortableContext>
           </DndContext>
+
+          {/* Session Reward Chest - after last exercise, matching exercise layout */}
+          {!canCreateContent() && exercises.length > 0 && (
+            <div className="relative mt-4">
+              <div className="relative flex items-center p-4 rounded-2xl bg-white">
+                {/* Chest Icon - positioned like exercise icons */}
+                <div className="relative flex-shrink-0 w-16 h-16 rounded-full flex items-center justify-center z-10">
+                  {(() => {
+                    const sessionComplete = isSessionComplete()
+                    const rewardClaimed = sessionRewards[sessionId]?.claimed
+                    const isClaiming = claimingReward === sessionId
+
+                    if (rewardClaimed) {
+                      // Already claimed - show empty/opened chest
+                      return (
+                        <div
+                          className="w-16 h-16 cursor-not-allowed"
+                          title="Reward claimed"
+                        >
+                          <img
+                            src="https://xpclass.vn/xpclass/icon/chest_opened.png"
+                            alt="Reward claimed"
+                            className="w-full h-full object-contain"
+                          />
+                        </div>
+                      )
+                    } else if (isClaiming) {
+                      // Claiming - show GIF animation
+                      return (
+                        <div className="w-16 h-16">
+                          <img
+                            src="https://xpclass.vn/xpclass/icon/chest_opening.gif"
+                            alt="Opening chest"
+                            className="w-full h-full object-contain animate-bounce"
+                          />
+                        </div>
+                      )
+                    } else if (sessionComplete) {
+                      // Complete but not claimed - show unlocked chest
+                      return (
+                        <button
+                          onClick={handleClaimReward}
+                          className="w-16 h-16 hover:scale-110 transition-transform cursor-pointer"
+                          title="Click to claim reward!"
+                        >
+                          <img
+                            src="https://xpclass.vn/xpclass/icon/chest_ready.png"
+                            alt="Claim reward"
+                            className="w-full h-full object-contain animate-pulse"
+                          />
+                        </button>
+                      )
+                    } else {
+                      // Not complete - show locked chest
+                      return (
+                        <div
+                          className="w-16 h-16 cursor-not-allowed"
+                          title="Hoàn thành tất cả các bài tập để mở khóa!"
+                        >
+                          <img
+                            src="https://xpclass.vn/xpclass/icon/chest_locked.png"
+                            alt="Locked reward"
+                            className="w-full h-full object-contain"
+                          />
+                        </div>
+                      )
+                    }
+                  })()}
+                </div>
+              </div>
+            </div>
+          )}
 
           {/* Empty state */}
           {exercises.length === 0 && (
@@ -850,6 +1101,68 @@ const ExerciseList = () => {
         exercise={editingExercise}
         onUpdate={fetchData}
       />
+
+      {/* Chest Selection Modal */}
+      {showChestSelection && (
+        <div
+          className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4"
+          onClick={() => {
+            if (selectedChest === null) {
+              setShowChestSelection(false)
+            }
+          }}
+        >
+          <div
+            className="bg-white rounded-lg shadow-2xl p-4 sm:p-8 max-w-2xl w-full text-center"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <h2 className="text-2xl sm:text-3xl font-bold text-gray-900 mb-2">
+              Choose Your Reward!
+            </h2>
+            <p className="text-sm sm:text-lg text-gray-600 mb-4 sm:mb-8">
+              Pick one chest to reveal your XP reward
+            </p>
+
+            <div className="flex justify-center items-center gap-2 sm:gap-8">
+              {[1, 2, 3].map((chestNum) => (
+                <button
+                  key={chestNum}
+                  onClick={() => handleChestSelect(chestNum)}
+                  disabled={selectedChest !== null}
+                  className="relative group flex-shrink-0"
+                >
+                  <div className="w-20 h-20 sm:w-32 sm:h-32 transition-transform transform group-hover:scale-110">
+                    <img
+                      src={
+                        selectedChest === chestNum
+                          ? "https://xpclass.vn/xpclass/icon/chest_cropped_once.gif"
+                          : "https://xpclass.vn/xpclass/image/chest_cropped_once1.gif"
+                      }
+                      alt={`Chest ${chestNum}`}
+                      className="w-full h-full object-contain"
+                    />
+                  </div>
+                  {selectedChest === chestNum && rewardAmount > 0 ? (
+                    <div className="absolute inset-0 flex items-center justify-center">
+                      <div className="bg-gradient-to-r from-yellow-400 to-orange-500 text-white rounded-lg py-2 px-4 text-xl font-bold shadow-lg animate-bounce">
+                        +{rewardAmount} XP
+                      </div>
+                    </div>
+                  ) : (
+                    selectedChest === null && (
+                      <div className="absolute inset-0 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
+                        <div className="bg-yellow-500 text-white rounded-full w-12 h-12 flex items-center justify-center text-2xl font-bold">
+                          ?
+                        </div>
+                      </div>
+                    )
+                  )}
+                </button>
+              ))}
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   )
 }
