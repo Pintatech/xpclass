@@ -8,7 +8,6 @@ import Button from '../ui/Button'
 import AssignExerciseModal from './AssignExerciseModal'
 import AssignToStudentModal from '../admin/AssignToStudentModal'
 import EditExerciseModal from '../admin/ExerciseBank/EditExerciseModal'
-import mapBg from '../../assets/bg.jpg'
 import {
   DndContext,
   closestCenter,
@@ -17,6 +16,19 @@ import {
   useSensor,
   useSensors,
 } from '@dnd-kit/core'
+
+// Theme-based background images for exercise map
+const getThemeBackgroundImage = (colorTheme) => {
+  const themeBackgrounds = {
+    blue: "https://xpclass.vn/xpclass/image/bg.jpg",
+    green: "https://images.unsplash.com/photo-1441974231531-c6227db76b6e?w=800&auto=format&fit=crop&q=60",
+    purple: "https://images.unsplash.com/photo-1534796636912-3b95b3ab5986?w=800&auto=format&fit=crop&q=60",
+    orange: "https://images.unsplash.com/photo-1504701954957-2010ec3bcec1?w=800&auto=format&fit=crop&q=60",
+    red: "https://images.unsplash.com/photo-1518837695005-2083093ee35b?w=800&auto=format&fit=crop&q=60",
+    yellow: "https://images.unsplash.com/photo-1518020382113-a7e8fc38eac9?w=800&auto=format&fit=crop&q=60",
+  };
+  return themeBackgrounds[colorTheme] || themeBackgrounds.blue;
+};
 import {
   arrayMove,
   SortableContext,
@@ -41,16 +53,16 @@ import {
 
 // All 11 positions along the path (from bottom to top)
 const allPositions = [
-  { x: 25, y: 95 },  // 1
-  { x: 70, y:87 },  // 2
+  { x: 23, y: 95 },  // 1
+  { x: 65, y:90 },  // 2
   { x: 82, y: 74 },  // 3
-  { x: 58, y: 65 },  // 4
-  { x: 25, y: 57 },  // 5
-  { x: 71, y: 48 },  // 6
-  { x: 82, y: 38 },  // 7
-  { x: 35, y: 34 },  // 8
-  { x: 28, y: 22 },  // 9
-  { x: 59, y: 14 },  // 10
+  { x: 53, y: 68 },  // 4
+  { x: 20, y: 57 },  // 5
+  { x: 60, y: 50 },  // 6
+  { x: 78, y: 38 },  // 7
+  { x: 40, y: 34 },  // 8
+  { x: 22, y: 22 },  // 9
+  { x: 59, y: 16 },  // 10
   { x: 82, y: 6 },   // 11
 ]
 
@@ -1039,7 +1051,11 @@ const ExerciseList = () => {
       />
       <div className="relative z-[1] w-full md:w-[90%] md:max-w-[500px] h-full md:h-full mx-auto overflow-hidden md:shadow-2xl bg-gray-100">
         {/* Background */}
-        <img src={mapBg} alt="Map" className="w-full h-full object-cover absolute top-0 left-0" />
+        <img
+          src={getThemeBackgroundImage(session?.color_theme || unit?.color_theme || level?.color_theme)}
+          alt="Map"
+          className="w-full h-full object-cover absolute top-0 left-0"
+        />
 
         {/* Level nodes */}
         <div className="absolute inset-0 w-full h-full">

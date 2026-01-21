@@ -13,12 +13,12 @@ const EditUnitModal = ({ unit, onClose, onUpdated }) => {
   const [error, setError] = useState('')
 
   const colorOptions = [
-    { value: 'blue', label: 'Blue', class: 'bg-blue-500' },
-    { value: 'green', label: 'Green', class: 'bg-green-500' },
-    { value: 'purple', label: 'Purple', class: 'bg-purple-500' },
-    { value: 'orange', label: 'Orange', class: 'bg-orange-500' },
-    { value: 'red', label: 'Red', class: 'bg-red-500' },
-    { value: 'yellow', label: 'Yellow', class: 'bg-yellow-500' }
+    { value: 'blue', label: 'Ice', class: 'bg-blue-500' },
+    { value: 'green', label: 'Forest', class: 'bg-green-500' },
+    { value: 'purple', label: 'Mystic', class: 'bg-purple-500' },
+    { value: 'orange', label: 'Sunset', class: 'bg-orange-500' },
+    { value: 'red', label: 'Volcano', class: 'bg-red-500' },
+    { value: 'yellow', label: 'Desert', class: 'bg-yellow-500' }
   ]
 
   useEffect(() => {
@@ -128,22 +128,23 @@ const EditUnitModal = ({ unit, onClose, onUpdated }) => {
             <label className="block text-sm font-medium text-gray-700 mb-2">
               Color Theme
             </label>
-            <div className="flex space-x-2">
+            <div className="grid grid-cols-3 gap-3">
               {colorOptions.map(color => (
                 <button
                   key={color.value}
                   type="button"
                   onClick={() => handleChange('color_theme', color.value)}
                   className={`
-                    w-8 h-8 rounded-full border-2 transition-all
+                    px-4 py-3 rounded-lg border-2 transition-all font-medium text-sm
                     ${color.class}
                     ${formData.color_theme === color.value
-                      ? 'border-gray-800 ring-2 ring-gray-300'
+                      ? 'border-gray-800 ring-2 ring-gray-300 scale-105'
                       : 'border-gray-300 hover:border-gray-400'
                     }
                   `}
-                  title={color.label}
-                />
+                >
+                  {color.label}
+                </button>
               ))}
             </div>
           </div>

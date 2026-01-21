@@ -19,6 +19,19 @@ import {
   Trash2,
 } from "lucide-react";
 
+// Theme-based background images for unit cards
+const getThemeBackground = (colorTheme) => {
+  const themeBackgrounds = {
+    blue: "https://xpclass.vn/xpclass/image/ice.jpg",
+    green: "https://images.unsplash.com/photo-1441974231531-c6227db76b6e?w=800&auto=format&fit=crop&q=60",
+    purple: "https://xpclass.vn/xpclass/image/purple_bg.jpg",
+    orange: "https://images.unsplash.com/photo-1504701954957-2010ec3bcec1?w=800&auto=format&fit=crop&q=60",
+    red: "https://images.unsplash.com/photo-1518837695005-2083093ee35b?w=800&auto=format&fit=crop&q=60",
+    yellow: "https://xpclass.vn/xpclass/image/sand.jpg",
+  };
+  return themeBackgrounds[colorTheme] || themeBackgrounds.blue;
+};
+
 const UnitList = () => {
   const { levelId: rawLevelId, courseId: rawCourseId } = useParams();
   const sanitizeId = (v) => (v && v !== "undefined" && v !== "null" ? v : null);
@@ -691,7 +704,7 @@ const UnitList = () => {
               )}
 
               {/* Units with Sessions */}
-              <div className="space-y-8">
+              <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
                 {units.map((unit) => {
                   const unitSessions = sessions
                     .filter((session) => session.unit_id === unit.id)
@@ -702,13 +715,22 @@ const UnitList = () => {
 
                   const progress = unitProgress[unit.id];
 
+                  const backgroundImage = unit.thumbnail_url || getThemeBackground(unit.color_theme);
+
                   return (
                     <div
                       key={unit.id}
-                      className="bg-white rounded-lg border border-gray-200 p-4"
+                      className="relative rounded-lg border border-gray-200 p-4 overflow-hidden"
+                      style={{
+                        backgroundImage: `url(${backgroundImage})`,
+                        backgroundSize: "cover",
+                        backgroundPosition: "center",
+                      }}
                     >
+                      {/* Overlay for readability */}
+                      <div className="absolute inset-0 bg-white/50" />
                       {/* Unit Header */}
-                      <div className="mb-3 flex items-center justify-between">
+                      <div className="relative mb-3 flex items-center justify-between">
                         <div className="flex items-center space-x-3">
                           <h2 className="text-lg font-bold text-gray-900">
                             {unit.title}
@@ -753,7 +775,7 @@ const UnitList = () => {
                       {/* Sessions Grid for this Unit */}
                       {unitSessions.length > 0 ? (
                         <div
-                          className="grid grid-cols-4 md:grid-cols-6 lg:grid-cols-8 xl:grid-cols-10 gap-6"
+                          className="relative grid grid-cols-4 md:grid-cols-6 lg:grid-cols-4 xl:grid-cols-5 gap-3"
                           style={{ gridAutoFlow: "dense" }}
                         >
                           {unitSessions.map((session, index) => (
@@ -768,7 +790,7 @@ const UnitList = () => {
                           ))}
                         </div>
                       ) : (
-                        <div className="text-center py-8 bg-gray-50 rounded-lg border-2 border-dashed border-gray-300">
+                        <div className="relative text-center py-8 bg-gray-50 rounded-lg border-2 border-dashed border-gray-300">
                           {canCreateContent() ? (
                             <Button
                               onClick={() => {
