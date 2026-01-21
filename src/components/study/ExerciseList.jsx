@@ -9,7 +9,6 @@ import AssignExerciseModal from './AssignExerciseModal'
 import AssignToStudentModal from '../admin/AssignToStudentModal'
 import EditExerciseModal from '../admin/ExerciseBank/EditExerciseModal'
 import mapBg from '../../assets/bg.jpg'
-import '../../App.css'
 import {
   DndContext,
   closestCenter,
@@ -949,12 +948,12 @@ const ExerciseList = () => {
 
     return (
       <div
-        className={`level-node ${unlocked ? 'unlocked' : 'locked'} ${current ? 'current' : ''}`}
+        className={`absolute -translate-x-1/2 -translate-y-1/2 transition-all duration-300 ${current ? 'z-20' : 'z-10'}`}
         style={{ left: `${x}%`, top: `${y}%` }}
       >
         {current && (
-          <div className="current-marker">
-            <svg viewBox="0 0 40 50" className="pin-icon">
+          <div className="absolute bottom-full left-1/2 -translate-x-1/2 w-8 h-10 md:w-10 md:h-[50px] animate-bounce">
+            <svg viewBox="0 0 40 50" className="w-full h-full drop-shadow-lg">
               <defs>
                 <linearGradient id="pinGradient" x1="0%" y1="0%" x2="0%" y2="100%">
                   <stop offset="0%" stopColor="#4CAF50"/>
@@ -966,18 +965,28 @@ const ExerciseList = () => {
             </svg>
           </div>
         )}
-        <div className="node-pedestal">
+        <div className="relative flex items-center justify-center">
           <div
-            className={`node-button ${unlocked ? '' : 'locked'} ${completed ? 'completed' : ''} ${current ? 'current' : ''}`}
+            className={`w-[50px] h-[50px] md:w-[60px] md:h-[60px] rounded-full border-4 flex items-center justify-center shadow-lg transition-all duration-300 hover:scale-110 hover:shadow-xl ${
+              !unlocked
+                ? 'bg-gradient-to-b from-gray-300 to-gray-400 border-gray-500 cursor-not-allowed'
+                : completed || current
+                ? 'bg-gradient-to-b from-emerald-400 to-emerald-500 border-emerald-600'
+                : 'bg-gradient-to-b from-amber-400 to-amber-500 border-amber-600 cursor-pointer'
+            } ${current ? 'animate-pulse shadow-emerald-400/40' : ''}`}
             onClick={handleClick}
-            style={{ cursor: unlocked ? 'pointer' : 'not-allowed' }}
           >
-            <span className="node-number">{exerciseNumber}</span>
+            <span className={`text-xl md:text-2xl font-bold ${completed || current ? 'text-white' : 'text-gray-800'}`}>
+              {exerciseNumber}
+            </span>
           </div>
         </div>
-        <div className="node-stars">
+        <div className="absolute top-full left-1/2 -translate-x-1/2 flex gap-0.5 mt-1">
           {[1, 2, 3].map((star) => (
-            <span key={star} className={`mini-star ${star <= stars ? 'filled' : 'empty'}`}>
+            <span
+              key={star}
+              className={`text-base leading-none ${star <= stars ? 'text-amber-400 drop-shadow-sm' : 'text-gray-300'}`}
+            >
               ★
             </span>
           ))}
@@ -1014,41 +1023,26 @@ const ExerciseList = () => {
 
   return (
     <div
-      className="level-map-container"
+      className="relative w-full h-[100vh] md:h-[90vh] overflow-hidden md:mx-0"
       style={{
-        position: 'relative',
-        minHeight: '100vh',
-        width: '100vw',
-        marginLeft: 'calc(-50vw + 50%)',
-        marginRight: 'calc(-50vw + 50%)',
-        marginTop: '-1.5rem',
-        marginBottom: '-4rem'
+        margin: '-1.5rem -1rem',
+        width: 'calc(100% + 2rem)'
       }}
     >
       {/* Blurred background layer */}
       <div
+        className="absolute inset-0 bg-cover bg-center bg-no-repeat bg-fixed blur-lg"
         style={{
-          position: 'absolute',
-          top: 0,
-          left: 0,
-          right: 0,
-          bottom: 0,
           backgroundImage: `url('https://xpclass.vn/xpclass/image/bg_blur.jpg')`,
-          backgroundSize: 'cover',
-          backgroundPosition: 'center',
-          backgroundRepeat: 'no-repeat',
-          backgroundAttachment: 'fixed',
-          filter: 'blur(8px)',
-          WebkitFilter: 'blur(8px)',
           zIndex: 0
         }}
       />
-      <div className="level-map" style={{ position: 'relative', zIndex: 1 }}>
+      <div className="relative z-[1] w-full md:w-[90%] md:max-w-[500px] h-full md:h-full mx-auto overflow-hidden md:shadow-2xl bg-gray-100">
         {/* Background */}
-        <img src={mapBg} alt="Map" className="map-background" />
+        <img src={mapBg} alt="Map" className="w-full h-full object-cover absolute top-0 left-0" />
 
         {/* Level nodes */}
-        <div className="nodes-layer">
+        <div className="absolute inset-0 w-full h-full">
           {levels.map((level) => (
             <LevelNode key={level.id} level={level} />
           ))}
