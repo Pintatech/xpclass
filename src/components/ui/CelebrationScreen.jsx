@@ -26,6 +26,27 @@ const CelebrationScreen = ({
 
   const starCount = getStarCount();
 
+  const starImages = {
+  1: "https://xpclass.vn/xpclass/image/1_star.png",
+  2: "https://xpclass.vn/xpclass/image/2_star.png",
+  3: "https://xpclass.vn/xpclass/image/3_star.png",
+};
+
+const renderStarImage = () => {
+  if (starCount === 0) return null;
+
+  return (
+    <div className="flex justify-center mb-4">
+      <img
+        src={starImages[starCount]}
+        alt={`${starCount} star`}
+        className=" h-20  md:h-16"
+      />
+    </div>
+  );
+};
+
+
   // Render stars
   const renderStars = () => {
     if (starCount === 0) return null;
@@ -104,7 +125,7 @@ const CelebrationScreen = ({
         </h2>
 
         {/* Stars under title */}
-        {renderStars()}
+        {renderStarImage()}
 
         {/* Show celebration GIF if passed */}
         {passed && passGif && (

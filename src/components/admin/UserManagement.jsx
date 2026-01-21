@@ -292,7 +292,7 @@ const UserManagement = () => {
                       <div className="flex items-center space-x-3">
                         <div>
                           <div className="font-medium text-gray-900">{user.name}</div>
-                          <div className="text-sm text-gray-600">{user.email}</div>
+                          <div className="text-sm text-gray-600">{user.email.split("@")[0]}</div>
                         </div>
                       </div>
                     </td>
