@@ -8,6 +8,8 @@ import Button from '../ui/Button'
 import AssignExerciseModal from './AssignExerciseModal'
 import AssignToStudentModal from '../admin/AssignToStudentModal'
 import EditExerciseModal from '../admin/ExerciseBank/EditExerciseModal'
+import mapBg from '../../assets/bg.jpg'
+import '../../App.css'
 import {
   DndContext,
   closestCenter,
@@ -38,6 +40,35 @@ import {
   Star
 } from 'lucide-react'
 
+// All 11 positions along the path (from bottom to top)
+const allPositions = [
+  { x: 25, y: 95 },  // 1
+  { x: 70, y:87 },  // 2
+  { x: 82, y: 74 },  // 3
+  { x: 58, y: 65 },  // 4
+  { x: 25, y: 57 },  // 5
+  { x: 71, y: 48 },  // 6
+  { x: 82, y: 38 },  // 7
+  { x: 35, y: 34 },  // 8
+  { x: 28, y: 22 },  // 9
+  { x: 59, y: 14 },  // 10
+  { x: 82, y: 6 },   // 11
+]
+
+// Pick evenly spaced positions (always include first and last)
+function getSpreadPositions(count) {
+  if (count <= 1) return [allPositions[0]]
+  if (count >= allPositions.length) return allPositions
+
+  const positions = []
+  for (let i = 0; i < count; i++) {
+    // Map i from [0, count-1] to [0, allPositions.length-1]
+    const index = Math.round((i / (count - 1)) * (allPositions.length - 1))
+    positions.push(allPositions[index])
+  }
+  return positions
+}
+
 const ExerciseList = () => {
   const { levelId: rawLevelId, courseId: rawCourseId, unitId, sessionId } = useParams()
   const sanitizeId = (v) => (v && v !== 'undefined' && v !== 'null') ? v : null
@@ -54,7 +85,7 @@ const ExerciseList = () => {
   const [sessionProgress, setSessionProgress] = useState({})
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState(null)
-  const [levels, setLevels] = useState([])
+  const [courseLevels, setCourseLevels] = useState([])
   const [units, setUnits] = useState([])
   const [showAssignExerciseModal, setShowAssignExerciseModal] = useState(false)
   const [assignToStudentExercise, setAssignToStudentExercise] = useState(null)
@@ -366,7 +397,7 @@ const ExerciseList = () => {
         }
       })
 
-      setLevels([])
+      setCourseLevels([])
       setUnits(allUnitsResult.data || [])
       setAllLevelSessions(allLevelSessions || [])
       setSessionProgress(sessionProgressMap)
@@ -877,206 +908,176 @@ const ExerciseList = () => {
 
   const theme = getThemeColors(session.color_theme || unit.color_theme || level.color_theme)
 
-  return (
-    <div className="flex bg-white -mx-4 -my-6">
-      {/* Main Content */}
-      <div className="flex-1 flex flex-col w-full">
-        {/* Header */}
-        <div className="bg-white border-b border-gray-200 p-6">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center space-x-4">
-              <button
-                onClick={() => navigate(`/study/course/${currentId}`)}
-                className="p-2 hover:bg-gray-100 rounded-lg transition-colors"
-              >
-                <ArrowLeft className="w-6 h-6 text-gray-600" />
-              </button>
-              <div>
-                <h2 className="text-2xl font-bold text-gray-900">{session.title}</h2>
-                <p className="text-gray-600 font-bold">{unit.title}</p>
-              </div>
-            </div>
+  // Generate levels from exercises
+  const generateLevels = () => {
+    const positions = getSpreadPositions(exercises.length)
 
-            {/* Session Progress Circle */}
-            {exercises.length > 0 && (
-              <div className="flex-shrink-0">
-                {(() => {
-                  const completedCount = exercises.filter(ex => {
-                    const progress = userProgress.find(p => p.exercise_id === ex.id)
-                    return progress?.status === 'completed'
-                  }).length
-                  const totalCount = exercises.length
-                  const percentage = Math.round((completedCount / totalCount) * 100)
+    return exercises.map((exercise, i) => {
+      const progress = userProgress.find(p => p.exercise_id === exercise.id)
+      const stars = progress?.status === 'completed' ? getStarCount(progress?.score, progress?.status) : 0
+      const currentIndex = exercises.findIndex(ex => {
+        const p = userProgress.find(pr => pr.exercise_id === ex.id)
+        return !p || p.status !== 'completed'
+      })
 
-                  return (
-                    <div className="relative w-16 h-16">
-                      <svg className="w-16 h-16 transform -rotate-90">
-                        {/* Background circle */}
-                        <circle
-                          cx="32"
-                          cy="32"
-                          r="26"
-                          stroke="#e5e7eb"
-                          strokeWidth="5"
-                          fill="transparent"
-                        />
-                        {/* Progress circle */}
-                        <circle
-                          cx="32"
-                          cy="32"
-                          r="26"
-                          stroke={percentage === 100 ? '#22c55e' : '#f6c43b'}
-                          strokeWidth="5"
-                          fill="transparent"
-                          strokeLinecap="round"
-                          strokeDasharray={2 * Math.PI * 26}
-                          strokeDashoffset={2 * Math.PI * 26 - (percentage / 100) * 2 * Math.PI * 26}
-                          className="transition-all duration-500"
-                        />
-                      </svg>
-                      {/* Percentage text */}
-                      <div className="absolute inset-0 flex items-center justify-center">
-                        <span className={`text-sm font-bold ${percentage === 100 ? 'text-green-600' : 'text-gray-600'}`}>
-                          {percentage}%
-                        </span>
-                      </div>
-                    </div>
-                  )
-                })()}
-              </div>
-            )}
+      return {
+        id: exercise.id,
+        exerciseNumber: i + 1,
+        title: exercise.title,
+        x: positions[i]?.x || 50,
+        y: positions[i]?.y || 50,
+        stars,
+        unlocked: true, // All exercises are unlocked
+        current: i === currentIndex,
+        completed: progress?.status === 'completed',
+        exercise
+      }
+    })
+  }
+
+  const levels = exercises.length > 0 ? generateLevels() : []
+
+  // Level Node Component
+  const LevelNode = ({ level }) => {
+    const { exerciseNumber, x, y, stars, unlocked, current, completed, exercise } = level
+
+    const handleClick = () => {
+      if (unlocked) {
+        navigate(`${getExercisePath(exercise)}?exerciseId=${exercise.id}&sessionId=${sessionId}&levelId=${levelId}&unitId=${unitId}`)
+      }
+    }
+
+    return (
+      <div
+        className={`level-node ${unlocked ? 'unlocked' : 'locked'} ${current ? 'current' : ''}`}
+        style={{ left: `${x}%`, top: `${y}%` }}
+      >
+        {current && (
+          <div className="current-marker">
+            <svg viewBox="0 0 40 50" className="pin-icon">
+              <defs>
+                <linearGradient id="pinGradient" x1="0%" y1="0%" x2="0%" y2="100%">
+                  <stop offset="0%" stopColor="#4CAF50"/>
+                  <stop offset="100%" stopColor="#2E7D32"/>
+                </linearGradient>
+              </defs>
+              <path d="M20,0 C31,0 40,9 40,20 C40,35 20,50 20,50 C20,50 0,35 0,20 C0,9 9,0 20,0 Z" fill="url(#pinGradient)"/>
+              <circle cx="20" cy="18" r="8" fill="white"/>
+            </svg>
+          </div>
+        )}
+        <div className="node-pedestal">
+          <div
+            className={`node-button ${unlocked ? '' : 'locked'} ${completed ? 'completed' : ''} ${current ? 'current' : ''}`}
+            onClick={handleClick}
+            style={{ cursor: unlocked ? 'pointer' : 'not-allowed' }}
+          >
+            <span className="node-number">{exerciseNumber}</span>
           </div>
         </div>
-
-        {/* Content Area */}
-        <div className="flex-1 overflow-y-auto p-6">
-
-
-          {/* Add Exercise Button */}
-          {canCreateContent() && (
-            <div className="mb-6">
-              <Button
-                onClick={() => setShowAssignExerciseModal(true)}
-                className="bg-green-600 text-white hover:bg-green-700"
-              >
-                <Plus className="w-4 h-4 mr-2" />
-                Assign Exercises
-              </Button>
-            </div>
-          )}
-
-          {/* Exercises list with Drag and Drop */}
-          <DndContext
-            sensors={sensors}
-            collisionDetection={closestCenter}
-            onDragEnd={handleDragEnd}
-          >
-            <SortableContext
-              items={exercises.map(ex => ex.id)}
-              strategy={verticalListSortingStrategy}
-            >
-              <div className="space-y-4">
-                {exercises.map((exercise, index) => (
-                  <SortableExerciseCard
-                    key={exercise.id}
-                    exercise={exercise}
-                    index={index}
-                  />
-                ))}
-              </div>
-            </SortableContext>
-          </DndContext>
-
-          {/* Session Reward Chest - after last exercise, matching exercise layout */}
-          {!canCreateContent() && exercises.length > 0 && (
-            <div className="relative mt-4">
-              <div className="relative flex items-center p-4 rounded-2xl bg-white">
-                {/* Chest Icon - positioned like exercise icons */}
-                <div className="relative flex-shrink-0 w-16 h-16 rounded-full flex items-center justify-center z-10">
-                  {(() => {
-                    const sessionComplete = isSessionComplete()
-                    const rewardClaimed = sessionRewards[sessionId]?.claimed
-                    const isClaiming = claimingReward === sessionId
-
-                    if (rewardClaimed) {
-                      // Already claimed - show empty/opened chest
-                      return (
-                        <div
-                          className="w-16 h-16 cursor-not-allowed"
-                          title="Reward claimed"
-                        >
-                          <img
-                            src="https://xpclass.vn/xpclass/icon/chest_opened.png"
-                            alt="Reward claimed"
-                            className="w-full h-full object-contain"
-                          />
-                        </div>
-                      )
-                    } else if (isClaiming) {
-                      // Claiming - show GIF animation
-                      return (
-                        <div className="w-16 h-16">
-                          <img
-                            src="https://xpclass.vn/xpclass/icon/chest_opening.gif"
-                            alt="Opening chest"
-                            className="w-full h-full object-contain animate-bounce"
-                          />
-                        </div>
-                      )
-                    } else if (sessionComplete) {
-                      // Complete but not claimed - show unlocked chest
-                      return (
-                        <button
-                          onClick={handleClaimReward}
-                          className="w-16 h-16 hover:scale-110 transition-transform cursor-pointer"
-                          title="Click to claim reward!"
-                        >
-                          <img
-                            src="https://xpclass.vn/xpclass/icon/chest_ready.png"
-                            alt="Claim reward"
-                            className="w-full h-full object-contain animate-pulse"
-                          />
-                        </button>
-                      )
-                    } else {
-                      // Not complete - show locked chest
-                      return (
-                        <div
-                          className="w-16 h-16 cursor-not-allowed"
-                          title="Hoàn thành tất cả các bài tập để mở khóa!"
-                        >
-                          <img
-                            src="https://xpclass.vn/xpclass/icon/chest_locked.png"
-                            alt="Locked reward"
-                            className="w-full h-full object-contain"
-                          />
-                        </div>
-                      )
-                    }
-                  })()}
-                </div>
-              </div>
-            </div>
-          )}
-
-          {/* Empty state */}
-          {exercises.length === 0 && (
-            <div className="text-center py-12">
-              <BookOpen className="w-16 h-16 text-gray-400 mx-auto mb-4" />
-              <h3 className="text-lg font-medium text-gray-900 mb-2">Chưa có exercise nào</h3>
-              <p className="text-gray-600">Các exercise sẽ sớm được cập nhật!</p>
-              {canCreateContent() && (
-                <Button
-                  onClick={() => setShowAssignExerciseModal(true)}
-                  className="mt-4 bg-green-600 text-white hover:bg-green-700"
-                >
-                  <Plus className="w-4 h-4 mr-2" />
-                  Assign First Exercise
-                </Button>
-              )}
-            </div>
-          )}
+        <div className="node-stars">
+          {[1, 2, 3].map((star) => (
+            <span key={star} className={`mini-star ${star <= stars ? 'filled' : 'empty'}`}>
+              ★
+            </span>
+          ))}
         </div>
+
+        {/* Admin/Teacher action buttons */}
+        {canCreateContent() && (
+          <div className="absolute -top-2 -right-2 flex gap-1 opacity-0 hover:opacity-100 transition-opacity z-20">
+            <button
+              onClick={(e) => {
+                e.stopPropagation()
+                setEditingExercise(exercise)
+              }}
+              className="p-1 bg-white rounded-full shadow-lg hover:bg-gray-100 transition-colors"
+              title="Edit exercise"
+            >
+              <Edit className="w-3 h-3 text-gray-600" />
+            </button>
+            <button
+              onClick={(e) => {
+                e.stopPropagation()
+                handleDeleteExercise(exercise)
+              }}
+              className="p-1 bg-white rounded-full shadow-lg hover:bg-red-100 transition-colors"
+              title="Remove exercise"
+            >
+              <Trash2 className="w-3 h-3 text-red-600" />
+            </button>
+          </div>
+        )}
+      </div>
+    )
+  }
+
+  return (
+    <div
+      className="level-map-container"
+      style={{
+        position: 'relative',
+        minHeight: '100vh',
+        width: '100vw',
+        marginLeft: 'calc(-50vw + 50%)',
+        marginRight: 'calc(-50vw + 50%)',
+        marginTop: '-1.5rem',
+        marginBottom: '-4rem'
+      }}
+    >
+      {/* Blurred background layer */}
+      <div
+        style={{
+          position: 'absolute',
+          top: 0,
+          left: 0,
+          right: 0,
+          bottom: 0,
+          backgroundImage: `url('https://xpclass.vn/xpclass/image/bg_blur.jpg')`,
+          backgroundSize: 'cover',
+          backgroundPosition: 'center',
+          backgroundRepeat: 'no-repeat',
+          backgroundAttachment: 'fixed',
+          filter: 'blur(8px)',
+          WebkitFilter: 'blur(8px)',
+          zIndex: 0
+        }}
+      />
+      <div className="level-map" style={{ position: 'relative', zIndex: 1 }}>
+        {/* Background */}
+        <img src={mapBg} alt="Map" className="map-background" />
+
+        {/* Level nodes */}
+        <div className="nodes-layer">
+          {levels.map((level) => (
+            <LevelNode key={level.id} level={level} />
+          ))}
+        </div>
+
+        {/* Back button overlay */}
+        <button
+          onClick={() => navigate(`/study/course/${currentId}`)}
+          className="absolute top-4 left-4 p-2 bg-white rounded-lg shadow-lg hover:bg-gray-100 transition-colors z-50"
+        >
+          <ArrowLeft className="w-6 h-6 text-gray-600" />
+        </button>
+
+        {/* Session title overlay */}
+        <div className="absolute top-4 left-1/2 transform -translate-x-1/2 bg-white/90 backdrop-blur-sm rounded-lg shadow-lg px-6 py-3 z-50">
+          <h2 className="text-xl font-bold text-gray-900">{session.title}</h2>
+          <p className="text-sm text-gray-600">{unit.title}</p>
+        </div>
+
+        {/* Add Exercise Button - Only for admins/teachers */}
+        {canCreateContent() && (
+          <button
+            onClick={() => setShowAssignExerciseModal(true)}
+            className="absolute bottom-4 right-4 p-3 bg-blue-600 text-white rounded-full shadow-lg hover:bg-blue-700 transition-colors z-50 flex items-center gap-2"
+          >
+            <Plus className="w-5 h-5" />
+            <span className="hidden sm:inline">Add Exercise</span>
+          </button>
+        )}
       </div>
       {/* Assign Exercise Modal */}
       {showAssignExerciseModal && (
