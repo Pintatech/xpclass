@@ -21,7 +21,10 @@ const Layout = () => {
     '/study/hotspot'
   ]
 
-  const hideBottomNav = exercisePaths.some(p => location.pathname.startsWith(p))
+  // Check if on session/exercise list page (e.g., /study/course/123/unit/456/session/789)
+  const isSessionPage = /\/study\/(course|level)\/[^/]+\/unit\/[^/]+\/session\/[^/]+/.test(location.pathname)
+
+  const hideBottomNav = exercisePaths.some(p => location.pathname.startsWith(p)) || isSessionPage
   const hideSidebar = exercisePaths.some(p => location.pathname.startsWith(p))
 
   if (loading) {
@@ -34,8 +37,8 @@ const Layout = () => {
       {!hideSidebar && <LeftSidebar />}
 
       {/* Main Content */}
-      <main className={`${hideSidebar ? 'lg:pl-0' : 'lg:pl-64'} min-h-screen pb-16 lg:pb-0`}>
-        <div className="container mx-auto px-4 py-6 max-w-7xl">
+      <main className={`${hideSidebar ? 'lg:pl-0' : 'lg:pl-64'} min-h-screen ${hideBottomNav ? 'pb-0' : 'pb-16 lg:pb-0'}`}>
+        <div className={isSessionPage ? '' : 'container mx-auto px-4 py-6 max-w-7xl'}>
           <Outlet />
         </div>
       </main>

@@ -1035,11 +1035,7 @@ const ExerciseList = () => {
 
   return (
     <div
-      className="relative w-full h-[100vh] md:h-[100vh] overflow-hidden md:mx-0"
-      style={{
-        margin: '-1.5rem -1rem',
-        width: 'calc(100% + 2rem)'
-      }}
+      className="relative w-full h-[100vh] md:h-[100vh] overflow-hidden"
     >
       {/* Blurred background layer */}
       <div
