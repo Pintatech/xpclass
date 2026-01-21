@@ -952,7 +952,7 @@ const ExerciseList = () => {
         style={{ left: `${x}%`, top: `${y}%` }}
       >
         {current && (
-          <div className="absolute bottom-full left-1/2 -translate-x-1/2 w-8 h-10 md:w-10 md:h-[50px] animate-bounce">
+          <div className="absolute bottom-full left-0 right-0 mx-auto w-8 h-10 md:w-10 md:h-[50px] animate-bounce">
             <svg viewBox="0 0 40 50" className="w-full h-full drop-shadow-lg">
               <defs>
                 <linearGradient id="pinGradient" x1="0%" y1="0%" x2="0%" y2="100%">
@@ -1023,7 +1023,7 @@ const ExerciseList = () => {
 
   return (
     <div
-      className="relative w-full h-[100vh] md:h-[90vh] overflow-hidden md:mx-0"
+      className="relative w-full h-[100vh] md:h-[100vh] overflow-hidden md:mx-0"
       style={{
         margin: '-1.5rem -1rem',
         width: 'calc(100% + 2rem)'
