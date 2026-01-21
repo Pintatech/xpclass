@@ -27,7 +27,7 @@ const getThemeBackground = (colorTheme) => {
     purple: "https://xpclass.vn/xpclass/image/purple_bg.jpg",
     orange: "https://images.unsplash.com/photo-1504701954957-2010ec3bcec1?w=800&auto=format&fit=crop&q=60",
     red: "https://images.unsplash.com/photo-1518837695005-2083093ee35b?w=800&auto=format&fit=crop&q=60",
-    yellow: "https://xpclass.vn/xpclass/image/sand.jpg",
+    yellow: "https://xpclass.vn/xpclass/image/bh_test.jpg",
   };
   return themeBackgrounds[colorTheme] || themeBackgrounds.blue;
 };

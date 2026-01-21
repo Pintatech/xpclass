@@ -25,7 +25,7 @@ const getThemeBackgroundImage = (colorTheme) => {
     purple: "https://images.unsplash.com/photo-1534796636912-3b95b3ab5986?w=800&auto=format&fit=crop&q=60",
     orange: "https://images.unsplash.com/photo-1504701954957-2010ec3bcec1?w=800&auto=format&fit=crop&q=60",
     red: "https://images.unsplash.com/photo-1518837695005-2083093ee35b?w=800&auto=format&fit=crop&q=60",
-    yellow: "https://images.unsplash.com/photo-1518020382113-a7e8fc38eac9?w=800&auto=format&fit=crop&q=60",
+    yellow: "https://xpclass.vn/xpclass/image/bh_test.jpg",
   };
   return themeBackgrounds[colorTheme] || themeBackgrounds.blue;
 };
@@ -1054,11 +1054,11 @@ const ExerciseList = () => {
         <img
           src={getThemeBackgroundImage(session?.color_theme || unit?.color_theme || level?.color_theme)}
           alt="Map"
-          className="w-full h-full object-cover absolute top-0 left-0"
+          className="w-full h-full object-cover absolute top-0 left-0 z-0"
         />
 
         {/* Level nodes */}
-        <div className="absolute inset-0 w-full h-full">
+        <div className="absolute inset-0 w-full h-full z-10">
           {levels.map((level) => (
             <LevelNode key={level.id} level={level} />
           ))}
@@ -1077,6 +1077,30 @@ const ExerciseList = () => {
           <h2 className="text-xl font-bold text-gray-900">{session.title}</h2>
           <p className="text-sm text-gray-600">{unit.title}</p>
         </div>
+
+        {/* Chest Card - Always visible for students */}
+        {!canCreateContent() && (
+          <div
+            onClick={() => {
+              if (isSessionComplete() && !sessionRewards[sessionId]?.claimed) {
+                handleClaimReward()
+              }
+            }}
+            className={`absolute top-4 right-4 z-[100] ${
+              isSessionComplete() && !sessionRewards[sessionId]?.claimed ? "cursor-pointer" : "cursor-default"
+            }`}
+            style={{ width: "60px", height: "60px" }}
+          >
+            <img
+              src="https://xpclass.vn/xpclass/image/chest_cropped_once1.gif"
+              alt="Chest"
+              className="w-full h-full object-contain drop-shadow-lg"
+              style={{
+                filter: sessionRewards[sessionId]?.claimed ? 'grayscale(100%)' : 'none'
+              }}
+            />
+          </div>
+        )}
 
         {/* Add Exercise Button - Only for admins/teachers */}
         {canCreateContent() && (
