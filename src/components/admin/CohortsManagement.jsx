@@ -1,23 +1,23 @@
-import React, { useEffect, useMemo, useState } from 'react';
-import { supabase } from '../../supabase/client';
-import { useCohorts } from '../../hooks/useCohorts';
-import { Plus, X, Users, Trash2, Edit } from 'lucide-react';
+import React, { useEffect, useMemo, useState } from "react";
+import { supabase } from "../../supabase/client";
+import { useCohorts } from "../../hooks/useCohorts";
+import { Plus, X, Users, Trash2, Edit } from "lucide-react";
 
 const CohortsManagement = () => {
   const { cohorts, fetchCohorts, fetchCohortMembers, loading } = useCohorts();
-  const [selectedCohortId, setSelectedCohortId] = useState('');
+  const [selectedCohortId, setSelectedCohortId] = useState("");
   const [members, setMembers] = useState([]);
   const [cohortCounts, setCohortCounts] = useState({});
   const [students, setStudents] = useState([]);
   const [studentsLoading, setStudentsLoading] = useState(false);
-  const [studentSearch, setStudentSearch] = useState('');
+  const [studentSearch, setStudentSearch] = useState("");
   const [creating, setCreating] = useState(false);
   const [editingCohort, setEditingCohort] = useState(null);
-  const [form, setForm] = useState({ name: '', description: '' });
+  const [form, setForm] = useState({ name: "", description: "" });
   const [busy, setBusy] = useState(false);
   const [notification, setNotification] = useState(null);
 
-  const show = (message, type = 'success') => {
+  const show = (message, type = "success") => {
     setNotification({ message, type });
     setTimeout(() => setNotification(null), 4000);
   };
@@ -42,12 +42,12 @@ const CohortsManagement = () => {
   const fetchAllCohortCounts = async () => {
     try {
       const { data, error } = await supabase
-        .from('cohort_members')
-        .select('cohort_id, student_id')
-        .eq('is_active', true);
+        .from("cohort_members")
+        .select("cohort_id, student_id")
+        .eq("is_active", true);
       if (error) throw error;
       const map = {};
-      (data || []).forEach(row => {
+      (data || []).forEach((row) => {
         map[row.cohort_id] = (map[row.cohort_id] || 0) + 1;
       });
       setCohortCounts(map);
@@ -61,10 +61,10 @@ const CohortsManagement = () => {
       try {
         setStudentsLoading(true);
         const { data, error } = await supabase
-          .from('users')
-          .select('id, full_name, email, xp')
-          .eq('role', 'user')
-          .order('full_name');
+          .from("users")
+          .select("id, full_name, email, xp")
+          .eq("role", "user")
+          .order("full_name");
         if (error) throw error;
         setStudents(data || []);
       } catch (e) {
@@ -76,35 +76,41 @@ const CohortsManagement = () => {
     loadStudents();
   }, []);
 
-  const selectedCohort = useMemo(() => cohorts.find(c => c.id === selectedCohortId), [cohorts, selectedCohortId]);
+  const selectedCohort = useMemo(
+    () => cohorts.find((c) => c.id === selectedCohortId),
+    [cohorts, selectedCohortId],
+  );
 
   const startCreate = () => {
-    setForm({ name: '', description: '' });
+    setForm({ name: "", description: "" });
     setCreating(true);
   };
 
   const startEdit = (cohort) => {
     setEditingCohort(cohort);
-    setForm({ name: cohort.name || '', description: cohort.description || '' });
+    setForm({ name: cohort.name || "", description: cohort.description || "" });
   };
 
   const handleCreate = async () => {
-    if (!form.name.trim()) { show('Name is required', 'error'); return; }
+    if (!form.name.trim()) {
+      show("Name is required", "error");
+      return;
+    }
     try {
       setBusy(true);
       const user = (await supabase.auth.getUser()).data.user;
-      const { error } = await supabase.from('cohorts').insert({
+      const { error } = await supabase.from("cohorts").insert({
         name: form.name.trim(),
         description: form.description || null,
         created_by: user?.id,
         is_active: true,
       });
       if (error) throw error;
-      show('Cohort created');
+      show("Cohort created");
       setCreating(false);
       await fetchCohorts();
     } catch (e) {
-      show(e.message || 'Error creating cohort', 'error');
+      show(e.message || "Error creating cohort", "error");
     } finally {
       setBusy(false);
     }
@@ -112,81 +118,96 @@ const CohortsManagement = () => {
 
   const handleUpdate = async () => {
     if (!editingCohort) return;
-    if (!form.name.trim()) { show('Name is required', 'error'); return; }
+    if (!form.name.trim()) {
+      show("Name is required", "error");
+      return;
+    }
     try {
       setBusy(true);
       const { error } = await supabase
-        .from('cohorts')
-        .update({ name: form.name.trim(), description: form.description || null })
-        .eq('id', editingCohort.id);
+        .from("cohorts")
+        .update({
+          name: form.name.trim(),
+          description: form.description || null,
+        })
+        .eq("id", editingCohort.id);
       if (error) throw error;
-      show('Cohort updated');
+      show("Cohort updated");
       setEditingCohort(null);
       await fetchCohorts();
     } catch (e) {
-      show(e.message || 'Error updating cohort', 'error');
+      show(e.message || "Error updating cohort", "error");
     } finally {
       setBusy(false);
     }
   };
 
   const handleDelete = async (cohortId) => {
-    if (!confirm('Delete this cohort? This will remove its members as well.')) return;
+    if (!confirm("Delete this cohort? This will remove its members as well."))
+      return;
     try {
       setBusy(true);
       const { error } = await supabase
-        .from('cohorts')
+        .from("cohorts")
         .delete()
-        .eq('id', cohortId);
+        .eq("id", cohortId);
       if (error) throw error;
-      show('Cohort deleted');
-      if (selectedCohortId === cohortId) setSelectedCohortId('');
+      show("Cohort deleted");
+      if (selectedCohortId === cohortId) setSelectedCohortId("");
       await fetchCohorts();
       setMembers([]);
     } catch (e) {
-      show(e.message || 'Error deleting cohort', 'error');
+      show(e.message || "Error deleting cohort", "error");
     } finally {
       setBusy(false);
     }
   };
 
-  
-
   const handleAddMemberById = async (studentId) => {
-    if (!selectedCohortId) { show('Select a cohort first', 'error'); return; }
+    if (!selectedCohortId) {
+      show("Select a cohort first", "error");
+      return;
+    }
     try {
       setBusy(true);
       const { error } = await supabase
-        .from('cohort_members')
-        .upsert({ cohort_id: selectedCohortId, student_id: studentId, is_active: true }, { onConflict: 'cohort_id,student_id' });
+        .from("cohort_members")
+        .upsert(
+          {
+            cohort_id: selectedCohortId,
+            student_id: studentId,
+            is_active: true,
+          },
+          { onConflict: "cohort_id,student_id" },
+        );
       if (error) throw error;
-      show('Member added');
+      show("Member added");
       const data = await fetchCohortMembers(selectedCohortId);
       setMembers(data);
       await fetchAllCohortCounts();
     } catch (e) {
-      show(e.message || 'Error adding member', 'error');
+      show(e.message || "Error adding member", "error");
     } finally {
       setBusy(false);
     }
   };
 
   const handleRemoveMember = async (studentId) => {
-    if (!confirm('Remove this member from cohort?')) return;
+    if (!confirm("Remove this member from cohort?")) return;
     try {
       setBusy(true);
       const { error } = await supabase
-        .from('cohort_members')
+        .from("cohort_members")
         .delete()
-        .eq('cohort_id', selectedCohortId)
-        .eq('student_id', studentId);
+        .eq("cohort_id", selectedCohortId)
+        .eq("student_id", studentId);
       if (error) throw error;
-      show('Member removed');
+      show("Member removed");
       const data = await fetchCohortMembers(selectedCohortId);
       setMembers(data);
       await fetchAllCohortCounts();
     } catch (e) {
-      show(e.message || 'Error removing member', 'error');
+      show(e.message || "Error removing member", "error");
     } finally {
       setBusy(false);
     }
@@ -209,21 +230,48 @@ const CohortsManagement = () => {
         {/* Cohort List */}
         <div className="bg-white rounded-lg shadow-sm border p-4">
           <div className="flex items-center justify-between mb-3">
-            <h3 className="font-semibold text-gray-900 flex items-center gap-2"><Users className="w-4 h-4"/> All Cohorts</h3>
+            <h3 className="font-semibold text-gray-900 flex items-center gap-2">
+              <Users className="w-4 h-4" /> All Cohorts
+            </h3>
           </div>
           <div className="max-h-[520px] overflow-y-auto divide-y">
             {(cohorts || []).length === 0 ? (
               <div className="p-4 text-sm text-gray-500">No cohorts</div>
             ) : (
-              cohorts.map(c => (
-                <div key={c.id} className={`p-3 flex items-center justify-between ${selectedCohortId === c.id ? 'bg-blue-50' : ''}`}>
-                  <button onClick={() => setSelectedCohortId(c.id)} className="text-left">
-                    <div className="font-medium text-gray-900">{c.name}{typeof cohortCounts[c.id] === 'number' ? ` (${cohortCounts[c.id]})` : ''}</div>
-                    {c.description && <div className="text-xs text-gray-600">{c.description}</div>}
+              cohorts.map((c) => (
+                <div
+                  key={c.id}
+                  className={`p-3 flex items-center justify-between ${selectedCohortId === c.id ? "bg-blue-50" : ""}`}
+                >
+                  <button
+                    onClick={() => setSelectedCohortId(c.id)}
+                    className="text-left"
+                  >
+                    <div className="font-medium text-gray-900">
+                      {c.name}
+                      {typeof cohortCounts[c.id] === "number"
+                        ? ` (${cohortCounts[c.id]})`
+                        : ""}
+                    </div>
+                    {c.description && (
+                      <div className="text-xs text-gray-600">
+                        {c.description}
+                      </div>
+                    )}
                   </button>
                   <div className="flex items-center gap-2">
-                    <button onClick={() => startEdit(c)} className="p-2 rounded hover:bg-gray-100"><Edit className="w-4 h-4"/></button>
-                    <button onClick={() => handleDelete(c.id)} className="p-2 rounded hover:bg-red-50 text-red-600"><Trash2 className="w-4 h-4"/></button>
+                    <button
+                      onClick={() => startEdit(c)}
+                      className="p-2 rounded hover:bg-gray-100"
+                    >
+                      <Edit className="w-4 h-4" />
+                    </button>
+                    <button
+                      onClick={() => handleDelete(c.id)}
+                      className="p-2 rounded hover:bg-red-50 text-red-600"
+                    >
+                      <Trash2 className="w-4 h-4" />
+                    </button>
                   </div>
                 </div>
               ))
@@ -235,17 +283,23 @@ const CohortsManagement = () => {
         <div className="bg-white rounded-lg shadow-sm border p-4 lg:col-span-2">
           <div className="flex items-center justify-between mb-3">
             <h3 className="font-semibold text-gray-900">Members</h3>
-            {selectedCohort && <div className="text-sm text-gray-600">{selectedCohort?.name}</div>}
+            {selectedCohort && (
+              <div className="text-sm text-gray-600">
+                {selectedCohort?.name}
+              </div>
+            )}
           </div>
-
-          
 
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             {/* Available Students */}
             <div>
               <div className="flex items-center justify-between mb-2">
-                <div className="text-sm font-medium text-gray-700">Available Students</div>
-                {studentsLoading && <div className="text-xs text-gray-500">Loading...</div>}
+                <div className="text-sm font-medium text-gray-700">
+                  Available Students
+                </div>
+                {studentsLoading && (
+                  <div className="text-xs text-gray-500">Loading...</div>
+                )}
               </div>
               <input
                 value={studentSearch}
@@ -253,21 +307,38 @@ const CohortsManagement = () => {
                 placeholder="Search students..."
                 className="w-full mb-2 px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500"
               />
-              <div className="border rounded-lg max-h-[420px] overflow-y-auto divide-y">
+
+              <div className="border rounded-lg max-h-[420px] overflow-y-auto overflow-x-hidden divide-y">
                 {(() => {
-                  const memberIds = new Set(members.map(m => m.student_id));
+                  const memberIds = new Set(members.map((m) => m.student_id));
                   const filtered = (students || [])
-                    .filter(s => !memberIds.has(s.id))
-                    .filter(s => {
+                    .filter((s) => !memberIds.has(s.id))
+                    .filter((s) => {
                       const q = studentSearch.toLowerCase();
-                      return s.full_name?.toLowerCase().includes(q) || s.email?.toLowerCase().includes(q);
+                      return (
+                        s.full_name?.toLowerCase().includes(q) ||
+                        s.email?.toLowerCase().includes(q)
+                      );
                     });
-                  if (filtered.length === 0) return (<div className="p-3 text-sm text-gray-500">No students</div>);
-                  return filtered.map(s => (
-                    <div key={s.id} className="p-3 flex items-center justify-between">
+                  if (filtered.length === 0)
+                    return (
+                      <div className="p-3 text-sm text-gray-500">
+                        No students
+                      </div>
+                    );
+                  return filtered.map((s) => (
+                    <div
+                      key={s.id}
+                      className="p-3 flex items-center justify-between"
+                    >
                       <div>
-                        <div className="font-medium text-gray-900">{s.full_name || s.email}</div>
-                        <div className="text-sm text-gray-600">{s.email}</div>
+                        <div className="font-medium text-gray-900">
+                          {s.full_name || s.email}
+                        </div>
+                        
+                        <div className="text-sm text-gray-600">
+                          {s.email.split("@")[0]}
+                        </div>
                       </div>
                       <button
                         onClick={() => handleAddMemberById(s.id)}
@@ -284,15 +355,22 @@ const CohortsManagement = () => {
 
             {/* Current Members */}
             <div>
-              <div className="text-sm font-medium text-gray-700 mb-2">Current Members</div>
-              <div className="border rounded-lg max-h-[420px] overflow-y-auto divide-y">
-                {(!members || members.length === 0) ? (
+              <div className="text-sm font-medium text-gray-700 mb-2">
+                Current Members
+              </div>
+              <div className="border rounded-lg  overflow-y-auto divide-y">
+                {!members || members.length === 0 ? (
                   <div className="p-4 text-sm text-gray-500">No members</div>
                 ) : (
-                  members.map(m => (
-                    <div key={m.student_id} className="p-3 flex items-center justify-between">
+                  members.map((m) => (
+                    <div
+                      key={m.student_id}
+                      className="p-3 flex items-center justify-between"
+                    >
                       <div>
-                        <div className="font-medium text-gray-900">{m.full_name || m.email}</div>
+                        <div className="font-medium text-gray-900">
+                          {m.full_name || m.email}
+                        </div>
                         <div className="text-sm text-gray-600">{m.email}</div>
                       </div>
                       <button
@@ -319,7 +397,9 @@ const CohortsManagement = () => {
             </div>
             <div className="p-6 space-y-4">
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">Name</label>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Name
+                </label>
                 <input
                   value={form.name}
                   onChange={(e) => setForm({ ...form, name: e.target.value })}
@@ -328,10 +408,14 @@ const CohortsManagement = () => {
                 />
               </div>
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">Description</label>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Description
+                </label>
                 <textarea
                   value={form.description}
-                  onChange={(e) => setForm({ ...form, description: e.target.value })}
+                  onChange={(e) =>
+                    setForm({ ...form, description: e.target.value })
+                  }
                   className="w-full p-3 border rounded-lg focus:ring-2 focus:ring-blue-500"
                   rows={3}
                   placeholder="Optional"
@@ -339,8 +423,19 @@ const CohortsManagement = () => {
               </div>
             </div>
             <div className="px-6 py-4 border-t flex items-center justify-end gap-3">
-              <button onClick={() => setCreating(false)} className="px-4 py-2 rounded-lg border">Cancel</button>
-              <button onClick={handleCreate} disabled={busy} className="px-4 py-2 rounded-lg bg-blue-600 text-white hover:bg-blue-700">Create</button>
+              <button
+                onClick={() => setCreating(false)}
+                className="px-4 py-2 rounded-lg border"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={handleCreate}
+                disabled={busy}
+                className="px-4 py-2 rounded-lg bg-blue-600 text-white hover:bg-blue-700"
+              >
+                Create
+              </button>
             </div>
           </div>
         </div>
@@ -355,7 +450,9 @@ const CohortsManagement = () => {
             </div>
             <div className="p-6 space-y-4">
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">Name</label>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Name
+                </label>
                 <input
                   value={form.name}
                   onChange={(e) => setForm({ ...form, name: e.target.value })}
@@ -363,25 +460,42 @@ const CohortsManagement = () => {
                 />
               </div>
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">Description</label>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Description
+                </label>
                 <textarea
                   value={form.description}
-                  onChange={(e) => setForm({ ...form, description: e.target.value })}
+                  onChange={(e) =>
+                    setForm({ ...form, description: e.target.value })
+                  }
                   className="w-full p-3 border rounded-lg focus:ring-2 focus:ring-blue-500"
                   rows={3}
                 />
               </div>
             </div>
             <div className="px-6 py-4 border-t flex items-center justify-end gap-3">
-              <button onClick={() => setEditingCohort(null)} className="px-4 py-2 rounded-lg border">Cancel</button>
-              <button onClick={handleUpdate} disabled={busy} className="px-4 py-2 rounded-lg bg-blue-600 text-white hover:bg-blue-700">Save</button>
+              <button
+                onClick={() => setEditingCohort(null)}
+                className="px-4 py-2 rounded-lg border"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={handleUpdate}
+                disabled={busy}
+                className="px-4 py-2 rounded-lg bg-blue-600 text-white hover:bg-blue-700"
+              >
+                Save
+              </button>
             </div>
           </div>
         </div>
       )}
 
       {notification && (
-        <div className={`fixed bottom-4 right-4 p-3 rounded-lg shadow ${notification.type === 'error' ? 'bg-red-600 text-white' : 'bg-green-600 text-white'}`}>
+        <div
+          className={`fixed bottom-4 right-4 p-3 rounded-lg shadow ${notification.type === "error" ? "bg-red-600 text-white" : "bg-green-600 text-white"}`}
+        >
           {notification.message}
         </div>
       )}
@@ -390,5 +504,3 @@ const CohortsManagement = () => {
 };
 
 export default CohortsManagement;
-
-
