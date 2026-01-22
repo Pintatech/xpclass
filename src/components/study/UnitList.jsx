@@ -23,11 +23,11 @@ import {
 const getThemeBackground = (colorTheme) => {
   const themeBackgrounds = {
     blue: "https://xpclass.vn/xpclass/image/bg1.jpg",
-    green: "https://images.unsplash.com/photo-1441974231531-c6227db76b6e?w=800&auto=format&fit=crop&q=60",
-    purple: "https://xpclass.vn/xpclass/image/purple_bg.jpg",
-    orange: "https://images.unsplash.com/photo-1504701954957-2010ec3bcec1?w=800&auto=format&fit=crop&q=60",
-    red: "https://images.unsplash.com/photo-1518837695005-2083093ee35b?w=800&auto=format&fit=crop&q=60",
-    yellow: "https://xpclass.vn/xpclass/image/bh_test.jpg",
+    green: "https://xpclass.vn/xpclass/image/theme_unit/forest.png",
+    purple: "https://xpclass.vn/xpclass/image/theme_unit/pirate.jpeg",
+    orange: "https://xpclass.vn/xpclass/image/theme_unit/ninja.jpeg",
+    red: "https://xpclass.vn/xpclass/image/theme_unit/candy.png",
+    yellow: "https://xpclass.vn/xpclass/image/theme_unit/dessert.png",
   };
   return themeBackgrounds[colorTheme] || themeBackgrounds.blue;
 };

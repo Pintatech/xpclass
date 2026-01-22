@@ -15,9 +15,9 @@ const EditUnitModal = ({ unit, onClose, onUpdated }) => {
   const colorOptions = [
     { value: 'blue', label: 'Ice', class: 'bg-blue-500' },
     { value: 'green', label: 'Forest', class: 'bg-green-500' },
-    { value: 'purple', label: 'Mystic', class: 'bg-purple-500' },
-    { value: 'orange', label: 'Sunset', class: 'bg-orange-500' },
-    { value: 'red', label: 'Volcano', class: 'bg-red-500' },
+    { value: 'purple', label: 'Pirate', class: 'bg-purple-500' },
+    { value: 'orange', label: 'Ninja', class: 'bg-orange-500' },
+    { value: 'red', label: 'Candy', class: 'bg-red-500' },
     { value: 'yellow', label: 'Desert', class: 'bg-yellow-500' }
   ]
 

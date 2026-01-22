@@ -20,12 +20,12 @@ import {
 // Theme-based background images for exercise map
 const getThemeBackgroundImage = (colorTheme) => {
   const themeBackgrounds = {
-    blue: "https://xpclass.vn/xpclass/image/bg1.jpg",
-    green: "https://images.unsplash.com/photo-1441974231531-c6227db76b6e?w=800&auto=format&fit=crop&q=60",
-    purple: "https://images.unsplash.com/photo-1534796636912-3b95b3ab5986?w=800&auto=format&fit=crop&q=60",
-    orange: "https://images.unsplash.com/photo-1504701954957-2010ec3bcec1?w=800&auto=format&fit=crop&q=60",
-    red: "https://images.unsplash.com/photo-1518837695005-2083093ee35b?w=800&auto=format&fit=crop&q=60",
-    yellow: "https://xpclass.vn/xpclass/image/bh_test.jpg",
+    blue: "https://xpclass.vn/xpclass/image/theme_exercise/ice.png",
+    green: "https://xpclass.vn/xpclass/image/theme_exercise/forest2.png",
+    purple: "https://xpclass.vn/xpclass/image/theme_exercise/pirate1.jpeg",
+    orange: "https://xpclass.vn/xpclass/image/theme_exercise/ninja1.jpeg",
+    red: "https://xpclass.vn/xpclass/image/theme_exercise/candy.png",
+    yellow: "https://xpclass.vn/xpclass/image/theme_exercise/dessert.png",
   };
   return themeBackgrounds[colorTheme] || themeBackgrounds.blue;
 };
