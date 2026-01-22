@@ -435,74 +435,11 @@ const UnitList = () => {
   };
 
   const handleSessionClick = async (session) => {
-    try {
-      // Check how many exercises this session has using the exercise_assignments table
-      const { data: assignments, error: assignmentsError } = await supabase
-        .from("exercise_assignments")
-        .select(
-          `
-          id,
-          exercise:exercises!inner(
-            id,
-            exercise_type,
-            is_active
-          )
-        `
-        )
-        .eq("session_id", session.id)
-        .eq("exercise.is_active", true);
-
-      if (assignmentsError) throw assignmentsError;
-
-      const exercises = (assignments || [])
-        .map((a) => a.exercise)
-        .filter(Boolean);
-
-      if (exercises && exercises.length === 1) {
-        // If only one exercise, navigate directly to the exercise
-        const exercise = exercises[0];
-        const paths = {
-          flashcard: "/study/flashcard",
-          fill_blank: "/study/fill-blank",
-          snake_ladder: "/study/snake-ladder",
-          two_player: "/study/two-player-game",
-          multiple_choice: "/study/multiple-choice",
-          drag_drop: "/study/drag-drop",
-          ai_fill_blank: "/study/ai-fill-blank",
-          dropdown: "/study/dropdown",
-          pronunciation: "/study/pronunciation",
-          image_hotspot: "/study/image-hotspot",
-        };
-        const exercisePath =
-          paths[exercise.exercise_type] || "/study/flashcard";
-        // Use course route
-        const base = levelId
-          ? `/study/level/${levelId}`
-          : `/study/course/${currentId}`;
-        navigate(
-          `${exercisePath}?exerciseId=${exercise.id}&sessionId=${session.id}`
-        );
-      } else if (exercises && exercises.length > 1) {
-        // If multiple exercises, go to exercise list
-        const base = levelId
-          ? `/study/level/${levelId}`
-          : `/study/course/${currentId}`;
-        navigate(`${base}/unit/${session.unit_id}/session/${session.id}`);
-      } else {
-        // If no exercises, go to exercise list
-        const base = levelId
-          ? `/study/level/${levelId}`
-          : `/study/course/${currentId}`;
-        navigate(`${base}/unit/${session.unit_id}/session/${session.id}`);
-      }
-    } catch (err) {
-      console.error("Error checking exercises:", err);
-      // Fallback to exercise list
-      const base = levelId
-        ? `/study/level/${levelId}`
-        : `/study/course/${currentId}`;
-      navigate(`${base}/unit/${session.unit_id}/session/${session.id}`);
-    }
+    // Always go to exercise list regardless of exercise count
+    const base = levelId
+      ? `/study/level/${levelId}`
+      : `/study/course/${currentId}`;
+    navigate(`${base}/unit/${session.unit_id}/session/${session.id}`);
   };
 
   const renderSessionCard = (session, index) => {

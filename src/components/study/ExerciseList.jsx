@@ -1170,12 +1170,15 @@ const ExerciseList = () => {
             style={{ width: "60px", height: "60px" }}
           >
             <img
-              src="https://xpclass.vn/xpclass/image/chest_cropped_once1.gif"
+              src={
+                sessionRewards[sessionId]?.claimed
+                  ? "https://xpclass.vn/xpclass/icon/chest_opened.png" // Opened
+                  : isSessionComplete()
+                  ? "https://xpclass.vn/xpclass/icon/chest_ready.png" // Ready to claim
+                  : "https://xpclass.vn/xpclass/icon/chest_locked.png" // Default (locked)
+              }
               alt="Chest"
               className="w-full h-full object-contain drop-shadow-lg"
-              style={{
-                filter: sessionRewards[sessionId]?.claimed ? 'grayscale(100%)' : 'none'
-              }}
             />
           </div>
         )}
