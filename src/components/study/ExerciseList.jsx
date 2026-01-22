@@ -18,16 +18,29 @@ import {
 } from "@dnd-kit/core";
 
 // Theme-based background images for exercise map
-const getThemeBackgroundImage = (colorTheme) => {
-  const themeBackgrounds = {
-    blue: "https://xpclass.vn/xpclass/image/theme_exercise/ice.webp",
-    green: "https://xpclass.vn/xpclass/image/theme_exercise/forest2.webp",
-    purple: "https://xpclass.vn/xpclass/image/theme_exercise/pirate1.webp",
-    orange: "https://xpclass.vn/xpclass/image/theme_exercise/ninja1.webp",
-    red: "https://xpclass.vn/xpclass/image/theme_exercise/candy.webp",
-    yellow: "https://xpclass.vn/xpclass/image/theme_exercise/dessert.webp",
-  };
-  return themeBackgrounds[colorTheme] || themeBackgrounds.blue;
+// Mobile (vertical) images
+const themeBackgroundsMobile = {
+  blue: "https://xpclass.vn/xpclass/image/theme_exercise/ice.webp", 
+  green: "https://xpclass.vn/xpclass/image/theme_exercise/forest2.webp",
+  purple: "https://xpclass.vn/xpclass/image/theme_exercise/pirate1.webp",
+  orange: "https://xpclass.vn/xpclass/image/theme_exercise/ninja1.webp",
+  red: "https://xpclass.vn/xpclass/image/theme_exercise/candy.webp",
+  yellow: "https://xpclass.vn/xpclass/image/theme_exercise/dessert.webp",
+};
+
+// Desktop (horizontal) images - update these URLs with your horizontal images
+const themeBackgroundsDesktop = {
+  blue: "https://xpclass.vn/theme_test/pc1.jpg",
+  green: "https://xpclass.vn/theme_test/pc2.jpg",
+  purple: "https://xpclass.vn/xpclass/image/theme_exercise/pirate1.webp",
+  orange: "https://xpclass.vn/xpclass/image/theme_exercise/ninja1.webp",
+  red: "https://xpclass.vn/xpclass/image/theme_exercise/candy.webp",
+  yellow: "https://xpclass.vn/xpclass/image/theme_exercise/dessert.webp",
+};
+
+const getThemeBackgroundImage = (colorTheme, isDesktop = false) => {
+  const backgrounds = isDesktop ? themeBackgroundsDesktop : themeBackgroundsMobile;
+  return backgrounds[colorTheme] || backgrounds.blue;
 };
 import {
   arrayMove,
@@ -104,6 +117,10 @@ const ExerciseList = () => {
   const [selectedChest, setSelectedChest] = useState(null);
   // View toggle state
   const [viewMode, setViewMode] = useState("map"); // 'map' or 'list'
+  // Desktop detection for responsive node positions
+  const [isDesktop, setIsDesktop] = useState(
+    typeof window !== "undefined" ? window.innerWidth >= 768 : false
+  );
   const { user, profile } = useAuth();
   const { canCreateContent } = usePermissions();
   const { userProgress, fetchUserProgress } = useProgress();
@@ -504,6 +521,15 @@ const ExerciseList = () => {
     return () =>
       window.removeEventListener("bottomNavBack", handleBottomNavBack);
   }, [levelId, unitId, navigate]);
+
+  // Handle window resize for responsive node positions
+  useEffect(() => {
+    const handleResize = () => {
+      setIsDesktop(window.innerWidth >= 768);
+    };
+    window.addEventListener("resize", handleResize);
+    return () => window.removeEventListener("resize", handleResize);
+  }, []);
 
   const getExerciseIcon = (exerciseType) => {
     const IconImg = ({ src, className = "" }) => (
@@ -1028,8 +1054,14 @@ const ExerciseList = () => {
   const colorTheme =
     session?.color_theme || unit?.color_theme || level?.color_theme || "blue";
   const mapTheme = getMapTheme(colorTheme);
-  const { positions: allPositions, controlPoints: curveControlPoints } =
-    mapTheme;
+
+  // Use desktop positions if available and on desktop, otherwise use mobile positions
+  const allPositions = isDesktop && mapTheme.desktopPositions
+    ? mapTheme.desktopPositions
+    : mapTheme.positions;
+  const curveControlPoints = isDesktop && mapTheme.desktopControlPoints
+    ? mapTheme.desktopControlPoints
+    : mapTheme.controlPoints;
 
   // Generate all 11 levels (real exercises + dummy nodes)
   const generateLevels = () => {
@@ -1211,21 +1243,13 @@ const ExerciseList = () => {
 
   return (
     <div className="relative w-full h-[100vh] md:h-[100vh] overflow-hidden">
-      {/* Blurred background layer */}
-      {/* Blurred background layer - uses theme background */}
-      <div
-        className="absolute inset-0 bg-cover bg-center bg-no-repeat bg-fixed blur-md"
-        style={{
-          backgroundImage: `url('${getThemeBackgroundImage(session?.color_theme || unit?.color_theme || level?.color_theme)}')`,
-          zIndex: 0,
-        }}
-      />
-      <div className="relative z-[1] w-full md:w-[90%] md:max-w-[500px] h-full md:h-full mx-auto overflow-hidden md:shadow-2xl bg-gray-100">
+      <div className="relative z-[1] w-full md:w-[100%] h-full md:h-[100vh] mx-auto overflow-hidden md:shadow-2xl bg-gray-100">
         {/* Background - only for map view */}
         {viewMode === "map" && (
           <img
             src={getThemeBackgroundImage(
               session?.color_theme || unit?.color_theme || level?.color_theme,
+              isDesktop,
             )}
             alt="Map"
             className="w-full h-full object-cover absolute top-0 left-0 z-0"
@@ -1275,8 +1299,8 @@ const ExerciseList = () => {
                       strokeLinecap="round"
                       strokeDasharray={isCompleted ? "0" : "2,1.5"}
                     />
-     {/* DEBUG: Control point visualization - REMOVE AFTER EDITING */}
-                    {/* <circle cx={control.x} cy={control.y} r="1.5" fill="red" />
+                    {/* DEBUG: Control point visualization - REMOVE AFTER EDITING */}
+                    <circle cx={control.x} cy={control.y} r="1.5" fill="red" />
                     <text
                       x={control.x + 2}
                       y={control.y}
@@ -1284,7 +1308,7 @@ const ExerciseList = () => {
                       fill="red"
                     >
                       {i + 1}→{i + 2}
-                    </text> */}
+                    </text>
                     {/* DEBUG: Control point visualization - REMOVE AFTER EDITING */}
 
                   </g>
