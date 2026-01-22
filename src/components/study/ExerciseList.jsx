@@ -20,7 +20,7 @@ import {
 // Theme-based background images for exercise map
 const getThemeBackgroundImage = (colorTheme) => {
   const themeBackgrounds = {
-    blue: "https://xpclass.vn/xpclass/image/bg.jpg",
+    blue: "https://xpclass.vn/xpclass/image/bg1.jpg",
     green: "https://images.unsplash.com/photo-1441974231531-c6227db76b6e?w=800&auto=format&fit=crop&q=60",
     purple: "https://images.unsplash.com/photo-1534796636912-3b95b3ab5986?w=800&auto=format&fit=crop&q=60",
     orange: "https://images.unsplash.com/photo-1504701954957-2010ec3bcec1?w=800&auto=format&fit=crop&q=60",
@@ -48,7 +48,9 @@ import {
   Trash2,
   GripVertical,
   UserPlus,
-  Star
+  Star,
+  Map,
+  List
 } from 'lucide-react'
 
 // All 11 positions along the path (from bottom to top)
@@ -107,6 +109,8 @@ const ExerciseList = () => {
   const [rewardAmount, setRewardAmount] = useState(0)
   const [showChestSelection, setShowChestSelection] = useState(false)
   const [selectedChest, setSelectedChest] = useState(null)
+  // View toggle state
+  const [viewMode, setViewMode] = useState('map') // 'map' or 'list'
   const { user, profile } = useAuth()
   const { canCreateContent } = usePermissions()
   const { userProgress, fetchUserProgress } = useProgress()
@@ -1041,24 +1045,87 @@ const ExerciseList = () => {
       <div
         className="absolute inset-0 bg-cover bg-center bg-no-repeat bg-fixed blur-lg"
         style={{
-          backgroundImage: `url('https://xpclass.vn/xpclass/image/bg_blur.jpg')`,
+          backgroundImage: `url('https://xpclass.vn/xpclass/image/purple_bg.jpg')`,
           zIndex: 0
         }}
       />
       <div className="relative z-[1] w-full md:w-[90%] md:max-w-[500px] h-full md:h-full mx-auto overflow-hidden md:shadow-2xl bg-gray-100">
-        {/* Background */}
-        <img
-          src={getThemeBackgroundImage(session?.color_theme || unit?.color_theme || level?.color_theme)}
-          alt="Map"
-          className="w-full h-full object-cover absolute top-0 left-0 z-0"
-        />
+        {/* Background - only for map view */}
+        {viewMode === 'map' && (
+          <img
+            src={getThemeBackgroundImage(session?.color_theme || unit?.color_theme || level?.color_theme)}
+            alt="Map"
+            className="w-full h-full object-cover absolute top-0 left-0 z-0"
+          />
+        )}
 
-        {/* Level nodes */}
-        <div className="absolute inset-0 w-full h-full z-10">
-          {levels.map((level) => (
-            <LevelNode key={level.id} level={level} />
-          ))}
-        </div>
+        {/* Map View */}
+        {viewMode === 'map' && (
+          <>
+            {/* Path connecting exercises */}
+            <svg className="absolute inset-0 w-full h-full pointer-events-none z-5">
+              <defs>
+                <linearGradient id="pathGradient" x1="0%" y1="100%" x2="0%" y2="0%">
+                  <stop offset="0%" stopColor="#cbd5e1" />
+                  <stop offset="100%" stopColor="#94a3b8" />
+                </linearGradient>
+              </defs>
+              {levels.map((level, i) => {
+                if (i === levels.length - 1) return null
+
+                const next = levels[i + 1]
+                const isCompleted = level.completed && next.completed
+
+                return (
+                  <line
+                    key={i}
+                    x1={`${level.x}%`}
+                    y1={`${level.y}%`}
+                    x2={`${next.x}%`}
+                    y2={`${next.y}%`}
+                    stroke={isCompleted ? '#22c55e' : '#94a3b8'}
+                    strokeWidth="6"
+                    strokeLinecap="round"
+                    strokeDasharray={isCompleted ? '0' : '12,8'}
+                  />
+                )
+              })}
+            </svg>
+
+            {/* Level nodes */}
+            <div className="absolute inset-0 w-full h-full z-10">
+              {levels.map((level) => (
+                <LevelNode key={level.id} level={level} />
+              ))}
+            </div>
+          </>
+        )}
+
+        {/* List View */}
+        {viewMode === 'list' && (
+          <div className="absolute inset-0 overflow-y-auto z-10 pt-24 pb-20 px-4">
+            <DndContext
+              sensors={sensors}
+              collisionDetection={closestCenter}
+              onDragEnd={handleDragEnd}
+            >
+              <SortableContext
+                items={exercises.map(ex => ex.id)}
+                strategy={verticalListSortingStrategy}
+              >
+                <div className="space-y-4">
+                  {exercises.map((exercise, index) => (
+                    <SortableExerciseCard
+                      key={exercise.id}
+                      exercise={exercise}
+                      index={index}
+                    />
+                  ))}
+                </div>
+              </SortableContext>
+            </DndContext>
+          </div>
+        )}
 
         {/* Back button overlay */}
         <button
@@ -1073,6 +1140,21 @@ const ExerciseList = () => {
           <h2 className="text-xl font-bold text-gray-900">{session.title}</h2>
           <p className="text-sm text-gray-600">{unit.title}</p>
         </div>
+
+        {/* View Toggle Button - Only for admins/teachers */}
+        {canCreateContent() && (
+          <button
+            onClick={() => setViewMode(viewMode === 'map' ? 'list' : 'map')}
+            className="absolute top-4 right-20 p-2 bg-white rounded-lg shadow-lg hover:bg-gray-100 transition-colors z-50"
+            title={viewMode === 'map' ? 'Switch to List View' : 'Switch to Map View'}
+          >
+            {viewMode === 'map' ? (
+              <List className="w-6 h-6 text-gray-600" />
+            ) : (
+              <Map className="w-6 h-6 text-gray-600" />
+            )}
+          </button>
+        )}
 
         {/* Chest Card - Always visible for students */}
         {!canCreateContent() && (
