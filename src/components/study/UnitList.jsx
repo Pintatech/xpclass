@@ -22,12 +22,12 @@ import {
 // Theme-based background images for unit cards
 const getThemeBackground = (colorTheme) => {
   const themeBackgrounds = {
-    blue: "https://xpclass.vn/xpclass/image/bg1.jpg",
-    green: "https://xpclass.vn/xpclass/image/theme_unit/forest.png",
-    purple: "https://xpclass.vn/xpclass/image/theme_unit/pirate.jpeg",
-    orange: "https://xpclass.vn/xpclass/image/theme_unit/ninja.jpeg",
-    red: "https://xpclass.vn/xpclass/image/theme_unit/candy.png",
-    yellow: "https://xpclass.vn/xpclass/image/theme_unit/dessert.png",
+    blue: "https://xpclass.vn/xpclass/image/theme_unit/ice.webp",
+    green: "https://xpclass.vn/xpclass/image/theme_unit/forest.webp",
+    purple: "https://xpclass.vn/xpclass/image/theme_unit/pirate.webp",
+    orange: "https://xpclass.vn/xpclass/image/theme_unit/ninja.webp",
+    red: "https://xpclass.vn/xpclass/image/theme_unit/candy.webp",
+    yellow: "https://xpclass.vn/xpclass/image/theme_unit/dessert.webp",
   };
   return themeBackgrounds[colorTheme] || themeBackgrounds.blue;
 };

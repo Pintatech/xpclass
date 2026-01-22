@@ -20,12 +20,12 @@ import {
 // Theme-based background images for exercise map
 const getThemeBackgroundImage = (colorTheme) => {
   const themeBackgrounds = {
-    blue: "https://xpclass.vn/xpclass/image/theme_exercise/ice.png",
-    green: "https://xpclass.vn/xpclass/image/theme_exercise/forest2.png",
-    purple: "https://xpclass.vn/xpclass/image/theme_exercise/pirate1.jpeg",
-    orange: "https://xpclass.vn/xpclass/image/theme_exercise/ninja1.jpeg",
-    red: "https://xpclass.vn/xpclass/image/theme_exercise/candy.png",
-    yellow: "https://xpclass.vn/xpclass/image/theme_exercise/dessert.png",
+    blue: "https://xpclass.vn/xpclass/image/theme_exercise/ice.webp",
+    green: "https://xpclass.vn/xpclass/image/theme_exercise/forest2.webp",
+    purple: "https://xpclass.vn/xpclass/image/theme_exercise/pirate1.webp",
+    orange: "https://xpclass.vn/xpclass/image/theme_exercise/ninja1.webp",
+    red: "https://xpclass.vn/xpclass/image/theme_exercise/candy.webp",
+    yellow: "https://xpclass.vn/xpclass/image/theme_exercise/dessert.webp",
   };
   return themeBackgrounds[colorTheme] || themeBackgrounds.blue;
 };
@@ -1289,7 +1289,7 @@ const ExerciseList = () => {
 
                   </g>
                 );
-                
+
               })}
             </svg>
 
