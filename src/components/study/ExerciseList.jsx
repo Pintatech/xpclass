@@ -1260,7 +1260,7 @@ const ExerciseList = () => {
 
     return (
       <div
-        className={`absolute -translate-x-1/2 -translate-y-1/2 ${isNodeEditMode ? 'cursor-move select-none' : ''} ${current ? "z-20" : "z-10"} ${isNodeEditMode ? '' : 'transition-all duration-300'}`}
+        className={`absolute -translate-x-1/2 -translate-y-1/2 ${isNodeEditMode ? 'cursor-move select-none' : (unlocked && !isDummy ? 'cursor-pointer' : 'cursor-default')} ${current ? "z-20" : "z-10"} ${isNodeEditMode ? '' : 'transition-all duration-300'}`}
         style={{ left: `${displayX}%`, top: `${displayY}%` }}
         onMouseDown={handleMouseDown}
       >
@@ -1294,15 +1294,17 @@ const ExerciseList = () => {
                 ? "w-[20px] h-[20px] md:w-[32px] md:h-[32px] border-2 bg-gradient-to-b from-gray-400 to-gray-500 border-gray-600 cursor-default"
                 : !unlocked
                   ? "w-[50px] h-[50px] md:w-[80px] md:h-[80px] border-4 bg-gradient-to-b from-gray-300 to-gray-400 border-gray-500 cursor-not-allowed"
-                  : completed || current
-                    ? "w-[50px] h-[50px] md:w-[100px] md:h-[100px] border-4 bg-gradient-to-b from-emerald-400 to-emerald-500 border-emerald-600 hover:scale-110 hover:shadow-xl"
-                    : "w-[50px] h-[50px] md:w-[100px] md:h-[100px] border-4 bg-gradient-to-b from-amber-400 to-amber-500 border-amber-600 cursor-pointer hover:scale-110 hover:shadow-xl"
-            } ${current && !isDummy ? "animate-pulse shadow-emerald-400/40" : ""}`}
+                  : current
+                    ? "w-[50px] h-[50px] md:w-[100px] md:h-[100px] border-4 bg-gradient-to-b from-blue-400 to-blue-500 border-blue-600 hover:scale-110 hover:shadow-xl"
+                    : completed
+                      ? "w-[50px] h-[50px] md:w-[100px] md:h-[100px] border-4 bg-gradient-to-b from-emerald-400 to-emerald-500 border-emerald-600 hover:scale-110 hover:shadow-xl"
+                      : "w-[50px] h-[50px] md:w-[100px] md:h-[100px] border-4 bg-gradient-to-b from-gray-300 to-gray-400 border-gray-500 cursor-pointer hover:scale-110 hover:shadow-xl"
+            } ${current && !isDummy ? "animate-pulse shadow-blue-400/40" : ""}`}
             onClick={handleClick}
           >
             {!isDummy && (
               <span
-                className={`text-xl md:text-3xl font-bold ${completed || current ? "text-white" : "text-gray-800"}`}
+                className={`text-xl md:text-3xl font-bold ${completed || current ? "text-white" : "text-gray-700"}`}
               >
                 {exerciseNumber}
               </span>
@@ -1310,14 +1312,17 @@ const ExerciseList = () => {
           </div>
         </div>
         {!isDummy && (
-          <div className="absolute top-full left-1/2 -translate-x-1/2 flex gap-0.5 mt-1">
+          <div className="absolute top-full left-1/2 -translate-x-1/2 flex gap-0.5 mt-1 justify-center items-center">
             {[1, 2, 3].map((star) => (
-              <span
+              <img
                 key={star}
-                className={`text-2xl md:text-4xl leading-none ${star <= stars ? "text-amber-400 drop-shadow-sm" : "text-gray-300"}`}
-              >
-                ★
-              </span>
+                src={star <= stars
+                  ? "https://xpclass.vn/xpclass/image/star_fill.png"
+                  : "https://xpclass.vn/xpclass/image/star_empty.png"
+                }
+                alt={star <= stars ? "Star filled" : "Star empty"}
+                className="w-6 h-6 md:w-10 md:h-10 block"
+              />
             ))}
           </div>
         )}
