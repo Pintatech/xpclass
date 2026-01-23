@@ -70,6 +70,7 @@ import { getMapTheme } from "../../config/mapThemes";
 // Returns indices of positions where real exercises should be placed
 function getExerciseIndices(count, positions) {
   if (count <= 0) return [];
+  if (count === 1) return [0]; // Special case: single exercise at first position
   if (count >= positions.length) {
     return positions.map((_, i) => i);
   }
@@ -115,6 +116,8 @@ const ExerciseList = () => {
   const [rewardAmount, setRewardAmount] = useState(0);
   const [showChestSelection, setShowChestSelection] = useState(false);
   const [selectedChest, setSelectedChest] = useState(null);
+  const [showLockedModal, setShowLockedModal] = useState(false);
+  const [showOpenedModal, setShowOpenedModal] = useState(false);
   // View toggle state
   const [viewMode, setViewMode] = useState("map"); // 'map' or 'list'
   // Position editor mode - for dragging nodes and getting coordinates
@@ -746,12 +749,14 @@ const ExerciseList = () => {
     return basePath;
   };
 
-  // Check if all exercises in the session are completed
+  // Check if all exercises in the session are completed with at least 2 stars
   const isSessionComplete = () => {
     if (exercises.length === 0) return false;
     return exercises.every((exercise) => {
       const progress = userProgress.find((p) => p.exercise_id === exercise.id);
-      return progress?.status === "completed";
+      if (!progress || progress.status !== "completed") return false;
+      // Check if score is at least 90 (2 stars requirement)
+      return progress.score >= 90;
     });
   };
 
@@ -806,8 +811,8 @@ const ExerciseList = () => {
     audio.play().catch((err) => console.error("Error playing sound:", err));
 
     try {
-      // Generate random XP between 5 and 20
-      const xp = Math.floor(Math.random() * 16) + 5;
+      // Calculate XP: 5 base + 3 per exercise + random 1-10 bonus
+      const xp = 5 + (exercises.length * 3) + (Math.floor(Math.random() * 10) + 1);
 
       // Insert claim record
       const { error: claimError } = await supabase
@@ -1288,28 +1293,56 @@ const ExerciseList = () => {
           </div>
         )}
         <div className="relative flex items-center justify-center">
-          <div
-            className={`rounded-full flex items-center justify-center shadow-lg transition-all duration-300 ${
+          <button
+            className={`relative outline-none border-none transition-all duration-300 ${
               isDummy
-                ? "w-[20px] h-[20px] md:w-[32px] md:h-[32px] border-2 bg-gradient-to-b from-gray-400 to-gray-500 border-gray-600 cursor-default"
+                ? "w-[20px] h-[20px] md:w-[32px] md:h-[32px]"
                 : !unlocked
-                  ? "w-[50px] h-[50px] md:w-[80px] md:h-[80px] border-4 bg-gradient-to-b from-gray-300 to-gray-400 border-gray-500 cursor-not-allowed"
-                  : current
-                    ? "w-[50px] h-[50px] md:w-[100px] md:h-[100px] border-4 bg-gradient-to-b from-blue-400 to-blue-500 border-blue-600 hover:scale-110 hover:shadow-xl"
-                    : completed
-                      ? "w-[50px] h-[50px] md:w-[100px] md:h-[100px] border-4 bg-gradient-to-b from-emerald-400 to-emerald-500 border-emerald-600 hover:scale-110 hover:shadow-xl"
-                      : "w-[50px] h-[50px] md:w-[100px] md:h-[100px] border-4 bg-gradient-to-b from-gray-300 to-gray-400 border-gray-500 cursor-pointer hover:scale-110 hover:shadow-xl"
-            } ${current && !isDummy ? "animate-pulse shadow-blue-400/40" : ""}`}
+                  ? "w-[50px] h-[50px] md:w-[80px] md:h-[80px] cursor-not-allowed"
+                  : "w-[50px] h-[50px] md:w-[100px] md:h-[100px]"
+            }`}
             onClick={handleClick}
           >
-            {!isDummy && (
-              <span
-                className={`text-xl md:text-3xl font-bold ${completed || current ? "text-white" : "text-gray-700"}`}
-              >
-                {exerciseNumber}
-              </span>
-            )}
-          </div>
+            {/* Back shadow layer */}
+            <span
+              className={`absolute inset-0 rounded-full ${
+                isDummy
+                  ? "bg-gray-600"
+                  : !unlocked
+                    ? "bg-gray-500"
+                    : current
+                      ? "bg-blue-700"
+                      : completed
+                        ? "bg-emerald-700"
+                        : "bg-gray-600"
+              }`}
+            />
+            {/* Front button layer */}
+            <span
+              className={`absolute inset-0 rounded-full flex items-center justify-center transition-all duration-150 -translate-y-[10%] ${
+                isDummy
+                  ? "bg-gray-400"
+                  : !unlocked
+                    ? "bg-gray-300"
+                    : current
+                      ? "bg-blue-400 active:translate-y-0 active:shadow-none"
+                      : completed
+                        ? "bg-emerald-400 active:translate-y-0 active:shadow-none"
+                        : "bg-gray-400 active:translate-y-0 active:shadow-none"
+              }`}
+              style={{
+                boxShadow: isDummy ? 'none' : '0 0.5em 1em -0.2em rgba(0, 0, 0, 0.3)'
+              }}
+            >
+              {!isDummy && (
+                <span
+                  className={`text-xl md:text-3xl font-bold ${completed || current ? "text-white" : "text-gray-700"}`}
+                >
+                  {exerciseNumber}
+                </span>
+              )}
+            </span>
+          </button>
         </div>
         {!isDummy && (
           <div className="absolute top-full left-1/2 -translate-x-1/2 flex gap-0.5 mt-1 justify-center items-center">
@@ -1465,9 +1498,11 @@ const ExerciseList = () => {
 
             {/* Level nodes */}
             <div className={`absolute inset-0 w-full h-full ${positionEditorMode && editorTarget === 'nodes' ? 'z-30' : 'z-10'}`}>
-              {levels.map((level, index) => (
-                <LevelNode key={level.id} level={level} nodeIndex={index} />
-              ))}
+              {levels.map((level, index) => {
+                // Skip dummy nodes on desktop/PC
+                if (isDesktop && level.isDummy) return null;
+                return <LevelNode key={level.id} level={level} nodeIndex={index} />;
+              })}
             </div>
           </>
         )}
@@ -1637,13 +1672,13 @@ const ExerciseList = () => {
             onClick={() => {
               if (isSessionComplete() && !sessionRewards[sessionId]?.claimed) {
                 handleClaimReward();
+              } else if (!isSessionComplete() && !sessionRewards[sessionId]?.claimed) {
+                setShowLockedModal(true);
+              } else if (sessionRewards[sessionId]?.claimed) {
+                setShowOpenedModal(true);
               }
             }}
-            className={`absolute top-4 right-4 md:top-10 md:left-4 md:right-auto w-[60px] h-[60px] md:w-[100px] md:h-[100px] z-[100] ${
-              isSessionComplete() && !sessionRewards[sessionId]?.claimed
-                ? "cursor-pointer"
-                : "cursor-default"
-            }`}
+            className={`absolute top-4 right-4 md:top-10 md:left-4 md:right-auto w-[60px] h-[60px] md:w-[100px] md:h-[100px] z-[100] cursor-pointer`}
           >
             <img
               src={
@@ -1752,6 +1787,79 @@ const ExerciseList = () => {
                 </button>
               ))}
             </div>
+          </div>
+        </div>
+      )}
+
+      {/* Locked Chest Modal */}
+      {showLockedModal && (
+        <div
+          className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4"
+          onClick={() => setShowLockedModal(false)}
+        >
+          <div
+            className="bg-white rounded-lg shadow-2xl p-6 sm:p-8 max-w-md w-full text-center"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="mb-4">
+              <img
+                src="https://xpclass.vn/xpclass/icon/chest_locked.png"
+                alt="Locked Chest"
+                className="w-20 h-20 sm:w-24 sm:h-24 mx-auto object-contain"
+              />
+            </div>
+            <h2 className="text-xl sm:text-2xl font-bold text-gray-900 mb-2">
+              Chest Locked!
+            </h2>
+            <p className="text-sm sm:text-base text-gray-600 mb-4">
+              Complete all exercises with at least 2 stars to receive reward
+            </p>
+            <div className="bg-gradient-to-r from-yellow-400 to-orange-500 text-white rounded-lg py-2 px-4 text-lg font-bold mb-6 w-1/2 mx-auto">
+              {5 + (exercises.length * 3) + 1} - {5 + (exercises.length * 3) + 10} XP
+            </div>
+            <button
+              onClick={() => setShowLockedModal(false)}
+              className="bg-blue-600 hover:bg-blue-700 text-white font-semibold py-2 px-6 rounded-lg transition-colors"
+            >
+              OK
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* Opened Chest Modal */}
+      {showOpenedModal && (
+        <div
+          className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4"
+          onClick={() => setShowOpenedModal(false)}
+        >
+          <div
+            className="bg-white rounded-lg shadow-2xl p-6 sm:p-8 max-w-md w-full text-center"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="mb-4">
+              <img
+                src="https://xpclass.vn/xpclass/icon/chest_opened.png"
+                alt="Opened Chest"
+                className="w-20 h-20 sm:w-24 sm:h-24 mx-auto object-contain"
+              />
+            </div>
+            <h2 className="text-xl sm:text-2xl font-bold text-gray-900 mb-2">
+              Reward Claimed!
+            </h2>
+                        <p className="text-sm sm:text-base text-gray-600 mb-4 ">
+
+              You earned from this chest:
+            </p>
+            <div className="bg-gradient-to-r from-yellow-400 to-orange-500 text-white rounded-lg py-3 px-6 text-2xl sm:text-3xl font-bold shadow-lg mb-6 w-1/2 mx-auto">
+              +{sessionRewards[sessionId]?.xp || 0} XP
+            </div>
+            <button
+              onClick={() => setShowOpenedModal(false)}
+              className="bg-blue-600 hover:bg-blue-700 text-white font-semibold py-2 px-6 rounded-lg transition-colors"
+            >
+              OK
+            </button>
           </div>
         </div>
       )}
