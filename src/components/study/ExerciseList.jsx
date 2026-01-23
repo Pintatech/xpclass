@@ -70,14 +70,31 @@ import { getMapTheme } from "../../config/mapThemes";
 // Returns indices of positions where real exercises should be placed
 function getExerciseIndices(count, positions) {
   if (count <= 0) return [];
-  if (count === 1) return [0]; // Special case: single exercise at first position
   if (count >= positions.length) {
     return positions.map((_, i) => i);
   }
 
+  // Custom position mappings (position numbers - 1 = array indices)
+  const customMappings = {
+    1: [0],                               // Position 1
+    2: [0, 10],                           // Positions 1, 11
+    3: [0, 5, 10],                        // Positions 1, 6, 11
+    4: [0, 4, 7, 10],                     // Positions 1, 4, 8, 11
+    5: [0, 4, 7, 9, 10],                  // Positions 1, 5, 8, 10, 11
+    6: [0, 2, 6, 7, 8, 10],               // Positions 1, 3, 5, 7, 9, 11
+    7: [0, 2, 4, 6, 7, 9, 10],            // Positions 1, 3, 5, 7, 8, 10, 11
+    8: [0, 3, 5, 6, 7, 8, 9, 10],         // Skip positions 2, 3, 5 (use 1, 4, 6, 7, 8, 9, 10, 11)
+    9: [0, 3, 4, 5, 6, 7, 8, 9, 10],   // Skip position 2 (use all except 2)
+    10: [0, 2, 3, 4, 5, 6, 7, 8, 9, 10],  // Skip position 2 (use all except 2)
+  };
+
+  if (customMappings[count]) {
+    return customMappings[count];
+  }
+
+  // Fall back to automatic calculation if no custom mapping exists
   const indices = [];
   for (let i = 0; i < count; i++) {
-    // Map i from [0, count-1] to [0, positions.length-1]
     const index = Math.round((i / (count - 1)) * (positions.length - 1));
     indices.push(index);
   }
@@ -1744,9 +1761,12 @@ const ExerciseList = () => {
             <h2 className="text-2xl sm:text-3xl font-bold text-gray-900 mb-2">
               Choose Your Reward!
             </h2>
-            <p className="text-sm sm:text-lg text-gray-600 mb-4 sm:mb-8">
+            <p className="text-sm sm:text-lg text-gray-600 mb-4">
               Pick one chest to reveal your XP reward
             </p>
+            <div className="bg-gradient-to-r from-yellow-400 to-orange-500 text-white rounded-lg py-2 px-4 text-lg font-bold mb-4 sm:mb-8 w-1/2 mx-auto">
+              {5 + (exercises.length * 3) + 1} - {5 + (exercises.length * 3) + 10} XP
+            </div>
 
             <div className="flex justify-center items-center gap-2 sm:gap-8">
               {[1, 2, 3].map((chestNum) => (

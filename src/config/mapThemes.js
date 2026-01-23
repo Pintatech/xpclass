@@ -33,13 +33,13 @@ const mapThemes = {
     ],
     // Desktop positions (adjust these x,y values for PC layout)
     desktopPositions: [
-      { x: 9, y: 74 },  // 1
-      { x: 18, y: 73 },  // 2
-      { x: 34, y: 57 },  // 3
-      { x: 42, y: 59 },  // 4
-      { x: 58, y: 80 },  // 5
+      { x: 8, y: 74 },  // 1
+      { x: 18, y: 83 },  // 2
+      { x: 37, y: 68 },  // 3
+      { x: 44, y: 51 },  // 4
+      { x: 58, y: 89 },  // 5
       { x: 68, y: 80 },  // 6
-      { x: 89, y: 62 },  // 7
+      { x: 87, y: 72 },  // 7
       { x: 83, y: 13 },  // 8
       { x: 59, y: 34 },  // 9
       { x: 38, y: 6 },  // 10
