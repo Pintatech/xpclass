@@ -30,12 +30,12 @@ const themeBackgroundsMobile = {
 
 // Desktop (horizontal) images - update these URLs with your horizontal images
 const themeBackgroundsDesktop = {
-  blue: "https://xpclass.vn/theme_test/pc1.jpg",
-  green: "https://xpclass.vn/theme_test/pc2.jpg",
-  purple: "https://xpclass.vn/xpclass/image/theme_exercise/pirate1.webp",
-  orange: "https://xpclass.vn/xpclass/image/theme_exercise/ninja1.webp",
-  red: "https://xpclass.vn/xpclass/image/theme_exercise/candy.webp",
-  yellow: "https://xpclass.vn/xpclass/image/theme_exercise/dessert.webp",
+  blue: "https://xpclass.vn/xpclass/image/theme_exercise_PC/ice.jpg",  //blue
+  green: "https://xpclass.vn/xpclass/image/theme_exercise_PC/forest.jpg", //forest
+  purple: "https://xpclass.vn/xpclass/image/theme_exercise_PC/pirate.jpg", //pirate
+  orange: "https://xpclass.vn/xpclass/image/theme_exercise_PC/ninja.png", //ninja
+  red: "https://xpclass.vn/xpclass/image/theme_exercise_PC/candy.jpg",  // candy
+  yellow: "https://xpclass.vn/xpclass/image/theme_exercise_PC/desert.jpg",  //desert
 };
 
 const getThemeBackgroundImage = (colorTheme, isDesktop = false) => {
@@ -1265,7 +1265,7 @@ const ExerciseList = () => {
         onMouseDown={handleMouseDown}
       >
         {current && !isDummy && (
-          <div className="absolute bottom-full left-0 right-0 mx-auto w-8 h-10 md:w-10 md:h-[50px] animate-bounce">
+          <div className="absolute bottom-full left-0 right-0 mx-auto w-8 h-10 md:w-14 md:h-[70px] animate-bounce">
             <svg viewBox="0 0 40 50" className="w-full h-full drop-shadow-lg">
               <defs>
                 <linearGradient
@@ -1291,18 +1291,18 @@ const ExerciseList = () => {
           <div
             className={`rounded-full flex items-center justify-center shadow-lg transition-all duration-300 ${
               isDummy
-                ? "w-[20px] h-[20px] md:w-[24px] md:h-[24px] border-2 bg-gradient-to-b from-gray-400 to-gray-500 border-gray-600 cursor-default"
+                ? "w-[20px] h-[20px] md:w-[32px] md:h-[32px] border-2 bg-gradient-to-b from-gray-400 to-gray-500 border-gray-600 cursor-default"
                 : !unlocked
-                  ? "w-[50px] h-[50px] md:w-[60px] md:h-[60px] border-4 bg-gradient-to-b from-gray-300 to-gray-400 border-gray-500 cursor-not-allowed"
+                  ? "w-[50px] h-[50px] md:w-[80px] md:h-[80px] border-4 bg-gradient-to-b from-gray-300 to-gray-400 border-gray-500 cursor-not-allowed"
                   : completed || current
-                    ? "w-[50px] h-[50px] md:w-[60px] md:h-[60px] border-4 bg-gradient-to-b from-emerald-400 to-emerald-500 border-emerald-600 hover:scale-110 hover:shadow-xl"
-                    : "w-[50px] h-[50px] md:w-[60px] md:h-[60px] border-4 bg-gradient-to-b from-amber-400 to-amber-500 border-amber-600 cursor-pointer hover:scale-110 hover:shadow-xl"
+                    ? "w-[50px] h-[50px] md:w-[100px] md:h-[100px] border-4 bg-gradient-to-b from-emerald-400 to-emerald-500 border-emerald-600 hover:scale-110 hover:shadow-xl"
+                    : "w-[50px] h-[50px] md:w-[100px] md:h-[100px] border-4 bg-gradient-to-b from-amber-400 to-amber-500 border-amber-600 cursor-pointer hover:scale-110 hover:shadow-xl"
             } ${current && !isDummy ? "animate-pulse shadow-emerald-400/40" : ""}`}
             onClick={handleClick}
           >
             {!isDummy && (
               <span
-                className={`text-xl md:text-2xl font-bold ${completed || current ? "text-white" : "text-gray-800"}`}
+                className={`text-xl md:text-3xl font-bold ${completed || current ? "text-white" : "text-gray-800"}`}
               >
                 {exerciseNumber}
               </span>
@@ -1314,7 +1314,7 @@ const ExerciseList = () => {
             {[1, 2, 3].map((star) => (
               <span
                 key={star}
-                className={`text-2xl md:text-3xl leading-none ${star <= stars ? "text-amber-400 drop-shadow-sm" : "text-gray-300"}`}
+                className={`text-2xl md:text-4xl leading-none ${star <= stars ? "text-amber-400 drop-shadow-sm" : "text-gray-300"}`}
               >
                 ★
               </span>
@@ -1369,12 +1369,13 @@ const ExerciseList = () => {
         {/* Map View */}
         {viewMode === "map" && (
           <>
-            {/* Path connecting exercises */}
-            <svg
-              className={`absolute inset-0 w-full h-full ${positionEditorMode && editorTarget === 'curves' ? 'z-20 pointer-events-auto' : 'z-5 pointer-events-none'}`}
-              viewBox="0 0 100 100"
-              preserveAspectRatio="none"
-            >
+            {/* Path connecting exercises - Hidden on PC/Desktop */}
+            {!isDesktop && (
+              <svg
+                className={`absolute inset-0 w-full h-full ${positionEditorMode && editorTarget === 'curves' ? 'z-20 pointer-events-auto' : 'z-5 pointer-events-none'}`}
+                viewBox="0 0 100 100"
+                preserveAspectRatio="none"
+              >
               <defs>
                 <linearGradient
                   id="pathGradient"
@@ -1455,6 +1456,7 @@ const ExerciseList = () => {
 
               })}
             </svg>
+            )}
 
             {/* Level nodes */}
             <div className={`absolute inset-0 w-full h-full ${positionEditorMode && editorTarget === 'nodes' ? 'z-30' : 'z-10'}`}>
