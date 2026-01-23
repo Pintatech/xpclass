@@ -1506,8 +1506,8 @@ const ExerciseList = () => {
           <ArrowLeft className="w-6 h-6 text-gray-600" />
         </button>
 
-        {/* Position Editor Toggle Button - Only in map view */}
-        {viewMode === "map" && (
+        {/* Position Editor Toggle Button - Only in map view and for admins */}
+        {viewMode === "map" && canCreateContent() && (
           <button
             onClick={() => {
               if (!positionEditorMode) {
@@ -1639,12 +1639,11 @@ const ExerciseList = () => {
                 handleClaimReward();
               }
             }}
-            className={`absolute top-4 right-0 z-[100] ${
+            className={`absolute top-4 right-4 md:top-10 md:left-4 md:right-auto w-[60px] h-[60px] md:w-[100px] md:h-[100px] z-[100] ${
               isSessionComplete() && !sessionRewards[sessionId]?.claimed
                 ? "cursor-pointer"
                 : "cursor-default"
             }`}
-            style={{ width: "60px", height: "60px" }}
           >
             <img
               src={
