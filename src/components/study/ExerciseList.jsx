@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import { Link, useParams, useNavigate } from "react-router-dom";
 import { supabase } from "../../supabase/client";
 import { useAuth } from "../../hooks/useAuth";
@@ -117,6 +117,14 @@ const ExerciseList = () => {
   const [selectedChest, setSelectedChest] = useState(null);
   // View toggle state
   const [viewMode, setViewMode] = useState("map"); // 'map' or 'list'
+  // Position editor mode - for dragging nodes and getting coordinates
+  const [positionEditorMode, setPositionEditorMode] = useState(false);
+  const [editorTarget, setEditorTarget] = useState('nodes'); // 'nodes' or 'curves'
+  const [editablePositions, setEditablePositions] = useState(null);
+  const [editableControlPoints, setEditableControlPoints] = useState(null);
+  const [draggingNode, setDraggingNode] = useState(null);
+  const [draggingControlPoint, setDraggingControlPoint] = useState(null);
+  const mapContainerRef = useRef(null);
   // Desktop detection for responsive node positions
   const [isDesktop, setIsDesktop] = useState(
     typeof window !== "undefined" ? window.innerWidth >= 768 : false
@@ -530,6 +538,54 @@ const ExerciseList = () => {
     window.addEventListener("resize", handleResize);
     return () => window.removeEventListener("resize", handleResize);
   }, []);
+
+  // Handle node drag in editor mode
+  const handleNodeDrag = useCallback((e) => {
+    if (!mapContainerRef.current) return;
+
+    const rect = mapContainerRef.current.getBoundingClientRect();
+    const x = ((e.clientX - rect.left) / rect.width) * 100;
+    const y = ((e.clientY - rect.top) / rect.height) * 100;
+
+    // Clamp values between 0 and 100
+    const clampedX = Math.max(0, Math.min(100, x));
+    const clampedY = Math.max(0, Math.min(100, y));
+
+    if (draggingNode !== null) {
+      setEditablePositions(prev => {
+        if (!prev) return prev;
+        const newPositions = [...prev];
+        newPositions[draggingNode] = { x: Math.round(clampedX), y: Math.round(clampedY) };
+        return newPositions;
+      });
+    } else if (draggingControlPoint !== null) {
+      setEditableControlPoints(prev => {
+        if (!prev) return prev;
+        const newPoints = [...prev];
+        newPoints[draggingControlPoint] = { x: Math.round(clampedX), y: Math.round(clampedY) };
+        return newPoints;
+      });
+    }
+  }, [draggingNode, draggingControlPoint]);
+
+  // Global mouse move/up handlers for dragging
+  useEffect(() => {
+    if (!positionEditorMode) return;
+
+    const handleMouseMove = (e) => handleNodeDrag(e);
+    const handleMouseUp = () => {
+      setDraggingNode(null);
+      setDraggingControlPoint(null);
+    };
+
+    document.addEventListener('mousemove', handleMouseMove);
+    document.addEventListener('mouseup', handleMouseUp);
+
+    return () => {
+      document.removeEventListener('mousemove', handleMouseMove);
+      document.removeEventListener('mouseup', handleMouseUp);
+    };
+  }, [positionEditorMode, handleNodeDrag]);
 
   const getExerciseIcon = (exerciseType) => {
     const IconImg = ({ src, className = "" }) => (
@@ -1075,7 +1131,7 @@ const ExerciseList = () => {
 
     let exerciseCounter = 0;
 
-    return allPositions.map((pos, posIndex) => {
+    const levels = allPositions.map((pos, posIndex) => {
       const isRealExercise = exerciseIndices.includes(posIndex);
 
       if (isRealExercise && exerciseCounter < exercises.length) {
@@ -1123,12 +1179,52 @@ const ExerciseList = () => {
         };
       }
     });
+
+    // Set dummy nodes' completed status based on the next real exercise
+    // A dummy node is completed if the next real exercise is completed
+    for (let i = levels.length - 1; i >= 0; i--) {
+      if (levels[i].isDummy) {
+        // Find the next real exercise
+        for (let j = i + 1; j < levels.length; j++) {
+          if (!levels[j].isDummy) {
+            levels[i].completed = levels[j].completed;
+            break;
+          }
+        }
+      }
+    }
+
+    return levels;
+  };
+
+  // Initialize editable positions when entering editor mode
+  const initEditablePositions = () => {
+    setEditablePositions([...allPositions]);
+    setEditableControlPoints([...curveControlPoints]);
+  };
+
+  // Copy positions to clipboard
+  const copyPositionsToClipboard = () => {
+    const positionsStr = editablePositions
+      .map((pos, i) => `      { x: ${pos.x}, y: ${pos.y} },  // ${i + 1}`)
+      .join('\n');
+    navigator.clipboard.writeText(positionsStr);
+    alert('Positions copied to clipboard! Paste into mapThemes.js → desktopPositions');
+  };
+
+  // Copy control points to clipboard
+  const copyControlPointsToClipboard = () => {
+    const pointsStr = editableControlPoints
+      .map((pos, i) => `      { x: ${pos.x}, y: ${pos.y} },   // curve ${i + 1} → ${i + 2}`)
+      .join('\n');
+    navigator.clipboard.writeText(pointsStr);
+    alert('Control points copied to clipboard! Paste into mapThemes.js → desktopControlPoints');
   };
 
   const levels = exercises.length > 0 ? generateLevels() : [];
 
   // Level Node Component
-  const LevelNode = ({ level }) => {
+  const LevelNode = ({ level, nodeIndex }) => {
     const {
       exerciseNumber,
       x,
@@ -1141,7 +1237,12 @@ const ExerciseList = () => {
       isDummy,
     } = level;
 
+    // Use editable position in editor mode
+    const displayX = positionEditorMode && editablePositions ? editablePositions[nodeIndex]?.x ?? x : x;
+    const displayY = positionEditorMode && editablePositions ? editablePositions[nodeIndex]?.y ?? y : y;
+
     const handleClick = () => {
+      if (positionEditorMode) return; // Don't navigate in editor mode
       if (unlocked && !isDummy) {
         navigate(
           `${getExercisePath(exercise)}?exerciseId=${exercise.id}&sessionId=${sessionId}&levelId=${levelId}&unitId=${unitId}`,
@@ -1149,10 +1250,19 @@ const ExerciseList = () => {
       }
     };
 
+    const handleMouseDown = (e) => {
+      if (!positionEditorMode || editorTarget !== 'nodes') return;
+      e.preventDefault();
+      setDraggingNode(nodeIndex);
+    };
+
+    const isNodeEditMode = positionEditorMode && editorTarget === 'nodes';
+
     return (
       <div
-        className={`absolute -translate-x-1/2 -translate-y-1/2 transition-all duration-300 ${current ? "z-20" : "z-10"}`}
-        style={{ left: `${x}%`, top: `${y}%` }}
+        className={`absolute -translate-x-1/2 -translate-y-1/2 ${isNodeEditMode ? 'cursor-move select-none' : ''} ${current ? "z-20" : "z-10"} ${isNodeEditMode ? '' : 'transition-all duration-300'}`}
+        style={{ left: `${displayX}%`, top: `${displayY}%` }}
+        onMouseDown={handleMouseDown}
       >
         {current && !isDummy && (
           <div className="absolute bottom-full left-0 right-0 mx-auto w-8 h-10 md:w-10 md:h-[50px] animate-bounce">
@@ -1179,14 +1289,14 @@ const ExerciseList = () => {
         )}
         <div className="relative flex items-center justify-center">
           <div
-            className={`w-[50px] h-[50px] md:w-[60px] md:h-[60px] rounded-full border-4 flex items-center justify-center shadow-lg transition-all duration-300 ${
+            className={`rounded-full flex items-center justify-center shadow-lg transition-all duration-300 ${
               isDummy
-                ? "bg-gradient-to-b from-gray-400 to-gray-500 border-gray-600 cursor-default"
+                ? "w-[20px] h-[20px] md:w-[24px] md:h-[24px] border-2 bg-gradient-to-b from-gray-400 to-gray-500 border-gray-600 cursor-default"
                 : !unlocked
-                  ? "bg-gradient-to-b from-gray-300 to-gray-400 border-gray-500 cursor-not-allowed"
+                  ? "w-[50px] h-[50px] md:w-[60px] md:h-[60px] border-4 bg-gradient-to-b from-gray-300 to-gray-400 border-gray-500 cursor-not-allowed"
                   : completed || current
-                    ? "bg-gradient-to-b from-emerald-400 to-emerald-500 border-emerald-600 hover:scale-110 hover:shadow-xl"
-                    : "bg-gradient-to-b from-amber-400 to-amber-500 border-amber-600 cursor-pointer hover:scale-110 hover:shadow-xl"
+                    ? "w-[50px] h-[50px] md:w-[60px] md:h-[60px] border-4 bg-gradient-to-b from-emerald-400 to-emerald-500 border-emerald-600 hover:scale-110 hover:shadow-xl"
+                    : "w-[50px] h-[50px] md:w-[60px] md:h-[60px] border-4 bg-gradient-to-b from-amber-400 to-amber-500 border-amber-600 cursor-pointer hover:scale-110 hover:shadow-xl"
             } ${current && !isDummy ? "animate-pulse shadow-emerald-400/40" : ""}`}
             onClick={handleClick}
           >
@@ -1204,7 +1314,7 @@ const ExerciseList = () => {
             {[1, 2, 3].map((star) => (
               <span
                 key={star}
-                className={`text-base leading-none ${star <= stars ? "text-amber-400 drop-shadow-sm" : "text-gray-300"}`}
+                className={`text-2xl md:text-3xl leading-none ${star <= stars ? "text-amber-400 drop-shadow-sm" : "text-gray-300"}`}
               >
                 ★
               </span>
@@ -1243,7 +1353,7 @@ const ExerciseList = () => {
 
   return (
     <div className="relative w-full h-[100vh] md:h-[100vh] overflow-hidden">
-      <div className="relative z-[1] w-full md:w-[100%] h-full md:h-[100vh] mx-auto overflow-hidden md:shadow-2xl bg-gray-100">
+      <div className="relative z-[1] w-full md:w-[100%] h-full md:h-[100vh] mx-auto overflow-hidden md:shadow-2xl bg-gray-100" ref={mapContainerRef}>
         {/* Background - only for map view */}
         {viewMode === "map" && (
           <img
@@ -1261,7 +1371,7 @@ const ExerciseList = () => {
           <>
             {/* Path connecting exercises */}
             <svg
-              className="absolute inset-0 w-full h-full pointer-events-none z-5"
+              className={`absolute inset-0 w-full h-full ${positionEditorMode && editorTarget === 'curves' ? 'z-20 pointer-events-auto' : 'z-5 pointer-events-none'}`}
               viewBox="0 0 100 100"
               preserveAspectRatio="none"
             >
@@ -1283,34 +1393,63 @@ const ExerciseList = () => {
                 const next = levels[i + 1];
                 const isCompleted = level.completed && next.completed;
 
-                // Get control point for this curve (fallback to midpoint if not defined)
-                const control = curveControlPoints[i] || {
+                // Use editable control points in editor mode
+                const controlPoints = positionEditorMode && editableControlPoints
+                  ? editableControlPoints
+                  : curveControlPoints;
+                const control = controlPoints[i] || {
                   x: (level.x + next.x) / 2,
                   y: (level.y + next.y) / 2,
                 };
 
+                // Use editable positions for path in editor mode
+                const levelPos = positionEditorMode && editablePositions
+                  ? editablePositions[i] || level
+                  : level;
+                const nextPos = positionEditorMode && editablePositions
+                  ? editablePositions[i + 1] || next
+                  : next;
+
                 return (
                   <g key={i}>
                     <path
-                      d={`M ${level.x} ${level.y} Q ${control.x} ${control.y} ${next.x} ${next.y}`}
+                      d={`M ${levelPos.x} ${levelPos.y} Q ${control.x} ${control.y} ${nextPos.x} ${nextPos.y}`}
                       fill="none"
                       stroke={isCompleted ? "#22c55e" : "#94a3b8"}
                       strokeWidth="1"
                       strokeLinecap="round"
                       strokeDasharray={isCompleted ? "0" : "2,1.5"}
                     />
-                    {/* DEBUG: Control point visualization - REMOVE AFTER EDITING */}
-                    <circle cx={control.x} cy={control.y} r="1.5" fill="red" />
-                    <text
-                      x={control.x + 2}
-                      y={control.y}
-                      fontSize="3"
-                      fill="red"
-                    >
-                      {i + 1}→{i + 2}
-                    </text>
-                    {/* DEBUG: Control point visualization - REMOVE AFTER EDITING */}
-
+                    {/* Control point - draggable in editor mode when editing curves */}
+                    {positionEditorMode && editorTarget === 'curves' && (
+                      <>
+                        {/* Larger invisible hit area for easier clicking */}
+                        <circle
+                          cx={control.x}
+                          cy={control.y}
+                          r="4"
+                          fill="transparent"
+                          className="cursor-move"
+                          style={{ pointerEvents: 'all' }}
+                          onMouseDown={(e) => {
+                            e.preventDefault();
+                            e.stopPropagation();
+                            setDraggingControlPoint(i);
+                          }}
+                        />
+                        {/* Visible orange dot */}
+                        <circle
+                          cx={control.x}
+                          cy={control.y}
+                          r="1.5"
+                          fill="red"
+                          stroke="white"
+                          strokeWidth="0.1"
+                          className="cursor-move"
+                          style={{ pointerEvents: 'none' }}
+                        />
+                      </>
+                    )}
                   </g>
                 );
 
@@ -1318,9 +1457,9 @@ const ExerciseList = () => {
             </svg>
 
             {/* Level nodes */}
-            <div className="absolute inset-0 w-full h-full z-10">
-              {levels.map((level) => (
-                <LevelNode key={level.id} level={level} />
+            <div className={`absolute inset-0 w-full h-full ${positionEditorMode && editorTarget === 'nodes' ? 'z-30' : 'z-10'}`}>
+              {levels.map((level, index) => (
+                <LevelNode key={level.id} level={level} nodeIndex={index} />
               ))}
             </div>
           </>
@@ -1359,6 +1498,108 @@ const ExerciseList = () => {
         >
           <ArrowLeft className="w-6 h-6 text-gray-600" />
         </button>
+
+        {/* Position Editor Toggle Button - Only in map view */}
+        {viewMode === "map" && (
+          <button
+            onClick={() => {
+              if (!positionEditorMode) {
+                initEditablePositions();
+              }
+              setPositionEditorMode(!positionEditorMode);
+            }}
+            className={`absolute top-4 right-4 p-2 rounded-lg shadow-lg transition-colors z-50 ${
+              positionEditorMode ? 'bg-red-500 text-white' : 'bg-white hover:bg-gray-100 text-gray-600'
+            }`}
+            title={positionEditorMode ? 'Exit Editor' : 'Edit Node Positions'}
+          >
+            <Edit className="w-6 h-6" />
+          </button>
+        )}
+
+        {/* Position Editor Panel */}
+        {positionEditorMode && editablePositions && editableControlPoints && (
+          <div className="absolute top-16 right-4 w-72 bg-white rounded-lg shadow-xl z-50 p-4 max-h-[80vh] overflow-y-auto">
+            <h3 className="font-bold text-gray-800 mb-2">Position Editor</h3>
+
+            {/* Editor Mode Toggle */}
+            <div className="flex rounded-lg overflow-hidden mb-4 border border-gray-200">
+              <button
+                onClick={() => setEditorTarget('nodes')}
+                className={`flex-1 py-2 px-3 text-sm font-medium transition-colors ${
+                  editorTarget === 'nodes'
+                    ? 'bg-emerald-500 text-white'
+                    : 'bg-gray-50 text-gray-600 hover:bg-gray-100'
+                }`}
+              >
+                Nodes
+              </button>
+              <button
+                onClick={() => setEditorTarget('curves')}
+                className={`flex-1 py-2 px-3 text-sm font-medium transition-colors ${
+                  editorTarget === 'curves'
+                    ? 'bg-orange-500 text-white'
+                    : 'bg-gray-50 text-gray-600 hover:bg-gray-100'
+                }`}
+              >
+                Curves
+              </button>
+            </div>
+
+            <p className="text-xs text-gray-500 mb-3">
+              {editorTarget === 'nodes'
+                ? 'Drag the green nodes to reposition them'
+                : 'Drag the orange dots to adjust curve shapes'
+              }
+            </p>
+
+            {/* Node Positions - shown when editing nodes */}
+            {editorTarget === 'nodes' && (
+              <div className="mb-4">
+                <h4 className="text-sm font-semibold text-gray-700 mb-1">Node Positions</h4>
+                <div className="space-y-1 text-xs font-mono bg-gray-100 p-2 rounded mb-2 max-h-40 overflow-y-auto">
+                  {editablePositions.map((pos, i) => (
+                    <div key={i} className="flex justify-between">
+                      <span className="text-gray-500">Node {i + 1}:</span>
+                      <span>x: {pos.x}, y: {pos.y}</span>
+                    </div>
+                  ))}
+                </div>
+                <button
+                  onClick={copyPositionsToClipboard}
+                  className="w-full bg-emerald-500 text-white py-2 px-3 rounded text-sm hover:bg-emerald-600 transition-colors"
+                >
+                  Copy Node Positions
+                </button>
+              </div>
+            )}
+
+            {/* Control Points - shown when editing curves */}
+            {editorTarget === 'curves' && (
+              <div>
+                <h4 className="text-sm font-semibold text-gray-700 mb-1">Curve Control Points</h4>
+                <div className="space-y-1 text-xs font-mono bg-orange-50 p-2 rounded mb-2 max-h-40 overflow-y-auto">
+                  {editableControlPoints.map((pos, i) => (
+                    <div key={i} className="flex justify-between">
+                      <span className="text-gray-500">{i + 1}→{i + 2}:</span>
+                      <span>x: {pos.x}, y: {pos.y}</span>
+                    </div>
+                  ))}
+                </div>
+                <button
+                  onClick={copyControlPointsToClipboard}
+                  className="w-full bg-orange-500 text-white py-2 px-3 rounded text-sm hover:bg-orange-600 transition-colors"
+                >
+                  Copy Control Points
+                </button>
+              </div>
+            )}
+
+            <p className="text-xs text-gray-400 mt-3 text-center">
+              Paste into mapThemes.js
+            </p>
+          </div>
+        )}
 
         {/* Session title overlay */}
         <div className="absolute top-4 left-1/2 transform -translate-x-1/2 bg-white/90 backdrop-blur-sm rounded-lg shadow-lg px-6 py-3 z-50">
