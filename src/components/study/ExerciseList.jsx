@@ -1666,33 +1666,31 @@ const ExerciseList = () => {
           </button>
         )}
 
-        {/* Chest Card - Always visible for students */}
-        {!canCreateContent() && (
-          <div
-            onClick={() => {
-              if (isSessionComplete() && !sessionRewards[sessionId]?.claimed) {
-                handleClaimReward();
-              } else if (!isSessionComplete() && !sessionRewards[sessionId]?.claimed) {
-                setShowLockedModal(true);
-              } else if (sessionRewards[sessionId]?.claimed) {
-                setShowOpenedModal(true);
-              }
-            }}
-            className={`absolute top-4 right-4 md:top-10 md:left-4 md:right-auto w-[60px] h-[60px] md:w-[100px] md:h-[100px] z-[100] cursor-pointer`}
-          >
-            <img
-              src={
-                sessionRewards[sessionId]?.claimed
-                  ? "https://xpclass.vn/xpclass/icon/chest_opened.png" // Opened
-                  : isSessionComplete()
-                    ? "https://xpclass.vn/xpclass/icon/chest_ready.png" // Ready to claim
-                    : "https://xpclass.vn/xpclass/icon/chest_locked.png" // Default (locked)
-              }
-              alt="Chest"
-              className="w-full h-full object-contain drop-shadow-lg"
-            />
-          </div>
-        )}
+        {/* Chest Card - Visible for everyone */}
+        <div
+          onClick={() => {
+            if (isSessionComplete() && !sessionRewards[sessionId]?.claimed) {
+              handleClaimReward();
+            } else if (!isSessionComplete() && !sessionRewards[sessionId]?.claimed) {
+              setShowLockedModal(true);
+            } else if (sessionRewards[sessionId]?.claimed) {
+              setShowOpenedModal(true);
+            }
+          }}
+          className={`absolute top-4 right-4 md:top-10 md:left-4 md:right-auto w-[60px] h-[60px] md:w-[100px] md:h-[100px] z-[100] cursor-pointer`}
+        >
+          <img
+            src={
+              sessionRewards[sessionId]?.claimed
+                ? "https://xpclass.vn/xpclass/icon/chest_opened.png" // Opened
+                : isSessionComplete()
+                  ? "https://xpclass.vn/xpclass/icon/chest_ready.png" // Ready to claim
+                  : "https://xpclass.vn/xpclass/icon/chest_locked.png" // Default (locked)
+            }
+            alt="Chest"
+            className="w-full h-full object-contain drop-shadow-lg"
+          />
+        </div>
 
         {/* Add Exercise Button - Only for admins/teachers */}
         {canCreateContent() && (
