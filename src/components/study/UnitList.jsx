@@ -38,11 +38,24 @@ const getRibbonImage = (colorTheme) => {
     blue: "https://xpclass.vn/xpclass/image/unit_list/ice_label.png",
     green: "https://xpclass.vn/xpclass/image/unit_list/forest_label.png",
     purple: "https://xpclass.vn/xpclass/image/unit_list/pirate_label.png",
-    orange: "https://xpclass.vn/xpclass/image/unit_list/ninja_label.png",
+    orange: "https://xpclass.vn/xpclass/image/unit_list/ninja_label1.png",
     red: "https://xpclass.vn/xpclass/image/unit_list/candy_label.png",
-    yellow: "https://xpclass.vn/xpclass/image/unit_list/ice_label.png",
+    yellow: "https://xpclass.vn/xpclass/image/unit_list/desert_label.png",
   };
   return themeRibbons[colorTheme] || themeRibbons.blue;
+};
+
+// Theme-based border colors for unit cards
+const getBorderColor = (colorTheme) => {
+  const themeBorders = {
+    blue: "border-[#4bece5]",
+    green: "border-green-400",
+    purple: "border-blue-400",
+    orange: "border-black",
+    red: "border-yellow-400",
+    yellow: "border-yellow-400",
+  };
+  return themeBorders[colorTheme] || themeBorders.blue;
 };
 
 const UnitList = () => {
@@ -464,15 +477,11 @@ const UnitList = () => {
     // Get colors based on status
     const getBackColor = () => {
       if (status === "completed") return "bg-green-700";
-      if (progressPercentage > 0) return "bg-orange-700";
-      if (isLocked) return "bg-gray-500";
       return "bg-gray-600";
     };
 
     const getFrontColor = () => {
       if (status === "completed") return "bg-green-500";
-      if (progressPercentage > 0) return "bg-orange-400";
-      if (isLocked) return "bg-gray-300";
       return "bg-gray-400";
     };
 
@@ -647,7 +656,7 @@ const UnitList = () => {
                 return (
                   <div
                     key={unit.id}
-                    className="relative rounded-lg border-white-400 p-4 overflow-visible"
+                    className={`relative rounded-lg border-4 ${getBorderColor(unit.color_theme)} p-4 overflow-visible`}
                     style={{
                       backgroundImage: `url(${backgroundImage})`,
                       backgroundSize: "cover",
@@ -667,7 +676,7 @@ const UnitList = () => {
                         />
 
                         {/* Text overlay */}
-                        <span className="absolute inset-0 flex items-center justify-center text-white font-bold text-sm drop-shadow-md">
+                        <span className="absolute inset-0 flex items-center justify-center text-white font-bold text-md drop-shadow-md">
                           {unit.title}
                         </span>
                       </div>
