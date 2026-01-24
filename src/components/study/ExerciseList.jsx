@@ -20,22 +20,22 @@ import {
 // Theme-based background images for exercise map
 // Mobile (vertical) images
 const themeBackgroundsMobile = {
-  blue: "https://xpclass.vn/xpclass/image/theme_exercise/ice.webp", 
-  green: "https://xpclass.vn/xpclass/image/theme_exercise/forest2.webp",
+  blue: "https://xpclass.vn/xpclass/image/theme_exercise/ice1.webp", 
+  green: "https://xpclass.vn/xpclass/image/theme_exercise/forest1.webp",
   purple: "https://xpclass.vn/xpclass/image/theme_exercise/pirate1.webp",
   orange: "https://xpclass.vn/xpclass/image/theme_exercise/ninja1.webp",
-  red: "https://xpclass.vn/xpclass/image/theme_exercise/candy.webp",
-  yellow: "https://xpclass.vn/xpclass/image/theme_exercise/dessert.webp",
+  red: "https://xpclass.vn/xpclass/image/theme_exercise/candy1.webp",
+  yellow: "https://xpclass.vn/xpclass/image/theme_exercise/desert1.webp",
 };
 
 // Desktop (horizontal) images - update these URLs with your horizontal images
 const themeBackgroundsDesktop = {
-  blue: "https://xpclass.vn/xpclass/image/theme_exercise_PC/ice.jpg",  //blue
-  green: "https://xpclass.vn/xpclass/image/theme_exercise_PC/forest.jpg", //forest
-  purple: "https://xpclass.vn/xpclass/image/theme_exercise_PC/pirate.jpg", //pirate
-  orange: "https://xpclass.vn/xpclass/image/theme_exercise_PC/ninja.png", //ninja
-  red: "https://xpclass.vn/xpclass/image/theme_exercise_PC/candy.jpg",  // candy
-  yellow: "https://xpclass.vn/xpclass/image/theme_exercise_PC/desert.jpg",  //desert
+  blue: "https://xpclass.vn/xpclass/image/theme_exercise_PC/ice1.webp",  //blue
+  green: "https://xpclass.vn/xpclass/image/theme_exercise_PC/forest1.webp", //forest
+  purple: "https://xpclass.vn/xpclass/image/theme_exercise_PC/pirate1.webp", //pirate
+  orange: "https://xpclass.vn/xpclass/image/theme_exercise_PC/ninja1.webp", //ninja
+  red: "https://xpclass.vn/xpclass/image/theme_exercise_PC/candy1.webp",  // candy
+  yellow: "https://xpclass.vn/xpclass/image/theme_exercise_PC/desert1.webp",  //desert
 };
 
 const getThemeBackgroundImage = (colorTheme, isDesktop = false) => {
@@ -1287,7 +1287,7 @@ const ExerciseList = () => {
         onMouseDown={handleMouseDown}
       >
         {current && !isDummy && (
-          <div className="absolute bottom-full left-0 right-0 mx-auto w-8 h-10 md:w-14 md:h-[70px] animate-bounce">
+          <div className="absolute bottom-full left-0 right-0 mx-auto w-8 h-10 md:w-14 md:h-[50px] animate-bounce">
             <svg viewBox="0 0 40 50" className="w-full h-full drop-shadow-lg">
               <defs>
                 <linearGradient
@@ -1315,8 +1315,8 @@ const ExerciseList = () => {
               isDummy
                 ? "w-[20px] h-[20px] md:w-[32px] md:h-[32px]"
                 : !unlocked
-                  ? "w-[50px] h-[50px] md:w-[80px] md:h-[80px] cursor-not-allowed"
-                  : "w-[50px] h-[50px] md:w-[100px] md:h-[100px]"
+                  ? "w-[50px] h-[50px] md:w-[80px] md:h-[80px] cursor-not-allowed"   // locked which is not used
+                  : "w-[42px] h-[42px] md:w-[80px] md:h-[80px]"
             }`}
             onClick={handleClick}
           >
@@ -1371,7 +1371,7 @@ const ExerciseList = () => {
                   : "https://xpclass.vn/xpclass/image/star_empty.png"
                 }
                 alt={star <= stars ? "Star filled" : "Star empty"}
-                className="w-6 h-6 md:w-10 md:h-10 block"
+                className="w-4 h-4 md:w-8 md:h-8 block"
               />
             ))}
           </div>
@@ -1578,8 +1578,7 @@ const ExerciseList = () => {
 
         {/* Position Editor Panel */}
         {positionEditorMode && editablePositions && editableControlPoints && (
-          <div className="absolute top-16 right-4 w-72 bg-white rounded-lg shadow-xl z-50 p-4 max-h-[80vh] overflow-y-auto">
-            <h3 className="font-bold text-gray-800 mb-2">Position Editor</h3>
+          <div className="absolute top-16 right-4  bg-white rounded-lg shadow-xl z-50 max-h-[80vh] overflow-y-auto">
 
             {/* Editor Mode Toggle */}
             <div className="flex rounded-lg overflow-hidden mb-4 border border-gray-200">
@@ -1605,18 +1604,11 @@ const ExerciseList = () => {
               </button>
             </div>
 
-            <p className="text-xs text-gray-500 mb-3">
-              {editorTarget === 'nodes'
-                ? 'Drag the green nodes to reposition them'
-                : 'Drag the orange dots to adjust curve shapes'
-              }
-            </p>
-
             {/* Node Positions - shown when editing nodes */}
             {editorTarget === 'nodes' && (
-              <div className="mb-4">
+              <div className="mb-0">
                 <h4 className="text-sm font-semibold text-gray-700 mb-1">Node Positions</h4>
-                <div className="space-y-1 text-xs font-mono bg-gray-100 p-2 rounded mb-2 max-h-40 overflow-y-auto">
+                <div className="space-y-1 text-xs font-mono bg-gray-100 p-2 rounded mb-2 max-h-10 overflow-y-auto">
                   {editablePositions.map((pos, i) => (
                     <div key={i} className="flex justify-between">
                       <span className="text-gray-500">Node {i + 1}:</span>
@@ -1637,7 +1629,7 @@ const ExerciseList = () => {
             {editorTarget === 'curves' && (
               <div>
                 <h4 className="text-sm font-semibold text-gray-700 mb-1">Curve Control Points</h4>
-                <div className="space-y-1 text-xs font-mono bg-orange-50 p-2 rounded mb-2 max-h-40 overflow-y-auto">
+                <div className="space-y-1 text-xs font-mono bg-orange-50 p-2 rounded mb-2 max-h-10 overflow-y-auto">
                   {editableControlPoints.map((pos, i) => (
                     <div key={i} className="flex justify-between">
                       <span className="text-gray-500">{i + 1}→{i + 2}:</span>
@@ -1653,10 +1645,6 @@ const ExerciseList = () => {
                 </button>
               </div>
             )}
-
-            <p className="text-xs text-gray-400 mt-3 text-center">
-              Paste into mapThemes.js
-            </p>
           </div>
         )}
 
@@ -1694,7 +1682,7 @@ const ExerciseList = () => {
               setShowOpenedModal(true);
             }
           }}
-          className={`absolute top-4 right-4 md:top-10 md:left-4 md:right-auto w-[60px] h-[60px] md:w-[100px] md:h-[100px] z-[100] cursor-pointer`}
+          className={`absolute top-4 right-4 md:top-10 md:left-4 md:right-auto w-[60px] h-[60px] md:w-[100px] md:h-[100px] z-[100] cursor-pointer hidden`}
         >
           <img
             src={
