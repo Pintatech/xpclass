@@ -1587,7 +1587,7 @@ const ExerciseList = () => {
               setShowOpenedModal(true);
             }
           }}
-          className={`absolute top-4 right-4 md:top-10 md:left-4 md:right-auto w-[60px] h-[60px] md:w-[100px] md:h-[100px] z-[100] cursor-pointer hidden`}
+          className={`absolute top-4 right-4 md:top-10 md:left-4 md:right-auto w-[60px] h-[60px] md:w-[100px] md:h-[100px] z-[100] cursor-pointer`}
         >
           <img
             src={
