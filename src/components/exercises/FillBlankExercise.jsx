@@ -1108,9 +1108,9 @@ const FillBlankExercise = () => {
   const sideImages = getThemeSideImages(colorTheme)
 
   return (
-    <div className="relative px-4 pt-6 pb-12">
-      {/* Left side image - only visible on desktop (md and up) */}
-      <div className="hidden md:block fixed left-0 bottom-[5%] -translate-y-1/2 w-48 lg:w-64 xl:w-80 pointer-events-none z-10">
+    <>
+      {/* Left side image - only visible on desktop (md and up) - Fixed to viewport */}
+      <div className="hidden md:block fixed left-0 bottom-[0%] w-48 lg:w-64 xl:w-80 pointer-events-none z-10">
         <img
           src={sideImages.left}
           alt="Theme decoration left"
@@ -1119,8 +1119,8 @@ const FillBlankExercise = () => {
         />
       </div>
 
-      {/* Right side image - only visible on desktop (md and up) */}
-      <div className="hidden md:block fixed right-0 bottom-[5%] -translate-y-1/2 w-48 lg:w-64 xl:w-80 pointer-events-none z-10">
+      {/* Right side image - only visible on desktop (md and up) - Fixed to viewport */}
+      <div className="hidden md:block fixed right-0 bottom-[0%] w-48 lg:w-64 xl:w-80 pointer-events-none z-10">
         <img
           src={sideImages.right}
           alt="Theme decoration right"
@@ -1129,6 +1129,7 @@ const FillBlankExercise = () => {
         />
       </div>
 
+      <div className="relative px-4 pt-6 pb-12">
       {/* Meme Overlay */}
       {showMeme && currentMeme && (
         <div className="fixed inset-0 flex items-center justify-center z-50 pointer-events-none">
@@ -1324,7 +1325,8 @@ const FillBlankExercise = () => {
         </div>
       )}
       </div>
-    </div>
+      </div>
+    </>
   )
 }
 

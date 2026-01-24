@@ -554,7 +554,7 @@ const MultipleChoiceExercise = () => {
   return (
     <>
       {/* Left side image - only visible on desktop (md and up) - Fixed to viewport */}
-      <div className="hidden md:block fixed left-0 bottom-[5%] w-48 lg:w-64 xl:w-80 pointer-events-none z-10">
+      <div className="hidden md:block fixed left-0 bottom-[0%] w-48 lg:w-64 xl:w-80 pointer-events-none z-10">
         <img
           src={sideImages.left}
           alt="Theme decoration left"
@@ -564,7 +564,7 @@ const MultipleChoiceExercise = () => {
       </div>
 
       {/* Right side image - only visible on desktop (md and up) - Fixed to viewport */}
-      <div className="hidden md:block fixed right-0 bottom-[5%] w-48 lg:w-64 xl:w-80 pointer-events-none z-10">
+      <div className="hidden md:block fixed right-0 bottom-[0%] w-48 lg:w-64 xl:w-80 pointer-events-none z-10">
         <img
           src={sideImages.right}
           alt="Theme decoration right"

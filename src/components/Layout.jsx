@@ -18,7 +18,7 @@ const Layout = () => {
     '/study/speaking',
     '/study/pronunciation',
     '/study/drag-drop',
-    '/study/hotspot',
+    '/study/image-hotspot',
     '/study/dropdown',
     '/study/ai-fill-blank'
   ]
