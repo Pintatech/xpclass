@@ -68,27 +68,15 @@ import {
 import { getMapTheme } from "../../config/mapThemes";
 
 // Returns indices of positions where real exercises should be placed
-function getExerciseIndices(count, positions) {
+// customMappings comes from the theme config in mapThemes.js
+function getExerciseIndices(count, positions, customMappings) {
   if (count <= 0) return [];
   if (count >= positions.length) {
     return positions.map((_, i) => i);
   }
 
-  // Custom position mappings (position numbers - 1 = array indices)
-  const customMappings = {
-    1: [0],                               // Position 1
-    2: [0, 10],                           // Positions 1, 11
-    3: [0, 5, 10],                        // Positions 1, 6, 11
-    4: [0, 4, 7, 10],                     // Positions 1, 4, 8, 11
-    5: [0, 4, 7, 9, 10],                  // Positions 1, 5, 8, 10, 11
-    6: [0, 2, 6, 7, 8, 10],               // Positions 1, 3, 5, 7, 9, 11
-    7: [0, 2, 4, 6, 7, 9, 10],            // Positions 1, 3, 5, 7, 8, 10, 11
-    8: [0, 3, 5, 6, 7, 8, 9, 10],         // Skip positions 2, 3, 5 (use 1, 4, 6, 7, 8, 9, 10, 11)
-    9: [0, 3, 4, 5, 6, 7, 8, 9, 10],   // Skip position 2 (use all except 2)
-    10: [0, 2, 3, 4, 5, 6, 7, 8, 9, 10],  // Skip position 2 (use all except 2)
-  };
-
-  if (customMappings[count]) {
+  // Use theme-specific custom mappings if available
+  if (customMappings && customMappings[count]) {
     return customMappings[count];
   }
 
@@ -1143,7 +1131,11 @@ const ExerciseList = () => {
 
   // Generate all 11 levels (real exercises + dummy nodes)
   const generateLevels = () => {
-    const exerciseIndices = getExerciseIndices(exercises.length, allPositions);
+    // Use desktop mappings on PC, mobile mappings on mobile
+    const customMappings = isDesktop && mapTheme.desktopCustomMappings
+      ? mapTheme.desktopCustomMappings
+      : mapTheme.customMappings;
+    const exerciseIndices = getExerciseIndices(exercises.length, allPositions, customMappings);
 
     // Find the first incomplete exercise index
     const currentExerciseIndex = exercises.findIndex((ex) => {
@@ -1313,7 +1305,7 @@ const ExerciseList = () => {
           <button
             className={`relative outline-none border-none transition-all duration-300 ${
               isDummy
-                ? "w-[20px] h-[20px] md:w-[32px] md:h-[32px]"
+                ? "w-[14px] h-[14px] md:w-[32px] md:h-[32px]"
                 : !unlocked
                   ? "w-[50px] h-[50px] md:w-[80px] md:h-[80px] cursor-not-allowed"   // locked which is not used
                   : "w-[42px] h-[42px] md:w-[80px] md:h-[80px]"
@@ -1424,94 +1416,7 @@ const ExerciseList = () => {
         {/* Map View */}
         {viewMode === "map" && (
           <>
-            {/* Path connecting exercises - Hidden on PC/Desktop */}
-            {!isDesktop && (
-              <svg
-                className={`absolute inset-0 w-full h-full ${positionEditorMode && editorTarget === 'curves' ? 'z-20 pointer-events-auto' : 'z-5 pointer-events-none'}`}
-                viewBox="0 0 100 100"
-                preserveAspectRatio="none"
-              >
-              <defs>
-                <linearGradient
-                  id="pathGradient"
-                  x1="0%"
-                  y1="100%"
-                  x2="0%"
-                  y2="0%"
-                >
-                  <stop offset="0%" stopColor="#cbd5e1" />
-                  <stop offset="100%" stopColor="#94a3b8" />
-                </linearGradient>
-              </defs>
-              {levels.map((level, i) => {
-                if (i === levels.length - 1) return null;
-
-                const next = levels[i + 1];
-                const isCompleted = level.completed && next.completed;
-
-                // Use editable control points in editor mode
-                const controlPoints = positionEditorMode && editableControlPoints
-                  ? editableControlPoints
-                  : curveControlPoints;
-                const control = controlPoints[i] || {
-                  x: (level.x + next.x) / 2,
-                  y: (level.y + next.y) / 2,
-                };
-
-                // Use editable positions for path in editor mode
-                const levelPos = positionEditorMode && editablePositions
-                  ? editablePositions[i] || level
-                  : level;
-                const nextPos = positionEditorMode && editablePositions
-                  ? editablePositions[i + 1] || next
-                  : next;
-
-                return (
-                  <g key={i}>
-                    <path
-                      d={`M ${levelPos.x} ${levelPos.y} Q ${control.x} ${control.y} ${nextPos.x} ${nextPos.y}`}
-                      fill="none"
-                      stroke={isCompleted ? "#22c55e" : "#94a3b8"}
-                      strokeWidth="1"
-                      strokeLinecap="round"
-                      strokeDasharray={isCompleted ? "0" : "2,1.5"}
-                    />
-                    {/* Control point - draggable in editor mode when editing curves */}
-                    {positionEditorMode && editorTarget === 'curves' && (
-                      <>
-                        {/* Larger invisible hit area for easier clicking */}
-                        <circle
-                          cx={control.x}
-                          cy={control.y}
-                          r="4"
-                          fill="transparent"
-                          className="cursor-move"
-                          style={{ pointerEvents: 'all' }}
-                          onMouseDown={(e) => {
-                            e.preventDefault();
-                            e.stopPropagation();
-                            setDraggingControlPoint(i);
-                          }}
-                        />
-                        {/* Visible orange dot */}
-                        <circle
-                          cx={control.x}
-                          cy={control.y}
-                          r="1.5"
-                          fill="red"
-                          stroke="white"
-                          strokeWidth="0.1"
-                          className="cursor-move"
-                          style={{ pointerEvents: 'none' }}
-                        />
-                      </>
-                    )}
-                  </g>
-                );
-
-              })}
-            </svg>
-            )}
+            {/* SVG path connecting exercises - removed (not used) */}
 
             {/* Level nodes */}
             <div className={`absolute inset-0 w-full h-full ${positionEditorMode && editorTarget === 'nodes' ? 'z-30' : 'z-10'}`}>
