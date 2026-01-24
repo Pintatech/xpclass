@@ -13,6 +13,38 @@ import Button3D from '../ui/Button3D'
 import ExerciseHeader from './ExerciseHeader'
 import CelebrationScreen from '../ui/CelebrationScreen'
 
+// Theme-based side decoration images for PC
+const themeSideImages = {
+  blue: {
+    left: "https://xpclass.vn/xpclass/image/theme_question/ice_left.png",
+    right: "https://xpclass.vn/xpclass/image/theme_question/ice_right.png",
+  },
+  green: {
+    left: "https://xpclass.vn/xpclass/image/theme_question/forest_left.png",
+    right: "https://xpclass.vn/xpclass/image/theme_question/forest_right.png"
+  },
+  purple: {
+    left: "https://xpclass.vn/xpclass/image/theme_question/pirate.png",
+    right: "https://xpclass.vn/xpclass/image/theme_question/pirate.png"
+  },
+  orange: {
+    left: "https://xpclass.vn/xpclass/image/theme_question/ninja_left.png",
+    right: "https://xpclass.vn/xpclass/image/theme_question/ninja_right.png"
+  },
+  red: {
+    left: "https://xpclass.vn/xpclass/image/theme_question/candy_left.png",
+    right: "https://xpclass.vn/xpclass/image/theme_question/candy_right.png"
+  },
+  yellow: {
+    left: "https://xpclass.vn/xpclass/image/theme_question/desert_left.png",
+    right: "https://xpclass.vn/xpclass/image/theme_question/desert_right.png"
+  }
+}
+
+const getThemeSideImages = (theme) => {
+  return themeSideImages[theme] || themeSideImages.blue
+}
+
 const MultipleChoiceExercise = () => {
   const location = useLocation()
   const navigate = useNavigate()
@@ -33,6 +65,7 @@ const MultipleChoiceExercise = () => {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState(null)
   const [session, setSession] = useState(null)
+  const [colorTheme, setColorTheme] = useState('blue')
 
   // Quiz state
   const [currentQuestionIndex, setCurrentQuestionIndex] = useState(0)
@@ -115,7 +148,8 @@ const MultipleChoiceExercise = () => {
           units:unit_id (
             id,
             title,
-            course_id
+            course_id,
+            color_theme
           )
         `)
         .eq('id', sessionId)
@@ -123,6 +157,10 @@ const MultipleChoiceExercise = () => {
 
       if (error) throw error
       setSession(data)
+
+      // Set color theme from session or unit
+      const theme = data?.color_theme || data?.units?.color_theme || 'blue'
+      setColorTheme(theme)
     } catch (err) {
       console.error('Error fetching session info:', err)
     }
@@ -511,9 +549,32 @@ const MultipleChoiceExercise = () => {
     )
   }
 
+  const sideImages = getThemeSideImages(colorTheme)
+
   return (
-    <div className="px-2 md:pt-2 pb-12">
-      <div className="max-w-4xl mx-auto space-y-6">
+    <>
+      {/* Left side image - only visible on desktop (md and up) - Fixed to viewport */}
+      <div className="hidden md:block fixed left-0 bottom-[5%] w-48 lg:w-64 xl:w-80 pointer-events-none z-10">
+        <img
+          src={sideImages.left}
+          alt="Theme decoration left"
+          className="w-full h-auto object-contain"
+          style={{ maxHeight: '80vh' }}
+        />
+      </div>
+
+      {/* Right side image - only visible on desktop (md and up) - Fixed to viewport */}
+      <div className="hidden md:block fixed right-0 bottom-[5%] w-48 lg:w-64 xl:w-80 pointer-events-none z-10">
+        <img
+          src={sideImages.right}
+          alt="Theme decoration right"
+          className="w-full h-auto object-contain"
+          style={{ maxHeight: '80vh' }}
+        />
+      </div>
+
+      <div className="relative px-2 md:pt-2 pb-12">
+        <div className="max-w-4xl mx-auto space-y-6 relative z-20">
 
       {/* Header - hide on celebration screen */}
       {!isQuizComplete && (
@@ -531,6 +592,7 @@ const MultipleChoiceExercise = () => {
           showBatman={viewMode === 'one-by-one'}
           showProgressLabel={false}
           showQuestionCounter={false}
+          colorTheme={colorTheme}
         />
       )}
 
@@ -992,8 +1054,9 @@ const MultipleChoiceExercise = () => {
           )}
         </>
       )}
+        </div>
       </div>
-    </div>
+    </>
   )
 }
 

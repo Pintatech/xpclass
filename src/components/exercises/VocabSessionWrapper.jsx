@@ -6,6 +6,38 @@ import LoadingSpinner from '../ui/LoadingSpinner';
 import { saveRecentExercise } from '../../utils/recentExercise';
 import { ArrowLeft, Star } from 'lucide-react';
 
+// Theme-based side decoration images for PC
+const themeSideImages = {
+  blue: {
+    left: "https://xpclass.vn/xpclass/image/theme_question/ice_left.png",
+    right: "https://xpclass.vn/xpclass/image/theme_question/ice_right.png",
+  },
+  green: {
+    left: "https://xpclass.vn/xpclass/image/theme_question/forest_left.png",
+    right: "https://xpclass.vn/xpclass/image/theme_question/forest_right.png"
+  },
+  purple: {
+    left: "https://xpclass.vn/xpclass/image/theme_question/pirate.png",
+    right: "https://xpclass.vn/xpclass/image/theme_question/pirate.png"
+  },
+  orange: {
+    left: "https://xpclass.vn/xpclass/image/theme_question/ninja_left.png",
+    right: "https://xpclass.vn/xpclass/image/theme_question/ninja_right.png"
+  },
+  red: {
+    left: "https://xpclass.vn/xpclass/image/theme_question/candy_left.png",
+    right: "https://xpclass.vn/xpclass/image/theme_question/candy_right.png"
+  },
+  yellow: {
+    left: "https://xpclass.vn/xpclass/image/theme_question/desert_left.png",
+    right: "https://xpclass.vn/xpclass/image/theme_question/desert_right.png"
+  }
+}
+
+const getThemeSideImages = (theme) => {
+  return themeSideImages[theme] || themeSideImages.blue
+}
+
 // Styled text rendering function
 const renderStyledText = (text) => {
   if (!text) return text;
@@ -60,6 +92,8 @@ const VocabSessionWrapper = () => {
   const [wordPronunciationResult, setWordPronunciationResult] = useState(null);
   const [completedPairs, setCompletedPairs] = useState(new Set());
   const [showWordExercise, setShowWordExercise] = useState(false);
+  const [session, setSession] = useState(null);
+  const [colorTheme, setColorTheme] = useState('blue');
 
   // iOS detection
   const isIOS = typeof navigator !== 'undefined' && (
@@ -87,6 +121,35 @@ const VocabSessionWrapper = () => {
   }, [currentView, navigate]);
 
   useEffect(() => {
+    const fetchSessionInfo = async () => {
+      if (!sessionId) return
+
+      try {
+        const { data, error } = await supabase
+          .from('sessions')
+          .select(`
+            *,
+            units:unit_id (
+              id,
+              title,
+              course_id,
+              color_theme
+            )
+          `)
+          .eq('id', sessionId)
+          .single()
+
+        if (error) throw error
+        setSession(data)
+
+        // Set color theme from session or unit
+        const theme = data?.color_theme || data?.units?.color_theme || 'blue'
+        setColorTheme(theme)
+      } catch (err) {
+        console.error('Error fetching session info:', err)
+      }
+    }
+
     const fetchExercises = async () => {
       setLoading(true);
       setError(null);
@@ -192,6 +255,7 @@ const VocabSessionWrapper = () => {
       }
     };
 
+    fetchSessionInfo();
     fetchExercises();
   }, [sessionId, urlSessionId, pairIndex, user]);
 
@@ -357,8 +421,31 @@ const VocabSessionWrapper = () => {
     );
   }
 
+  const sideImages = getThemeSideImages(colorTheme)
+
   return (
-    <div className="max-w-6xl mx-auto p-4">
+    <div className="relative max-w-6xl mx-auto p-4">
+      {/* Left side image - only visible on desktop (md and up) */}
+      <div className="hidden md:block fixed left-0 bottom-[5%] -translate-y-1/2 w-48 lg:w-64 xl:w-80 pointer-events-none z-10">
+        <img
+          src={sideImages.left}
+          alt="Theme decoration left"
+          className="w-full h-auto object-contain"
+          style={{ maxHeight: '80vh' }}
+        />
+      </div>
+
+      {/* Right side image - only visible on desktop (md and up) */}
+      <div className="hidden md:block fixed right-0 bottom-[5%] -translate-y-1/2 w-48 lg:w-64 xl:w-80 pointer-events-none z-10">
+        <img
+          src={sideImages.right}
+          alt="Theme decoration right"
+          className="w-full h-auto object-contain"
+          style={{ maxHeight: '80vh' }}
+        />
+      </div>
+
+      <div className="relative z-20">
       {/* Grid View */}
       {currentView === 'grid' && (
         <div>
@@ -447,7 +534,7 @@ const VocabSessionWrapper = () => {
                   </div>
                   
                   {/* Circle at 50% (middle) */}
-                  <div className="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2">
+                  <div className="absolute bottom-[5%] left-1/2 transform -translate-x-1/2 -translate-y-1/2">
                     <div className={`w-6 h-6 rounded-full flex items-center justify-center ${
                       wordPronunciationResult 
                         ? 'bg-blue-600' 
@@ -458,7 +545,7 @@ const VocabSessionWrapper = () => {
                   </div>
                   
                   {/* Circle at 100% (end) */}
-                  <div className="absolute top-1/2 right-0 transform translate-x-1/2 -translate-y-1/2">
+                  <div className="absolute bottom-[5%] right-0 transform translate-x-1/2 -translate-y-1/2">
                     <div className="w-6 h-6 rounded-full bg-gray-200 flex items-center justify-center">
                       <span className="text-gray-400 text-xs font-bold">✓</span>
                     </div>
@@ -496,6 +583,7 @@ const VocabSessionWrapper = () => {
 
         </div>
       )}
+      </div>
     </div>
   );
 };

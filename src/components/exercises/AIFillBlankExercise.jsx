@@ -7,6 +7,38 @@ import LoadingSpinner from '../ui/LoadingSpinner'
 import { callAIScoring as localAIScoring } from '../../utils/aiScoringService'
 import RichTextRenderer from '../ui/RichTextRenderer'
 
+// Theme-based side decoration images for PC
+const themeSideImages = {
+  blue: {
+    left: "https://xpclass.vn/xpclass/image/theme_question/ice_left.png",
+    right: "https://xpclass.vn/xpclass/image/theme_question/ice_right.png",
+  },
+  green: {
+    left: "https://xpclass.vn/xpclass/image/theme_question/forest_left.png",
+    right: "https://xpclass.vn/xpclass/image/theme_question/forest_right.png"
+  },
+  purple: {
+    left: "https://xpclass.vn/xpclass/image/theme_question/pirate.png",
+    right: "https://xpclass.vn/xpclass/image/theme_question/pirate.png"
+  },
+  orange: {
+    left: "https://xpclass.vn/xpclass/image/theme_question/ninja_left.png",
+    right: "https://xpclass.vn/xpclass/image/theme_question/ninja_right.png"
+  },
+  red: {
+    left: "https://xpclass.vn/xpclass/image/theme_question/candy_left.png",
+    right: "https://xpclass.vn/xpclass/image/theme_question/candy_right.png"
+  },
+  yellow: {
+    left: "https://xpclass.vn/xpclass/image/theme_question/desert_left.png",
+    right: "https://xpclass.vn/xpclass/image/theme_question/desert_right.png"
+  }
+}
+
+const getThemeSideImages = (theme) => {
+  return themeSideImages[theme] || themeSideImages.blue
+}
+
 const AIFillBlankExercise = () => {
   const location = useLocation()
   const navigate = useNavigate()
@@ -25,6 +57,8 @@ const AIFillBlankExercise = () => {
   const [attempts, setAttempts] = useState(0)
   const [startTime, setStartTime] = useState(null)
   const [timeSpent, setTimeSpent] = useState(0)
+  const [colorTheme, setColorTheme] = useState('blue')
+  const [session, setSession] = useState(null)
 
   // Keep language in sync with exercise settings (must be before any early returns)
   const exerciseLanguage = exercise?.content?.settings?.language
@@ -44,6 +78,39 @@ const AIFillBlankExercise = () => {
       fetchExercise()
     }
   }, [exerciseId])
+
+  useEffect(() => {
+    if (sessionId) {
+      fetchSessionInfo()
+    }
+  }, [sessionId])
+
+  const fetchSessionInfo = async () => {
+    try {
+      const { data, error } = await supabase
+        .from('sessions')
+        .select(`
+          *,
+          units:unit_id (
+            id,
+            title,
+            course_id,
+            color_theme
+          )
+        `)
+        .eq('id', sessionId)
+        .single()
+
+      if (error) throw error
+      setSession(data)
+
+      // Set color theme from session or unit
+      const theme = data?.color_theme || data?.units?.color_theme || 'blue'
+      setColorTheme(theme)
+    } catch (err) {
+      console.error('Error fetching session info:', err)
+    }
+  }
 
   // Start time tracking when exercise loads
   useEffect(() => {
@@ -274,9 +341,32 @@ const AIFillBlankExercise = () => {
   const aiScore = aiScores[currentQuestionIndex]
   const showResult = showResults[currentQuestionIndex]
 
+  const sideImages = getThemeSideImages(colorTheme)
+
   return (
-    <div className="min-h-screen bg-white">
-      
+    <div className="relative min-h-screen bg-white">
+      {/* Left side image - only visible on desktop (md and up) */}
+      <div className="hidden md:block fixed left-0 bottom-[5%] -translate-y-1/2 w-48 lg:w-64 xl:w-80 pointer-events-none z-10">
+        <img
+          src={sideImages.left}
+          alt="Theme decoration left"
+          className="w-full h-auto object-contain"
+          style={{ maxHeight: '80vh' }}
+        />
+      </div>
+
+      {/* Right side image - only visible on desktop (md and up) */}
+      <div className="hidden md:block fixed right-0 bottom-[5%] -translate-y-1/2 w-48 lg:w-64 xl:w-80 pointer-events-none z-10">
+        <img
+          src={sideImages.right}
+          alt="Theme decoration right"
+          className="w-full h-auto object-contain"
+          style={{ maxHeight: '80vh' }}
+        />
+      </div>
+
+      <div className="relative z-20">
+
       {/* Header */}
       <div className="bg-white shadow-sm border-b">
         <div className="max-w-4xl mx-auto px-4 py-4">
@@ -438,6 +528,7 @@ const AIFillBlankExercise = () => {
           )}
         </div>
       </div>
+    </div>
     </div>
   )
 }

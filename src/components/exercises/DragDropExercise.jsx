@@ -11,6 +11,38 @@ import ExerciseHeader from './ExerciseHeader'
 import RichTextRenderer from '../ui/RichTextRenderer'
 import AudioPlayer from '../ui/AudioPlayer'
 
+// Theme-based side decoration images for PC
+const themeSideImages = {
+  blue: {
+    left: "https://xpclass.vn/xpclass/image/theme_question/ice_left.png",
+    right: "https://xpclass.vn/xpclass/image/theme_question/ice_right.png",
+  },
+  green: {
+    left: "https://xpclass.vn/xpclass/image/theme_question/forest_left.png",
+    right: "https://xpclass.vn/xpclass/image/theme_question/forest_right.png"
+  },
+  purple: {
+    left: "https://xpclass.vn/xpclass/image/theme_question/pirate.png",
+    right: "https://xpclass.vn/xpclass/image/theme_question/pirate.png"
+  },
+  orange: {
+    left: "https://xpclass.vn/xpclass/image/theme_question/ninja_left.png",
+    right: "https://xpclass.vn/xpclass/image/theme_question/ninja_right.png"
+  },
+  red: {
+    left: "https://xpclass.vn/xpclass/image/theme_question/candy_left.png",
+    right: "https://xpclass.vn/xpclass/image/theme_question/candy_right.png"
+  },
+  yellow: {
+    left: "https://xpclass.vn/xpclass/image/theme_question/desert_left.png",
+    right: "https://xpclass.vn/xpclass/image/theme_question/desert_right.png"
+  }
+}
+
+const getThemeSideImages = (theme) => {
+  return themeSideImages[theme] || themeSideImages.blue
+}
+
 // Helper function to parse content and extract audio tags
 const parseContentWithAudio = (content) => {
   if (!content || typeof content !== 'string') {
@@ -136,6 +168,7 @@ const DragDropExercise = () => {
   const [questionResults, setQuestionResults] = useState([]) // Track results for each question
   const [session, setSession] = useState(null)
   const [hasPlayedPassAudio, setHasPlayedPassAudio] = useState(false)
+  const [colorTheme, setColorTheme] = useState('blue')
 
   useEffect(() => {
     fetchExercise()
@@ -156,7 +189,8 @@ const DragDropExercise = () => {
             units:unit_id (
               id,
               title,
-              course_id
+              course_id,
+              color_theme
             )
           `)
           .eq('id', sessionId)
@@ -164,6 +198,10 @@ const DragDropExercise = () => {
 
         if (error) throw error
         setSession(data)
+
+        // Set color theme from session or unit
+        const theme = data?.color_theme || data?.units?.color_theme || 'blue'
+        setColorTheme(theme)
       } catch (err) {
         console.error('Error fetching session info:', err)
       }
@@ -759,9 +797,32 @@ const DragDropExercise = () => {
     totalQuestions: exercise?.content?.questions?.length || 0
   })
 
+  const sideImages = getThemeSideImages(colorTheme)
+
   return (
-    <div className="px-2 md:pt-2 pb-12">
-      <div className="max-w-4xl mx-auto space-y-6">
+    <>
+      {/* Left side image - only visible on desktop (md and up) - Fixed to viewport */}
+      <div className="hidden md:block fixed left-0 bottom-[5%] w-48 lg:w-64 xl:w-80 pointer-events-none z-10">
+        <img
+          src={sideImages.left}
+          alt="Theme decoration left"
+          className="w-full h-auto object-contain"
+          style={{ maxHeight: '80vh' }}
+        />
+      </div>
+
+      {/* Right side image - only visible on desktop (md and up) - Fixed to viewport */}
+      <div className="hidden md:block fixed right-0 bottom-[5%] w-48 lg:w-64 xl:w-80 pointer-events-none z-10">
+        <img
+          src={sideImages.right}
+          alt="Theme decoration right"
+          className="w-full h-auto object-contain"
+          style={{ maxHeight: '80vh' }}
+        />
+      </div>
+
+      <div className="relative px-2 md:pt-2 pb-12">
+        <div className="max-w-4xl mx-auto space-y-6 relative z-20">
         {/* Header */}
         <ExerciseHeader
           title={exercise?.title}
@@ -1119,8 +1180,9 @@ const DragDropExercise = () => {
           </div>
         </div>
         )}
+        </div>
       </div>
-    </div>
+    </>
   )
 }
 

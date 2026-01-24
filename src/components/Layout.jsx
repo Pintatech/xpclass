@@ -18,7 +18,9 @@ const Layout = () => {
     '/study/speaking',
     '/study/pronunciation',
     '/study/drag-drop',
-    '/study/hotspot'
+    '/study/hotspot',
+    '/study/dropdown',
+    '/study/ai-fill-blank'
   ]
 
   // Check if on session/exercise list page (e.g., /study/course/123/unit/456/session/789)

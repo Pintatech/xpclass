@@ -1,3 +1,35 @@
+// Theme-based character images
+const themeCharacters = {
+  blue: {
+    standing: "https://xpclass.vn/xpclass/image/theme_header/ice_standing.gif",
+    running: "https://xpclass.vn/xpclass/image/theme_header/ice_running.gif"
+  },
+  green: {
+    standing: "https://xpclass.vn/xpclass/image/theme_header/forest_standing.gif",
+    running: "https://xpclass.vn/xpclass/image/theme_header/forest_running.gif"
+  },
+  purple: {
+    standing: "https://xpclass.vn/xpclass/image/theme_header/pirate_running.png",
+    running: "https://xpclass.vn/xpclass/image/theme_header/pirate_running.png"
+  },
+  orange: {
+    standing: "https://xpclass.vn/xpclass/image/theme_header/ninja_standing.gif",
+    running: "https://xpclass.vn/xpclass/image/theme_header/ninja_running.gif"
+  },
+  red: {
+    standing: "https://xpclass.vn/xpclass/materials/batman_standing.gif",
+    running: "https://xpclass.vn/LMS_enhance/gif/Left%20running/batman.gif"
+  },
+  yellow: {
+    standing: "https://xpclass.vn/xpclass/image/theme_header/desert_standing.gif",
+    running: "https://xpclass.vn/xpclass/image/theme_header/desert_running.gif"
+  }
+}
+
+const getThemeCharacter = (theme) => {
+  return themeCharacters[theme] || themeCharacters.blue
+}
+
 const ExerciseHeader = ({
   title,
   subtitle,
@@ -11,8 +43,10 @@ const ExerciseHeader = ({
   showQuestionCounter = true,
   targetInfo,
   showProgressLabel = true,
-  customContent
+  customContent,
+  colorTheme = 'blue'
 }) => {
+  const characterImages = getThemeCharacter(colorTheme)
   return (
     <div className="bg-white rounded-lg shadow-sm p-4 md:p-5 border border-gray-200">
       <div className="flex items-center justify-between gap-4 mb-4">
@@ -59,11 +93,11 @@ const ExerciseHeader = ({
                 width: `${progressPercentage}%`
               }}
             />
-            {/* Running Batman Animation - moves with and stays with progress bar */}
+            {/* Running Character Animation - moves with and stays with progress bar */}
             {showBatman && (
               <img
-                src={isBatmanMoving ? "https://xpclass.vn/LMS_enhance/gif/Left%20running/batman.gif" : "https://xpclass.vn/xpclass/materials/batman_standing.gif"}
-                alt="Running Batman"
+                src={isBatmanMoving ? characterImages.running : characterImages.standing}
+                alt="Character animation"
                 className="absolute -top-8 h-12 transition-all duration-[3000ms]"
                 style={{
                   left: `calc(${progressPercentage}% - 24px)`,

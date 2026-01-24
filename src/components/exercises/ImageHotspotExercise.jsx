@@ -10,6 +10,38 @@ import { useProgress } from '../../hooks/useProgress'
 import { useFeedback } from '../../hooks/useFeedback'
 import ExerciseHeader from './ExerciseHeader'
 
+// Theme-based side decoration images for PC
+const themeSideImages = {
+  blue: {
+    left: "https://xpclass.vn/xpclass/image/theme_question/ice_left.png",
+    right: "https://xpclass.vn/xpclass/image/theme_question/ice_right.png",
+  },
+  green: {
+    left: "https://xpclass.vn/xpclass/image/theme_question/forest_left.png",
+    right: "https://xpclass.vn/xpclass/image/theme_question/forest_right.png"
+  },
+  purple: {
+    left: "https://xpclass.vn/xpclass/image/theme_question/pirate.png",
+    right: "https://xpclass.vn/xpclass/image/theme_question/pirate.png"
+  },
+  orange: {
+    left: "https://xpclass.vn/xpclass/image/theme_question/ninja_left.png",
+    right: "https://xpclass.vn/xpclass/image/theme_question/ninja_right.png"
+  },
+  red: {
+    left: "https://xpclass.vn/xpclass/image/theme_question/candy_left.png",
+    right: "https://xpclass.vn/xpclass/image/theme_question/candy_right.png"
+  },
+  yellow: {
+    left: "https://xpclass.vn/xpclass/image/theme_question/desert_left.png",
+    right: "https://xpclass.vn/xpclass/image/theme_question/desert_right.png"
+  }
+}
+
+const getThemeSideImages = (theme) => {
+  return themeSideImages[theme] || themeSideImages.blue
+}
+
 const ImageHotspotExercise = () => {
   const location = useLocation()
   const navigate = useNavigate()
@@ -36,6 +68,8 @@ const ImageHotspotExercise = () => {
   const [isBatmanMoving, setIsBatmanMoving] = useState(false)
   const [isSubmitted, setIsSubmitted] = useState(false)
   const [prevProgress, setPrevProgress] = useState(0)
+  const [session, setSession] = useState(null)
+  const [colorTheme, setColorTheme] = useState('blue')
 
   const imageRef = useRef(null)
   const containerRef = useRef(null)
@@ -84,6 +118,39 @@ const ImageHotspotExercise = () => {
       setStartTime(Date.now())
     }
   }, [exerciseId, user])
+
+  useEffect(() => {
+    const fetchSessionInfo = async () => {
+      if (!sessionId) return
+
+      try {
+        const { data, error } = await supabase
+          .from('sessions')
+          .select(`
+            *,
+            units:unit_id (
+              id,
+              title,
+              course_id,
+              color_theme
+            )
+          `)
+          .eq('id', sessionId)
+          .single()
+
+        if (error) throw error
+        setSession(data)
+
+        // Set color theme from session or unit
+        const theme = data?.color_theme || data?.units?.color_theme || 'blue'
+        setColorTheme(theme)
+      } catch (err) {
+        console.error('Error fetching session info:', err)
+      }
+    }
+
+    fetchSessionInfo()
+  }, [sessionId])
 
   // Calculate responsive scale
   useEffect(() => {
@@ -442,9 +509,31 @@ const ImageHotspotExercise = () => {
     ? (totalHotspots > 0 ? (completedHotspots / totalHotspots) * 100 : 0)
     : (totalHotspots > 0 ? (filledHotspots / totalHotspots) * 100 : 0)
 
+  const sideImages = getThemeSideImages(colorTheme)
+
   return (
-    <div className="px-2 md:pt-2 pb-12">
-      <div className="max-w-6xl mx-auto space-y-6">
+    <div className="relative px-2 md:pt-2 pb-12">
+      {/* Left side image - only visible on desktop (md and up) */}
+      <div className="hidden md:block fixed left-0 bottom-[5%] -translate-y-1/2 w-48 lg:w-64 xl:w-80 pointer-events-none z-10">
+        <img
+          src={sideImages.left}
+          alt="Theme decoration left"
+          className="w-full h-auto object-contain"
+          style={{ maxHeight: '80vh' }}
+        />
+      </div>
+
+      {/* Right side image - only visible on desktop (md and up) */}
+      <div className="hidden md:block fixed right-0 bottom-[5%] -translate-y-1/2 w-48 lg:w-64 xl:w-80 pointer-events-none z-10">
+        <img
+          src={sideImages.right}
+          alt="Theme decoration right"
+          className="w-full h-auto object-contain"
+          style={{ maxHeight: '80vh' }}
+        />
+      </div>
+
+      <div className="max-w-6xl mx-auto space-y-6 relative z-20">
         {/* Header */}
         <ExerciseHeader
           title={exercise.title}

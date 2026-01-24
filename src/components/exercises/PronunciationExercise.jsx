@@ -11,6 +11,38 @@ import { Mic, Square, CheckCircle, XCircle, ArrowRight, Star } from 'lucide-reac
 import AudioPlayer from '../ui/AudioPlayer'
 import * as sdk from 'microsoft-cognitiveservices-speech-sdk'
 
+// Theme-based side decoration images for PC
+const themeSideImages = {
+  blue: {
+    left: "https://xpclass.vn/xpclass/image/theme_question/ice_left.png",
+    right: "https://xpclass.vn/xpclass/image/theme_question/ice_right.png",
+  },
+  green: {
+    left: "https://xpclass.vn/xpclass/image/theme_question/forest_left.png",
+    right: "https://xpclass.vn/xpclass/image/theme_question/forest_right.png"
+  },
+  purple: {
+    left: "https://xpclass.vn/xpclass/image/theme_question/pirate.png",
+    right: "https://xpclass.vn/xpclass/image/theme_question/pirate.png"
+  },
+  orange: {
+    left: "https://xpclass.vn/xpclass/image/theme_question/ninja_left.png",
+    right: "https://xpclass.vn/xpclass/image/theme_question/ninja_right.png"
+  },
+  red: {
+    left: "https://xpclass.vn/xpclass/image/theme_question/candy_left.png",
+    right: "https://xpclass.vn/xpclass/image/theme_question/candy_right.png"
+  },
+  yellow: {
+    left: "https://xpclass.vn/xpclass/image/theme_question/desert_left.png",
+    right: "https://xpclass.vn/xpclass/image/theme_question/desert_right.png"
+  }
+}
+
+const getThemeSideImages = (theme) => {
+  return themeSideImages[theme] || themeSideImages.blue
+}
+
 const PronunciationExercise = () => {
   const location = useLocation()
   const navigate = useNavigate()
@@ -35,6 +67,7 @@ const PronunciationExercise = () => {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState(null)
   const [session, setSession] = useState(null)
+  const [colorTheme, setColorTheme] = useState('blue')
 
   // Quiz state
   const [currentQuestionIndex, setCurrentQuestionIndex] = useState(0)
@@ -155,7 +188,8 @@ const PronunciationExercise = () => {
           units:unit_id (
             id,
             title,
-            course_id
+            course_id,
+            color_theme
           )
         `)
         .eq('id', sessionId)
@@ -163,6 +197,10 @@ const PronunciationExercise = () => {
 
       if (error) throw error
       setSession(data)
+
+      // Set color theme from session or unit
+      const theme = data?.color_theme || data?.units?.color_theme || 'blue'
+      setColorTheme(theme)
     } catch (err) {
       console.error('Error fetching session info:', err)
     }
@@ -446,9 +484,31 @@ const PronunciationExercise = () => {
     )
   }
 
+  const sideImages = getThemeSideImages(colorTheme)
+
   return (
-    <div className="px-4">
-      <div className="max-w-4xl mx-auto space-y-6">
+    <div className="relative px-4">
+      {/* Left side image - only visible on desktop (md and up) */}
+      <div className="hidden md:block fixed left-0 bottom-[5%] -translate-y-1/2 w-48 lg:w-64 xl:w-80 pointer-events-none z-10">
+        <img
+          src={sideImages.left}
+          alt="Theme decoration left"
+          className="w-full h-auto object-contain"
+          style={{ maxHeight: '80vh' }}
+        />
+      </div>
+
+      {/* Right side image - only visible on desktop (md and up) */}
+      <div className="hidden md:block fixed right-0 bottom-[5%] -translate-y-1/2 w-48 lg:w-64 xl:w-80 pointer-events-none z-10">
+        <img
+          src={sideImages.right}
+          alt="Theme decoration right"
+          className="w-full h-auto object-contain"
+          style={{ maxHeight: '80vh' }}
+        />
+      </div>
+
+      <div className="max-w-4xl mx-auto space-y-6 relative z-20">
 
         {/* Header */}
         <div className="bg-white rounded-lg shadow-sm p-4 md:p-5 border border-gray-200">

@@ -9,6 +9,38 @@ import { Check, X, RotateCcw, HelpCircle, ArrowLeft, ChevronDown } from 'lucide-
 import RichTextRenderer from '../ui/RichTextRenderer'
 import ExerciseHeader from './ExerciseHeader'
 
+// Theme-based side decoration images for PC
+const themeSideImages = {
+  blue: {
+    left: "https://xpclass.vn/xpclass/image/theme_question/ice_left.png",
+    right: "https://xpclass.vn/xpclass/image/theme_question/ice_right.png",
+  },
+  green: {
+    left: "https://xpclass.vn/xpclass/image/theme_question/forest_left.png",
+    right: "https://xpclass.vn/xpclass/image/theme_question/forest_right.png"
+  },
+  purple: {
+    left: "https://xpclass.vn/xpclass/image/theme_question/pirate.png",
+    right: "https://xpclass.vn/xpclass/image/theme_question/pirate.png"
+  },
+  orange: {
+    left: "https://xpclass.vn/xpclass/image/theme_question/ninja_left.png",
+    right: "https://xpclass.vn/xpclass/image/theme_question/ninja_right.png"
+  },
+  red: {
+    left: "https://xpclass.vn/xpclass/image/theme_question/candy_left.png",
+    right: "https://xpclass.vn/xpclass/image/theme_question/candy_right.png"
+  },
+  yellow: {
+    left: "https://xpclass.vn/xpclass/image/theme_question/desert_left.png",
+    right: "https://xpclass.vn/xpclass/image/theme_question/desert_right.png"
+  }
+}
+
+const getThemeSideImages = (theme) => {
+  return themeSideImages[theme] || themeSideImages.blue
+}
+
 const DropdownExercise = () => {
   const location = useLocation()
   const navigate = useNavigate()
@@ -30,6 +62,8 @@ const DropdownExercise = () => {
   const [retryMode, setRetryMode] = useState(false)
   const [retryQuestions, setRetryQuestions] = useState([])
   const [isBatmanMoving, setIsBatmanMoving] = useState(false)
+  const [colorTheme, setColorTheme] = useState('blue')
+  const [session, setSession] = useState(null)
 
   const questions = exercise?.content?.questions || []
   const currentQuestion = questions[currentQuestionIndex]
@@ -37,6 +71,41 @@ const DropdownExercise = () => {
   useEffect(() => {
     loadExercise()
   }, [])
+
+  useEffect(() => {
+    const urlParams = new URLSearchParams(location.search)
+    const sessionId = urlParams.get('sessionId')
+    if (sessionId) {
+      fetchSessionInfo(sessionId)
+    }
+  }, [location])
+
+  const fetchSessionInfo = async (sessionId) => {
+    try {
+      const { data, error } = await supabase
+        .from('sessions')
+        .select(`
+          *,
+          units:unit_id (
+            id,
+            title,
+            course_id,
+            color_theme
+          )
+        `)
+        .eq('id', sessionId)
+        .single()
+
+      if (error) throw error
+      setSession(data)
+
+      // Set color theme from session or unit
+      const theme = data?.color_theme || data?.units?.color_theme || 'blue'
+      setColorTheme(theme)
+    } catch (err) {
+      console.error('Error fetching session info:', err)
+    }
+  }
 
   useEffect(() => {
     // Track when student enters the exercise
@@ -448,7 +517,7 @@ const DropdownExercise = () => {
                 >
                   <option>?</option>
                 </select>
-                <ChevronDown className="absolute right-2 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400 pointer-events-none" />
+                <ChevronDown className="absolute right-2 bottom-[5%] -translate-y-1/2 w-4 h-4 text-gray-400 pointer-events-none" />
                 <div className="absolute -bottom-6 left-0 text-xs text-red-500 whitespace-nowrap">
                   Missing dropdown data
                 </div>
@@ -484,16 +553,16 @@ const DropdownExercise = () => {
                   </option>
                 ))}
               </select>
-              <ChevronDown className={`absolute right-0 top-1/2 -translate-y-1/2 w-4 h-4 pointer-events-none ${
+              <ChevronDown className={`absolute right-0 bottom-[5%] -translate-y-1/2 w-4 h-4 pointer-events-none ${
                 status === 'correct' ? 'text-green-600' :
                 status === 'incorrect' ? 'text-red-600' :
                 'text-gray-500'
               }`} />
               {status === 'correct' && (
-                <Check className="absolute -right-6 top-1/2 -translate-y-1/2 w-5 h-5 text-green-600" />
+                <Check className="absolute -right-6 bottom-[5%] -translate-y-1/2 w-5 h-5 text-green-600" />
               )}
               {status === 'incorrect' && (
-                <X className="absolute -right-6 top-1/2 -translate-y-1/2 w-5 h-5 text-red-600" />
+                <X className="absolute -right-6 bottom-[5%] -translate-y-1/2 w-5 h-5 text-red-600" />
               )}
             </div>
           </span>
@@ -526,9 +595,32 @@ const DropdownExercise = () => {
     return html
   }
 
+  const sideImages = getThemeSideImages(colorTheme)
+
   return (
-    <div className="px-4 pt-6 pb-12">
-      <div className="max-w-4xl mx-auto space-y-6">
+    <>
+      {/* Left side image - only visible on desktop (md and up) - Fixed to viewport */}
+      <div className="hidden md:block fixed left-0 bottom-[5%] w-48 lg:w-64 xl:w-80 pointer-events-none z-10">
+        <img
+          src={sideImages.left}
+          alt="Theme decoration left"
+          className="w-full h-auto object-contain"
+          style={{ maxHeight: '80vh' }}
+        />
+      </div>
+
+      {/* Right side image - only visible on desktop (md and up) - Fixed to viewport */}
+      <div className="hidden md:block fixed right-0 bottom-[5%] w-48 lg:w-64 xl:w-80 pointer-events-none z-10">
+        <img
+          src={sideImages.right}
+          alt="Theme decoration right"
+          className="w-full h-auto object-contain"
+          style={{ maxHeight: '80vh' }}
+        />
+      </div>
+
+      <div className="relative px-4 pt-6 pb-12">
+        <div className="max-w-4xl mx-auto space-y-6 relative z-20">
       {/* Header with Batman */}
       <ExerciseHeader
         title={exercise?.title}
@@ -651,8 +743,9 @@ const DropdownExercise = () => {
           </button>
         </div>
       )}
+        </div>
       </div>
-    </div>
+    </>
   )
 }
 

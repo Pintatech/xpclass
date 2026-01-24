@@ -200,7 +200,7 @@ const ExerciseManagement = () => {
       {/* Filters */}
       <div className="flex flex-col sm:flex-row gap-4">
         <div className="relative flex-1">
-          <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4" />
+          <Search className="absolute left-3 bottom-[5%] transform -translate-y-1/2 text-gray-400 w-4 h-4" />
           <input
             type="text"
             placeholder="Tìm kiếm bài tập..."
@@ -210,7 +210,7 @@ const ExerciseManagement = () => {
           />
         </div>
         <div className="relative">
-          <Filter className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4" />
+          <Filter className="absolute left-3 bottom-[5%] transform -translate-y-1/2 text-gray-400 w-4 h-4" />
           <select
             value={filterType}
             onChange={(e) => setFilterType(e.target.value)}

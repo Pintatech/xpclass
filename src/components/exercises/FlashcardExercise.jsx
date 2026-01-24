@@ -15,6 +15,38 @@ import {
 } from "lucide-react";
 import { assessPronunciation } from "../../utils/azurePronunciationService";
 
+// Theme-based side decoration images for PC
+const themeSideImages = {
+  blue: {
+    left: "https://xpclass.vn/xpclass/image/theme_question/ice_left.png",
+    right: "https://xpclass.vn/xpclass/image/theme_question/ice_right.png",
+  },
+  green: {
+    left: "https://xpclass.vn/xpclass/image/theme_question/forest_left.png",
+    right: "https://xpclass.vn/xpclass/image/theme_question/forest_right.png"
+  },
+  purple: {
+    left: "https://xpclass.vn/xpclass/image/theme_question/pirate.png",
+    right: "https://xpclass.vn/xpclass/image/theme_question/pirate.png"
+  },
+  orange: {
+    left: "https://xpclass.vn/xpclass/image/theme_question/ninja_left.png",
+    right: "https://xpclass.vn/xpclass/image/theme_question/ninja_right.png"
+  },
+  red: {
+    left: "https://xpclass.vn/xpclass/image/theme_question/candy_left.png",
+    right: "https://xpclass.vn/xpclass/image/theme_question/candy_right.png"
+  },
+  yellow: {
+    left: "https://xpclass.vn/xpclass/image/theme_question/desert_left.png",
+    right: "https://xpclass.vn/xpclass/image/theme_question/desert_right.png"
+  }
+}
+
+const getThemeSideImages = (theme) => {
+  return themeSideImages[theme] || themeSideImages.blue
+}
+
 const FlashcardExercise = () => {
   const location = useLocation();
   const [currentCard, setCurrentCard] = useState(0);
@@ -35,6 +67,7 @@ const FlashcardExercise = () => {
   const mediaRecorderRef = useRef(null);
   const audioChunksRef = useRef([]);
   const [cardScores, setCardScores] = useState({});
+  const [colorTheme, setColorTheme] = useState('blue');
 
   // Get exerciseId and sessionId from URL search params
   const searchParams = new URLSearchParams(location.search);
@@ -77,6 +110,10 @@ const FlashcardExercise = () => {
 
       if (error) throw error;
       setSession(data);
+
+      // Set color theme from session or unit
+      const theme = data?.color_theme || data?.units?.color_theme || 'blue'
+      setColorTheme(theme)
     } catch (err) {
       console.error("Error fetching session info:", err);
     }
@@ -648,6 +685,8 @@ const FlashcardExercise = () => {
     );
   }
 
+  const sideImages = getThemeSideImages(colorTheme)
+
   return (
     <>
       <style>{`
@@ -751,7 +790,27 @@ const FlashcardExercise = () => {
           box-shadow: 0 2px 0 #225000;
         }
       `}</style>
-      <div className="max-w-6xl mx-auto space-y-4 sm:space-y-6 px-2 sm:px-4 py-4 sm:py-6">
+      {/* Left side image - only visible on desktop (md and up) */}
+      <div className="hidden md:block fixed left-0 bottom-[5%] -translate-y-1/2 w-48 lg:w-64 xl:w-80 pointer-events-none z-10">
+        <img
+          src={sideImages.left}
+          alt="Theme decoration left"
+          className="w-full h-auto object-contain"
+          style={{ maxHeight: '80vh' }}
+        />
+      </div>
+
+      {/* Right side image - only visible on desktop (md and up) */}
+      <div className="hidden md:block fixed right-0 bottom-[5%] -translate-y-1/2 w-48 lg:w-64 xl:w-80 pointer-events-none z-10">
+        <img
+          src={sideImages.right}
+          alt="Theme decoration right"
+          className="w-full h-auto object-contain"
+          style={{ maxHeight: '80vh' }}
+        />
+      </div>
+
+      <div className="max-w-6xl mx-auto space-y-4 sm:space-y-6 px-2 sm:px-4 py-4 sm:py-6 relative z-20">
         {/* Main Card Display with Right Side Thumbnails */}
         <div className="flex flex-col lg:flex-row gap-4 max-w-full mx-auto">
           {/* Main Card */}
