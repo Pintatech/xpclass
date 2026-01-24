@@ -468,20 +468,39 @@ const UnitList = () => {
     navigate(`${base}/unit/${session.unit_id}/session/${session.id}`);
   };
 
-  const renderSessionCard = (session, index) => {
+  const renderSessionCard = (session, index, colorTheme) => {
     const { status, canAccess } = getSessionStatus(session, index);
     const progress = sessionProgress[session.id];
     const isLocked = !canAccess;
     const progressPercentage = progress?.progress_percentage || 0;
 
+    // Theme-based colors for completed status
+    const themeBackColors = {
+      blue: "bg-cyan-700",
+      green: "bg-green-700",
+      purple: "bg-blue-700",
+      orange: "bg-orange-700",
+      red: "bg-yellow-700",
+      yellow: "bg-yellow-700",
+    };
+
+    const themeFrontColors = {
+      blue: "bg-[#4bece5]",
+      green: "bg-green-500",
+      purple: "bg-blue-500",
+      orange: "bg-orange-500",
+      red: "bg-yellow-500",
+      yellow: "bg-yellow-500",
+    };
+
     // Get colors based on status
     const getBackColor = () => {
-      if (status === "completed") return "bg-green-700";
+      if (status === "completed") return themeBackColors[colorTheme] || "bg-green-700";
       return "bg-gray-600";
     };
 
     const getFrontColor = () => {
-      if (status === "completed") return "bg-green-500";
+      if (status === "completed") return themeFrontColors[colorTheme] || "bg-green-500";
       return "bg-gray-400";
     };
 
@@ -734,7 +753,7 @@ const UnitList = () => {
                             className="flex justify-center items-start"
                           >
                             <div style={{ width: "80px", height: "80px" }}>
-                              {renderSessionCard(session, index)}
+                              {renderSessionCard(session, index, unit.color_theme)}
                             </div>
                           </div>
                         ))}
