@@ -1277,11 +1277,11 @@ const ExerciseList = () => {
         className={`absolute -translate-x-1/2 -translate-y-1/2 ${isNodeEditMode ? 'cursor-move select-none' : (unlocked && !isDummy ? 'cursor-pointer' : 'cursor-default')} ${current ? "z-20" : "z-10"} ${isNodeEditMode ? '' : 'transition-all duration-300'}`}
         style={{ left: `${displayX}%`, top: `${displayY}%` }}
         onMouseDown={handleMouseDown}
-      >
+      > 
         {current && !isDummy && (
-          <div className="absolute bottom-full left-0 right-0 mx-auto w-8 h-10 md:w-14 md:h-[50px] animate-bounce">
-            <svg viewBox="0 0 40 50" className="w-full h-full drop-shadow-lg">
-              <defs>
+          <div className="absolute bottom-full left-0 right-0 mx-auto w-8 h-10 md:w-14 md:h-[50px] mb-2 md:mb-3 animate-bounce">
+            <svg viewBox="0 0 40 50" className="w-full h-full drop-shadow-lg">  
+              <defs>     {/* gg Map pin*/}
                 <linearGradient
                   id="pinGradient"
                   x1="0%"
@@ -1308,7 +1308,7 @@ const ExerciseList = () => {
                 ? "w-[14px] h-[14px] md:w-[32px] md:h-[32px]"
                 : !unlocked
                   ? "w-[50px] h-[50px] md:w-[80px] md:h-[80px] cursor-not-allowed"   // locked which is not used
-                  : "w-[42px] h-[42px] md:w-[80px] md:h-[80px]"
+                  : "w-[42px] h-[42px] md:w-[80px] md:h-[80px]"   // exercise node
             }`}
             onClick={handleClick}
           >
@@ -1353,7 +1353,7 @@ const ExerciseList = () => {
             </span>
           </button>
         </div>
-        {!isDummy && (
+        {!isDummy && completed && (
           <div className="absolute top-full left-1/2 -translate-x-1/2 flex gap-0.5 mt-1 justify-center items-center">
             {[1, 2, 3].map((star) => (
               <img
@@ -1416,7 +1416,6 @@ const ExerciseList = () => {
         {/* Map View */}
         {viewMode === "map" && (
           <>
-            {/* SVG path connecting exercises - removed (not used) */}
 
             {/* Level nodes */}
             <div className={`absolute inset-0 w-full h-full ${positionEditorMode && editorTarget === 'nodes' ? 'z-30' : 'z-10'}`}>
@@ -1556,7 +1555,6 @@ const ExerciseList = () => {
         {/* Session title overlay */}
         <div className="absolute top-4 left-1/2 transform -translate-x-1/2 bg-white/90 backdrop-blur-sm rounded-lg shadow-lg px-6 py-3 z-50">
           <h2 className="text-xl font-bold text-gray-900">{session.title}</h2>
-          <p className="text-sm text-gray-600">{unit.title}</p>
         </div>
 
         {/* View Toggle Button - Only for admins/teachers */}

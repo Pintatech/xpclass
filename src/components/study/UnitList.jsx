@@ -32,6 +32,19 @@ const getThemeBackground = (colorTheme) => {
   return themeBackgrounds[colorTheme] || themeBackgrounds.blue;
 };
 
+// Theme-based ribbon images for unit titles
+const getRibbonImage = (colorTheme) => {
+  const themeRibbons = {
+    blue: "https://xpclass.vn/xpclass/image/unit_list/ice_label.png",
+    green: "https://xpclass.vn/xpclass/image/unit_list/forest_label.png",
+    purple: "https://xpclass.vn/xpclass/image/unit_list/pirate_label.png",
+    orange: "https://xpclass.vn/xpclass/image/unit_list/ninja_label.png",
+    red: "https://xpclass.vn/xpclass/image/unit_list/candy_label.png",
+    yellow: "https://xpclass.vn/xpclass/image/unit_list/ice_label.png",
+  };
+  return themeRibbons[colorTheme] || themeRibbons.blue;
+};
+
 const UnitList = () => {
   const { levelId: rawLevelId, courseId: rawCourseId } = useParams();
   const sanitizeId = (v) => (v && v !== "undefined" && v !== "null" ? v : null);
@@ -351,8 +364,8 @@ const UnitList = () => {
             sessionsCompleted === totalSessions && totalSessions > 0
               ? "completed"
               : sessionsCompleted > 0
-              ? "in_progress"
-              : "not_started",
+                ? "in_progress"
+                : "not_started",
           xp_earned: completedSessions.reduce(
             (sum, s) => sum + (sessionProgressMap[s.id]?.xp_earned || 0),
             0
@@ -448,105 +461,94 @@ const UnitList = () => {
     const isLocked = !canAccess;
     const progressPercentage = progress?.progress_percentage || 0;
 
-    // Determine shadow color based on status
-    const getShadowColor = () => {
-      if (status === "completed") return "0 4px 0 0 #46a302"; // Green shadow
-      if (progressPercentage > 0) return "0 4px 0 0 #cc7800"; // Orange shadow
-      return "0 4px 0 0 rgba(0, 0, 0, 0.4)"; // Darker gray shadow
+    // Get colors based on status
+    const getBackColor = () => {
+      if (status === "completed") return "bg-green-700";
+      if (progressPercentage > 0) return "bg-orange-700";
+      if (isLocked) return "bg-gray-500";
+      return "bg-gray-600";
+    };
+
+    const getFrontColor = () => {
+      if (status === "completed") return "bg-green-500";
+      if (progressPercentage > 0) return "bg-orange-400";
+      if (isLocked) return "bg-gray-300";
+      return "bg-gray-400";
     };
 
     return (
       <div
         key={session.id}
         onClick={() => !isLocked && handleSessionClick(session)}
-        className={`block ${
-          isLocked ? "cursor-not-allowed" : "cursor-pointer"
-        } w-full h-full`}
-        style={{
-          padding: 0,
-          borderRadius: '0.5rem',
-          backgroundColor: 'transparent'
-        }}
+        className={`block ${isLocked ? "cursor-not-allowed" : "cursor-pointer"
+          } w-full`}
       >
         <div
-          className={`relative overflow-hidden rounded-lg transition-all duration-100 ${
-            isLocked ? "opacity-60" : ""
-          } w-full h-full bg-gray-200`}
-          style={{
-            aspectRatio: "1",
-            boxShadow: getShadowColor(),
-            transform: isLocked ? 'translateY(0)' : 'translateY(-0.2em)',
-            transition: 'transform 0.1s ease, box-shadow 0.1s ease'
-          }}
-          onMouseEnter={(e) => {
-            if (!isLocked) {
-              e.currentTarget.style.transform = 'translateY(-0.33em)'
-            }
-          }}
-          onMouseLeave={(e) => {
-            if (!isLocked) {
-              e.currentTarget.style.transform = 'translateY(-0.2em)'
-            }
-          }}
-          onMouseDown={(e) => {
-            if (!isLocked) {
-              e.currentTarget.style.transform = 'translateY(0)'
-            }
-          }}
-          onMouseUp={(e) => {
-            if (!isLocked) {
-              e.currentTarget.style.transform = 'translateY(-0.33em)'
-            }
-          }}
-          onTouchStart={(e) => {
-            if (!isLocked) {
-              e.currentTarget.style.transform = 'translateY(0)'
-            }
-          }}
-          onTouchEnd={(e) => {
-            if (!isLocked) {
-              e.currentTarget.style.transform = 'translateY(-0.2em)'
-            }
-          }}
+          className="relative w-full"
+          style={{ aspectRatio: "4/3" }}
         >
-          {/* Progress bar from bottom */}
-          {progressPercentage > 0 && status !== "completed" && (
-            <div
-              className="absolute bottom-0 left-0 right-0 bg-orange-300 transition-all duration-300 z-10"
-              style={{ height: `${progressPercentage}%` }}
-            />
-          )}
-
-          {/* Completed overlay */}
-          {status === "completed" && (
-            <div
-              className="absolute inset-0 z-10"
-              style={{ backgroundColor: "#58cc02" }}
-            />
-          )}
-
-          {/* Lock overlay */}
-          {isLocked && (
-            <div className="absolute top-1 right-1 z-40">
-              <div className="w-4 h-4 rounded-full bg-white/90 backdrop-blur-sm flex items-center justify-center shadow-lg">
-                <Lock className="w-2 h-2 text-gray-600" />
+          {/* Back shadow layer */}
+          <span
+            className={`absolute inset-0 rounded-lg ${getBackColor()}`}
+          />
+          {/* Front button layer */}
+          <span
+            className={`absolute inset-0 rounded-lg flex items-center justify-center transition-all duration-150 ${getFrontColor()} ${!isLocked ? "active:translate-y-0 active:shadow-none" : ""
+              }`}
+            style={{
+              transform: 'translateY(-10%)',
+              boxShadow: '0 0.5em 1em -0.2em rgba(0, 0, 0, 0.3)'
+            }}
+            onMouseEnter={(e) => {
+              if (!isLocked) {
+                e.currentTarget.style.transform = 'translateY(-15%)'
+              }
+            }}
+            onMouseLeave={(e) => {
+              if (!isLocked) {
+                e.currentTarget.style.transform = 'translateY(-10%)'
+              }
+            }}
+            onMouseDown={(e) => {
+              if (!isLocked) {
+                e.currentTarget.style.transform = 'translateY(0)'
+                e.currentTarget.style.boxShadow = 'none'
+              }
+            }}
+            onMouseUp={(e) => {
+              if (!isLocked) {
+                e.currentTarget.style.transform = 'translateY(-15%)'
+                e.currentTarget.style.boxShadow = '0 0.5em 1em -0.2em rgba(0, 0, 0, 0.3)'
+              }
+            }}
+            onTouchStart={(e) => {
+              if (!isLocked) {
+                e.currentTarget.style.transform = 'translateY(0)'
+                e.currentTarget.style.boxShadow = 'none'
+              }
+            }}
+            onTouchEnd={(e) => {
+              if (!isLocked) {
+                e.currentTarget.style.transform = 'translateY(-10%)'
+                e.currentTarget.style.boxShadow = '0 0.5em 1em -0.2em rgba(0, 0, 0, 0.3)'
+              }
+            }}
+          >
+            {/* Lock icon */}
+            {isLocked && (
+              <div className="absolute top-2 right-2 z-40">
+                <Lock className="w-4 h-4 text-gray-600" />
               </div>
-            </div>
-          )}
+            )}
 
-          {/* Progress badge */}
-          {!status === "completed" && progressPercentage > 0 && (
-            <div className="absolute top-1 left-1 z-40 px-1.5 py-0.5 rounded-full text-[10px] font-semibold bg-white/90 text-gray-800 shadow">
-              {progressPercentage}%
+            {/* Session Title */}
+            <div className="absolute inset-0 flex items-center justify-center px-2">
+              <h3 className={`font-bold text-[11px] text-center leading-tight line-clamp-2 ${status === "completed" || progressPercentage > 0 ? "text-white" : "text-gray-700"
+                }`}>
+                {session.title}
+              </h3>
             </div>
-          )}
-
-          {/* Session Title on the square - Always visible */}
-          <div className="absolute bottom-0 left-0 right-0 z-50 px-2 py-1.5">
-            <h3 className="text-white font-bold text-[11px] text-center leading-tight line-clamp-2 drop-shadow-[0_2px_2px_rgba(0,0,0,0.8)]">
-              {session.title}
-            </h3>
-          </div>
+          </span>
         </div>
       </div>
     );
@@ -628,175 +630,177 @@ const UnitList = () => {
         {/* Content Area */}
         <div className="flex-1 overflow-y-auto p-6">
           <>
-              {/* Hero Image Section */}
-              {level?.thumbnail_url && (
-                <div className="mb-6 relative h-48 rounded-xl overflow-hidden">
-                  <img
-                    src={level.thumbnail_url}
-                    alt={level.title}
-                    className="w-full h-full object-cover"
-                  />
-                  <div className="absolute inset-0 bg-black/30" />
-                </div>
-              )}
-
-              {/* Units with Sessions */}
-              <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-                {units.map((unit) => {
-                  const unitSessions = sessions
-                    .filter((session) => session.unit_id === unit.id)
-                    .sort(
-                      (a, b) =>
-                        (a.session_number || 0) - (b.session_number || 0)
-                    );
-
-                  const progress = unitProgress[unit.id];
-
-                  const backgroundImage = unit.thumbnail_url || getThemeBackground(unit.color_theme);
-
-                  return (
-                    <div
-                      key={unit.id}
-                      className="relative rounded-lg border border-gray-200 p-4 overflow-hidden"
-                      style={{
-                        backgroundImage: `url(${backgroundImage})`,
-                        backgroundSize: "cover",
-                        backgroundPosition: "center",
-                      }}
-                    >
-                      {/* Overlay for readability */}
-                      <div className="absolute inset-0 bg-white/50" />
-                      {/* Unit Header */}
-                      <div className="relative mb-3 flex items-center justify-between">
-                        <div className="flex items-center space-x-3">
-                          <h2 className="text-lg font-bold text-gray-900">
-                            {unit.title}
-                          </h2>
-                          {canCreateContent() && (
-                            <button
-                              onClick={() => {
-                                const base = levelId
-                                  ? `/study/level/${levelId}`
-                                  : `/study/course/${currentId}`;
-                                navigate(`${base}/unit/${unit.id}`);
-                              }}
-                              className="p-2 text-blue-400 hover:text-blue-600 hover:bg-blue-100 rounded-lg transition-colors"
-                              title="Manage sessions"
-                            >
-                              <List className="w-4 h-4" />
-                            </button>
-                          )}
-                        </div>
-                        <div className="flex items-center space-x-2">
-                          {canCreateContent() && (
-                            <div className="flex items-center space-x-1">
-                              <button
-                                onClick={() => handleEditUnit(unit)}
-                                className="p-2 text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded-lg transition-colors"
-                                title="Edit unit"
-                              >
-                                <Edit className="w-4 h-4" />
-                              </button>
-                              <button
-                                onClick={() => handleDeleteUnit(unit)}
-                                className="p-2 text-red-400 hover:text-red-600 hover:bg-red-100 rounded-lg transition-colors"
-                                title="Delete unit"
-                              >
-                                <Trash2 className="w-4 h-4" />
-                              </button>
-                            </div>
-                          )}
-                        </div>
-                      </div>
-
-                      {/* Sessions Grid for this Unit */}
-                      {unitSessions.length > 0 ? (
-                        <div
-                          className="relative grid grid-cols-4 md:grid-cols-6 lg:grid-cols-4 xl:grid-cols-5 gap-3"
-                          style={{ gridAutoFlow: "dense" }}
-                        >
-                          {unitSessions.map((session, index) => (
-                            <div
-                              key={session.id}
-                              className="flex justify-center items-start"
-                            >
-                              <div style={{ width: "60px", height: "60px" }}>
-                                {renderSessionCard(session, index)}
-                              </div>
-                            </div>
-                          ))}
-                        </div>
-                      ) : (
-                        <div className="relative text-center py-8 bg-gray-50 rounded-lg border-2 border-dashed border-gray-300">
-                          {canCreateContent() ? (
-                            <Button
-                              onClick={() => {
-                                const base = levelId
-                                  ? `/study/level/${levelId}`
-                                  : `/study/course/${currentId}`;
-                                navigate(`${base}/unit/${unit.id}`);
-                              }}
-                              className="bg-green-600 text-white hover:bg-green-700"
-                            >
-                              <Plus className="w-4 h-4 mr-2" />
-                              Add Sessions
-                            </Button>
-                          ) : (
-                            <p className="text-sm text-gray-500">
-                              Sessions will be available soon
-                            </p>
-                          )}
-                        </div>
-                      )}
-                    </div>
+            {/* Units with Sessions */}
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-x-6 gap-y-10 mt-4">
+              {units.map((unit) => {
+                const unitSessions = sessions
+                  .filter((session) => session.unit_id === unit.id)
+                  .sort(
+                    (a, b) =>
+                      (a.session_number || 0) - (b.session_number || 0)
                   );
-                })}
-                {/* Add Unit Button */}
-                {canCreateContent() && (
-                  <div className="bg-white rounded-lg border-2 border-dashed border-gray-300 p-8 text-center hover:border-blue-400 transition-colors">
-                    <div className="flex flex-col items-center space-y-3">
-                      <div className="w-12 h-12 bg-blue-100 rounded-lg flex items-center justify-center">
-                        <Plus className="w-6 h-6 text-blue-600" />
-                      </div>
-                      <div>
-                        <p className="text-gray-600">
-                          Create a new learning unit for this level
-                        </p>
-                      </div>
-                      <Button
-                        onClick={() => setShowAddUnitModal(true)}
-                        className="bg-blue-600 text-white hover:bg-blue-700"
-                      >
-                        <Plus className="w-4 h-4 mr-2" />
-                        Create Unit
-                      </Button>
-                    </div>
-                  </div>
-                )}
-              </div>
 
-              {/* Empty state */}
-              {units.length === 0 && (
-                <div className="text-center py-12">
-                  <BookOpen className="w-16 h-16 text-gray-400 mx-auto mb-4" />
-                  <h3 className="text-lg font-medium text-gray-900 mb-2">
-                    Chưa có unit nào
-                  </h3>
-                  <p className="text-gray-600">
-                    Các unit học tập sẽ sớm được cập nhật!
-                  </p>
-                  {canCreateContent() && (
+                const progress = unitProgress[unit.id];
+
+                const backgroundImage = unit.thumbnail_url || getThemeBackground(unit.color_theme);
+
+                return (
+                  <div
+                    key={unit.id}
+                    className="relative rounded-lg border-white-400 p-4 overflow-visible"
+                    style={{
+                      backgroundImage: `url(${backgroundImage})`,
+                      backgroundSize: "cover",
+                      backgroundPosition: "center",
+                    }}
+                  >
+                    {/* Overlay for readability */}
+                    <div className="absolute inset-0 bg-white/50" />
+
+                    {/* Ribbon centered at top, overlapping the div */}
+                    <div className="absolute -top-8 left-1/2 -translate-x-1/2 z-20">
+                      <div className="relative">
+                        <img
+                          src={getRibbonImage(unit.color_theme)}
+                          className="w-48 h-12"
+                          alt=""
+                        />
+
+                        {/* Text overlay */}
+                        <span className="absolute inset-0 flex items-center justify-center text-white font-bold text-sm drop-shadow-md">
+                          {unit.title}
+                        </span>
+                      </div>
+                    </div>
+
+                    {/* Unit Header */}
+                    <div className="relative mb-3 mt-6 flex items-center justify-end">
+                      <div className="flex items-center space-x-3">
+                        {canCreateContent() && (
+                          <button
+                            onClick={() => {
+                              const base = levelId
+                                ? `/study/level/${levelId}`
+                                : `/study/course/${currentId}`;
+                              navigate(`${base}/unit/${unit.id}`);
+                            }}
+                            className="p-2 text-blue-400 hover:text-blue-600 hover:bg-blue-100 rounded-lg transition-colors"
+                            title="Manage sessions"
+                          >
+                            <List className="w-4 h-4" />
+                          </button>
+                        )}
+                      </div>
+                      <div className="flex items-center space-x-2">
+                        {canCreateContent() && (
+                          <div className="flex items-center space-x-1">
+                            <button
+                              onClick={() => handleEditUnit(unit)}
+                              className="p-2 text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded-lg transition-colors"
+                              title="Edit unit"
+                            >
+                              <Edit className="w-4 h-4" />
+                            </button>
+                            <button
+                              onClick={() => handleDeleteUnit(unit)}
+                              className="p-2 text-red-400 hover:text-red-600 hover:bg-red-100 rounded-lg transition-colors"
+                              title="Delete unit"
+                            >
+                              <Trash2 className="w-4 h-4" />
+                            </button>
+                          </div>
+                        )}
+                      </div>
+                    </div>
+
+                    {/* Sessions Grid for this Unit */}
+                    {unitSessions.length > 0 ? (
+                      <div
+                        className="relative grid grid-cols-3 md:grid-cols-6 lg:grid-cols-4 xl:grid-cols-3 gap-3"
+                        style={{ gridAutoFlow: "dense" }}
+                      >
+                        {unitSessions.map((session, index) => (
+                          <div
+                            key={session.id}
+                            className="flex justify-center items-start"
+                          >
+                            <div style={{ width: "80px", height: "80px" }}>
+                              {renderSessionCard(session, index)}
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    ) : (
+                      <div className="relative text-center py-8 bg-gray-50 rounded-lg border-2 border-dashed border-gray-300">
+                        {canCreateContent() ? (
+                          <Button
+                            onClick={() => {
+                              const base = levelId
+                                ? `/study/level/${levelId}`
+                                : `/study/course/${currentId}`;
+                              navigate(`${base}/unit/${unit.id}`);
+                            }}
+                            className="bg-green-600 text-white hover:bg-green-700"
+                          >
+                            <Plus className="w-4 h-4 mr-2" />
+                            Add Sessions
+                          </Button>
+                        ) : (
+                          <p className="text-sm text-gray-500">
+                            Sessions will be available soon
+                          </p>
+                        )}
+                      </div>
+                    )}
+                  </div>
+                );
+              })}
+              {/* Add Unit Button */}
+              {canCreateContent() && (
+                <div className="bg-white rounded-lg border-2 border-dashed border-gray-300 p-8 text-center hover:border-blue-400 transition-colors">
+                  <div className="flex flex-col items-center space-y-3">
+                    <div className="w-12 h-12 bg-blue-100 rounded-lg flex items-center justify-center">
+                      <Plus className="w-6 h-6 text-blue-600" />
+                    </div>
+                    <div>
+                      <p className="text-gray-600">
+                        Create a new learning unit for this level
+                      </p>
+                    </div>
                     <Button
                       onClick={() => setShowAddUnitModal(true)}
-                      className="mt-4 bg-blue-600 text-white hover:bg-blue-700"
+                      className="bg-blue-600 text-white hover:bg-blue-700"
                     >
                       <Plus className="w-4 h-4 mr-2" />
-                      Create First Unit
+                      Create Unit
                     </Button>
-                  )}
+                  </div>
                 </div>
               )}
-            </>
+            </div>
+
+            {/* Empty state */}
+            {units.length === 0 && (
+              <div className="text-center py-12">
+                <BookOpen className="w-16 h-16 text-gray-400 mx-auto mb-4" />
+                <h3 className="text-lg font-medium text-gray-900 mb-2">
+                  Chưa có unit nào
+                </h3>
+                <p className="text-gray-600">
+                  Các unit học tập sẽ sớm được cập nhật!
+                </p>
+                {canCreateContent() && (
+                  <Button
+                    onClick={() => setShowAddUnitModal(true)}
+                    className="mt-4 bg-blue-600 text-white hover:bg-blue-700"
+                  >
+                    <Plus className="w-4 h-4 mr-2" />
+                    Create First Unit
+                  </Button>
+                )}
+              </div>
+            )}
+          </>
         </div>
       </div>
 
