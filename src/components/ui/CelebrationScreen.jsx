@@ -40,7 +40,7 @@ const renderStarImage = () => {
       <img
         src={starImages[starCount]}
         alt={`${starCount} star`}
-        className=" h-20  md:h-16"
+        className=" h-20  md:h-32"
       />
     </div>
   );
@@ -119,7 +119,7 @@ const renderStarImage = () => {
 
         {/* Title at top */}
         <h2
-          className={`text-3xl md:text-2xl font-bold mb-2 ${passed ? "text-blue-600" : "text-orange-800"}`}
+          className={`text-3xl md:text-4xl font-bold mb-2 ${passed ? "text-blue-600" : "text-orange-800"}`}
         >
           {passed ? "Complete!" : "Cần cải thiện!"}
         </h2>
@@ -127,9 +127,13 @@ const renderStarImage = () => {
         {/* Stars under title */}
         {renderStarImage()}
 
+        <p className="text-4xl md:text-5xl font-bold text-blue-600 mb-2">
+          {score}%
+        </p>
+
         {/* Show celebration GIF if passed */}
         {passed && passGif && (
-          <div className="mb-4">
+          <div className="mt-4">
             <img
               src={passGif}
               alt="Celebration"
@@ -139,9 +143,7 @@ const renderStarImage = () => {
           </div>
         )}
 
-        <p className="text-sm md:text-base text-gray-600 mb-2">
-          Bạn đã trả lời đúng {correctAnswers}/{totalQuestions} câu ({score}%)
-        </p>
+
         {!passed && (
           <p className="text-sm md:text-base text-orange-600 font-semibold mb-3">
             Cần đạt ít nhất {passThreshold}% để hoàn thành bài tập

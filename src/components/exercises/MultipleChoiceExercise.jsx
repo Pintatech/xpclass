@@ -171,19 +171,6 @@ const MultipleChoiceExercise = () => {
       setLoading(true)
       setError(null)
 
-      // Reset quiz state when loading a new exercise to avoid stale data
-      setQuestions([])
-      setOriginalQuestions([])
-      setCurrentQuestionIndex(0)
-      setSelectedAnswer(null)
-      setShowExplanation(false)
-      setQuestionResults([])
-      setIsQuizComplete(false)
-      setWrongQuestions([])
-      setIsRetryMode(false)
-      setAllAnswers({})
-      setShowAllResults(false)
-
       const { data, error } = await supabase
         .from('exercises')
         .select('*')
@@ -581,9 +568,7 @@ const MultipleChoiceExercise = () => {
         <ExerciseHeader
           title={exercise?.title}
           progressPercentage={
-            viewMode === 'one-by-one'
-              ? (currentQuestionNumber / totalQuestions) * 100
-              : (Object.keys(allAnswers).length / totalQuestions) * 100
+            (questionResults.filter(r => r.isCorrect).length / totalQuestions) * 100
           }
           isBatmanMoving={isBatmanMoving}
           isRetryMode={isRetryMode}

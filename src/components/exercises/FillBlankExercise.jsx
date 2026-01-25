@@ -1147,8 +1147,8 @@ const FillBlankExercise = () => {
         totalQuestions={questions.length}
         progressPercentage={
           retryMode
-            ? ((retryQuestions.indexOf(currentQuestionIndex) + 1) / retryQuestions.length) * 100
-            : ((currentQuestionIndex + 1) / questions.length) * 100
+            ? (questionScores.filter(score => score >= 80).length / retryQuestions.length) * 100
+            : (questionScores.filter(score => score >= 80).length / questions.length) * 100
         }
         isBatmanMoving={isBatmanMoving}
         isRetryMode={retryMode}

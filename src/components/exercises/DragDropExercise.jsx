@@ -826,7 +826,7 @@ const DragDropExercise = () => {
         {/* Header */}
         <ExerciseHeader
           title={exercise?.title}
-          progressPercentage={((currentQuestionIndex + 1) / (exercise?.content?.questions?.length || 1)) * 100}
+          progressPercentage={(questionResults.filter(r => r.isCorrect).length / (exercise?.content?.questions?.length || 1)) * 100}
           isBatmanMoving={isBatmanMoving}
           showProgressLabel={false}
           showQuestionCounter={false}
@@ -902,7 +902,7 @@ const DragDropExercise = () => {
                 onClick={handleBackToList}
                 color="blue"
                 size="md"
-                fullWidth={true}
+                fullWidth={false}
                 className="flex items-center justify-center"
               >
                 Quay lại danh sách bài tập
