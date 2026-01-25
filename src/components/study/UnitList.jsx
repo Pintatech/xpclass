@@ -39,7 +39,7 @@ const getRibbonImage = (colorTheme) => {
     green: "https://xpclass.vn/xpclass/image/unit_list/forest_label.png",
     purple: "https://xpclass.vn/xpclass/image/unit_list/pirate_label.png",
     orange: "https://xpclass.vn/xpclass/image/unit_list/ninja_label1.png",
-    red: "https://xpclass.vn/xpclass/image/unit_list/candy_label.png",
+    red: "https://xpclass.vn/xpclass/image/unit_list/candy_label1.png",
     yellow: "https://xpclass.vn/xpclass/image/unit_list/desert_label.png",
   };
   return themeRibbons[colorTheme] || themeRibbons.blue;
@@ -52,7 +52,7 @@ const getBorderColor = (colorTheme) => {
     green: "border-green-400",
     purple: "border-blue-400",
     orange: "border-black",
-    red: "border-yellow-400",
+    red: "border-pink-400",
     yellow: "border-yellow-400",
   };
   return themeBorders[colorTheme] || themeBorders.blue;

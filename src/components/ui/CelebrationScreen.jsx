@@ -102,7 +102,7 @@ const renderStarImage = () => {
             onClick={onBackToList}
             color="blue"
             size="md"
-            fullWidth={true}
+            fullWidth={false}
             className="flex items-center justify-center"
           >
             {backButtonText}
@@ -121,7 +121,7 @@ const renderStarImage = () => {
         <h2
           className={`text-3xl md:text-2xl font-bold mb-2 ${passed ? "text-blue-600" : "text-orange-800"}`}
         >
-          {passed ? "Tuyệt vời!" : "Cần cải thiện!"}
+          {passed ? "Complete!" : "Cần cải thiện!"}
         </h2>
 
         {/* Stars under title */}
@@ -178,7 +178,7 @@ const renderStarImage = () => {
           onClick={onBackToList}
           color="blue"
           size="md"
-          fullWidth={true}
+          fullWidth={false}
           className="flex items-center justify-center"
         >
           {backButtonText}
