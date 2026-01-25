@@ -8,7 +8,7 @@ import { saveRecentExercise } from '../../utils/recentExercise'
 import LoadingSpinner from '../ui/LoadingSpinner'
 import { Check, X, RotateCcw, HelpCircle, ArrowLeft } from 'lucide-react'
 import RichTextRenderer from '../ui/RichTextRenderer'
-import ExerciseHeader from './ExerciseHeader'
+import ExerciseHeader from '../ui/ExerciseHeader'
 import AudioPlayer from '../ui/AudioPlayer'
 
 // Theme-based side decoration images for PC
@@ -426,7 +426,7 @@ const FillBlankExercise = () => {
     try {
       const roundedScore = Math.round(averageScore)
       const baseXP = exercise?.xp_reward || 10
-      const bonusXP = roundedScore >= 80 ? Math.round(baseXP * 0.2) : 0
+      const bonusXP = roundedScore >= 95 ? Math.round(baseXP * 0.5) : roundedScore >= 90 ? Math.round(baseXP * 0.3) : 0
       const totalXP = baseXP + bonusXP
 
       if (exerciseId && user) {
@@ -529,7 +529,7 @@ const FillBlankExercise = () => {
       try {
         const roundedScore = Math.round(averageScore)
         const baseXP = exercise?.xp_reward || 10
-        const bonusXP = roundedScore >= 80 ? Math.round(baseXP * 0.2) : 0
+        const bonusXP = roundedScore >= 95 ? Math.round(baseXP * 0.5) : roundedScore >= 90 ? Math.round(baseXP * 0.3) : 0
         const totalXP = baseXP + bonusXP
 
         if (exerciseId && user) {
@@ -622,6 +622,7 @@ const FillBlankExercise = () => {
       </div>
     )
   }
+
 
   // Show results screen when exercise is completed
   if (exerciseCompleted) {

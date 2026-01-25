@@ -312,10 +312,10 @@ export const ProgressProvider = ({ children }) => {
         }
       }
 
-      // Calculate bonus tier based on score: +20% if >=95%, +10% if >=90%, 0% otherwise
+      // Calculate bonus tier based on score: +50% if >=95%, +30% if >=90%, 0% otherwise
       const getBonusTier = (scorePercent) => {
-        if (scorePercent >= 95) return 0.2
-        if (scorePercent >= 90) return 0.1
+        if (scorePercent >= 95) return 0.5
+        if (scorePercent >= 90) return 0.3
         return 0
       }
 

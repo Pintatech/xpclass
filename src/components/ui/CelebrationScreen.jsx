@@ -1,4 +1,4 @@
-import { CheckCircle, XCircle, RotateCcw, Star } from "lucide-react";
+import { CheckCircle, XCircle, RotateCcw } from "lucide-react";
 import Button3D from "../ui/Button3D";
 
 const CelebrationScreen = ({
@@ -25,46 +25,6 @@ const CelebrationScreen = ({
   };
 
   const starCount = getStarCount();
-
-  const starImages = {
-  1: "https://xpclass.vn/xpclass/image/1_star.png",
-  2: "https://xpclass.vn/xpclass/image/2_star.png",
-  3: "https://xpclass.vn/xpclass/image/3_star.png",
-};
-
-const renderStarImage = () => {
-  if (starCount === 0) return null;
-
-  return (
-    <div className="flex justify-center mb-4">
-      <img
-        src={starImages[starCount]}
-        alt={`${starCount} star`}
-        className=" h-20  md:h-32"
-      />
-    </div>
-  );
-};
-
-
-  // Render stars
-  const renderStars = () => {
-    if (starCount === 0) return null;
-    return (
-      <div className="flex items-center justify-center gap-1 mb-4">
-        {[1, 2, 3].map((i) => (
-          <Star
-            key={i}
-            className={`w-12 h-12 md:w-10 md:h-10 ${
-              i <= starCount
-                ? "text-yellow-400 fill-yellow-400"
-                : "text-gray-300"
-            }`}
-          />
-        ))}
-      </div>
-    );
-  };
 
   // Retry mode completion screen
   if (isRetryMode) {
@@ -114,77 +74,99 @@ const renderStarImage = () => {
 
   // Normal mode completion screen
   return (
-    <div className="bg-white rounded-lg shadow-md p-4 md:p-8 text-center border border-gray-200">
-      <div className="mb-4">
+    <div className="relative mt-16 w-[95%] max-w-[700px] mx-auto">
+      {/* Stars above ribbon */}
+      {starCount > 0 && (
+        <div className="absolute -top-16 left-1/2 -translate-x-1/2 z-30">
+          <img
+            src={`https://xpclass.vn/xpclass/image/${starCount}_star.png`}
+            alt={`${starCount} star`}
+            className="h-16 md:h-20 drop-shadow-lg"
+          />
+        </div>
+      )}
 
-        {/* Title at top */}
-        <h2
-          className={`text-3xl md:text-4xl font-bold mb-2 ${passed ? "text-blue-600" : "text-orange-800"}`}
-        >
-          {passed ? "Complete!" : "Cần cải thiện!"}
-        </h2>
+      {/* Orange ribbon banner */}
+      <div className="absolute -top-2 left-1/2 -translate-x-1/2 z-20 w-[105%]">
+        <div className="bg-gradient-to-b from-orange-400 to-orange-500 rounded-lg py-3 px-6 shadow-lg border-b-4 border-orange-600 text-center">
+          <p className="text-orange-200 text-xs font-semibold tracking-wider uppercase">
+            {passed ? "Exercise" : "Try Again"}
+          </p>
+          <p className="text-white text-2xl font-extrabold tracking-wide drop-shadow-md" style={{ textShadow: '2px 2px 0 rgba(0,0,0,0.2)' }}>
+            {passed ? "COMPLETE!" : "INCOMPLETE"}
+          </p>
+        </div>
+      
+      </div>
 
-        {/* Stars under title */}
-        {renderStarImage()}
+      {/* Main card */}
+      <div className="bg-gradient-to-b from-orange-50 to-orange-100 rounded-3xl shadow-xl pt-20 pb-8 px-8 md:pt-16 md:pb-6 md:px-6 border-4 border-orange-200 text-center">
 
-        <p className="text-4xl md:text-5xl font-bold text-blue-600 mb-2">
-          {score}%
-        </p>
+        {/* Score section */}
+        <div className="mb-4">
+          <p className="text-orange-300 mt-4 text-2xl font-extrabold tracking-wider uppercase mb-2">Score</p>
+          <div className="inline-block bg-white rounded-full py-3 px-12 shadow-inner border-2 border-orange-100">
+            <p className="text-4xl font-extrabold text-orange-800">{score}%</p>
+          </div>
+        </div>
 
-        {/* Show celebration GIF if passed */}
+        {/* Divider */}
+        <div className="flex items-center justify-center gap-2 my-4">
+          <div className="h-0.5 w-8 bg-orange-200 rounded"></div>
+          <div className="w-2 h-2 bg-orange-200 rounded-full"></div>
+          <div className="h-0.5 w-8 bg-orange-200 rounded"></div>
+        </div>
+
+        {/* XP Reward section */}
+        {xpAwarded > 0 && (
+          <div className="mb-4">
+            <p className="text-orange-300 text-sm md:text-2xl font-extrabold tracking-wider uppercase mb-2">Reward</p>
+            <div className="flex items-center justify-center gap-2">              
+              <span className="text-3xl md:text-5xl font-extrabold text-orange-800">{xpAwarded}</span>
+              <img src="https://xpclass.vn/xpclass/icon/xp_small.svg" alt="XP" className="w-8 h-8 md:w-12 md:h-12" />
+            </div>
+          </div>
+        )}
+
+        {/* Celebration GIF */}
         {passed && passGif && (
-          <div className="mt-4">
+          <div className="my-4">
             <img
               src={passGif}
               alt="Celebration"
-              className="mx-auto rounded-lg shadow-lg"
-              style={{ maxWidth: "300px", width: "100%", height: "auto" }}
+              className="mx-auto rounded-xl shadow-lg"
+              style={{ maxWidth: "200px", width: "100%", height: "auto" }}
             />
           </div>
         )}
 
-
+        {/* Failed message */}
         {!passed && (
-          <p className="text-sm md:text-base text-orange-600 font-semibold mb-3">
-            Cần đạt ít nhất {passThreshold}% để hoàn thành bài tập
-          </p>
-        )}
-        {xpAwarded > 0 && (
-          <div className="flex items-center justify-center space-x-2 text-yellow-600 font-semibold text-sm md:text-base">
-            <Star className="w-4 h-4 md:w-5 md:h-5" />
-            <span>+{xpAwarded} XP earned!</span>
+          <div className="mb-4 p-3 bg-red-50 rounded-xl border border-red-200">
+            <p className="text-sm text-red-600 font-medium">
+              Cần đạt ít nhất {passThreshold}% để hoàn thành
+            </p>
           </div>
         )}
-        {xpAwarded === 0 && !passed && (
-          <div className="flex items-center justify-center space-x-2 text-gray-500 text-sm md:text-base">
-            <XCircle className="w-4 h-4 md:w-5 md:h-5" />
-            <span>Không nhận được XP (điểm quá thấp)</span>
-          </div>
-        )}
-      </div>
 
-      <div className="space-y-4">
-        {/* Show wrong questions retry button */}
+        {/* Retry wrong questions button */}
         {wrongQuestionsCount > 0 && onRetryWrongQuestions && (
           <button
             onClick={onRetryWrongQuestions}
-            className="w-full px-4 py-3 bg-orange-500 hover:bg-orange-600 text-white rounded-lg font-medium flex items-center justify-center"
+            className="mb-3 py-3 px-16 bg-gradient-to-b from-orange-400 to-orange-500 hover:from-orange-500 hover:to-orange-600 text-white rounded-full font-bold shadow-lg border-b-4 border-orange-600 active:border-b-0 active:mt-1 transition-all inline-flex items-center justify-center gap-2"
           >
-            <RotateCcw className="w-4 h-4 mr-2" />
+            <RotateCcw className="w-5 h-5" />
             Ôn lại {wrongQuestionsCount} câu sai
           </button>
         )}
 
-        {/* Back to exercise list */}
-        <Button3D
+        {/* OK Button - Teal style like the image */}
+        <button
           onClick={onBackToList}
-          color="blue"
-          size="md"
-          fullWidth={false}
-          className="flex items-center justify-center"
+          className="py-4 px-16 bg-gradient-to-b from-cyan-400 to-cyan-500 hover:from-cyan-500 hover:to-cyan-600 text-white rounded-full font-extrabold text-xl shadow-lg border-b-4 border-cyan-600 active:border-b-0 active:mt-1 transition-all"
         >
-          {backButtonText}
-        </Button3D>
+          OK
+        </button>
       </div>
     </div>
   );

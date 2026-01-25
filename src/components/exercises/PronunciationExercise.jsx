@@ -75,7 +75,6 @@ const PronunciationExercise = () => {
   const [isQuizComplete, setIsQuizComplete] = useState(false)
   const [startTime, setStartTime] = useState(null)
   const [xpAwarded, setXpAwarded] = useState(0)
-  const [showXpNotification, setShowXpNotification] = useState(false)
 
   // Pronunciation state
   const [isRecording, setIsRecording] = useState(false)
@@ -410,7 +409,7 @@ const PronunciationExercise = () => {
 
     try {
       const baseXP = exercise?.xp_reward || 15
-      const bonusXP = score >= 80 ? Math.round(baseXP * 0.2) : 0
+      const bonusXP = score >= 95 ? Math.round(baseXP * 0.5) : score >= 90 ? Math.round(baseXP * 0.3) : 0
       const totalXP = baseXP + bonusXP
 
       const result = await completeExerciseWithXP(exerciseId, totalXP, {
@@ -431,20 +430,13 @@ const PronunciationExercise = () => {
 
       if (result.xpAwarded > 0) {
         setXpAwarded(result.xpAwarded)
-        setShowXpNotification(true)
-        setTimeout(() => setShowXpNotification(false), 4000)
+
       }
     } catch (err) {
       console.error('Error marking exercise completed:', err)
     }
   }
 
-  const getScoreColor = (score) => {
-    if (score >= 90) return 'text-green-600'
-    if (score >= 80) return 'text-blue-600'
-    if (score >= 70) return 'text-yellow-600'
-    return 'text-red-600'
-  }
 
   const getScoreMessage = (score) => {
     if (score >= 90) return 'Excellent!'
@@ -552,16 +544,6 @@ const PronunciationExercise = () => {
             </div>
           )}
         </div>
-
-        {/* XP Notification */}
-        {showXpNotification && (
-          <div className="fixed top-4 right-4 z-50 bg-yellow-500 text-white px-4 py-2 rounded-lg shadow-lg animate-bounce">
-            <div className="flex items-center space-x-2">
-              <Star className="w-4 h-4" />
-              <span className="font-bold text-sm">+{xpAwarded} XP!</span>
-            </div>
-          </div>
-        )}
 
         {/* Quiz Complete Screen */}
         {isQuizComplete && (

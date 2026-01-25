@@ -8,7 +8,7 @@ import AudioPlayer from '../ui/AudioPlayer'
 import { useAuth } from '../../hooks/useAuth'
 import { useProgress } from '../../hooks/useProgress'
 import { useFeedback } from '../../hooks/useFeedback'
-import ExerciseHeader from './ExerciseHeader'
+import ExerciseHeader from '../ui/ExerciseHeader'
 
 // Theme-based side decoration images for PC
 const themeSideImages = {

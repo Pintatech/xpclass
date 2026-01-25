@@ -44,7 +44,9 @@ const ExerciseHeader = ({
   targetInfo,
   showProgressLabel = true,
   customContent,
-  colorTheme = 'blue'
+  colorTheme = 'blue',
+  showStarThresholds = true,
+  starThresholds = { one: 80, two: 90, three: 95 }
 }) => {
   const characterImages = getThemeCharacter(colorTheme)
   return (
@@ -93,6 +95,32 @@ const ExerciseHeader = ({
                 width: `${progressPercentage}%`
               }}
             />
+            {/* Star Threshold Indicators */}
+            {showStarThresholds && (
+              <>
+                {/* 1 Star Marker */}
+                <div
+                  className="absolute top-1/2 -translate-y-1/2"
+                  style={{ left: `${starThresholds.one}%`, transform: 'translateX(-50%) translateY(-50%)' }}
+                >
+                  <div className={`w-3 h-3 rounded-full border-2 ${progressPercentage >= starThresholds.one ? 'bg-yellow-400 border-yellow-500' : 'bg-white border-gray-400'}`} />
+                </div>
+                {/* 2 Star Marker */}
+                <div
+                  className="absolute top-1/2 -translate-y-1/2"
+                  style={{ left: `${starThresholds.two}%`, transform: 'translateX(-50%) translateY(-50%)' }}
+                >
+                  <div className={`w-3 h-3 rounded-full border-2 ${progressPercentage >= starThresholds.two ? 'bg-yellow-400 border-yellow-500' : 'bg-white border-gray-400'}`} />
+                </div>
+                {/* 3 Star Marker */}
+                <div
+                  className="absolute top-1/2 -translate-y-1/2"
+                  style={{ left: `${starThresholds.three}%`, transform: 'translateX(-50%) translateY(-50%)' }}
+                >
+                  <div className={`w-3 h-3 rounded-full border-2 ${progressPercentage >= starThresholds.three ? 'bg-yellow-400 border-yellow-500' : 'bg-white border-gray-400'}`} />
+                </div>
+              </>
+            )}
             {/* Running Character Animation - moves with and stays with progress bar */}
             {showBatman && (
               <img

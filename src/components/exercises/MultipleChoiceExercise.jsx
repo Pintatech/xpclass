@@ -10,7 +10,7 @@ import LoadingSpinner from '../ui/LoadingSpinner'
 import RichTextRenderer, { RichTextWithAudio } from '../ui/RichTextRenderer'
 import { CheckCircle, XCircle, ArrowRight, Star } from 'lucide-react'
 import Button3D from '../ui/Button3D'
-import ExerciseHeader from './ExerciseHeader'
+import ExerciseHeader from '../ui/ExerciseHeader'
 import CelebrationScreen from '../ui/CelebrationScreen'
 
 // Theme-based side decoration images for PC
@@ -77,7 +77,6 @@ const MultipleChoiceExercise = () => {
   const [isRetryMode, setIsRetryMode] = useState(false)
   const [startTime, setStartTime] = useState(null)
   const [xpAwarded, setXpAwarded] = useState(0)
-  const [showXpNotification, setShowXpNotification] = useState(false)
   const [isBatmanMoving, setIsBatmanMoving] = useState(false)
 
   // View mode state - read from exercise settings
@@ -424,7 +423,7 @@ const MultipleChoiceExercise = () => {
     try {
       // Calculate XP
       const baseXP = exercise?.xp_reward || 10
-      const bonusXP = score >= 95 ? Math.round(baseXP * 0.2) : score >= 90 ? Math.round(baseXP * 0.1) : 0 // +20% if >=95%, +10% if >=90%
+      const bonusXP = score >= 95 ? Math.round(baseXP * 0.5) : score >= 90 ? Math.round(baseXP * 0.3) : 0 // +50% if >=95%, +30% if >=90%
       const totalXP = baseXP + bonusXP
 
       console.log(`💰 Calculating XP: ${baseXP} base + ${bonusXP} bonus = ${totalXP} total`)
@@ -447,16 +446,9 @@ const MultipleChoiceExercise = () => {
         return
       }
 
-      // Show XP notification only if XP was actually awarded
+      // Set XP awarded if any
       if (result.xpAwarded > 0) {
         setXpAwarded(result.xpAwarded)
-        setShowXpNotification(true)
-
-        // Hide notification after 4 seconds
-        setTimeout(() => {
-          setShowXpNotification(false)
-        }, 4000)
-
         console.log(`✅ Exercise completed successfully! Awarded ${result.xpAwarded} XP`)
       } else {
         console.log(`📝 Exercise attempted but not completed (score: ${score}%, required: 75%)`)
@@ -588,16 +580,6 @@ const MultipleChoiceExercise = () => {
         </div>
       )}
 
-
-      {/* XP Notification */}
-      {showXpNotification && (
-        <div className="fixed top-4 right-4 z-50 bg-yellow-500 text-white px-4 py-2 rounded-lg shadow-lg animate-bounce">
-          <div className="flex items-center space-x-2">
-            <Star className="w-4 h-4" />
-            <span className="font-bold text-sm">+{xpAwarded} XP!</span>
-          </div>
-        </div>
-      )}
 
       {/* Quiz Complete Screen */}
       {isQuizComplete && (

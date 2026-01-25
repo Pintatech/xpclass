@@ -4,7 +4,6 @@ import ExerciseList from './ExerciseList'
 import UnitSessionManager from './UnitSessionManager'
 import PersonalAssignments from './PersonalAssignments'
 import FlashcardExercise from '../exercises/FlashcardExercise'
-import VocabSessionWrapper from '../exercises/VocabSessionWrapper'
 import MultipleChoiceExercise from '../exercises/MultipleChoiceExercise'
 import FillBlankExercise from '../exercises/FillBlankExercise'
 import DragDropExercise from '../exercises/DragDropExercise'
@@ -34,7 +33,6 @@ const StudyModule = () => {
       {/* Exercise routes */}
       <Route path="flashcard" element={<FlashcardExercise />} />
       <Route path="fill-blank" element={<FillBlankExercise />} />
-      <Route path="vocab-session" element={<VocabSessionWrapper />} />
       <Route path="multiple-choice" element={<MultipleChoiceExercise />} />
       <Route path="drag-drop" element={<DragDropExercise />} />
       <Route path="ai-fill-blank" element={<AIFillBlankExercise />} />
