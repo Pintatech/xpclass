@@ -585,24 +585,26 @@ const MultipleChoiceExercise = () => {
 
       {/* Quiz Complete Screen */}
       {isQuizComplete && (
-        <CelebrationScreen
-          score={Math.round((questionResults.filter(r => r.isCorrect).length / questionResults.length) * 100)}
-          correctAnswers={questionResults.filter(r => r.isCorrect).length}
-          totalQuestions={questionResults.length}
-          passThreshold={80}
-          xpAwarded={xpAwarded}
-          passGif={passGif}
-          isRetryMode={isRetryMode}
-          wrongQuestionsCount={isRetryMode ? 0 : wrongQuestions.length}
-          onRetryWrongQuestions={handleRetryWrongQuestions}
-          onBackToList={() => {
-            if (session && session.units) {
-              navigate(`/study/course/${session.units.course_id}/unit/${session.unit_id}/session/${sessionId}`)
-            } else {
-              navigate('/study')
-            }
-          }}
-        />
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+          <CelebrationScreen
+            score={Math.round((questionResults.filter(r => r.isCorrect).length / questionResults.length) * 100)}
+            correctAnswers={questionResults.filter(r => r.isCorrect).length}
+            totalQuestions={questionResults.length}
+            passThreshold={80}
+            xpAwarded={xpAwarded}
+            passGif={passGif}
+            isRetryMode={isRetryMode}
+            wrongQuestionsCount={isRetryMode ? 0 : wrongQuestions.length}
+            onRetryWrongQuestions={handleRetryWrongQuestions}
+            onBackToList={() => {
+              if (session && session.units) {
+                navigate(`/study/course/${session.units.course_id}/unit/${session.unit_id}/session/${sessionId}`)
+              } else {
+                navigate('/study')
+              }
+            }}
+          />
+        </div>
       )}
 
       {/* Meme Overlay */}
@@ -618,9 +620,8 @@ const MultipleChoiceExercise = () => {
       )}
 
       {/* Questions Display */}
-      {!isQuizComplete && (
-        <>
-          {/* One-by-one mode */}
+      <>
+        {/* One-by-one mode */}
           {viewMode === 'one-by-one' && (
             <div className="w-full max-w-4xl min-w-0 mx-auto mt-6 bg-white rounded-lg shadow-[0_2px_10px_rgba(0,0,0,0.1),0_10px_20px_rgba(0,0,0,0.05)] relative before:content-[''] before:absolute before:top-0 before:left-0 before:right-0 before:h-full before:bg-gradient-to-b before:from-gray-50 before:to-transparent before:opacity-30 before:pointer-events-none before:rounded-lg">
               
@@ -1022,7 +1023,6 @@ const MultipleChoiceExercise = () => {
             </div>
           )}
         </>
-      )}
         </div>
       </div>
     </>

@@ -74,7 +74,7 @@ const CelebrationScreen = ({
 
   // Normal mode completion screen
   return (
-    <div className="relative mt-16 w-[95%] max-w-[700px] mx-auto">
+    <div className="relative mt-16 w-[95%] max-w-[400px] mx-auto">
       {/* Stars above ribbon */}
       {starCount > 0 && (
         <div className="absolute -top-16 left-1/2 -translate-x-1/2 z-30">

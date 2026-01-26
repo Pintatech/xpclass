@@ -25,7 +25,7 @@ const getThemeBackground = (colorTheme) => {
     blue: "https://xpclass.vn/xpclass/image/theme_unit/ice.webp",
     green: "https://xpclass.vn/xpclass/image/theme_unit/forest.webp",
     purple: "https://xpclass.vn/xpclass/image/theme_unit/pirate.webp",
-    orange: "https://xpclass.vn/xpclass/image/theme_unit/ninja.webp",
+    orange: "https://xpclass.vn/xpclass/image/theme_unit/ninja.PNG",
     red: "https://xpclass.vn/xpclass/image/theme_unit/candy.webp",
     yellow: "https://xpclass.vn/xpclass/image/theme_unit/dessert.webp",
   };
@@ -35,7 +35,7 @@ const getThemeBackground = (colorTheme) => {
 // Theme-based ribbon images for unit titles
 const getRibbonImage = (colorTheme) => {
   const themeRibbons = {
-    blue: "https://xpclass.vn/xpclass/image/unit_list/ice_label.png",
+    blue: "https://xpclass.vn/xpclass/image/unit_list/ice_label1.png",
     green: "https://xpclass.vn/xpclass/image/unit_list/forest_label.png",
     purple: "https://xpclass.vn/xpclass/image/unit_list/pirate_label.png",
     orange: "https://xpclass.vn/xpclass/image/unit_list/ninja_label1.png",
@@ -48,10 +48,10 @@ const getRibbonImage = (colorTheme) => {
 // Theme-based border colors for unit cards
 const getBorderColor = (colorTheme) => {
   const themeBorders = {
-    blue: "border-[#4bece5]",
-    green: "border-green-400",
+    blue: "border-[#a2d4f9]",
+    green: "border-[#77cd0b]",
     purple: "border-blue-400",
-    orange: "border-black",
+    orange: "border-gray-700",
     red: "border-pink-400",
     yellow: "border-yellow-400",
   };
@@ -479,7 +479,7 @@ const UnitList = () => {
       blue: "bg-cyan-700",
       green: "bg-green-700",
       purple: "bg-blue-700",
-      orange: "bg-orange-700",
+      orange: "bg-gray-900",
       red: "bg-yellow-700",
       yellow: "bg-yellow-700",
     };
@@ -488,7 +488,7 @@ const UnitList = () => {
       blue: "bg-[#4bece5]",
       green: "bg-green-500",
       purple: "bg-blue-500",
-      orange: "bg-orange-500",
+      orange: "bg-gray-700",
       red: "bg-yellow-500",
       yellow: "bg-yellow-500",
     };
@@ -496,12 +496,12 @@ const UnitList = () => {
     // Get colors based on status
     const getBackColor = () => {
       if (status === "completed") return themeBackColors[colorTheme] || "bg-green-700";
-      return "bg-gray-600";
+      return "bg-gray-400";
     };
 
     const getFrontColor = () => {
       if (status === "completed") return themeFrontColors[colorTheme] || "bg-green-500";
-      return "bg-gray-400";
+      return "bg-gray-300";
     };
 
     return (
@@ -683,7 +683,7 @@ const UnitList = () => {
                     }}
                   >
                     {/* Overlay for readability */}
-                    <div className="absolute inset-0 bg-white/50" />
+                    <div className="absolute inset-0 bg-white/30" />
 
                     {/* Ribbon centered at top, overlapping the div */}
                     <div className="absolute -top-8 left-1/2 -translate-x-1/2 z-20">
@@ -695,7 +695,7 @@ const UnitList = () => {
                         />
 
                         {/* Text overlay */}
-                        <span className="absolute inset-0 flex items-center justify-center text-white font-bold text-md drop-shadow-md">
+                        <span className="absolute inset-0 flex items-center justify-center text-white font-bold text-lg drop-shadow-md">
                           {unit.title}
                         </span>
                       </div>

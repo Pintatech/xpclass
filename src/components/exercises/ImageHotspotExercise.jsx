@@ -247,33 +247,35 @@ const ImageHotspotExercise = () => {
   const handleLabelClick = (label) => {
     if (exerciseComplete) return
 
-    // Check if this label is already placed
+    // Check if this label is already placed - if so, don't allow selecting it
     const hotspotId = Object.keys(userAnswers).find(hsId => userAnswers[hsId] === label.id)
-
     if (hotspotId) {
-      // Remove from hotspot (undo placement)
-      const newAnswers = { ...userAnswers }
-      delete newAnswers[hotspotId]
-      setUserAnswers(newAnswers)
-
-      // Clear feedback for that hotspot
-      const newFeedback = { ...hotspotFeedback }
-      delete newFeedback[hotspotId]
-      setHotspotFeedback(newFeedback)
-
-      setSelectedLabel(null)
+      // Label is already placed, user must click hotspot on image to remove
       return
     }
 
-    // Toggle selection (including distractors)
-    setSelectedLabel(selectedLabel?.id === label.id ? null : label)
+    // Select label (no toggle - must click hotspot on image to deselect)
+    setSelectedLabel(label)
   }
 
   const handleHotspotClick = (hotspot) => {
     if (exerciseComplete || isSubmitted) return
 
+    // If hotspot already has a label and no label is selected, remove it
+    if (userAnswers[hotspot.id] && !selectedLabel) {
+      const newAnswers = { ...userAnswers }
+      delete newAnswers[hotspot.id]
+      setUserAnswers(newAnswers)
+
+      // Clear feedback for that hotspot
+      const newFeedback = { ...hotspotFeedback }
+      delete newFeedback[hotspot.id]
+      setHotspotFeedback(newFeedback)
+      return
+    }
+
     if (!selectedLabel) {
-      // No label selected - maybe show hint or do nothing
+      // No label selected and hotspot is empty - do nothing
       return
     }
 
@@ -700,32 +702,33 @@ const ImageHotspotExercise = () => {
           </div>
         </div>
 
-        {/* Completion Modal */}
-        {exerciseComplete && (
-          <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-            <CelebrationScreen
-              score={100}
-              correctAnswers={totalHotspots}
-              totalQuestions={totalHotspots}
-              passThreshold={100}
-              xpAwarded={xpEarned}
-              passGif={passGif}
-              isRetryMode={false}
-              wrongQuestionsCount={0}
-              onBackToList={() => {
-                const courseId = session?.units?.course_id
-                const unitId = session?.unit_id
-                if (sessionId && unitId && courseId) {
-                  navigate(`/study/course/${courseId}/unit/${unitId}/session/${sessionId}`)
-                } else {
-                  navigate(-1)
-                }
-              }}
-            />
-          </div>
-        )}
         </div>
       </div>
+
+      {/* Completion Modal */}
+      {exerciseComplete && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+          <CelebrationScreen
+            score={100}
+            correctAnswers={totalHotspots}
+            totalQuestions={totalHotspots}
+            passThreshold={100}
+            xpAwarded={xpEarned}
+            passGif={passGif}
+            isRetryMode={false}
+            wrongQuestionsCount={0}
+            onBackToList={() => {
+              const courseId = session?.units?.course_id
+              const unitId = session?.unit_id
+              if (sessionId && unitId && courseId) {
+                navigate(`/study/course/${courseId}/unit/${unitId}/session/${sessionId}`)
+              } else {
+                navigate(-1)
+              }
+            }}
+          />
+        </div>
+      )}
     </>
   )
 }

@@ -851,27 +851,28 @@ const DragDropExercise = () => {
 
         {/* Result Screen */}
         {showResultScreen && (
-          <CelebrationScreen
-            score={Math.round((questionResults.filter(r => r.isCorrect).length / exercise.content.questions.length) * 100)}
-            correctAnswers={questionResults.filter(r => r.isCorrect).length}
-            totalQuestions={exercise.content.questions.length}
-            passThreshold={75}
-            xpAwarded={xpEarnedThisSession}
-            passGif={passGif}
-            isRetryMode={false}
-            wrongQuestionsCount={0}
-            onBackToList={handleBackToList}
-          />
+          <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+            <CelebrationScreen
+              score={Math.round((questionResults.filter(r => r.isCorrect).length / exercise.content.questions.length) * 100)}
+              correctAnswers={questionResults.filter(r => r.isCorrect).length}
+              totalQuestions={exercise.content.questions.length}
+              passThreshold={75}
+              xpAwarded={xpEarnedThisSession}
+              passGif={passGif}
+              isRetryMode={false}
+              wrongQuestionsCount={0}
+              onBackToList={handleBackToList}
+            />
+          </div>
         )}
 
         {/* Main Content */}
-        {!showResultScreen && (
         <div className="w-full max-w-4xl min-w-0 mx-auto rounded-lg p-4 md:p-8 bg-white shadow-md border border-gray-200 border-l-4 border-l-blue-400 relative" style={{ userSelect: 'none' }}>
           {/* Colored circles on top right */}
           <div className="absolute top-4 right-6 md:right-10 flex gap-2 z-20">
-            <div className="w-3 h-3 rounded-full bg-red-500"></div>
-            <div className="w-3 h-3 rounded-full bg-yellow-500"></div>
-            <div className="w-3 h-3 rounded-full bg-green-500"></div>
+                <div className="w-3 h-3 rounded-full bg-blue-500"></div>
+                <div className="w-3 h-3 rounded-full bg-purple-500"></div>
+                <div className="w-3 h-3 rounded-full bg-pink-500"></div>
           </div>
           {/* Question with inline drop zones */}
           <div className="mb-8 p-4">
@@ -1132,7 +1133,6 @@ const DragDropExercise = () => {
             )}
           </div>
         </div>
-        )}
         </div>
       </div>
     </>

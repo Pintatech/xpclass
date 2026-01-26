@@ -636,55 +636,35 @@ const FillBlankExercise = () => {
   }
 
 
-  // Show results screen when exercise is completed
-  if (exerciseCompleted) {
-    // Calculate correct answers and wrong questions
-    const correctAnswersCount = questionScores.filter(s => s >= 80).length
-    const wrongQuestionsForRetry = questionScores
-      .map((score, index) => ({ score, index }))
-      .filter(q => q.score < 80)
-      .map(q => q.index)
+  // Calculate correct answers and wrong questions for celebration screen
+  const correctAnswersCount = questionScores.filter(s => s >= 80).length
+  const wrongQuestionsForRetry = questionScores
+    .map((score, index) => ({ score, index }))
+    .filter(q => q.score < 80)
+    .map(q => q.index)
 
-    const handleRetryWrongQuestions = () => {
-      if (wrongQuestionsForRetry.length > 0) {
-        setAttemptNumber(prev => prev + 1)
+  const handleRetryWrongQuestions = () => {
+    if (wrongQuestionsForRetry.length > 0) {
+      setAttemptNumber(prev => prev + 1)
 
-        const newScores = [...questionScores]
-        wrongQuestionsForRetry.forEach(qIndex => {
-          newScores[qIndex] = 0
-        })
-        setQuestionScores(newScores)
+      const newScores = [...questionScores]
+      wrongQuestionsForRetry.forEach(qIndex => {
+        newScores[qIndex] = 0
+      })
+      setQuestionScores(newScores)
 
-        setRetryMode(true)
-        setRetryQuestions(wrongQuestionsForRetry)
+      setRetryMode(true)
+      setRetryQuestions(wrongQuestionsForRetry)
 
-        setExerciseCompleted(false)
-        setCurrentQuestionIndex(wrongQuestionsForRetry[0])
-        setShowResults(false)
-        setShowExplanation(false)
-        setShowCorrectAnswers(false)
-        setHasEdited(false)
-        setTotalScore(0)
-        setHasPlayedPassAudio(false)
-      }
+      setExerciseCompleted(false)
+      setCurrentQuestionIndex(wrongQuestionsForRetry[0])
+      setShowResults(false)
+      setShowExplanation(false)
+      setShowCorrectAnswers(false)
+      setHasEdited(false)
+      setTotalScore(0)
+      setHasPlayedPassAudio(false)
     }
-
-    return (
-      <div className="max-w-4xl mx-auto p-6">
-        <CelebrationScreen
-          score={Math.round(totalScore)}
-          correctAnswers={correctAnswersCount}
-          totalQuestions={questions.length}
-          passThreshold={80}
-          xpAwarded={xpAwarded}
-          passGif={passGif}
-          isRetryMode={retryMode}
-          wrongQuestionsCount={retryMode ? 0 : wrongQuestionsForRetry.length}
-          onRetryWrongQuestions={handleRetryWrongQuestions}
-          onBackToList={handleBackToSession}
-        />
-      </div>
-    )
   }
 
   const renderQuestionText = (questionIndex = currentQuestionIndex) => {
@@ -823,7 +803,7 @@ const FillBlankExercise = () => {
   }
 
   // Render all questions on one page
-  if (showAllQuestions && !exerciseCompleted) {
+  if (showAllQuestions) {
     const allAnswersFilled = questions.every((question, qIndex) =>
       question.blanks.every((_, blankIndex) =>
         (userAnswers[qIndex]?.[blankIndex] || '').trim() !== ''
@@ -832,6 +812,23 @@ const FillBlankExercise = () => {
 
     return (
       <div className="px-4 pt-6 pb-12">
+        {/* Celebration Screen Overlay */}
+        {exerciseCompleted && (
+          <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+            <CelebrationScreen
+              score={Math.round(totalScore)}
+              correctAnswers={correctAnswersCount}
+              totalQuestions={questions.length}
+              passThreshold={80}
+              xpAwarded={xpAwarded}
+              passGif={passGif}
+              isRetryMode={retryMode}
+              wrongQuestionsCount={retryMode ? 0 : wrongQuestionsForRetry.length}
+              onRetryWrongQuestions={handleRetryWrongQuestions}
+              onBackToList={handleBackToSession}
+            />
+          </div>
+        )}
         {/* Meme Overlay */}
         {showMeme && currentMeme && (
           <div className="fixed inset-0 flex items-center justify-center z-50 pointer-events-none">
@@ -1056,6 +1053,23 @@ const FillBlankExercise = () => {
       </div>
 
       <div className="relative px-4 pt-6 pb-12">
+      {/* Celebration Screen Overlay */}
+      {exerciseCompleted && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+          <CelebrationScreen
+            score={Math.round(totalScore)}
+            correctAnswers={correctAnswersCount}
+            totalQuestions={questions.length}
+            passThreshold={80}
+            xpAwarded={xpAwarded}
+            passGif={passGif}
+            isRetryMode={retryMode}
+            wrongQuestionsCount={retryMode ? 0 : wrongQuestionsForRetry.length}
+            onRetryWrongQuestions={handleRetryWrongQuestions}
+            onBackToList={handleBackToSession}
+          />
+        </div>
+      )}
       {/* Meme Overlay */}
       {showMeme && currentMeme && (
         <div className="fixed inset-0 flex items-center justify-center z-50 pointer-events-none">
