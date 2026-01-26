@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react'
 import { useLocation, useNavigate } from 'react-router-dom'
 import { supabase } from '../../supabase/client'
-import { RotateCcw, CheckCircle, XCircle, Star } from 'lucide-react'
+import { RotateCcw, CheckCircle, XCircle } from 'lucide-react'
 import LoadingSpinner from '../ui/LoadingSpinner'
 import Button3D from '../ui/Button3D'
 import { useAuth } from '../../hooks/useAuth'
@@ -10,6 +10,7 @@ import { useFeedback } from '../../hooks/useFeedback'
 import ExerciseHeader from '../ui/ExerciseHeader'
 import RichTextRenderer from '../ui/RichTextRenderer'
 import AudioPlayer from '../ui/AudioPlayer'
+import CelebrationScreen from '../ui/CelebrationScreen'
 
 // Theme-based side decoration images for PC
 const themeSideImages = {
@@ -536,6 +537,12 @@ const DragDropExercise = () => {
     setIsCorrect(isAnswerCorrect)
     setShowResult(true)
 
+    // Trigger Batman movement if answer is correct
+    if (isAnswerCorrect) {
+      setIsBatmanMoving(true)
+      setTimeout(() => setIsBatmanMoving(false), 3000)
+    }
+
     // Play feedback (meme + sound)
     playFeedback(isAnswerCorrect)
 
@@ -724,10 +731,6 @@ const DragDropExercise = () => {
         return
       }
 
-      // Trigger Batman movement
-      setIsBatmanMoving(true)
-      setTimeout(() => setIsBatmanMoving(false), 3000)
-
       setCurrentQuestionIndex(currentQuestionIndex + 1)
       setIsCorrect(null)
       setShowResult(false)
@@ -823,14 +826,16 @@ const DragDropExercise = () => {
 
       <div className="relative px-2 md:pt-2 pb-12">
         <div className="max-w-4xl mx-auto space-y-6 relative z-20">
-        {/* Header */}
-        <ExerciseHeader
-          title={exercise?.title}
-          progressPercentage={(questionResults.filter(r => r.isCorrect).length / (exercise?.content?.questions?.length || 1)) * 100}
-          isBatmanMoving={isBatmanMoving}
-          showProgressLabel={false}
-          showQuestionCounter={false}
-        />
+        {/* Header - hidden when celebration screen is shown */}
+        {!showResultScreen && (
+          <ExerciseHeader
+            title={exercise?.title}
+            progressPercentage={(questionResults.filter(r => r.isCorrect).length / (exercise?.content?.questions?.length || 1)) * 100}
+            isBatmanMoving={isBatmanMoving}
+            showProgressLabel={false}
+            showQuestionCounter={false}
+          />
+        )}
 
         {/* Meme Overlay */}
         {showMeme && (
@@ -846,69 +851,17 @@ const DragDropExercise = () => {
 
         {/* Result Screen */}
         {showResultScreen && (
-          <div className="bg-white rounded-lg shadow-md p-4 md:p-8 text-center border border-gray-200">
-            <div className="mb-4">
-              {(() => {
-                const correctAnswers = questionResults.filter(r => r.isCorrect).length
-                const totalQuestions = exercise.content.questions.length
-                const score = Math.round((correctAnswers / totalQuestions) * 100)
-                const passed = score >= 75
-
-                return (
-                  <>
-                    {/* Show celebration GIF if passed */}
-                    {passed && passGif && (
-                      <div className="mb-4">
-                        <img
-                          src={passGif}
-                          alt="Celebration"
-                          className="mx-auto rounded-lg shadow-lg"
-                          style={{ maxWidth: '300px', width: '100%', height: 'auto' }}
-                        />
-                      </div>
-                    )}
-
-                    <h2 className={`text-lg md:text-2xl font-bold mb-2 ${passed ? 'text-green-800' : 'text-orange-800'}`}>
-                      {passed ? 'Tuyệt vời!' : 'Cần cải thiện!'}
-                    </h2>
-                    <p className="text-sm md:text-base text-gray-600 mb-2">
-                      Bạn đã trả lời đúng {correctAnswers}/{totalQuestions} câu ({score}%)
-                    </p>
-                    {!passed && (
-                      <p className="text-sm md:text-base text-orange-600 font-semibold mb-3">
-                        Cần đạt ít nhất 75% để hoàn thành bài tập
-                      </p>
-                    )}
-                    {xpEarnedThisSession > 0 && (
-                      <div className="flex items-center justify-center space-x-2 text-yellow-600 font-semibold text-sm md:text-base">
-                        <Star className="w-4 h-4 md:w-5 md:h-5" />
-                        <span>+{xpEarnedThisSession} XP earned!</span>
-                      </div>
-                    )}
-                    {xpEarnedThisSession === 0 && !passed && (
-                      <div className="flex items-center justify-center space-x-2 text-gray-500 text-sm md:text-base">
-                        <XCircle className="w-4 h-4 md:w-5 md:h-5" />
-                        <span>Không nhận được XP (điểm quá thấp)</span>
-                      </div>
-                    )}
-                  </>
-                )
-              })()}
-            </div>
-
-            <div className="space-y-4">
-              {/* Back to exercise list */}
-              <Button3D
-                onClick={handleBackToList}
-                color="blue"
-                size="md"
-                fullWidth={false}
-                className="flex items-center justify-center"
-              >
-                Quay lại danh sách bài tập
-              </Button3D>
-            </div>
-          </div>
+          <CelebrationScreen
+            score={Math.round((questionResults.filter(r => r.isCorrect).length / exercise.content.questions.length) * 100)}
+            correctAnswers={questionResults.filter(r => r.isCorrect).length}
+            totalQuestions={exercise.content.questions.length}
+            passThreshold={75}
+            xpAwarded={xpEarnedThisSession}
+            passGif={passGif}
+            isRetryMode={false}
+            wrongQuestionsCount={0}
+            onBackToList={handleBackToList}
+          />
         )}
 
         {/* Main Content */}

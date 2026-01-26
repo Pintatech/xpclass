@@ -3,11 +3,13 @@ import { useLocation, useNavigate } from 'react-router-dom'
 import { supabase } from '../../supabase/client'
 import { useAuth } from '../../hooks/useAuth'
 import { useProgress } from '../../hooks/useProgress'
+import { useFeedback } from '../../hooks/useFeedback'
 import { saveRecentExercise } from '../../utils/recentExercise'
 import LoadingSpinner from '../ui/LoadingSpinner'
 import { Check, X, RotateCcw, HelpCircle, ArrowLeft, ChevronDown } from 'lucide-react'
 import RichTextRenderer from '../ui/RichTextRenderer'
 import ExerciseHeader from '../ui/ExerciseHeader'
+import CelebrationScreen from '../ui/CelebrationScreen'
 
 // Theme-based side decoration images for PC
 const themeSideImages = {
@@ -46,6 +48,7 @@ const DropdownExercise = () => {
   const navigate = useNavigate()
   const { user } = useAuth()
   const { startExercise, completeExerciseWithXP } = useProgress()
+  const { playCelebration, passGif } = useFeedback()
   const [exercise, setExercise] = useState(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState(null)
@@ -64,9 +67,19 @@ const DropdownExercise = () => {
   const [isBatmanMoving, setIsBatmanMoving] = useState(false)
   const [colorTheme, setColorTheme] = useState('blue')
   const [session, setSession] = useState(null)
+  const [hasPlayedPassAudio, setHasPlayedPassAudio] = useState(false)
+  const [xpAwarded, setXpAwarded] = useState(0)
 
   const questions = exercise?.content?.questions || []
   const currentQuestion = questions[currentQuestionIndex]
+
+  // Play celebration when exercise is completed and passed
+  useEffect(() => {
+    if (exerciseCompleted && !hasPlayedPassAudio && totalScore >= 80) {
+      playCelebration()
+      setHasPlayedPassAudio(true)
+    }
+  }, [exerciseCompleted, hasPlayedPassAudio, totalScore, playCelebration])
 
   useEffect(() => {
     loadExercise()
@@ -233,9 +246,11 @@ const DropdownExercise = () => {
     // Save current question score
     const currentScore = score
 
-    // Animate batman moving
-    setIsBatmanMoving(true)
-    setTimeout(() => setIsBatmanMoving(false), 3000)
+    // Animate batman moving only if answer was correct (score === 100)
+    if (currentScore === 100) {
+      setIsBatmanMoving(true)
+      setTimeout(() => setIsBatmanMoving(false), 3000)
+    }
 
     if (retryMode) {
       // In retry mode, update the specific question score
@@ -295,11 +310,14 @@ const DropdownExercise = () => {
         const bonusXP = roundedScore >= 95 ? Math.round(baseXP * 0.5) : roundedScore >= 90 ? Math.round(baseXP * 0.3) : 0
         const totalXP = baseXP + bonusXP
 
-        if (exerciseId && user) {
-          await completeExerciseWithXP(exerciseId, totalXP, {
+        if (exerciseId && user && roundedScore >= 80) {
+          const result = await completeExerciseWithXP(exerciseId, totalXP, {
             score: roundedScore,
             max_score: 100
           })
+          if (result?.xpAwarded > 0) {
+            setXpAwarded(result.xpAwarded)
+          }
         }
       } catch (err) {
         console.error('Error marking dropdown exercise completed:', err)
@@ -370,126 +388,49 @@ const DropdownExercise = () => {
 
   // Show results screen when exercise is completed
   if (exerciseCompleted) {
-    const getScoreColor = (score) => {
-      if (score >= 80) return 'text-green-600'
-      if (score >= 60) return 'text-yellow-600'
-      return 'text-red-600'
-    }
+    // Calculate correct answers and wrong questions
+    const correctAnswersCount = questionScores.filter(s => s >= 80).length
+    const wrongQuestionsForRetry = questionScores
+      .map((score, index) => ({ score, index }))
+      .filter(q => q.score < 80)
+      .map(q => q.index)
 
-    const getScoreMessage = (score) => {
-      if (score >= 90) return 'Excellent! 🎉'
-      if (score >= 80) return 'Great job! 👏'
-      if (score >= 70) return 'Good work! 👍'
-      if (score >= 60) return 'Not bad! 💪'
-      return 'Keep practicing! 📚'
+    const handleRetryWrongQuestions = () => {
+      if (wrongQuestionsForRetry.length > 0) {
+        const newScores = [...questionScores]
+        wrongQuestionsForRetry.forEach(qIndex => {
+          newScores[qIndex] = 0
+        })
+        setQuestionScores(newScores)
+
+        setRetryMode(true)
+        setRetryQuestions(wrongQuestionsForRetry)
+
+        setExerciseCompleted(false)
+        setCurrentQuestionIndex(wrongQuestionsForRetry[0])
+        setShowResults(false)
+        setShowExplanation(false)
+        setShowCorrectAnswers(false)
+        setHasEdited(false)
+        setTotalScore(0)
+        setHasPlayedPassAudio(false)
+      }
     }
 
     return (
       <div className="max-w-4xl mx-auto p-6">
-        <div className="bg-white rounded-lg shadow-lg p-8">
-          <div className="text-center mb-8">
-            <div className="w-20 h-20 mx-auto mb-4 bg-gradient-to-r from-purple-500 to-pink-500 rounded-full flex items-center justify-center">
-              <Check className="w-10 h-10 text-white" />
-            </div>
-            <h2 className="text-3xl font-bold text-gray-800 mb-2">Exercise Completed!</h2>
-            <p className="text-gray-600">{getScoreMessage(totalScore)}</p>
-          </div>
-
-          <div className="text-center mb-8">
-            <div className={`text-6xl font-bold ${getScoreColor(totalScore)} mb-2`}>
-              {Math.round(totalScore)}%
-            </div>
-            <p className="text-gray-600">Overall Score</p>
-          </div>
-
-          <div className="mb-8">
-            <h3 className="text-xl font-semibold text-gray-800 mb-4">Question Breakdown</h3>
-            <div className="space-y-3">
-              {questions.map((question, index) => (
-                <div key={index} className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
-                  <span className="text-gray-700">Question {index + 1}</span>
-                  <div className="flex items-center gap-2">
-                    <span className={`font-semibold ${getScoreColor(questionScores[index] || 0)}`}>
-                      {Math.round(questionScores[index] || 0)}%
-                    </span>
-                    {questionScores[index] >= 80 ? (
-                      <Check className="w-5 h-5 text-green-500" />
-                    ) : (
-                      <X className="w-5 h-5 text-red-500" />
-                    )}
-                  </div>
-                </div>
-              ))}
-            </div>
-          </div>
-
-          <div className="flex flex-col sm:flex-row gap-3 sm:gap-4 justify-center items-center">
-            <button
-              onClick={handleBackToSession}
-              className="w-full sm:w-auto px-4 sm:px-6 py-2 sm:py-3 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition-colors flex items-center justify-center gap-2"
-            >
-              <ArrowLeft className="w-4 h-4 sm:w-5 sm:h-5" />
-              <span className="text-sm sm:text-base">Back to Session</span>
-            </button>
-            <div className="flex flex-col sm:flex-row gap-2 sm:gap-3 w-full sm:w-auto">
-              <button
-                onClick={() => {
-                  // Find questions with score < 80% (wrong questions)
-                  const wrongQuestions = questionScores
-                    .map((score, index) => ({ score, index }))
-                    .filter(q => q.score < 80)
-                    .map(q => q.index)
-
-                  if (wrongQuestions.length > 0) {
-                    // Reset scores for fresh calculation
-                    const newScores = [...questionScores]
-                    wrongQuestions.forEach(qIndex => {
-                      newScores[qIndex] = 0 // Reset wrong question scores
-                    })
-                    setQuestionScores(newScores)
-
-                    // Set retry mode
-                    setRetryMode(true)
-                    setRetryQuestions(wrongQuestions)
-
-                    // Start from first wrong question
-                    setExerciseCompleted(false)
-                    setCurrentQuestionIndex(wrongQuestions[0])
-                    setShowResults(false)
-                    setShowExplanation(false)
-                    setShowCorrectAnswers(false)
-                    setHasEdited(false)
-                    setTotalScore(0) // Reset total score
-                  } else {
-                    // No wrong questions, just restart all
-                    setExerciseCompleted(false)
-                    setCurrentQuestionIndex(0)
-                    setUserAnswers({})
-                    setQuestionScores([])
-                    setTotalScore(0)
-                  }
-                }}
-                className="w-full sm:w-auto px-4 sm:px-6 py-2 sm:py-3 bg-yellow-600 text-white rounded-lg hover:bg-yellow-700 transition-colors flex items-center justify-center gap-2"
-              >
-                <RotateCcw className="w-4 h-4 sm:w-5 sm:h-5" />
-                <span className="text-sm sm:text-base">Retry Wrong</span>
-              </button>
-              <button
-                onClick={() => {
-                  setExerciseCompleted(false)
-                  setCurrentQuestionIndex(0)
-                  setUserAnswers({})
-                  setQuestionScores([])
-                  setTotalScore(0)
-                }}
-                className="w-full sm:w-auto px-4 sm:px-6 py-2 sm:py-3 bg-gray-600 text-white rounded-lg hover:bg-gray-700 transition-colors flex items-center justify-center gap-2"
-              >
-                <RotateCcw className="w-4 h-4 sm:w-5 sm:h-5" />
-                <span className="text-sm sm:text-base">Try All Again</span>
-              </button>
-            </div>
-          </div>
-        </div>
+        <CelebrationScreen
+          score={Math.round(totalScore)}
+          correctAnswers={correctAnswersCount}
+          totalQuestions={questions.length}
+          passThreshold={80}
+          xpAwarded={xpAwarded}
+          passGif={passGif}
+          isRetryMode={retryMode}
+          wrongQuestionsCount={retryMode ? 0 : wrongQuestionsForRetry.length}
+          onRetryWrongQuestions={handleRetryWrongQuestions}
+          onBackToList={handleBackToSession}
+        />
       </div>
     )
   }

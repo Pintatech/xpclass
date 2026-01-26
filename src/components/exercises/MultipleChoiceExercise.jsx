@@ -260,6 +260,12 @@ const MultipleChoiceExercise = () => {
     setSelectedAnswer(answerIndex)
     setShowExplanation(true)
 
+    // Trigger Batman movement if answer is correct
+    if (isCorrect) {
+      setIsBatmanMoving(true)
+      setTimeout(() => setIsBatmanMoving(false), 3000)
+    }
+
     // Play feedback (meme + sound)
     playFeedback(isCorrect)
 
@@ -379,10 +385,6 @@ const MultipleChoiceExercise = () => {
   const handleNextQuestion = async () => {
     if (currentQuestionIndex < questions.length - 1) {
       const nextQuestionIndex = currentQuestionIndex + 1
-
-      // Trigger Batman movement
-      setIsBatmanMoving(true)
-      setTimeout(() => setIsBatmanMoving(false), 3000)
 
       setCurrentQuestionIndex(nextQuestionIndex)
       setSelectedAnswer(null)

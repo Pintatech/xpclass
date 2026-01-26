@@ -5,6 +5,7 @@ import { CheckCircle, XCircle, RotateCcw } from 'lucide-react'
 import LoadingSpinner from '../ui/LoadingSpinner'
 import Button3D from '../ui/Button3D'
 import AudioPlayer from '../ui/AudioPlayer'
+import CelebrationScreen from '../ui/CelebrationScreen'
 import { useAuth } from '../../hooks/useAuth'
 import { useProgress } from '../../hooks/useProgress'
 import { useFeedback } from '../../hooks/useFeedback'
@@ -52,7 +53,7 @@ const ImageHotspotExercise = () => {
 
   const { user } = useAuth()
   const { startExercise, completeExerciseWithXP } = useProgress()
-  const { playFeedback, showMeme, currentMeme } = useFeedback()
+  const { playFeedback, showMeme, currentMeme, playCelebration, passGif } = useFeedback()
 
   const [exercise, setExercise] = useState(null)
   const [loading, setLoading] = useState(true)
@@ -70,6 +71,8 @@ const ImageHotspotExercise = () => {
   const [prevProgress, setPrevProgress] = useState(0)
   const [session, setSession] = useState(null)
   const [colorTheme, setColorTheme] = useState('blue')
+  const [hasPlayedPassAudio, setHasPlayedPassAudio] = useState(false)
+  const [hasEarnedXP, setHasEarnedXP] = useState(false)
 
   const imageRef = useRef(null)
   const containerRef = useRef(null)
@@ -109,6 +112,14 @@ const ImageHotspotExercise = () => {
   const { textOnly: questionText, imageHtml: questionImages, audioUrls: questionAudio } = exercise
     ? extractMediaFromQuestion(exercise.content.question)
     : { textOnly: '', imageHtml: '', audioUrls: [] }
+
+  // Play celebration when exercise is completed
+  useEffect(() => {
+    if (exerciseComplete && !hasPlayedPassAudio) {
+      playCelebration()
+      setHasPlayedPassAudio(true)
+    }
+  }, [exerciseComplete, hasPlayedPassAudio, playCelebration])
 
   // Fetch exercise
   useEffect(() => {
@@ -327,22 +338,26 @@ const ImageHotspotExercise = () => {
     if (allCorrect) {
       setExerciseComplete(true)
 
-      // Calculate XP
+      // Calculate XP - only award if not already earned
       const baseXP = exercise.xp_reward || 10
       const earnedXP = Math.round(baseXP)
 
-      setXpEarned(earnedXP)
-
-      // Complete exercise
+      // Complete exercise and award XP only once
       const timeSpent = startTime ? Math.floor((Date.now() - startTime) / 1000) : 0
 
-      if (user) {
-        await completeExerciseWithXP(exerciseId, earnedXP, {
+      if (user && !hasEarnedXP) {
+        const result = await completeExerciseWithXP(exerciseId, earnedXP, {
           score: 100,
           max_score: 100,
           attempts: totalAttempts,
           time_spent: timeSpent
         })
+        if (result?.xpAwarded > 0) {
+          setXpEarned(result.xpAwarded)
+          setHasEarnedXP(true)
+        }
+      } else {
+        setXpEarned(0) // No XP on retry
       }
     }
   }
@@ -688,28 +703,25 @@ const ImageHotspotExercise = () => {
         {/* Completion Modal */}
         {exerciseComplete && (
           <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-            <div className="bg-white rounded-lg shadow-xl p-8 max-w-md w-full">
-              <div className="text-center">
-                <CheckCircle className="w-16 h-16 text-green-600 mx-auto mb-4" />
-                <h2 className="text-3xl font-bold text-green-600 mb-2">Excellent Work!</h2>
-                <p className="text-gray-700 mb-4">
-                  You've successfully completed all hotspots!
-                </p>
-                {xpEarned > 0 && (
-                  <div className="mb-6 p-4 bg-blue-50 rounded-lg">
-                    <p className="text-xl font-bold text-blue-600">+{xpEarned} XP</p>
-                  </div>
-                )}
-                {exercise.content.explanation && (
-                  <p className="text-sm text-gray-600 mb-6 p-3 bg-gray-50 rounded">
-                    {exercise.content.explanation}
-                  </p>
-                )}
-                <Button3D onClick={() => navigate(`/study?sessionId=${sessionId}`)} color="blue" className="w-full">
-                  Continue
-                </Button3D>
-              </div>
-            </div>
+            <CelebrationScreen
+              score={100}
+              correctAnswers={totalHotspots}
+              totalQuestions={totalHotspots}
+              passThreshold={100}
+              xpAwarded={xpEarned}
+              passGif={passGif}
+              isRetryMode={false}
+              wrongQuestionsCount={0}
+              onBackToList={() => {
+                const courseId = session?.units?.course_id
+                const unitId = session?.unit_id
+                if (sessionId && unitId && courseId) {
+                  navigate(`/study/course/${courseId}/unit/${unitId}/session/${sessionId}`)
+                } else {
+                  navigate(-1)
+                }
+              }}
+            />
           </div>
         )}
         </div>
