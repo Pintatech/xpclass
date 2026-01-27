@@ -5,7 +5,8 @@ import {
   LogOut,
   User,
   Shield,
-  GraduationCap
+  GraduationCap,
+  ShoppingBag
 } from 'lucide-react'
 
 const LeftSidebar = () => {
@@ -14,9 +15,10 @@ const LeftSidebar = () => {
   const location = useLocation()
 
   const navItems = [
-    { path: '/', imageSrc: 'https://xpclass.vn/xpclass/icon/home.svg', label: 'Trang chủ' },
-    { path: '/leaderboard', imageSrc: 'https://xpclass.vn/xpclass/icon/leaderboard.svg', label: 'Xếp hạng' },
-    { path: '/progress', imageSrc: 'https://xpclass.vn/xpclass/icon/progress.svg', label: 'Tiến độ' },
+    { path: '/', imageSrc: 'https://xpclass.vn/xpclass/icon/navigation/home.svg', label: 'Trang chủ' },
+    { path: '/leaderboard', imageSrc: 'https://xpclass.vn/xpclass/icon/navigation/leaderboard.svg', label: 'Xếp hạng' },
+    { path: '/progress', imageSrc: 'https://xpclass.vn/xpclass/icon/navigation/progress.svg', label: 'Tiến độ' },
+    { path: '/shop', imageSrc: 'https://xpclass.vn/xpclass/icon/navigation/shop.svg', label: 'Cửa hàng'},
   ]
 
   const handleSignOut = async () => {
@@ -38,8 +40,8 @@ const LeftSidebar = () => {
 
           {/* Navigation */}
           <nav className="flex-1 overflow-y-auto p-4 space-y-1">
-            {navItems.map(({ path, imageSrc, label }) => {
-              const isActive = location.pathname === path || location.pathname.startsWith(path + '/')
+            {navItems.map(({ path, imageSrc, label, icon }) => {
+              const isActive = location.pathname === path || (path !== '/' && location.pathname.startsWith(path + '/'))
               return (
                 <Link
                   key={path}
@@ -58,6 +60,8 @@ const LeftSidebar = () => {
                       height={22}
                       className={`${isActive ? '' : 'grayscale opacity-70 group-hover:opacity-100 group-hover:grayscale-0'}`}
                     />
+                  ) : icon === 'ShoppingBag' ? (
+                    <ShoppingBag size={22} className={isActive ? '' : 'opacity-70'} />
                   ) : null}
                   <span className="font-medium">{label}</span>
                 </Link>
@@ -121,7 +125,10 @@ const LeftSidebar = () => {
                   </div>
                   <div className="text-xs text-gray-600 flex items-center gap-1">
                     {profile.xp || 0}
-                    <img src="https://xpclass.vn/xpclass/icon/xp_small.svg" alt="XP" className="w-3 h-3" />
+                    <img src="https://xpclass.vn/xpclass/image/study/xp2.png" alt="XP" className="w-3 h-3" />
+                    <span className="mx-0.5 text-gray-300">|</span>
+                    {profile.gems || 0}
+                    <img src="https://xpclass.vn/xpclass/image/study/gem.png" alt="Gems" className="w-3 h-3" />
                   </div>
                 </div>
               </div>

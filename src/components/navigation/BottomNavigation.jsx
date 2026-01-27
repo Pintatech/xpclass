@@ -6,10 +6,10 @@ const BottomNavigation = () => {
   const location = useLocation()
 
   const navItems = [
-    { path: '/', imageSrc: 'https://xpclass.vn/xpclass/icon/home.svg', label: 'Home' },
-    { path: '/leaderboard', imageSrc: 'https://xpclass.vn/xpclass/icon/leaderboard.svg', label: 'Leaderboard' },
-    { path: '/progress', imageSrc: 'https://xpclass.vn/xpclass/icon/progress.svg', label: 'Progress' },
-    { path: '/profile', imageSrc: 'https://xpclass.vn/xpclass/icon/account.svg', label: 'Account' },
+    { path: '/', imageSrc: 'https://xpclass.vn/xpclass/icon/navigation/home.svg', label: 'Home' },
+    { path: '/leaderboard', imageSrc: 'https://xpclass.vn/xpclass/icon/navigation/leaderboard.svg', label: 'Leaderboard' },
+    { path: '/progress', imageSrc: 'https://xpclass.vn/xpclass/icon/navigation/progress.svg', label: 'Progress' },
+    { path: '/profile', imageSrc: 'https://xpclass.vn/xpclass/icon/navigation/account.svg', label: 'Account' },
   ]
 
   return (

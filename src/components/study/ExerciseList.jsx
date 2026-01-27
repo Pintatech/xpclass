@@ -119,9 +119,11 @@ const ExerciseList = () => {
   const [sessionRewards, setSessionRewards] = useState({});
   const [claimingReward, setClaimingReward] = useState(null);
   const [rewardAmount, setRewardAmount] = useState(0);
+  const [rewardGems, setRewardGems] = useState(0);
   const [showChestSelection, setShowChestSelection] = useState(false);
   const [selectedChest, setSelectedChest] = useState(null);
   const [otherCardsXP, setOtherCardsXP] = useState({}); // XP values for non-selected cards
+  const [otherCardsGems, setOtherCardsGems] = useState({}); // Gem values for non-selected cards
   const [showLockedModal, setShowLockedModal] = useState(false);
   const [showOpenedModal, setShowOpenedModal] = useState(false);
   // View toggle state
@@ -604,42 +606,42 @@ const ExerciseList = () => {
     const icons = {
       fill_blank: (props) => (
         <IconImg
-          src="https://xpclass.vn/xpclass/icon/fill_blank.svg"
+          src="https://xpclass.vn/xpclass/icon/exercise_type/fill_blank.svg"
           {...props}
         />
       ),
       drag_drop: (props) => (
         <IconImg
-          src="https://xpclass.vn/xpclass/icon/drag_drop.svg"
+          src="https://xpclass.vn/xpclass/icon/exercise_type/drag_drop.svg"
           {...props}
         />
       ),
       multiple_choice: (props) => (
         <IconImg
-          src="https://xpclass.vn/xpclass/icon/multiple_choice.svg"
+          src="https://xpclass.vn/xpclass/icon/exercise_type/multiple_choice.svg"
           {...props}
         />
       ),
       dropdown: (props) => (
         <IconImg
-          src="https://xpclass.vn/xpclass/icon/drop_down.svg"
+          src="https://xpclass.vn/xpclass/icon/exercise_type/drop_down.svg"
           {...props}
         />
       ),
       ai_fill_blank: (props) => (
         <IconImg
-          src="https://xpclass.vn/xpclass/icon/fill_blank.svg"
+          src="https://xpclass.vn/xpclass/icon/exercise_type/fill_blank.svg"
           {...props}
         />
       ),
       flashcard: (props) => (
         <IconImg
-          src={"https://xpclass.vn/xpclass/icon/flashcard.svg"}
+          src={"https://xpclass.vn/xpclass/icon/exercise_type/flashcard.svg"}
           {...props}
         />
       ),
       image_hotspot: (props) => (
-        <IconImg src="https://xpclass.vn/xpclass/icon/hotspot.svg" {...props} />
+        <IconImg src="https://xpclass.vn/xpclass/icon/exercise_type/hotspot.svg" {...props} />
       ),
     };
     return icons[exerciseType] || ((props) => <BookOpen {...props} />);
@@ -773,7 +775,7 @@ const ExerciseList = () => {
     try {
       const { data, error } = await supabase
         .from("session_reward_claims")
-        .select("session_id, xp_awarded, claimed_at")
+        .select("session_id, xp_awarded, gems_awarded, claimed_at")
         .eq("user_id", user.id)
         .eq("session_id", sessionId)
         .maybeSingle();
@@ -788,6 +790,7 @@ const ExerciseList = () => {
           [sessionId]: {
             claimed: true,
             xp: data.xp_awarded,
+            gems: data.gems_awarded || 0,
             claimed_at: data.claimed_at,
           },
         });
@@ -818,20 +821,38 @@ const ExerciseList = () => {
     audio.play().catch((err) => console.error("Error playing sound:", err));
 
     try {
-      // Calculate XP: 5 base + 3 per exercise + random 1-10 bonus
-      const xp = 5 + (exercises.length * 3) + (Math.floor(Math.random() * 10) + 1);
+      // Randomly award either XP or Gems, not both
+      const isGemReward = Math.random() < 0.3; // 30% chance for gems, 70% for XP
 
-      // Set reward amount immediately so it shows when card flips
+      let xp = 0;
+      let gems = 0;
+      if (isGemReward) {
+        gems = Math.floor(Math.random() * 3) + 1; // 1-3 gems
+      } else {
+        xp = 5 + (exercises.length * 3) + (Math.floor(Math.random() * 10) + 1);
+      }
+
+      // Set reward amounts immediately so they show when card flips
       setRewardAmount(xp);
+      setRewardGems(gems);
 
-      // Generate random XP for other cards (what they "could have been")
+      // Generate random rewards for other cards (what they "could have been")
       const otherXP = {};
+      const otherGems = {};
       [1, 2, 3].forEach((num) => {
         if (num !== chestNumber) {
-          otherXP[num] = 5 + (exercises.length * 3) + (Math.floor(Math.random() * 10) + 1);
+          const otherIsGem = Math.random() < 0.3;
+          if (otherIsGem) {
+            otherXP[num] = 0;
+            otherGems[num] = Math.floor(Math.random() * 3) + 1;
+          } else {
+            otherXP[num] = 5 + (exercises.length * 3) + (Math.floor(Math.random() * 10) + 1);
+            otherGems[num] = 0;
+          }
         }
       });
       setOtherCardsXP(otherXP);
+      setOtherCardsGems(otherGems);
 
       // Insert claim record
       const { error: claimError } = await supabase
@@ -841,36 +862,39 @@ const ExerciseList = () => {
           session_id: sessionId,
           full_name: profile?.full_name || null,
           xp_awarded: xp,
+          gems_awarded: gems,
         });
 
       if (claimError) throw claimError;
 
-      // Update user's total XP
+      // Update user's totals (only the awarded currency)
       const { data: currentUser, error: fetchError } = await supabase
         .from("users")
-        .select("xp")
+        .select("xp, gems")
         .eq("id", user.id)
         .single();
 
       if (fetchError) throw fetchError;
 
+      const updateData = { updated_at: new Date().toISOString() };
+      if (xp > 0) updateData.xp = (currentUser?.xp || 0) + xp;
+      if (gems > 0) updateData.gems = (currentUser?.gems || 0) + gems;
+
       const { error: updateError } = await supabase
         .from("users")
-        .update({
-          xp: (currentUser?.xp || 0) + xp,
-          updated_at: new Date().toISOString(),
-        })
+        .update(updateData)
         .eq("id", user.id);
 
       if (updateError) throw updateError;
 
-      // Show XP for 2.5 seconds then close (500ms flip + 2s display)
+      // Show rewards for 3.5 seconds then close (500ms flip + 3s display)
       setTimeout(() => {
         setSessionRewards((prev) => ({
           ...prev,
           [sessionId]: {
             claimed: true,
             xp: xp,
+            gems: gems,
             claimed_at: new Date().toISOString(),
           },
         }));
@@ -879,7 +903,9 @@ const ExerciseList = () => {
         setClaimingReward(null);
         setSelectedChest(null);
         setRewardAmount(0);
+        setRewardGems(0);
         setOtherCardsXP({});
+        setOtherCardsGems({});
       }, 3500);
     } catch (err) {
       console.error("Error claiming reward:", err);
@@ -1597,13 +1623,13 @@ const ExerciseList = () => {
               setShowOpenedModal(true);
             }
           }}
-          className={`absolute top-4 right-4 md:top-10 md:left-4 md:right-auto w-[60px] h-[60px] md:w-[100px] md:h-[100px] z-[100] cursor-pointer`}
+          className={`absolute top-4 right-4 md:top-10 md:left-2/3 md:right-auto w-[60px] h-[60px] md:w-[100px] md:h-[100px] z-[100] cursor-pointer`}
         >
           <img
             src={
               sessionRewards[sessionId]?.claimed
-                ? "https://xpclass.vn/xpclass/icon/chest_opened.png" // Opened
-                : "https://xpclass.vn/xpclass/icon/chest_locked.png" // Locked or Ready
+                ? "https://xpclass.vn/xpclass/image/study/chest_open.png" // Opened
+                : "https://xpclass.vn/xpclass/image/study/chest_lock.png" // Locked or Ready
             }
             alt="Chest"
             className={`w-full h-full object-contain drop-shadow-lg ${
@@ -1667,17 +1693,25 @@ const ExerciseList = () => {
               Choose Your Reward!
             </h2>
             <p className="text-sm sm:text-lg text-gray-600 mb-4">
-              Pick a card to reveal your XP reward
+              Pick a card to reveal your reward
             </p>
-            <div className="bg-gradient-to-r from-yellow-400 to-orange-500 text-white rounded-lg py-2 px-4 text-lg font-bold mb-4 sm:mb-8 w-1/2 mx-auto">
-              {5 + (exercises.length * 3) + 1} - {5 + (exercises.length * 3) + 10} XP
+            <div className="flex items-center justify-center gap-3 mb-4 sm:mb-8">
+              <div className="bg-gradient-to-r from-yellow-400 to-orange-500 text-white rounded-lg py-2 px-4 text-lg font-bold flex items-center justify-center gap-1">
+                <img src="https://xpclass.vn/xpclass/image/study/xp2.png" alt="XP" className="w-6 h-6" />
+              </div>
+              <span className="text-gray-400 font-bold">or</span>
+              <div className="bg-gradient-to-r from-emerald-400 to-teal-500 text-white rounded-lg py-2 px-4 text-lg font-bold flex items-center justify-center gap-1">
+                <img src="https://xpclass.vn/xpclass/image/study/gem.png" alt="Gem" className="w-6 h-6" />
+              </div>
             </div>
 
             <div className="flex justify-center items-center gap-3 sm:gap-6">
               {[1, 2, 3].map((cardNum) => {
                 const isSelected = selectedChest === cardNum;
                 const isFlipped = selectedChest !== null;
-                const xpValue = isSelected ? rewardAmount : otherCardsXP[cardNum];
+                const cardXP = isSelected ? rewardAmount : (otherCardsXP[cardNum] || 0);
+                const cardGems = isSelected ? rewardGems : (otherCardsGems[cardNum] || 0);
+                const isGemCard = cardGems > 0;
 
                 return (
                   <button
@@ -1706,11 +1740,13 @@ const ExerciseList = () => {
                         </div>
                       </div>
 
-                      {/* Card Back (XP reveal) */}
+                      {/* Card Back (reward reveal) */}
                       <div
                         className={`absolute inset-0 rounded-xl shadow-lg flex items-center justify-center border-4 ${
                           isSelected
-                            ? 'bg-gradient-to-br from-yellow-400 to-orange-500 border-yellow-300'
+                            ? isGemCard
+                              ? 'bg-gradient-to-br from-emerald-400 to-teal-500 border-emerald-300'
+                              : 'bg-gradient-to-br from-yellow-400 to-orange-500 border-yellow-300'
                             : 'bg-gradient-to-br from-gray-400 to-gray-500 border-gray-300'
                         }`}
                         style={{
@@ -1719,13 +1755,22 @@ const ExerciseList = () => {
                         }}
                       >
                         <div className="text-center">
-                          {xpValue ? (
-                            <>
-                              <div className={`text-2xl sm:text-3xl font-bold text-white drop-shadow-lg }`}>
-                                +{xpValue}
-                              </div>
-                              <div className="text-sm sm:text-base font-semibold text-white/90">XP</div>
-                            </>
+                          {(cardXP > 0 || cardGems > 0) ? (
+                            isGemCard ? (
+                              <>
+                                <div className="text-2xl sm:text-3xl font-bold text-white drop-shadow-lg">
+                                  +{cardGems}
+                                </div>
+                                <img src="https://xpclass.vn/xpclass/image/study/gem.png" alt="Gem" className="w-8 h-8 mx-auto mt-1" />
+                              </>
+                            ) : (
+                              <>
+                                <div className="text-2xl sm:text-3xl font-bold text-white drop-shadow-lg">
+                                  +{cardXP}
+                                </div>
+                                <img src="https://xpclass.vn/xpclass/image/study/xp2.png" alt="XP" className="w-8 h-8 mx-auto mt-1" />
+                              </>
+                            )
                           ) : (
                             <div className="text-xl text-white/80">...</div>
                           )}
@@ -1752,7 +1797,7 @@ const ExerciseList = () => {
           >
             <div className="mb-4">
               <img
-                src="https://xpclass.vn/xpclass/icon/chest_locked.png"
+                src="https://xpclass.vn/xpclass/image/study/chest_lock.png"
                 alt="Locked Chest"
                 className="w-20 h-20 sm:w-24 sm:h-24 mx-auto object-contain"
               />
@@ -1788,7 +1833,7 @@ const ExerciseList = () => {
           >
             <div className="mb-4">
               <img
-                src="https://xpclass.vn/xpclass/icon/chest_opened.png"
+                src="https://xpclass.vn/xpclass/image/study/chest_open.png"
                 alt="Opened Chest"
                 className="w-20 h-20 sm:w-24 sm:h-24 mx-auto object-contain"
               />
@@ -1800,8 +1845,18 @@ const ExerciseList = () => {
 
               You earned from this chest:
             </p>
-            <div className="bg-gradient-to-r from-yellow-400 to-orange-500 text-white rounded-lg py-3 px-6 text-2xl sm:text-3xl font-bold shadow-lg mb-6 w-1/2 mx-auto">
-              +{sessionRewards[sessionId]?.xp || 0} XP
+            <div className="flex flex-col items-center gap-2 mb-6">
+              {sessionRewards[sessionId]?.xp > 0 ? (
+                <div className="bg-gradient-to-r from-yellow-400 to-orange-500 text-white rounded-lg py-3 px-6 text-2xl sm:text-3xl font-bold shadow-lg flex items-center justify-center gap-2">
+                  <span>+{sessionRewards[sessionId]?.xp}</span>
+                  <img src="https://xpclass.vn/xpclass/image/study/xp2.png" alt="XP" className="w-6 h-6" />
+                </div>
+              ) : sessionRewards[sessionId]?.gems > 0 ? (
+                <div className="bg-gradient-to-r from-emerald-400 to-teal-500 text-white rounded-lg py-3 px-6 text-2xl sm:text-3xl font-bold shadow-lg flex items-center justify-center gap-2">
+                  <span>+{sessionRewards[sessionId]?.gems}</span>
+                  <img src="https://xpclass.vn/xpclass/image/study/gem.png" alt="Gem" className="w-6 h-6" />
+                </div>
+              ) : null}
             </div>
             <button
               onClick={() => setShowOpenedModal(false)}

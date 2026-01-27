@@ -1,0 +1,256 @@
+import { useState, useEffect } from 'react'
+import { supabase } from '../../supabase/client'
+import { useAuth } from '../../hooks/useAuth'
+import { useProgress } from '../../hooks/useProgress'
+import { ShoppingBag, Check } from 'lucide-react'
+
+const Shop = () => {
+  const { user, profile, updateProfile } = useAuth()
+  const { spendGems } = useProgress()
+  const [items, setItems] = useState([])
+  const [purchases, setPurchases] = useState([])
+  const [loading, setLoading] = useState(true)
+  const [activeTab, setActiveTab] = useState('avatar')
+  const [purchasing, setPurchasing] = useState(null)
+
+  useEffect(() => {
+    if (user) {
+      fetchShopData()
+    }
+  }, [user])
+
+  const fetchShopData = async () => {
+    try {
+      setLoading(true)
+
+      const [itemsResult, purchasesResult] = await Promise.all([
+        supabase
+          .from('shop_items')
+          .select('*')
+          .eq('is_active', true)
+          .order('price'),
+        supabase
+          .from('user_purchases')
+          .select('item_id, purchased_at')
+          .eq('user_id', user.id)
+      ])
+
+      if (itemsResult.error) throw itemsResult.error
+      if (purchasesResult.error) throw purchasesResult.error
+
+      setItems(itemsResult.data || [])
+      setPurchases(purchasesResult.data || [])
+    } catch (err) {
+      console.error('Error fetching shop data:', err)
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  const isOwned = (itemId) => {
+    return purchases.some(p => p.item_id === itemId)
+  }
+
+  const handlePurchase = async (item) => {
+    if (purchasing || isOwned(item.id)) return
+
+    const currentGems = profile?.gems || 0
+    if (currentGems < item.price) {
+      alert('Bạn không đủ gems!')
+      return
+    }
+
+    setPurchasing(item.id)
+
+    try {
+      // Deduct gems
+      const result = await spendGems(item.price)
+      if (!result.success) {
+        alert(result.error || 'Không thể mua vật phẩm')
+        return
+      }
+
+      // Record purchase
+      const { error } = await supabase
+        .from('user_purchases')
+        .insert({
+          user_id: user.id,
+          item_id: item.id
+        })
+
+      if (error) throw error
+
+      // Refresh purchases
+      setPurchases(prev => [...prev, { item_id: item.id, purchased_at: new Date().toISOString() }])
+    } catch (err) {
+      console.error('Error purchasing item:', err)
+      alert('Lỗi khi mua vật phẩm: ' + (err.message || 'Unknown error'))
+    } finally {
+      setPurchasing(null)
+    }
+  }
+
+  const handleEquip = async (item) => {
+    try {
+      if (item.category === 'avatar') {
+        const avatarUrl = item.item_data?.avatar_url || item.image_url
+        await updateProfile({ avatar_url: avatarUrl })
+        alert('Đã trang bị avatar!')
+      } else if (item.category === 'title_frame') {
+        const title = item.item_data?.title || item.name
+        await updateProfile({ active_title: title })
+        alert('Đã trang bị danh hiệu!')
+      }
+    } catch (err) {
+      console.error('Error equipping item:', err)
+      alert('Lỗi khi trang bị: ' + (err.message || 'Unknown error'))
+    }
+  }
+
+  const categories = [
+    { key: 'avatar', label: 'Avatar' },
+    { key: 'title_frame', label: 'Danh hiệu' },
+  ]
+
+  const filteredItems = items.filter(item => item.category === activeTab)
+
+  if (loading) {
+    return (
+      <div className="max-w-4xl mx-auto p-6">
+        <div className="animate-pulse space-y-4">
+          <div className="h-8 bg-gray-200 rounded w-1/3" />
+          <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-4">
+            {Array.from({ length: 8 }).map((_, i) => (
+              <div key={i} className="h-48 bg-gray-200 rounded-xl" />
+            ))}
+          </div>
+        </div>
+      </div>
+    )
+  }
+
+  return (
+    <div className="max-w-4xl mx-auto p-6">
+      {/* Header */}
+      <div className="flex items-center justify-between mb-6">
+        <div className="flex items-center gap-3">
+          <ShoppingBag className="w-8 h-8 text-emerald-600" />
+          <h1 className="text-2xl font-bold text-gray-900">Cửa hàng</h1>
+        </div>
+        <div className="bg-gradient-to-r from-emerald-400 to-teal-500 text-white rounded-full px-5 py-2 flex items-center gap-2 font-bold shadow-md">
+          <img src="https://xpclass.vn/xpclass/image/study/gem.png" alt="Gems" className="w-5 h-5" />
+          {profile?.gems || 0}
+        </div>
+      </div>
+
+      {/* Category Tabs */}
+      <div className="flex gap-2 mb-6">
+        {categories.map(cat => (
+          <button
+            key={cat.key}
+            onClick={() => setActiveTab(cat.key)}
+            className={`px-5 py-2 rounded-full font-medium transition-all ${
+              activeTab === cat.key
+                ? 'bg-emerald-500 text-white shadow-md'
+                : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+            }`}
+          >
+            {cat.label}
+          </button>
+        ))}
+      </div>
+
+      {/* Items Grid */}
+      {filteredItems.length === 0 ? (
+        <div className="text-center py-16 text-gray-400">
+          <ShoppingBag className="w-16 h-16 mx-auto mb-4 opacity-30" />
+          <p className="text-lg">Chưa có vật phẩm nào</p>
+          <p className="text-sm mt-1">Hãy quay lại sau nhé!</p>
+        </div>
+      ) : (
+        <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-4">
+          {filteredItems.map(item => {
+            const owned = isOwned(item.id)
+            const canAfford = (profile?.gems || 0) >= item.price
+
+            return (
+              <div
+                key={item.id}
+                className={`relative bg-white rounded-xl border-2 overflow-hidden transition-all hover:shadow-lg ${
+                  owned
+                    ? 'border-emerald-300 bg-emerald-50/50'
+                    : canAfford
+                      ? 'border-gray-200 hover:border-emerald-300'
+                      : 'border-gray-200 opacity-75'
+                }`}
+              >
+                {/* Owned badge */}
+                {owned && (
+                  <div className="absolute top-2 right-2 bg-emerald-500 text-white rounded-full p-1 z-10">
+                    <Check className="w-3 h-3" />
+                  </div>
+                )}
+
+                {/* Item image */}
+                <div className="aspect-square bg-gray-50 flex items-center justify-center p-4">
+                  {item.image_url ? (
+                    <img
+                      src={item.image_url}
+                      alt={item.name}
+                      className="w-full h-full object-contain rounded-lg"
+                    />
+                  ) : (
+                    <div className="w-16 h-16 bg-gray-200 rounded-full flex items-center justify-center text-2xl">
+                      {item.category === 'avatar' ? '👤' : '🏷️'}
+                    </div>
+                  )}
+                </div>
+
+                {/* Item info */}
+                <div className="p-3">
+                  <h3 className="font-semibold text-sm text-gray-800 truncate">{item.name}</h3>
+                  {item.description && (
+                    <p className="text-xs text-gray-500 mt-0.5 truncate">{item.description}</p>
+                  )}
+
+                  {/* Price / Action */}
+                  <div className="mt-2">
+                    {owned ? (
+                      <button
+                        onClick={() => handleEquip(item)}
+                        className="w-full py-1.5 bg-emerald-100 text-emerald-700 rounded-lg text-sm font-medium hover:bg-emerald-200 transition-colors"
+                      >
+                        Trang bị
+                      </button>
+                    ) : (
+                      <button
+                        onClick={() => handlePurchase(item)}
+                        disabled={!canAfford || purchasing === item.id}
+                        className={`w-full py-1.5 rounded-lg text-sm font-medium flex items-center justify-center gap-1 transition-colors ${
+                          canAfford
+                            ? 'bg-emerald-500 text-white hover:bg-emerald-600'
+                            : 'bg-gray-200 text-gray-400 cursor-not-allowed'
+                        }`}
+                      >
+                        {purchasing === item.id ? (
+                          'Đang mua...'
+                        ) : (
+                          <>
+                            <img src="https://xpclass.vn/xpclass/image/study/gem.png" alt="Gem" className="w-4 h-4" />
+                            {item.price}
+                          </>
+                        )}
+                      </button>
+                    )}
+                  </div>
+                </div>
+              </div>
+            )
+          })}
+        </div>
+      )}
+    </div>
+  )
+}
+
+export default Shop

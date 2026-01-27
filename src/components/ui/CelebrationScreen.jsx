@@ -123,7 +123,7 @@ const CelebrationScreen = ({
             <p className="text-orange-300 text-sm md:text-2xl font-extrabold tracking-wider uppercase mb-2">Reward</p>
             <div className="flex items-center justify-center gap-2">              
               <span className="text-3xl md:text-5xl font-extrabold text-orange-800">{xpAwarded}</span>
-              <img src="https://xpclass.vn/xpclass/icon/xp_small.svg" alt="XP" className="w-8 h-8 md:w-12 md:h-12" />
+              <img src="https://xpclass.vn/xpclass/image/study/xp2.png" alt="XP" className="w-8 h-8 md:w-12 md:h-12" />
             </div>
           </div>
         )}

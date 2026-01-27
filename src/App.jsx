@@ -11,6 +11,7 @@ import StudyModule from './components/study/StudyModule'
 import Leaderboard from './components/leaderboard/Leaderboard'
 import Progress from './components/progress/Progress'
 import Profile from './components/profile/Profile'
+import Shop from './components/shop/Shop'
 import AdminDashboard from './components/admin/AdminDashboard'
 import TeacherDashboard from './components/teacher/TeacherDashboard'
 import TeacherExerciseBank from './components/teacher/TeacherExerciseBank'
@@ -36,6 +37,7 @@ function App() {
                 <Route path="leaderboard" element={<Leaderboard />} />
                 <Route path="progress" element={<Progress />} />
                 <Route path="profile" element={<Profile />} />
+                <Route path="shop" element={<Shop />} />
                 <Route path="profile/:userId" element={<Profile />} />
                 <Route path="admin/*" element={
                   <ProtectedRoute requireAdmin>

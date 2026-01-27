@@ -636,22 +636,6 @@ const UnitList = () => {
                 Quay lại
               </Button>
             </div>
-
-            {/* XP and Streak stats */}
-            <div className="flex items-center space-x-4">
-              <div className="bg-orange-100 rounded-full px-4 py-2 flex items-center space-x-2">
-                <Flame className="w-5 h-5 text-orange-500" />
-                <span className="font-bold text-gray-800">
-                  {userStats.streak}
-                </span>
-              </div>
-              <div className="bg-yellow-100 rounded-full px-4 py-2 flex items-center space-x-2">
-                <Star className="w-5 h-5 text-yellow-500" />
-                <span className="font-bold text-gray-800">
-                  {userStats.xp}
-                </span>
-              </div>
-            </div>
           </div>
         </div>
 

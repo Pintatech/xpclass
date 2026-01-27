@@ -360,8 +360,43 @@ CREATE TABLE public.users (
   updated_at timestamp with time zone DEFAULT now(),
   level integer DEFAULT 1,
   username text UNIQUE,
+  gems integer DEFAULT 0,
   CONSTRAINT users_pkey PRIMARY KEY (id),
   CONSTRAINT users_id_fkey FOREIGN KEY (id) REFERENCES auth.users(id)
+);
+CREATE TABLE public.session_reward_claims (
+  id uuid NOT NULL DEFAULT uuid_generate_v4(),
+  user_id uuid NOT NULL,
+  session_id uuid NOT NULL,
+  full_name text,
+  xp_awarded integer NOT NULL DEFAULT 0,
+  gems_awarded integer DEFAULT 0,
+  claimed_at timestamp with time zone DEFAULT now(),
+  CONSTRAINT session_reward_claims_pkey PRIMARY KEY (id),
+  CONSTRAINT session_reward_claims_user_id_fkey FOREIGN KEY (user_id) REFERENCES public.users(id),
+  CONSTRAINT session_reward_claims_session_id_fkey FOREIGN KEY (session_id) REFERENCES public.sessions(id)
+);
+CREATE TABLE public.shop_items (
+  id uuid NOT NULL DEFAULT uuid_generate_v4(),
+  name text NOT NULL,
+  description text,
+  category text NOT NULL,
+  price integer NOT NULL,
+  image_url text,
+  item_data jsonb,
+  is_active boolean DEFAULT true,
+  created_at timestamp with time zone DEFAULT now(),
+  CONSTRAINT shop_items_pkey PRIMARY KEY (id)
+);
+CREATE TABLE public.user_purchases (
+  id uuid NOT NULL DEFAULT uuid_generate_v4(),
+  user_id uuid NOT NULL,
+  item_id uuid NOT NULL,
+  purchased_at timestamp with time zone DEFAULT now(),
+  CONSTRAINT user_purchases_pkey PRIMARY KEY (id),
+  CONSTRAINT user_purchases_user_id_item_id_key UNIQUE (user_id, item_id),
+  CONSTRAINT user_purchases_user_id_fkey FOREIGN KEY (user_id) REFERENCES public.users(id),
+  CONSTRAINT user_purchases_item_id_fkey FOREIGN KEY (item_id) REFERENCES public.shop_items(id)
 );
 CREATE TABLE public.weekly_xp_tracking (
   id uuid NOT NULL DEFAULT uuid_generate_v4(),

@@ -482,6 +482,59 @@ export const ProgressProvider = ({ children }) => {
     }
   }
 
+  const addGems = async (gemAmount) => {
+    if (!user || !profile) return null
+
+    try {
+      const newGems = (profile.gems || 0) + gemAmount
+
+      const { error } = await supabase
+        .from('users')
+        .update({
+          gems: newGems,
+          updated_at: new Date().toISOString()
+        })
+        .eq('id', user.id)
+
+      if (error) throw error
+
+      await fetchUserProfile(user.id)
+      return newGems
+    } catch (error) {
+      console.error('Error adding gems:', error)
+      return null
+    }
+  }
+
+  const spendGems = async (gemAmount) => {
+    if (!user || !profile) return { success: false, error: 'No user logged in' }
+
+    const currentGems = profile.gems || 0
+    if (currentGems < gemAmount) {
+      return { success: false, error: 'Not enough gems' }
+    }
+
+    try {
+      const newGems = currentGems - gemAmount
+
+      const { error } = await supabase
+        .from('users')
+        .update({
+          gems: newGems,
+          updated_at: new Date().toISOString()
+        })
+        .eq('id', user.id)
+
+      if (error) throw error
+
+      await fetchUserProfile(user.id)
+      return { success: true, gems: newGems }
+    } catch (error) {
+      console.error('Error spending gems:', error)
+      return { success: false, error: error.message }
+    }
+  }
+
   const getCompletedExercises = () => {
     return userProgress.filter(p => p.status === 'completed').length
   }
@@ -591,6 +644,8 @@ export const ProgressProvider = ({ children }) => {
     startExercise,
     updateExerciseProgress,
     addXP,
+    addGems,
+    spendGems,
     completeExerciseWithXP,
     isExerciseCompleted,
     updateStreak,

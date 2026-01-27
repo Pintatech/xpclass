@@ -200,7 +200,7 @@ const AchievementModal = ({ isOpen, onClose, achievements, userStats, onClaimXP,
                           {achievement.xp_reward > 0 && (
                             <div className="text-xs text-blue-600 mt-1 flex items-center gap-1">
                               +{achievement.xp_reward}
-                              <img src="https://xpclass.vn/xpclass/icon/xp_small.svg" alt="XP" className="w-3 h-3" />
+                              <img src="https://xpclass.vn/xpclass/image/study/xp2.png" alt="XP" className="w-3 h-3" />
                             </div>
                           )}
                           {unlocked && (
@@ -277,7 +277,7 @@ const AchievementModal = ({ isOpen, onClose, achievements, userStats, onClaimXP,
                           {achievement.xp_reward > 0 && (
                             <div className="text-xs text-gray-500 mt-1 flex items-center gap-1">
                               +{achievement.xp_reward}
-                              <img src="https://xpclass.vn/xpclass/icon/xp_small.svg" alt="XP" className="w-3 h-3" />
+                              <img src="https://xpclass.vn/xpclass/image/study/xp2.png" alt="XP" className="w-3 h-3" />
                             </div>
                           )}
                           <div className="mt-2">

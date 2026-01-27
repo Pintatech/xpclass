@@ -15,9 +15,9 @@ const TopNavigation = () => {
   const location = useLocation()
 
   const navItems = [
-    { path: '/', imageSrc: 'https://xpclass.vn/xpclass/icon/home.svg', label: 'Trang chủ' },
-    { path: '/leaderboard', imageSrc: 'https://xpclass.vn/xpclass/icon/leaderboard.svg', label: 'Xếp hạng' },
-    { path: '/progress', imageSrc: 'https://xpclass.vn/xpclass/icon/progress.svg', label: 'Tiến độ' },
+    { path: '/', imageSrc: 'https://xpclass.vn/xpclass/icon/navigation/home.svg', label: 'Trang chủ' },
+    { path: '/leaderboard', imageSrc: 'https://xpclass.vn/xpclass/icon/navigation/leaderboard.svg', label: 'Xếp hạng' },
+    { path: '/progress', imageSrc: 'https://xpclass.vn/xpclass/icon/navigation/progress.svg', label: 'Tiến độ' },
   ]
 
   const handleSignOut = async () => {
@@ -76,7 +76,10 @@ const TopNavigation = () => {
                   </div>
                   <div className="text-xs text-gray-500 flex items-center gap-1">
                     {profile.xp || 0}
-                    <img src="https://xpclass.vn/xpclass/icon/xp_small.svg" alt="XP" className="w-3 h-3" />
+                    <img src="https://xpclass.vn/xpclass/image/study/xp2.png" alt="XP" className="w-3 h-3" />
+                    <span className="mx-0.5 text-gray-300">|</span>
+                    {profile.gems || 0}
+                    <img src="https://xpclass.vn/xpclass/image/study/gem.png" alt="Gems" className="w-3 h-3" />
                   </div>
                 </div>
                 <div className="flex items-center justify-center">

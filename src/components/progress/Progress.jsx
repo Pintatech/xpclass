@@ -349,7 +349,7 @@ const Progress = () => {
         <Card className="p-4">
           <div className="flex items-center space-x-3">
             <div className="w-10 h-10 rounded-lg flex items-center justify-center">
-              <img src="https://xpclass.vn/xpclass/icon/level.svg" alt="Level" className="w-10 h-10" />
+              <img src="https://xpclass.vn/xpclass/icon/profile/level.svg" alt="Level" className="w-10 h-10" />
             </div>
             <div>
               <div className="text-lg font-bold text-gray-900">{displayLevel}</div>
@@ -361,12 +361,12 @@ const Progress = () => {
         <Card className="p-4">
           <div className="flex items-center space-x-3">
             <div className="w-10 h-10 rounded-lg flex items-center justify-center">
-              <img src="https://xpclass.vn/xpclass/icon/XP.svg" alt="XP" className="w-10 h-10" />
+              <img src="https://xpclass.vn/xpclass/icon/profile/XP.svg" alt="XP" className="w-10 h-10" />
             </div>
             <div>
               <div className="text-lg font-bold text-gray-900 flex items-center gap-2">
                 {profile?.xp || 0}
-                <img src="https://xpclass.vn/xpclass/icon/xp_small.svg" alt="XP" className="w-5 h-5" />
+                <img src="https://xpclass.vn/xpclass/image/study/xp2.png" alt="XP" className="w-5 h-5" />
               </div>
               <div className="text-sm text-gray-600">Tổng</div>
             </div>
@@ -376,7 +376,7 @@ const Progress = () => {
         <Card className="p-4">
           <div className="flex items-center space-x-3">
             <div className="w-10 h-10 rounded-lg flex items-center justify-center">
-              <img src="https://xpclass.vn/xpclass/icon/streak.svg" alt="Streak" className="w-10 h-10" />
+              <img src="https://xpclass.vn/xpclass/icon/profile/streak.svg" alt="Streak" className="w-10 h-10" />
             </div>
             <div>
               <div className="text-lg font-bold text-gray-900">{profile?.streak_count || 0}</div>
@@ -388,7 +388,7 @@ const Progress = () => {
         <Card className="p-4">
           <div className="flex items-center space-x-3">
             <div className="w-10 h-10 rounded-lg flex items-center justify-center">
-              <img src="https://xpclass.vn/xpclass/icon/paper.svg" alt="Exercises" className="w-10 h-10" />
+              <img src="https://xpclass.vn/xpclass/icon/profile/paper.svg" alt="Exercises" className="w-10 h-10" />
             </div>
             <div>
               <div className="text-lg font-bold text-gray-900">{completedExercises}</div>
