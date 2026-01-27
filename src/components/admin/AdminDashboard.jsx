@@ -14,7 +14,8 @@ import {
   Settings,
   FileText,
   Home,
-  Trophy
+  Trophy,
+  ShoppingBag
 } from 'lucide-react';
 import { supabase } from '../../supabase/client';
 import { useAuth } from '../../hooks/useAuth';
@@ -32,6 +33,7 @@ import ContentTreeView from './ContentTreeView';
 import CohortsManagement from './CohortsManagement';
 import StudentLevelsManagement from './StudentLevelsManagement';
 import AchievementManagement from './AchievementManagement';
+import ShopManagement from './ShopManagement';
 import { useCohorts } from '../../hooks/useCohorts';
 
 const AdminDashboard = () => {
@@ -210,6 +212,7 @@ const AdminDashboard = () => {
     { id: 'sessions', label: 'Sessions', icon: Edit },
     { id: 'levels', label: 'Student Levels', icon: BarChart3 },
     { id: 'achievements', label: 'Achievements', icon: Trophy },
+    { id: 'shop', label: 'Shop', icon: ShoppingBag },
     { id: 'users', label: 'Users', icon: Users },
     { id: 'analytics', label: 'Analytics', icon: BarChart3 }
   ];
@@ -283,6 +286,7 @@ const AdminDashboard = () => {
                   {activeTab === 'units' && 'Manage curriculum units'}
                   {activeTab === 'levels' && 'Manage student XP levels and badges'}
                   {activeTab === 'achievements' && 'Manage achievements and badges'}
+                  {activeTab === 'shop' && 'Manage shop items and pricing'}
                   {activeTab === 'sessions' && 'Manage learning sessions'}
                   {activeTab === 'users' && 'User management and profiles'}
                   {activeTab === 'analytics' && 'Platform analytics and insights'}
@@ -336,6 +340,7 @@ const AdminDashboard = () => {
               {/* Student Levels Management */}
               <Route path="levels" element={<StudentLevelsManagement />} />
               <Route path="achievements" element={<AchievementManagement />} />
+              <Route path="shop" element={<ShopManagement />} />
               <Route path="units" element={<UnitManagement />} />
               <Route path="sessions" element={<SessionManagement />} />
               {/* Redirect legacy exercises path to bank */}

@@ -106,7 +106,7 @@ const Shop = () => {
         const avatarUrl = item.item_data?.avatar_url || item.image_url
         await updateProfile({ avatar_url: avatarUrl })
         alert('Đã trang bị avatar!')
-      } else if (item.category === 'title_frame') {
+      } else if (item.category === 'frame') {
         const frameUrl = item.image_url
         const frameRatio = item.item_data?.avatar_ratio || 66
         await updateProfile({ active_title: frameUrl, active_frame_ratio: frameRatio })
@@ -120,9 +120,25 @@ const Shop = () => {
 
   const categories = [
     { key: 'avatar', label: 'Avatar' },
-    { key: 'title_frame', label: 'Frame' },
+    { key: 'frame', label: 'Frame' },
+    { key: 'school', label: 'School things' },
+
   ]
 
+  
+//Item nào hiện nút trang bị
+  const equippableCategories = ['avatar', 'frame']
+
+  const isEquipped = (item) => {
+    if (item.category === 'avatar') {
+      const avatarUrl = item.item_data?.avatar_url || item.image_url
+      return profile?.avatar_url === avatarUrl
+    }
+    if (item.category === 'frame') {
+      return profile?.active_title === item.image_url
+    }
+    return false
+  }
   const filteredItems = items.filter(item => item.category === activeTab)
 
   if (loading) {
@@ -166,11 +182,10 @@ const Shop = () => {
           <button
             key={cat.key}
             onClick={() => setActiveTab(cat.key)}
-            className={`px-5 py-2 rounded-full font-medium transition-all ${
-              activeTab === cat.key
+            className={`px-5 py-2 rounded-full font-medium transition-all ${activeTab === cat.key
                 ? 'bg-emerald-500 text-white shadow-md'
                 : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
-            }`}
+              }`}
           >
             {cat.label}
           </button>
@@ -194,15 +209,13 @@ const Shop = () => {
               <div
                 key={item.id}
                 className={`relative bg-white rounded-xl border-2 overflow-hidden transition-all hover:shadow-lg ${
-                  owned
-                    ? 'border-emerald-300 bg-emerald-50/50'
-                    : canAfford
-                      ? 'border-gray-200 hover:border-emerald-300'
-                      : 'border-gray-200 opacity-75'
-                }`}
+                  !owned && !canAfford
+                    ? 'border-gray-200 opacity-75'
+                    : 'border-gray-200 hover:border-emerald-300'
+                  }`}
               >
-                {/* Owned badge */}
-                {owned && (
+                {/* Equipped badge */}
+                {isEquipped(item) && (
                   <div className="absolute top-2 right-2 bg-emerald-500 text-white rounded-full p-1 z-10">
                     <Check className="w-3 h-3" />
                   </div>
@@ -233,21 +246,35 @@ const Shop = () => {
                   {/* Price / Action */}
                   <div className="mt-2">
                     {owned ? (
-                      <button
-                        onClick={() => handleEquip(item)}
-                        className="w-full py-1.5 bg-emerald-100 text-emerald-700 rounded-lg text-sm font-medium hover:bg-emerald-200 transition-colors"
-                      >
-                        Trang bị
-                      </button>
+                      equippableCategories.includes(item.category) ? (
+                        isEquipped(item) ? (
+                          <button
+                            disabled
+                            className="w-full py-1.5 bg-emerald-100 text-emerald-700 rounded-lg text-sm font-medium opacity-60 cursor-not-allowed"
+                          >
+                            Đã trang bị
+                          </button>
+                        ) : (
+                          <button
+                            onClick={() => handleEquip(item)}
+                            className="w-full py-1.5 bg-emerald-100 text-emerald-700 rounded-lg text-sm font-medium hover:bg-emerald-200 transition-colors"
+                          >
+                            Trang bị
+                          </button>
+                        )
+                      ) : (
+                        <div className="w-full py-1.5 bg-gray-100 text-gray-500 rounded-lg text-sm font-medium text-center">
+                          Đã mua
+                        </div>
+                      )
                     ) : (
                       <button
                         onClick={() => handlePurchase(item)}
                         disabled={!canAfford || purchasing === item.id}
-                        className={`w-full py-1.5 rounded-lg text-sm font-medium flex items-center justify-center gap-1 transition-colors ${
-                          canAfford
+                        className={`w-full py-1.5 rounded-lg text-sm font-medium flex items-center justify-center gap-1 transition-colors ${canAfford
                             ? 'bg-emerald-500 text-white hover:bg-emerald-600'
                             : 'bg-gray-200 text-gray-400 cursor-not-allowed'
-                        }`}
+                          }`}
                       >
                         {purchasing === item.id ? (
                           'Đang mua...'

@@ -902,26 +902,7 @@ const ExerciseList = () => {
 
       if (updateError) throw updateError;
 
-      // Show rewards for 3.5 seconds then close (500ms flip + 3s display)
-      setTimeout(() => {
-        setSessionRewards((prev) => ({
-          ...prev,
-          [sessionId]: {
-            claimed: true,
-            xp: xp,
-            gems: gems,
-            claimed_at: new Date().toISOString(),
-          },
-        }));
-
-        setShowChestSelection(false);
-        setClaimingReward(null);
-        setSelectedChest(null);
-        setRewardAmount(0);
-        setRewardGems(0);
-        setOtherCardsXP({});
-        setOtherCardsGems({});
-      }, 3500);
+      // Reward is now shown until user clicks OK
     } catch (err) {
       console.error("Error claiming reward:", err);
       alert("Không thể nhận phần thưởng. Vui lòng thử lại!");
@@ -930,6 +911,25 @@ const ExerciseList = () => {
       setShowChestSelection(false);
       setOtherCardsXP({});
     }
+  };
+
+  const handleRewardDismiss = () => {
+    setSessionRewards((prev) => ({
+      ...prev,
+      [sessionId]: {
+        claimed: true,
+        xp: rewardAmount,
+        gems: rewardGems,
+        claimed_at: new Date().toISOString(),
+      },
+    }));
+    setShowChestSelection(false);
+    setClaimingReward(null);
+    setSelectedChest(null);
+    setRewardAmount(0);
+    setRewardGems(0);
+    setOtherCardsXP({});
+    setOtherCardsGems({});
   };
 
   // Fetch session rewards on mount
@@ -1869,6 +1869,16 @@ const ExerciseList = () => {
                 );
               })}
             </div>
+
+            {/* OK button appears after card is selected */}
+            {selectedChest !== null && (
+              <button
+                onClick={handleRewardDismiss}
+                className="mt-6 bg-blue-600 hover:bg-blue-700 text-white font-semibold py-2 px-8 rounded-lg transition-colors text-lg"
+              >
+                OK
+              </button>
+            )}
           </div>
         </div>
       )}

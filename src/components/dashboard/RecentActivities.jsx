@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { supabase } from '../../supabase/client'
 import { Clock, Star, Trophy, BookOpen, Edit3, HelpCircle, Award, Crown } from 'lucide-react'
+import AvatarWithFrame from '../ui/AvatarWithFrame'
 
 const RecentActivities = () => {
   const navigate = useNavigate()
@@ -32,7 +33,9 @@ const RecentActivities = () => {
           users:user_id (
             id,
             full_name,
-            avatar_url
+            avatar_url,
+            active_title,
+            active_frame_ratio
           ),
           achievements:achievement_id (
             id,
@@ -110,25 +113,16 @@ const RecentActivities = () => {
       <div className="space-y-3 max-h-96 overflow-y-auto">
         {activities.map((activity) => (
           <div key={`achievement-${activity.id}`} className="flex items-center space-x-3 p-3 rounded-lg hover:bg-yellow-50 transition-colors">
-            {/* User Avatar */}
-            <div
-              className="flex-shrink-0 cursor-pointer"
+            {/* User Avatar with Frame */}
+            <AvatarWithFrame
+              avatarUrl={activity.users.avatar_url}
+              frameUrl={activity.users.active_title}
+              frameRatio={activity.users.active_frame_ratio}
+              size={32}
+              fallback={activity.users.full_name?.charAt(0) || 'U'}
               onClick={() => handleUserClick(activity.users.id)}
-            >
-              {activity.users.avatar_url ? (
-                <img
-                  src={activity.users.avatar_url}
-                  alt={activity.users.full_name}
-                  className="w-8 h-8 rounded-full object-cover hover:ring-2 hover:ring-yellow-400 transition-all"
-                />
-              ) : (
-                <div className="w-8 h-8 rounded-full bg-yellow-100 flex items-center justify-center hover:ring-2 hover:ring-yellow-400 transition-all">
-                  <span className="text-sm font-medium text-yellow-600">
-                    {activity.users.full_name?.charAt(0) || 'U'}
-                  </span>
-                </div>
-              )}
-            </div>
+              className="cursor-pointer hover:ring-2 hover:ring-yellow-400 rounded-full transition-all"
+            />
 
             {/* Activity Content */}
             <div className="flex-1 min-w-0">
