@@ -7,6 +7,7 @@ import { supabase } from '../../supabase/client'
 import Card from '../ui/Card'
 import Button from '../ui/Button'
 import LoadingSpinner from '../ui/LoadingSpinner'
+import AvatarWithFrame from '../ui/AvatarWithFrame'
 import {
   Trophy,
   Target,
@@ -545,23 +546,13 @@ const Profile = () => {
         <Card.Content className="p-6 relative z-10">
           <div className="flex items-center justify-between">
             <div className="flex items-center space-x-4">
-              <div
-                className={`w-20 h-20 bg-white/20 rounded-full flex items-center justify-center text-2xl font-bold overflow-hidden ${
-                  isOwnProfile ? 'cursor-pointer hover:bg-white/30 transition-colors' : ''
-                }`}
+              <AvatarWithFrame
+                avatarUrl={selectedAvatar}
+                frameUrl={currentProfile?.active_title}
+                size={80}
+                fallback={currentProfile?.full_name?.[0]?.toUpperCase() || currentProfile?.email?.[0]?.toUpperCase() || 'U'}
                 onClick={isOwnProfile ? () => setShowAvatarSelector(true) : undefined}
-                title={isOwnProfile ? "Click to change avatar" : ""}
-              >
-                {selectedAvatar ? (
-                  selectedAvatar.startsWith('http') ? (
-                    <img src={selectedAvatar} alt="Avatar" className="w-full h-full object-cover rounded-full" />
-                  ) : (
-                    selectedAvatar
-                  )
-                ) : (
-                  currentProfile?.full_name?.[0]?.toUpperCase() || currentProfile?.email?.[0]?.toUpperCase() || 'U'
-                )}
-              </div>
+              />
               <div>
                 {isEditing ? (
                   <div className="space-y-2">
@@ -935,7 +926,7 @@ const Profile = () => {
               </button>
             </div>
 
-            <div className="grid grid-cols-6 md:grid-cols-8 lg:grid-cols-10 gap-6">
+            <div className="grid grid-cols-3 md:grid-cols-8 lg:grid-cols-10 gap-6">
               {availableAvatars.map((avatar) => {
                 const isUnlocked = stats.totalXP >= avatar.unlock_xp
                 const isSelected = selectedAvatar === avatar.image_url
@@ -1006,29 +997,6 @@ const Profile = () => {
                   </div>
                 )}
                 
-                {/* Show next unlockable avatar */}
-                {(() => {
-                  const nextAvatar = availableAvatars.find(avatar => avatar.unlock_xp > stats.totalXP)
-                  if (nextAvatar) {
-                    return (
-                      <div className="mt-3 p-3 bg-white rounded-lg border border-blue-200">
-                        <div className="text-sm text-blue-800 font-medium">
-                          Avatar tiếp theo: {nextAvatar.name}
-                        </div>
-                        <div className="text-xs text-blue-600">
-                          Cần {nextAvatar.unlock_xp - stats.totalXP} XP nữa
-                        </div>
-                      </div>
-                    )
-                  }
-                  return (
-                    <div className="mt-3 p-3 bg-green-100 rounded-lg border border-green-200">
-                      <div className="text-sm text-green-800 font-medium">
-                        🎉 Bạn đã mở khóa tất cả avatars!
-                      </div>
-                    </div>
-                  )
-                })()}
               </div>
             </div>
           </div>

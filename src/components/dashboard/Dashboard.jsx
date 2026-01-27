@@ -9,6 +9,7 @@ import Card from '../ui/Card'
 import Button from '../ui/Button'
 import { getRecentExercise } from '../../utils/recentExercise'
 import RecentActivities from './RecentActivities'
+import AvatarWithFrame from '../ui/AvatarWithFrame'
 
 const Dashboard = () => {
   const { profile } = useAuth()
@@ -407,17 +408,12 @@ const Dashboard = () => {
             {/* Welcome text with avatar - moved closer to top */}
             <div className="text-white mt-5">
               <div className="flex items-center space-x-4 mb-4">
-                <div className="w-16 h-16 bg-white/20 backdrop-blur-sm rounded-full flex items-center justify-center text-2xl font-bold overflow-hidden border-2 border-white/30">
-                  {profile?.avatar_url ? (
-                    profile.avatar_url.startsWith('http') ? (
-                      <img src={profile.avatar_url} alt="Avatar" className="w-full h-full object-cover" />
-                    ) : (
-                      profile.avatar_url
-                    )
-                  ) : (
-                    profile?.full_name?.[0]?.toUpperCase() || profile?.email?.[0]?.toUpperCase() || 'U'
-                  )}
-                </div>
+                <AvatarWithFrame
+                  avatarUrl={profile?.avatar_url}
+                  frameUrl={profile?.active_title}
+                  size={64}
+                  fallback={profile?.full_name?.[0]?.toUpperCase() || profile?.email?.[0]?.toUpperCase() || 'U'}
+                />
                 <div>
                   <h5 className="text-2xl md:text-3xl font-bold drop-shadow-lg">
                     Chào {profile?.full_name || 'Học viên'}! 👋

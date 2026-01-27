@@ -8,6 +8,7 @@ import Card from '../ui/Card'
 import Button from '../ui/Button'
 import { SimpleBadge } from '../ui/StudentBadge'
 import { Trophy, Medal, Award, Crown, Star, RefreshCw } from 'lucide-react'
+import AvatarWithFrame from '../ui/AvatarWithFrame'
 
 const Leaderboard = () => {
   const navigate = useNavigate()
@@ -195,6 +196,7 @@ const Leaderboard = () => {
             levelNumber: levelInfo.level
           },
           avatar: user.avatar_url,
+          frame: user.active_title,
           streak: user.streak_count || 0,
           completedExercises: exerciseCounts[user.id] || 0,
           isCurrentUser: user.id === user?.id
@@ -229,6 +231,7 @@ const Leaderboard = () => {
         current_level,
         streak_count,
         avatar_url,
+        active_title,
         created_at
       `)
       .eq('role', 'user')
@@ -272,6 +275,7 @@ const Leaderboard = () => {
         current_level,
         streak_count,
         avatar_url,
+        active_title,
         created_at
       `)
       .eq('role', 'user')
@@ -448,25 +452,14 @@ const Leaderboard = () => {
                     100% { background-position: -100% 0; }
                   }
                 `}</style>
-                <div className="w-12 h-12 md:w-20 md:h-20 rounded-full mx-auto mb-2 md:mb-4 flex items-center justify-center border-2 border-gray-400 overflow-hidden relative z-10">
-                  {leaderboardData[1].avatar ? (
-                    leaderboardData[1].avatar.startsWith('http') ? (
-                      <img
-                        src={leaderboardData[1].avatar}
-                        alt={leaderboardData[1].name}
-                        className="w-full h-full object-cover"
-                        onError={(e) => {
-                          e.target.style.display = 'none'
-                          e.target.nextSibling.style.display = 'inline'
-                        }}
-                      />
-                    ) : (
-                      <span className="text-2xl">{leaderboardData[1].avatar}</span>
-                    )
-                  ) : (
-                    <span className="text-2xl">{leaderboardData[1].name.charAt(0).toUpperCase()}</span>
-                  )}
-                  <span className="text-2xl hidden">{leaderboardData[1].name.charAt(0).toUpperCase()}</span>
+                <div className="mx-auto mb-2 md:mb-4 relative z-10">
+                  <AvatarWithFrame
+                    avatarUrl={leaderboardData[1].avatar}
+                    frameUrl={leaderboardData[1].frame}
+                    size={48}
+                    className="md:!w-20 md:!h-20 mx-auto"
+                    fallback={leaderboardData[1].name.charAt(0).toUpperCase()}
+                  />
                 </div>
                 <div
                   className="font-bold text-gray-900 text-xs md:text-base cursor-pointer hover:text-blue-600 transition-colors break-words text-center relative z-10"
@@ -502,25 +495,14 @@ const Leaderboard = () => {
                   animation: 'shimmer 2s infinite'
                 }}></div>
                 <Crown className="w-6 h-6 md:w-8 md:h-8 text-yellow-500 mx-auto mb-1 md:mb-2 relative z-10" />
-                <div className="w-14 h-14 md:w-20 md:h-20 rounded-full mx-auto mb-2 md:mb-4 flex items-center justify-center border-2 border-yellow-500 overflow-hidden relative z-10">
-                  {leaderboardData[0].avatar ? (
-                    leaderboardData[0].avatar.startsWith('http') ? (
-                      <img
-                        src={leaderboardData[0].avatar}
-                        alt={leaderboardData[0].name}
-                        className="w-full h-full object-cover"
-                        onError={(e) => {
-                          e.target.style.display = 'none'
-                          e.target.nextSibling.style.display = 'inline'
-                        }}
-                      />
-                    ) : (
-                      <span className="text-3xl">{leaderboardData[0].avatar}</span>
-                    )
-                  ) : (
-                    <span className="text-3xl">{leaderboardData[0].name.charAt(0).toUpperCase()}</span>
-                  )}
-                  <span className="text-3xl hidden">{leaderboardData[0].name.charAt(0).toUpperCase()}</span>
+                <div className="mx-auto mb-2 md:mb-4 relative z-10">
+                  <AvatarWithFrame
+                    avatarUrl={leaderboardData[0].avatar}
+                    frameUrl={leaderboardData[0].frame}
+                    size={56}
+                    className="md:!w-20 md:!h-20 mx-auto"
+                    fallback={leaderboardData[0].name.charAt(0).toUpperCase()}
+                  />
                 </div>
                 <div
                   className="font-bold text-gray-900 text-xs md:text-lg cursor-pointer hover:text-blue-600 transition-colors break-words text-center relative z-10"
@@ -559,25 +541,14 @@ const Leaderboard = () => {
                   backgroundSize: '200% 100%',
                   animation: 'shimmer 2s infinite'
                 }}></div>
-                <div className="w-8 h-8 md:w-14 md:h-14 rounded-full mx-auto mb-2 md:mb-4 flex items-center justify-center border-2 border-orange-400 overflow-hidden relative z-10">
-                  {leaderboardData[2].avatar ? (
-                    leaderboardData[2].avatar.startsWith('http') ? (
-                      <img
-                        src={leaderboardData[2].avatar}
-                        alt={leaderboardData[2].name}
-                        className="w-full h-full object-cover"
-                        onError={(e) => {
-                          e.target.style.display = 'none'
-                          e.target.nextSibling.style.display = 'inline'
-                        }}
-                      />
-                    ) : (
-                      <span className="text-2xl">{leaderboardData[2].avatar}</span>
-                    )
-                  ) : (
-                    <span className="text-2xl">{leaderboardData[2].name.charAt(0).toUpperCase()}</span>
-                  )}
-                  <span className="text-2xl hidden">{leaderboardData[2].name.charAt(0).toUpperCase()}</span>
+                <div className="mx-auto mb-2 md:mb-4 relative z-10">
+                  <AvatarWithFrame
+                    avatarUrl={leaderboardData[2].avatar}
+                    frameUrl={leaderboardData[2].frame}
+                    size={32}
+                    className="md:!w-14 md:!h-14 mx-auto"
+                    fallback={leaderboardData[2].name.charAt(0).toUpperCase()}
+                  />
                 </div>
                 <div
                   className="font-bold text-gray-900 text-xs md:text-base cursor-pointer hover:text-blue-600 transition-colors break-words text-center relative z-10"
@@ -622,26 +593,13 @@ const Leaderboard = () => {
                   </div>
 
                   <div className="relative">
-                    <div className="w-10 md:w-12 h-10 md:h-12 rounded-full flex items-center justify-center border-2 border-gray-300 overflow-hidden">
-                      {user.avatar ? (
-                        user.avatar.startsWith('http') ? (
-                          <img
-                            src={user.avatar}
-                            alt={user.name}
-                            className="w-full h-full object-cover"
-                            onError={(e) => {
-                              e.target.style.display = 'none'
-                              e.target.nextSibling.style.display = 'inline'
-                            }}
-                          />
-                        ) : (
-                          <span className="text-lg">{user.avatar}</span>
-                        )
-                      ) : (
-                        <span className="text-sm">{user.name.charAt(0).toUpperCase()}</span>
-                      )}
-                      <span className="text-sm hidden">{user.name.charAt(0).toUpperCase()}</span>
-                    </div>
+                    <AvatarWithFrame
+                      avatarUrl={user.avatar}
+                      frameUrl={user.frame}
+                      size={40}
+                      className="md:!w-12 md:!h-12"
+                      fallback={user.name.charAt(0).toUpperCase()}
+                    />
                     <div
                       className="absolute -bottom-1 -right-1 cursor-pointer scale-75 md:scale-100"
                       title={user.badge.name}
@@ -680,26 +638,12 @@ const Leaderboard = () => {
           <Card.Content>
             <div className="flex items-center justify-between p-4">
               <div className="flex items-center space-x-4">
-                <div className="w-12 h-12 rounded-full flex items-center justify-center border-2 border-primary-500 overflow-hidden">
-                  {currentUserRank.avatar ? (
-                    currentUserRank.avatar.startsWith('http') ? (
-                      <img
-                        src={currentUserRank.avatar}
-                        alt={currentUserRank.name}
-                        className="w-full h-full object-cover"
-                        onError={(e) => {
-                          e.target.style.display = 'none'
-                          e.target.nextSibling.style.display = 'inline'
-                        }}
-                      />
-                    ) : (
-                      <span className="text-lg">{currentUserRank.avatar}</span>
-                    )
-                  ) : (
-                    <span className="text-lg">{currentUserRank.name.charAt(0).toUpperCase()}</span>
-                  )}
-                  <span className="text-lg hidden">{currentUserRank.name.charAt(0).toUpperCase()}</span>
-                </div>
+                <AvatarWithFrame
+                  avatarUrl={currentUserRank.avatar}
+                  frameUrl={currentUserRank.frame}
+                  size={48}
+                  fallback={currentUserRank.name.charAt(0).toUpperCase()}
+                />
                 <div>
                   <div className="font-semibold text-gray-900">Bạn ({currentUserRank.name})</div>
                   <div className="flex items-center space-x-2 mt-1">

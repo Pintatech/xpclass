@@ -20,7 +20,7 @@ import {
 // Theme-based background images for exercise map
 // Mobile (vertical) images
 const themeBackgroundsMobile = {
-  blue: "https://xpclass.vn/xpclass/image/theme_exercise/ice1.webp", 
+  blue: "https://xpclass.vn/xpclass/image/theme_exercise/ice1.webp",
   green: "https://xpclass.vn/xpclass/image/theme_exercise/forest1.webp",
   purple: "https://xpclass.vn/xpclass/image/theme_exercise/pirate1.webp",
   orange: "https://xpclass.vn/xpclass/image/theme_exercise/ninja1.webp",
@@ -30,16 +30,18 @@ const themeBackgroundsMobile = {
 
 // Desktop (horizontal) images - update these URLs with your horizontal images
 const themeBackgroundsDesktop = {
-  blue: "https://xpclass.vn/xpclass/image/theme_exercise_PC/ice1.webp",  //blue
+  blue: "https://xpclass.vn/xpclass/image/theme_exercise_PC/ice1.webp", //blue
   green: "https://xpclass.vn/xpclass/image/theme_exercise_PC/forest1.webp", //forest
   purple: "https://xpclass.vn/xpclass/image/theme_exercise_PC/pirate1.webp", //pirate
   orange: "https://xpclass.vn/xpclass/image/theme_exercise_PC/ninja1.webp", //ninja
-  red: "https://xpclass.vn/xpclass/image/theme_exercise_PC/candy1.webp",  // candy
-  yellow: "https://xpclass.vn/xpclass/image/theme_exercise_PC/desert1.webp",  //desert
+  red: "https://xpclass.vn/xpclass/image/theme_exercise_PC/candy1.webp", // candy
+  yellow: "https://xpclass.vn/xpclass/image/theme_exercise_PC/desert1.webp", //desert
 };
 
 const getThemeBackgroundImage = (colorTheme, isDesktop = false) => {
-  const backgrounds = isDesktop ? themeBackgroundsDesktop : themeBackgroundsMobile;
+  const backgrounds = isDesktop
+    ? themeBackgroundsDesktop
+    : themeBackgroundsMobile;
   return backgrounds[colorTheme] || backgrounds.blue;
 };
 import {
@@ -130,7 +132,7 @@ const ExerciseList = () => {
   const [viewMode, setViewMode] = useState("map"); // 'map' or 'list'
   // Position editor mode - for dragging nodes and getting coordinates
   const [positionEditorMode, setPositionEditorMode] = useState(false);
-  const [editorTarget, setEditorTarget] = useState('nodes'); // 'nodes' or 'curves'
+  const [editorTarget, setEditorTarget] = useState("nodes"); // 'nodes' or 'curves'
   const [editablePositions, setEditablePositions] = useState(null);
   const [editableControlPoints, setEditableControlPoints] = useState(null);
   const [draggingNode, setDraggingNode] = useState(null);
@@ -138,7 +140,7 @@ const ExerciseList = () => {
   const mapContainerRef = useRef(null);
   // Desktop detection for responsive node positions
   const [isDesktop, setIsDesktop] = useState(
-    typeof window !== "undefined" ? window.innerWidth >= 768 : false
+    typeof window !== "undefined" ? window.innerWidth >= 768 : false,
   );
   const { user, profile } = useAuth();
   const { canCreateContent } = usePermissions();
@@ -551,33 +553,42 @@ const ExerciseList = () => {
   }, []);
 
   // Handle node drag in editor mode
-  const handleNodeDrag = useCallback((e) => {
-    if (!mapContainerRef.current) return;
+  const handleNodeDrag = useCallback(
+    (e) => {
+      if (!mapContainerRef.current) return;
 
-    const rect = mapContainerRef.current.getBoundingClientRect();
-    const x = ((e.clientX - rect.left) / rect.width) * 100;
-    const y = ((e.clientY - rect.top) / rect.height) * 100;
+      const rect = mapContainerRef.current.getBoundingClientRect();
+      const x = ((e.clientX - rect.left) / rect.width) * 100;
+      const y = ((e.clientY - rect.top) / rect.height) * 100;
 
-    // Clamp values between 0 and 100
-    const clampedX = Math.max(0, Math.min(100, x));
-    const clampedY = Math.max(0, Math.min(100, y));
+      // Clamp values between 0 and 100
+      const clampedX = Math.max(0, Math.min(100, x));
+      const clampedY = Math.max(0, Math.min(100, y));
 
-    if (draggingNode !== null) {
-      setEditablePositions(prev => {
-        if (!prev) return prev;
-        const newPositions = [...prev];
-        newPositions[draggingNode] = { x: Math.round(clampedX), y: Math.round(clampedY) };
-        return newPositions;
-      });
-    } else if (draggingControlPoint !== null) {
-      setEditableControlPoints(prev => {
-        if (!prev) return prev;
-        const newPoints = [...prev];
-        newPoints[draggingControlPoint] = { x: Math.round(clampedX), y: Math.round(clampedY) };
-        return newPoints;
-      });
-    }
-  }, [draggingNode, draggingControlPoint]);
+      if (draggingNode !== null) {
+        setEditablePositions((prev) => {
+          if (!prev) return prev;
+          const newPositions = [...prev];
+          newPositions[draggingNode] = {
+            x: Math.round(clampedX),
+            y: Math.round(clampedY),
+          };
+          return newPositions;
+        });
+      } else if (draggingControlPoint !== null) {
+        setEditableControlPoints((prev) => {
+          if (!prev) return prev;
+          const newPoints = [...prev];
+          newPoints[draggingControlPoint] = {
+            x: Math.round(clampedX),
+            y: Math.round(clampedY),
+          };
+          return newPoints;
+        });
+      }
+    },
+    [draggingNode, draggingControlPoint],
+  );
 
   // Global mouse move/up handlers for dragging
   useEffect(() => {
@@ -589,12 +600,12 @@ const ExerciseList = () => {
       setDraggingControlPoint(null);
     };
 
-    document.addEventListener('mousemove', handleMouseMove);
-    document.addEventListener('mouseup', handleMouseUp);
+    document.addEventListener("mousemove", handleMouseMove);
+    document.addEventListener("mouseup", handleMouseUp);
 
     return () => {
-      document.removeEventListener('mousemove', handleMouseMove);
-      document.removeEventListener('mouseup', handleMouseUp);
+      document.removeEventListener("mousemove", handleMouseMove);
+      document.removeEventListener("mouseup", handleMouseUp);
     };
   }, [positionEditorMode, handleNodeDrag]);
 
@@ -641,7 +652,10 @@ const ExerciseList = () => {
         />
       ),
       image_hotspot: (props) => (
-        <IconImg src="https://xpclass.vn/xpclass/icon/exercise_type/hotspot.svg" {...props} />
+        <IconImg
+          src="https://xpclass.vn/xpclass/icon/exercise_type/hotspot.svg"
+          {...props}
+        />
       ),
     };
     return icons[exerciseType] || ((props) => <BookOpen {...props} />);
@@ -822,14 +836,14 @@ const ExerciseList = () => {
 
     try {
       // Randomly award either XP or Gems, not both
-      const isGemReward = Math.random() < 0.3; // 30% chance for gems, 70% for XP
+      const isGemReward = Math.random() < 0.005; // 30% chance for gems, 70% for XP
 
       let xp = 0;
       let gems = 0;
       if (isGemReward) {
-        gems = Math.floor(Math.random() * 3) + 1; // 1-3 gems
+        gems = Math.floor(Math.random() * 2) + 1; // 1-2 gems
       } else {
-        xp = 5 + (exercises.length * 3) + (Math.floor(Math.random() * 10) + 1);
+        xp = 5 + exercises.length * 3 + (Math.floor(Math.random() * 10) + 1);
       }
 
       // Set reward amounts immediately so they show when card flips
@@ -846,7 +860,8 @@ const ExerciseList = () => {
             otherXP[num] = 0;
             otherGems[num] = Math.floor(Math.random() * 3) + 1;
           } else {
-            otherXP[num] = 5 + (exercises.length * 3) + (Math.floor(Math.random() * 10) + 1);
+            otherXP[num] =
+              5 + exercises.length * 3 + (Math.floor(Math.random() * 10) + 1);
             otherGems[num] = 0;
           }
         }
@@ -1159,20 +1174,27 @@ const ExerciseList = () => {
   const mapTheme = getMapTheme(colorTheme);
 
   // Use desktop positions if available and on desktop, otherwise use mobile positions
-  const allPositions = isDesktop && mapTheme.desktopPositions
-    ? mapTheme.desktopPositions
-    : mapTheme.positions;
-  const curveControlPoints = isDesktop && mapTheme.desktopControlPoints
-    ? mapTheme.desktopControlPoints
-    : mapTheme.controlPoints;
+  const allPositions =
+    isDesktop && mapTheme.desktopPositions
+      ? mapTheme.desktopPositions
+      : mapTheme.positions;
+  const curveControlPoints =
+    isDesktop && mapTheme.desktopControlPoints
+      ? mapTheme.desktopControlPoints
+      : mapTheme.controlPoints;
 
   // Generate all 11 levels (real exercises + dummy nodes)
   const generateLevels = () => {
     // Use desktop mappings on PC, mobile mappings on mobile
-    const customMappings = isDesktop && mapTheme.desktopCustomMappings
-      ? mapTheme.desktopCustomMappings
-      : mapTheme.customMappings;
-    const exerciseIndices = getExerciseIndices(exercises.length, allPositions, customMappings);
+    const customMappings =
+      isDesktop && mapTheme.desktopCustomMappings
+        ? mapTheme.desktopCustomMappings
+        : mapTheme.customMappings;
+    const exerciseIndices = getExerciseIndices(
+      exercises.length,
+      allPositions,
+      customMappings,
+    );
 
     // Find the first incomplete exercise index
     const currentExerciseIndex = exercises.findIndex((ex) => {
@@ -1258,18 +1280,25 @@ const ExerciseList = () => {
   const copyPositionsToClipboard = () => {
     const positionsStr = editablePositions
       .map((pos, i) => `      { x: ${pos.x}, y: ${pos.y} },  // ${i + 1}`)
-      .join('\n');
+      .join("\n");
     navigator.clipboard.writeText(positionsStr);
-    alert('Positions copied to clipboard! Paste into mapThemes.js → desktopPositions');
+    alert(
+      "Positions copied to clipboard! Paste into mapThemes.js → desktopPositions",
+    );
   };
 
   // Copy control points to clipboard
   const copyControlPointsToClipboard = () => {
     const pointsStr = editableControlPoints
-      .map((pos, i) => `      { x: ${pos.x}, y: ${pos.y} },   // curve ${i + 1} → ${i + 2}`)
-      .join('\n');
+      .map(
+        (pos, i) =>
+          `      { x: ${pos.x}, y: ${pos.y} },   // curve ${i + 1} → ${i + 2}`,
+      )
+      .join("\n");
     navigator.clipboard.writeText(pointsStr);
-    alert('Control points copied to clipboard! Paste into mapThemes.js → desktopControlPoints');
+    alert(
+      "Control points copied to clipboard! Paste into mapThemes.js → desktopControlPoints",
+    );
   };
 
   const levels = exercises.length > 0 ? generateLevels() : [];
@@ -1289,8 +1318,14 @@ const ExerciseList = () => {
     } = level;
 
     // Use editable position in editor mode
-    const displayX = positionEditorMode && editablePositions ? editablePositions[nodeIndex]?.x ?? x : x;
-    const displayY = positionEditorMode && editablePositions ? editablePositions[nodeIndex]?.y ?? y : y;
+    const displayX =
+      positionEditorMode && editablePositions
+        ? (editablePositions[nodeIndex]?.x ?? x)
+        : x;
+    const displayY =
+      positionEditorMode && editablePositions
+        ? (editablePositions[nodeIndex]?.y ?? y)
+        : y;
 
     const handleClick = () => {
       if (positionEditorMode) return; // Don't navigate in editor mode
@@ -1302,23 +1337,25 @@ const ExerciseList = () => {
     };
 
     const handleMouseDown = (e) => {
-      if (!positionEditorMode || editorTarget !== 'nodes') return;
+      if (!positionEditorMode || editorTarget !== "nodes") return;
       e.preventDefault();
       setDraggingNode(nodeIndex);
     };
 
-    const isNodeEditMode = positionEditorMode && editorTarget === 'nodes';
+    const isNodeEditMode = positionEditorMode && editorTarget === "nodes";
 
     return (
       <div
-        className={`absolute -translate-x-1/2 -translate-y-1/2 ${isNodeEditMode ? 'cursor-move select-none' : (unlocked && !isDummy ? 'cursor-pointer' : 'cursor-default')} ${current ? "z-20" : "z-10"} ${isNodeEditMode ? '' : 'transition-all duration-300'}`}
+        className={`absolute -translate-x-1/2 -translate-y-1/2 ${isNodeEditMode ? "cursor-move select-none" : unlocked && !isDummy ? "cursor-pointer" : "cursor-default"} ${current ? "z-20" : "z-10"} ${isNodeEditMode ? "" : "transition-all duration-300"}`}
         style={{ left: `${displayX}%`, top: `${displayY}%` }}
         onMouseDown={handleMouseDown}
-      > 
+      >
         {current && !isDummy && (
           <div className="absolute bottom-full left-0 right-0 mx-auto w-8 h-10 md:w-14 md:h-[50px] mb-2 md:mb-3 animate-bounce">
-            <svg viewBox="0 0 40 50" className="w-full h-full drop-shadow-lg">  
-              <defs>     {/* gg Map pin*/}
+            <svg viewBox="0 0 40 50" className="w-full h-full drop-shadow-lg">
+              <defs>
+                {" "}
+                {/* gg Map pin*/}
                 <linearGradient
                   id="pinGradient"
                   x1="0%"
@@ -1344,8 +1381,8 @@ const ExerciseList = () => {
               isDummy
                 ? "w-[14px] h-[14px] md:w-[32px] md:h-[32px]"
                 : !unlocked
-                  ? "w-[50px] h-[50px] md:w-[80px] md:h-[80px] cursor-not-allowed"   // locked which is not used
-                  : "w-[42px] h-[42px] md:w-[80px] md:h-[80px]"   // exercise node
+                  ? "w-[50px] h-[50px] md:w-[80px] md:h-[80px] cursor-not-allowed" // locked which is not used
+                  : "w-[42px] h-[42px] md:w-[80px] md:h-[80px]" // exercise node
             }`}
             onClick={handleClick}
           >
@@ -1377,7 +1414,9 @@ const ExerciseList = () => {
                         : "bg-gray-400 active:translate-y-0 active:shadow-none"
               }`}
               style={{
-                boxShadow: isDummy ? 'none' : '0 0.5em 1em -0.2em rgba(0, 0, 0, 0.3)'
+                boxShadow: isDummy
+                  ? "none"
+                  : "0 0.5em 1em -0.2em rgba(0, 0, 0, 0.3)",
               }}
             >
               {!isDummy && (
@@ -1395,9 +1434,10 @@ const ExerciseList = () => {
             {[1, 2, 3].map((star) => (
               <img
                 key={star}
-                src={star <= stars
-                  ? "https://xpclass.vn/xpclass/image/star_fill.png"
-                  : "https://xpclass.vn/xpclass/image/star_empty.png"
+                src={
+                  star <= stars
+                    ? "https://xpclass.vn/xpclass/image/star_fill.png"
+                    : "https://xpclass.vn/xpclass/image/star_empty.png"
                 }
                 alt={star <= stars ? "Star filled" : "Star empty"}
                 className="w-4 h-4 md:w-8 md:h-8 block"
@@ -1437,7 +1477,10 @@ const ExerciseList = () => {
 
   return (
     <div className="relative w-full h-[100vh] md:h-[100vh] overflow-hidden">
-      <div className="relative z-[1] w-full md:w-[100%] h-full md:h-[100vh] mx-auto overflow-hidden md:shadow-2xl bg-gray-100" ref={mapContainerRef}>
+      <div
+        className="relative z-[1] w-full md:w-[100%] h-full md:h-[100vh] mx-auto overflow-hidden md:shadow-2xl bg-gray-100"
+        ref={mapContainerRef}
+      >
         {/* Background - only for map view */}
         {viewMode === "map" && (
           <img
@@ -1453,13 +1496,16 @@ const ExerciseList = () => {
         {/* Map View */}
         {viewMode === "map" && (
           <>
-
             {/* Level nodes */}
-            <div className={`absolute inset-0 w-full h-full ${positionEditorMode && editorTarget === 'nodes' ? 'z-30' : 'z-10'}`}>
+            <div
+              className={`absolute inset-0 w-full h-full ${positionEditorMode && editorTarget === "nodes" ? "z-30" : "z-10"}`}
+            >
               {levels.map((level, index) => {
                 // Skip dummy nodes on desktop/PC
                 if (isDesktop && level.isDummy) return null;
-                return <LevelNode key={level.id} level={level} nodeIndex={index} />;
+                return (
+                  <LevelNode key={level.id} level={level} nodeIndex={index} />
+                );
               })}
             </div>
           </>
@@ -1509,9 +1555,11 @@ const ExerciseList = () => {
               setPositionEditorMode(!positionEditorMode);
             }}
             className={`absolute top-4 right-4 p-2 rounded-lg shadow-lg transition-colors z-50 ${
-              positionEditorMode ? 'bg-red-500 text-white' : 'bg-white hover:bg-gray-100 text-gray-600'
+              positionEditorMode
+                ? "bg-red-500 text-white"
+                : "bg-white hover:bg-gray-100 text-gray-600"
             }`}
-            title={positionEditorMode ? 'Exit Editor' : 'Edit Node Positions'}
+            title={positionEditorMode ? "Exit Editor" : "Edit Node Positions"}
           >
             <Edit className="w-6 h-6" />
           </button>
@@ -1520,25 +1568,24 @@ const ExerciseList = () => {
         {/* Position Editor Panel */}
         {positionEditorMode && editablePositions && editableControlPoints && (
           <div className="absolute top-16 right-4  bg-white rounded-lg shadow-xl z-50 max-h-[80vh] overflow-y-auto">
-
             {/* Editor Mode Toggle */}
             <div className="flex rounded-lg overflow-hidden mb-4 border border-gray-200">
               <button
-                onClick={() => setEditorTarget('nodes')}
+                onClick={() => setEditorTarget("nodes")}
                 className={`flex-1 py-2 px-3 text-sm font-medium transition-colors ${
-                  editorTarget === 'nodes'
-                    ? 'bg-emerald-500 text-white'
-                    : 'bg-gray-50 text-gray-600 hover:bg-gray-100'
+                  editorTarget === "nodes"
+                    ? "bg-emerald-500 text-white"
+                    : "bg-gray-50 text-gray-600 hover:bg-gray-100"
                 }`}
               >
                 Nodes
               </button>
               <button
-                onClick={() => setEditorTarget('curves')}
+                onClick={() => setEditorTarget("curves")}
                 className={`flex-1 py-2 px-3 text-sm font-medium transition-colors ${
-                  editorTarget === 'curves'
-                    ? 'bg-orange-500 text-white'
-                    : 'bg-gray-50 text-gray-600 hover:bg-gray-100'
+                  editorTarget === "curves"
+                    ? "bg-orange-500 text-white"
+                    : "bg-gray-50 text-gray-600 hover:bg-gray-100"
                 }`}
               >
                 Curves
@@ -1546,14 +1593,18 @@ const ExerciseList = () => {
             </div>
 
             {/* Node Positions - shown when editing nodes */}
-            {editorTarget === 'nodes' && (
+            {editorTarget === "nodes" && (
               <div className="mb-0">
-                <h4 className="text-sm font-semibold text-gray-700 mb-1">Node Positions</h4>
+                <h4 className="text-sm font-semibold text-gray-700 mb-1">
+                  Node Positions
+                </h4>
                 <div className="space-y-1 text-xs font-mono bg-gray-100 p-2 rounded mb-2 max-h-10 overflow-y-auto">
                   {editablePositions.map((pos, i) => (
                     <div key={i} className="flex justify-between">
                       <span className="text-gray-500">Node {i + 1}:</span>
-                      <span>x: {pos.x}, y: {pos.y}</span>
+                      <span>
+                        x: {pos.x}, y: {pos.y}
+                      </span>
                     </div>
                   ))}
                 </div>
@@ -1567,14 +1618,20 @@ const ExerciseList = () => {
             )}
 
             {/* Control Points - shown when editing curves */}
-            {editorTarget === 'curves' && (
+            {editorTarget === "curves" && (
               <div>
-                <h4 className="text-sm font-semibold text-gray-700 mb-1">Curve Control Points</h4>
+                <h4 className="text-sm font-semibold text-gray-700 mb-1">
+                  Curve Control Points
+                </h4>
                 <div className="space-y-1 text-xs font-mono bg-orange-50 p-2 rounded mb-2 max-h-10 overflow-y-auto">
                   {editableControlPoints.map((pos, i) => (
                     <div key={i} className="flex justify-between">
-                      <span className="text-gray-500">{i + 1}→{i + 2}:</span>
-                      <span>x: {pos.x}, y: {pos.y}</span>
+                      <span className="text-gray-500">
+                        {i + 1}→{i + 2}:
+                      </span>
+                      <span>
+                        x: {pos.x}, y: {pos.y}
+                      </span>
                     </div>
                   ))}
                 </div>
@@ -1617,7 +1674,10 @@ const ExerciseList = () => {
             // TODO: TEMPORARY - Restore original conditions after testing -- reward bypass (just keep handleClaimReward)
             if (isSessionComplete() && !sessionRewards[sessionId]?.claimed) {
               handleClaimReward();
-            } else if (!isSessionComplete() && !sessionRewards[sessionId]?.claimed) {
+            } else if (
+              !isSessionComplete() &&
+              !sessionRewards[sessionId]?.claimed
+            ) {
               setShowLockedModal(true);
             } else if (sessionRewards[sessionId]?.claimed) {
               setShowOpenedModal(true);
@@ -1697,11 +1757,20 @@ const ExerciseList = () => {
             </p>
             <div className="flex items-center justify-center gap-3 mb-4 sm:mb-8">
               <div className="bg-gradient-to-r from-yellow-400 to-orange-500 text-white rounded-lg py-2 px-4 text-lg font-bold flex items-center justify-center gap-1">
-                <img src="https://xpclass.vn/xpclass/image/study/xp2.png" alt="XP" className="w-6 h-6" />
+                {5 + exercises.length * 3 + 1} - {5 + exercises.length * 3 + 10}{" "}
+                <img
+                  src="https://xpclass.vn/xpclass/image/study/xp2.png"
+                  alt="XP"
+                  className="w-6 h-6"
+                />
               </div>
               <span className="text-gray-400 font-bold">or</span>
               <div className="bg-gradient-to-r from-emerald-400 to-teal-500 text-white rounded-lg py-2 px-4 text-lg font-bold flex items-center justify-center gap-1">
-                <img src="https://xpclass.vn/xpclass/image/study/gem.png" alt="Gem" className="w-6 h-6" />
+                <img
+                  src="https://xpclass.vn/xpclass/image/study/gem.png"
+                  alt="Gem"
+                  className="w-6 h-6"
+                />
               </div>
             </div>
 
@@ -1709,8 +1778,12 @@ const ExerciseList = () => {
               {[1, 2, 3].map((cardNum) => {
                 const isSelected = selectedChest === cardNum;
                 const isFlipped = selectedChest !== null;
-                const cardXP = isSelected ? rewardAmount : (otherCardsXP[cardNum] || 0);
-                const cardGems = isSelected ? rewardGems : (otherCardsGems[cardNum] || 0);
+                const cardXP = isSelected
+                  ? rewardAmount
+                  : otherCardsXP[cardNum] || 0;
+                const cardGems = isSelected
+                  ? rewardGems
+                  : otherCardsGems[cardNum] || 0;
                 const isGemCard = cardGems > 0;
 
                 return (
@@ -1719,24 +1792,31 @@ const ExerciseList = () => {
                     onClick={() => handleChestSelect(cardNum)}
                     disabled={selectedChest !== null}
                     className="relative group flex-shrink-0 perspective-1000"
-                    style={{ perspective: '1000px' }}
+                    style={{ perspective: "1000px" }}
                   >
                     <div
                       className="w-24 h-32 sm:w-32 sm:h-44 relative transition-transform duration-500"
                       style={{
-                        transformStyle: 'preserve-3d',
-                        transform: isFlipped ? 'rotateY(180deg)' : 'rotateY(0deg)',
-                        transitionDelay: isFlipped && !isSelected ? '1000ms' : '0ms',
+                        transformStyle: "preserve-3d",
+                        transform: isFlipped
+                          ? "rotateY(180deg)"
+                          : "rotateY(0deg)",
+                        transitionDelay:
+                          isFlipped && !isSelected ? "1000ms" : "0ms",
                       }}
                     >
                       {/* Card Front (Question mark) */}
                       <div
                         className="absolute inset-0 rounded-xl bg-gradient-to-br from-purple-500 to-indigo-600 shadow-lg flex items-center justify-center border-4 border-purple-300 group-hover:scale-105 transition-transform"
-                        style={{ backfaceVisibility: 'hidden' }}
+                        style={{ backfaceVisibility: "hidden" }}
                       >
                         <div className="text-center">
-                          <div className="text-5xl sm:text-6xl font-bold text-white drop-shadow-lg">?</div>
-                          <div className="text-xs sm:text-sm text-purple-200 mt-2">Pick me!</div>
+                          <div className="text-5xl sm:text-6xl font-bold text-white drop-shadow-lg">
+                            ?
+                          </div>
+                          <div className="text-xs sm:text-sm text-purple-200 mt-2">
+                            Pick me!
+                          </div>
                         </div>
                       </div>
 
@@ -1745,30 +1825,38 @@ const ExerciseList = () => {
                         className={`absolute inset-0 rounded-xl shadow-lg flex items-center justify-center border-4 ${
                           isSelected
                             ? isGemCard
-                              ? 'bg-gradient-to-br from-emerald-400 to-teal-500 border-emerald-300'
-                              : 'bg-gradient-to-br from-yellow-400 to-orange-500 border-yellow-300'
-                            : 'bg-gradient-to-br from-gray-400 to-gray-500 border-gray-300'
+                              ? "bg-gradient-to-br from-emerald-400 to-teal-500 border-emerald-300"
+                              : "bg-gradient-to-br from-yellow-400 to-orange-500 border-yellow-300"
+                            : "bg-gradient-to-br from-gray-400 to-gray-500 border-gray-300"
                         }`}
                         style={{
-                          backfaceVisibility: 'hidden',
-                          transform: 'rotateY(180deg)',
+                          backfaceVisibility: "hidden",
+                          transform: "rotateY(180deg)",
                         }}
                       >
                         <div className="text-center">
-                          {(cardXP > 0 || cardGems > 0) ? (
+                          {cardXP > 0 || cardGems > 0 ? (
                             isGemCard ? (
                               <>
                                 <div className="text-2xl sm:text-3xl font-bold text-white drop-shadow-lg">
                                   +{cardGems}
                                 </div>
-                                <img src="https://xpclass.vn/xpclass/image/study/gem.png" alt="Gem" className="w-8 h-8 mx-auto mt-1" />
+                                <img
+                                  src="https://xpclass.vn/xpclass/image/study/gem.png"
+                                  alt="Gem"
+                                  className="w-8 h-8 mx-auto mt-1"
+                                />
                               </>
                             ) : (
                               <>
                                 <div className="text-2xl sm:text-3xl font-bold text-white drop-shadow-lg">
                                   +{cardXP}
                                 </div>
-                                <img src="https://xpclass.vn/xpclass/image/study/xp2.png" alt="XP" className="w-8 h-8 mx-auto mt-1" />
+                                <img
+                                  src="https://xpclass.vn/xpclass/image/study/xp2.png"
+                                  alt="XP"
+                                  className="w-8 h-8 mx-auto mt-1"
+                                />
                               </>
                             )
                           ) : (
@@ -1808,9 +1896,27 @@ const ExerciseList = () => {
             <p className="text-sm sm:text-base text-gray-600 mb-4">
               Complete all exercises with at least 2 stars to receive reward
             </p>
-            <div className="bg-gradient-to-r from-yellow-400 to-orange-500 text-white rounded-lg py-2 px-4 text-lg font-bold mb-6 w-1/2 mx-auto">
-              {5 + (exercises.length * 3) + 1} - {5 + (exercises.length * 3) + 10} XP
+
+            <div className="flex items-center justify-center gap-3 mb-4 sm:mb-8">
+              <div className="bg-gradient-to-r from-yellow-400 to-orange-500 text-white rounded-lg py-2 px-4 text-lg font-bold flex items-center justify-center gap-1">
+                {5 + exercises.length * 3 + 1} - {5 + exercises.length * 3 + 10}{" "}
+                <img
+                  src="https://xpclass.vn/xpclass/image/study/xp2.png"
+                  alt="XP"
+                  className="w-6 h-6"
+                />
+              </div>
+
+              <span className="text-gray-400 font-bold">or</span>
+              <div className="bg-gradient-to-r from-emerald-400 to-teal-500 text-white rounded-lg py-2 px-4 text-lg font-bold flex items-center justify-center gap-1">
+                <img
+                  src="https://xpclass.vn/xpclass/image/study/gem.png"
+                  alt="Gem"
+                  className="w-6 h-6"
+                />
+              </div>
             </div>
+
             <button
               onClick={() => setShowLockedModal(false)}
               className="bg-blue-600 hover:bg-blue-700 text-white font-semibold py-2 px-6 rounded-lg transition-colors"
@@ -1841,20 +1947,27 @@ const ExerciseList = () => {
             <h2 className="text-xl sm:text-2xl font-bold text-gray-900 mb-2">
               Reward Claimed!
             </h2>
-                        <p className="text-sm sm:text-base text-gray-600 mb-4 ">
-
+            <p className="text-sm sm:text-base text-gray-600 mb-4 ">
               You earned from this chest:
             </p>
             <div className="flex flex-col items-center gap-2 mb-6">
               {sessionRewards[sessionId]?.xp > 0 ? (
                 <div className="bg-gradient-to-r from-yellow-400 to-orange-500 text-white rounded-lg py-3 px-6 text-2xl sm:text-3xl font-bold shadow-lg flex items-center justify-center gap-2">
                   <span>+{sessionRewards[sessionId]?.xp}</span>
-                  <img src="https://xpclass.vn/xpclass/image/study/xp2.png" alt="XP" className="w-6 h-6" />
+                  <img
+                    src="https://xpclass.vn/xpclass/image/study/xp2.png"
+                    alt="XP"
+                    className="w-6 h-6"
+                  />
                 </div>
               ) : sessionRewards[sessionId]?.gems > 0 ? (
                 <div className="bg-gradient-to-r from-emerald-400 to-teal-500 text-white rounded-lg py-3 px-6 text-2xl sm:text-3xl font-bold shadow-lg flex items-center justify-center gap-2">
                   <span>+{sessionRewards[sessionId]?.gems}</span>
-                  <img src="https://xpclass.vn/xpclass/image/study/gem.png" alt="Gem" className="w-6 h-6" />
+                  <img
+                    src="https://xpclass.vn/xpclass/image/study/gem.png"
+                    alt="Gem"
+                    className="w-6 h-6"
+                  />
                 </div>
               ) : null}
             </div>

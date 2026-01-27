@@ -97,9 +97,9 @@ const Shop = () => {
         await updateProfile({ avatar_url: avatarUrl })
         alert('Đã trang bị avatar!')
       } else if (item.category === 'title_frame') {
-        const title = item.item_data?.title || item.name
-        await updateProfile({ active_title: title })
-        alert('Đã trang bị danh hiệu!')
+        const frameUrl = item.image_url
+        await updateProfile({ active_title: frameUrl })
+        alert('Đã trang bị khung!')
       }
     } catch (err) {
       console.error('Error equipping item:', err)
@@ -109,7 +109,7 @@ const Shop = () => {
 
   const categories = [
     { key: 'avatar', label: 'Avatar' },
-    { key: 'title_frame', label: 'Danh hiệu' },
+    { key: 'title_frame', label: 'Frame' },
   ]
 
   const filteredItems = items.filter(item => item.category === activeTab)

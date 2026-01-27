@@ -9,7 +9,9 @@ const BottomNavigation = () => {
     { path: '/', imageSrc: 'https://xpclass.vn/xpclass/icon/navigation/home.svg', label: 'Home' },
     { path: '/leaderboard', imageSrc: 'https://xpclass.vn/xpclass/icon/navigation/leaderboard.svg', label: 'Leaderboard' },
     { path: '/progress', imageSrc: 'https://xpclass.vn/xpclass/icon/navigation/progress.svg', label: 'Progress' },
+    { path: '/shop', imageSrc: 'https://xpclass.vn/xpclass/icon/navigation/shop.svg', label: 'Cửa hàng'},
     { path: '/profile', imageSrc: 'https://xpclass.vn/xpclass/icon/navigation/account.svg', label: 'Account' },
+
   ]
 
   return (
