@@ -549,6 +549,7 @@ const Profile = () => {
               <AvatarWithFrame
                 avatarUrl={selectedAvatar}
                 frameUrl={currentProfile?.active_title}
+                frameRatio={currentProfile?.active_frame_ratio}
                 size={80}
                 fallback={currentProfile?.full_name?.[0]?.toUpperCase() || currentProfile?.email?.[0]?.toUpperCase() || 'U'}
                 onClick={isOwnProfile ? () => setShowAvatarSelector(true) : undefined}

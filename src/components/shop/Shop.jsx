@@ -108,7 +108,8 @@ const Shop = () => {
         alert('Đã trang bị avatar!')
       } else if (item.category === 'title_frame') {
         const frameUrl = item.image_url
-        await updateProfile({ active_title: frameUrl })
+        const frameRatio = item.item_data?.avatar_ratio || 66
+        await updateProfile({ active_title: frameUrl, active_frame_ratio: frameRatio })
         alert('Đã trang bị khung!')
       }
     } catch (err) {

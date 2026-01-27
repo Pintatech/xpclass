@@ -411,7 +411,8 @@ const Dashboard = () => {
                 <AvatarWithFrame
                   avatarUrl={profile?.avatar_url}
                   frameUrl={profile?.active_title}
-                  size={64}
+                  frameRatio={profile?.active_frame_ratio}
+                  size={86}
                   fallback={profile?.full_name?.[0]?.toUpperCase() || profile?.email?.[0]?.toUpperCase() || 'U'}
                 />
                 <div>

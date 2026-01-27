@@ -197,6 +197,7 @@ const Leaderboard = () => {
           },
           avatar: user.avatar_url,
           frame: user.active_title,
+          frameRatio: user.active_frame_ratio,
           streak: user.streak_count || 0,
           completedExercises: exerciseCounts[user.id] || 0,
           isCurrentUser: user.id === user?.id
@@ -232,6 +233,7 @@ const Leaderboard = () => {
         streak_count,
         avatar_url,
         active_title,
+        active_frame_ratio,
         created_at
       `)
       .eq('role', 'user')
@@ -276,6 +278,7 @@ const Leaderboard = () => {
         streak_count,
         avatar_url,
         active_title,
+        active_frame_ratio,
         created_at
       `)
       .eq('role', 'user')
@@ -456,6 +459,7 @@ const Leaderboard = () => {
                   <AvatarWithFrame
                     avatarUrl={leaderboardData[1].avatar}
                     frameUrl={leaderboardData[1].frame}
+                    frameRatio={leaderboardData[1].frameRatio}
                     size={80}
                     className="mx-auto"
                     fallback={leaderboardData[1].name.charAt(0).toUpperCase()}
@@ -499,6 +503,7 @@ const Leaderboard = () => {
                   <AvatarWithFrame
                     avatarUrl={leaderboardData[0].avatar}
                     frameUrl={leaderboardData[0].frame}
+                    frameRatio={leaderboardData[0].frameRatio}
                     size={80}
                     className="mx-auto"
                     fallback={leaderboardData[0].name.charAt(0).toUpperCase()}
@@ -545,6 +550,7 @@ const Leaderboard = () => {
                   <AvatarWithFrame
                     avatarUrl={leaderboardData[2].avatar}
                     frameUrl={leaderboardData[2].frame}
+                    frameRatio={leaderboardData[2].frameRatio}
                     size={56}
                     className="mx-auto"
                     fallback={leaderboardData[2].name.charAt(0).toUpperCase()}
@@ -596,6 +602,7 @@ const Leaderboard = () => {
                     <AvatarWithFrame
                       avatarUrl={user.avatar}
                       frameUrl={user.frame}
+                      frameRatio={user.frameRatio}
                       size={48}
                       fallback={user.name.charAt(0).toUpperCase()}
                     />
@@ -640,6 +647,7 @@ const Leaderboard = () => {
                 <AvatarWithFrame
                   avatarUrl={currentUserRank.avatar}
                   frameUrl={currentUserRank.frame}
+                  frameRatio={currentUserRank.frameRatio}
                   size={48}
                   fallback={currentUserRank.name.charAt(0).toUpperCase()}
                 />

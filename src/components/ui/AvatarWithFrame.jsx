@@ -1,14 +1,16 @@
-const AVATAR_RATIO = 66 // avatar takes ~66% of the container, frame fills 100%
+const DEFAULT_AVATAR_RATIO = 66 // avatar takes ~66% of the container, frame fills 100%
 
 const AvatarWithFrame = ({
   avatarUrl,
   frameUrl,
+  frameRatio,
   size = 80,
   fallback,
   onClick,
   className = '',
 }) => {
   const hasFrame = frameUrl && frameUrl.startsWith('http')
+  const avatarRatio = frameRatio || DEFAULT_AVATAR_RATIO
 
   const renderAvatar = () => {
     if (avatarUrl) {
@@ -44,8 +46,8 @@ const AvatarWithFrame = ({
           onClick ? 'cursor-pointer hover:bg-white/30 transition-colors' : ''
         }`}
         style={hasFrame ? {
-          width: `${AVATAR_RATIO}%`,
-          height: `${AVATAR_RATIO}%`,
+          width: `${avatarRatio}%`,
+          height: `${avatarRatio}%`,
           top: '50%',
           left: '50%',
           transform: 'translate(-50%, -50%)',
