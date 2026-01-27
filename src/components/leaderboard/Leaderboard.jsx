@@ -611,7 +611,7 @@ const Leaderboard = () => {
 
         <Card.Content className="p-0">
           <div className="divide-y divide-gray-200">
-            {leaderboardData.slice(3).map((user) => (
+            {leaderboardData.slice(3, timeframe === 'week' || timeframe === 'month' ? 10 : undefined).map((user) => (
               <div
                 key={user.id}
                 className={`py-2 md:py-4 md:px-4 ${getRankColor(user.rank)} flex items-center justify-between`}

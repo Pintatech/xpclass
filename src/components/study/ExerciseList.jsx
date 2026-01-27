@@ -121,6 +121,7 @@ const ExerciseList = () => {
   const [rewardAmount, setRewardAmount] = useState(0);
   const [showChestSelection, setShowChestSelection] = useState(false);
   const [selectedChest, setSelectedChest] = useState(null);
+  const [otherCardsXP, setOtherCardsXP] = useState({}); // XP values for non-selected cards
   const [showLockedModal, setShowLockedModal] = useState(false);
   const [showOpenedModal, setShowOpenedModal] = useState(false);
   // View toggle state
@@ -798,6 +799,7 @@ const ExerciseList = () => {
 
   // Handle claiming session reward
   const handleClaimReward = async () => {
+    // TODO: TEMPORARY - Remove these comments after testing  -- reward bypass
     if (!user || claimingReward || sessionRewards[sessionId]?.claimed) return;
     if (!isSessionComplete()) return;
 
@@ -812,12 +814,24 @@ const ExerciseList = () => {
     setClaimingReward(sessionId);
 
     // Play chest opening sound
-    const audio = new Audio("https://xpclass.vn/xpclass/sound/chest_sound.mp3");
+    const audio = new Audio("https://xpclass.vn/xpclass/sound/woosh.mp3");
     audio.play().catch((err) => console.error("Error playing sound:", err));
 
     try {
       // Calculate XP: 5 base + 3 per exercise + random 1-10 bonus
       const xp = 5 + (exercises.length * 3) + (Math.floor(Math.random() * 10) + 1);
+
+      // Set reward amount immediately so it shows when card flips
+      setRewardAmount(xp);
+
+      // Generate random XP for other cards (what they "could have been")
+      const otherXP = {};
+      [1, 2, 3].forEach((num) => {
+        if (num !== chestNumber) {
+          otherXP[num] = 5 + (exercises.length * 3) + (Math.floor(Math.random() * 10) + 1);
+        }
+      });
+      setOtherCardsXP(otherXP);
 
       // Insert claim record
       const { error: claimError } = await supabase
@@ -850,33 +864,30 @@ const ExerciseList = () => {
 
       if (updateError) throw updateError;
 
-      // Wait for GIF to complete before showing XP
+      // Show XP for 2.5 seconds then close (500ms flip + 2s display)
       setTimeout(() => {
-        setRewardAmount(xp);
+        setSessionRewards((prev) => ({
+          ...prev,
+          [sessionId]: {
+            claimed: true,
+            xp: xp,
+            claimed_at: new Date().toISOString(),
+          },
+        }));
 
-        // Show XP for 1.5 seconds then close
-        setTimeout(() => {
-          setSessionRewards((prev) => ({
-            ...prev,
-            [sessionId]: {
-              claimed: true,
-              xp: xp,
-              claimed_at: new Date().toISOString(),
-            },
-          }));
-
-          setShowChestSelection(false);
-          setClaimingReward(null);
-          setSelectedChest(null);
-          setRewardAmount(0);
-        }, 1500);
-      }, 2000);
+        setShowChestSelection(false);
+        setClaimingReward(null);
+        setSelectedChest(null);
+        setRewardAmount(0);
+        setOtherCardsXP({});
+      }, 3500);
     } catch (err) {
       console.error("Error claiming reward:", err);
       alert("Không thể nhận phần thưởng. Vui lòng thử lại!");
       setClaimingReward(null);
       setSelectedChest(null);
       setShowChestSelection(false);
+      setOtherCardsXP({});
     }
   };
 
@@ -1577,6 +1588,7 @@ const ExerciseList = () => {
         {/* Chest Card - Visible for everyone */}
         <div
           onClick={() => {
+            // TODO: TEMPORARY - Restore original conditions after testing -- reward bypass (just keep handleClaimReward)
             if (isSessionComplete() && !sessionRewards[sessionId]?.claimed) {
               handleClaimReward();
             } else if (!isSessionComplete() && !sessionRewards[sessionId]?.claimed) {
@@ -1591,12 +1603,14 @@ const ExerciseList = () => {
             src={
               sessionRewards[sessionId]?.claimed
                 ? "https://xpclass.vn/xpclass/icon/chest_opened.png" // Opened
-                : isSessionComplete()
-                  ? "https://xpclass.vn/xpclass/icon/chest_ready.png" // Ready to claim
-                  : "https://xpclass.vn/xpclass/icon/chest_locked.png" // Default (locked)
+                : "https://xpclass.vn/xpclass/icon/chest_locked.png" // Locked or Ready
             }
             alt="Chest"
-            className="w-full h-full object-contain drop-shadow-lg"
+            className={`w-full h-full object-contain drop-shadow-lg ${
+              !sessionRewards[sessionId]?.claimed && isSessionComplete()
+                ? "animate-bounce"
+                : ""
+            }`}
           />
         </div>
 
@@ -1653,48 +1667,74 @@ const ExerciseList = () => {
               Choose Your Reward!
             </h2>
             <p className="text-sm sm:text-lg text-gray-600 mb-4">
-              Pick one chest to reveal your XP reward
+              Pick a card to reveal your XP reward
             </p>
             <div className="bg-gradient-to-r from-yellow-400 to-orange-500 text-white rounded-lg py-2 px-4 text-lg font-bold mb-4 sm:mb-8 w-1/2 mx-auto">
               {5 + (exercises.length * 3) + 1} - {5 + (exercises.length * 3) + 10} XP
             </div>
 
-            <div className="flex justify-center items-center gap-2 sm:gap-8">
-              {[1, 2, 3].map((chestNum) => (
-                <button
-                  key={chestNum}
-                  onClick={() => handleChestSelect(chestNum)}
-                  disabled={selectedChest !== null}
-                  className="relative group flex-shrink-0"
-                >
-                  <div className="w-20 h-20 sm:w-32 sm:h-32 transition-transform transform group-hover:scale-110">
-                    <img
-                      src={
-                        selectedChest === chestNum
-                          ? "https://xpclass.vn/xpclass/icon/chest_cropped_once.gif"
-                          : "https://xpclass.vn/xpclass/image/chest_cropped_once1.gif"
-                      }
-                      alt={`Chest ${chestNum}`}
-                      className="w-full h-full object-contain"
-                    />
-                  </div>
-                  {selectedChest === chestNum && rewardAmount > 0 ? (
-                    <div className="absolute inset-0 flex items-center justify-center">
-                      <div className="bg-gradient-to-r from-yellow-400 to-orange-500 text-white rounded-lg py-2 px-4 text-xl font-bold shadow-lg animate-bounce">
-                        +{rewardAmount} XP
-                      </div>
-                    </div>
-                  ) : (
-                    selectedChest === null && (
-                      <div className="absolute inset-0 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
-                        <div className="bg-yellow-500 text-white rounded-full w-12 h-12 flex items-center justify-center text-2xl font-bold">
-                          ?
+            <div className="flex justify-center items-center gap-3 sm:gap-6">
+              {[1, 2, 3].map((cardNum) => {
+                const isSelected = selectedChest === cardNum;
+                const isFlipped = selectedChest !== null;
+                const xpValue = isSelected ? rewardAmount : otherCardsXP[cardNum];
+
+                return (
+                  <button
+                    key={cardNum}
+                    onClick={() => handleChestSelect(cardNum)}
+                    disabled={selectedChest !== null}
+                    className="relative group flex-shrink-0 perspective-1000"
+                    style={{ perspective: '1000px' }}
+                  >
+                    <div
+                      className="w-24 h-32 sm:w-32 sm:h-44 relative transition-transform duration-500"
+                      style={{
+                        transformStyle: 'preserve-3d',
+                        transform: isFlipped ? 'rotateY(180deg)' : 'rotateY(0deg)',
+                        transitionDelay: isFlipped && !isSelected ? '1000ms' : '0ms',
+                      }}
+                    >
+                      {/* Card Front (Question mark) */}
+                      <div
+                        className="absolute inset-0 rounded-xl bg-gradient-to-br from-purple-500 to-indigo-600 shadow-lg flex items-center justify-center border-4 border-purple-300 group-hover:scale-105 transition-transform"
+                        style={{ backfaceVisibility: 'hidden' }}
+                      >
+                        <div className="text-center">
+                          <div className="text-5xl sm:text-6xl font-bold text-white drop-shadow-lg">?</div>
+                          <div className="text-xs sm:text-sm text-purple-200 mt-2">Pick me!</div>
                         </div>
                       </div>
-                    )
-                  )}
-                </button>
-              ))}
+
+                      {/* Card Back (XP reveal) */}
+                      <div
+                        className={`absolute inset-0 rounded-xl shadow-lg flex items-center justify-center border-4 ${
+                          isSelected
+                            ? 'bg-gradient-to-br from-yellow-400 to-orange-500 border-yellow-300'
+                            : 'bg-gradient-to-br from-gray-400 to-gray-500 border-gray-300'
+                        }`}
+                        style={{
+                          backfaceVisibility: 'hidden',
+                          transform: 'rotateY(180deg)',
+                        }}
+                      >
+                        <div className="text-center">
+                          {xpValue ? (
+                            <>
+                              <div className={`text-2xl sm:text-3xl font-bold text-white drop-shadow-lg }`}>
+                                +{xpValue}
+                              </div>
+                              <div className="text-sm sm:text-base font-semibold text-white/90">XP</div>
+                            </>
+                          ) : (
+                            <div className="text-xl text-white/80">...</div>
+                          )}
+                        </div>
+                      </div>
+                    </div>
+                  </button>
+                );
+              })}
             </div>
           </div>
         </div>
