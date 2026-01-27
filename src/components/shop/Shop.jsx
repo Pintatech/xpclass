@@ -6,7 +6,7 @@ import { ShoppingBag, Check } from 'lucide-react'
 
 const Shop = () => {
   const { user, profile, updateProfile } = useAuth()
-  const { spendGems } = useProgress()
+  const { spendGems, spendXP } = useProgress()
   const [items, setItems] = useState([])
   const [purchases, setPurchases] = useState([])
   const [loading, setLoading] = useState(true)
@@ -51,20 +51,30 @@ const Shop = () => {
     return purchases.some(p => p.item_id === itemId)
   }
 
+  const isXPItem = (item) => item.price_type === 'xp'
+
+  const canAffordItem = (item) => {
+    if (isXPItem(item)) {
+      return (profile?.xp || 0) >= item.price
+    }
+    return (profile?.gems || 0) >= item.price
+  }
+
   const handlePurchase = async (item) => {
     if (purchasing || isOwned(item.id)) return
 
-    const currentGems = profile?.gems || 0
-    if (currentGems < item.price) {
-      alert('Bạn không đủ gems!')
+    if (!canAffordItem(item)) {
+      alert(isXPItem(item) ? 'Bạn không đủ XP!' : 'Bạn không đủ gems!')
       return
     }
 
     setPurchasing(item.id)
 
     try {
-      // Deduct gems
-      const result = await spendGems(item.price)
+      // Deduct currency based on price type
+      const result = isXPItem(item)
+        ? await spendXP(item.price)
+        : await spendGems(item.price)
       if (!result.success) {
         alert(result.error || 'Không thể mua vật phẩm')
         return
@@ -137,9 +147,15 @@ const Shop = () => {
           <ShoppingBag className="w-8 h-8 text-emerald-600" />
           <h1 className="text-2xl font-bold text-gray-900">Cửa hàng</h1>
         </div>
-        <div className="bg-gradient-to-r from-emerald-400 to-teal-500 text-white rounded-full px-5 py-2 flex items-center gap-2 font-bold shadow-md">
-          <img src="https://xpclass.vn/xpclass/image/study/gem.png" alt="Gems" className="w-5 h-5" />
-          {profile?.gems || 0}
+        <div className="flex items-center gap-2">
+          <div className="bg-gradient-to-r from-blue-400 to-indigo-500 text-white rounded-full px-4 py-2 flex items-center gap-2 font-bold shadow-md">
+            <img src="https://xpclass.vn/xpclass/image/study/xp2.png" alt="XP" className="w-5 h-5" />
+            {(profile?.xp || 0).toLocaleString()}
+          </div>
+          <div className="bg-gradient-to-r from-emerald-400 to-teal-500 text-white rounded-full px-4 py-2 flex items-center gap-2 font-bold shadow-md">
+            <img src="https://xpclass.vn/xpclass/image/study/gem.png" alt="Gems" className="w-5 h-5" />
+            {profile?.gems || 0}
+          </div>
         </div>
       </div>
 
@@ -171,7 +187,7 @@ const Shop = () => {
         <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-4">
           {filteredItems.map(item => {
             const owned = isOwned(item.id)
-            const canAfford = (profile?.gems || 0) >= item.price
+            const canAfford = canAffordItem(item)
 
             return (
               <div
@@ -236,7 +252,11 @@ const Shop = () => {
                           'Đang mua...'
                         ) : (
                           <>
-                            <img src="https://xpclass.vn/xpclass/image/study/gem.png" alt="Gem" className="w-4 h-4" />
+                            {isXPItem(item) ? (
+                              <img src="https://xpclass.vn/xpclass/image/study/xp2.png" alt="XP" className="w-4 h-4" />
+                            ) : (
+                              <img src="https://xpclass.vn/xpclass/image/study/gem.png" alt="Gem" className="w-4 h-4" />
+                            )}
                             {item.price}
                           </>
                         )}

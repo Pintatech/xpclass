@@ -1,4 +1,4 @@
-const FRAME_SCALE = 1.5
+const AVATAR_RATIO = 66 // avatar takes ~66% of the container, frame fills 100%
 
 const AvatarWithFrame = ({
   avatarUrl,
@@ -9,7 +9,6 @@ const AvatarWithFrame = ({
   className = '',
 }) => {
   const hasFrame = frameUrl && frameUrl.startsWith('http')
-  const outerSize = hasFrame ? size * FRAME_SCALE : size
 
   const renderAvatar = () => {
     if (avatarUrl) {
@@ -37,19 +36,22 @@ const AvatarWithFrame = ({
   return (
     <div
       className={`relative flex-shrink-0 ${className}`}
-      style={{ width: outerSize, height: outerSize }}
+      style={{ width: size, height: size }}
     >
-      {/* Avatar centered inside the outer container */}
+      {/* Avatar - if frame exists, shrink to center; otherwise fill container */}
       <div
         className={`absolute bg-white/20 rounded-full flex items-center justify-center overflow-hidden ${
           onClick ? 'cursor-pointer hover:bg-white/30 transition-colors' : ''
         }`}
-        style={{
-          width: size,
-          height: size,
+        style={hasFrame ? {
+          width: `${AVATAR_RATIO}%`,
+          height: `${AVATAR_RATIO}%`,
           top: '50%',
           left: '50%',
           transform: 'translate(-50%, -50%)',
+        } : {
+          width: '100%',
+          height: '100%',
         }}
         onClick={onClick}
       >
@@ -58,7 +60,7 @@ const AvatarWithFrame = ({
           <span className="hidden text-2xl font-bold">{fallback}</span>
         )}
       </div>
-      {/* Frame covers the full outer container */}
+      {/* Frame covers the full container */}
       {hasFrame && (
         <img
           src={frameUrl}

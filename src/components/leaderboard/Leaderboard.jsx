@@ -456,8 +456,8 @@ const Leaderboard = () => {
                   <AvatarWithFrame
                     avatarUrl={leaderboardData[1].avatar}
                     frameUrl={leaderboardData[1].frame}
-                    size={48}
-                    className="md:!w-20 md:!h-20 mx-auto"
+                    size={80}
+                    className="mx-auto"
                     fallback={leaderboardData[1].name.charAt(0).toUpperCase()}
                   />
                 </div>
@@ -499,8 +499,8 @@ const Leaderboard = () => {
                   <AvatarWithFrame
                     avatarUrl={leaderboardData[0].avatar}
                     frameUrl={leaderboardData[0].frame}
-                    size={56}
-                    className="md:!w-20 md:!h-20 mx-auto"
+                    size={80}
+                    className="mx-auto"
                     fallback={leaderboardData[0].name.charAt(0).toUpperCase()}
                   />
                 </div>
@@ -545,8 +545,8 @@ const Leaderboard = () => {
                   <AvatarWithFrame
                     avatarUrl={leaderboardData[2].avatar}
                     frameUrl={leaderboardData[2].frame}
-                    size={32}
-                    className="md:!w-14 md:!h-14 mx-auto"
+                    size={56}
+                    className="mx-auto"
                     fallback={leaderboardData[2].name.charAt(0).toUpperCase()}
                   />
                 </div>
@@ -596,8 +596,7 @@ const Leaderboard = () => {
                     <AvatarWithFrame
                       avatarUrl={user.avatar}
                       frameUrl={user.frame}
-                      size={40}
-                      className="md:!w-12 md:!h-12"
+                      size={48}
                       fallback={user.name.charAt(0).toUpperCase()}
                     />
                     <div

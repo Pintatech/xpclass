@@ -535,6 +535,35 @@ export const ProgressProvider = ({ children }) => {
     }
   }
 
+  const spendXP = async (xpAmount) => {
+    if (!user || !profile) return { success: false, error: 'No user logged in' }
+
+    const currentXP = profile.xp || 0
+    if (currentXP < xpAmount) {
+      return { success: false, error: 'Not enough XP' }
+    }
+
+    try {
+      const newXP = currentXP - xpAmount
+
+      const { error } = await supabase
+        .from('users')
+        .update({
+          xp: newXP,
+          updated_at: new Date().toISOString()
+        })
+        .eq('id', user.id)
+
+      if (error) throw error
+
+      await fetchUserProfile(user.id)
+      return { success: true, xp: newXP }
+    } catch (error) {
+      console.error('Error spending XP:', error)
+      return { success: false, error: error.message }
+    }
+  }
+
   const getCompletedExercises = () => {
     return userProgress.filter(p => p.status === 'completed').length
   }
@@ -646,6 +675,7 @@ export const ProgressProvider = ({ children }) => {
     addXP,
     addGems,
     spendGems,
+    spendXP,
     completeExerciseWithXP,
     isExerciseCompleted,
     updateStreak,
