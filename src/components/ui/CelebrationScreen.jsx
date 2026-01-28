@@ -1,5 +1,16 @@
-import { CheckCircle, XCircle, RotateCcw } from "lucide-react";
+import { useState, useEffect } from "react";
+import { CheckCircle, XCircle, RotateCcw, Trophy, Loader2 } from "lucide-react";
 import Button3D from "../ui/Button3D";
+import { supabase } from "../../supabase/client";
+import { useAuth } from "../../hooks/useAuth";
+import AvatarWithFrame from "./AvatarWithFrame";
+
+const formatTime = (seconds) => {
+  if (!seconds || seconds <= 0) return "--";
+  const m = Math.floor(seconds / 60);
+  const s = seconds % 60;
+  return m > 0 ? `${m}m${String(s).padStart(2, "0")}s` : `${s}s`;
+};
 
 const CelebrationScreen = ({
   score,
@@ -13,8 +24,70 @@ const CelebrationScreen = ({
   onRetryWrongQuestions,
   onBackToList,
   backButtonText = "Quay lại danh sách bài tập",
+  exerciseId,
 }) => {
+  const { user } = useAuth();
   const passed = score >= passThreshold;
+  const [leaderboard, setLeaderboard] = useState([]);
+  const [leaderboardLoading, setLeaderboardLoading] = useState(false);
+
+  useEffect(() => {
+    if (exerciseId && !isRetryMode) {
+      fetchExerciseLeaderboard();
+    }
+  }, [exerciseId, isRetryMode]);
+
+  const fetchExerciseLeaderboard = async () => {
+    try {
+      setLeaderboardLoading(true);
+      const { data, error } = await supabase
+        .from("user_progress")
+        .select(`
+          user_id,
+          score,
+          max_score,
+          time_spent,
+          users (
+            id,
+            full_name,
+            email,
+            avatar_url,
+            active_title,
+            active_frame_ratio
+          )
+        `)
+        .eq("exercise_id", exerciseId)
+        .eq("status", "completed")
+        .order("score", { ascending: false })
+        .order("time_spent", { ascending: true })
+        .limit(5);
+
+      if (error) throw error;
+
+      const formatted = (data || [])
+        .filter((d) => d.users)
+        .map((d, i) => ({
+          rank: i + 1,
+          userId: d.user_id,
+          name: (() => {
+            const full = d.users.full_name || d.users.email?.split("@")[0] || "User";
+            const parts = full.trim().split(/\s+/);
+            return parts.length > 2 ? parts.slice(-2).join(" ") : full;
+          })(),
+          avatar: d.users.avatar_url,
+          frame: d.users.active_title,
+          frameRatio: d.users.active_frame_ratio,
+          score: d.max_score ? Math.round((d.score / d.max_score) * 100) : d.score,
+          time: d.time_spent,
+        }));
+
+      setLeaderboard(formatted);
+    } catch (err) {
+      console.error("Error fetching exercise leaderboard:", err);
+    } finally {
+      setLeaderboardLoading(false);
+    }
+  };
 
   // Get star count based on score: 95-100 = 3 stars, 90-95 = 2 stars, passed = 1 star
   const getStarCount = () => {
@@ -128,8 +201,62 @@ const CelebrationScreen = ({
           </div>
         )}
 
-        {/* Celebration GIF */}
-        {passed && passGif && (
+        {/* Exercise Leaderboard */}
+        {leaderboard.length >= 2 && (
+          <div className="mb-4">
+            {/* Divider */}
+            <div className="flex items-center justify-center gap-2 my-4">
+              <div className="h-0.5 w-8 bg-orange-200 rounded"></div>
+              <div className="w-2 h-2 bg-orange-200 rounded-full"></div>
+              <div className="h-0.5 w-8 bg-orange-200 rounded"></div>
+            </div>
+            <div className="flex items-center justify-center gap-2 mb-3">
+              <Trophy className="w-4 h-4 text-orange-400" />
+              <p className="text-orange-300 text-sm md:text-lg font-extrabold tracking-wider uppercase">Leaderboard</p>
+              <Trophy className="w-4 h-4 text-orange-400" />
+            </div>
+            <div className="bg-white rounded-xl border-2 border-orange-100 overflow-hidden">
+              {leaderboard.map((entry) => (
+                <div
+                  key={entry.userId}
+                  className={`flex items-center gap-2 px-3 py-2 text-left ${
+                    user && entry.userId === user.id
+                      ? "bg-orange-100 border-l-4 border-orange-400"
+                      : "border-l-4 border-transparent"
+                  } ${entry.rank < leaderboard.length ? "border-b border-orange-50" : ""}`}
+                >
+                  <span className={`text-xs font-bold w-5 text-center flex-shrink-0 ${
+                    entry.rank === 1 ? "text-yellow-500" : entry.rank === 2 ? "text-gray-400" : entry.rank === 3 ? "text-orange-400" : "text-gray-500"
+                  }`}>
+                    #{entry.rank}
+                  </span>
+                  <div className="flex-shrink-0">
+                    <AvatarWithFrame
+                      avatarUrl={entry.avatar}
+                      frameUrl={entry.frame}
+                      frameRatio={entry.frameRatio}
+                      size={24}
+                      fallback={entry.name.charAt(0).toUpperCase()}
+                    />
+                  </div>
+                  <span className="text-xs font-semibold text-gray-800 truncate flex-1 min-w-0">
+                    {entry.name}
+                  </span>
+                  <span className="text-xs font-bold text-orange-600 flex-shrink-0">{entry.score}%</span>
+                  <span className="text-[10px] text-gray-400 flex-shrink-0 w-10 text-right">{formatTime(entry.time)}</span>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+        {leaderboardLoading && (
+          <div className="flex justify-center my-3">
+            <Loader2 className="w-5 h-5 text-orange-300 animate-spin" />
+          </div>
+        )}
+
+        {/* Celebration GIF - hidden when leaderboard is shown to save space */}
+        {passed && passGif && leaderboard.length < 2 && (
           <div className="my-4">
             <img
               src={passGif}

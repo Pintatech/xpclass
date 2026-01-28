@@ -6,6 +6,7 @@ import { ArrowLeft, CheckCircle, XCircle, Clock, RefreshCw } from 'lucide-react'
 import LoadingSpinner from '../ui/LoadingSpinner'
 import { callAIScoring as localAIScoring } from '../../utils/aiScoringService'
 import RichTextRenderer from '../ui/RichTextRenderer'
+import ExerciseHeader from '../ui/ExerciseHeader'
 
 // Theme-based side decoration images for PC
 const themeSideImages = {
@@ -368,23 +369,17 @@ const AIFillBlankExercise = () => {
       <div className="relative min-h-screen bg-white">
         <div className="relative z-20">
 
-      {/* Header */}
-      <div className="bg-white shadow-sm border-b">
-        <div className="max-w-4xl mx-auto px-4 py-4">
-          <div className="flex items-center justify-between">
-            <button
-              onClick={() => navigate(-1)}
-              className="flex items-center gap-2 text-gray-600 hover:text-gray-800"
-            >
-              <ArrowLeft className="w-5 h-5" />
-              Back
-            </button>
-            <div className="text-sm text-gray-500">
-              Question {currentQuestionIndex + 1} of {exercise.content.questions.length}
-            </div>
-          </div>
-        </div>
-      </div>
+      <ExerciseHeader
+        title={exercise?.title}
+        progressPercentage={
+          (Object.values(aiScores).filter(s => s && s.score >= 70).length / exercise.content.questions.length) * 100
+        }
+        showBatman={false}
+        showProgressLabel={false}
+        showQuestionCounter={false}
+        targetInfo="AI sẽ chấm điểm"
+        colorTheme={colorTheme}
+      />
 
       {/* Main Content */}
       <div className="max-w-4xl mx-auto py-8 px-4">
@@ -403,9 +398,14 @@ const AIFillBlankExercise = () => {
         <div className="bg-white rounded-lg shadow-md p-6 border border-gray-200">
           {/* Question */}
           <div className="mb-8">
-            <h2 className="text-lg font-semibold text-gray-800 mb-4 leading-relaxed">
-              {currentQuestion.question}
-            </h2>
+            <div className="text-lg font-semibold text-gray-800 mb-4 leading-relaxed">
+              <RichTextRenderer
+                content={currentQuestion.question}
+                allowImages={true}
+                allowLinks={true}
+                style={{ whiteSpace: 'pre-wrap' }}
+              />
+            </div>
             
             {/* Answer Input */}
             <div className="mb-4">

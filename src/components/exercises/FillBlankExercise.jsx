@@ -49,6 +49,7 @@ const FillBlankExercise = () => {
   const navigate = useNavigate()
   const { user } = useAuth()
   const { startExercise, completeExerciseWithXP } = useProgress()
+  const exerciseId = new URLSearchParams(location.search).get('exerciseId')
   const { currentMeme, showMeme, playFeedback, playCelebration, passGif } = useFeedback()
   const [exercise, setExercise] = useState(null)
   const [loading, setLoading] = useState(true)
@@ -826,6 +827,7 @@ const FillBlankExercise = () => {
               wrongQuestionsCount={retryMode ? 0 : wrongQuestionsForRetry.length}
               onRetryWrongQuestions={handleRetryWrongQuestions}
               onBackToList={handleBackToSession}
+              exerciseId={exerciseId}
             />
           </div>
         )}
@@ -1093,6 +1095,7 @@ const FillBlankExercise = () => {
         isBatmanMoving={isBatmanMoving}
         isRetryMode={retryMode}
         showProgressLabel={false}
+        colorTheme={colorTheme}
       />
 
       {/* Global Intro (exercise.content.intro) */}

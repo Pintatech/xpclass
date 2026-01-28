@@ -603,6 +603,7 @@ const MultipleChoiceExercise = () => {
                 navigate('/study')
               }
             }}
+            exerciseId={exerciseId}
           />
         </div>
       )}

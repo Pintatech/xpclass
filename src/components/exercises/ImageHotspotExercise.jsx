@@ -559,6 +559,7 @@ const ImageHotspotExercise = () => {
           isBatmanMoving={isBatmanMoving}
           showProgressLabel={false}
           showQuestionCounter={false}
+          colorTheme={colorTheme}
           customContent={
             questionText && (
               <div
@@ -726,6 +727,7 @@ const ImageHotspotExercise = () => {
                 navigate(-1)
               }
             }}
+            exerciseId={exerciseId}
           />
         </div>
       )}

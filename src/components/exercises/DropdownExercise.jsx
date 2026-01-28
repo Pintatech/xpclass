@@ -48,6 +48,7 @@ const DropdownExercise = () => {
   const navigate = useNavigate()
   const { user } = useAuth()
   const { startExercise, completeExerciseWithXP } = useProgress()
+  const exerciseId = new URLSearchParams(location.search).get('exerciseId')
   const { playCelebration, passGif } = useFeedback()
   const [exercise, setExercise] = useState(null)
   const [loading, setLoading] = useState(true)
@@ -430,6 +431,7 @@ const DropdownExercise = () => {
           wrongQuestionsCount={retryMode ? 0 : wrongQuestionsForRetry.length}
           onRetryWrongQuestions={handleRetryWrongQuestions}
           onBackToList={handleBackToSession}
+          exerciseId={exerciseId}
         />
       </div>
     )
@@ -580,6 +582,7 @@ const DropdownExercise = () => {
             : ''
         }
         showBatman={true}
+        colorTheme={colorTheme}
         showQuestionCounter={true}
         showProgressLabel={false}
       />

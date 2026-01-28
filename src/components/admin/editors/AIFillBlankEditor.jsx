@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react'
-import { Plus, Trash2, Wand2, Eye, EyeOff, HelpCircle, Brain, Image as ImageIcon, Music, Link as LinkIcon } from 'lucide-react'
+import { Plus, Trash2, Wand2, Eye, EyeOff, HelpCircle, Brain, Image as ImageIcon, Music, Link as LinkIcon, X } from 'lucide-react'
 import RichTextRenderer from '../../ui/RichTextRenderer'
 
 const AIFillBlankEditor = ({ questions, onQuestionsChange, intro, onIntroChange }) => {
@@ -7,6 +7,15 @@ const AIFillBlankEditor = ({ questions, onQuestionsChange, intro, onIntroChange 
   const [previewMode, setPreviewMode] = useState({})
   const [bulkImportMode, setBulkImportMode] = useState(false)
   const [bulkText, setBulkText] = useState('')
+  const [urlModal, setUrlModal] = useState({ isOpen: false, type: '', questionIndex: -1 })
+  const [urlInput, setUrlInput] = useState('')
+  const [linkText, setLinkText] = useState('')
+  const [imageSize, setImageSize] = useState('medium')
+  const [customWidth, setCustomWidth] = useState('')
+  const [customHeight, setCustomHeight] = useState('')
+  const [audioControls, setAudioControls] = useState(true)
+  const [audioAutoplay, setAudioAutoplay] = useState(false)
+  const [audioLoop, setAudioLoop] = useState(false)
 
   useEffect(() => {
     setLocalQuestions(questions || [])
@@ -60,23 +69,71 @@ const AIFillBlankEditor = ({ questions, onQuestionsChange, intro, onIntroChange 
     updateQuestion(index, field, (current + (current ? '\n' : '') + snippet).trim())
   }
 
-  const handleInsertImage = (index) => {
-    const url = window.prompt('Enter image URL')
-    if (!url) return
-    appendToField(index, 'question', `<img src="${url}" alt="" style="max-width:100%" />`)
+  const openUrlModal = (index, type) => {
+    setUrlModal({ isOpen: true, type, questionIndex: index })
+    setUrlInput('')
+    setLinkText('')
+    setImageSize('medium')
+    setCustomWidth('')
+    setCustomHeight('')
+    setAudioControls(true)
+    setAudioAutoplay(false)
+    setAudioLoop(false)
   }
 
-  const handleInsertAudio = (index) => {
-    const url = window.prompt('Enter audio URL')
-    if (!url) return
-    appendToField(index, 'question', `<audio src="${url}" controls preload="none"></audio>`)
+  const handleInsertImage = (index) => openUrlModal(index, 'image')
+  const handleInsertAudio = (index) => openUrlModal(index, 'audio')
+  const handleInsertLink = (index) => openUrlModal(index, 'link')
+
+  const getImageSizeStyle = () => {
+    if (imageSize === 'custom') {
+      const w = customWidth ? `width="${customWidth}"` : ''
+      const h = customHeight ? `height="${customHeight}"` : ''
+      return `${w} ${h}`.trim()
+    }
+    const sizeMap = { small: 'width="200"', medium: 'width="400"', large: 'width="600"', full: 'width="100%"' }
+    return sizeMap[imageSize] || sizeMap.medium
   }
 
-  const handleInsertLink = (index) => {
-    const url = window.prompt('Enter link URL')
-    if (!url) return
-    const text = window.prompt('Link text (optional)') || url
-    appendToField(index, 'question', `<a href="${url}" target="_blank" rel="noopener noreferrer">${text}</a>`)
+  const getAudioAttributes = () => {
+    const attrs = []
+    if (audioControls) attrs.push('controls')
+    if (audioAutoplay) attrs.push('autoplay')
+    if (audioLoop) attrs.push('loop')
+    return attrs.join(' ')
+  }
+
+  const handleUrlSubmit = () => {
+    if (!urlInput.trim()) return
+    try {
+      new URL(urlInput.trim())
+      const trimmedUrl = urlInput.trim()
+      if (urlModal.type === 'image') {
+        const sizeStyle = getImageSizeStyle()
+        appendToField(urlModal.questionIndex, 'question', `<img src="${trimmedUrl}" alt="" ${sizeStyle} />`)
+      } else if (urlModal.type === 'audio') {
+        const audioAttrs = getAudioAttributes()
+        appendToField(urlModal.questionIndex, 'question', `<audio src="${trimmedUrl}" ${audioAttrs}></audio>`)
+      } else if (urlModal.type === 'link') {
+        const text = linkText.trim() || trimmedUrl
+        appendToField(urlModal.questionIndex, 'question', `<a href="${trimmedUrl}" target="_blank" rel="noopener noreferrer">${text}</a>`)
+      }
+      handleUrlCancel()
+    } catch {
+      // invalid URL — do nothing, user can fix the input
+    }
+  }
+
+  const handleUrlCancel = () => {
+    setUrlModal({ isOpen: false, type: '', questionIndex: -1 })
+    setUrlInput('')
+    setLinkText('')
+    setImageSize('medium')
+    setCustomWidth('')
+    setCustomHeight('')
+    setAudioControls(true)
+    setAudioAutoplay(false)
+    setAudioLoop(false)
   }
 
   const addExpectedAnswer = (questionIndex) => {
@@ -527,6 +584,167 @@ B. Combine these sentences using a relative clause.
           ))
         ) : null}
       </div>
+
+      {/* URL Insert Modal */}
+      {urlModal.isOpen && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-lg max-w-md w-full p-6">
+            <div className="flex justify-between items-center mb-4">
+              <h3 className="text-lg font-semibold">
+                {urlModal.type === 'image' ? 'Thêm hình ảnh' :
+                 urlModal.type === 'audio' ? 'Thêm âm thanh' : 'Thêm liên kết'}
+              </h3>
+              <button onClick={handleUrlCancel} className="text-gray-500 hover:text-gray-700">
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            <div className="space-y-4">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">URL</label>
+                <input
+                  type="url"
+                  value={urlInput}
+                  onChange={(e) => setUrlInput(e.target.value)}
+                  className="w-full p-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500"
+                  placeholder={
+                    urlModal.type === 'image' ? 'https://example.com/image.jpg' :
+                    urlModal.type === 'audio' ? 'https://example.com/audio.mp3' :
+                    'https://example.com/link'
+                  }
+                  autoFocus
+                />
+              </div>
+
+              {urlModal.type === 'link' && (
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Text hiển thị (tùy chọn)</label>
+                  <input
+                    type="text"
+                    value={linkText}
+                    onChange={(e) => setLinkText(e.target.value)}
+                    className="w-full p-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500"
+                    placeholder="Link text"
+                  />
+                </div>
+              )}
+
+              {urlModal.type === 'image' && (
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">Kích thước hình ảnh</label>
+                  <div className="grid grid-cols-2 gap-2">
+                    {[
+                      { value: 'small', label: 'Nhỏ (200px)' },
+                      { value: 'medium', label: 'Trung bình (400px)' },
+                      { value: 'large', label: 'Lớn (600px)' },
+                      { value: 'full', label: 'Toàn màn hình' }
+                    ].map((size) => (
+                      <button
+                        key={size.value}
+                        type="button"
+                        onClick={() => setImageSize(size.value)}
+                        className={`p-2 rounded-lg border text-sm transition-colors ${
+                          imageSize === size.value
+                            ? 'border-purple-500 bg-purple-50 text-purple-700'
+                            : 'border-gray-300 hover:border-gray-400'
+                        }`}
+                      >
+                        {size.label}
+                      </button>
+                    ))}
+                  </div>
+                  <div className="flex items-center gap-2 mt-2">
+                    <input
+                      type="checkbox"
+                      id="aiCustomSize"
+                      checked={imageSize === 'custom'}
+                      onChange={(e) => setImageSize(e.target.checked ? 'custom' : 'medium')}
+                      className="rounded"
+                    />
+                    <label htmlFor="aiCustomSize" className="text-sm text-gray-700">Kích thước tùy chỉnh</label>
+                  </div>
+                  {imageSize === 'custom' && (
+                    <div className="grid grid-cols-2 gap-2 mt-2">
+                      <div>
+                        <label className="block text-xs text-gray-600 mb-1">Chiều rộng (px)</label>
+                        <input type="number" value={customWidth} onChange={(e) => setCustomWidth(e.target.value)}
+                          className="w-full p-2 border border-gray-300 rounded-lg text-sm" placeholder="400" min="50" max="1200" />
+                      </div>
+                      <div>
+                        <label className="block text-xs text-gray-600 mb-1">Chiều cao (px)</label>
+                        <input type="number" value={customHeight} onChange={(e) => setCustomHeight(e.target.value)}
+                          className="w-full p-2 border border-gray-300 rounded-lg text-sm" placeholder="300" min="50" max="800" />
+                      </div>
+                    </div>
+                  )}
+                </div>
+              )}
+
+              {urlModal.type === 'audio' && (
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">Tùy chọn âm thanh</label>
+                  <div className="space-y-2">
+                    <label className="flex items-center gap-2">
+                      <input type="checkbox" checked={audioControls} onChange={(e) => setAudioControls(e.target.checked)} className="rounded" />
+                      <span className="text-sm text-gray-700">Hiển thị controls (play/pause/volume)</span>
+                    </label>
+                    <label className="flex items-center gap-2">
+                      <input type="checkbox" checked={audioAutoplay} onChange={(e) => setAudioAutoplay(e.target.checked)} className="rounded" />
+                      <span className="text-sm text-gray-700">Tự động phát (autoplay)</span>
+                    </label>
+                    <label className="flex items-center gap-2">
+                      <input type="checkbox" checked={audioLoop} onChange={(e) => setAudioLoop(e.target.checked)} className="rounded" />
+                      <span className="text-sm text-gray-700">Lặp lại (loop)</span>
+                    </label>
+                  </div>
+                </div>
+              )}
+
+              {/* Preview */}
+              {urlInput && (
+                <div className="p-3 bg-gray-50 rounded-lg">
+                  <p className="text-sm text-gray-600 mb-2">Preview:</p>
+                  {urlModal.type === 'image' ? (
+                    <div>
+                      <img src={urlInput} alt="Preview"
+                        className="max-w-full object-contain rounded border"
+                        style={{
+                          width: imageSize === 'custom' && customWidth ? `${customWidth}px` :
+                                 imageSize === 'small' ? '200px' :
+                                 imageSize === 'large' ? '600px' :
+                                 imageSize === 'full' ? '100%' : '400px',
+                          height: imageSize === 'custom' && customHeight ? `${customHeight}px` : 'auto',
+                          maxHeight: '200px'
+                        }}
+                        onError={(e) => { e.target.style.display = 'none' }}
+                      />
+                    </div>
+                  ) : urlModal.type === 'audio' ? (
+                    <audio src={urlInput} controls={audioControls} loop={audioLoop} className="w-full"
+                      onError={(e) => { e.target.style.display = 'none' }} />
+                  ) : (
+                    <a href={urlInput} target="_blank" rel="noopener noreferrer" className="text-blue-600 hover:underline text-sm">
+                      {linkText || urlInput}
+                    </a>
+                  )}
+                </div>
+              )}
+            </div>
+
+            <div className="flex justify-end gap-2 mt-6">
+              <button type="button" onClick={handleUrlCancel}
+                className="px-4 py-2 text-gray-700 bg-gray-200 rounded-lg hover:bg-gray-300">
+                Hủy
+              </button>
+              <button type="button" onClick={handleUrlSubmit} disabled={!urlInput.trim()}
+                className="px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 disabled:bg-gray-400">
+                {urlModal.type === 'image' ? 'Thêm hình ảnh' :
+                 urlModal.type === 'audio' ? 'Thêm âm thanh' : 'Thêm liên kết'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   )
 }

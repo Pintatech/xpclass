@@ -834,6 +834,7 @@ const DragDropExercise = () => {
             isBatmanMoving={isBatmanMoving}
             showProgressLabel={false}
             showQuestionCounter={false}
+            colorTheme={colorTheme}
           />
         )}
 
@@ -862,6 +863,7 @@ const DragDropExercise = () => {
               isRetryMode={false}
               wrongQuestionsCount={0}
               onBackToList={handleBackToList}
+              exerciseId={exerciseId}
             />
           </div>
         )}
