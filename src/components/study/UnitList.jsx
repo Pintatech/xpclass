@@ -26,7 +26,7 @@ const getThemeBackground = (colorTheme) => {
     green: "https://xpclass.vn/xpclass/image/theme_unit/forest.webp",
     purple: "https://xpclass.vn/xpclass/image/theme_unit/pirate.webp",
     orange: "https://xpclass.vn/xpclass/image/theme_unit/ninja.PNG",
-    red: "https://xpclass.vn/xpclass/image/theme_unit/candy.webp",
+    red: "https://xpclass.vn/xpclass/image/theme_unit/dino.webp",
     yellow: "https://xpclass.vn/xpclass/image/theme_unit/dessert.webp",
   };
   return themeBackgrounds[colorTheme] || themeBackgrounds.blue;
@@ -39,7 +39,7 @@ const getRibbonImage = (colorTheme) => {
     green: "https://xpclass.vn/xpclass/image/unit_list/forest_label.png",
     purple: "https://xpclass.vn/xpclass/image/unit_list/pirate_label.png",
     orange: "https://xpclass.vn/xpclass/image/unit_list/ninja_label1.png",
-    red: "https://xpclass.vn/xpclass/image/unit_list/candy_label1.png",
+    red: "https://xpclass.vn/xpclass/image/unit_list/dino_label.webp",
     yellow: "https://xpclass.vn/xpclass/image/unit_list/desert_label.png",
   };
   return themeRibbons[colorTheme] || themeRibbons.blue;
@@ -52,7 +52,7 @@ const getBorderColor = (colorTheme) => {
     green: "border-[#77cd0b]",
     purple: "border-blue-400",
     orange: "border-gray-700",
-    red: "border-pink-400",
+    red: "border-yellow-800",
     yellow: "border-yellow-400",
   };
   return themeBorders[colorTheme] || themeBorders.blue;
@@ -489,7 +489,7 @@ const UnitList = () => {
       green: "bg-green-500",
       purple: "bg-blue-500",
       orange: "bg-gray-700",
-      red: "bg-yellow-500",
+      red: "bg-brown-500",
       yellow: "bg-yellow-500",
     };
 

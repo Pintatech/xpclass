@@ -40,6 +40,7 @@ const AchievementManagement = () => {
     criteria_value: 1,
     criteria_period: 'all_time',
     xp_reward: 0,
+    gem_reward: 0,
     badge_color: 'blue',
     badge_image_url: '',
     badge_image_alt: '',
@@ -66,7 +67,8 @@ const AchievementManagement = () => {
     { value: 'pronunciation_completed', label: 'Bài phát âm hoàn thành' },
     { value: 'vocabulary_learned', label: 'Từ vựng đã học' },
     { value: 'level_completed', label: 'Level hoàn thành' },
-    { value: 'weekly_xp_leader', label: 'Nhà vô địch XP tuần (tự động)' }
+    { value: 'weekly_xp_leader', label: 'Nhà vô địch XP tuần (tự động)' },
+    { value: 'monthly_xp_leader', label: 'Nhà vô địch XP tháng (tự động)' }
   ]
 
   const badgeColors = [
@@ -91,6 +93,7 @@ const AchievementManagement = () => {
         criteria_value: achievement.criteria_value,
         criteria_period: achievement.criteria_period,
         xp_reward: achievement.xp_reward,
+        gem_reward: achievement.gem_reward || 0,
         badge_color: achievement.badge_color,
         badge_image_url: achievement.badge_image_url || '',
         badge_image_alt: achievement.badge_image_alt || '',
@@ -106,6 +109,7 @@ const AchievementManagement = () => {
         criteria_value: 1,
         criteria_period: 'all_time',
         xp_reward: 0,
+        gem_reward: 0,
         badge_color: 'blue',
         badge_image_url: '',
         badge_image_alt: '',
@@ -126,6 +130,7 @@ const AchievementManagement = () => {
       criteria_value: 1,
       criteria_period: 'all_time',
       xp_reward: 0,
+      gem_reward: 0,
       badge_color: 'blue',
       badge_image_url: '',
       badge_image_alt: '',
@@ -259,7 +264,8 @@ const AchievementManagement = () => {
                   </div>
                   <div className="text-sm">
                     <span className="text-gray-600">Phần thưởng:</span>
-                    <span className="ml-2 font-medium text-blue-600">+{achievement.xp_reward} XP</span>
+                    {achievement.xp_reward > 0 && <span className="ml-2 font-medium text-blue-600">+{achievement.xp_reward} XP</span>}
+                    {achievement.gem_reward > 0 && <span className="ml-2 font-medium text-emerald-600">+{achievement.gem_reward} Gem</span>}
                   </div>
                 </div>
 
@@ -442,6 +448,20 @@ const AchievementManagement = () => {
                   />
                 </div>
 
+                {/* Gem Reward */}
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    Phần thưởng Gem
+                  </label>
+                  <input
+                    type="number"
+                    value={formData.gem_reward}
+                    onChange={(e) => setFormData({ ...formData, gem_reward: parseInt(e.target.value) || 0 })}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    min="0"
+                  />
+                </div>
+
                 {/* Badge Image URL */}
                 <div className="md:col-span-2">
                   <label className="block text-sm font-medium text-gray-700 mb-1">
@@ -515,6 +535,9 @@ const AchievementManagement = () => {
                     <div className="text-sm text-gray-600">{formData.description || 'Mô tả thành tích'}</div>
                     {formData.xp_reward > 0 && (
                       <div className="text-xs text-blue-600">+{formData.xp_reward} XP</div>
+                    )}
+                    {formData.gem_reward > 0 && (
+                      <div className="text-xs text-emerald-600">+{formData.gem_reward} Gem</div>
                     )}
                   </div>
                 </div>

@@ -19,6 +19,9 @@ const Leaderboard = () => {
   const [error, setError] = useState(null)
   const [showBadgeInfo, setShowBadgeInfo] = useState(null)
   const [countdownText, setCountdownText] = useState('')
+  const [weeklyChampionReward, setWeeklyChampionReward] = useState(null)
+  const [monthlyChampionReward, setMonthlyChampionReward] = useState(null)
+  const [previousChampions, setPreviousChampions] = useState([])
   const { user } = useAuth()
   const { studentLevels } = useStudentLevels()
 
@@ -35,8 +38,44 @@ const Leaderboard = () => {
   }
 
   useEffect(() => {
-    fetchLeaderboardData()
-  }, [timeframe])
+    if (studentLevels && studentLevels.length > 0) {
+      fetchLeaderboardData()
+    }
+  }, [timeframe, studentLevels])
+
+  // Fetch champion achievement rewards and previous champions
+  useEffect(() => {
+    const fetchChampionData = async () => {
+      const { data: achievements } = await supabase
+        .from('achievements')
+        .select('id, xp_reward, gem_reward, title, criteria_type')
+        .in('criteria_type', ['weekly_xp_leader', 'monthly_xp_leader'])
+        .eq('is_active', true)
+
+      achievements?.forEach(a => {
+        if (a.criteria_type === 'weekly_xp_leader') setWeeklyChampionReward(a)
+        if (a.criteria_type === 'monthly_xp_leader') setMonthlyChampionReward(a)
+      })
+
+      if (achievements && achievements.length > 0) {
+        const achievementIds = achievements.map(a => a.id)
+        const { data: champions } = await supabase
+          .from('user_achievements')
+          .select(`
+            earned_at,
+            achievement_id,
+            achievements (title, criteria_type),
+            users (full_name, avatar_url, active_title, active_frame_ratio)
+          `)
+          .in('achievement_id', achievementIds)
+          .order('earned_at', { ascending: false })
+          .limit(10)
+
+        setPreviousChampions(champions || [])
+      }
+    }
+    fetchChampionData()
+  }, [])
 
   // Countdown for week/month tabs (Vietnam time)
   useEffect(() => {
@@ -483,6 +522,40 @@ const Leaderboard = () => {
         </div>
       </div>
 
+      {/* Champion Reward Banner */}
+      {timeframe === 'week' && weeklyChampionReward && (
+        <div className="flex justify-center">
+          <div className="inline-flex items-center gap-2 bg-gradient-to-r from-yellow-50 to-amber-50 border border-yellow-200 rounded-lg px-4 py-3 text-sm">
+            <Trophy className="w-5 h-5 text-yellow-500 flex-shrink-0" />
+            <span className="text-gray-700">
+              Top 1 cuối tuần này nhận{' '}
+              {weeklyChampionReward.xp_reward > 0 && <strong className="text-yellow-600 inline-flex items-center gap-1">{weeklyChampionReward.xp_reward} <img src="https://xpclass.vn/xpclass/image/study/xp2.png" alt="XP" className="w-4 h-4" /></strong>}
+              {weeklyChampionReward.xp_reward > 0 && weeklyChampionReward.gem_reward > 0 && ' + '}
+              {weeklyChampionReward.gem_reward > 0 && <strong className="text-emerald-600 inline-flex items-center gap-1">{weeklyChampionReward.gem_reward} <img src="https://xpclass.vn/xpclass/image/study/gem.png" alt="Gem" className="w-4 h-4" /></strong>}
+            </span>
+            {countdownText && (
+              <span className="text-gray-400 ml-1">({countdownText})</span>
+            )}
+          </div>
+        </div>
+      )}
+      {timeframe === 'month' && monthlyChampionReward && (
+        <div className="flex justify-center">
+          <div className="inline-flex items-center gap-2 bg-gradient-to-r from-purple-50 to-pink-50 border border-purple-200 rounded-lg px-4 py-3 text-sm">
+            <Crown className="w-5 h-5 text-purple-500 flex-shrink-0" />
+            <span className="text-gray-700">
+              Top 1 cuối tháng này nhận{' '}
+              {monthlyChampionReward.xp_reward > 0 && <strong className="text-purple-600 inline-flex items-center gap-1">{monthlyChampionReward.xp_reward} <img src="https://xpclass.vn/xpclass/image/study/xp2.png" alt="XP" className="w-4 h-4" /></strong>}
+              {monthlyChampionReward.xp_reward > 0 && monthlyChampionReward.gem_reward > 0 && ' + '}
+              {monthlyChampionReward.gem_reward > 0 && <strong className="text-emerald-600 inline-flex items-center gap-1">{monthlyChampionReward.gem_reward} <img src="https://xpclass.vn/xpclass/image/study/gem.png" alt="Gem" className="w-4 h-4" /></strong>}
+            </span>
+            {countdownText && (
+              <span className="text-gray-400 ml-1">({countdownText})</span>
+            )}
+          </div>
+        </div>
+      )}
+
       {/* Top 3 Podium */}
       {leaderboardData.length > 0 && (
         <div className="grid grid-cols-3 gap-2 md:gap-4 mb-4 md:mb-8 items-end">
@@ -780,6 +853,51 @@ const Leaderboard = () => {
                   </div>
                 </div>
               )}
+            </div>
+          </Card.Content>
+        </Card>
+      )}
+
+      {/* Previous Champions */}
+      {previousChampions.length > 0 && (timeframe === 'week' || timeframe === 'month') && (
+        <Card>
+          <Card.Header>
+            <h3 className="text-lg font-semibold text-gray-900">
+              {timeframe === 'week' ? 'Nhà vô địch tuần trước' : 'Nhà vô địch tháng trước'}
+            </h3>
+          </Card.Header>
+          <Card.Content className="p-0">
+            <div className="divide-y divide-gray-100">
+              {previousChampions
+                .filter(c => timeframe === 'week'
+                  ? c.achievements?.criteria_type === 'weekly_xp_leader'
+                  : c.achievements?.criteria_type === 'monthly_xp_leader'
+                )
+                .map((champion, index) => {
+                  const earnedDate = new Date(champion.earned_at)
+                  const dateStr = earnedDate.toLocaleDateString('vi-VN', { day: '2-digit', month: '2-digit', year: 'numeric' })
+                  return (
+                    <div key={index} className="flex items-center justify-between px-4 py-3">
+                      <div className="flex items-center gap-3">
+                        <AvatarWithFrame
+                          avatarUrl={champion.users?.avatar_url}
+                          frameUrl={champion.users?.active_title}
+                          frameRatio={champion.users?.active_frame_ratio}
+                          size={40}
+                          fallback={champion.users?.full_name?.charAt(0)?.toUpperCase() || '?'}
+                        />
+                        <div>
+                          <div className="font-medium text-gray-900">{champion.users?.full_name || 'Unknown'}</div>
+                          <div className="text-xs text-gray-400">{dateStr}</div>
+                        </div>
+                      </div>
+                      <div className="flex items-center gap-1 text-yellow-500">
+                        <Crown className="w-4 h-4" />
+                        <span className="text-xs font-medium">Champion</span>
+                      </div>
+                    </div>
+                  )
+                })}
             </div>
           </Card.Content>
         </Card>

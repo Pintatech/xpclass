@@ -71,6 +71,7 @@ const Profile = () => {
 
   // Avatar state
   const [availableAvatars, setAvailableAvatars] = useState([])
+  const [purchasedAvatars, setPurchasedAvatars] = useState([])
   const [showAvatarSelector, setShowAvatarSelector] = useState(false)
   const [selectedAvatar, setSelectedAvatar] = useState('')
 
@@ -298,6 +299,33 @@ const Profile = () => {
         { id: '5', name: 'Expert', image_url: '⚡', unlock_xp: 8000, description: 'Expert level', tier: 'gold' }
       ])
     }
+
+    // Fetch purchased shop avatars
+    if (user?.id) {
+      try {
+        const { data: purchases, error: purchasesError } = await supabase
+          .from('user_purchases')
+          .select('item_id')
+          .eq('user_id', user.id)
+
+        if (purchasesError) throw purchasesError
+
+        if (purchases?.length > 0) {
+          const purchasedIds = purchases.map(p => p.item_id)
+          const { data: shopAvatars, error: shopError } = await supabase
+            .from('shop_items')
+            .select('*')
+            .eq('is_active', true)
+            .eq('category', 'avatar')
+            .in('id', purchasedIds)
+
+          if (shopError) throw shopError
+          setPurchasedAvatars(shopAvatars || [])
+        }
+      } catch (error) {
+        console.error('Error fetching purchased avatars:', error)
+      }
+    }
   }
 
   const processBadges = async (userXP = null) => {
@@ -417,6 +445,23 @@ const Profile = () => {
       if (error) throw error
 
       setSelectedAvatar(avatar.image_url)
+      setShowAvatarSelector(false)
+    } catch (error) {
+      console.error('Error updating avatar:', error)
+    }
+  }
+
+  const handleShopAvatarSelect = async (item) => {
+    const avatarUrl = item.item_data?.avatar_url || item.image_url
+    try {
+      const { error } = await supabase
+        .from('users')
+        .update({ avatar_url: avatarUrl })
+        .eq('id', user.id)
+
+      if (error) throw error
+
+      setSelectedAvatar(avatarUrl)
       setShowAvatarSelector(false)
     } catch (error) {
       console.error('Error updating avatar:', error)
@@ -918,7 +963,7 @@ const Profile = () => {
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
           <div className="bg-white rounded-lg p-8 max-w-5xl w-full max-h-[90vh] overflow-y-auto">
             <div className="flex items-center justify-between mb-4">
-              <h3 className="text-xl font-semibold">Chọn Avatar</h3>
+              <h3 className="text-xl font-semibold">Chọn Avatar - Thu thập XP để mở khóa</h3>
               <button
                 onClick={() => setShowAvatarSelector(false)}
                 className="p-2 hover:bg-gray-100 rounded-lg"
@@ -986,6 +1031,45 @@ const Profile = () => {
                 )
               })}
             </div>
+
+            {/* Purchased Shop Avatars */}
+            {purchasedAvatars.length > 0 && (
+              <>
+                <div className="mt-6 mb-4 border-t pt-4">
+                  <h4 className="text-sm font-semibold text-gray-700 mb-3">Avatar đã mua</h4>
+                </div>
+                <div className="grid grid-cols-3 md:grid-cols-8 lg:grid-cols-10 gap-6">
+                  {purchasedAvatars.map((item) => {
+                    const avatarUrl = item.item_data?.avatar_url || item.image_url
+                    const isSelected = selectedAvatar === avatarUrl
+
+                    return (
+                      <div key={`shop-${item.id}`} className="text-center">
+                        <div className="relative w-20 h-20">
+                          <div
+                            className={`w-full h-full rounded-full flex items-center justify-center text-2xl transition-all overflow-hidden border-2 cursor-pointer ${
+                              isSelected
+                                ? 'bg-blue-500 text-white ring-4 ring-blue-300 border-blue-600'
+                                : 'bg-gray-100 hover:bg-gray-200 border-gray-300'
+                            }`}
+                            onClick={() => handleShopAvatarSelect(item)}
+                          >
+                            {avatarUrl.startsWith('http') ? (
+                              <img src={avatarUrl} alt={item.name} className="w-full h-full object-cover rounded-full" />
+                            ) : (
+                              avatarUrl
+                            )}
+                          </div>
+                        </div>
+                        <div className="text-xs mt-2">
+                          <div className="font-medium text-gray-800">{item.name}</div>
+                        </div>
+                      </div>
+                    )
+                  })}
+                </div>
+              </>
+            )}
 
             <div className="mt-6 p-4 bg-blue-50 rounded-lg">
               <div className="text-center">

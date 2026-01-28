@@ -24,7 +24,7 @@ const themeBackgroundsMobile = {
   green: "https://xpclass.vn/xpclass/image/theme_exercise/forest1.webp",
   purple: "https://xpclass.vn/xpclass/image/theme_exercise/pirate1.webp",
   orange: "https://xpclass.vn/xpclass/image/theme_exercise/ninja1.webp",
-  red: "https://xpclass.vn/xpclass/image/theme_exercise/candy1.webp",
+  red: "https://xpclass.vn/xpclass/image/theme_exercise/dino.webp",
   yellow: "https://xpclass.vn/xpclass/image/theme_exercise/desert1.webp",
 };
 
@@ -34,7 +34,7 @@ const themeBackgroundsDesktop = {
   green: "https://xpclass.vn/xpclass/image/theme_exercise_PC/forest1.webp", //forest
   purple: "https://xpclass.vn/xpclass/image/theme_exercise_PC/pirate1.webp", //pirate
   orange: "https://xpclass.vn/xpclass/image/theme_exercise_PC/ninja1.webp", //ninja
-  red: "https://xpclass.vn/xpclass/image/theme_exercise_PC/candy1.webp", // candy
+  red: "https://xpclass.vn/xpclass/image/theme_exercise_PC/dino.webp", // dino
   yellow: "https://xpclass.vn/xpclass/image/theme_exercise_PC/desert1.webp", //desert
 };
 

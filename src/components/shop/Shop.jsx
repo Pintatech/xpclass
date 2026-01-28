@@ -12,6 +12,7 @@ const Shop = () => {
   const [loading, setLoading] = useState(true)
   const [activeTab, setActiveTab] = useState('avatar')
   const [purchasing, setPurchasing] = useState(null)
+  const [confirmItem, setConfirmItem] = useState(null)
 
   useEffect(() => {
     if (user) {
@@ -60,7 +61,7 @@ const Shop = () => {
     return (profile?.gems || 0) >= item.price
   }
 
-  const handlePurchase = async (item) => {
+  const handlePurchase = (item) => {
     if (purchasing || isOwned(item.id)) return
 
     if (!canAffordItem(item)) {
@@ -68,6 +69,13 @@ const Shop = () => {
       return
     }
 
+    setConfirmItem(item)
+  }
+
+  const confirmPurchase = async () => {
+    const item = confirmItem
+    if (!item) return
+    setConfirmItem(null)
     setPurchasing(item.id)
 
     try {
@@ -139,7 +147,12 @@ const Shop = () => {
     }
     return false
   }
-  const filteredItems = items.filter(item => item.category === activeTab)
+  const filteredItems = items
+    .filter(item => item.category === activeTab)
+    .sort((a, b) => {
+      if (isXPItem(a) === isXPItem(b)) return 0
+      return isXPItem(a) ? -1 : 1
+    })
 
   if (loading) {
     return (
@@ -295,6 +308,41 @@ const Shop = () => {
               </div>
             )
           })}
+        </div>
+      )}
+      {/* Confirm Modal */}
+      {confirmItem && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50" onClick={() => setConfirmItem(null)}>
+          <div className="bg-white rounded-2xl p-6 mx-4 max-w-xs w-full shadow-xl" onClick={e => e.stopPropagation()}>
+            <div className="flex flex-col items-center">
+              {confirmItem.image_url && (
+                <img src={confirmItem.image_url} alt={confirmItem.name} className="w-24 h-24 object-contain mb-3" />
+              )}
+              <h3 className="font-bold text-lg text-gray-800">{confirmItem.name}</h3>
+              <div className="flex items-center gap-1 mt-2 text-base font-semibold text-gray-600">
+                {isXPItem(confirmItem) ? (
+                  <img src="https://xpclass.vn/xpclass/image/study/xp2.png" alt="XP" className="w-5 h-5" />
+                ) : (
+                  <img src="https://xpclass.vn/xpclass/image/study/gem.png" alt="Gem" className="w-5 h-5" />
+                )}
+                {confirmItem.price}
+              </div>
+            </div>
+            <div className="flex gap-3 mt-5">
+              <button
+                onClick={() => setConfirmItem(null)}
+                className="flex-1 py-2 rounded-xl bg-gray-100 text-gray-600 font-medium hover:bg-gray-200 transition-colors"
+              >
+                Hủy
+              </button>
+              <button
+                onClick={confirmPurchase}
+                className="flex-1 py-2 rounded-xl bg-emerald-500 text-white font-medium hover:bg-emerald-600 transition-colors"
+              >
+                Mua
+              </button>
+            </div>
+          </div>
         </div>
       )}
     </div>
