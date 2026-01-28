@@ -369,20 +369,19 @@ const AIFillBlankExercise = () => {
       <div className="relative min-h-screen bg-white">
         <div className="relative z-20">
 
-      <ExerciseHeader
-        title={exercise?.title}
-        progressPercentage={
-          (Object.values(aiScores).filter(s => s && s.score >= 70).length / exercise.content.questions.length) * 100
-        }
-        showBatman={false}
-        showProgressLabel={false}
-        showQuestionCounter={false}
-        targetInfo="AI sẽ chấm điểm"
-        colorTheme={colorTheme}
-      />
-
       {/* Main Content */}
       <div className="max-w-4xl mx-auto py-8 px-4">
+        <ExerciseHeader
+          title={exercise?.title}
+          progressPercentage={
+            (Object.values(aiScores).filter(s => s && s.score >= 70).length / exercise.content.questions.length) * 100
+          }
+          showBatman={true}
+          showProgressLabel={false}
+          showQuestionCounter={false}
+          targetInfo="AI sẽ chấm điểm"
+          colorTheme={colorTheme}
+        />
         {/* Exercise Intro */}
         {exercise?.content?.intro && String(exercise.content.intro).trim() && (
           <div className="mb-6 bg-blue-50 rounded-lg p-4 border border-blue-200">
@@ -395,7 +394,7 @@ const AIFillBlankExercise = () => {
           </div>
         )}
 
-        <div className="bg-white rounded-lg shadow-md p-6 border border-gray-200">
+        <div className="bg-white rounded-lg shadow-md p-6 border border-gray-200 mt-8">
           {/* Question */}
           <div className="mb-8">
             <div className="text-lg font-semibold text-gray-800 mb-4 leading-relaxed">

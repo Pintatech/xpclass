@@ -5,10 +5,8 @@ import { useAuth } from '../../hooks/useAuth'
 import Card from '../ui/Card'
 import Button from '../ui/Button'
 // Thay spinner bằng skeleton để tránh chớp màn hình khi điều hướng
-import {  
-  Lock, 
-  CheckCircle, 
-  BookOpen, 
+import {
+  BookOpen,
   Trophy,
   ArrowRight,
   Target
@@ -16,7 +14,6 @@ import {
 
 const CourseList = () => {
   const [courses, setCourses] = useState([])
-  const [courseProgress, setCourseProgress] = useState({})
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState(null)
   const { user, profile } = useAuth()
@@ -91,22 +88,7 @@ const CourseList = () => {
         coursesData = data || []
       }
 
-      // Fetch user's course progress
-      const { data: progressData, error: progressError } = await supabase
-        .from('course_progress')
-        .select('*')
-        .eq('user_id', user.id)
-
-      if (progressError) throw progressError
-
-      // Create progress map
-      const progressMap = {}
-      progressData?.forEach(progress => {
-        progressMap[progress.course_id] = progress
-      })
-
       setCourses(coursesData)
-      setCourseProgress(progressMap)
     } catch (err) {
       console.error('Error fetching courses:', err)
       setError('Không thể tải danh sách khóa học')
@@ -145,34 +127,13 @@ const CourseList = () => {
     return themes[colorTheme] || themes.blue
   }
 
-  const getCourseStatus = (course) => {
-    const progress = courseProgress[course.id]
-    
-    // All levels are now always available (unlocked)
-    if (!progress) {
-      return { status: 'available', canAccess: true }
-    }
-
-    return {
-      status: progress.status,
-      canAccess: true // Always allow access
-    }
-  }
-
   const renderCourseCard = (course, index) => {
-    const { status, canAccess } = getCourseStatus(course)
-    const progress = courseProgress[course.id]
     const theme = getThemeColors(course.color_theme)
-    const isLocked = !canAccess
 
     return (
       <Card
         key={course.id} 
-        className={`relative overflow-hidden transition-all duration-300 ${
-          isLocked 
-            ? 'opacity-60 cursor-not-allowed' 
-            : 'hover:shadow-lg hover:scale-105 cursor-pointer'
-        } ${theme.border}`}
+        className={`relative overflow-hidden transition-all duration-300 hover:shadow-lg hover:scale-105 cursor-pointer ${theme.border}`}
       >
         {/* Background gradient */}
         <div className={`absolute inset-0 bg-gradient-to-br ${theme.bg} opacity-10`} />
@@ -182,13 +143,7 @@ const CourseList = () => {
           <div className="flex items-center justify-between mb-4">
             <div className="flex items-center space-x-3">
               <div className={`w-12 h-12 rounded-full ${theme.icon} flex items-center justify-center`}>
-                {isLocked ? (
-                  <Lock className="w-6 h-6" />
-                ) : status === 'completed' ? (
-                  <CheckCircle className="w-6 h-6" />
-                ) : (
-                  <BookOpen className="w-6 h-6" />
-                )}
+                <BookOpen className="w-6 h-6" />
               </div>
               <div>
                 <h3 className="text-lg font-bold text-gray-900">{course.title}</h3>
@@ -204,26 +159,6 @@ const CourseList = () => {
 
           {/* Description */}
           <p className="text-gray-700 mb-4 line-clamp-2">{course.description}</p>
-
-          {/* Progress bar (if started) */}
-          {progress && (
-            <div className="mb-4">
-              <div className="flex justify-between text-sm text-gray-600 mb-1">
-                <span>Tiến độ</span>
-                <span>{progress.progress_percentage}%</span>
-              </div>
-              <div className="w-full bg-gray-200 rounded-full h-2">
-                <div 
-                  className={`bg-gradient-to-r ${theme.bg} h-2 rounded-full transition-all duration-300`}
-                  style={{ width: `${progress.progress_percentage}%` }}
-                />
-              </div>
-              <div className="flex justify-between text-xs text-gray-500 mt-1">
-                <span>{progress.units_completed}/{progress.total_units} units</span>
-                <span>{progress.xp_earned} XP</span>
-              </div>
-            </div>
-          )}
 
           {/* Stats */}
           <div className="grid grid-cols-2 gap-4 mb-4">
@@ -242,7 +177,7 @@ const CourseList = () => {
                 <span className="text-sm text-gray-600">Phần thưởng</span>
               </div>
               <div className="text-sm font-semibold text-gray-900">
-                {status === 'completed' ? 'Hoàn thành' : 'Chưa'}
+                Chưa
               </div>
             </div>
           </div>
@@ -251,8 +186,7 @@ const CourseList = () => {
           <div className="flex justify-center">
             <Link to={`/study/course/${course.id}`} className="w-full">
               <Button className="w-full bg-gradient-to-r from-primary-600 to-secondary-600 hover:from-primary-700 hover:to-secondary-700">
-                {status === 'completed' ? 'Xem lại' : 
-                 status === 'in_progress' ? 'Tiếp tục' : 'Bắt đầu'}
+                Bắt đầu
                 <ArrowRight className="w-4 h-4 ml-2" />
               </Button>
             </Link>

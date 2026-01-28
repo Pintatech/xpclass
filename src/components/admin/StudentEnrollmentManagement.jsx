@@ -151,7 +151,8 @@ const StudentEnrollmentManagement = () => {
         course_id: selectedCourse,
         student_id: m.student_id,
         assigned_by: user?.id,
-        is_active: true
+        is_active: true,
+        cohort_id: selectedCohort // Track which cohort this enrollment came from
       }));
 
       const { error } = await supabase

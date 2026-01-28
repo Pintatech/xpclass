@@ -288,14 +288,14 @@ const Leaderboard = () => {
 
     const userIds = users.map(u => u.id)
 
-    // Get user progress in the timeframe with XP data
-    // Join with exercises to get XP value when xp_earned is missing/zero
+    // Get user progress in the timeframe with XP data (includes score for bonus calc)
     let progressQuery = supabase
       .from('user_progress')
       .select(`
         user_id,
-        xp_earned,
         completed_at,
+        score,
+        max_score,
         exercises (
           xp_reward
         )
@@ -304,13 +304,11 @@ const Leaderboard = () => {
       .in('user_id', userIds)
 
     if (period === 'today') {
-      // Filter by Vietnam date - need to handle timezone properly
       const startOfDay = new Date(startDate + 'T00:00:00+07:00').toISOString()
       const endOfDay = new Date(startDate + 'T23:59:59+07:00').toISOString()
       progressQuery = progressQuery.gte('completed_at', startOfDay)
                                   .lte('completed_at', endOfDay)
     } else {
-      // For week and month, also need to handle timezone properly
       const startOfPeriod = new Date(startDate + 'T00:00:00+07:00').toISOString()
       progressQuery = progressQuery.gte('completed_at', startOfPeriod)
     }
@@ -319,14 +317,35 @@ const Leaderboard = () => {
 
     if (progressError) throw progressError
 
+    // Fetch chest XP from session_reward_claims for the timeframe
+    let chestQuery = supabase
+      .from('session_reward_claims')
+      .select('user_id, xp_awarded, claimed_at')
+      .in('user_id', userIds)
+      .gt('xp_awarded', 0)
+
+    if (period === 'today') {
+      const startOfDay = new Date(startDate + 'T00:00:00+07:00').toISOString()
+      const endOfDay = new Date(startDate + 'T23:59:59+07:00').toISOString()
+      chestQuery = chestQuery.gte('claimed_at', startOfDay)
+                             .lte('claimed_at', endOfDay)
+    } else {
+      const startOfPeriod = new Date(startDate + 'T00:00:00+07:00').toISOString()
+      chestQuery = chestQuery.gte('claimed_at', startOfPeriod)
+    }
+
+    const { data: chestData, error: chestError } = await chestQuery
+
+    if (chestError) throw chestError
+
     // Calculate XP earned in timeframe per user
     const userXpCounts = {}
     const exerciseCounts = {}
 
+    // Exercise XP with bonus tiers
     progressData.forEach((progress) => {
       const vietnamDate = utcToVietnamDate(progress.completed_at)
 
-      // Double-check date filtering for accuracy
       let includeInTimeframe = false
       if (period === 'today') {
         includeInTimeframe = vietnamDate === startDate
@@ -339,10 +358,36 @@ const Leaderboard = () => {
       }
 
       if (includeInTimeframe) {
-        // Use xp_earned if available, otherwise fall back to exercise xp_reward
-        const xpToAdd = progress.xp_earned || progress.exercises?.xp_reward || 0
+        const baseXp = progress.exercises?.xp_reward || 0
+        const scorePercent = progress.max_score > 0
+          ? (progress.score / progress.max_score) * 100
+          : 0
+        let xpToAdd = baseXp
+        if (scorePercent >= 95) xpToAdd = Math.round(baseXp * 1.5)
+        else if (scorePercent >= 90) xpToAdd = Math.round(baseXp * 1.3)
+
         userXpCounts[progress.user_id] = (userXpCounts[progress.user_id] || 0) + xpToAdd
         exerciseCounts[progress.user_id] = (exerciseCounts[progress.user_id] || 0) + 1
+      }
+    })
+
+    // Add chest XP
+    chestData?.forEach((claim) => {
+      const vietnamDate = utcToVietnamDate(claim.claimed_at)
+
+      let includeInTimeframe = false
+      if (period === 'today') {
+        includeInTimeframe = vietnamDate === startDate
+      } else if (period === 'week') {
+        const compareDate = startDate.split('T')[0]
+        includeInTimeframe = vietnamDate >= compareDate
+      } else if (period === 'month') {
+        const compareDate = startDate.split('T')[0]
+        includeInTimeframe = vietnamDate >= compareDate
+      }
+
+      if (includeInTimeframe) {
+        userXpCounts[claim.user_id] = (userXpCounts[claim.user_id] || 0) + claim.xp_awarded
       }
     })
 

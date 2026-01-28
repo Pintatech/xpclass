@@ -170,6 +170,8 @@ const CohortsManagement = () => {
     }
     try {
       setBusy(true);
+
+      // Add student to cohort
       const { error } = await supabase
         .from("cohort_members")
         .upsert(
@@ -181,6 +183,43 @@ const CohortsManagement = () => {
           { onConflict: "cohort_id,student_id" },
         );
       if (error) throw error;
+
+      // Auto-enroll in courses that this cohort is enrolled in
+      const { data: cohortCourses, error: coursesError } = await supabase
+        .from("course_enrollments")
+        .select("course_id")
+        .eq("cohort_id", selectedCohortId)
+        .eq("is_active", true);
+
+      if (!coursesError && cohortCourses && cohortCourses.length > 0) {
+        // Get unique course IDs
+        const courseIds = [...new Set(cohortCourses.map(c => c.course_id))];
+        const user = (await supabase.auth.getUser()).data.user;
+
+        // Enroll the new student in each course
+        const enrollments = courseIds.map(courseId => ({
+          course_id: courseId,
+          student_id: studentId,
+          assigned_by: user?.id,
+          is_active: true,
+          cohort_id: selectedCohortId
+        }));
+
+        const { error: enrollError } = await supabase
+          .from("course_enrollments")
+          .upsert(enrollments, { onConflict: "course_id,student_id" });
+
+        if (enrollError) {
+          console.error("Error auto-enrolling in courses:", enrollError);
+        } else if (courseIds.length > 0) {
+          show(`Member added and enrolled in ${courseIds.length} course(s)`);
+          const data = await fetchCohortMembers(selectedCohortId);
+          setMembers(data);
+          await fetchAllCohortCounts();
+          return;
+        }
+      }
+
       show("Member added");
       const data = await fetchCohortMembers(selectedCohortId);
       setMembers(data);

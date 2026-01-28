@@ -1247,7 +1247,7 @@ const FlashcardExercise = () => {
               variant="outline"
               className="border-blue-600 text-blue-600 hover:bg-blue-50"
             >
-              Bài tiếp theo
+              Hoàn thành
             </Button>
           </div>
         )}
