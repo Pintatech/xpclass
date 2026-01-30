@@ -2,9 +2,22 @@ import { useState } from 'react'
 import { Trophy, Star, Flame, Target, Zap, BookOpen, Crown, Heart, Shield } from 'lucide-react'
 import AchievementModal from './AchievementModal'
 
-const AchievementBadgeBar = ({ achievements, userStats, onClaimXP, userAchievements = [], claimedFallbackAchievements = new Set() }) => {
+const AchievementBadgeBar = ({ achievements, userStats, onClaimXP, userAchievements = [], claimedFallbackAchievements = new Set(), challengeWinCounts = {} }) => {
   const [isModalOpen, setIsModalOpen] = useState(false)
   const [claimingAchievements, setClaimingAchievements] = useState(new Set())
+
+  // Helper function to get win count for a daily challenge achievement
+  const getWinCount = (achievement) => {
+    if (!achievement.criteria_type?.startsWith('daily_challenge_rank_')) return 0
+
+    // Extract rank from criteria_type (e.g., "daily_challenge_rank_1_beginner" -> "rank_1")
+    const match = achievement.criteria_type.match(/rank_(\d)/)
+    if (match) {
+      const rankKey = `rank_${match[1]}`
+      return challengeWinCounts[rankKey] || 0
+    }
+    return 0
+  }
 
   const getIconComponent = (iconName) => {
     const icons = {
@@ -42,21 +55,28 @@ const AchievementBadgeBar = ({ achievements, userStats, onClaimXP, userAchieveme
 
     let unlocked = false
 
-    switch (achievement.criteria_type) {
-      case 'exercise_completed':
-        unlocked = completedCount >= achievement.criteria_value
-        break
-      case 'daily_streak':
-        unlocked = currentStreak >= achievement.criteria_value
-        break
-      case 'total_xp':
-        unlocked = totalXp >= achievement.criteria_value
-        break
-      case 'daily_exercises':
-        unlocked = false
-        break
-      default:
-        unlocked = false
+    // Check if this is a daily challenge achievement (manually awarded)
+    if (achievement.criteria_type && achievement.criteria_type.startsWith('daily_challenge_rank_')) {
+      // Check if user has this achievement in their earned achievements
+      unlocked = userAchievements.some(ua => ua.achievement_id === achievement.id)
+    } else {
+      // Regular achievements based on stats
+      switch (achievement.criteria_type) {
+        case 'exercise_completed':
+          unlocked = completedCount >= achievement.criteria_value
+          break
+        case 'daily_streak':
+          unlocked = currentStreak >= achievement.criteria_value
+          break
+        case 'total_xp':
+          unlocked = totalXp >= achievement.criteria_value
+          break
+        case 'daily_exercises':
+          unlocked = false
+          break
+        default:
+          unlocked = false
+      }
     }
 
     return unlocked
@@ -112,7 +132,14 @@ const AchievementBadgeBar = ({ achievements, userStats, onClaimXP, userAchieveme
                         </div>
                       )}
                       <div>
-                        <div className="font-medium text-gray-900 text-sm">{achievement.title}</div>
+                        <div className="font-medium text-gray-900 text-sm flex items-center gap-2">
+                          {achievement.title}
+                          {achievement.criteria_type?.startsWith('daily_challenge_rank_') && getWinCount(achievement) > 0 && (
+                            <span className="text-xs bg-yellow-100 text-yellow-800 px-1.5 py-0.5 rounded font-bold">
+                              ×{getWinCount(achievement)}
+                            </span>
+                          )}
+                        </div>
                         <div className="text-xs text-gray-600 flex items-center gap-1">
                           +{achievement.xp_reward}
                           <img src="https://xpclass.vn/xpclass/image/study/xp2.png" alt="XP" className="w-3 h-3" />
@@ -224,6 +251,7 @@ const AchievementBadgeBar = ({ achievements, userStats, onClaimXP, userAchieveme
         userStats={userStats}
         onClaimXP={onClaimXP}
         userAchievements={userAchievements}
+        challengeWinCounts={challengeWinCounts}
       />
     </>
   )

@@ -81,16 +81,17 @@ export const ProgressProvider = ({ children }) => {
 
       // Only create/update if no first_attempt_at exists
       if (!existingProgress?.first_attempt_at) {
+        const startedAt = new Date().toISOString()
         const { data, error } = await supabase
           .from('user_progress')
           .upsert({
             user_id: user.id,
             exercise_id: exerciseId,
             status: 'in_progress',
-            first_attempt_at: new Date().toISOString(),
+            first_attempt_at: startedAt,
             attempts: 0,
-            created_at: new Date().toISOString(),
-            updated_at: new Date().toISOString()
+            created_at: startedAt,
+            updated_at: startedAt
           }, {
             onConflict: 'user_id,exercise_id'
           })
@@ -99,10 +100,12 @@ export const ProgressProvider = ({ children }) => {
         if (error) throw error
 
         console.log('📝 Exercise started, tracking entry time:', exerciseId)
-        return { data, error: null }
+        return { data, error: null, startedAt }
       } else {
-        console.log('📝 Exercise already has entry time, skipping:', exerciseId)
-        return { data: existingProgress, error: null }
+        console.log('📝 Exercise already has entry time, returning fresh timestamp for retry:', exerciseId)
+        // Always return a fresh timestamp for retries/challenge attempts
+        // This ensures each challenge attempt has its own accurate start time
+        return { data: existingProgress, error: null, startedAt: new Date().toISOString() }
       }
     } catch (error) {
       console.error('Error starting exercise:', error)
@@ -195,6 +198,11 @@ export const ProgressProvider = ({ children }) => {
     // Always check daily quest first, regardless of completion status
     await checkDailyQuestCompletion(exerciseId)
 
+    // Check if this is a daily challenge completion
+    const challengeId = progressData.challengeId || null
+    const challengeStartedAt = progressData.challengeStartedAt || null
+    let challengeResult = null
+
     // Allow retries - don't block if already completed
     // We'll still track attempts and update progress
     if (isAlreadyCompleted) {
@@ -252,7 +260,15 @@ export const ProgressProvider = ({ children }) => {
       }
 
       // Sanitize client-provided progress data (remove columns not present in DB)
-      const { xp_earned: _omitXpEarned, attempts: _omitAttempts, score: _omitScore, max_score: _omitMaxScore, ...safeProgressData } = progressData || {}
+      const {
+        xp_earned: _omitXpEarned,
+        attempts: _omitAttempts,
+        score: _omitScore,
+        max_score: _omitMaxScore,
+        challengeId: _omitChallengeId,
+        challengeStartedAt: _omitChallengeStartedAt,
+        ...safeProgressData
+      } = progressData || {}
 
       // Calculate time_spent from timestamps (server-side calculation)
       const firstAttempt = existingProgressData?.first_attempt_at || new Date().toISOString()
@@ -264,7 +280,7 @@ export const ProgressProvider = ({ children }) => {
       }
 
       // Save progress with best score logic
-      console.log(`💾 Upserting progress with attempts: ${newAttempts}, status: ${finalStatus}, time_spent: ${calculatedTimeSpent}s`)
+      console.log(`💾 Upserting progress with attempts: ${newAttempts}, status: ${finalStatus}, time_spent: ${calculatedTimeSpent}s, score: ${finalScore}, max_score: ${finalMaxScore}`)
       const { data, error } = await supabase
         .from('user_progress')
         .upsert({
@@ -283,8 +299,11 @@ export const ProgressProvider = ({ children }) => {
           onConflict: 'user_id,exercise_id'
         })
         .select()
-      
+
       console.log('💾 Upsert result:', { data, error })
+      if (data && data[0]) {
+        console.log(`⭐ Saved score: ${data[0].score}/${data[0].max_score} (${data[0].score}%)`)
+      }
 
       if (error) {
         console.log('⚠️ Upsert failed, trying UPDATE instead:', error.message)
@@ -374,13 +393,30 @@ export const ProgressProvider = ({ children }) => {
         await checkAndAwardAchievements(progressData)
       }
 
+      // Check if this exercise is part of today's daily challenge
+      // Record ALL attempts, including failed ones (below 75%)
+      if (challengeId) {
+        console.log('🏆 Processing daily challenge attempt...')
+        // Calculate challenge time from the actual challenge start time, not first_attempt_at
+        let challengeTimeSpent = calculatedTimeSpent
+        if (challengeStartedAt) {
+          const endTime = new Date().toISOString()
+          challengeTimeSpent = Math.floor((new Date(endTime) - new Date(challengeStartedAt)) / 1000)
+          // Cap at 30 minutes (1800 seconds) to avoid counting idle time
+          challengeTimeSpent = Math.min(challengeTimeSpent, 1800)
+          console.log(`⏱️ Challenge time: ${challengeTimeSpent}s (from ${challengeStartedAt} to ${endTime})`)
+        }
+        challengeResult = await checkChallengeCompletion(exerciseId, challengeId, score, challengeTimeSpent, challengeStartedAt)
+      }
+
       return {
         data,
         error: null,
         xpAwarded: actualXpAwarded,
         completed: meetingRequirement,
         score: score,
-        attempts: newAttempts
+        attempts: newAttempts,
+        challengeResult: challengeResult // Include challenge result in return
       }
     } catch (error) {
       console.error('Error completing exercise:', error)
@@ -666,6 +702,85 @@ export const ProgressProvider = ({ children }) => {
     }
   }
 
+  // ===== DAILY CHALLENGE FUNCTIONS =====
+
+  const getTodayChallenge = async () => {
+    if (!user) return null
+
+    try {
+      const { data, error } = await supabase.rpc('get_user_daily_challenge', {
+        p_user_id: user.id
+      })
+
+      if (error) throw error
+      return data
+    } catch (error) {
+      console.error('Error fetching today\'s challenge:', error)
+      return null
+    }
+  }
+
+  const recordChallengeParticipation = async (challengeId, score, timeSpent, startedAt) => {
+    if (!user) return { success: false, error: 'No user logged in' }
+
+    try {
+      const { data, error } = await supabase.rpc('record_challenge_participation', {
+        p_challenge_id: challengeId,
+        p_user_id: user.id,
+        p_score: score,
+        p_time_spent: timeSpent,
+        p_started_at: startedAt
+      })
+
+      if (error) throw error
+
+      if (data.success) {
+        // Refresh user profile to get updated XP/gems
+        await fetchUserProfile(user.id)
+      }
+
+      return data
+    } catch (error) {
+      console.error('Error recording challenge participation:', error)
+      return { success: false, error: error.message }
+    }
+  }
+
+  const checkChallengeCompletion = async (exerciseId, challengeId, scorePercent, timeSpent, startedAt) => {
+    if (!user || !challengeId) return null
+
+    try {
+      console.log('🏆 Checking if exercise is today\'s challenge:', exerciseId, 'challengeId:', challengeId)
+
+      // Record participation in the challenge
+      const result = await recordChallengeParticipation(challengeId, scorePercent, timeSpent, startedAt)
+
+      if (result.success) {
+        const isPassing = result.is_passing !== false // Default to true for backwards compatibility
+        console.log(`🏆 Challenge attempt recorded! ${isPassing ? 'PASSED' : 'FAILED'} - Rank: #${result.rank || 'N/A'}, XP: +${result.xp_awarded}, Gems: +${result.gems_awarded}`)
+        return {
+          isChallenge: true,
+          isPassing: isPassing,
+          rank: result.rank,
+          xpAwarded: result.xp_awarded,
+          gemsAwarded: result.gems_awarded,
+          attemptsUsed: result.attempts_used,
+          attemptsRemaining: result.attempts_remaining,
+          attemptId: result.attempt_id
+        }
+      } else {
+        console.log('⚠️ Challenge participation failed:', result.error)
+        return {
+          isChallenge: true,
+          error: result.error
+        }
+      }
+    } catch (error) {
+      console.error('Error checking challenge completion:', error)
+      return null
+    }
+  }
+
   const value = {
     userProgress,
     achievements,
@@ -687,7 +802,11 @@ export const ProgressProvider = ({ children }) => {
     fetchUserAchievements,
     checkDailyQuestCompletion,
     getDailyQuest,
-    claimDailyQuestReward
+    claimDailyQuestReward,
+    // Daily Challenge functions
+    getTodayChallenge,
+    recordChallengeParticipation,
+    checkChallengeCompletion
   }
 
   return (

@@ -3,11 +3,24 @@ import { X, Star, Flame, Trophy, Target, Zap, BookOpen, Crown, Heart, Shield, Gi
 import Card from '../ui/Card'
 import Button from '../ui/Button'
 
-const AchievementModal = ({ isOpen, onClose, achievements, userStats, onClaimXP, userAchievements = [] }) => {
+const AchievementModal = ({ isOpen, onClose, achievements, userStats, onClaimXP, userAchievements = [], challengeWinCounts = {} }) => {
   const [claiming, setClaiming] = useState({})
   const [claimMessage, setClaimMessage] = useState('')
 
   if (!isOpen) return null
+
+  // Helper function to get win count for a daily challenge achievement
+  const getWinCount = (achievement) => {
+    if (!achievement.criteria_type?.startsWith('daily_challenge_rank_')) return 0
+
+    // Extract rank from criteria_type (e.g., "daily_challenge_rank_1_beginner" -> "rank_1")
+    const match = achievement.criteria_type.match(/rank_(\d)/)
+    if (match) {
+      const rankKey = `rank_${match[1]}`
+      return challengeWinCounts[rankKey] || 0
+    }
+    return 0
+  }
 
   const handleClaimXP = async (achievementId) => {
     setClaiming(prev => ({ ...prev, [achievementId]: true }))
@@ -67,26 +80,34 @@ const AchievementModal = ({ isOpen, onClose, achievements, userStats, onClaimXP,
     let progress = 0
     let unlocked = false
 
-    switch (achievement.criteria_type) {
-      case 'exercise_completed':
-        progress = Math.min((completedCount / achievement.criteria_value) * 100, 100)
-        unlocked = completedCount >= achievement.criteria_value
-        break
-      case 'daily_streak':
-        progress = Math.min((currentStreak / achievement.criteria_value) * 100, 100)
-        unlocked = currentStreak >= achievement.criteria_value
-        break
-      case 'total_xp':
-        progress = Math.min((totalXp / achievement.criteria_value) * 100, 100)
-        unlocked = totalXp >= achievement.criteria_value
-        break
-      case 'daily_exercises':
-        progress = 0
-        unlocked = false
-        break
-      default:
-        progress = 0
-        unlocked = false
+    // Check if this is a daily challenge achievement (manually awarded)
+    if (achievement.criteria_type && achievement.criteria_type.startsWith('daily_challenge_rank_')) {
+      // Check if user has this achievement in their earned achievements
+      unlocked = userAchievements.some(ua => ua.achievement_id === achievement.id)
+      progress = unlocked ? 100 : 0
+    } else {
+      // Regular achievements based on stats
+      switch (achievement.criteria_type) {
+        case 'exercise_completed':
+          progress = Math.min((completedCount / achievement.criteria_value) * 100, 100)
+          unlocked = completedCount >= achievement.criteria_value
+          break
+        case 'daily_streak':
+          progress = Math.min((currentStreak / achievement.criteria_value) * 100, 100)
+          unlocked = currentStreak >= achievement.criteria_value
+          break
+        case 'total_xp':
+          progress = Math.min((totalXp / achievement.criteria_value) * 100, 100)
+          unlocked = totalXp >= achievement.criteria_value
+          break
+        case 'daily_exercises':
+          progress = 0
+          unlocked = false
+          break
+        default:
+          progress = 0
+          unlocked = false
+      }
     }
 
     // Check if achievement is claimed
@@ -195,7 +216,14 @@ const AchievementModal = ({ isOpen, onClose, achievements, userStats, onClaimXP,
                           )}
                         </div>
                         <div className="flex-1">
-                          <div className="font-semibold text-gray-900">{achievement.title}</div>
+                          <div className="font-semibold text-gray-900 flex items-center gap-2 flex-wrap">
+                            {achievement.title}
+                            {achievement.criteria_type?.startsWith('daily_challenge_rank_') && getWinCount(achievement) > 0 && (
+                              <span className="text-xs bg-yellow-100 text-yellow-800 px-2 py-0.5 rounded font-bold">
+                                ×{getWinCount(achievement)}
+                              </span>
+                            )}
+                          </div>
                           <div className="text-sm text-gray-600">{achievement.description}</div>
                           {achievement.xp_reward > 0 && (
                             <div className="text-xs text-blue-600 mt-1 flex items-center gap-1">

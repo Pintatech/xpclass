@@ -34,6 +34,7 @@ import CohortsManagement from './CohortsManagement';
 import StudentLevelsManagement from './StudentLevelsManagement';
 import AchievementManagement from './AchievementManagement';
 import ShopManagement from './ShopManagement';
+import DailyChallengeManagement from './DailyChallengeManagement';
 import { useCohorts } from '../../hooks/useCohorts';
 
 const AdminDashboard = () => {
@@ -212,6 +213,7 @@ const AdminDashboard = () => {
     { id: 'sessions', label: 'Sessions', icon: Edit },
     { id: 'levels', label: 'Student Levels', icon: BarChart3 },
     { id: 'achievements', label: 'Achievements', icon: Trophy },
+    { id: 'daily-challenges', label: 'Daily Challenges', icon: Trophy },
     { id: 'shop', label: 'Shop', icon: ShoppingBag },
     { id: 'users', label: 'Users', icon: Users },
     { id: 'analytics', label: 'Analytics', icon: BarChart3 }
@@ -340,6 +342,7 @@ const AdminDashboard = () => {
               {/* Student Levels Management */}
               <Route path="levels" element={<StudentLevelsManagement />} />
               <Route path="achievements" element={<AchievementManagement />} />
+              <Route path="daily-challenges" element={<DailyChallengeManagement />} />
               <Route path="shop" element={<ShopManagement />} />
               <Route path="units" element={<UnitManagement />} />
               <Route path="sessions" element={<SessionManagement />} />

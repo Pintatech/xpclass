@@ -71,11 +71,13 @@ const FillBlankExercise = () => {
   const [retryQuestions, setRetryQuestions] = useState([])
   const [isBatmanMoving, setIsBatmanMoving] = useState(false)
   const [attemptNumber, setAttemptNumber] = useState(1)
+  const [challengeStartTime, setChallengeStartTime] = useState(null)
   const [session, setSession] = useState(null)
   const [colorTheme, setColorTheme] = useState('blue')
   const [hasPlayedPassAudio, setHasPlayedPassAudio] = useState(false)
   const [xpAwarded, setXpAwarded] = useState(0)
   const [wrongQuestionIndices, setWrongQuestionIndices] = useState([])
+  const [startTime, setStartTime] = useState(Date.now())
 
   const inputRefs = useRef({})
 
@@ -126,11 +128,22 @@ const FillBlankExercise = () => {
 
   useEffect(() => {
     // Track when student enters the exercise
-    const urlParams = new URLSearchParams(location.search)
-    const exerciseId = urlParams.get('exerciseId')
-    if (exerciseId && user) {
-      startExercise(exerciseId)
+    const initExercise = async () => {
+      const urlParams = new URLSearchParams(location.search)
+      const exerciseId = urlParams.get('exerciseId')
+      if (exerciseId && user) {
+        // For challenges, capture exact start time
+        if (isChallenge && challengeId) {
+          const { startedAt } = await startExercise(exerciseId)
+          setChallengeStartTime(startedAt)
+          console.log('🏆 Challenge attempt started at:', startedAt)
+        } else {
+          await startExercise(exerciseId)
+        }
+      }
     }
+
+    initExercise()
   }, [user])
 
   useEffect(() => {
@@ -321,12 +334,14 @@ const FillBlankExercise = () => {
 
         await supabase.from('question_attempts').insert({
           exercise_id: exerciseId,
+          exercise_type: 'fill_blank',
           question_id: currentQuestion.id || `q${currentQuestionIndex}`,
           user_id: user.id,
           selected_answer: selectedAnswers,
           correct_answer: correctAnswers,
           is_correct: questionScore === 100,
           attempt_number: attemptNumber,
+          response_time: Date.now() - startTime
         })
       }
     } catch (err) {
@@ -425,12 +440,14 @@ const FillBlankExercise = () => {
       try {
         const attempts = questions.map((question, qIndex) => ({
           exercise_id: exerciseId,
+          exercise_type: 'fill_blank',
           question_id: question.id || `q${qIndex}`,
           user_id: user.id,
           selected_answer: Object.values(userAnswers[qIndex] || {}).join(', '),
           correct_answer: question.blanks.map(b => b.answer).join(', '),
           is_correct: scores[qIndex] === 100,
           attempt_number: attemptNumber,
+          response_time: Date.now() - startTime
         }))
         await supabase.from('question_attempts').insert(attempts)
       } catch (err) {
@@ -449,8 +466,10 @@ const FillBlankExercise = () => {
         await completeExerciseWithXP(exerciseId, totalXP, {
           score: roundedScore,
           max_score: 100,
-          challengeId: challengeId // Pass challengeId for daily challenge tracking
+          challengeId: challengeId, // Pass challengeId for daily challenge tracking
+          challengeStartedAt: challengeStartTime // Pass challenge start time for accurate timing
         })
+        setXpAwarded(totalXP)
       }
     } catch (err) {
       console.error('Error marking fill_blank exercise completed:', err)
@@ -553,8 +572,10 @@ const FillBlankExercise = () => {
           await completeExerciseWithXP(exerciseId, totalXP, {
             score: roundedScore,
             max_score: 100,
-            challengeId: challengeId // Pass challengeId for daily challenge tracking
+            challengeId: challengeId, // Pass challengeId for daily challenge tracking
+            challengeStartedAt: challengeStartTime // Pass challenge start time for accurate timing
           })
+          setXpAwarded(totalXP)
         }
       } catch (err) {
         console.error('Error marking fill_blank exercise completed:', err)

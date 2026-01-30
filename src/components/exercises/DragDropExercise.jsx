@@ -140,6 +140,8 @@ const DragDropExercise = () => {
   const searchParams = new URLSearchParams(location.search)
   const exerciseId = searchParams.get('exerciseId')
   const sessionId = searchParams.get('sessionId')
+  const challengeId = searchParams.get('challengeId') || null
+  const isChallenge = searchParams.get('isChallenge') === 'true'
   const [exercise, setExercise] = useState(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState(null)
@@ -157,6 +159,7 @@ const DragDropExercise = () => {
   const [questionsChecked, setQuestionsChecked] = useState({})
   const [attempts, setAttempts] = useState(0)
   const [startTime, setStartTime] = useState(null)
+  const [challengeStartTime, setChallengeStartTime] = useState(null)
   const [timeSpent, setTimeSpent] = useState(0)
   const [itemFeedback, setItemFeedback] = useState({}) // Track correct/incorrect for each item
   const [isBatmanMoving, setIsBatmanMoving] = useState(false)
@@ -172,11 +175,22 @@ const DragDropExercise = () => {
   const [colorTheme, setColorTheme] = useState('blue')
 
   useEffect(() => {
-    fetchExercise()
-    // Track when student enters the exercise
-    if (exerciseId && user) {
-      startExercise(exerciseId)
+    const initExercise = async () => {
+      await fetchExercise()
+      // Track when student enters the exercise
+      if (exerciseId && user) {
+        // For challenges, capture exact start time
+        if (isChallenge && challengeId) {
+          const { startedAt } = await startExercise(exerciseId)
+          setChallengeStartTime(startedAt)
+          console.log('🏆 Challenge attempt started at:', startedAt)
+        } else {
+          await startExercise(exerciseId)
+        }
+      }
     }
+
+    initExercise()
   }, [exerciseId, user])
 
   // Fetch session info for navigation
@@ -652,7 +666,9 @@ const DragDropExercise = () => {
           {
             score: scorePercentage,
             max_score: 100,
-            time_spent: totalTimeSpent
+            time_spent: totalTimeSpent,
+            challengeId: challengeId,  // Pass for daily challenge tracking
+            challengeStartedAt: challengeStartTime  // Pass challenge start time for accurate timing
           }
         )
 

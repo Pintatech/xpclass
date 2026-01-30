@@ -25,7 +25,7 @@ const Progress = () => {
   const { user, profile, fetchUserProfile } = useAuth()
   const { getCompletedExercises, getTotalStudyTime, userProgress } = useProgress()
   const { currentLevel, nextLevel, levelProgress, loading: levelsLoading } = useStudentLevels()
-  const { getAchievementsWithProgress, checkAndAwardAchievements, claimAchievementXP, userAchievements, loading: achievementsLoading } = useAchievements()
+  const { getAchievementsWithProgress, checkAndAwardAchievements, claimAchievementXP, userAchievements, challengeWinCounts, loading: achievementsLoading } = useAchievements()
   const [selectedPeriod, setSelectedPeriod] = useState('week')
   const [weeklyData, setWeeklyData] = useState([])
   const [monthlyData, setMonthlyData] = useState([])
@@ -72,27 +72,35 @@ const Progress = () => {
     let progress = 0
     let unlocked = false
 
-    switch (achievement.criteria_type) {
-      case 'exercise_completed':
-        progress = Math.min((completedCount / achievement.criteria_value) * 100, 100)
-        unlocked = completedCount >= achievement.criteria_value
-        break
-      case 'daily_streak':
-        progress = Math.min((currentStreak / achievement.criteria_value) * 100, 100)
-        unlocked = currentStreak >= achievement.criteria_value
-        break
-      case 'total_xp':
-        progress = Math.min((totalXp / achievement.criteria_value) * 100, 100)
-        unlocked = totalXp >= achievement.criteria_value
-        break
-      case 'daily_exercises':
-        // This would need daily exercise count calculation
-        progress = 0
-        unlocked = false
-        break
-      default:
-        progress = 0
-        unlocked = false
+    // Check if this is a daily challenge achievement (manually awarded)
+    if (achievement.criteria_type && achievement.criteria_type.startsWith('daily_challenge_rank_')) {
+      // Check if user has this achievement in their earned achievements
+      unlocked = userAchievements.some(ua => ua.achievement_id === achievement.id)
+      progress = unlocked ? 100 : 0
+    } else {
+      // Regular achievements based on stats
+      switch (achievement.criteria_type) {
+        case 'exercise_completed':
+          progress = Math.min((completedCount / achievement.criteria_value) * 100, 100)
+          unlocked = completedCount >= achievement.criteria_value
+          break
+        case 'daily_streak':
+          progress = Math.min((currentStreak / achievement.criteria_value) * 100, 100)
+          unlocked = currentStreak >= achievement.criteria_value
+          break
+        case 'total_xp':
+          progress = Math.min((totalXp / achievement.criteria_value) * 100, 100)
+          unlocked = totalXp >= achievement.criteria_value
+          break
+        case 'daily_exercises':
+          // This would need daily exercise count calculation
+          progress = 0
+          unlocked = false
+          break
+        default:
+          progress = 0
+          unlocked = false
+      }
     }
 
     return {
@@ -520,6 +528,7 @@ const Progress = () => {
         onClaimXP={handleClaimXP}
         userAchievements={userAchievements}
         claimedFallbackAchievements={claimedFallbackAchievements}
+        challengeWinCounts={challengeWinCounts}
       />
     </div>
   )

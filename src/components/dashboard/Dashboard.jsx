@@ -9,6 +9,7 @@ import Card from '../ui/Card'
 import Button from '../ui/Button'
 import { getRecentExercise } from '../../utils/recentExercise'
 import RecentActivities from './RecentActivities'
+import DailyChallenge from './DailyChallenge'
 import AvatarWithFrame from '../ui/AvatarWithFrame'
 
 const Dashboard = () => {
@@ -494,6 +495,13 @@ const Dashboard = () => {
           </Card.Content>
         </Card>
       )} */}
+
+      {/* Daily Challenge Section - Only for students */}
+      {profile?.role === 'user' && (
+        <div className="mb-6">
+          <DailyChallenge />
+        </div>
+      )}
 
       {/* Recent Activities and Levels Grid */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">

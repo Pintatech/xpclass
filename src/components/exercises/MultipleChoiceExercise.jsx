@@ -56,6 +56,8 @@ const MultipleChoiceExercise = () => {
   const searchParams = new URLSearchParams(location.search)
   const exerciseId = searchParams.get('exerciseId')
   const sessionId = searchParams.get('sessionId')
+  const challengeId = searchParams.get('challengeId') || null
+  const isChallenge = searchParams.get('isChallenge') === 'true'
 
   // Exercise state
   const [exercise, setExercise] = useState(null)
@@ -76,6 +78,7 @@ const MultipleChoiceExercise = () => {
   const [wrongQuestions, setWrongQuestions] = useState([])
   const [isRetryMode, setIsRetryMode] = useState(false)
   const [startTime, setStartTime] = useState(null)
+  const [challengeStartTime, setChallengeStartTime] = useState(null)
   const [xpAwarded, setXpAwarded] = useState(0)
   const [isBatmanMoving, setIsBatmanMoving] = useState(false)
 
@@ -104,17 +107,28 @@ const MultipleChoiceExercise = () => {
 
 
   useEffect(() => {
-    if (exerciseId) {
-      fetchExercise()
-      setStartTime(Date.now())
-      // Track when student enters the exercise
-      if (user) {
-        startExercise(exerciseId)
+    const initExercise = async () => {
+      if (exerciseId) {
+        await fetchExercise()
+        setStartTime(Date.now())
+        // Track when student enters the exercise
+        if (user) {
+          // For challenges, capture exact start time
+          if (isChallenge && challengeId) {
+            const { startedAt } = await startExercise(exerciseId)
+            setChallengeStartTime(startedAt)
+            console.log('🏆 Challenge attempt started at:', startedAt)
+          } else {
+            await startExercise(exerciseId)
+          }
+        }
+      } else {
+        setLoading(false)
+        setError('Không tìm thấy ID bài tập')
       }
-    } else {
-      setLoading(false)
-      setError('Không tìm thấy ID bài tập')
     }
+
+    initExercise()
   }, [exerciseId, user])
 
   // Allow scrolling on all devices
@@ -275,6 +289,7 @@ const MultipleChoiceExercise = () => {
         await supabase.from('question_attempts').insert({
           user_id: user.id,
           exercise_id: exerciseId,
+          exercise_type: 'multiple_choice',
           question_id: currentQuestion.id,
           selected_answer: currentQuestion.options[answerIndex],
           correct_answer: currentQuestion.options[currentQuestion.correct_answer],
@@ -367,6 +382,7 @@ const MultipleChoiceExercise = () => {
         const attempts = results.map(result => ({
           user_id: user.id,
           exercise_id: exerciseId,
+          exercise_type: 'multiple_choice',
           question_id: result.questionId,
           selected_answer: questions[result.questionIndex].options[result.selectedAnswer],
           correct_answer: questions[result.questionIndex].options[result.correctAnswer],
@@ -434,7 +450,9 @@ const MultipleChoiceExercise = () => {
       const result = await completeExerciseWithXP(exerciseId, totalXP, {
         score: score,
         max_score: 100,
-        xp_earned: totalXP  // We'll calculate actual XP in the backend based on completion
+        xp_earned: totalXP,  // We'll calculate actual XP in the backend based on completion
+        challengeId: challengeId,  // Pass for daily challenge tracking
+        challengeStartedAt: challengeStartTime  // Pass challenge start time for accurate timing
       })
 
       if (result.error && result.error !== 'Exercise already completed') {

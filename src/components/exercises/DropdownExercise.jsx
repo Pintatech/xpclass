@@ -49,6 +49,8 @@ const DropdownExercise = () => {
   const { user } = useAuth()
   const { startExercise, completeExerciseWithXP } = useProgress()
   const exerciseId = new URLSearchParams(location.search).get('exerciseId')
+  const challengeId = new URLSearchParams(location.search).get('challengeId') || null
+  const isChallenge = new URLSearchParams(location.search).get('isChallenge') === 'true'
   const { playCelebration, passGif } = useFeedback()
   const [exercise, setExercise] = useState(null)
   const [loading, setLoading] = useState(true)
@@ -70,6 +72,7 @@ const DropdownExercise = () => {
   const [session, setSession] = useState(null)
   const [hasPlayedPassAudio, setHasPlayedPassAudio] = useState(false)
   const [xpAwarded, setXpAwarded] = useState(0)
+  const [challengeStartTime, setChallengeStartTime] = useState(null)
 
   const questions = exercise?.content?.questions || []
   const currentQuestion = questions[currentQuestionIndex]
@@ -123,11 +126,22 @@ const DropdownExercise = () => {
 
   useEffect(() => {
     // Track when student enters the exercise
-    const urlParams = new URLSearchParams(location.search)
-    const exerciseId = urlParams.get('exerciseId')
-    if (exerciseId && user) {
-      startExercise(exerciseId)
+    const initExercise = async () => {
+      const urlParams = new URLSearchParams(location.search)
+      const exerciseId = urlParams.get('exerciseId')
+      if (exerciseId && user) {
+        // For challenges, capture exact start time
+        if (isChallenge && challengeId) {
+          const { startedAt } = await startExercise(exerciseId)
+          setChallengeStartTime(startedAt)
+          console.log('🏆 Challenge attempt started at:', startedAt)
+        } else {
+          await startExercise(exerciseId)
+        }
+      }
     }
+
+    initExercise()
   }, [user])
 
   useEffect(() => {
@@ -204,8 +218,8 @@ const DropdownExercise = () => {
   }
 
   const checkAnswer = (dropdownIndex) => {
-    const userAnswer = userAnswers[currentQuestionIndex]?.[dropdownIndex] || ''
-    const correctAnswer = currentQuestion.dropdowns[dropdownIndex].correct_answer
+    const userAnswer = (userAnswers[currentQuestionIndex]?.[dropdownIndex] || '').trim()
+    const correctAnswer = (currentQuestion.dropdowns[dropdownIndex].correct_answer || '').trim()
     return userAnswer === correctAnswer
   }
 
@@ -314,7 +328,9 @@ const DropdownExercise = () => {
         if (exerciseId && user && roundedScore >= 80) {
           const result = await completeExerciseWithXP(exerciseId, totalXP, {
             score: roundedScore,
-            max_score: 100
+            max_score: 100,
+            challengeId: challengeId,  // Pass for daily challenge tracking
+            challengeStartedAt: challengeStartTime  // Pass challenge start time for accurate timing
           })
           if (result?.xpAwarded > 0) {
             setXpAwarded(result.xpAwarded)

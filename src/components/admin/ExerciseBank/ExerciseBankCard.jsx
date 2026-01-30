@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, useRef, useEffect } from 'react'
 import { supabase } from '../../../supabase/client'
 import {
   BookOpen,
@@ -22,6 +22,23 @@ const ExerciseBankCard = ({ exercise, viewMode, onUpdate, onEdit, readOnly = fal
   const [showAssignments, setShowAssignments] = useState(false)
   const [assignments, setAssignments] = useState([])
   const [loadingAssignments, setLoadingAssignments] = useState(false)
+  const menuRef = useRef(null)
+
+  // Close menu when clicking outside
+  useEffect(() => {
+    const handleClickOutside = (event) => {
+      if (menuRef.current && !menuRef.current.contains(event.target)) {
+        setShowMenu(false)
+      }
+    }
+
+    if (showMenu) {
+      document.addEventListener('mousedown', handleClickOutside)
+      return () => {
+        document.removeEventListener('mousedown', handleClickOutside)
+      }
+    }
+  }, [showMenu])
 
   const getTypeIcon = (type) => {
     switch (type) {
@@ -320,7 +337,7 @@ const ExerciseBankCard = ({ exercise, viewMode, onUpdate, onEdit, readOnly = fal
             </div>
 
             {/* Actions */}
-            <div className="flex items-center space-x-2 relative">
+            <div className="flex items-center space-x-2 relative" ref={menuRef}>
               <button
                 onClick={() => setShowMenu(!showMenu)}
                 className="p-2 text-gray-400 hover:text-gray-600 hover:bg-gray-50 rounded-lg transition-colors"
@@ -441,7 +458,7 @@ const ExerciseBankCard = ({ exercise, viewMode, onUpdate, onEdit, readOnly = fal
             </span>
           </div>
 
-          <div className="relative">
+          <div className="relative" ref={menuRef}>
             <button
               onClick={() => setShowMenu(!showMenu)}
               className="p-1 text-gray-400 hover:text-gray-600 opacity-0 group-hover:opacity-100 transition-opacity"

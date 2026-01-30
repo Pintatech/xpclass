@@ -53,12 +53,25 @@ const PronunciationExercise = () => {
   const searchParams = new URLSearchParams(location.search)
   const exerciseId = searchParams.get('exerciseId')
   const sessionId = searchParams.get('sessionId')
+  const challengeId = searchParams.get('challengeId') || null
+  const isChallenge = searchParams.get('isChallenge') === 'true'
 
   // Track when student enters the exercise
   useEffect(() => {
-    if (exerciseId && user) {
-      startExercise(exerciseId)
+    const initExercise = async () => {
+      if (exerciseId && user) {
+        // For challenges, capture exact start time
+        if (isChallenge && challengeId) {
+          const { startedAt } = await startExercise(exerciseId)
+          setChallengeStartTime(startedAt)
+          console.log('🏆 Challenge attempt started at:', startedAt)
+        } else {
+          await startExercise(exerciseId)
+        }
+      }
     }
+
+    initExercise()
   }, [exerciseId, user])
 
   // Exercise state
@@ -74,6 +87,7 @@ const PronunciationExercise = () => {
   const [questionResults, setQuestionResults] = useState([])
   const [isQuizComplete, setIsQuizComplete] = useState(false)
   const [startTime, setStartTime] = useState(null)
+  const [challengeStartTime, setChallengeStartTime] = useState(null)
   const [xpAwarded, setXpAwarded] = useState(0)
 
   // Pronunciation state
@@ -415,7 +429,9 @@ const PronunciationExercise = () => {
       const result = await completeExerciseWithXP(exerciseId, totalXP, {
         score: score,
         max_score: 100,
-        xp_earned: totalXP
+        xp_earned: totalXP,
+        challengeId: challengeId,  // Pass for daily challenge tracking
+        challengeStartedAt: challengeStartTime  // Pass challenge start time for accurate timing
       })
 
       if (result.error && result.error !== 'Exercise already completed') {

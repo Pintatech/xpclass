@@ -6,6 +6,7 @@ export const useAchievements = () => {
   const { user, fetchUserProfile } = useAuth()
   const [achievements, setAchievements] = useState([])
   const [userAchievements, setUserAchievements] = useState([])
+  const [challengeWinCounts, setChallengeWinCounts] = useState({})
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState(null)
 
@@ -57,6 +58,32 @@ export const useAchievements = () => {
       setError(err.message)
       // Set empty array as fallback
       setUserAchievements([])
+    }
+  }
+
+  // Fetch daily challenge win counts
+  const fetchChallengeWinCounts = async () => {
+    if (!user) return
+
+    try {
+      const { data, error } = await supabase.rpc('get_user_challenge_win_counts', {
+        p_user_id: user.id
+      })
+
+      if (error) throw error
+
+      // Convert array to object: { rank_1: 5, rank_2: 3, rank_3: 1 }
+      const counts = {}
+      if (data) {
+        data.forEach(item => {
+          counts[item.achievement_type] = parseInt(item.win_count)
+        })
+      }
+      setChallengeWinCounts(counts)
+    } catch (err) {
+      console.error('Error fetching challenge win counts:', err)
+      // Don't set error, just use empty counts
+      setChallengeWinCounts({})
     }
   }
 
@@ -236,6 +263,7 @@ export const useAchievements = () => {
     if (user) {
       fetchAchievements()
       fetchUserAchievements()
+      fetchChallengeWinCounts()
     }
   }, [user])
 
@@ -251,10 +279,12 @@ export const useAchievements = () => {
   return {
     achievements,
     userAchievements,
+    challengeWinCounts,
     loading,
     error,
     fetchAchievements,
     fetchUserAchievements,
+    fetchChallengeWinCounts,
     checkAndAwardAchievements,
     claimAchievementXP,
     getAchievementProgress,

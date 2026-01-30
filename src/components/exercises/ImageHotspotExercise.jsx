@@ -50,6 +50,8 @@ const ImageHotspotExercise = () => {
   const searchParams = new URLSearchParams(location.search)
   const exerciseId = searchParams.get('exerciseId')
   const sessionId = searchParams.get('sessionId')
+  const challengeId = searchParams.get('challengeId') || null
+  const isChallenge = searchParams.get('isChallenge') === 'true'
 
   const { user } = useAuth()
   const { startExercise, completeExerciseWithXP } = useProgress()
@@ -65,6 +67,7 @@ const ImageHotspotExercise = () => {
   const [exerciseComplete, setExerciseComplete] = useState(false)
   const [xpEarned, setXpEarned] = useState(0)
   const [startTime, setStartTime] = useState(null)
+  const [challengeStartTime, setChallengeStartTime] = useState(null)
   const [imageScale, setImageScale] = useState(1)
   const [isBatmanMoving, setIsBatmanMoving] = useState(false)
   const [isSubmitted, setIsSubmitted] = useState(false)
@@ -123,11 +126,22 @@ const ImageHotspotExercise = () => {
 
   // Fetch exercise
   useEffect(() => {
-    if (exerciseId && user) {
-      fetchExercise()
-      startExercise(exerciseId)
-      setStartTime(Date.now())
+    const initExercise = async () => {
+      if (exerciseId && user) {
+        await fetchExercise()
+        setStartTime(Date.now())
+        // For challenges, capture exact start time
+        if (isChallenge && challengeId) {
+          const { startedAt } = await startExercise(exerciseId)
+          setChallengeStartTime(startedAt)
+          console.log('🏆 Challenge attempt started at:', startedAt)
+        } else {
+          await startExercise(exerciseId)
+        }
+      }
     }
+
+    initExercise()
   }, [exerciseId, user])
 
   useEffect(() => {
@@ -352,7 +366,9 @@ const ImageHotspotExercise = () => {
           score: 100,
           max_score: 100,
           attempts: totalAttempts,
-          time_spent: timeSpent
+          time_spent: timeSpent,
+          challengeId: challengeId,  // Pass for daily challenge tracking
+          challengeStartedAt: challengeStartTime  // Pass challenge start time for accurate timing
         })
         if (result?.xpAwarded > 0) {
           setXpEarned(result.xpAwarded)

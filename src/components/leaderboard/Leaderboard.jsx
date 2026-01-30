@@ -9,6 +9,7 @@ import Button from '../ui/Button'
 import { SimpleBadge } from '../ui/StudentBadge'
 import { Trophy, Medal, Award, Crown, Star, RefreshCw } from 'lucide-react'
 import AvatarWithFrame from '../ui/AvatarWithFrame'
+import DailyChallengeLeaderboard from './DailyChallengeLeaderboard'
 
 const Leaderboard = () => {
   const navigate = useNavigate()
@@ -507,7 +508,8 @@ const Leaderboard = () => {
           {[
             { key: 'week', label: 'Tuần này' },
             { key: 'month', label: 'Tháng này' },
-            { key: 'all', label: 'Tất cả' }
+            { key: 'all', label: 'Tất cả' },
+            { key: 'daily_challenge', label: 'Đấu trường' }
           ].map((option) => (
             <Button
               key={option.key}
@@ -522,6 +524,14 @@ const Leaderboard = () => {
         </div>
       </div>
 
+      {/* Daily Challenge Leaderboard */}
+      {timeframe === 'daily_challenge' && (
+        <DailyChallengeLeaderboard />
+      )}
+
+      {/* Champion Reward Banner */}
+      {timeframe !== 'daily_challenge' && (
+        <>
       {/* Champion Reward Banner */}
       {timeframe === 'week' && weeklyChampionReward && (
         <div className="flex justify-center">
@@ -901,6 +911,8 @@ const Leaderboard = () => {
             </div>
           </Card.Content>
         </Card>
+      )}
+      </>
       )}
 
       {/* Badge Info Modal for Mobile */}

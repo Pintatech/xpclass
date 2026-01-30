@@ -717,17 +717,25 @@ const ExerciseList = () => {
   };
 
   // Get star count based on score: 95-100 = 3 stars, 90-95 = 2 stars, passed (<90) = 1 star, not passed = 0 stars
-  const getStarCount = (score, status) => {
+  const getStarCount = (score, status, max_score = 100) => {
+    console.log(`⭐ getStarCount: score=${score}, status=${status}, max_score=${max_score}`);
     if (status !== "completed") return 0;
-    if (score >= 95) return 3;
-    if (score >= 90) return 2;
-    if (score > 0) return 1;
+
+    // Calculate percentage if max_score is provided and not 100
+    const scorePercent = max_score && max_score !== 100 ? (score / max_score) * 100 : score;
+    console.log(`⭐ scorePercent=${scorePercent}`);
+
+    if (scorePercent >= 95) return 3;
+    if (scorePercent >= 90) return 2;
+    if (scorePercent > 0) return 1;
     return 0;
   };
 
   // Render stars component
-  const renderStars = (score, status) => {
-    const starCount = getStarCount(score, status);
+  const renderStars = (score, status, max_score) => {
+    console.log(`⭐ renderStars called: score=${score}, status=${status}, max_score=${max_score}`);
+    const starCount = getStarCount(score, status, max_score);
+    console.log(`⭐ starCount=${starCount}`);
     if (starCount === 0) return null;
 
     return (
@@ -778,7 +786,10 @@ const ExerciseList = () => {
       const progress = userProgress.find((p) => p.exercise_id === exercise.id);
       if (!progress || progress.status !== "completed") return false;
       // Check if score is at least 90 (2 stars requirement)
-      return progress.score >= 90;
+      const scorePercent = progress.max_score && progress.max_score !== 100
+        ? (progress.score / progress.max_score) * 100
+        : progress.score;
+      return scorePercent >= 90;
     });
   };
 
@@ -1079,7 +1090,7 @@ const ExerciseList = () => {
             </div>
 
             {/* Stars on the right */}
-            {!canCreateContent() && renderStars(progress?.score, status)}
+            {!canCreateContent() && renderStars(progress?.score, status, progress?.max_score)}
 
             {/* Action Buttons */}
             {canCreateContent() && (
@@ -1214,7 +1225,7 @@ const ExerciseList = () => {
         );
         const stars =
           progress?.status === "completed"
-            ? getStarCount(progress?.score, progress?.status)
+            ? getStarCount(progress?.score, progress?.status, progress?.max_score)
             : 0;
         const isCurrent = exerciseCounter === currentExerciseIndex;
 

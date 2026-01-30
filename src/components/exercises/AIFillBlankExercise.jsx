@@ -2,11 +2,14 @@ import React, { useState, useEffect } from 'react'
 import { useLocation, useNavigate } from 'react-router-dom'
 import { supabase } from '../../supabase/client'
 import { useAuth } from '../../hooks/useAuth'
+import { useProgress } from '../../hooks/useProgress'
+import { useFeedback } from '../../hooks/useFeedback'
 import { ArrowLeft, CheckCircle, XCircle, Clock, RefreshCw } from 'lucide-react'
 import LoadingSpinner from '../ui/LoadingSpinner'
 import { callAIScoring as localAIScoring } from '../../utils/aiScoringService'
 import RichTextRenderer from '../ui/RichTextRenderer'
 import ExerciseHeader from '../ui/ExerciseHeader'
+import CelebrationScreen from '../ui/CelebrationScreen'
 
 // Theme-based side decoration images for PC
 const themeSideImages = {
@@ -44,7 +47,9 @@ const AIFillBlankExercise = () => {
   const location = useLocation()
   const navigate = useNavigate()
   const { user } = useAuth()
-  
+  const { completeExerciseWithXP } = useProgress()
+  const { playCelebration, passGif } = useFeedback()
+
   const [exercise, setExercise] = useState(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
@@ -60,6 +65,8 @@ const AIFillBlankExercise = () => {
   const [timeSpent, setTimeSpent] = useState(0)
   const [colorTheme, setColorTheme] = useState('blue')
   const [session, setSession] = useState(null)
+  const [xpAwarded, setXpAwarded] = useState(0)
+  const [questionStartTimes, setQuestionStartTimes] = useState({})
 
   // Keep language in sync with exercise settings (must be before any early returns)
   const exerciseLanguage = exercise?.content?.settings?.language
@@ -120,6 +127,16 @@ const AIFillBlankExercise = () => {
     }
   }, [exercise, startTime])
 
+  // Track when each question starts
+  useEffect(() => {
+    if (!questionStartTimes[currentQuestionIndex]) {
+      setQuestionStartTimes(prev => ({
+        ...prev,
+        [currentQuestionIndex]: Date.now()
+      }))
+    }
+  }, [currentQuestionIndex])
+
   const fetchExercise = async () => {
     try {
       setLoading(true)
@@ -168,7 +185,7 @@ const AIFillBlankExercise = () => {
 
     const question = exercise.content.questions[questionIndex]
     const userAnswer = userAnswers[questionIndex] || ''
-    
+
     if (!userAnswer.trim()) {
       alert('Please enter an answer before checking')
       return
@@ -176,6 +193,8 @@ const AIFillBlankExercise = () => {
 
     setIsChecking(true)
     setAttempts(prev => prev + 1)
+
+    const questionStartTime = questionStartTimes[questionIndex] || Date.now()
 
     try {
       let aiResult
@@ -206,6 +225,28 @@ const AIFillBlankExercise = () => {
         ...prev,
         [questionIndex]: true
       }))
+
+      // Save question attempt to database
+      if (user && exerciseId) {
+        try {
+          const responseTime = Date.now() - questionStartTime
+          const expectedAnswers = (question.expected_answers || []).join(', ')
+
+          await supabase.from('question_attempts').insert({
+            user_id: user.id,
+            exercise_id: exerciseId,
+            exercise_type: 'ai_fill_blank',
+            question_id: question.id || `q${questionIndex}`,
+            selected_answer: userAnswer,
+            correct_answer: expectedAnswers,
+            is_correct: aiResult.score >= 70,
+            attempt_number: 1,
+            response_time: responseTime
+          })
+        } catch (err) {
+          console.log('⚠️ Could not save question attempt:', err.message)
+        }
+      }
 
       // Save progress
       await saveProgress(questionIndex, aiResult.score >= 70) // 70% threshold for "correct"
@@ -265,15 +306,76 @@ const AIFillBlankExercise = () => {
     }
   }
 
-  const nextQuestion = () => {
+  const nextQuestion = async () => {
     if (currentQuestionIndex < exercise.content.questions.length - 1) {
       setCurrentQuestionIndex(prev => prev + 1)
+    } else {
+      // Last question - complete the exercise
+      const allQuestionsCompleted = exercise.content.questions.every((_, index) => {
+        const aiScore = aiScores[index]
+        return aiScore && aiScore.score >= 70
+      })
+
+      if (allQuestionsCompleted && !exerciseCompleted) {
+        // Calculate final score and complete
+        const totalScore = Object.values(aiScores).reduce((sum, score) => sum + (score?.score || 0), 0)
+        const averageScore = totalScore / exercise.content.questions.length
+        const currentTime = Date.now()
+        const totalTimeSpent = startTime ? Math.floor((currentTime - startTime) / 1000) : 0
+
+        // Play celebration if passed
+        if (averageScore >= 70) {
+          playCelebration()
+        }
+
+        try {
+          const roundedScore = Math.round(averageScore)
+          const baseXP = exercise?.xp_reward || 10
+          const bonusXP = roundedScore >= 95 ? Math.round(baseXP * 0.5) : roundedScore >= 90 ? Math.round(baseXP * 0.3) : 0
+          const totalXP = baseXP + bonusXP
+
+          const searchParams = new URLSearchParams(location.search)
+          const exerciseId = searchParams.get('exerciseId')
+
+          if (exerciseId && user) {
+            await completeExerciseWithXP(exerciseId, totalXP, {
+              score: roundedScore,
+              max_score: 100,
+              time_spent: totalTimeSpent
+            })
+            setXpAwarded(totalXP)
+          }
+
+          setExerciseCompleted(true)
+        } catch (error) {
+          console.error('Error completing exercise:', error)
+        }
+      }
     }
   }
 
   const prevQuestion = () => {
     if (currentQuestionIndex > 0) {
       setCurrentQuestionIndex(prev => prev - 1)
+    }
+  }
+
+  const handleBackToSession = () => {
+    const searchParams = new URLSearchParams(location.search)
+    const sessionId = searchParams.get('sessionId')
+    const courseId = searchParams.get('courseId') || session?.units?.course_id
+    const unitId = searchParams.get('unitId') || session?.unit_id
+
+    if (sessionId && courseId && unitId) {
+      navigate(`/study/course/${courseId}/unit/${unitId}/session/${sessionId}`)
+    } else if (sessionId) {
+      navigate(`/session?id=${sessionId}`)
+    } else if (courseId && unitId) {
+      navigate(`/course/${courseId}/unit/${unitId}`)
+    } else if (courseId) {
+      navigate(`/course/${courseId}`)
+    } else {
+      navigate('/dashboard')
     }
   }
 
@@ -506,24 +608,30 @@ const AIFillBlankExercise = () => {
 
             <button
               onClick={nextQuestion}
-              disabled={currentQuestionIndex === exercise.content.questions.length - 1 || !showResult}
+              disabled={!showResult}
               className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:bg-gray-400 disabled:cursor-not-allowed"
             >
-              Next
+              {currentQuestionIndex < exercise.content.questions.length - 1 ? 'Next' : 'Finish Exercise'}
               <ArrowLeft className="w-4 h-4 rotate-180" />
             </button>
           </div>
 
-          {/* Exercise Completed */}
+          {/* Celebration Screen */}
           {exerciseCompleted && (
-            <div className="mt-8 p-4 bg-green-50 border border-green-200 rounded-lg text-center">
-              <CheckCircle className="w-12 h-12 text-green-600 mx-auto mb-2" />
-              <h3 className="text-lg font-semibold text-green-800 mb-2">
-                Exercise Completed! 🎉
-              </h3>
-              <p className="text-green-700">
-                Great job! You've completed all questions with AI scoring.
-              </p>
+            <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+              <CelebrationScreen
+                score={Math.round(Object.values(aiScores).reduce((sum, score) => sum + (score?.score || 0), 0) / exercise.content.questions.length)}
+                correctAnswers={Object.values(aiScores).filter(s => s && s.score >= 70).length}
+                totalQuestions={exercise.content.questions.length}
+                passThreshold={70}
+                xpAwarded={xpAwarded}
+                passGif={passGif}
+                isRetryMode={false}
+                wrongQuestionsCount={0}
+                onRetryWrongQuestions={() => {}}
+                onBackToList={handleBackToSession}
+                exerciseId={new URLSearchParams(location.search).get('exerciseId')}
+              />
             </div>
           )}
         </div>

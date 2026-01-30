@@ -38,7 +38,7 @@ const Profile = () => {
     hasUnlockedPerk,
     isMaxLevel
   } = useStudentLevels()
-  const { getAchievementsWithProgress, userAchievements } = useAchievements()
+  const { getAchievementsWithProgress, userAchievements, challengeWinCounts } = useAchievements()
 
   // State for profile being viewed
   const [viewedProfile, setViewedProfile] = useState(null)
@@ -394,33 +394,41 @@ const Profile = () => {
 
         // Calculate if achievement should be unlocked based on criteria (same logic as AchievementBadgeBar)
         let calculatedUnlocked = false
-        switch (achievement.criteria_type) {
-          case 'exercise_completed':
-            calculatedUnlocked = userStats.completedExercises >= achievement.criteria_value
-            break
-          case 'daily_streak':
-            calculatedUnlocked = userStats.currentStreak >= achievement.criteria_value
-            break
-          case 'total_xp':
-            calculatedUnlocked = userStats.totalXp >= achievement.criteria_value
-            break
-          case 'daily_exercises':
-            calculatedUnlocked = false // This criteria is not implemented yet
-            break
-          default:
-            calculatedUnlocked = false
+
+        // Check if this is a daily challenge achievement (manually awarded)
+        if (achievement.criteria_type && achievement.criteria_type.startsWith('daily_challenge_rank_')) {
+          // Daily challenge achievements are unlocked if user has earned them
+          calculatedUnlocked = !!userAchievement
+        } else {
+          // Regular achievements based on stats
+          switch (achievement.criteria_type) {
+            case 'exercise_completed':
+              calculatedUnlocked = userStats.completedExercises >= achievement.criteria_value
+              break
+            case 'daily_streak':
+              calculatedUnlocked = userStats.currentStreak >= achievement.criteria_value
+              break
+            case 'total_xp':
+              calculatedUnlocked = userStats.totalXp >= achievement.criteria_value
+              break
+            case 'daily_exercises':
+              calculatedUnlocked = false // This criteria is not implemented yet
+              break
+            default:
+              calculatedUnlocked = false
+          }
         }
 
-        // Use database record if it exists, otherwise use calculated value
-        const isUnlocked = !!userAchievement?.unlocked_at || calculatedUnlocked
+        // Use database record if it exists (earned_at), otherwise use calculated value
+        const isUnlocked = !!userAchievement?.earned_at || calculatedUnlocked
         const isClaimed = !!userAchievement?.claimed_at
 
         return {
           ...achievement,
           isUnlocked,
           isClaimed,
-          unlockedDate: isUnlocked && userAchievement?.unlocked_at
-            ? new Date(userAchievement.unlocked_at).toLocaleDateString('vi-VN')
+          unlockedDate: isUnlocked && userAchievement?.earned_at
+            ? new Date(userAchievement.earned_at).toLocaleDateString('vi-VN')
             : (calculatedUnlocked ? 'Đã mở khóa' : null),
           claimedDate: isClaimed ? new Date(userAchievement.claimed_at).toLocaleDateString('vi-VN') : null
         }
@@ -771,28 +779,49 @@ const Profile = () => {
         <Card.Content>
           {achievements.filter(a => a.isUnlocked).length > 0 ? (
             <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-4">
-              {achievements.filter(a => a.isUnlocked).slice(0, 6).map((achievement) => (
-                <div key={achievement.id} className="text-center">
-                  {achievement.badge_image_url ? (
-                    <img
-                      src={achievement.badge_image_url}
-                      alt={achievement.title}
-                      className="w-20 h-20 mx-auto mb-2 object-contain"
-                    />
-                  ) : (
-                    <div className="text-4xl mx-auto mb-2">
-                      🏆
+              {achievements.filter(a => a.isUnlocked).slice(0, 6).map((achievement) => {
+                // Calculate win count for challenge achievements
+                const getWinCount = () => {
+                  if (!achievement.criteria_type?.startsWith('daily_challenge_rank_')) return 0
+                  const match = achievement.criteria_type.match(/rank_(\d)/)
+                  if (match) {
+                    const rankKey = `rank_${match[1]}`
+                    return challengeWinCounts[rankKey] || 0
+                  }
+                  return 0
+                }
+                const winCount = getWinCount()
+
+                return (
+                  <div key={achievement.id} className="text-center">
+                    {achievement.badge_image_url ? (
+                      <img
+                        src={achievement.badge_image_url}
+                        alt={achievement.title}
+                        className="w-20 h-20 mx-auto mb-2 object-contain"
+                      />
+                    ) : (
+                      <div className="text-4xl mx-auto mb-2">
+                        🏆
+                      </div>
+                    )}
+                    <div className="text-sm font-medium text-gray-900 flex items-center justify-center gap-1">
+                      {achievement.title}
+                      {winCount > 0 && (
+                        <span className="text-xs bg-yellow-100 text-yellow-800 px-1.5 py-0.5 rounded font-bold">
+                          ×{winCount}
+                        </span>
+                      )}
                     </div>
-                  )}
-                  <div className="text-sm font-medium text-gray-900">{achievement.title}</div>
-                  {achievement.isClaimed && (
-                    <div className="text-xs text-green-600 mt-1">✓ Claimed</div>
-                  )}
-                  {!achievement.isClaimed && (
-                    <div className="text-xs text-blue-600 mt-1">Ready to claim!</div>
-                  )}
-                </div>
-              ))}
+                    {achievement.isClaimed && (
+                      <div className="text-xs text-green-600 mt-1">✓ Claimed</div>
+                    )}
+                    {!achievement.isClaimed && (
+                      <div className="text-xs text-blue-600 mt-1">Ready to claim!</div>
+                    )}
+                  </div>
+                )
+              })}
               {achievements.filter(a => a.isUnlocked).length > 6 && (
                 <div className="flex items-center justify-center">
                   <button
