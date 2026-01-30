@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { supabase } from '../../supabase/client';
 import { useAuth } from '../../hooks/useAuth';
-import { CheckCircle, XCircle, Clock, Minus, RotateCcw, Eye, X, ChevronDown } from 'lucide-react';
+import { CheckCircle, XCircle, Clock, Minus, RotateCcw, Eye, X, ChevronDown, RefreshCw } from 'lucide-react';
 
 const StudentExerciseMatrix = ({ selectedCourse }) => {
   const { user, isAdmin } = useAuth();
@@ -19,6 +19,7 @@ const StudentExerciseMatrix = ({ selectedCourse }) => {
   const [showAllExercises, setShowAllExercises] = useState(false);
   const [averageMode, setAverageMode] = useState('all'); // 'all' or 'attempted'
   const [allExercisesFetched, setAllExercisesFetched] = useState(false);
+  const [overriding, setOverriding] = useState(null); // Track which attempt is being overridden
 
   useEffect(() => {
     if (selectedCourse) {
@@ -337,6 +338,99 @@ const StudentExerciseMatrix = ({ selectedCourse }) => {
   const closeModal = () => {
     setSelectedCell(null);
     setQuestionAttempts([]);
+  };
+
+  const handleOverrideCorrectness = async (attemptId, currentIsCorrect) => {
+    if (!user) return;
+
+    try {
+      setOverriding(attemptId);
+
+      // Toggle the is_correct value
+      const newIsCorrect = !currentIsCorrect;
+
+      // Update the question_attempts table
+      const { error: updateError } = await supabase
+        .from('question_attempts')
+        .update({
+          is_correct: newIsCorrect,
+          manually_overridden: true,
+          overridden_by: user.id,
+          overridden_at: new Date().toISOString()
+        })
+        .eq('id', attemptId);
+
+      if (updateError) throw updateError;
+
+      // Recalculate the score for this exercise
+      await recalculateExerciseScore(
+        selectedCell.studentId,
+        selectedCell.exerciseId
+      );
+
+      // Refresh the question attempts to show updated data
+      await fetchQuestionAttempts(
+        selectedCell.studentId,
+        selectedCell.studentName,
+        selectedCell.exerciseId,
+        selectedCell.exerciseTitle
+      );
+
+      // Refresh the matrix to show updated scores
+      await fetchMatrixData(showAllExercises ? null : 15);
+
+    } catch (err) {
+      console.error('Error overriding correctness:', err);
+      alert('Failed to override answer. Please try again.');
+    } finally {
+      setOverriding(null);
+    }
+  };
+
+  const recalculateExerciseScore = async (studentId, exerciseId) => {
+    try {
+      // Get all question attempts for this student and exercise
+      const { data: attempts, error: attemptsError } = await supabase
+        .from('question_attempts')
+        .select('question_id, is_correct')
+        .eq('user_id', studentId)
+        .eq('exercise_id', exerciseId);
+
+      if (attemptsError) throw attemptsError;
+
+      // Get unique questions (latest attempt for each)
+      const uniqueQuestions = {};
+      attempts.forEach(attempt => {
+        if (!uniqueQuestions[attempt.question_id]) {
+          uniqueQuestions[attempt.question_id] = attempt;
+        }
+      });
+
+      const totalQuestions = Object.keys(uniqueQuestions).length;
+      const correctAnswers = Object.values(uniqueQuestions).filter(
+        attempt => attempt.is_correct
+      ).length;
+
+      const newScore = correctAnswers;
+      const maxScore = totalQuestions;
+
+      // Update user_progress table
+      const { error: progressError } = await supabase
+        .from('user_progress')
+        .update({
+          score: newScore,
+          max_score: maxScore,
+          updated_at: new Date().toISOString()
+        })
+        .eq('user_id', studentId)
+        .eq('exercise_id', exerciseId);
+
+      if (progressError) throw progressError;
+
+    } catch (err) {
+      console.error('Error recalculating score:', err);
+      throw err;
+    }
   };
 
   if (!selectedCourse) {
@@ -671,6 +765,11 @@ const StudentExerciseMatrix = ({ selectedCourse }) => {
                               }`}>
                                 {attempt.is_correct ? 'Correct' : 'Incorrect'}
                               </span>
+                              {attempt.manually_overridden && (
+                                <span className="text-xs px-2 py-1 rounded-full bg-blue-100 text-blue-800 border border-blue-300">
+                                  Overridden
+                                </span>
+                              )}
                             </div>
 
                             <div className="ml-7 space-y-2">
@@ -710,6 +809,43 @@ const StudentExerciseMatrix = ({ selectedCourse }) => {
                                 )}
                               </div>
                             </div>
+                          </div>
+
+                          {/* Override Button */}
+                          <div className="ml-4 flex-shrink-0">
+                            <button
+                              onClick={() => handleOverrideCorrectness(attempt.id, attempt.is_correct)}
+                              disabled={overriding === attempt.id}
+                              className={`px-3 py-2 rounded-lg text-sm font-medium transition-colors ${
+                                overriding === attempt.id
+                                  ? 'bg-gray-300 text-gray-500 cursor-not-allowed'
+                                  : attempt.is_correct
+                                  ? 'bg-red-100 text-red-700 hover:bg-red-200 border border-red-300'
+                                  : 'bg-green-100 text-green-700 hover:bg-green-200 border border-green-300'
+                              }`}
+                              title={attempt.is_correct ? 'Mark as incorrect' : 'Mark as correct'}
+                            >
+                              {overriding === attempt.id ? (
+                                <span className="flex items-center space-x-1">
+                                  <RefreshCw className="w-4 h-4 animate-spin" />
+                                  <span>Saving...</span>
+                                </span>
+                              ) : (
+                                <span className="flex items-center space-x-1">
+                                  {attempt.is_correct ? (
+                                    <>
+                                      <XCircle className="w-4 h-4" />
+                                      <span>Mark Wrong</span>
+                                    </>
+                                  ) : (
+                                    <>
+                                      <CheckCircle className="w-4 h-4" />
+                                      <span>Mark Correct</span>
+                                    </>
+                                  )}
+                                </span>
+                              )}
+                            </button>
                           </div>
                         </div>
                       </div>

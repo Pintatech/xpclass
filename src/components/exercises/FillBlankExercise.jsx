@@ -49,7 +49,10 @@ const FillBlankExercise = () => {
   const navigate = useNavigate()
   const { user } = useAuth()
   const { startExercise, completeExerciseWithXP } = useProgress()
-  const exerciseId = new URLSearchParams(location.search).get('exerciseId')
+  const urlParams = new URLSearchParams(location.search)
+  const exerciseId = urlParams.get('exerciseId')
+  const challengeId = urlParams.get('challengeId') || null
+  const isChallenge = urlParams.get('isChallenge') === 'true'
   const { currentMeme, showMeme, playFeedback, playCelebration, passGif } = useFeedback()
   const [exercise, setExercise] = useState(null)
   const [loading, setLoading] = useState(true)
@@ -252,7 +255,7 @@ const FillBlankExercise = () => {
   }
 
   const checkAnswer = (blankIndex) => {
-    const userAnswer = userAnswers[currentQuestionIndex]?.[blankIndex] || ''
+    const userAnswer = (userAnswers[currentQuestionIndex]?.[blankIndex] || '').trim()
     const correctAnswers = currentQuestion.blanks[blankIndex].answer
       .split(',')
       .map(a => a.trim())
@@ -445,7 +448,8 @@ const FillBlankExercise = () => {
       if (exerciseId && user) {
         await completeExerciseWithXP(exerciseId, totalXP, {
           score: roundedScore,
-          max_score: 100
+          max_score: 100,
+          challengeId: challengeId // Pass challengeId for daily challenge tracking
         })
       }
     } catch (err) {
@@ -548,7 +552,8 @@ const FillBlankExercise = () => {
         if (exerciseId && user) {
           await completeExerciseWithXP(exerciseId, totalXP, {
             score: roundedScore,
-            max_score: 100
+            max_score: 100,
+            challengeId: challengeId // Pass challengeId for daily challenge tracking
           })
         }
       } catch (err) {
@@ -755,7 +760,7 @@ const FillBlankExercise = () => {
 
   const checkAnswerForQuestion = (questionIndex, blankIndex) => {
     const question = questions[questionIndex]
-    const userAnswer = userAnswers[questionIndex]?.[blankIndex] || ''
+    const userAnswer = (userAnswers[questionIndex]?.[blankIndex] || '').trim()
     const correctAnswers = question.blanks[blankIndex].answer
       .split(',')
       .map(a => a.trim())
