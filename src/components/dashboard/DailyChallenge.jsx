@@ -222,7 +222,7 @@ const DailyChallenge = () => {
 
   if (loading) {
     return (
-      <Card className="border-purple-200 relative overflow-hidden">
+      <Card className="border-purple-200 relative overflow-hidden h-full">
         <div className="absolute inset-0 bg-gradient-to-br from-purple-50 to-blue-50 opacity-50"></div>
         <div className="relative p-6">
           <div className="animate-pulse flex space-x-4">
@@ -241,7 +241,7 @@ const DailyChallenge = () => {
 
   if (!todayChallenge || !todayChallenge.success) {
     return (
-      <Card className="border-gray-200 relative overflow-hidden">
+      <Card className="border-gray-200 relative overflow-hidden h-full">
         <div className="absolute inset-0 bg-gradient-to-br from-gray-50 to-gray-100 opacity-50"></div>
         <div className="relative p-6 text-center">
           <Trophy className="w-12 h-12 text-gray-400 mx-auto mb-3" />
@@ -263,11 +263,11 @@ const DailyChallenge = () => {
   const canStart = attemptsLeft > 0 && !isLocked
 
   return (
-    <Card className={`border-2 ${isLocked ? 'border-gray-400' : 'border-purple-300'} relative overflow-hidden shadow-lg hover:shadow-xl transition-shadow`}>
+    <Card className={`border-2 ${isLocked ? 'border-gray-400' : 'border-purple-300'} relative overflow-hidden shadow-lg hover:shadow-xl transition-shadow h-full`}>
       <div className={`absolute inset-0 ${isLocked ? 'bg-gray-400' : 'bg-gray-300'} opacity-10`}></div>
 
-      <div className="relative p-4">
-        
+      <div className="relative p-4 flex flex-col h-full">
+
         {/* Header: title + difficulty + rank + exercise info */}
         <div className="flex items-center justify-between mb-3">
           <div className="flex items-center gap-2">
@@ -356,6 +356,7 @@ const DailyChallenge = () => {
         )}
 
         {/* Action Button */}
+        <div className="mt-auto pt-3">
         {isLocked ? (
           <Button
             disabled
@@ -367,7 +368,7 @@ const DailyChallenge = () => {
         ) : canStart ? (
           <Button
             onClick={handleStartChallenge}
-            className="w-full bg-gradient-to-r from-purple-600 to-blue-600 hover:from-purple-700 hover:to-blue-700 text-white font-bold py-2 rounded-lg shadow-md text-sm flex items-center justify-center gap-2"
+            className="w-full bg-purple-600 text-white font-bold py-2 rounded-lg shadow-md text-sm flex items-center justify-center gap-2"
           >
             {participated ? 'Thử lại' : 'Bắt đầu Challenge'}
             <span className="opacity-75 text-xs">({todayChallenge.attempts_used}/3)</span>
@@ -380,6 +381,7 @@ const DailyChallenge = () => {
             Đã hết lượt thử
           </Button>
         )}
+        </div>
       </div>
     </Card>
   )

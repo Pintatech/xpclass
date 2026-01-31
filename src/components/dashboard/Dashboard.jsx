@@ -496,23 +496,29 @@ const Dashboard = () => {
         </Card>
       )} */}
 
-      {/* Daily Challenge Section - Only for students */}
+      {/* Daily Challenge + Recent Activities - Side by side on PC */}
       {profile?.role === 'user' && (
-        <div className="mb-6">
-          <DailyChallenge />
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
+          <div className="lg:col-span-1 h-full">
+            <DailyChallenge />
+          </div>
+          <div className="lg:col-span-1 h-full">
+            <RecentActivities />
+          </div>
         </div>
       )}
 
-      {/* Recent Activities and Levels Grid */}
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        {/* Recent Activities */}
-        <div className="lg:col-span-1">
-          <RecentActivities />
+      {/* Non-student fallback: just Recent Activities */}
+      {profile?.role !== 'user' && (
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-6">
+          <div className="lg:col-span-1">
+            <RecentActivities />
+          </div>
         </div>
+      )}
 
-        {/* Courses List */}
-        <div className="lg:col-span-2">
-          
+      {/* Courses List */}
+      <div>
           {loading ? (
             <div className="text-center py-8">
               <div className="inline-block animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
@@ -603,7 +609,6 @@ const Dashboard = () => {
               })}
             </div>
           )}
-        </div>
       </div>
     </div>
   )

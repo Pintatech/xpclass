@@ -70,7 +70,7 @@ const RecentActivities = () => {
 
   if (loading) {
     return (
-      <div className="bg-white rounded-lg border p-6">
+      <div className="bg-white rounded-lg border p-6 h-full">
         <h3 className="text-lg font-semibold text-gray-900 mb-4">Hoạt động gần đây</h3>
         <div className="space-y-3">
           {[...Array(3)].map((_, i) => (
@@ -90,7 +90,7 @@ const RecentActivities = () => {
 
   if (activities.length === 0) {
     return (
-      <div className="bg-white rounded-lg border p-6">
+      <div className="bg-white rounded-lg border p-6 h-full">
         <h3 className="text-lg font-semibold text-gray-900 mb-4">Hoạt động gần đây</h3>
         <div className="text-center py-8 text-gray-500">
           <Trophy className="w-12 h-12 mx-auto mb-2 text-gray-400" />
@@ -101,7 +101,7 @@ const RecentActivities = () => {
   }
 
   return (
-    <div className="bg-white rounded-lg border p-6">
+    <div className="bg-white rounded-lg border p-6 h-full">
       <div className="flex items-center justify-between mb-4">
         <h3 className="text-lg font-semibold text-gray-900">Hoạt động gần đây</h3>
         <div className="flex items-center text-sm text-gray-500">

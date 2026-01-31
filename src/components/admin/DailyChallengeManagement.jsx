@@ -91,12 +91,14 @@ const DailyChallengeManagement = () => {
   }, [challenges])
 
   const loadChallenges = async () => {
-    const startOfMonth = new Date(selectedDate.getFullYear(), selectedDate.getMonth(), 1)
-    const endOfMonth = new Date(selectedDate.getFullYear(), selectedDate.getMonth() + 1, 0)
+    const year = selectedDate.getFullYear()
+    const month = selectedDate.getMonth()
+    const lastDay = new Date(year, month + 1, 0).getDate()
+    const mm = String(month + 1).padStart(2, '0')
 
     await fetchChallenges({
-      startDate: startOfMonth.toISOString().split('T')[0],
-      endDate: endOfMonth.toISOString().split('T')[0]
+      startDate: `${year}-${mm}-01`,
+      endDate: `${year}-${mm}-${String(lastDay).padStart(2, '0')}`
     })
   }
 

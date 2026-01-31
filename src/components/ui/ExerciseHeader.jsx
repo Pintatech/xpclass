@@ -103,21 +103,27 @@ const ExerciseHeader = ({
                   className="absolute top-1/2 -translate-y-1/2"
                   style={{ left: `${starThresholds.one}%`, transform: 'translateX(-50%) translateY(-50%)' }}
                 >
-                  <div className={`w-3 h-3 rounded-full border-2 ${progressPercentage >= starThresholds.one ? 'bg-yellow-400 border-yellow-500' : 'bg-white border-gray-400'}`} />
+                  <svg className="w-4 h-4" viewBox="0 0 24 24" fill={progressPercentage >= starThresholds.one ? '#facc15' : '#fff'} stroke={progressPercentage >= starThresholds.one ? '#eab308' : '#9ca3af'} strokeWidth="2">
+                    <polygon points="12,2 15.09,8.26 22,9.27 17,14.14 18.18,21.02 12,17.77 5.82,21.02 7,14.14 2,9.27 8.91,8.26" />
+                  </svg>
                 </div>
                 {/* 2 Star Marker */}
                 <div
                   className="absolute top-1/2 -translate-y-1/2"
                   style={{ left: `${starThresholds.two}%`, transform: 'translateX(-50%) translateY(-50%)' }}
                 >
-                  <div className={`w-3 h-3 rounded-full border-2 ${progressPercentage >= starThresholds.two ? 'bg-yellow-400 border-yellow-500' : 'bg-white border-gray-400'}`} />
+                  <svg className="w-4 h-4" viewBox="0 0 24 24" fill={progressPercentage >= starThresholds.two ? '#facc15' : '#fff'} stroke={progressPercentage >= starThresholds.two ? '#eab308' : '#9ca3af'} strokeWidth="2">
+                    <polygon points="12,2 15.09,8.26 22,9.27 17,14.14 18.18,21.02 12,17.77 5.82,21.02 7,14.14 2,9.27 8.91,8.26" />
+                  </svg>
                 </div>
                 {/* 3 Star Marker */}
                 <div
                   className="absolute top-1/2 -translate-y-1/2"
                   style={{ left: `${starThresholds.three}%`, transform: 'translateX(-50%) translateY(-50%)' }}
                 >
-                  <div className={`w-3 h-3 rounded-full border-2 ${progressPercentage >= starThresholds.three ? 'bg-yellow-400 border-yellow-500' : 'bg-white border-gray-400'}`} />
+                  <svg className="w-4 h-4" viewBox="0 0 24 24" fill={progressPercentage >= starThresholds.three ? '#facc15' : '#fff'} stroke={progressPercentage >= starThresholds.three ? '#eab308' : '#9ca3af'} strokeWidth="2">
+                    <polygon points="12,2 15.09,8.26 22,9.27 17,14.14 18.18,21.02 12,17.77 5.82,21.02 7,14.14 2,9.27 8.91,8.26" />
+                  </svg>
                 </div>
               </>
             )}
