@@ -272,9 +272,10 @@ const FillBlankEditor = ({ questions, onQuestionsChange, settings, onSettingsCha
       let questionCounter = 0
       let currentInstruction = ''
       let accumulatedText = [] // Accumulate lines that belong to the current question
+      let currentExplanation = ''
 
       const processAccumulatedQuestion = () => {
-        if (accumulatedText.length === 0) return
+        if (accumulatedText.length === 0) { currentExplanation = ''; return }
 
         // Find which lines contain brackets
         const linesWithBrackets = []
@@ -293,6 +294,28 @@ const FillBlankEditor = ({ questions, onQuestionsChange, settings, onSettingsCha
           accumulatedText = []
           return
         }
+
+        // Extract inline explanations (text after # on the same line, outside brackets)
+        // e.g. "[Clare] #Girl with long hair" → explanation = "Girl with long hair"
+        accumulatedText = accumulatedText.map(line => {
+          // Match # that comes after the last ] or at any position outside brackets
+          const hashMatch = line.match(/^(.*?\])\s*#(.+)$/)
+          if (hashMatch) {
+            if (!currentExplanation) {
+              currentExplanation = hashMatch[2].trim()
+            }
+            return hashMatch[1].trim()
+          }
+          // Also handle # on lines without brackets
+          const plainHashMatch = line.match(/^([^#]*?)#(.+)$/)
+          if (plainHashMatch && !line.includes('[')) {
+            if (!currentExplanation) {
+              currentExplanation = plainHashMatch[2].trim()
+            }
+            return plainHashMatch[1].trim()
+          }
+          return line
+        }).filter(line => line)
 
         // Combine all text (lines with and without brackets)
         const fullText = accumulatedText.join('\n')
@@ -328,13 +351,14 @@ const FillBlankEditor = ({ questions, onQuestionsChange, settings, onSettingsCha
             id: `q${Date.now()}_${questionCounter++}`,
             question: currentInstruction ? `${currentInstruction}\n\n${displayText}` : displayText,
             blanks: blanks,
-            explanation: ''
+            explanation: currentExplanation
           }
           newQuestions.push(question)
         }
 
         // Clear accumulated text
         accumulatedText = []
+        currentExplanation = ''
       }
 
       lines.forEach((line) => {
@@ -346,12 +370,16 @@ const FillBlankEditor = ({ questions, onQuestionsChange, settings, onSettingsCha
           processAccumulatedQuestion()
           currentInstruction = trimmedLine
         }
-        // Check if this line looks like a new numbered question (e.g., "1.", "2.", etc.)
-        else if (trimmedLine.match(/^\d+\.\s+/)) {
+        // Check if this line looks like a new numbered question (e.g., "1.", "2.", "Quest 1:", "Question 2.", etc.)
+        else if (trimmedLine.match(/^\d+\.\s+/) || trimmedLine.match(/^Quest(?:ion)?\s*\d+[.:]\s*/i)) {
           // Process previous accumulated question
           processAccumulatedQuestion()
           // Start accumulating new question
           accumulatedText.push(trimmedLine)
+        }
+        // Check if this is an explanation line (starts with #)
+        else if (trimmedLine.match(/^#\s*/)) {
+          currentExplanation = trimmedLine.replace(/^#\s*/, '').trim()
         }
         // Regular line - add to accumulated text
         else {
@@ -649,6 +677,8 @@ const FillBlankEditor = ({ questions, onQuestionsChange, settings, onSettingsCha
             Format: Use [answer] for blanks, or [answer] (hint) for blanks with hints
             <br />
             Multiple answers: [answer1|answer2|answer3] or [answer1, answer2]
+            <br />
+            Explanation: Add a line starting with # after a question
           </p>
           <textarea
             value={bulkText}
@@ -665,6 +695,7 @@ const FillBlankEditor = ({ questions, onQuestionsChange, settings, onSettingsCha
 B. Fill in the blanks with the correct form.
 
 1. The capital of France is [Paris].
+#Paris has been the capital since the 10th century.
 
 2. Water boils at [100] degrees Celsius.`}
           />

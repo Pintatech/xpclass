@@ -740,7 +740,7 @@ const MultipleChoiceEditor = ({ questions, onQuestionsChange, settings, onSettin
             : expl
         }
         // Continue question text (if not an option or explanation)
-        else if (currentQuestion && !trimmedLine.match(/^[A-Za-z][\.):]|^\d+[\.)]|^(Explanation|Answer):|^(True|False)|^=/i) && trimmedLine) {
+        else if (currentQuestion && !trimmedLine.match(/^[A-Za-z][\.):]|^\d+[\.)]|^(Explanation|Answer):|^(True|False|Yes|No)|^=/i) && trimmedLine) {
           // Add line break if question already has content
           if (currentQuestion.question) {
             currentQuestion.question += '\n' + line
@@ -749,7 +749,7 @@ const MultipleChoiceEditor = ({ questions, onQuestionsChange, settings, onSettin
           }
         }
         // Answer options (A:, B:, C:, D: or 1., 2., 3., 4. or True/False or =)
-        else if (trimmedLine.match(/^[A-Za-z][\.):]|^\d+[\.)]|^(True|False)|^=/i)) {
+        else if (trimmedLine.match(/^[A-Za-z][\.):]|^\d+[\.)]|^(True|False|Yes|No)|^=/i)) {
           if (currentQuestion) {
             // Remove prefix: A., B:, a., b., 1., 2), or =
             // Check if line starts with = (correct answer in Moodle format)
