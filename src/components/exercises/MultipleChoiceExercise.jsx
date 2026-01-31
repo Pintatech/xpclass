@@ -76,7 +76,9 @@ const MultipleChoiceExercise = () => {
   const [questionResults, setQuestionResults] = useState([]) // Array of {questionId, isCorrect, selectedAnswer, correctAnswer}
   const [isQuizComplete, setIsQuizComplete] = useState(false)
   const [wrongQuestions, setWrongQuestions] = useState([])
+  const [firstAttemptResults, setFirstAttemptResults] = useState([]) // Store first attempt results for merging after retry
   const [isRetryMode, setIsRetryMode] = useState(false)
+  const [attemptNumber, setAttemptNumber] = useState(1)
   const [startTime, setStartTime] = useState(null)
   const [challengeStartTime, setChallengeStartTime] = useState(null)
   const [xpAwarded, setXpAwarded] = useState(0)
@@ -131,6 +133,34 @@ const MultipleChoiceExercise = () => {
     initExercise()
   }, [exerciseId, user])
 
+  // Fetch max attempt_number from database to continue from where we left off
+  useEffect(() => {
+    const fetchMaxAttemptNumber = async () => {
+      if (!exerciseId || !user) return
+
+      try {
+        const { data, error } = await supabase
+          .from('question_attempts')
+          .select('attempt_number')
+          .eq('user_id', user.id)
+          .eq('exercise_id', exerciseId)
+          .order('attempt_number', { ascending: false })
+          .limit(1)
+
+        if (error) throw error
+
+        if (data && data.length > 0) {
+          // Start from the next attempt number
+          setAttemptNumber(data[0].attempt_number + 1)
+        }
+      } catch (err) {
+        console.log('Could not fetch attempt number:', err.message)
+      }
+    }
+
+    fetchMaxAttemptNumber()
+  }, [exerciseId, user])
+
   // Allow scrolling on all devices
   useEffect(() => {
     document.body.style.overflow = 'auto'
@@ -145,12 +175,12 @@ const MultipleChoiceExercise = () => {
     }
   }, [sessionId])
 
-  // Handle quiz completion
+  // Handle quiz completion (both first attempt and retry)
   useEffect(() => {
-    if (isQuizComplete && !isRetryMode && questionResults.length > 0) {
+    if (isQuizComplete && questionResults.length > 0) {
       markExerciseCompleted()
     }
-  }, [isQuizComplete, isRetryMode, questionResults.length])
+  }, [isQuizComplete, questionResults.length])
 
   const fetchSessionInfo = async () => {
     try {
@@ -294,7 +324,7 @@ const MultipleChoiceExercise = () => {
           selected_answer: currentQuestion.options[answerIndex],
           correct_answer: currentQuestion.options[currentQuestion.correct_answer],
           is_correct: isCorrect,
-          attempt_number: isRetryMode ? 2 : 1,
+          attempt_number: attemptNumber,
           response_time: responseTime
         })
       } catch (err) {
@@ -372,8 +402,24 @@ const MultipleChoiceExercise = () => {
       }
     })
     
-    setQuestionResults(results)
-    setWrongQuestions(wrongQuestionsList)
+    // Merge results if retry mode
+    let finalResults = results
+    if (isRetryMode && firstAttemptResults.length > 0) {
+      const retryResultByOriginalIndex = {}
+      questions.forEach((q, i) => {
+        if (results[i]) {
+          retryResultByOriginalIndex[q.originalIndex] = results[i]
+        }
+      })
+      finalResults = firstAttemptResults.map((firstResult, i) => {
+        if (firstResult.isCorrect) return firstResult
+        return retryResultByOriginalIndex[i] || firstResult
+      })
+      console.log(`🔄 Retry merge (all-at-once): ${finalResults.filter(r => r.isCorrect).length}/${finalResults.length} correct`)
+    }
+
+    setQuestionResults(finalResults)
+    setWrongQuestions(isRetryMode ? [] : wrongQuestionsList)
     setIsQuizComplete(true)
     
     // Save all question attempts to database
@@ -387,7 +433,7 @@ const MultipleChoiceExercise = () => {
           selected_answer: questions[result.questionIndex].options[result.selectedAnswer],
           correct_answer: questions[result.questionIndex].options[result.correctAnswer],
           is_correct: result.isCorrect,
-          attempt_number: isRetryMode ? 2 : 1,
+          attempt_number: attemptNumber,
           response_time: Date.now() - startTime
         }))
         
@@ -407,7 +453,22 @@ const MultipleChoiceExercise = () => {
       setShowExplanation(false)
       setStartTime(Date.now())
     } else {
-      // Quiz completed
+      // Quiz completed - merge results if retry mode
+      if (isRetryMode && firstAttemptResults.length > 0) {
+        // Build map: originalIndex → retryResult (questions in retry mode have originalIndex from wrongQuestions)
+        const retryResultByOriginalIndex = {}
+        questions.forEach((q, i) => {
+          if (questionResults[i]) {
+            retryResultByOriginalIndex[q.originalIndex] = questionResults[i]
+          }
+        })
+        const merged = firstAttemptResults.map((firstResult, i) => {
+          if (firstResult.isCorrect) return firstResult
+          return retryResultByOriginalIndex[i] || firstResult
+        })
+        console.log(`🔄 Retry merge: ${merged.filter(r => r.isCorrect).length}/${merged.length} correct`)
+        setQuestionResults(merged)
+      }
       setIsQuizComplete(true)
     }
   }
@@ -418,22 +479,9 @@ const MultipleChoiceExercise = () => {
 
     console.log(`🔍 markExerciseCompleted called - isRetryMode: ${isRetryMode}, questionResults.length: ${questionResults.length}`)
 
-    if (isRetryMode) {
-      // For retry mode, we need to calculate score based on original questions
-      // but only count the retry questions as completed
-      const retryCorrectAnswers = questionResults.filter(r => r.isCorrect).length
-      const retryTotalQuestions = questionResults.length
-      const retryScore = Math.round((retryCorrectAnswers / retryTotalQuestions) * 100)
-      
-      console.log(`🔄 Retry completed: ${retryCorrectAnswers}/${retryTotalQuestions} retry questions correct (${retryScore}%)`)
-      
-      // For retry, we don't give XP or mark as completed, just show results
-      return
-    }
-
-    // Normal mode - calculate score based on current questions count
+    // questionResults is already merged if retry mode (merge happens in handleNextQuestion/handleSubmitAllAnswers)
     const correctAnswers = questionResults.filter(r => r.isCorrect).length
-    const totalQuestions = questions.length || questionResults.length
+    const totalQuestions = questionResults.length
     const score = Math.round((correctAnswers / totalQuestions) * 100)
 
     console.log(`🏁 Completing exercise: ${correctAnswers}/${totalQuestions} correct (${score}%)`)
@@ -481,6 +529,12 @@ const MultipleChoiceExercise = () => {
 
   const handleRetryWrongQuestions = () => {
     if (wrongQuestions.length === 0) return
+
+    // Increment attempt number for retry
+    setAttemptNumber(prev => prev + 1)
+
+    // Save first attempt results before resetting so we can merge after retry
+    setFirstAttemptResults(questionResults)
 
     // Set retry mode first
     setIsRetryMode(true)

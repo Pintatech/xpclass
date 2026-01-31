@@ -190,8 +190,8 @@ const CelebrationScreen = ({
           <div className="h-0.5 w-8 bg-orange-200 rounded"></div>
         </div>
 
-        {/* XP Reward section */}
-        {xpAwarded > 0 && (
+        {/* XP Reward section - only show when passed */}
+        {xpAwarded > 0 && passed && (
           <div className="mb-4">
             <p className="text-orange-300 text-sm md:text-2xl font-extrabold tracking-wider uppercase mb-2">Reward</p>
             <div className="flex items-center justify-center gap-2">              

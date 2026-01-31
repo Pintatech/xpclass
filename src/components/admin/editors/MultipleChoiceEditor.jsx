@@ -714,6 +714,7 @@ const MultipleChoiceEditor = ({ questions, onQuestionsChange, settings, onSettin
 
       let currentQuestion = null
       let optionCounter = 0
+      const introLines = []
 
       lines.forEach((line, index) => {
         const trimmedLine = line.trim()
@@ -731,6 +732,10 @@ const MultipleChoiceEditor = ({ questions, onQuestionsChange, settings, onSettin
             explanation: ''
           }
           optionCounter = 0
+        }
+        // Lines before first question go to intro
+        else if (!currentQuestion && trimmedLine && !/^#/.test(trimmedLine)) {
+          introLines.push(trimmedLine)
         }
         // Explanation line starting with #
         else if (currentQuestion && /^#/.test(trimmedLine)) {
@@ -802,6 +807,12 @@ const MultipleChoiceEditor = ({ questions, onQuestionsChange, settings, onSettin
       if (newQuestions.length > 0) {
         setLastBulkText(bulkText)
         try { localStorage.setItem('xpclass_last_bulk_text', bulkText) } catch {}
+        // Set intro from lines before first question
+        if (introLines.length > 0 && onIntroChange) {
+          const newIntro = introLines.join('\n')
+          const existing = intro || ''
+          onIntroChange(existing ? existing + '\n' + newIntro : newIntro)
+        }
         // Attach original_text to every imported question
         const updatedQuestions = [...localQuestions, ...newQuestions.map(q => ({ ...q, original_text: bulkText }))]
         setLocalQuestions(updatedQuestions)

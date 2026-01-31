@@ -226,6 +226,51 @@ const StudentExerciseMatrix = ({ selectedCourse }) => {
         matrix.set(key, progress);
       });
 
+      // Fetch question_attempts to calculate scores based on latest attempts (like the modal)
+      // Batch by exercise to avoid query size limits
+      const attemptsByCell = new Map();
+
+      for (const exerciseId of limitedExerciseIds) {
+        const { data: exerciseAttempts, error: attemptsError } = await supabase
+          .from('question_attempts')
+          .select('user_id, exercise_id, question_id, is_correct, created_at')
+          .in('user_id', studentIds)
+          .eq('exercise_id', exerciseId);
+
+        if (attemptsError) {
+          console.error('Error fetching attempts for exercise:', exerciseId, attemptsError);
+          continue;
+        }
+
+        // Group attempts by student-exercise, then by question_id, keeping latest attempt
+        (exerciseAttempts || []).forEach(attempt => {
+          const key = `${attempt.user_id}-${attempt.exercise_id}`;
+          if (!attemptsByCell.has(key)) {
+            attemptsByCell.set(key, new Map());
+          }
+          const questionMap = attemptsByCell.get(key);
+          const existing = questionMap.get(attempt.question_id);
+          if (!existing || new Date(attempt.created_at) > new Date(existing.created_at)) {
+            questionMap.set(attempt.question_id, attempt);
+          }
+        });
+      }
+
+      // Override progress scores with calculated scores from latest attempts
+      attemptsByCell.forEach((questionMap, key) => {
+        const latestAttempts = Array.from(questionMap.values());
+        const correctCount = latestAttempts.filter(a => a.is_correct).length;
+        const totalCount = latestAttempts.length;
+
+        let progress = matrix.get(key);
+        if (!progress) {
+          progress = {};
+          matrix.set(key, progress);
+        }
+        progress.score = correctCount;
+        progress.max_score = totalCount;
+      });
+
       setProgressMatrix(matrix);
 
     } catch (error) {

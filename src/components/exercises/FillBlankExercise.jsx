@@ -126,6 +126,34 @@ const FillBlankExercise = () => {
     loadExercise()
   }, [])
 
+  // Fetch max attempt_number from database to continue from where we left off
+  useEffect(() => {
+    const fetchMaxAttemptNumber = async () => {
+      if (!exerciseId || !user) return
+
+      try {
+        const { data, error } = await supabase
+          .from('question_attempts')
+          .select('attempt_number')
+          .eq('user_id', user.id)
+          .eq('exercise_id', exerciseId)
+          .order('attempt_number', { ascending: false })
+          .limit(1)
+
+        if (error) throw error
+
+        if (data && data.length > 0) {
+          // Start from the next attempt number
+          setAttemptNumber(data[0].attempt_number + 1)
+        }
+      } catch (err) {
+        console.log('Could not fetch attempt number:', err.message)
+      }
+    }
+
+    fetchMaxAttemptNumber()
+  }, [exerciseId, user])
+
   useEffect(() => {
     // Track when student enters the exercise
     const initExercise = async () => {
@@ -524,6 +552,28 @@ const FillBlankExercise = () => {
         setExerciseCompleted(true)
         setRetryMode(false)
         setRetryQuestions([])
+
+        // Update user_progress with the new score after retry
+        const urlParams = new URLSearchParams(location.search)
+        const exerciseId = urlParams.get('exerciseId')
+        try {
+          const roundedScore = Math.round(averageScore)
+          const baseXP = exercise?.xp_reward || 10
+          const bonusXP = roundedScore >= 95 ? Math.round(baseXP * 0.5) : roundedScore >= 90 ? Math.round(baseXP * 0.3) : 0
+          const totalXP = baseXP + bonusXP
+
+          if (exerciseId && user) {
+            await completeExerciseWithXP(exerciseId, totalXP, {
+              score: roundedScore,
+              max_score: 100,
+              challengeId: challengeId,
+              challengeStartedAt: challengeStartTime
+            })
+            setXpAwarded(totalXP)
+          }
+        } catch (err) {
+          console.error('Error updating score after retry:', err)
+        }
         return
       }
     }
