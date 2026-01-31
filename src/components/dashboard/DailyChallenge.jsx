@@ -11,7 +11,9 @@ import {
   Trophy,
   Clock,
   Medal,
-  Lock
+  Lock,
+  Info,
+  X
 } from 'lucide-react'
 import { getVietnamDate } from '../../utils/vietnamTime'
 
@@ -36,6 +38,7 @@ const DailyChallenge = () => {
     intermediate: { top1: { xp: 120, gems: 20 }, top2: { xp: 90, gems: 15 }, top3: { xp: 60, gems: 12 } },
     advanced: { top1: { xp: 160, gems: 25 }, top2: { xp: 120, gems: 20 }, top3: { xp: 80, gems: 16 } }
   })
+  const [showInfoModal, setShowInfoModal] = useState(false)
 
   useEffect(() => {
     if (user) {
@@ -260,27 +263,26 @@ const DailyChallenge = () => {
   const canStart = attemptsLeft > 0 && !isLocked
 
   return (
-    <div className={`relative rounded-lg border-4 ${isLocked ? 'border-gray-400' : 'border-purple-600'} overflow-visible shadow-lg hover:shadow-xl transition-shadow h-full`}
-      style={{
-        backgroundImage: `url(https://placehold.co/800x600/e9d5ff/7c3aed?text=Daily+Challenge)`,
-        backgroundSize: 'cover',
-        backgroundPosition: 'center',
-      }}
+    <div className={`relative rounded-lg border-4 ${isLocked ? 'border-gray-400 bg-gradient-to-b from-gray-50 to-gray-100' : 'border-purple-600 bg-gradient-to-b from-purple-50 to-purple-100'} overflow-visible shadow-lg hover:shadow-xl transition-shadow h-full`}
     >
-      {/* Overlay for readability */}
-      <div className="absolute inset-0 bg-white/70 rounded-lg"></div>
 
-      {/* Ribbon/image centered at top, overlapping */}
-      <div className="absolute -top-8 left-1/2 -translate-x-1/2 z-20">
-        <div className="relative">
-          <img
-            src="https://xpclass.vn/xpclass/image/dashboard/dashboard_ribbon3.png"
-            className="w-56 h-12"
-            alt="Daily Challenge"
-          />
-          <span className="absolute inset-0 flex items-center justify-center -mt-2 text-white font-bold text-lg drop-shadow-md">
-            Daily Challenge
-          </span>
+      {/* Purple ribbon banner */}
+      <div className="absolute -top-2 left-1/2 -translate-x-1/2 z-20 w-[105%]">
+        <div className="bg-gradient-to-b from-purple-400 to-purple-500 rounded-lg py-3 px-6 shadow-lg border-b-4 border-purple-600 text-center relative">
+          <p className="text-purple-200 text-xs font-semibold tracking-wider uppercase">
+            Weekend Challenge
+          </p>
+          <p className="text-white text-2xl font-extrabold tracking-wide drop-shadow-md" style={{ textShadow: '2px 2px 0 rgba(0,0,0,0.2)' }}>
+            PRONUNCIATION
+          </p>
+          {/* Info button */}
+          <button
+            onClick={() => setShowInfoModal(true)}
+            className="absolute right-2 top-1/2 -translate-y-1/2 w-8 h-8 rounded-full bg-white/20 hover:bg-white/30 flex items-center justify-center transition-colors"
+            aria-label="Daily Challenge Info"
+          >
+            <Info className="w-4 h-4 text-white" />
+          </button>
         </div>
       </div>
 
@@ -419,6 +421,73 @@ const DailyChallenge = () => {
         )}
         </div>
       </div>
+
+      {/* Info Modal */}
+      {showInfoModal && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4" onClick={() => setShowInfoModal(false)}>
+          <div className="bg-white rounded-xl shadow-2xl max-w-md w-full p-6" onClick={(e) => e.stopPropagation()}>
+            {/* Header */}
+            <div className="flex items-center justify-between mb-4">
+              <div className="flex items-center gap-2">
+                <Trophy className="w-6 h-6 text-purple-600" />
+                <h3 className="text-xl font-bold text-gray-900">Daily Challenge</h3>
+              </div>
+              <button
+                onClick={() => setShowInfoModal(false)}
+                className="w-8 h-8 rounded-full hover:bg-gray-100 flex items-center justify-center transition-colors"
+              >
+                <X className="w-5 h-5 text-gray-500" />
+              </button>
+            </div>
+
+            {/* Content */}
+            <div className="space-y-4 text-sm text-gray-700">
+              <div>
+                <h4 className="font-semibold text-purple-600 mb-2">Quy tắc:</h4>
+                <ul className="space-y-2 list-disc list-inside">
+                  <li>Thử thách mới xuất hiện ngẫu nhiên các ngày trong tuần</li>
+                  <li>Bạn có tối đa <strong>3 lần thử</strong></li>
+                  <li>Đạt <strong>≥75%</strong> để lên bảng xếp hạng</li>
+                </ul>
+              </div>
+
+              <div>
+                <h4 className="font-semibold text-purple-600 mb-2">Phần thưởng:</h4>
+                <ul className="space-y-2 list-disc list-inside">
+                  <li><strong>Top 1:</strong> XP + Gem</li>
+                  <li><strong>Top 2-3:</strong> XP bonus</li>
+                  <li><b>Hoàn thành:</b> XP cơ bản</li>
+                </ul>
+              </div>
+
+              <div>
+                <h4 className="font-semibold text-purple-600 mb-2">Xếp hạng:</h4>
+                <p>Xếp hạng dựa trên:</p>
+                <ul className="space-y-1 list-disc list-inside ml-4">
+                  <li>Điểm số cao nhất</li>
+                  <li>Thời gian hoàn thành nhanh nhất (nếu điểm bằng nhau)</li>
+                </ul>
+              </div>
+
+              <div className="bg-purple-50 rounded-lg p-3 border border-purple-200">
+                <p className="text-xs text-purple-800 font-medium">
+                  💡 <strong>Tips:</strong> Ghi lại câu hỏi trong lượt 1 để tiết kiệm thời gian cho lượt sau
+                </p>
+              </div>
+            </div>
+
+            {/* Close button */}
+            <div className="mt-6">
+              <Button
+                onClick={() => setShowInfoModal(false)}
+                className="w-full bg-purple-600 text-white font-bold py-2 rounded-lg"
+              >
+                Đã hiểu
+              </Button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   )
 }

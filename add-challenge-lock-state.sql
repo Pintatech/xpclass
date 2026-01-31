@@ -74,7 +74,20 @@ BEGIN
     'winners_awarded', challenge_record.winners_awarded,
     'participated', (user_participation IS NOT NULL),
     'user_score', user_participation.score,
-    'user_rank', user_participation.rank_calculated,
+    'user_rank', (
+      -- Calculate rank dynamically instead of using cached rank_calculated
+      CASE
+        WHEN user_participation.score >= 75 THEN
+          (SELECT COUNT(*) + 1
+           FROM daily_challenge_participations dcp
+           WHERE dcp.challenge_id = challenge_record.id
+             AND dcp.score >= 75
+             AND (dcp.score > user_participation.score
+               OR (dcp.score = user_participation.score
+                 AND dcp.time_spent < user_participation.time_spent)))
+        ELSE NULL
+      END
+    ),
     'user_time', user_participation.time_spent,
     'attempts_used', COALESCE(user_participation.attempts, 0),
     'max_attempts', 3,
