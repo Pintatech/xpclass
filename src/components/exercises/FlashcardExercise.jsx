@@ -2,6 +2,7 @@ import { useState, useEffect, useRef } from "react";
 import { Link, useLocation, useNavigate } from "react-router-dom";
 import { saveRecentExercise } from "../../utils/recentExercise";
 import { useAuth } from "../../hooks/useAuth";
+import { useProgress } from "../../hooks/useProgress";
 import { supabase } from "../../supabase/client";
 import Button from "../ui/Button";
 import LoadingSpinner from "../ui/LoadingSpinner";
@@ -73,17 +74,33 @@ const FlashcardExercise = () => {
   const searchParams = new URLSearchParams(location.search);
   const exerciseId = searchParams.get("exerciseId");
   const sessionId = searchParams.get("sessionId");
+  const isChallenge = searchParams.get("isChallenge") === "true";
+  const challengeId = searchParams.get("challengeId");
   const navigate = useNavigate();
   const { user } = useAuth();
+  const { startExercise, completeExerciseWithXP } = useProgress();
+  const [challengeStartTime, setChallengeStartTime] = useState(null);
 
   useEffect(() => {
-    if (exerciseId) {
-      fetchFlashcards();
-    } else {
-      setLoading(false);
-      setError("Không tìm thấy ID bài tập");
-    }
-  }, [exerciseId]);
+    const init = async () => {
+      if (exerciseId) {
+        fetchFlashcards();
+        // Start exercise tracking (captures challenge start time)
+        if (user) {
+          if (isChallenge && challengeId) {
+            const { startedAt } = await startExercise(exerciseId);
+            setChallengeStartTime(startedAt);
+          } else {
+            await startExercise(exerciseId);
+          }
+        }
+      } else {
+        setLoading(false);
+        setError("Không tìm thấy ID bài tập");
+      }
+    };
+    init();
+  }, [exerciseId, user]);
 
   // Fetch session info for navigation
   useEffect(() => {
@@ -204,39 +221,28 @@ const FlashcardExercise = () => {
     }
 
     // Calculate average of best scores
-    let finalScore = null;
-    let status = "completed";
+    let finalScore = 0;
 
     if (practicedCards > 0) {
       const scores = Object.values(cardScores).map((card) => card.bestScore);
       const totalScore = scores.reduce((sum, score) => sum + score, 0);
       finalScore = Math.round(totalScore / scores.length);
-
-      // Determine status based on score threshold (75% = passing)
-      status = finalScore >= 75 ? "completed" : "attempted";
     }
 
     // Mark current exercise as completed for progress tracking
     try {
       if (user && exerciseId) {
-        const xpReward = exercise?.xp_reward || 10;
+        const baseXP = exercise?.xp_reward || 10;
+        const bonusXP = finalScore >= 95 ? Math.round(baseXP * 0.5) : finalScore >= 90 ? Math.round(baseXP * 0.3) : 0;
+        const totalXP = baseXP + bonusXP;
 
-        const progressData = {
-          user_id: user.id,
-          exercise_id: exerciseId,
-          status: status,
-          completed_at: new Date().toISOString(),
-          updated_at: new Date().toISOString(),
-          xp_earned: status === "completed" ? xpReward : 0,
-        };
-
-        // Add score if available
-        if (finalScore !== null) {
-          progressData.score = finalScore;
-          progressData.max_score = 100;
-        }
-
-        await supabase.from("user_progress").upsert(progressData);
+        await completeExerciseWithXP(exerciseId, totalXP, {
+          score: finalScore,
+          max_score: 100,
+          xp_earned: totalXP,
+          challengeId: challengeId,
+          challengeStartedAt: challengeStartTime,
+        });
       }
     } catch (e) {
       console.error("Failed to mark exercise completed:", e);
@@ -278,6 +284,52 @@ const FlashcardExercise = () => {
     }
   };
 
+  // Finish daily challenge and go back to dashboard
+  const goToFinishChallenge = async () => {
+    // Validate that ALL cards have been practiced
+    const totalCards = displayedCards.length;
+    const practicedCards = Object.keys(cardScores).length;
+
+    if (totalCards > 0 && practicedCards < totalCards) {
+      alert(
+        `Please practice pronunciation for all ${totalCards} cards. You've practiced ${practicedCards} so far.`
+      );
+      return;
+    }
+
+    // Calculate average of best scores
+    let score = 0;
+
+    if (practicedCards > 0) {
+      const scores = Object.values(cardScores).map((card) => card.bestScore);
+      const totalScore = scores.reduce((sum, s) => sum + s, 0);
+      score = Math.round(totalScore / scores.length);
+    }
+
+    // Use completeExerciseWithXP (same as MultipleChoice) to handle progress + challenge tracking
+    try {
+      const baseXP = exercise?.xp_reward || 10;
+      const bonusXP = score >= 95 ? Math.round(baseXP * 0.5) : score >= 90 ? Math.round(baseXP * 0.3) : 0;
+      const totalXP = baseXP + bonusXP;
+
+      const result = await completeExerciseWithXP(exerciseId, totalXP, {
+        score: score,
+        max_score: 100,
+        xp_earned: totalXP,
+        challengeId: challengeId,
+        challengeStartedAt: challengeStartTime,
+      });
+
+      if (result.xpAwarded > 0) {
+        console.log(`✅ Challenge completed! Awarded ${result.xpAwarded} XP`);
+      }
+    } catch (e) {
+      console.error("Failed to save challenge progress:", e);
+    }
+
+    navigate("/");
+  };
+
   const handleCardSelect = (index) => {
     // Stop current audio when switching cards
     if (currentAudio) {
@@ -289,10 +341,11 @@ const FlashcardExercise = () => {
     speechSynth.cancel();
     // Pause all videos
     pauseAllVideos();
-    // Reset flip state and video index
+    // Reset flip state, video index, and pronunciation result
     setIsFlipped(false);
     setMediaMode("image");
     setCurrentVideoIndex(0);
+    setPronunciationResult(null);
     setCurrentCard(index);
   };
 
@@ -1240,10 +1293,10 @@ const FlashcardExercise = () => {
           </div>
         </div>
         {/* Next Exercise Button */}
-        {sessionId && (
+        {(sessionId || isChallenge) && (
           <div className="flex justify-center mt-6">
             <Button
-              onClick={goToNextExercise}
+              onClick={isChallenge ? goToFinishChallenge : goToNextExercise}
               variant="outline"
               className="border-blue-600 text-blue-600 hover:bg-blue-50"
             >

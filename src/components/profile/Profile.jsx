@@ -592,7 +592,7 @@ const Profile = () => {
         {/* Background Image */}
         <div
           className="absolute inset-0 bg-cover bg-center bg-no-repeat"
-          style={{ backgroundImage: "url('https://xpclass.vn/xpclass/image/blue_dashboard_hero_section.jpeg')" }}
+          style={{ backgroundImage: "url('https://xpclass.vn/xpclass/image/dashboard/blue_dashboard_hero_section.jpeg')" }}
         />
         {/* Dark overlay for better text readability */}
         <div className="absolute inset-0 bg-black/30" />

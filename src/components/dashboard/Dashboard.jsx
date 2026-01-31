@@ -381,7 +381,7 @@ const Dashboard = () => {
           {/* Background Image */}
           <div
             className="absolute inset-0 bg-cover bg-center bg-no-repeat"
-            style={{ backgroundImage: "url('https://xpclass.vn/xpclass/image/blue_dashboard_hero_section.jpeg')" }}
+            style={{ backgroundImage: "url('https://xpclass.vn/xpclass/image/dashboard/blue_dashboard_hero_section.jpeg')" }}
           />
           {/* Dark overlay for better text readability */}
           <div className="absolute inset-0 bg-black/30" />
@@ -498,11 +498,11 @@ const Dashboard = () => {
 
       {/* Daily Challenge + Recent Activities - Side by side on PC */}
       {profile?.role === 'user' && (
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
-          <div className="lg:col-span-1 h-full">
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6 mt-10">
+          <div className="overflow-visible">
             <DailyChallenge />
           </div>
-          <div className="lg:col-span-1 h-full">
+          <div className="h-full">
             <RecentActivities />
           </div>
         </div>

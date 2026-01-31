@@ -109,7 +109,7 @@ const RecentActivities = () => {
           Cập nhật liên tục
         </div>
       </div>
-      
+
       <div className="space-y-3 max-h-96 overflow-y-auto">
         {activities.map((activity) => (
           <div key={`achievement-${activity.id}`} className="flex items-center space-x-3 p-3 rounded-lg hover:bg-yellow-50 transition-colors">

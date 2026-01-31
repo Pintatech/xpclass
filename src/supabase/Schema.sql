@@ -748,21 +748,32 @@ BEGIN
     completed_at = NOW()
   RETURNING id INTO participation_id;
 
-  -- Calculate rank (only for passing scores >= 75%)
-  IF is_passing THEN
-    SELECT COUNT(*) + 1 INTO user_rank
-    FROM daily_challenge_participations
-    WHERE challenge_id = p_challenge_id
-      AND score >= 75
-      AND (score > p_score OR (score = p_score AND time_spent < p_time_spent));
+  -- Calculate rank using the participation's best score (not current attempt score)
+  -- Re-read the participation after UPSERT to get the actual best score/time
+  DECLARE
+    best_score integer;
+    best_time integer;
+  BEGIN
+    SELECT dcp.score, dcp.time_spent INTO best_score, best_time
+    FROM daily_challenge_participations dcp
+    WHERE dcp.id = participation_id;
 
-    -- Update cached rank
-    UPDATE daily_challenge_participations
-    SET rank_calculated = user_rank
-    WHERE id = participation_id;
-  ELSE
-    user_rank := NULL;
-  END IF;
+    IF best_score >= 75 THEN
+      SELECT COUNT(*) + 1 INTO user_rank
+      FROM daily_challenge_participations
+      WHERE challenge_id = p_challenge_id
+        AND user_id != p_user_id
+        AND score >= 75
+        AND (score > best_score OR (score = best_score AND time_spent < best_time));
+
+      -- Update cached rank
+      UPDATE daily_challenge_participations
+      SET rank_calculated = user_rank
+      WHERE id = participation_id;
+    ELSE
+      user_rank := NULL;
+    END IF;
+  END;
 
   -- Insert individual attempt record (all attempts tracked)
   INSERT INTO daily_challenge_attempts (

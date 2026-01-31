@@ -9,11 +9,8 @@ import AvatarWithFrame from '../ui/AvatarWithFrame'
 import ChallengeAttemptHistory from './ChallengeAttemptHistory'
 import {
   Trophy,
-  Star,
   Clock,
   Medal,
-  Flame,
-  Zap,
   Lock
 } from 'lucide-react'
 import { getVietnamDate } from '../../utils/vietnamTime'
@@ -28,7 +25,7 @@ const TEST_USERS = [
 ]
 
 const DailyChallenge = () => {
-  const { user } = useAuth()
+  const { user, profile } = useAuth()
   const { fetchTodayChallenge, todayChallenge, canParticipate, fetchLeaderboard } = useDailyChallenge()
   const { currentLevel } = useStudentLevels()
   const [loading, setLoading] = useState(true)
@@ -257,62 +254,78 @@ const DailyChallenge = () => {
   }
 
   const difficultyInfo = getDifficultyInfo(todayChallenge.difficulty_level)
-  const participated = todayChallenge.participated
+  const participated = todayChallenge.participated || todayChallenge.attempts_used > 0
   const attemptsLeft = 3 - todayChallenge.attempts_used
   const isLocked = todayChallenge.is_locked === true
   const canStart = attemptsLeft > 0 && !isLocked
 
   return (
-    <Card className={`border-2 ${isLocked ? 'border-gray-400' : 'border-purple-300'} relative overflow-hidden shadow-lg hover:shadow-xl transition-shadow h-full`}>
-      <div className={`absolute inset-0 ${isLocked ? 'bg-gray-400' : 'bg-gray-300'} opacity-10`}></div>
+    <div className={`relative rounded-lg border-4 ${isLocked ? 'border-gray-400' : 'border-purple-600'} overflow-visible shadow-lg hover:shadow-xl transition-shadow h-full`}
+      style={{
+        backgroundImage: `url(https://placehold.co/800x600/e9d5ff/7c3aed?text=Daily+Challenge)`,
+        backgroundSize: 'cover',
+        backgroundPosition: 'center',
+      }}
+    >
+      {/* Overlay for readability */}
+      <div className="absolute inset-0 bg-white/70 rounded-lg"></div>
 
-      <div className="relative p-4 flex flex-col h-full">
+      {/* Ribbon/image centered at top, overlapping */}
+      <div className="absolute -top-8 left-1/2 -translate-x-1/2 z-20">
+        <div className="relative">
+          <img
+            src="https://xpclass.vn/xpclass/image/dashboard/dashboard_ribbon3.png"
+            className="w-56 h-12"
+            alt="Daily Challenge"
+          />
+          <span className="absolute inset-0 flex items-center justify-center -mt-2 text-white font-bold text-lg drop-shadow-md">
+            Daily Challenge
+          </span>
+        </div>
+      </div>
+
+      <div className="relative p-4 pt-8 flex flex-col h-full">
 
         {/* Header: title + difficulty + rank + exercise info */}
         <div className="flex items-center justify-between mb-3">
           <div className="flex items-center gap-2">
-            {isLocked ? (
-              <Lock className="w-5 h-5 text-gray-500" />
-            ) : (
-              <Trophy className="w-5 h-5 text-yellow-500" />
-            )}
-            <h3 className="text-lg font-bold text-gray-900">Daily Challenge</h3>
-            <span className={`px-2 py-0.5 rounded-full text-xs font-bold border ${difficultyInfo.color}`}>
-              {difficultyInfo.label}
-            </span>
-            {isLocked && (
-              <span className="px-2 py-0.5 rounded-full text-xs font-bold bg-gray-100 text-gray-700 border border-gray-300">
-                Đã khóa
-              </span>
-            )}
-          </div>
-          <div className="flex items-center gap-2">
             {participated && (
               <div className="flex items-center gap-1 text-yellow-600 font-bold">
                 <Medal className="w-4 h-4" />
-                <span className="text-sm">#{todayChallenge.user_rank || '?'}</span>
+                <span className="text-sm">Your rank:{todayChallenge.user_rank || '?'}</span>
               </div>
             )}
-            <div className="flex items-center gap-1 bg-white border border-gray-200 rounded px-2 py-1">
-              <Star className="w-3 h-3 text-yellow-500" />
-              <span className="font-bold text-gray-900 text-xs">{todayChallenge.base_xp_reward} XP + {todayChallenge.base_gem_reward} 💎</span>
+            <div className="flex items-center gap-2 bg-white border border-gray-200 rounded px-2 py-1">
+              <span className="text-xs font-semibold text-gray-600">Reward:</span>
+              <span className="flex items-center gap-1">
+                <img src="https://xpclass.vn/xpclass/image/study/xp2.png" alt="XP" className="w-4 h-4" />
+                <span className="font-bold text-gray-900 text-xs">{todayChallenge.base_xp_reward}</span>
+              </span>
+              {todayChallenge.base_gem_reward > 0 && (
+                <span className="flex items-center gap-1">
+                  <img src="https://xpclass.vn/xpclass/image/study/gem.png" alt="Gems" className="w-4 h-4" />
+                  <span className="font-bold text-gray-900 text-xs">{todayChallenge.base_gem_reward}</span>
+                </span>
+              )}
             </div>
           </div>
+
         </div>
 
         {/* Exercise + Status row */}
         <div className="flex items-center justify-between mb-3">
           <div>
             <span className="font-semibold text-sm text-gray-900">{todayChallenge.exercise_title}</span>
-            <span className="text-xs text-gray-500 ml-2">{todayChallenge.exercise_type?.replace('_', ' ').toUpperCase()}</span>
           </div>
         </div>
 
         {/* Top 3 compact list */}
         {leaderboardData.length > 0 && (
           <div className="mb-3 rounded-lg border border-gray-200 overflow-hidden">
-            {leaderboardData.map((entry, i) => (
-              <div key={i} className={`flex items-center gap-2 px-3 py-2 ${i > 0 ? 'border-t border-gray-100' : ''} ${i === 0 ? 'bg-yellow-50' : ''}`}>
+            {leaderboardData.map((entry, i) => {
+              const isCurrentUser = entry.user_id === user?.id
+              return (
+              <div key={i} className={`flex items-center gap-2 px-3 py-2 ${i > 0 ? 'border-t border-gray-100' : ''} ${isCurrentUser ? 'bg-purple-50 ring-2 ring-inset ring-purple-400' : i === 0 ? 'bg-yellow-50' : ''}`}>
                 <span className={`w-5 h-5 flex items-center justify-center rounded-full text-xs font-bold ${
                   i === 0 ? 'bg-yellow-400 text-yellow-900' :
                   i === 1 ? 'bg-gray-300 text-gray-700' :
@@ -326,14 +339,37 @@ const DailyChallenge = () => {
                   size={28}
                   className="flex-shrink-0"
                 />
-                <span className="text-sm font-medium text-gray-900 truncate flex-1">{entry.full_name}</span>
+                <span className={`text-sm font-medium truncate flex-1 ${isCurrentUser ? 'text-purple-700 font-bold' : 'text-gray-900'}`}>{entry.full_name} {isCurrentUser && '(Bạn)'}</span>
                 <span className="text-xs font-bold text-gray-700">{entry.score}%</span>
                 <span className="text-xs text-gray-500">{Math.floor(entry.time_spent / 60)}:{(entry.time_spent % 60).toString().padStart(2, '0')}</span>
                 {i < 3 && (
-                  <span className="text-xs text-yellow-600 font-semibold">+{achievementRewards[todayChallenge.difficulty_level]?.[`top${i + 1}`]?.xp} XP +{achievementRewards[todayChallenge.difficulty_level]?.[`top${i + 1}`]?.gems} 💎</span>
+                  <span className="flex items-center gap-1 text-xs text-yellow-600 font-semibold">
+                    +{achievementRewards[todayChallenge.difficulty_level]?.[`top${i + 1}`]?.xp} <img src="https://xpclass.vn/xpclass/image/study/xp2.png" alt="XP" className="w-3 h-3 inline" />
+                    +{achievementRewards[todayChallenge.difficulty_level]?.[`top${i + 1}`]?.gems} <img src="https://xpclass.vn/xpclass/image/study/gem.png" alt="Gems" className="w-3 h-3 inline" />
+                  </span>
                 )}
               </div>
-            ))}
+              )
+            })}
+
+            {/* Show current user's position if not in the displayed list */}
+            {participated && !leaderboardData.some(e => e.user_id === user?.id) && (
+              <div className="flex items-center gap-2 px-3 py-2 border-t-2 border-dashed border-purple-300 bg-purple-50">
+                <span className="w-5 h-5 flex items-center justify-center rounded-full text-xs font-bold bg-purple-400 text-white">
+                  {todayChallenge.user_rank}
+                </span>
+                <AvatarWithFrame
+                  avatarUrl={profile?.avatar_url}
+                  frameUrl={profile?.active_title}
+                  frameRatio={profile?.active_frame_ratio}
+                  size={28}
+                  className="flex-shrink-0"
+                />
+                <span className="text-sm font-bold text-purple-700 flex-1">Bạn</span>
+                <span className="text-xs font-bold text-gray-700">{todayChallenge.user_score}%</span>
+                <span className="text-xs text-gray-500">{Math.floor((todayChallenge.user_time_spent || 0) / 60)}:{((todayChallenge.user_time_spent || 0) % 60).toString().padStart(2, '0')}</span>
+              </div>
+            )}
           </div>
         )}
 
@@ -383,7 +419,7 @@ const DailyChallenge = () => {
         )}
         </div>
       </div>
-    </Card>
+    </div>
   )
 }
 
