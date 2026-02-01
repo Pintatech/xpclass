@@ -71,21 +71,26 @@ const UserManagement = () => {
       }
 
       // Format user data
-      const formattedUsers = data.map(user => ({
-        id: user.id,
-        name: user.full_name || 'No Name',
-        username: user.username || '',
-        email: user.email,
-        role: user.role || 'user',
-        level: user.current_level || 1,
-        xp: user.xp || 0,
-        status: 'active', // Can be enhanced to track actual status
-        lastActive: user.last_activity_date || new Date(user.created_at).toISOString().split('T')[0],
-        joinDate: new Date(user.created_at).toISOString().split('T')[0],
-        streakCount: user.streak_count || 0,
-        totalPracticeTime: user.total_practice_time || 0,
-        cohorts: membershipsMap[user.id] || []
-      }))
+      const formattedUsers = data.map(user => {
+        const lastActivityDate = user.last_activity_date || new Date(user.created_at).toISOString().split('T')[0]
+        const daysSinceActivity = Math.floor((new Date() - new Date(lastActivityDate)) / (1000 * 60 * 60 * 24))
+
+        return {
+          id: user.id,
+          name: user.full_name || 'No Name',
+          username: user.username || '',
+          email: user.email,
+          role: user.role || 'user',
+          level: user.current_level || 1,
+          xp: user.xp || 0,
+          status: daysSinceActivity > 7 ? 'inactive' : 'active',
+          lastActive: lastActivityDate,
+          joinDate: new Date(user.created_at).toISOString().split('T')[0],
+          streakCount: user.streak_count || 0,
+          totalPracticeTime: user.total_practice_time || 0,
+          cohorts: membershipsMap[user.id] || []
+        }
+      })
 
       setUsers(formattedUsers)
     } catch (err) {
@@ -157,7 +162,7 @@ const UserManagement = () => {
   const getStatusColor = (status) => {
     switch (status) {
       case 'active':
-        return 'text-green-600 bg-green-100'
+        return 'text-green-600 bg-green-300'
       case 'inactive':
         return 'text-gray-600 bg-gray-100'
       case 'banned':
@@ -190,6 +195,34 @@ const UserManagement = () => {
         return 'Học viên'
       default:
         return 'Không xác định'
+    }
+  }
+
+  const getRelativeTime = (dateString) => {
+    const now = new Date()
+    const past = new Date(dateString)
+    const diffMs = now - past
+    const diffSeconds = Math.floor(diffMs / 1000)
+    const diffMinutes = Math.floor(diffSeconds / 60)
+    const diffHours = Math.floor(diffMinutes / 60)
+    const diffDays = Math.floor(diffHours / 24)
+    const diffWeeks = Math.floor(diffDays / 7)
+    const diffMonths = Math.floor(diffDays / 30)
+
+    if (diffSeconds < 60) {
+      return 'vừa xong'
+    } else if (diffMinutes < 60) {
+      return `${diffMinutes} phút trước`
+    } else if (diffHours < 24) {
+      return `${diffHours} giờ trước`
+    } else if (diffDays < 7) {
+      return `${diffDays} ngày trước`
+    } else if (diffWeeks < 4) {
+      return `${diffWeeks} tuần trước`
+    } else if (diffMonths < 12) {
+      return `${diffMonths} tháng trước`
+    } else {
+      return dateString // Show actual date if > 1 year
     }
   }
 
@@ -323,12 +356,12 @@ const UserManagement = () => {
                       <span className={`inline-flex items-center px-2 py-1 rounded-full text-xs ${getStatusColor(user.status)}`}>
                         {user.status === 'active' && <CheckCircle className="w-3 h-3 mr-1" />}
                         {user.status === 'banned' && <Ban className="w-3 h-3 mr-1" />}
-                        {user.status === 'active' ? 'Hoạt động' : 
-                         user.status === 'banned' ? 'Bị khóa' : 'Không hoạt động'}
+                        {user.status === 'active' ? 'Active' : 
+                         user.status === 'banned' ? 'Bị khóa' : 'Inactive'}
                       </span>
                     </td>
                     <td className="py-4 px-6 text-sm text-gray-600">
-                      {user.lastActive}
+                      {getRelativeTime(user.lastActive)}
                     </td>
                     <td className="py-4 px-6 text-center">
                       <div className="flex items-center justify-center space-x-2">

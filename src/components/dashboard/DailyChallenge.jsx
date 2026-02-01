@@ -275,6 +275,8 @@ const DailyChallenge = () => {
           <p className="text-white text-2xl font-extrabold tracking-wide drop-shadow-md" style={{ textShadow: '2px 2px 0 rgba(0,0,0,0.2)' }}>
             PRONUNCIATION
           </p>
+
+
           {/* Info button */}
           <button
             onClick={() => setShowInfoModal(true)}
@@ -283,10 +285,14 @@ const DailyChallenge = () => {
           >
             <Info className="w-4 h-4 text-white" />
           </button>
+
         </div>
       </div>
 
-      <div className="relative p-4 pt-8 flex flex-col h-full">
+
+
+
+      <div className="relative p-4 pt-16 flex flex-col h-full">
 
         {/* Header: title + difficulty + rank + exercise info */}
         <div className="flex items-center justify-between mb-3">
@@ -344,10 +350,14 @@ const DailyChallenge = () => {
                 <span className={`text-sm font-medium truncate flex-1 ${isCurrentUser ? 'text-purple-700 font-bold' : 'text-gray-900'}`}>{entry.full_name} {isCurrentUser && '(Bạn)'}</span>
                 <span className="text-xs font-bold text-gray-700">{entry.score}%</span>
                 <span className="text-xs text-gray-500">{Math.floor(entry.time_spent / 60)}:{(entry.time_spent % 60).toString().padStart(2, '0')}</span>
-                {i < 3 && (
+                {i < 3 && (achievementRewards[todayChallenge.difficulty_level]?.[`top${i + 1}`]?.xp > 0 || achievementRewards[todayChallenge.difficulty_level]?.[`top${i + 1}`]?.gems > 0) && (
                   <span className="flex items-center gap-1 text-xs text-yellow-600 font-semibold">
-                    +{achievementRewards[todayChallenge.difficulty_level]?.[`top${i + 1}`]?.xp} <img src="https://xpclass.vn/xpclass/image/study/xp2.png" alt="XP" className="w-3 h-3 inline" />
-                    +{achievementRewards[todayChallenge.difficulty_level]?.[`top${i + 1}`]?.gems} <img src="https://xpclass.vn/xpclass/image/study/gem.png" alt="Gems" className="w-3 h-3 inline" />
+                    {achievementRewards[todayChallenge.difficulty_level]?.[`top${i + 1}`]?.xp > 0 && (
+                      <>+{achievementRewards[todayChallenge.difficulty_level]?.[`top${i + 1}`]?.xp} <img src="https://xpclass.vn/xpclass/image/study/xp2.png" alt="XP" className="w-3 h-3 inline" /></>
+                    )}
+                    {achievementRewards[todayChallenge.difficulty_level]?.[`top${i + 1}`]?.gems > 0 && (
+                      <>+{achievementRewards[todayChallenge.difficulty_level]?.[`top${i + 1}`]?.gems} <img src="https://xpclass.vn/xpclass/image/study/gem.png" alt="Gems" className="w-3 h-3 inline" /></>
+                    )}
                   </span>
                 )}
               </div>

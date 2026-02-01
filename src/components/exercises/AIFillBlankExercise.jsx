@@ -62,7 +62,6 @@ const AIFillBlankExercise = () => {
   const [language, setLanguage] = useState('en') // 'en' | 'vi'
   const [attempts, setAttempts] = useState(0)
   const [startTime, setStartTime] = useState(null)
-  const [timeSpent, setTimeSpent] = useState(0)
   const [colorTheme, setColorTheme] = useState('blue')
   const [session, setSession] = useState(null)
   const [xpAwarded, setXpAwarded] = useState(0)
@@ -248,9 +247,6 @@ const AIFillBlankExercise = () => {
         }
       }
 
-      // Save progress
-      await saveProgress(questionIndex, aiResult.score >= 70) // 70% threshold for "correct"
-
     } catch (error) {
       console.error('Error checking answer:', error)
       alert('Error checking answer. Please try again.')
@@ -259,64 +255,12 @@ const AIFillBlankExercise = () => {
     }
   }
 
-  const saveProgress = async (questionIndex, isCorrect) => {
-    if (!user || !exercise) return
-
-    try {
-      const currentTime = Date.now()
-      const totalTimeSpent = startTime ? Math.floor((currentTime - startTime) / 1000) : 0
-      setTimeSpent(totalTimeSpent)
-      
-      // Check if all questions are completed
-      const allQuestionsCompleted = exercise.content.questions.every((_, index) => {
-        const aiScore = aiScores[index]
-        return aiScore && aiScore.score >= 70
-      })
-
-      // Calculate overall score
-      const totalScore = Object.values(aiScores).reduce((sum, score) => sum + (score?.score || 0), 0)
-      const maxScore = exercise.content.questions.length * 100
-      const averageScore = totalScore / exercise.content.questions.length
-
-      const { error } = await supabase.from('user_progress').upsert({
-        user_id: user.id,
-        exercise_id: exercise.id,
-        question_index: questionIndex,
-        status: allQuestionsCompleted ? 'completed' : 'in_progress',
-        completed_at: allQuestionsCompleted ? new Date().toISOString() : null,
-        updated_at: new Date().toISOString(),
-        xp_earned: allQuestionsCompleted ? (exercise.xp_reward || 10) : 0,
-        score: Math.round(averageScore),
-        max_score: 100,
-        attempts: attempts,
-        time_spent: totalTimeSpent
-      }, {
-        onConflict: 'user_id,exercise_id'
-      })
-
-      if (error) {
-        console.error('Error saving progress:', error)
-      }
-
-      if (allQuestionsCompleted) {
-        setExerciseCompleted(true)
-      }
-    } catch (error) {
-      console.error('Error saving progress:', error)
-    }
-  }
-
   const nextQuestion = async () => {
     if (currentQuestionIndex < exercise.content.questions.length - 1) {
       setCurrentQuestionIndex(prev => prev + 1)
     } else {
-      // Last question - complete the exercise
-      const allQuestionsCompleted = exercise.content.questions.every((_, index) => {
-        const aiScore = aiScores[index]
-        return aiScore && aiScore.score >= 70
-      })
-
-      if (allQuestionsCompleted && !exerciseCompleted) {
+      // Last question - complete the exercise (allow completion with any score)
+      if (!exerciseCompleted) {
         // Calculate final score and complete
         const totalScore = Object.values(aiScores).reduce((sum, score) => sum + (score?.score || 0), 0)
         const averageScore = totalScore / exercise.content.questions.length
@@ -338,12 +282,13 @@ const AIFillBlankExercise = () => {
           const exerciseId = searchParams.get('exerciseId')
 
           if (exerciseId && user) {
-            await completeExerciseWithXP(exerciseId, totalXP, {
+            const result = await completeExerciseWithXP(exerciseId, totalXP, {
               score: roundedScore,
               max_score: 100,
               time_spent: totalTimeSpent
             })
-            setXpAwarded(totalXP)
+            // Use the actual XP awarded (may be 0 on retry with no improvement)
+            setXpAwarded(result?.xpAwarded || 0)
           }
 
           setExerciseCompleted(true)

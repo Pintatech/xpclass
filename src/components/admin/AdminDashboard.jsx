@@ -3,11 +3,11 @@
 
 import React, { useState, useEffect } from 'react';
 import { Routes, Route, useNavigate, useLocation } from 'react-router-dom';
-import { 
-  Edit,  
-  AlertCircle, 
-  CheckCircle, 
-  Download, 
+import {
+  Edit,
+  AlertCircle,
+  CheckCircle,
+  Download,
   Users,
   BookOpen,
   BarChart3,
@@ -15,7 +15,8 @@ import {
   FileText,
   Home,
   Trophy,
-  ShoppingBag
+  ShoppingBag,
+  Activity
 } from 'lucide-react';
 import { supabase } from '../../supabase/client';
 import { useAuth } from '../../hooks/useAuth';
@@ -35,6 +36,7 @@ import StudentLevelsManagement from './StudentLevelsManagement';
 import AchievementManagement from './AchievementManagement';
 import ShopManagement from './ShopManagement';
 import DailyChallengeManagement from './DailyChallengeManagement';
+import RecentActivities from './RecentActivities';
 import { useCohorts } from '../../hooks/useCohorts';
 
 const AdminDashboard = () => {
@@ -216,6 +218,7 @@ const AdminDashboard = () => {
     { id: 'daily-challenges', label: 'Daily Challenges', icon: Trophy },
     { id: 'shop', label: 'Shop', icon: ShoppingBag },
     { id: 'users', label: 'Users', icon: Users },
+    { id: 'activities', label: 'Activities', icon: Activity },
     { id: 'analytics', label: 'Analytics', icon: BarChart3 }
   ];
 
@@ -291,6 +294,7 @@ const AdminDashboard = () => {
                   {activeTab === 'shop' && 'Manage shop items and pricing'}
                   {activeTab === 'sessions' && 'Manage learning sessions'}
                   {activeTab === 'users' && 'User management and profiles'}
+                  {activeTab === 'activities' && 'Recent student exercise attempts'}
                   {activeTab === 'analytics' && 'Platform analytics and insights'}
                 </p>
               </div>
@@ -349,6 +353,7 @@ const AdminDashboard = () => {
               {/* Redirect legacy exercises path to bank */}
               <Route path="exercises" element={<ExerciseBank />} />
               <Route path="users" element={<UserManagement />} />
+              <Route path="activities" element={<RecentActivities />} />
               <Route path="analytics" element={<AnalyticsView stats={stats} />} />
             </Routes>
           </div>
