@@ -292,7 +292,7 @@ const PetDisplay = () => {
       const evolved = result.evolution?.evolved;
       const levelUp = result.level_up;
 
-      let message = `${activePet.nickname || activePet.name} had fun playing! 🎮`;
+      let message = `${activePet.nickname || activePet.name} finished training! 💪`;
       if (evolved) {
         message = `🌟 ${activePet.nickname || activePet.name} evolved to Stage ${result.evolution.new_stage}! ✨`;
       } else if (levelUp) {
@@ -449,6 +449,47 @@ const PetDisplay = () => {
             opacity: 0;
           }
         }
+        @keyframes fadeGlow {
+          0% {
+            opacity: 0;
+          }
+          20% {
+            opacity: 0.8;
+          }
+          100% {
+            opacity: 0;
+          }
+        }
+        @keyframes auraPulse {
+          0% {
+            transform: scale(0.3);
+            opacity: 0;
+          }
+          20% {
+            transform: scale(1);
+            opacity: 0.6;
+          }
+          35% {
+            transform: scale(0.8);
+            opacity: 0.4;
+          }
+          55% {
+            transform: scale(1.3);
+            opacity: 0.7;
+          }
+          70% {
+            transform: scale(1);
+            opacity: 0.4;
+          }
+          85% {
+            transform: scale(1.5);
+            opacity: 0.6;
+          }
+          100% {
+            transform: scale(1.8);
+            opacity: 0;
+          }
+        }
         @keyframes floatUpXP {
           0% {
             transform: translateY(0) scale(0.8);
@@ -601,18 +642,7 @@ const PetDisplay = () => {
                 {/* Particle Burst */}
                 {feedAnimation.phase === "burst" && (
                   <>
-                    {/* Expanding Glow Ring for Feed */}
-                    <div
-                      className="absolute z-20 pointer-events-none rounded-full"
-                      style={{
-                        left: "50%",
-                        top: "120px",
-                        width: "200px",
-                        height: "200px",
-                        background: `radial-gradient(circle, rgba(249, 115, 22, 0.7) 0%, transparent 70%)`,
-                        animation: "glowRing 2.5s ease-out forwards",
-                      }}
-                    />
+                    {/* Feed glow is now inside the pet image container */}
 
                     <div
                       className="absolute z-20 pointer-events-none"
@@ -655,32 +685,9 @@ const PetDisplay = () => {
               </>
             )}
 
-            {/* Play Animation - Glow Ring + Floating XP */}
+            {/* Play Animation - Floating XP */}
             {playAnimation && (
               <>
-                {/* Expanding Glow Ring */}
-                <div
-                  className="absolute z-20 pointer-events-none rounded-full"
-                  style={{
-                    left: "50%",
-                    top: "120px",
-                    width: "200px",
-                    height: "200px",
-                    background: `radial-gradient(circle, ${
-                      activePet.rarity === "legendary"
-                        ? "rgba(250, 204, 21, 0.7)"
-                        : activePet.rarity === "epic"
-                          ? "rgba(168, 85, 247, 0.7)"
-                          : activePet.rarity === "rare"
-                            ? "rgba(59, 130, 246, 0.7)"
-                            : activePet.rarity === "uncommon"
-                              ? "rgba(34, 197, 94, 0.7)"
-                              : "rgba(156, 163, 175, 0.7)"
-                    } 0%, transparent 70%)`,
-                    animation: "glowRing 2.5s ease-out forwards",
-                  }}
-                />
-
                 {/* Floating +XP Text */}
                 <div
                   className="absolute z-20 pointer-events-none font-bold text-3xl"
@@ -698,22 +705,6 @@ const PetDisplay = () => {
                 >
                   +{playAnimation.xpGained} XP
                 </div>
-
-                {/* Orbiting Sparkles */}
-                {[0, 1, 2, 3, 4, 5].map((i) => (
-                  <div
-                    key={i}
-                    className="absolute z-20 pointer-events-none text-2xl"
-                    style={{
-                      left: "50%",
-                      top: "120px",
-                      animation: `orbitSparkle 2s ease-in-out forwards`,
-                      animationDelay: `${i * 0.1}s`,
-                    }}
-                  >
-                    ✨
-                  </div>
-                ))}
               </>
             )}
 
@@ -724,6 +715,33 @@ const PetDisplay = () => {
               onClick={() => setShowPetInfo(true)}
               title="Click to learn about the pet system"
             >
+              {/* Aura Pulse Animation */}
+              {(playAnimation || feedAnimation?.phase === "burst") && (
+                <div
+                  className="absolute inset-0 z-0 pointer-events-none flex items-center justify-center"
+                >
+                  <div
+                    className="w-full h-full rounded-full"
+                    style={{
+                      background: `radial-gradient(circle, ${
+                        feedAnimation?.phase === "burst"
+                          ? "rgba(249, 115, 22, 0.7), rgba(249, 115, 22, 0.3) 50%, transparent 70%"
+                          : activePet.rarity === "legendary"
+                            ? "rgba(250, 204, 21, 0.7), rgba(250, 204, 21, 0.3) 50%, transparent 70%"
+                            : activePet.rarity === "epic"
+                              ? "rgba(168, 85, 247, 0.7), rgba(168, 85, 247, 0.3) 50%, transparent 70%"
+                              : activePet.rarity === "rare"
+                                ? "rgba(59, 130, 246, 0.7), rgba(59, 130, 246, 0.3) 50%, transparent 70%"
+                                : activePet.rarity === "uncommon"
+                                  ? "rgba(34, 197, 94, 0.7), rgba(34, 197, 94, 0.3) 50%, transparent 70%"
+                                  : "rgba(156, 163, 175, 0.7), rgba(156, 163, 175, 0.3) 50%, transparent 70%"
+                      })`,
+                      filter: "blur(15px)",
+                      animation: "auraPulse 4s ease-in-out forwards",
+                    }}
+                  />
+                </div>
+              )}
               {/* Rotating background - temporarily hidden */}
               {/* {playAnimation && (
                 <div
@@ -868,7 +886,7 @@ const PetDisplay = () => {
                     {bonus.breakdown && (
                       <div className="text-sm font-semibold text-gray-800 ml-5 mt-0.5 space-y-0.5">
                         {bonus.breakdown.rarity > 0 && (
-                          <div>• Rarity: +{bonus.breakdown.rarity}% XP</div>
+                          <div>•Pet Rarity: +{bonus.breakdown.rarity}% XP</div>
                         )}
                         {bonus.breakdown.evolution > 0 && (
                           <div>
@@ -960,7 +978,7 @@ const PetDisplay = () => {
               )}
             </div>
 
-            {/* Play Button */}
+            {/* Train Button */}
             <button
               onClick={handlePlay}
               className={`bg-green-400 hover:from-blue-600 hover:to-blue-700 text-white font-bold rounded-lg transition-all shadow-md ${
@@ -972,7 +990,7 @@ const PetDisplay = () => {
               <Sparkles
                 className={showChat ? "w-4 h-4 mx-auto" : "w-5 h-5 inline mr-2"}
               />
-              {!showChat && "Play with Pet"}
+              {!showChat && "Train Pet"}
             </button>
 
             {/* Chat Button */}
@@ -1166,10 +1184,10 @@ const PetDisplay = () => {
                   <div>
                     <div className="flex items-center gap-2 mb-1">
                       <Sparkles className="w-4 h-4 text-blue-600" />
-                      <span className="font-semibold">Play with Pet</span>
+                      <span className="font-semibold">Train Pet</span>
                     </div>
                     <p className="text-sm text-gray-700 ml-6">
-                      Gain pet XP and increase happiness. Playing helps your pet
+                      Gain pet XP and increase happiness. Training helps your pet
                       level up and evolve! (Has cooldown)
                     </p>
                   </div>

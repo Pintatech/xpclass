@@ -498,7 +498,7 @@ const Dashboard = () => {
       )} */}
 
       {/* Pet Display - Full width */}
-      {profile?.role === 'user' && (
+      {profile && (
         <div className="mb-6 mt-6">
           <PetDisplay />
         </div>
