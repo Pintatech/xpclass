@@ -16,7 +16,9 @@ import {
   Home,
   Trophy,
   ShoppingBag,
-  Activity
+  Activity,
+  Package,
+  Cat
 } from 'lucide-react';
 import { supabase } from '../../supabase/client';
 import { useAuth } from '../../hooks/useAuth';
@@ -35,7 +37,9 @@ import CohortsManagement from './CohortsManagement';
 import StudentLevelsManagement from './StudentLevelsManagement';
 import AchievementManagement from './AchievementManagement';
 import ShopManagement from './ShopManagement';
+import InventoryManagement from './InventoryManagement';
 import DailyChallengeManagement from './DailyChallengeManagement';
+import PetManagement from './PetManagement';
 import RecentActivities from './RecentActivities';
 import { useCohorts } from '../../hooks/useCohorts';
 
@@ -217,6 +221,8 @@ const AdminDashboard = () => {
     { id: 'achievements', label: 'Achievements', icon: Trophy },
     { id: 'daily-challenges', label: 'Daily Challenges', icon: Trophy },
     { id: 'shop', label: 'Shop', icon: ShoppingBag },
+    { id: 'inventory', label: 'Inventory', icon: Package },
+    { id: 'pets', label: 'Pet Management', icon: Cat },
     { id: 'users', label: 'Users', icon: Users },
     { id: 'activities', label: 'Activities', icon: Activity },
     { id: 'analytics', label: 'Analytics', icon: BarChart3 }
@@ -292,6 +298,7 @@ const AdminDashboard = () => {
                   {activeTab === 'levels' && 'Manage student XP levels and badges'}
                   {activeTab === 'achievements' && 'Manage achievements and badges'}
                   {activeTab === 'shop' && 'Manage shop items and pricing'}
+                  {activeTab === 'inventory' && 'Manage collectible items, chests, and recipes'}
                   {activeTab === 'sessions' && 'Manage learning sessions'}
                   {activeTab === 'users' && 'User management and profiles'}
                   {activeTab === 'activities' && 'Recent student exercise attempts'}
@@ -348,6 +355,8 @@ const AdminDashboard = () => {
               <Route path="achievements" element={<AchievementManagement />} />
               <Route path="daily-challenges" element={<DailyChallengeManagement />} />
               <Route path="shop" element={<ShopManagement />} />
+              <Route path="inventory" element={<InventoryManagement />} />
+              <Route path="pets" element={<PetManagement />} />
               <Route path="units" element={<UnitManagement />} />
               <Route path="sessions" element={<SessionManagement />} />
               {/* Redirect legacy exercises path to bank */}

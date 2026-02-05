@@ -148,6 +148,27 @@ export const ProgressProvider = ({ children }) => {
     )
   }
 
+  // Fetch active pet's XP bonus multiplier directly from DB
+  const getPetXPBonus = async () => {
+    if (!user) return 0
+    try {
+      const { data, error } = await supabase
+        .from('user_pets')
+        .select('happiness, rarity:pets(rarity)')
+        .eq('user_id', user.id)
+        .eq('is_active', true)
+        .maybeSingle()
+
+      if (error || !data || data.happiness < 70) return 0
+
+      const rarity = data.rarity?.rarity
+      const bonusMap = { common: 5, uncommon: 10, rare: 15, epic: 20, legendary: 25 }
+      return bonusMap[rarity] || 0
+    } catch {
+      return 0
+    }
+  }
+
   const addXP = async (xpAmount) => {
     if (!user || !profile) return
 
@@ -340,12 +361,20 @@ export const ProgressProvider = ({ children }) => {
 
       // Only award XP if score requirement is met
       let actualXpAwarded = 0
+      let petBonusPercent = 0
       if (meetingRequirement && xpReward && xpReward > 0) {
+        // Check for active pet XP bonus
+        petBonusPercent = await getPetXPBonus()
         if (!isAlreadyCompleted) {
-          // First completion - award full XP (base + bonus already calculated by component)
-          await addXP(xpReward)
-          actualXpAwarded = xpReward
-          console.log('💎 Awarded XP for first completion:', xpReward)
+          // First completion - award full XP + pet bonus
+          const petBonusXP = petBonusPercent > 0 ? Math.round(xpReward * petBonusPercent / 100) : 0
+          const totalWithPetBonus = xpReward + petBonusXP
+          await addXP(totalWithPetBonus)
+          actualXpAwarded = totalWithPetBonus
+          if (petBonusXP > 0) {
+            console.log(`🐾 Pet bonus applied: +${petBonusPercent}% (+${petBonusXP} XP)`)
+          }
+          console.log('💎 Awarded XP for first completion:', totalWithPetBonus)
         } else {
           // Already completed - check if new score earns a higher bonus tier
           const oldScorePercent = existingProgressData?.max_score
@@ -361,12 +390,14 @@ export const ProgressProvider = ({ children }) => {
             const currentBonusMultiplier = 1 + newBonusTier
             const baseXP = Math.round(xpReward / currentBonusMultiplier)
 
-            // Award only the bonus difference
+            // Award only the bonus difference + pet bonus on that difference
             const bonusDifference = Math.round(baseXP * (newBonusTier - oldBonusTier))
             if (bonusDifference > 0) {
-              await addXP(bonusDifference)
-              actualXpAwarded = bonusDifference
-              console.log(`💎 Awarded bonus XP difference: ${bonusDifference} (old tier: ${oldBonusTier * 100}%, new tier: ${newBonusTier * 100}%)`)
+              const petBonusOnDiff = petBonusPercent > 0 ? Math.round(bonusDifference * petBonusPercent / 100) : 0
+              const totalDiff = bonusDifference + petBonusOnDiff
+              await addXP(totalDiff)
+              actualXpAwarded = totalDiff
+              console.log(`💎 Awarded bonus XP difference: ${totalDiff} (old tier: ${oldBonusTier * 100}%, new tier: ${newBonusTier * 100}%${petBonusOnDiff > 0 ? `, pet: +${petBonusOnDiff}` : ''})`)
             }
           } else {
             console.log('🔄 No additional XP - score did not reach higher bonus tier')
@@ -393,6 +424,36 @@ export const ProgressProvider = ({ children }) => {
         await checkAndAwardAchievements(progressData)
       }
 
+      // Update pet happiness and stats when student completes exercise
+      if (meetingRequirement) {
+        try {
+          await supabase.rpc('update_pet_on_activity', { p_user_id: user.id })
+        } catch (petError) {
+          console.warn('Pet update failed (non-critical):', petError)
+        }
+      }
+
+      // Roll for inventory item drop (only on first successful completion)
+      let itemDropResult = null
+      if (meetingRequirement && !isAlreadyCompleted) {
+        try {
+          const { data: dropData, error: dropError } = await supabase.rpc('roll_exercise_drop', {
+            p_user_id: user.id,
+            p_exercise_id: exerciseId,
+            p_score: score,
+          })
+          if (!dropError && dropData?.dropped) {
+            itemDropResult = dropData.item
+            console.log('🎁 Item dropped:', dropData.item?.name)
+            // Dispatch event for ItemDropNotification to pick up
+            window.dispatchEvent(new CustomEvent('inventory-item-drop', { detail: dropData.item }))
+          }
+        } catch (dropErr) {
+          // Silently fail - item drops are non-critical
+          console.warn('Item drop roll failed:', dropErr)
+        }
+      }
+
       // Check if this exercise is part of today's daily challenge
       // Record ALL attempts, including failed ones (below 75%)
       if (challengeId) {
@@ -413,10 +474,12 @@ export const ProgressProvider = ({ children }) => {
         data,
         error: null,
         xpAwarded: actualXpAwarded,
+        petBonusPercent: petBonusPercent,
         completed: meetingRequirement,
         score: score,
         attempts: newAttempts,
-        challengeResult: challengeResult // Include challenge result in return
+        challengeResult: challengeResult,
+        itemDrop: itemDropResult
       }
     } catch (error) {
       console.error('Error completing exercise:', error)

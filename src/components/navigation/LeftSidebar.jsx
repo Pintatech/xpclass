@@ -6,17 +6,22 @@ import {
   User,
   Shield,
   GraduationCap,
-  ShoppingBag
+  ShoppingBag,
+  Package
 } from 'lucide-react'
+import { useInventory } from '../../hooks/useInventory'
 
 const LeftSidebar = () => {
   const { profile, signOut, isAdmin, isTeacher } = useAuth()
   const { currentBadge } = useStudentLevels()
+  const { newItemCount } = useInventory()
   const location = useLocation()
 
   const navItems = [
     { path: '/', imageSrc: 'https://xpclass.vn/xpclass/icon/navigation/home.svg', label: 'Trang chủ' },
     { path: '/leaderboard', imageSrc: 'https://xpclass.vn/xpclass/icon/navigation/leaderboard.svg', label: 'Xếp hạng' },
+    { path: '/pets', label: 'Thú cưng', emoji: '🐾' },
+    { path: '/inventory', iconComponent: Package, label: 'Kho đồ', badge: newItemCount },
     { path: '/progress', imageSrc: 'https://xpclass.vn/xpclass/icon/navigation/progress.svg', label: 'Tiến độ' },
     { path: '/shop', imageSrc: 'https://xpclass.vn/xpclass/icon/navigation/shop.svg', label: 'Cửa hàng'},
   ]
@@ -40,7 +45,7 @@ const LeftSidebar = () => {
 
           {/* Navigation */}
           <nav className="flex-1 overflow-y-auto p-4 space-y-1">
-            {navItems.map(({ path, imageSrc, label, icon }) => {
+            {navItems.map(({ path, imageSrc, emoji, label, icon, iconComponent: IconComp, badge }) => {
               const isActive = location.pathname === path || (path !== '/' && location.pathname.startsWith(path + '/'))
               return (
                 <Link
@@ -52,17 +57,28 @@ const LeftSidebar = () => {
                       : 'text-gray-600 hover:text-primary-600 hover:bg-gray-100'
                   }`}
                 >
-                  {imageSrc ? (
-                    <img
-                      src={imageSrc}
-                      alt=""
-                      width={22}
-                      height={22}
-                      className={`${isActive ? '' : 'grayscale opacity-70 group-hover:opacity-100 group-hover:grayscale-0'}`}
-                    />
-                  ) : icon === 'ShoppingBag' ? (
-                    <ShoppingBag size={22} className={isActive ? '' : 'opacity-70'} />
-                  ) : null}
+                  <div className="relative">
+                    {imageSrc ? (
+                      <img
+                        src={imageSrc}
+                        alt=""
+                        width={22}
+                        height={22}
+                        className={`${isActive ? '' : 'grayscale opacity-70 group-hover:opacity-100 group-hover:grayscale-0'}`}
+                      />
+                    ) : emoji ? (
+                      <span className="text-2xl">{emoji}</span>
+                    ) : IconComp ? (
+                      <IconComp size={22} className={isActive ? '' : 'opacity-70'} />
+                    ) : icon === 'ShoppingBag' ? (
+                      <ShoppingBag size={22} className={isActive ? '' : 'opacity-70'} />
+                    ) : null}
+                    {badge > 0 && (
+                      <span className="absolute -top-1.5 -right-2 bg-red-500 text-white text-[10px] font-bold w-4 h-4 rounded-full flex items-center justify-center">
+                        {badge}
+                      </span>
+                    )}
+                  </div>
                   <span className="font-medium">{label}</span>
                 </Link>
               )

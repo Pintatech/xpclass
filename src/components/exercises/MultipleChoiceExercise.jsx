@@ -4,14 +4,17 @@ import { saveRecentExercise } from '../../utils/recentExercise'
 import { useAuth } from '../../hooks/useAuth'
 import { useProgress } from '../../hooks/useProgress'
 import { useFeedback } from '../../hooks/useFeedback'
+import { usePet } from '../../hooks/usePet'
 import { supabase } from '../../supabase/client'
 import Button from '../ui/Button'
 import LoadingSpinner from '../ui/LoadingSpinner'
 import RichTextRenderer, { RichTextWithAudio } from '../ui/RichTextRenderer'
-import { CheckCircle, XCircle, ArrowRight, Star } from 'lucide-react'
+import { CheckCircle, XCircle, ArrowRight, Star, MessageCircle } from 'lucide-react'
 import Button3D from '../ui/Button3D'
 import ExerciseHeader from '../ui/ExerciseHeader'
 import CelebrationScreen from '../ui/CelebrationScreen'
+import PetTutorBubble from '../pet/PetTutorBubble'
+import { getPetTutorExplanation } from '../../utils/petChatService'
 
 // Theme-based side decoration images for PC
 const themeSideImages = {
@@ -51,6 +54,7 @@ const MultipleChoiceExercise = () => {
   const { user } = useAuth()
   const { startExercise, completeExerciseWithXP } = useProgress()
   const { currentMeme, showMeme, playFeedback, playCelebration, passGif } = useFeedback()
+  const { activePet, drainPetEnergy } = usePet()
 
   // URL params
   const searchParams = new URLSearchParams(location.search)
@@ -91,6 +95,11 @@ const MultipleChoiceExercise = () => {
 
   // Celebration state
   const [hasPlayedPassAudio, setHasPlayedPassAudio] = useState(false)
+
+  // Pet tutor state
+  const [showPetTutor, setShowPetTutor] = useState(false)
+  const [petTutorLoading, setPetTutorLoading] = useState(false)
+  const [petTutorMessage, setPetTutorMessage] = useState('')
 
   // Play pass audio and show GIF when quiz is completed and passed
   useEffect(() => {
@@ -444,6 +453,39 @@ const MultipleChoiceExercise = () => {
     }
   }
 
+  // Handle asking pet for tutoring help
+  const handleAskPet = async () => {
+    if (!activePet || petTutorLoading) return
+
+    // Check and drain pet energy first
+    const energyResult = await drainPetEnergy(10)
+    if (!energyResult.success) {
+      setShowPetTutor(true)
+      setPetTutorMessage(`*${activePet.nickname || activePet.name} ngáp dài* Mình hơi mệt rồi... cho mình nghỉ ngơi hoặc ăn gì đó nhé! 😴`)
+      return
+    }
+
+    setShowPetTutor(true)
+    setPetTutorLoading(true)
+    setPetTutorMessage('')
+
+    try {
+      const questionData = {
+        question: currentQuestion.question,
+        selectedAnswer: currentQuestion.options[selectedAnswer],
+        correctAnswer: currentQuestion.options[currentQuestion.correct_answer]
+      }
+
+      const response = await getPetTutorExplanation(activePet, questionData, 'vi')
+      setPetTutorMessage(response.message)
+    } catch (error) {
+      console.error('Pet tutor error:', error)
+      setPetTutorMessage(`*${activePet.nickname || activePet.name} gãi đầu* Ừm, để mình nghĩ thêm nhé! 🤔`)
+    } finally {
+      setPetTutorLoading(false)
+    }
+  }
+
   const handleNextQuestion = async () => {
     if (currentQuestionIndex < questions.length - 1) {
       const nextQuestionIndex = currentQuestionIndex + 1
@@ -452,6 +494,9 @@ const MultipleChoiceExercise = () => {
       setSelectedAnswer(null)
       setShowExplanation(false)
       setStartTime(Date.now())
+      // Reset pet tutor state for next question
+      setShowPetTutor(false)
+      setPetTutorMessage('')
     } else {
       // Quiz completed - merge results if retry mode
       if (isRetryMode && firstAttemptResults.length > 0) {
@@ -866,6 +911,38 @@ const MultipleChoiceExercise = () => {
                         allowLinks={false}
                       />
                     </div>
+
+                    {/* Pet Tutor - Ask Pet button (only for wrong answers) */}
+                    {selectedAnswer !== currentQuestion.correct_answer && activePet && (
+                      <div className="space-y-3">
+                        {!showPetTutor ? (
+                          <div className="flex items-center gap-3">
+                            <button
+                              onClick={handleAskPet}
+                              disabled={(activePet.energy ?? 100) < 10}
+                              className={`flex items-center gap-2 px-4 py-2 font-medium rounded-lg transition-all shadow-sm ${
+                                (activePet.energy ?? 100) < 10
+                                  ? 'bg-gray-300 text-gray-500 cursor-not-allowed'
+                                  : 'bg-purple-500 hover:bg-purple-600 text-white hover:shadow-md'
+                              }`}
+                            >
+                              <MessageCircle className="w-5 h-5" />
+                              Hỏi {activePet.nickname || activePet.name} giải thích
+                            </button>
+                            <span className="text-xs text-gray-500">
+                              ⚡ {activePet.energy ?? 100}/100
+                              {(activePet.energy ?? 100) < 10 && ' (Mệt rồi!)'}
+                            </span>
+                          </div>
+                        ) : (
+                          <PetTutorBubble
+                            pet={activePet}
+                            message={petTutorMessage}
+                            isLoading={petTutorLoading}
+                          />
+                        )}
+                      </div>
+                    )}
 
                     {/* Next Button - full width on mobile, centered on desktop */}
                     <div className="flex justify-center md:justify-end">

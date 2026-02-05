@@ -2,7 +2,9 @@ import React from 'react'
 import { BrowserRouter as Router, Routes, Route, Outlet } from 'react-router-dom'
 import { AuthProvider } from './hooks/useAuth'
 import { ProgressProvider } from './hooks/useProgress'
+import { InventoryProvider } from './hooks/useInventory'
 import { StudentLevelsProvider } from './hooks/useStudentLevels'
+import { PetProvider } from './hooks/usePet'
 import Layout from './components/Layout'
 import Dashboard from './components/dashboard/Dashboard'
 import LoginPage from './components/auth/LoginPage'
@@ -12,6 +14,9 @@ import Leaderboard from './components/leaderboard/Leaderboard'
 import Progress from './components/progress/Progress'
 import Profile from './components/profile/Profile'
 import Shop from './components/shop/Shop'
+import Inventory from './components/inventory/Inventory'
+import PetShop from './components/pet/PetShop'
+import PetInventory from './components/pet/PetInventory'
 import AdminDashboard from './components/admin/AdminDashboard'
 import TeacherDashboard from './components/teacher/TeacherDashboard'
 import TeacherExerciseBank from './components/teacher/TeacherExerciseBank'
@@ -22,6 +27,8 @@ function App() {
   return (
     <AuthProvider>
       <ProgressProvider>
+        <InventoryProvider>
+        <PetProvider>
         <StudentLevelsProvider>
           <Router future={{ v7_startTransition: true, v7_relativeSplatPath: true }}>
             <Routes>
@@ -38,6 +45,9 @@ function App() {
                 <Route path="progress" element={<Progress />} />
                 <Route path="profile" element={<Profile />} />
                 <Route path="shop" element={<Shop />} />
+                <Route path="inventory" element={<Inventory />} />
+                <Route path="pets" element={<PetInventory />} />
+                <Route path="pets/shop" element={<PetShop />} />
                 <Route path="profile/:userId" element={<Profile />} />
                 <Route path="admin/*" element={
                   <ProtectedRoute requireAdmin>
@@ -50,6 +60,8 @@ function App() {
             </Routes>
           </Router>
         </StudentLevelsProvider>
+        </PetProvider>
+        </InventoryProvider>
       </ProgressProvider>
     </AuthProvider>
   )

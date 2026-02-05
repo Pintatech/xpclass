@@ -4,13 +4,16 @@ import { supabase } from '../../supabase/client'
 import { useAuth } from '../../hooks/useAuth'
 import { useProgress } from '../../hooks/useProgress'
 import { useFeedback } from '../../hooks/useFeedback'
+import { usePet } from '../../hooks/usePet'
 import { saveRecentExercise } from '../../utils/recentExercise'
 import LoadingSpinner from '../ui/LoadingSpinner'
-import { Check, X, RotateCcw, HelpCircle, ArrowLeft } from 'lucide-react'
+import { Check, X, RotateCcw, HelpCircle, ArrowLeft, MessageCircle } from 'lucide-react'
 import RichTextRenderer from '../ui/RichTextRenderer'
 import ExerciseHeader from '../ui/ExerciseHeader'
 import AudioPlayer from '../ui/AudioPlayer'
 import CelebrationScreen from '../ui/CelebrationScreen'
+import PetTutorBubble from '../pet/PetTutorBubble'
+import { getPetTutorExplanation } from '../../utils/petChatService'
 
 // Theme-based side decoration images for PC
 const themeSideImages = {
@@ -54,6 +57,7 @@ const FillBlankExercise = () => {
   const challengeId = urlParams.get('challengeId') || null
   const isChallenge = urlParams.get('isChallenge') === 'true'
   const { currentMeme, showMeme, playFeedback, playCelebration, passGif } = useFeedback()
+  const { activePet, drainPetEnergy } = usePet()
   const [exercise, setExercise] = useState(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState(null)
@@ -78,6 +82,11 @@ const FillBlankExercise = () => {
   const [xpAwarded, setXpAwarded] = useState(0)
   const [wrongQuestionIndices, setWrongQuestionIndices] = useState([])
   const [startTime, setStartTime] = useState(Date.now())
+
+  // Pet tutor state
+  const [showPetTutor, setShowPetTutor] = useState(false)
+  const [petTutorLoading, setPetTutorLoading] = useState(false)
+  const [petTutorMessage, setPetTutorMessage] = useState('')
 
   const inputRefs = useRef({})
 
@@ -520,6 +529,51 @@ const FillBlankExercise = () => {
     setShowExplanation(true)
   }
 
+  // Handle asking pet for tutoring help
+  const handleAskPet = async () => {
+    if (!activePet || petTutorLoading) return
+
+    // Check and drain pet energy first
+    const energyResult = await drainPetEnergy(10)
+    if (!energyResult.success) {
+      setShowPetTutor(true)
+      setPetTutorMessage(`*${activePet.nickname || activePet.name} ngáp dài* Mình hơi mệt rồi... cho mình nghỉ ngơi hoặc ăn gì đó nhé! 😴`)
+      return
+    }
+
+    setShowPetTutor(true)
+    setPetTutorLoading(true)
+    setPetTutorMessage('')
+
+    try {
+      // Build question context for fill blank
+      const userFilledAnswers = currentQuestion.blanks.map((_, blankIndex) =>
+        userAnswers[currentQuestionIndex]?.[blankIndex] || '(empty)'
+      ).join(', ')
+
+      const correctAnswersList = currentQuestion.blanks.map(blank =>
+        blank.answer.split(',')[0].trim()
+      ).join(', ')
+
+      // Strip HTML tags from question for cleaner prompt
+      const questionText = currentQuestion.question.replace(/<[^>]*>/g, '').replace(/(_____|\[blank\])/gi, '___')
+
+      const questionData = {
+        question: questionText,
+        selectedAnswer: userFilledAnswers,
+        correctAnswer: correctAnswersList
+      }
+
+      const response = await getPetTutorExplanation(activePet, questionData, 'vi')
+      setPetTutorMessage(response.message)
+    } catch (error) {
+      console.error('Pet tutor error:', error)
+      setPetTutorMessage(`*${activePet.nickname || activePet.name} gãi đầu* Ừm, để mình nghĩ thêm nhé! 🤔`)
+    } finally {
+      setPetTutorLoading(false)
+    }
+  }
+
   const handleNext = useCallback(async () => {
     // Save current question score
     const currentScore = score
@@ -543,6 +597,9 @@ const FillBlankExercise = () => {
         setShowExplanation(false)
         setHasEdited(false)
         setShowCorrectAnswers(false)
+        // Reset pet tutor state
+        setShowPetTutor(false)
+        setPetTutorMessage('')
         return
       } else {
         // Finished all retry questions, calculate final score
@@ -591,6 +648,9 @@ const FillBlankExercise = () => {
       setShowExplanation(false)
       setHasEdited(false)
       setShowCorrectAnswers(false)
+      // Reset pet tutor state for next question
+      setShowPetTutor(false)
+      setPetTutorMessage('')
     } else {
       // Exercise completed - show results screen
       const currentScore = score
@@ -1248,7 +1308,7 @@ const FillBlankExercise = () => {
               <div className="flex items-center">
                 <span className="text-lg font-medium text-gray-700">Score: </span>
                 <span className={`text-xl font-bold ml-2 ${
-                  score >= 80 ? 'text-green-600' : 
+                  score >= 80 ? 'text-green-600' :
                   score >= 60 ? 'text-yellow-600' : 'text-red-600'
                 }`}>
                   {Math.round(score)}%
@@ -1269,7 +1329,7 @@ const FillBlankExercise = () => {
                     onClick={handleShowAnswers}
                     className="flex items-center gap-1 px-4 py-2 text-sm bg-yellow-600 text-white rounded-lg hover:bg-yellow-700"
                   >
-                  
+
                     Show Key
                   </button>
                 )}
@@ -1281,6 +1341,38 @@ const FillBlankExercise = () => {
                 </button>
               </div>
             </div>
+
+            {/* Pet Tutor - Ask Pet button (only for wrong answers) */}
+            {score < 100 && activePet && (
+              <div className="mb-3">
+                {!showPetTutor ? (
+                  <div className="flex items-center gap-3">
+                    <button
+                      onClick={handleAskPet}
+                      disabled={(activePet.energy ?? 100) < 10}
+                      className={`flex items-center gap-2 px-4 py-2 font-medium rounded-lg transition-all shadow-sm ${
+                        (activePet.energy ?? 100) < 10
+                          ? 'bg-gray-300 text-gray-500 cursor-not-allowed'
+                          : 'bg-purple-500 hover:bg-purple-600 text-white hover:shadow-md'
+                      }`}
+                    >
+                      <MessageCircle className="w-5 h-5" />
+                      Hỏi {activePet.nickname || activePet.name} giải thích
+                    </button>
+                    <span className="text-xs text-gray-500">
+                      ⚡ {activePet.energy ?? 100}/100
+                      {(activePet.energy ?? 100) < 10 && ' (Mệt rồi!)'}
+                    </span>
+                  </div>
+                ) : (
+                  <PetTutorBubble
+                    pet={activePet}
+                    message={petTutorMessage}
+                    isLoading={petTutorLoading}
+                  />
+                )}
+              </div>
+            )}
 
              {/* Correct Answers - only show when answers are revealed */}
              {showCorrectAnswers && (

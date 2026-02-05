@@ -1077,6 +1077,714 @@ END;
 $$
 );
 
+-- ====================================
+-- PET SYSTEM
+-- ====================================
+
+-- Pets catalog (all available pets)
+CREATE TABLE IF NOT EXISTS public.pets (
+  id uuid NOT NULL DEFAULT uuid_generate_v4(),
+  name text NOT NULL,
+  info text,  -- Animal type/species (e.g., "Cat", "Dragon", "Hamster") for AI prompts
+  description text,
+  image_url text,
+  rarity text NOT NULL DEFAULT 'common' CHECK (rarity IN ('common', 'uncommon', 'rare', 'epic', 'legendary')),
+  evolution_stages jsonb DEFAULT '[]'::jsonb,
+  is_active boolean DEFAULT true,
+  created_at timestamp with time zone DEFAULT now(),
+  updated_at timestamp with time zone DEFAULT now(),
+  CONSTRAINT pets_pkey PRIMARY KEY (id)
+);
+
+-- Add info column to pets table (if not exists)
+ALTER TABLE public.pets ADD COLUMN IF NOT EXISTS info text;
+
+-- User's owned pets
+CREATE TABLE IF NOT EXISTS public.user_pets (
+  id uuid NOT NULL DEFAULT uuid_generate_v4(),
+  user_id uuid NOT NULL,
+  pet_id uuid NOT NULL,
+  nickname text,
+  level integer DEFAULT 1,
+  xp integer DEFAULT 0,
+  happiness integer DEFAULT 100 CHECK (happiness >= 0 AND happiness <= 100),
+  energy integer DEFAULT 100 CHECK (energy >= 0 AND energy <= 100),
+  evolution_stage integer DEFAULT 0,
+  is_active boolean DEFAULT false,
+  obtained_at timestamp with time zone DEFAULT now(),
+  last_fed_at timestamp with time zone,
+  last_played_at timestamp with time zone,
+  CONSTRAINT user_pets_pkey PRIMARY KEY (id),
+  CONSTRAINT user_pets_user_id_fkey FOREIGN KEY (user_id) REFERENCES public.users(id),
+  CONSTRAINT user_pets_pet_id_fkey FOREIGN KEY (pet_id) REFERENCES public.pets(id)
+);
+
+CREATE INDEX IF NOT EXISTS idx_user_pets_user ON public.user_pets(user_id);
+CREATE INDEX IF NOT EXISTS idx_user_pets_active ON public.user_pets(user_id) WHERE is_active = true;
+
+-- ====================================
+-- RPC FUNCTIONS FOR PET SYSTEM
+-- ====================================
+
+-- Function: Get user's active pet with full details
+CREATE OR REPLACE FUNCTION get_active_pet(p_user_id uuid)
+RETURNS json
+LANGUAGE plpgsql
+AS $$
+DECLARE
+  pet_record record;
+  bonuses json;
+BEGIN
+  SELECT
+    up.*,
+    p.name as pet_name,
+    p.info as pet_info,
+    p.description as pet_description,
+    p.image_url as pet_image_url,
+    p.rarity,
+    p.evolution_stages
+  INTO pet_record
+  FROM user_pets up
+  JOIN pets p ON up.pet_id = p.id
+  WHERE up.user_id = p_user_id AND up.is_active = true
+  LIMIT 1;
+
+  IF pet_record IS NULL THEN
+    RETURN json_build_object('success', false, 'error', 'No active pet');
+  END IF;
+
+  SELECT json_agg(json_build_object(
+    'bonus_type', pb.bonus_type,
+    'bonus_value', pb.bonus_value,
+    'description', pb.description
+  ))
+  INTO bonuses
+  FROM pet_bonuses pb
+  WHERE pb.pet_id = pet_record.pet_id
+    AND pet_record.happiness >= pb.min_happiness;
+
+  RETURN json_build_object(
+    'success', true,
+    'pet', json_build_object(
+      'id', pet_record.id,
+      'pet_id', pet_record.pet_id,
+      'nickname', pet_record.nickname,
+      'name', pet_record.pet_name,
+      'info', pet_record.pet_info,
+      'description', pet_record.pet_description,
+      'image_url', pet_record.pet_image_url,
+      'rarity', pet_record.rarity,
+      'happiness', pet_record.happiness,
+      'energy', pet_record.energy,
+      'level', pet_record.level,
+      'xp', pet_record.xp,
+      'evolution_stage', pet_record.evolution_stage,
+      'evolution_stages', pet_record.evolution_stages,
+      'last_fed_at', pet_record.last_fed_at,
+      'last_played_at', pet_record.last_played_at
+    ),
+    'bonuses', COALESCE(bonuses, '[]'::json)
+  );
+END;
+$$;
+
+-- Function: Set active pet
+CREATE OR REPLACE FUNCTION set_active_pet(p_user_id uuid, p_user_pet_id uuid)
+RETURNS json
+LANGUAGE plpgsql
+AS $$
+BEGIN
+  -- Verify ownership
+  IF NOT EXISTS (
+    SELECT 1 FROM user_pets
+    WHERE id = p_user_pet_id AND user_id = p_user_id
+  ) THEN
+    RETURN json_build_object('success', false, 'error', 'Pet not found');
+  END IF;
+
+  -- Deactivate all user's pets
+  UPDATE user_pets
+  SET is_active = false, updated_at = now()
+  WHERE user_id = p_user_id;
+
+  -- Activate selected pet
+  UPDATE user_pets
+  SET is_active = true, updated_at = now()
+  WHERE id = p_user_pet_id;
+
+  RETURN json_build_object('success', true);
+END;
+$$;
+
+-- ====================================
+-- INVENTORY & CRAFTING SYSTEM
+-- ====================================
+
+-- Collectible Items catalog (admin-defined)
+CREATE TABLE IF NOT EXISTS public.collectible_items (
+  id uuid NOT NULL DEFAULT uuid_generate_v4(),
+  name text NOT NULL,
+  description text,
+  image_url text,
+  item_type text NOT NULL CHECK (item_type IN ('fragment', 'card', 'material')),
+  set_name text,
+  rarity text NOT NULL DEFAULT 'common' CHECK (rarity IN ('common', 'uncommon', 'rare', 'epic')),
+  is_active boolean DEFAULT true,
+  sort_order integer DEFAULT 0,
+  created_at timestamp with time zone DEFAULT now(),
+  updated_at timestamp with time zone DEFAULT now(),
+  CONSTRAINT collectible_items_pkey PRIMARY KEY (id)
+);
+
+CREATE INDEX IF NOT EXISTS idx_collectible_items_type ON public.collectible_items(item_type);
+CREATE INDEX IF NOT EXISTS idx_collectible_items_set ON public.collectible_items(set_name);
+
+-- User Inventory (what each student owns)
+CREATE TABLE IF NOT EXISTS public.user_inventory (
+  id uuid NOT NULL DEFAULT uuid_generate_v4(),
+  user_id uuid NOT NULL,
+  item_id uuid NOT NULL,
+  quantity integer NOT NULL DEFAULT 1 CHECK (quantity >= 0),
+  obtained_at timestamp with time zone DEFAULT now(),
+  updated_at timestamp with time zone DEFAULT now(),
+  CONSTRAINT user_inventory_pkey PRIMARY KEY (id),
+  CONSTRAINT user_inventory_user_item_key UNIQUE (user_id, item_id),
+  CONSTRAINT user_inventory_user_id_fkey FOREIGN KEY (user_id) REFERENCES public.users(id),
+  CONSTRAINT user_inventory_item_id_fkey FOREIGN KEY (item_id) REFERENCES public.collectible_items(id)
+);
+
+CREATE INDEX IF NOT EXISTS idx_user_inventory_user ON public.user_inventory(user_id);
+
+-- Chests (admin-defined with loot tables)
+CREATE TABLE IF NOT EXISTS public.chests (
+  id uuid NOT NULL DEFAULT uuid_generate_v4(),
+  name text NOT NULL,
+  description text,
+  image_url text,
+  chest_type text NOT NULL DEFAULT 'standard' CHECK (chest_type IN ('standard', 'premium', 'event')),
+  loot_table jsonb NOT NULL DEFAULT '[]'::jsonb,
+  guaranteed_items jsonb DEFAULT '[]'::jsonb,
+  items_per_open integer NOT NULL DEFAULT 3,
+  is_active boolean DEFAULT true,
+  created_at timestamp with time zone DEFAULT now(),
+  CONSTRAINT chests_pkey PRIMARY KEY (id)
+);
+
+-- User Chests (earned but possibly not yet opened)
+CREATE TABLE IF NOT EXISTS public.user_chests (
+  id uuid NOT NULL DEFAULT uuid_generate_v4(),
+  user_id uuid NOT NULL,
+  chest_id uuid NOT NULL,
+  source text NOT NULL DEFAULT 'milestone',
+  source_ref text,
+  earned_at timestamp with time zone DEFAULT now(),
+  opened_at timestamp with time zone,
+  items_received jsonb,
+  CONSTRAINT user_chests_pkey PRIMARY KEY (id),
+  CONSTRAINT user_chests_user_id_fkey FOREIGN KEY (user_id) REFERENCES public.users(id),
+  CONSTRAINT user_chests_chest_id_fkey FOREIGN KEY (chest_id) REFERENCES public.chests(id)
+);
+
+CREATE INDEX IF NOT EXISTS idx_user_chests_user_unopened ON public.user_chests(user_id) WHERE opened_at IS NULL;
+
+-- Recipes (crafting/exchange definitions)
+CREATE TABLE IF NOT EXISTS public.recipes (
+  id uuid NOT NULL DEFAULT uuid_generate_v4(),
+  name text NOT NULL,
+  description text,
+  result_type text NOT NULL CHECK (result_type IN ('cosmetic', 'xp', 'gems', 'item')),
+  result_shop_item_id uuid,
+  result_item_id uuid,
+  result_xp integer DEFAULT 0,
+  result_gems integer DEFAULT 0,
+  result_image_url text,
+  result_data jsonb DEFAULT '{}'::jsonb,
+  ingredients jsonb NOT NULL DEFAULT '[]'::jsonb,
+  is_active boolean DEFAULT true,
+  max_crafts_per_user integer,
+  success_rate integer DEFAULT 100 CHECK (success_rate >= 0 AND success_rate <= 100),
+  created_at timestamp with time zone DEFAULT now(),
+  CONSTRAINT recipes_pkey PRIMARY KEY (id),
+  CONSTRAINT recipes_result_shop_item_fkey FOREIGN KEY (result_shop_item_id) REFERENCES public.shop_items(id),
+  CONSTRAINT recipes_result_item_fkey FOREIGN KEY (result_item_id) REFERENCES public.collectible_items(id)
+);
+
+-- Add success_rate column if not exists (for existing tables)
+ALTER TABLE public.recipes ADD COLUMN IF NOT EXISTS success_rate integer DEFAULT 100 CHECK (success_rate >= 0 AND success_rate <= 100);
+
+-- User Crafts log
+CREATE TABLE IF NOT EXISTS public.user_crafts (
+  id uuid NOT NULL DEFAULT uuid_generate_v4(),
+  user_id uuid NOT NULL,
+  recipe_id uuid NOT NULL,
+  crafted_at timestamp with time zone DEFAULT now(),
+  result_data jsonb,
+  CONSTRAINT user_crafts_pkey PRIMARY KEY (id),
+  CONSTRAINT user_crafts_user_id_fkey FOREIGN KEY (user_id) REFERENCES public.users(id),
+  CONSTRAINT user_crafts_recipe_id_fkey FOREIGN KEY (recipe_id) REFERENCES public.recipes(id)
+);
+
+CREATE INDEX IF NOT EXISTS idx_user_crafts_user ON public.user_crafts(user_id);
+
+-- Drop Config (global drop rate settings)
+CREATE TABLE IF NOT EXISTS public.drop_config (
+  id uuid NOT NULL DEFAULT uuid_generate_v4(),
+  config_key text NOT NULL UNIQUE,
+  config_value jsonb NOT NULL,
+  description text,
+  updated_at timestamp with time zone DEFAULT now(),
+  CONSTRAINT drop_config_pkey PRIMARY KEY (id)
+);
+
+-- Seed default drop config
+INSERT INTO public.drop_config (config_key, config_value, description) VALUES
+('exercise_drop_rate', '{"base_chance": 0.30, "rarity_weights": {"common": 60, "uncommon": 25, "rare": 12, "epic": 3}}', 'Chance of item drop on exercise completion (score >= 75%). Rarity weights for which item drops.'),
+('milestone_chests', '{"session_complete": "standard", "streak_7": "standard", "streak_30": "premium", "challenge_win_top3": "standard"}', 'Which chest type to award for each milestone type.')
+ON CONFLICT (config_key) DO NOTHING;
+
+-- ====================================
+-- RPC FUNCTIONS FOR INVENTORY SYSTEM
+-- ====================================
+
+-- Function: Roll for item drop on exercise completion
+CREATE OR REPLACE FUNCTION roll_exercise_drop(p_user_id uuid, p_exercise_id uuid, p_score integer)
+RETURNS json
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = public
+AS $$
+DECLARE
+  config_record record;
+  base_chance float;
+  rarity_weights jsonb;
+  total_weight integer;
+  roll float;
+  rarity_roll float;
+  selected_rarity text;
+  cumulative_weight integer;
+  rarity_key text;
+  rarity_value integer;
+  selected_item record;
+  included_items jsonb;
+  has_include_filter boolean;
+BEGIN
+  -- No drop if score below 75%
+  IF p_score < 75 THEN
+    RETURN json_build_object('dropped', false);
+  END IF;
+
+  -- Get drop config
+  SELECT config_value INTO config_record
+  FROM drop_config
+  WHERE config_key = 'exercise_drop_rate';
+
+  IF config_record IS NULL THEN
+    RETURN json_build_object('dropped', false);
+  END IF;
+
+  base_chance := (config_record.config_value->>'base_chance')::float;
+  rarity_weights := config_record.config_value->'rarity_weights';
+  included_items := COALESCE(config_record.config_value->'included_items', '[]'::jsonb);
+  has_include_filter := jsonb_array_length(included_items) > 0;
+
+  -- Roll for drop
+  roll := random();
+  IF roll > base_chance THEN
+    RETURN json_build_object('dropped', false);
+  END IF;
+
+  -- Calculate total weight
+  total_weight := 0;
+  FOR rarity_key, rarity_value IN SELECT * FROM jsonb_each_text(rarity_weights)
+  LOOP
+    total_weight := total_weight + rarity_value::integer;
+  END LOOP;
+
+  -- Roll for rarity
+  rarity_roll := random() * total_weight;
+  cumulative_weight := 0;
+  selected_rarity := 'common';
+
+  FOR rarity_key, rarity_value IN SELECT * FROM jsonb_each_text(rarity_weights)
+  LOOP
+    cumulative_weight := cumulative_weight + rarity_value::integer;
+    IF rarity_roll <= cumulative_weight THEN
+      selected_rarity := rarity_key;
+      EXIT;
+    END IF;
+  END LOOP;
+
+  -- Pick a random active item of that rarity (filtered by included_items if set)
+  SELECT * INTO selected_item
+  FROM collectible_items
+  WHERE is_active = true AND rarity = selected_rarity
+    AND (NOT has_include_filter OR (included_items ? id::text))
+  ORDER BY random()
+  LIMIT 1;
+
+  IF selected_item IS NULL THEN
+    -- Fallback to any active item (filtered by included_items if set)
+    SELECT * INTO selected_item
+    FROM collectible_items
+    WHERE is_active = true
+      AND (NOT has_include_filter OR (included_items ? id::text))
+    ORDER BY random()
+    LIMIT 1;
+  END IF;
+
+  IF selected_item IS NULL THEN
+    RETURN json_build_object('dropped', false);
+  END IF;
+
+  -- Add to user inventory
+  INSERT INTO user_inventory (user_id, item_id, quantity)
+  VALUES (p_user_id, selected_item.id, 1)
+  ON CONFLICT (user_id, item_id)
+  DO UPDATE SET quantity = user_inventory.quantity + 1, updated_at = now();
+
+  RETURN json_build_object(
+    'dropped', true,
+    'item', json_build_object(
+      'id', selected_item.id,
+      'name', selected_item.name,
+      'image_url', selected_item.image_url,
+      'rarity', selected_item.rarity,
+      'item_type', selected_item.item_type,
+      'set_name', selected_item.set_name
+    )
+  );
+END;
+$$;
+
+-- Function: Open a chest
+CREATE OR REPLACE FUNCTION open_chest(p_user_id uuid, p_user_chest_id uuid)
+RETURNS json
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = public
+AS $$
+DECLARE
+  chest_record record;
+  user_chest_record record;
+  loot_entry jsonb;
+  guaranteed_entry jsonb;
+  total_weight integer;
+  roll float;
+  cumulative_weight integer;
+  selected_item_id uuid;
+  drop_qty integer;
+  received_items jsonb := '[]'::jsonb;
+  i integer;
+BEGIN
+  -- Verify ownership and unopened status
+  SELECT uc.*, c.loot_table, c.guaranteed_items, c.items_per_open, c.name as chest_name
+  INTO user_chest_record
+  FROM user_chests uc
+  JOIN chests c ON uc.chest_id = c.id
+  WHERE uc.id = p_user_chest_id AND uc.user_id = p_user_id AND uc.opened_at IS NULL;
+
+  IF user_chest_record IS NULL THEN
+    RETURN json_build_object('success', false, 'error', 'Chest not found or already opened');
+  END IF;
+
+  -- Process guaranteed items
+  IF user_chest_record.guaranteed_items IS NOT NULL AND jsonb_array_length(user_chest_record.guaranteed_items) > 0 THEN
+    FOR guaranteed_entry IN SELECT * FROM jsonb_array_elements(user_chest_record.guaranteed_items)
+    LOOP
+      selected_item_id := (guaranteed_entry->>'item_id')::uuid;
+      drop_qty := COALESCE((guaranteed_entry->>'quantity')::integer, 1);
+
+      INSERT INTO user_inventory (user_id, item_id, quantity)
+      VALUES (p_user_id, selected_item_id, drop_qty)
+      ON CONFLICT (user_id, item_id)
+      DO UPDATE SET quantity = user_inventory.quantity + drop_qty, updated_at = now();
+
+      received_items := received_items || jsonb_build_object('item_id', selected_item_id, 'quantity', drop_qty, 'source', 'guaranteed');
+    END LOOP;
+  END IF;
+
+  -- Process random loot draws
+  IF user_chest_record.loot_table IS NOT NULL AND jsonb_array_length(user_chest_record.loot_table) > 0 THEN
+    -- Calculate total weight
+    total_weight := 0;
+    FOR loot_entry IN SELECT * FROM jsonb_array_elements(user_chest_record.loot_table)
+    LOOP
+      total_weight := total_weight + COALESCE((loot_entry->>'weight')::integer, 1);
+    END LOOP;
+
+    -- Draw items
+    FOR i IN 1..user_chest_record.items_per_open
+    LOOP
+      roll := random() * total_weight;
+      cumulative_weight := 0;
+
+      FOR loot_entry IN SELECT * FROM jsonb_array_elements(user_chest_record.loot_table)
+      LOOP
+        cumulative_weight := cumulative_weight + COALESCE((loot_entry->>'weight')::integer, 1);
+        IF roll <= cumulative_weight THEN
+          selected_item_id := (loot_entry->>'item_id')::uuid;
+          drop_qty := COALESCE((loot_entry->>'min_qty')::integer, 1);
+          IF (loot_entry->>'max_qty') IS NOT NULL THEN
+            drop_qty := drop_qty + floor(random() * ((loot_entry->>'max_qty')::integer - drop_qty + 1))::integer;
+          END IF;
+
+          INSERT INTO user_inventory (user_id, item_id, quantity)
+          VALUES (p_user_id, selected_item_id, drop_qty)
+          ON CONFLICT (user_id, item_id)
+          DO UPDATE SET quantity = user_inventory.quantity + drop_qty, updated_at = now();
+
+          received_items := received_items || jsonb_build_object('item_id', selected_item_id, 'quantity', drop_qty, 'source', 'random');
+          EXIT;
+        END IF;
+      END LOOP;
+    END LOOP;
+  END IF;
+
+  -- Mark chest as opened
+  UPDATE user_chests
+  SET opened_at = now(), items_received = received_items
+  WHERE id = p_user_chest_id;
+
+  -- Return received items with details
+  RETURN json_build_object(
+    'success', true,
+    'chest_name', user_chest_record.chest_name,
+    'items', (
+      SELECT json_agg(json_build_object(
+        'item_id', ri->>'item_id',
+        'quantity', (ri->>'quantity')::integer,
+        'source', ri->>'source',
+        'name', ci.name,
+        'image_url', ci.image_url,
+        'rarity', ci.rarity,
+        'item_type', ci.item_type
+      ))
+      FROM jsonb_array_elements(received_items) ri
+      JOIN collectible_items ci ON ci.id = (ri->>'item_id')::uuid
+    )
+  );
+END;
+$$;
+
+-- Function: Craft a recipe (with success rate - on failure lose 1 ingredient, common first)
+CREATE OR REPLACE FUNCTION craft_recipe(p_user_id uuid, p_recipe_id uuid)
+RETURNS json
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = public
+AS $$
+DECLARE
+  recipe_record record;
+  ingredient jsonb;
+  ingredient_item_id uuid;
+  ingredient_qty integer;
+  user_qty integer;
+  crafts_count integer;
+  result_item_name text;
+  roll_result float;
+  craft_success boolean;
+  lost_item_record record;
+  rarity_order text[] := ARRAY['common', 'uncommon', 'rare', 'epic', 'legendary'];
+  r text;
+  found_item boolean := false;
+BEGIN
+  -- Get recipe
+  SELECT * INTO recipe_record
+  FROM recipes
+  WHERE id = p_recipe_id AND is_active = true;
+
+  IF recipe_record IS NULL THEN
+    RETURN json_build_object('success', false, 'error', 'Recipe not found or inactive');
+  END IF;
+
+  -- Check max crafts limit
+  IF recipe_record.max_crafts_per_user IS NOT NULL THEN
+    SELECT COUNT(*) INTO crafts_count
+    FROM user_crafts
+    WHERE user_id = p_user_id AND recipe_id = p_recipe_id;
+
+    IF crafts_count >= recipe_record.max_crafts_per_user THEN
+      RETURN json_build_object('success', false, 'error', 'Maximum crafts reached for this recipe');
+    END IF;
+  END IF;
+
+  -- Verify all ingredients
+  FOR ingredient IN SELECT * FROM jsonb_array_elements(recipe_record.ingredients)
+  LOOP
+    ingredient_item_id := (ingredient->>'item_id')::uuid;
+    ingredient_qty := (ingredient->>'quantity')::integer;
+
+    SELECT COALESCE(quantity, 0) INTO user_qty
+    FROM user_inventory
+    WHERE user_id = p_user_id AND item_id = ingredient_item_id;
+
+    IF user_qty < ingredient_qty THEN
+      RETURN json_build_object('success', false, 'error', 'Not enough ingredients');
+    END IF;
+  END LOOP;
+
+  -- Roll for success (success_rate is 0-100, default 100)
+  roll_result := random() * 100;
+  craft_success := roll_result < COALESCE(recipe_record.success_rate, 100);
+
+  IF NOT craft_success THEN
+    -- FAILURE: Lose 1 item from ingredients, prioritizing common → uncommon → rare → epic → legendary
+    -- Find the lowest rarity ingredient to lose
+    FOREACH r IN ARRAY rarity_order
+    LOOP
+      IF found_item THEN EXIT; END IF;
+
+      FOR ingredient IN SELECT * FROM jsonb_array_elements(recipe_record.ingredients)
+      LOOP
+        ingredient_item_id := (ingredient->>'item_id')::uuid;
+
+        SELECT ci.* INTO lost_item_record
+        FROM collectible_items ci
+        WHERE ci.id = ingredient_item_id AND ci.rarity = r;
+
+        IF lost_item_record IS NOT NULL THEN
+          -- Found the lowest rarity item, deduct 1
+          UPDATE user_inventory
+          SET quantity = quantity - 1, updated_at = now()
+          WHERE user_id = p_user_id AND item_id = ingredient_item_id;
+
+          found_item := true;
+          EXIT;
+        END IF;
+      END LOOP;
+    END LOOP;
+
+    -- Log failed craft attempt
+    INSERT INTO user_crafts (user_id, recipe_id, result_data)
+    VALUES (p_user_id, p_recipe_id, json_build_object(
+      'success', false,
+      'lost_item_id', lost_item_record.id,
+      'lost_item_name', lost_item_record.name
+    )::jsonb);
+
+    RETURN json_build_object(
+      'success', false,
+      'craft_failed', true,
+      'lost_item', json_build_object(
+        'id', lost_item_record.id,
+        'name', lost_item_record.name,
+        'image_url', lost_item_record.image_url,
+        'rarity', lost_item_record.rarity
+      )
+    );
+  END IF;
+
+  -- SUCCESS: Deduct all ingredients
+  FOR ingredient IN SELECT * FROM jsonb_array_elements(recipe_record.ingredients)
+  LOOP
+    ingredient_item_id := (ingredient->>'item_id')::uuid;
+    ingredient_qty := (ingredient->>'quantity')::integer;
+
+    UPDATE user_inventory
+    SET quantity = quantity - ingredient_qty, updated_at = now()
+    WHERE user_id = p_user_id AND item_id = ingredient_item_id;
+  END LOOP;
+
+  -- Award result
+  IF recipe_record.result_type = 'cosmetic' AND recipe_record.result_shop_item_id IS NOT NULL THEN
+    INSERT INTO user_purchases (user_id, item_id)
+    VALUES (p_user_id, recipe_record.result_shop_item_id)
+    ON CONFLICT (user_id, item_id) DO NOTHING;
+  ELSIF recipe_record.result_type = 'xp' AND recipe_record.result_xp > 0 THEN
+    UPDATE users SET xp = xp + recipe_record.result_xp WHERE id = p_user_id;
+  ELSIF recipe_record.result_type = 'gems' AND recipe_record.result_gems > 0 THEN
+    UPDATE users SET gems = gems + recipe_record.result_gems WHERE id = p_user_id;
+  ELSIF recipe_record.result_type = 'item' AND recipe_record.result_item_id IS NOT NULL THEN
+    INSERT INTO user_inventory (user_id, item_id, quantity)
+    VALUES (p_user_id, recipe_record.result_item_id, 1)
+    ON CONFLICT (user_id, item_id)
+    DO UPDATE SET quantity = user_inventory.quantity + 1, updated_at = now();
+  END IF;
+
+  -- Look up result item name if applicable
+  IF recipe_record.result_item_id IS NOT NULL THEN
+    SELECT ci.name INTO result_item_name
+    FROM collectible_items ci WHERE ci.id = recipe_record.result_item_id;
+  END IF;
+
+  -- Log successful craft
+  INSERT INTO user_crafts (user_id, recipe_id, result_data)
+  VALUES (p_user_id, p_recipe_id, json_build_object(
+    'success', true,
+    'result_type', recipe_record.result_type,
+    'result_xp', recipe_record.result_xp,
+    'result_gems', recipe_record.result_gems,
+    'result_shop_item_id', recipe_record.result_shop_item_id,
+    'result_item_id', recipe_record.result_item_id
+  )::jsonb);
+
+  RETURN json_build_object(
+    'success', true,
+    'result_type', recipe_record.result_type,
+    'result_name', recipe_record.name,
+    'result_image_url', recipe_record.result_image_url,
+    'result_xp', recipe_record.result_xp,
+    'result_gems', recipe_record.result_gems,
+    'result_item_id', recipe_record.result_item_id,
+    'result_item_name', result_item_name
+  );
+END;
+$$;
+
+-- Function: Award a milestone chest
+CREATE OR REPLACE FUNCTION award_milestone_chest(p_user_id uuid, p_milestone_type text, p_source_ref text DEFAULT NULL)
+RETURNS json
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = public
+AS $$
+DECLARE
+  config_record record;
+  milestone_chests jsonb;
+  chest_type_name text;
+  chest_record record;
+BEGIN
+  -- Get milestone chest config
+  SELECT config_value INTO config_record
+  FROM drop_config
+  WHERE config_key = 'milestone_chests';
+
+  IF config_record IS NULL THEN
+    RETURN json_build_object('success', false, 'error', 'No milestone chest config found');
+  END IF;
+
+  milestone_chests := config_record.config_value;
+  chest_type_name := milestone_chests->>p_milestone_type;
+
+  IF chest_type_name IS NULL THEN
+    RETURN json_build_object('success', false, 'error', 'No chest configured for this milestone');
+  END IF;
+
+  -- Find an active chest of that type
+  SELECT * INTO chest_record
+  FROM chests
+  WHERE chest_type = chest_type_name AND is_active = true
+  ORDER BY random()
+  LIMIT 1;
+
+  IF chest_record IS NULL THEN
+    RETURN json_build_object('success', false, 'error', 'No active chest found for type: ' || chest_type_name);
+  END IF;
+
+  -- Award the chest
+  INSERT INTO user_chests (user_id, chest_id, source, source_ref)
+  VALUES (p_user_id, chest_record.id, p_milestone_type, p_source_ref);
+
+  RETURN json_build_object(
+    'success', true,
+    'chest_id', chest_record.id,
+    'chest_name', chest_record.name,
+    'chest_image_url', chest_record.image_url,
+    'source', p_milestone_type
+  );
+END;
+$$;
+
 -- Function: Award winners for a single challenge (admin trigger)
 CREATE OR REPLACE FUNCTION award_single_challenge_winners(p_challenge_id uuid)
 RETURNS json

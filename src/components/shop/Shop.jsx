@@ -119,6 +119,18 @@ const Shop = () => {
         const frameRatio = item.item_data?.avatar_ratio || 66
         await updateProfile({ active_title: frameUrl, active_frame_ratio: frameRatio })
         alert('Đã trang bị khung!')
+      } else if (item.category === 'background') {
+        const { data, error } = await supabase.rpc('equip_background', {
+          p_user_id: user.id,
+          p_item_id: item.id
+        })
+        if (error) throw error
+        if (data.success) {
+          await updateProfile({ active_background_url: data.background_url })
+          alert('Đã trang bị background!')
+        } else {
+          alert(data.error || 'Không thể trang bị background')
+        }
       }
     } catch (err) {
       console.error('Error equipping item:', err)
@@ -129,13 +141,14 @@ const Shop = () => {
   const categories = [
     { key: 'avatar', label: 'Avatar' },
     { key: 'frame', label: 'Frame' },
+    { key: 'background', label: 'Background' },
     { key: 'school', label: 'School things' },
 
   ]
 
-  
+
 //Item nào hiện nút trang bị
-  const equippableCategories = ['avatar', 'frame']
+  const equippableCategories = ['avatar', 'frame', 'background']
 
   const isEquipped = (item) => {
     if (item.category === 'avatar') {
@@ -144,6 +157,10 @@ const Shop = () => {
     }
     if (item.category === 'frame') {
       return profile?.active_title === item.image_url
+    }
+    if (item.category === 'background') {
+      const backgroundUrl = item.item_data?.background_url || item.image_url
+      return profile?.active_background_url === backgroundUrl
     }
     return false
   }
@@ -174,15 +191,15 @@ const Shop = () => {
       {/* Header */}
       <div className="flex items-center justify-between mb-6">
         <div className="flex items-center gap-3">
-          <ShoppingBag className="w-8 h-8 text-emerald-600" />
+          <ShoppingBag className="w-8 h-8 text-blue-600" />
           <h1 className="text-2xl font-bold text-gray-900">Cửa hàng</h1>
         </div>
         <div className="flex items-center gap-2">
-          <div className="bg-gradient-to-r from-blue-400 to-indigo-500 text-white rounded-full px-4 py-2 flex items-center gap-2 font-bold shadow-md">
+          <div className="bg-yellow-400 text-white rounded-full px-4 py-2 flex items-center gap-2 font-bold shadow-md">
             <img src="https://xpclass.vn/xpclass/image/study/xp2.png" alt="XP" className="w-5 h-5" />
             {(profile?.xp || 0).toLocaleString()}
           </div>
-          <div className="bg-gradient-to-r from-emerald-400 to-teal-500 text-white rounded-full px-4 py-2 flex items-center gap-2 font-bold shadow-md">
+          <div className="bg-blue-400 text-white rounded-full px-4 py-2 flex items-center gap-2 font-bold shadow-md">
             <img src="https://xpclass.vn/xpclass/image/study/gem.png" alt="Gems" className="w-5 h-5" />
             {profile?.gems || 0}
           </div>
@@ -196,7 +213,7 @@ const Shop = () => {
             key={cat.key}
             onClick={() => setActiveTab(cat.key)}
             className={`px-5 py-2 rounded-full font-medium transition-all ${activeTab === cat.key
-                ? 'bg-emerald-500 text-white shadow-md'
+                ? 'bg-blue-500 text-white shadow-md'
                 : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
               }`}
           >
@@ -224,12 +241,12 @@ const Shop = () => {
                 className={`relative bg-white rounded-xl border-2 overflow-hidden transition-all hover:shadow-lg ${
                   !owned && !canAfford
                     ? 'border-gray-200 opacity-75'
-                    : 'border-gray-200 hover:border-emerald-300'
+                    : 'border-gray-200 hover:border-blue-300'
                   }`}
               >
                 {/* Equipped badge */}
                 {isEquipped(item) && (
-                  <div className="absolute top-2 right-2 bg-emerald-500 text-white rounded-full p-1 z-10">
+                  <div className="absolute top-2 right-2 bg-blue-500 text-white rounded-full p-1 z-10">
                     <Check className="w-3 h-3" />
                   </div>
                 )}
@@ -237,11 +254,18 @@ const Shop = () => {
                 {/* Item image */}
                 <div className="aspect-square bg-gray-50 flex items-center justify-center p-4">
                   {item.image_url ? (
-                    <img
-                      src={item.image_url}
-                      alt={item.name}
-                      className="w-full h-full object-contain rounded-lg"
-                    />
+                    item.category === 'background' ? (
+                      <div
+                        className="w-full h-full rounded-lg bg-cover bg-center"
+                        style={{ backgroundImage: `url(${item.item_data?.background_url || item.image_url})` }}
+                      />
+                    ) : (
+                      <img
+                        src={item.image_url}
+                        alt={item.name}
+                        className="w-full h-full object-contain rounded-lg"
+                      />
+                    )
                   ) : (
                     <div className="w-16 h-16 bg-gray-200 rounded-full flex items-center justify-center text-2xl">
                       {item.category === 'avatar' ? '👤' : '🏷️'}
@@ -263,14 +287,14 @@ const Shop = () => {
                         isEquipped(item) ? (
                           <button
                             disabled
-                            className="w-full py-1.5 bg-emerald-100 text-emerald-700 rounded-lg text-sm font-medium opacity-60 cursor-not-allowed"
+                            className="w-full py-1.5 bg-blue-100 text-blue-700 rounded-lg text-sm font-medium opacity-60 cursor-not-allowed"
                           >
                             Đã trang bị
                           </button>
                         ) : (
                           <button
                             onClick={() => handleEquip(item)}
-                            className="w-full py-1.5 bg-emerald-100 text-emerald-700 rounded-lg text-sm font-medium hover:bg-emerald-200 transition-colors"
+                            className="w-full py-1.5 bg-blue-100 text-blue-700 rounded-lg text-sm font-medium hover:bg-blue-200 transition-colors"
                           >
                             Trang bị
                           </button>
@@ -285,7 +309,7 @@ const Shop = () => {
                         onClick={() => handlePurchase(item)}
                         disabled={!canAfford || purchasing === item.id}
                         className={`w-full py-1.5 rounded-lg text-sm font-medium flex items-center justify-center gap-1 transition-colors ${canAfford
-                            ? 'bg-emerald-500 text-white hover:bg-emerald-600'
+                            ? 'bg-blue-500 text-white hover:bg-blue-600'
                             : 'bg-gray-200 text-gray-400 cursor-not-allowed'
                           }`}
                       >
@@ -337,7 +361,7 @@ const Shop = () => {
               </button>
               <button
                 onClick={confirmPurchase}
-                className="flex-1 py-2 rounded-xl bg-emerald-500 text-white font-medium hover:bg-emerald-600 transition-colors"
+                className="flex-1 py-2 rounded-xl bg-blue-500 text-white font-medium hover:bg-blue-600 transition-colors"
               >
                 Mua
               </button>

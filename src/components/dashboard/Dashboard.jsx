@@ -11,6 +11,7 @@ import { getRecentExercise } from '../../utils/recentExercise'
 import RecentActivities from './RecentActivities'
 import DailyChallenge from './DailyChallenge'
 import AvatarWithFrame from '../ui/AvatarWithFrame'
+import PetDisplay from '../pet/PetDisplay'
 
 const Dashboard = () => {
   const { profile } = useAuth()
@@ -495,6 +496,13 @@ const Dashboard = () => {
           </Card.Content>
         </Card>
       )} */}
+
+      {/* Pet Display - Full width */}
+      {profile?.role === 'user' && (
+        <div className="mb-6 mt-6">
+          <PetDisplay />
+        </div>
+      )}
 
       {/* Daily Challenge + Recent Activities - Side by side on PC */}
       {profile?.role === 'user' && (

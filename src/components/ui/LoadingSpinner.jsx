@@ -10,7 +10,7 @@ const LoadingSpinner = ({ size = 'md', text = 'Đang tải...' }) => {
   }
 
   return (
-    <div className="flex flex-col items-center justify-center min-h-dvh">
+    <div className="flex flex-col items-center justify-center min-h-[80dvh]">
       <StyledWrapper size={sizeMap[size]}>
         <div className="loader" />
       </StyledWrapper>

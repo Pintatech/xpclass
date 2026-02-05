@@ -3,6 +3,7 @@ import { useParams, useNavigate } from 'react-router-dom'
 import { useAuth } from '../../hooks/useAuth'
 import { useStudentLevels } from '../../hooks/useStudentLevels'
 import { useAchievements } from '../../hooks/useAchievements'
+import { usePet } from '../../hooks/usePet'
 import { supabase } from '../../supabase/client'
 import Card from '../ui/Card'
 import Button from '../ui/Button'
@@ -39,6 +40,7 @@ const Profile = () => {
     isMaxLevel
   } = useStudentLevels()
   const { getAchievementsWithProgress, userAchievements, challengeWinCounts } = useAchievements()
+  const { userPets, allPets } = usePet()
 
   // State for profile being viewed
   const [viewedProfile, setViewedProfile] = useState(null)
@@ -83,6 +85,9 @@ const Profile = () => {
   // Achievement state
   const [achievements, setAchievements] = useState([])
   const [showAchievementModal, setShowAchievementModal] = useState(false)
+
+  // Pet state for viewed user
+  const [viewedUserPets, setViewedUserPets] = useState([])
 
   useEffect(() => {
     if (isOwnProfile && profile) {
@@ -133,11 +138,31 @@ const Profile = () => {
       await fetchRecentActivity(userId)
       await fetchAvailableAvatars()
       await processBadges(userData?.xp || 0)
+      await fetchUserPets(userId)
       // fetchAchievements will be called automatically via useEffect after stats are loaded
 
     } catch (error) {
       console.error('Error fetching user profile:', error)
       navigate('/leaderboard')
+    }
+  }
+
+  const fetchUserPets = async (targetUserId) => {
+    try {
+      const { data, error } = await supabase
+        .from('user_pets')
+        .select(`
+          *,
+          pet:pets(*)
+        `)
+        .eq('user_id', targetUserId)
+        .order('obtained_at', { ascending: false })
+
+      if (error) throw error
+      setViewedUserPets(data || [])
+    } catch (error) {
+      console.error('Error fetching user pets:', error)
+      setViewedUserPets([])
     }
   }
 
@@ -842,6 +867,90 @@ const Profile = () => {
           )}
         </Card.Content>
       </Card>
+
+      {/* Pet Collection */}
+      {(() => {
+        const allUserPets = isOwnProfile ? userPets : viewedUserPets
+        // Show active pet first, then others
+        const activePet = allUserPets.find(p => p.is_active)
+        const otherPets = allUserPets.filter(p => !p.is_active).slice(0, 2)
+        const displayPets = activePet ? [activePet, ...otherPets] : allUserPets.slice(0, 3)
+
+        return (
+          <Card>
+            <Card.Header>
+              <div className="flex items-center justify-between">
+                <h3 className="text-xl font-semibold flex items-center space-x-2">
+                  <span className="text-2xl">🐾</span>
+                  <span>Pets ({allUserPets.length})</span>
+                </h3>
+                {isOwnProfile && (
+                  <button
+                    onClick={() => navigate('/pets')}
+                    className="flex items-center space-x-1 px-3 py-1 text-sm text-blue-600 hover:text-blue-700 hover:bg-blue-50 rounded-lg transition-colors"
+                  >
+                    <span>View All</span>
+                  </button>
+                )}
+              </div>
+            </Card.Header>
+
+            <Card.Content>
+              {allUserPets.length > 0 ? (
+                <div className="grid grid-cols-3 md:grid-cols-5 lg:grid-cols-3 gap-4">
+                  {displayPets.map((userPet) => {
+                    const pet = userPet.pet
+                    const rarityColors = {
+                      common: 'bg-gray-100 border-gray-300',
+                      uncommon: 'bg-green-50 border-green-300',
+                      rare: 'bg-blue-50 border-blue-300',
+                      epic: 'bg-purple-50 border-purple-300',
+                      legendary: 'bg-yellow-50 border-yellow-300'
+                    }
+
+                    return (
+                      <div key={userPet.id} className="text-center">
+                        <div className={`w-24 h-24 mx-auto mb-2 rounded-full border-2 flex items-center justify-center overflow-hidden ${rarityColors[pet?.rarity] || rarityColors.common}}`}>
+                          {pet?.image_url ? (
+                            <img src={pet.image_url} alt={pet.name} className="w-full h-full object-contain" />
+                          ) : (
+                            <span className="text-2xl">
+                              {pet?.rarity === 'legendary' ? '🐉' :
+                               pet?.rarity === 'epic' ? '🦅' :
+                               pet?.rarity === 'rare' ? '🦊' :
+                               pet?.rarity === 'uncommon' ? '🐱' : '🐶'}
+                            </span>
+                          )}
+                        </div>
+                        <div className="text-sm font-medium text-gray-900 truncate">
+                          {userPet.nickname || pet?.name}
+                        </div>
+                        <div className="text-xs text-gray-500 capitalize">{pet?.rarity}</div>
+                        {userPet.is_active && (
+                          <div className="text-xs text-blue-600 font-medium">Active</div>
+                        )}
+                      </div>
+                    )
+                  })}
+                </div>
+              ) : (
+                <div className="text-center py-8 text-gray-500">
+                  <span className="text-5xl block mb-4">🐾</span>
+                  <p>{isOwnProfile ? 'No pets yet. Visit the Egg Shop to hatch your first companion!' : 'This user has no pets yet.'}</p>
+                  {isOwnProfile && (
+                    <button
+                      onClick={() => navigate('/pets/shop')}
+                      className="mt-4 px-4 py-2 text-sm text-blue-600 hover:text-blue-700 hover:bg-blue-50 rounded-lg transition-colors"
+                    >
+                      Visit Egg Shop
+                    </button>
+                  )}
+                </div>
+              )}
+            </Card.Content>
+          </Card>
+        )
+      })()}
 
       {/* Stats Grid */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4">

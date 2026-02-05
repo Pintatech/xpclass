@@ -2,6 +2,7 @@ import { Outlet, useLocation } from 'react-router-dom'
 import { useAuth } from '../hooks/useAuth'
 import LeftSidebar from './navigation/LeftSidebar'
 import BottomNavigation from './navigation/BottomNavigation'
+import ItemDropNotification from './inventory/ItemDropNotification'
 import LoadingSpinner from './ui/LoadingSpinner'
 
 const Layout = () => {
@@ -35,6 +36,9 @@ const Layout = () => {
 
   return (
     <div className="min-h-screen bg-white">
+      {/* Item Drop Notification (global) */}
+      <ItemDropNotification />
+
       {/* Left Sidebar - Desktop and Mobile */}
       {!hideSidebar && <LeftSidebar />}
 
