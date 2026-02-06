@@ -20,8 +20,8 @@ const LeftSidebar = () => {
   const navItems = [
     { path: '/', imageSrc: 'https://xpclass.vn/xpclass/icon/navigation/home.svg', label: 'Trang chủ' },
     { path: '/leaderboard', imageSrc: 'https://xpclass.vn/xpclass/icon/navigation/leaderboard.svg', label: 'Xếp hạng' },
-    { path: '/pets', label: 'Thú cưng', emoji: '🐾' },
-    { path: '/inventory', iconComponent: Package, label: 'Kho đồ', badge: newItemCount },
+    { path: '/pets', label: 'Thú cưng',imageSrc: 'https://xpclass.vn/xpclass/icon/navigation/pet.svg' },
+    { path: '/inventory',  imageSrc: 'https://xpclass.vn/xpclass/icon/navigation/inventory.svg', label: 'Kho đồ', badge: newItemCount },
     { path: '/progress', imageSrc: 'https://xpclass.vn/xpclass/icon/navigation/progress.svg', label: 'Tiến độ' },
     { path: '/shop', imageSrc: 'https://xpclass.vn/xpclass/icon/navigation/shop.svg', label: 'Cửa hàng'},
   ]

@@ -254,7 +254,7 @@ const PetDisplay = () => {
     // Clear animation after 3 seconds
     setTimeout(() => {
       setPlayAnimation(null);
-    }, 3000);
+    }, 6000);
   };
 
   const handleFeed = async (itemId = null) => {
@@ -342,6 +342,17 @@ const PetDisplay = () => {
       legendary: "from-yellow-400 to-orange-500",
     };
     return gradients[rarity] || gradients.common;
+  };
+
+  const getRarityAura = (rarity) => {
+    const auras = {
+      common: "https://xpclass.vn/xpclass/common.png",
+      uncommon: "https://xpclass.vn/xpclass/green.png",
+      rare: "https://xpclass.vn/xpclass/aura-rare.png",
+      epic: "https://xpclass.vn/xpclass/aura-epic.png",
+      legendary: "https://xpclass.vn/xpclass/aura-legendary.png",
+    };
+    return auras[rarity] || "https://xpclass.vn/xpclass/aura.png";
   };
 
   // Get pet image based on current stats and evolution stage
@@ -584,7 +595,7 @@ const PetDisplay = () => {
                   className="relative bg-white rounded-[20px] px-4 py-2 shadow-lg max-w-[200px]"
                   style={{
                     border: "3px solid #4a5568",
-                    boxShadow: "0 4px 0 #2d3748",
+                    boxShadow: "0 1px 0 #2d3748",
                   }}
                 >
                   <p className="text-xs font-medium text-gray-800 text-center break-words whitespace-normal">
@@ -737,27 +748,27 @@ const PetDisplay = () => {
                                   : "rgba(156, 163, 175, 0.7), rgba(156, 163, 175, 0.3) 50%, transparent 70%"
                       })`,
                       filter: "blur(15px)",
-                      animation: "auraPulse 4s ease-in-out forwards",
+                      animation: "auraPulse 6s ease-in-out forwards",
                     }}
                   />
                 </div>
               )}
               {/* Rotating background - temporarily hidden */}
-              {/* {playAnimation && (
+              {playAnimation && (
                 <div
                   className="absolute w-56 h-56 left-1/2 top-1/2 pointer-events-none"
                   style={{
-                    animation: "spinBackground 4s linear",
+                    animation: "spinBackground 6s linear",
                     transform: "translate(-50%, -50%)",
                   }}
                 >
                   <img
-                    src="https://xpclass.vn/xpclass/aura.png"
+                    src={getRarityAura(activePet.rarity)}
                     alt=""
                     className="w-full h-full object-contain opacity-80"
                   />
                 </div>
-              )} */}
+              )}
               {activePet.image_url ? (
                 <img
                   src={getPetImage()}

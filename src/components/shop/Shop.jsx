@@ -207,12 +207,12 @@ const Shop = () => {
       </div>
 
       {/* Category Tabs */}
-      <div className="flex gap-2 mb-6">
+      <div className="flex gap-2 mb-6 overflow-x-auto pb-2 scrollbar-hide" style={{ WebkitOverflowScrolling: 'touch' }}>
         {categories.map(cat => (
           <button
             key={cat.key}
             onClick={() => setActiveTab(cat.key)}
-            className={`px-5 py-2 rounded-full font-medium transition-all ${activeTab === cat.key
+            className={`px-5 py-2 rounded-full font-medium transition-all flex-shrink-0 ${activeTab === cat.key
                 ? 'bg-blue-500 text-white shadow-md'
                 : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
               }`}

@@ -9,10 +9,10 @@ const BottomNavigation = () => {
 
   const navItems = [
     { path: '/', imageSrc: 'https://xpclass.vn/xpclass/icon/navigation/home.svg', label: 'Home' },
-    { path: '/leaderboard', imageSrc: 'https://xpclass.vn/xpclass/icon/navigation/leaderboard.svg', label: 'Leaderboard' },
-    { path: '/pets', label: 'Pets', emoji: '🐾' },
-    { path: '/inventory', icon: Package, label: 'Inventory', badge: newItemCount },
-    { path: '/shop', imageSrc: 'https://xpclass.vn/xpclass/icon/navigation/shop.svg', label: 'Cửa hàng'},
+    { path: '/leaderboard', imageSrc: 'https://xpclass.vn/xpclass/icon/navigation/leaderboard.svg', label: 'BXH' },
+    { path: '/pets', label: 'Pet',imageSrc: 'https://xpclass.vn/xpclass/icon/navigation/pet.svg' },
+    { path: '/inventory',  imageSrc: 'https://xpclass.vn/xpclass/icon/navigation/inventory.svg', label: 'Kho đồ', badge: newItemCount },
+    { path: '/shop', imageSrc: 'https://xpclass.vn/xpclass/icon/navigation/shop.svg', label: 'Shop'},
     { path: '/profile', imageSrc: 'https://xpclass.vn/xpclass/icon/navigation/account.svg', label: 'Account' },
   ]
 
