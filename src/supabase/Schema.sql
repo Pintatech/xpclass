@@ -107,6 +107,7 @@ CREATE TABLE public.courses (
   created_at timestamp with time zone DEFAULT now(),
   updated_at timestamp with time zone DEFAULT now(),
   teacher_id uuid,
+  chest_enabled boolean DEFAULT false,
   CONSTRAINT courses_pkey PRIMARY KEY (id),
   CONSTRAINT courses_teacher_id_fkey FOREIGN KEY (teacher_id) REFERENCES public.users(id)
 );
@@ -1781,6 +1782,72 @@ BEGIN
     'chest_name', chest_record.name,
     'chest_image_url', chest_record.image_url,
     'source', p_milestone_type
+  );
+END;
+$$;
+
+-- Function: Award chest on exercise completion (only for courses with chest_enabled = true)
+CREATE OR REPLACE FUNCTION award_exercise_chest(p_user_id uuid, p_exercise_id uuid)
+RETURNS json
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = public
+AS $$
+DECLARE
+  v_course record;
+  v_chest record;
+  v_existing_chest uuid;
+BEGIN
+  -- Find the course for this exercise via exercise_assignments -> session -> unit -> course
+  SELECT c.id AS course_id, c.chest_enabled
+  INTO v_course
+  FROM exercise_assignments ea
+  JOIN sessions s ON s.id = ea.session_id
+  JOIN units u ON u.id = s.unit_id
+  JOIN courses c ON c.id = u.course_id
+  WHERE ea.exercise_id = p_exercise_id
+  LIMIT 1;
+
+  IF v_course IS NULL THEN
+    RETURN json_build_object('success', false, 'reason', 'exercise_not_found');
+  END IF;
+
+  -- Check if course has chest drops enabled
+  IF NOT v_course.chest_enabled THEN
+    RETURN json_build_object('success', false, 'reason', 'chest_not_enabled');
+  END IF;
+
+  -- Check if user already received a chest for this exercise
+  SELECT id INTO v_existing_chest
+  FROM user_chests
+  WHERE user_id = p_user_id
+    AND source = 'exercise_complete'
+    AND source_ref = p_exercise_id::text;
+
+  IF v_existing_chest IS NOT NULL THEN
+    RETURN json_build_object('success', false, 'reason', 'already_awarded');
+  END IF;
+
+  -- Find an active standard chest
+  SELECT * INTO v_chest
+  FROM chests
+  WHERE chest_type = 'standard' AND is_active = true
+  ORDER BY random()
+  LIMIT 1;
+
+  IF v_chest IS NULL THEN
+    RETURN json_build_object('success', false, 'reason', 'no_active_chest');
+  END IF;
+
+  -- Award the chest
+  INSERT INTO user_chests (user_id, chest_id, source, source_ref)
+  VALUES (p_user_id, v_chest.id, 'exercise_complete', p_exercise_id::text);
+
+  RETURN json_build_object(
+    'success', true,
+    'chest_id', v_chest.id,
+    'chest_name', v_chest.name,
+    'chest_image_url', v_chest.image_url
   );
 END;
 $$;

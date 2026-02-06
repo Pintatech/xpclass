@@ -327,13 +327,32 @@ export const ProgressProvider = ({ children }) => {
         await checkAndAwardAchievements(progressData)
       }
 
+      // Roll for chest drop (only on first successful completion, course must have chest_enabled)
+      let chestDropResult = null
+      if (meetingRequirement && !isAlreadyCompleted) {
+        try {
+          const { data: chestData, error: chestError } = await supabase.rpc('award_exercise_chest', {
+            p_user_id: user.id,
+            p_exercise_id: exerciseId,
+          })
+          if (!chestError && chestData?.success) {
+            chestDropResult = chestData
+            console.log('📦 Chest awarded:', chestData.chest_name)
+            window.dispatchEvent(new CustomEvent('chest-earned', { detail: chestData }))
+          }
+        } catch (chestErr) {
+          console.warn('Chest award failed (non-critical):', chestErr)
+        }
+      }
+
       return {
         data,
         error: null,
         xpAwarded: actualXpAwarded,
         completed: meetingRequirement,
         score: score,
-        attempts: newAttempts
+        attempts: newAttempts,
+        chestDrop: chestDropResult
       }
     } catch (error) {
       console.error('Error completing exercise:', error)

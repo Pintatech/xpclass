@@ -454,6 +454,28 @@ export const ProgressProvider = ({ children }) => {
         }
       }
 
+      // Roll for chest drop (only on first successful completion, course must have chest_enabled)
+      let chestDropResult = null
+      if (meetingRequirement && !isAlreadyCompleted) {
+        try {
+          const { data: chestData, error: chestError } = await supabase.rpc('award_exercise_chest', {
+            p_user_id: user.id,
+            p_exercise_id: exerciseId,
+          })
+          if (chestError) {
+            console.warn('📦 Chest RPC error:', chestError.message)
+          } else if (chestData?.success) {
+            chestDropResult = chestData
+            console.log('📦 Chest awarded:', chestData.chest_name)
+            window.dispatchEvent(new CustomEvent('chest-earned', { detail: chestData }))
+          } else {
+            console.log('📦 Chest not awarded:', chestData?.reason)
+          }
+        } catch (chestErr) {
+          console.warn('📦 Chest award exception:', chestErr)
+        }
+      }
+
       // Check if this exercise is part of today's daily challenge
       // Record ALL attempts, including failed ones (below 75%)
       if (challengeId) {
@@ -479,7 +501,8 @@ export const ProgressProvider = ({ children }) => {
         score: score,
         attempts: newAttempts,
         challengeResult: challengeResult,
-        itemDrop: itemDropResult
+        itemDrop: itemDropResult,
+        chestDrop: chestDropResult
       }
     } catch (error) {
       console.error('Error completing exercise:', error)

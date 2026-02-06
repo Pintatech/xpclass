@@ -3,6 +3,7 @@ import { useAuth } from '../hooks/useAuth'
 import LeftSidebar from './navigation/LeftSidebar'
 import BottomNavigation from './navigation/BottomNavigation'
 import ItemDropNotification from './inventory/ItemDropNotification'
+import ChestDropNotification from './inventory/ChestDropNotification'
 import LoadingSpinner from './ui/LoadingSpinner'
 
 const Layout = () => {
@@ -38,6 +39,7 @@ const Layout = () => {
     <div className="min-h-screen bg-white">
       {/* Item Drop Notification (global) */}
       <ItemDropNotification />
+      <ChestDropNotification />
 
       {/* Left Sidebar - Desktop and Mobile */}
       {!hideSidebar && <LeftSidebar />}
