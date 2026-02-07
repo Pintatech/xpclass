@@ -48,6 +48,13 @@ const getThemeSideImages = (theme) => {
   return themeSideImages[theme] || themeSideImages.blue
 }
 
+// Helper to detect TikTok URLs and extract video ID
+const getTikTokVideoId = (url) => {
+  if (!url) return null;
+  const match = url.match(/tiktok\.com\/(?:@[^/]+\/video\/|embed\/v2\/)(\d+)/);
+  return match ? match[1] : null;
+};
+
 const FlashcardExercise = () => {
   const location = useLocation();
   const [currentCard, setCurrentCard] = useState(0);
@@ -771,6 +778,14 @@ const FlashcardExercise = () => {
           transform: rotateY(180deg);
         }
 
+        /* Disable pointer events on the hidden face so iframes remain interactive */
+        .flip-card-inner:not(.flipped) .flip-card-back {
+          pointer-events: none;
+        }
+        .flip-card-inner.flipped .flip-card-front {
+          pointer-events: none;
+        }
+
         .button-3d {
           transform: translateY(0);
           transition: all 0.1s ease;
@@ -872,12 +887,18 @@ const FlashcardExercise = () => {
               <div className="relative">
                 {/* Card Content - Front or Back */}
                 <div
-                  className={`flip-card-inner aspect-square ${
-                    isFlipped ? "flipped" : ""
-                  }`}
+                  className={`flip-card-inner ${
+                    mediaMode === "video" && getTikTokVideoId(currentFlashcard?.videoUrls?.[currentVideoIndex])
+                      ? "aspect-[9/16] md:aspect-square"
+                      : "aspect-square"
+                  } ${isFlipped ? "flipped" : ""}`}
                 >
                   {/* Front Face */}
-                  <div className="flip-card-front aspect-square relative">
+                  <div className={`flip-card-front ${
+                    mediaMode === "video" && getTikTokVideoId(currentFlashcard?.videoUrls?.[currentVideoIndex])
+                      ? "aspect-[9/16] md:aspect-square"
+                      : "aspect-square"
+                  } relative`}>
                     {mediaMode === "image" ? (
                       <>
                         <img
@@ -986,35 +1007,52 @@ const FlashcardExercise = () => {
                       </>
                     ) : (
                       <>
-                        <video
-                          ref={(el) => {
-                            if (el && !videoRefs[currentVideoIndex]) {
-                              const newRefs = [...videoRefs];
-                              newRefs[currentVideoIndex] = el;
-                              setVideoRefs(newRefs);
-                            }
-                          }}
-                          src={currentFlashcard?.videoUrls?.[currentVideoIndex]}
-                          className="w-full h-full object-cover"
-                          controls
-                          autoPlay
-                          playsInline
-                          muted
-                          onError={() => {
-                            console.error(
-                              "Video failed to load:",
-                              currentFlashcard?.videoUrls?.[currentVideoIndex]
-                            );
-                          }}
-                        />
-                        {/* Text overlay */}
-                        <div className="absolute inset-0 bg-black/30 flex items-center justify-center px-4 pointer-events-none">
-                          <div className="text-center text-white">
-                            <h2 className="text-2xl sm:text-3xl md:text-4xl lg:text-5xl font-bold mb-2 drop-shadow-lg break-words max-w-full">
-                              {currentFlashcard?.front}
-                            </h2>
+                        {getTikTokVideoId(currentFlashcard?.videoUrls?.[currentVideoIndex]) ? (
+                          <div className="relative w-full h-full">
+                            <iframe
+                              src={`https://www.tiktok.com/embed/v2/${getTikTokVideoId(currentFlashcard?.videoUrls?.[currentVideoIndex])}`}
+                              className="w-full h-full"
+                              allowFullScreen
+                              allow="encrypted-media"
+                              scrolling="no"
+                              style={{ border: 'none', overflow: 'hidden' }}
+                            />
+                            {/* Block clicks to prevent navigating to TikTok */}
+                            <div className="absolute inset-0 z-10" />
                           </div>
-                        </div>
+                        ) : (
+                          <video
+                            ref={(el) => {
+                              if (el && !videoRefs[currentVideoIndex]) {
+                                const newRefs = [...videoRefs];
+                                newRefs[currentVideoIndex] = el;
+                                setVideoRefs(newRefs);
+                              }
+                            }}
+                            src={currentFlashcard?.videoUrls?.[currentVideoIndex]}
+                            className="w-full h-full object-cover"
+                            controls
+                            autoPlay
+                            playsInline
+                            muted
+                            onError={() => {
+                              console.error(
+                                "Video failed to load:",
+                                currentFlashcard?.videoUrls?.[currentVideoIndex]
+                              );
+                            }}
+                          />
+                        )}
+                        {/* Text overlay - only for non-TikTok videos */}
+                        {!getTikTokVideoId(currentFlashcard?.videoUrls?.[currentVideoIndex]) && (
+                          <div className="absolute inset-0 bg-black/30 flex items-center justify-center px-4 pointer-events-none">
+                            <div className="text-center text-white">
+                              <h2 className="text-2xl sm:text-3xl md:text-4xl lg:text-5xl font-bold mb-2 drop-shadow-lg break-words max-w-full">
+                                {currentFlashcard?.front}
+                              </h2>
+                            </div>
+                          </div>
+                        )}
 
                         {/* Video thumbnails navigation */}
                         {currentFlashcard?.videoUrls?.length > 1 && (
@@ -1036,11 +1074,17 @@ const FlashcardExercise = () => {
                                   }`}
                                   title={`Video ${videoIndex + 1}`}
                                 >
-                                  <video
-                                    src={videoUrl}
-                                    className="w-full h-full object-cover pointer-events-none"
-                                    muted
-                                  />
+                                  {getTikTokVideoId(videoUrl) ? (
+                                    <div className="w-full h-full bg-black flex items-center justify-center">
+                                      <span className="text-white text-xs font-bold">TT</span>
+                                    </div>
+                                  ) : (
+                                    <video
+                                      src={videoUrl}
+                                      className="w-full h-full object-cover pointer-events-none"
+                                      muted
+                                    />
+                                  )}
                                   {currentVideoIndex === videoIndex && (
                                     <div className="absolute inset-0 bg-blue-500/20 flex items-center justify-center"></div>
                                   )}
@@ -1054,7 +1098,11 @@ const FlashcardExercise = () => {
                   </div>
 
                   {/* Back Face */}
-                  <div className="flip-card-back aspect-square relative">
+                  <div className={`flip-card-back ${
+                    mediaMode === "video" && getTikTokVideoId(currentFlashcard?.videoUrls?.[currentVideoIndex])
+                      ? "aspect-[9/16] md:aspect-square"
+                      : "aspect-square"
+                  } relative`}>
                     {mediaMode === "image" ? (
                       <>
                         <img
@@ -1073,21 +1121,38 @@ const FlashcardExercise = () => {
                       </>
                     ) : (
                       <>
-                        <video
-                          src={currentFlashcard?.videoUrls?.[currentVideoIndex]}
-                          className="w-full h-full object-cover"
-                          controls
-                          playsInline
-                          muted
-                        />
-                        {/* Text overlay */}
-                        <div className="absolute inset-0 bg-black/30 flex items-center justify-center px-4 pointer-events-none">
-                          <div className="text-center text-white">
-                            <h2 className="text-2xl sm:text-3xl md:text-4xl lg:text-5xl font-bold mb-2 drop-shadow-lg break-words max-w-full">
-                              {currentFlashcard?.back}
-                            </h2>
+                        {getTikTokVideoId(currentFlashcard?.videoUrls?.[currentVideoIndex]) ? (
+                          <div className="relative w-full h-full">
+                            <iframe
+                              src={`https://www.tiktok.com/embed/v2/${getTikTokVideoId(currentFlashcard?.videoUrls?.[currentVideoIndex])}`}
+                              className="w-full h-full"
+                              allowFullScreen
+                              allow="encrypted-media"
+                              scrolling="no"
+                              style={{ border: 'none', overflow: 'hidden' }}
+                            />
+                            {/* Block clicks to prevent navigating to TikTok */}
+                            <div className="absolute inset-0 z-10" />
                           </div>
-                        </div>
+                        ) : (
+                          <>
+                            <video
+                              src={currentFlashcard?.videoUrls?.[currentVideoIndex]}
+                              className="w-full h-full object-cover"
+                              controls
+                              playsInline
+                              muted
+                            />
+                            {/* Text overlay */}
+                            <div className="absolute inset-0 bg-black/30 flex items-center justify-center px-4 pointer-events-none">
+                              <div className="text-center text-white">
+                                <h2 className="text-2xl sm:text-3xl md:text-4xl lg:text-5xl font-bold mb-2 drop-shadow-lg break-words max-w-full">
+                                  {currentFlashcard?.back}
+                                </h2>
+                              </div>
+                            </div>
+                          </>
+                        )}
                       </>
                     )}
                   </div>
