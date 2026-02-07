@@ -89,7 +89,7 @@ const RecipeCard = ({ recipe, getItemQuantity, onCraft, crafting, inventory, rea
           <ArrowRight className="w-4 h-4 text-gray-400 mx-1" />
 
           {/* Result preview */}
-          <div className="flex items-center gap-2 px-2.5 py-1.5 rounded-lg border border-purple-300 bg-purple-50">
+          <div className="relative flex items-center gap-2 px-2.5 py-1.5 rounded-lg border border-purple-300 bg-purple-50">
             <div className="w-8 h-8 bg-white rounded flex items-center justify-center overflow-hidden">
               {recipe.result_image_url ? (
                 <img src={recipe.result_image_url} alt="" className="w-6 h-6 object-contain" />
@@ -98,6 +98,11 @@ const RecipeCard = ({ recipe, getItemQuantity, onCraft, crafting, inventory, rea
               )}
             </div>
             <p className="text-xs font-semibold text-purple-700">{recipe.name}</p>
+            {recipe.result_quantity > 1 && (
+              <span className="absolute -top-1.5 -right-1.5 bg-purple-600 text-white text-[10px] font-bold w-5 h-5 rounded-full flex items-center justify-center">
+                x{recipe.result_quantity}
+              </span>
+            )}
           </div>
         </div>
 

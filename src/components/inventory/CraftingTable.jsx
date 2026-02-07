@@ -57,8 +57,10 @@ const CraftingTable = ({ recipes, inventory, getItemQuantity, onCraft, crafting 
       ings.forEach(i => { ingMap[i.item_id] = i.quantity })
       const slotKeys = Object.keys(slotMap)
       const ingKeys = Object.keys(ingMap)
-      if (slotKeys.length !== ingKeys.length) return false
-      return ingKeys.every(k => slotMap[k] === ingMap[k])
+      // All slot items must be part of this recipe (no random extras)
+      if (!slotKeys.every(k => ingMap[k])) return false
+      // All recipe ingredients must be present with at least enough quantity
+      return ingKeys.every(k => slotMap[k] && slotMap[k] >= ingMap[k])
     })
   }, [slotMap, recipes])
 
@@ -73,8 +75,8 @@ const CraftingTable = ({ recipes, inventory, getItemQuantity, onCraft, crafting 
       const ingMap = {}
       ings.forEach(i => { ingMap[i.item_id] = i.quantity })
       // Every item in slots must be in this recipe's ingredients, and qty <= required
-      return Object.entries(slotMap).every(([itemId, qty]) => {
-        return ingMap[itemId] && qty <= ingMap[itemId]
+      return Object.entries(slotMap).every(([itemId]) => {
+        return ingMap[itemId] != null
       })
     })
   }, [slotMap, recipes, matchedRecipe])
@@ -167,11 +169,16 @@ const CraftingTable = ({ recipes, inventory, getItemQuantity, onCraft, crafting 
             }`}>
               {matchedRecipe ? (
                 <>
-                  <div className="w-10 h-10 sm:w-12 sm:h-12 flex items-center justify-center">
+                  <div className="relative w-10 h-10 sm:w-12 sm:h-12 flex items-center justify-center">
                     {matchedRecipe.result_image_url ? (
                       <img src={matchedRecipe.result_image_url} alt={matchedRecipe.name} className="w-full h-full object-contain" />
                     ) : (
                       <Sparkles className="w-7 h-7 text-purple-500" />
+                    )}
+                    {matchedRecipe.result_quantity > 1 && (
+                      <span className="absolute -top-1.5 -right-1.5 bg-purple-600 text-white text-[10px] font-bold w-5 h-5 rounded-full flex items-center justify-center">
+                        x{matchedRecipe.result_quantity}
+                      </span>
                     )}
                   </div>
                   <p className="text-[10px] font-semibold text-purple-700 text-center px-1 truncate w-full">

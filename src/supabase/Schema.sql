@@ -1303,6 +1303,7 @@ CREATE TABLE IF NOT EXISTS public.recipes (
   ingredients jsonb NOT NULL DEFAULT '[]'::jsonb,
   is_active boolean DEFAULT true,
   max_crafts_per_user integer,
+  result_quantity integer DEFAULT 1 CHECK (result_quantity >= 1),
   success_rate integer DEFAULT 100 CHECK (success_rate >= 0 AND success_rate <= 100),
   created_at timestamp with time zone DEFAULT now(),
   CONSTRAINT recipes_pkey PRIMARY KEY (id),
@@ -1312,6 +1313,9 @@ CREATE TABLE IF NOT EXISTS public.recipes (
 
 -- Add success_rate column if not exists (for existing tables)
 ALTER TABLE public.recipes ADD COLUMN IF NOT EXISTS success_rate integer DEFAULT 100 CHECK (success_rate >= 0 AND success_rate <= 100);
+
+-- Add result_quantity column if not exists (for existing tables)
+ALTER TABLE public.recipes ADD COLUMN IF NOT EXISTS result_quantity integer DEFAULT 1 CHECK (result_quantity >= 1);
 
 -- User Crafts log
 CREATE TABLE IF NOT EXISTS public.user_crafts (
@@ -1697,9 +1701,9 @@ BEGIN
     UPDATE users SET gems = gems + recipe_record.result_gems WHERE id = p_user_id;
   ELSIF recipe_record.result_type = 'item' AND recipe_record.result_item_id IS NOT NULL THEN
     INSERT INTO user_inventory (user_id, item_id, quantity)
-    VALUES (p_user_id, recipe_record.result_item_id, 1)
+    VALUES (p_user_id, recipe_record.result_item_id, COALESCE(recipe_record.result_quantity, 1))
     ON CONFLICT (user_id, item_id)
-    DO UPDATE SET quantity = user_inventory.quantity + 1, updated_at = now();
+    DO UPDATE SET quantity = user_inventory.quantity + COALESCE(recipe_record.result_quantity, 1), updated_at = now();
   END IF;
 
   -- Look up result item name if applicable
