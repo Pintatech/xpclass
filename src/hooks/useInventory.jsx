@@ -106,6 +106,7 @@ export const InventoryProvider = ({ children }) => {
         `)
         .eq('user_id', user.id)
         .order('crafted_at', { ascending: false })
+        .limit(20)
 
       if (error) throw error
       setCraftHistory(data || [])

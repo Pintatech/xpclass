@@ -73,6 +73,7 @@ const defaultRecipeForm = {
   result_type: 'cosmetic',
   result_shop_item_id: '',
   result_item_id: '',
+  result_quantity: 1,
   result_xp: 0,
   result_gems: 0,
   result_image_url: '',
@@ -287,6 +288,7 @@ const InventoryManagement = () => {
         result_type: recipe.result_type,
         result_shop_item_id: recipe.result_shop_item_id || '',
         result_item_id: recipe.result_item_id || '',
+        result_quantity: recipe.result_quantity || 1,
         result_xp: recipe.result_xp || 0,
         result_gems: recipe.result_gems || 0,
         result_image_url: recipe.result_image_url || '',
@@ -322,6 +324,7 @@ const InventoryManagement = () => {
         result_type: formData.result_type,
         result_shop_item_id: formData.result_shop_item_id || null,
         result_item_id: formData.result_item_id || null,
+        result_quantity: formData.result_type === 'item' ? (parseInt(formData.result_quantity) || 1) : 1,
         result_xp: parseInt(formData.result_xp) || 0,
         result_gems: parseInt(formData.result_gems) || 0,
         result_image_url: formData.result_image_url || null,
@@ -1035,7 +1038,7 @@ const RecipeForm = ({ formData, setFormData, onSubmit, onClose, editing, saving,
               className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500" min="0" />
           </div>
         )}
-        {formData.result_type === 'item' && (
+        {formData.result_type === 'item' && (<>
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1">Reward Item</label>
             <select value={formData.result_item_id} onChange={e => setFormData({ ...formData, result_item_id: e.target.value })}
@@ -1044,7 +1047,12 @@ const RecipeForm = ({ formData, setFormData, onSubmit, onClose, editing, saving,
               {items.map(item => <option key={item.id} value={item.id}>{item.name} ({item.rarity})</option>)}
             </select>
           </div>
-        )}
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">Result Quantity</label>
+            <input type="number" value={formData.result_quantity} onChange={e => setFormData({ ...formData, result_quantity: e.target.value })}
+              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500" min="1" />
+          </div>
+        </>)}
         <div>
           <label className="block text-sm font-medium text-gray-700 mb-1">Max Crafts Per User</label>
           <input type="number" value={formData.max_crafts_per_user} onChange={e => setFormData({ ...formData, max_crafts_per_user: e.target.value })}

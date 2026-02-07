@@ -4,14 +4,12 @@
 import React, { useState, useEffect } from 'react';
 import { Routes, Route, useNavigate, useLocation } from 'react-router-dom';
 import {
-  Edit,
   AlertCircle,
   CheckCircle,
   Download,
   Users,
   BookOpen,
   BarChart3,
-  Settings,
   FileText,
   Home,
   Trophy,
@@ -30,9 +28,7 @@ import ExerciseManagement from './ExerciseManagement';
 import ExerciseBank from './ExerciseBank';
 import CourseManagement from './CourseManagement';
 import StudentEnrollmentManagement from './StudentEnrollmentManagement';
-import UnitManagement from './UnitManagement';
-import SessionManagement from './SessionManagement';
-import ContentTreeView from './ContentTreeView';
+
 import CohortsManagement from './CohortsManagement';
 import StudentLevelsManagement from './StudentLevelsManagement';
 import AchievementManagement from './AchievementManagement';
@@ -90,24 +86,17 @@ const AdminDashboard = () => {
     try {
       setLoading(true);
 
-      // Get content statistics with fallback
-      let coursesResult;
-      try {
-        coursesResult = await supabase.from('courses').select('id', { count: 'exact' });
-      } catch (error) {
-        if (error.code === 'PGRST205') {
-          console.log('Using levels table fallback for admin stats...');
-          coursesResult = await supabase.from('levels').select('id', { count: 'exact' });
-        } else {
-          throw error;
-        }
-      }
+      const weekAgo = new Date();
+      weekAgo.setDate(weekAgo.getDate() - 7);
 
-      const [unitsResult, sessionsResult, exercisesResult, usersResult] = await Promise.all([
-        supabase.from('units').select('id', { count: 'exact' }),
-        supabase.from('sessions').select('id', { count: 'exact' }),
-        supabase.from('exercises').select('id, is_active', { count: 'exact' }),
-        supabase.from('users').select('id, created_at', { count: 'exact' })
+      const [coursesResult, unitsResult, sessionsResult, exercisesResult, activeExercisesResult, usersResult, recentUsersResult] = await Promise.all([
+        supabase.from('courses').select('*', { count: 'exact', head: true }),
+        supabase.from('units').select('*', { count: 'exact', head: true }),
+        supabase.from('sessions').select('*', { count: 'exact', head: true }),
+        supabase.from('exercises').select('*', { count: 'exact', head: true }),
+        supabase.from('exercises').select('*', { count: 'exact', head: true }).eq('is_active', true),
+        supabase.from('users').select('*', { count: 'exact', head: true }),
+        supabase.from('users').select('*', { count: 'exact', head: true }).gte('created_at', weekAgo.toISOString())
       ]);
 
       const stats = {
@@ -115,15 +104,9 @@ const AdminDashboard = () => {
         totalUnits: unitsResult.count || 0,
         totalSessions: sessionsResult.count || 0,
         totalExercises: exercisesResult.count || 0,
-        activeExercises: exercisesResult.data?.filter(ex => ex.is_active).length || 0,
+        activeExercises: activeExercisesResult.count || 0,
         totalUsers: usersResult.count || 0,
-        // Users created in last 7 days
-        recentUsers: usersResult.data?.filter(user => {
-          const createdAt = new Date(user.created_at);
-          const weekAgo = new Date();
-          weekAgo.setDate(weekAgo.getDate() - 7);
-          return createdAt >= weekAgo;
-        }).length || 0
+        recentUsers: recentUsersResult.count || 0
       };
 
       setStats(stats);
@@ -144,19 +127,8 @@ const AdminDashboard = () => {
     try {
       setLoading(true);
       
-      // Export all content with fallback
-      let coursesData;
-      try {
-        coursesData = await supabase.from('courses').select('*');
-      } catch (error) {
-        if (error.code === 'PGRST205') {
-          coursesData = await supabase.from('levels').select('*');
-        } else {
-          throw error;
-        }
-      }
-
-      const [unitsData, sessionsData, exercisesData] = await Promise.all([
+      const [coursesData, unitsData, sessionsData, exercisesData] = await Promise.all([
+        supabase.from('courses').select('*'),
         supabase.from('units').select('*'),
         supabase.from('sessions').select('*'),
         supabase.from('exercises').select('*')
@@ -210,13 +182,10 @@ const AdminDashboard = () => {
 
   const tabs = [
     { id: 'overview', label: 'Overview', icon: Home },
-    { id: 'tree', label: 'Tree View', icon: BookOpen },
-    { id: 'bank', label: 'Exercise Bank', icon: FileText },
+{ id: 'bank', label: 'Exercise Bank', icon: FileText },
     { id: 'courses', label: 'Courses', icon: BookOpen },
     { id: 'cohorts', label: 'Cohorts', icon: Users },
     { id: 'enrollments', label: 'Enrollments', icon: Users },
-    { id: 'units', label: 'Units', icon: Settings },
-    { id: 'sessions', label: 'Sessions', icon: Edit },
     { id: 'levels', label: 'Student Levels', icon: BarChart3 },
     { id: 'achievements', label: 'Achievements', icon: Trophy },
     { id: 'daily-challenges', label: 'Daily Challenges', icon: Trophy },
@@ -290,16 +259,16 @@ const AdminDashboard = () => {
                 </h2>
                 <p className="text-sm text-gray-600">
                   {activeTab === 'overview' && 'Platform overview and statistics'}
-                  {activeTab === 'tree' && 'Content hierarchy and structure'}
+
                   {activeTab === 'courses' && 'Manage learning courses and assign teachers'}
                   {activeTab === 'cohorts' && 'Manage student cohorts'}
                   {activeTab === 'enrollments' && 'Assign students to courses'}
-                  {activeTab === 'units' && 'Manage curriculum units'}
+
                   {activeTab === 'levels' && 'Manage student XP levels and badges'}
                   {activeTab === 'achievements' && 'Manage achievements and badges'}
                   {activeTab === 'shop' && 'Manage shop items and pricing'}
                   {activeTab === 'inventory' && 'Manage collectible items, chests, and recipes'}
-                  {activeTab === 'sessions' && 'Manage learning sessions'}
+
                   {activeTab === 'users' && 'User management and profiles'}
                   {activeTab === 'activities' && 'Recent student exercise attempts'}
                   {activeTab === 'analytics' && 'Platform analytics and insights'}
@@ -345,7 +314,7 @@ const AdminDashboard = () => {
             {/* Tab Content - Using React Router */}
             <Routes>
               <Route index element={<AdminOverview />} />
-              <Route path="tree" element={<ContentTreeView />} />
+
               <Route path="bank" element={<ExerciseBank />} />
               <Route path="courses" element={<CourseManagement />} />
               <Route path="cohorts" element={<CohortsManagement />} />
@@ -357,8 +326,6 @@ const AdminDashboard = () => {
               <Route path="shop" element={<ShopManagement />} />
               <Route path="inventory" element={<InventoryManagement />} />
               <Route path="pets" element={<PetManagement />} />
-              <Route path="units" element={<UnitManagement />} />
-              <Route path="sessions" element={<SessionManagement />} />
               {/* Redirect legacy exercises path to bank */}
               <Route path="exercises" element={<ExerciseBank />} />
               <Route path="users" element={<UserManagement />} />
@@ -416,7 +383,7 @@ const AnalyticsView = ({ stats }) => {
       // Get exercise type distribution
       const { data: exercises } = await supabase
         .from('exercises')
-        .select('exercise_type, xp_reward, difficulty_level');
+        .select('exercise_type');
 
       // Get user progress data
       const { data: userProgress } = await supabase

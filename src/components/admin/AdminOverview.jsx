@@ -44,73 +44,102 @@ const AdminOverview = () => {
         return
       }
 
-      // For each course, calculate completion rate
-      const courseCompletions = []
+      const courseIds = courses.map(c => c.id)
 
-      for (const course of courses) {
-        // Get units in course
-        const { data: units } = await supabase
-          .from('units')
-          .select('id')
-          .eq('course_id', course.id)
+      // Batch: fetch all units, enrollments in parallel
+      const [unitsRes, enrollmentsRes] = await Promise.all([
+        supabase.from('units').select('id, course_id').in('course_id', courseIds),
+        supabase.from('course_enrollments').select('student_id, course_id').in('course_id', courseIds).eq('is_active', true),
+      ])
 
-        const unitIds = (units || []).map(u => u.id)
-        if (unitIds.length === 0) continue
+      const allUnits = unitsRes.data || []
+      const allEnrollments = enrollmentsRes.data || []
+      const allUnitIds = allUnits.map(u => u.id)
 
-        // Get sessions
-        const { data: sessions } = await supabase
-          .from('sessions')
-          .select('id')
-          .in('unit_id', unitIds)
-
-        const sessionIds = (sessions || []).map(s => s.id)
-        if (sessionIds.length === 0) continue
-
-        // Get exercise IDs via assignments
-        const { data: assignments } = await supabase
-          .from('exercise_assignments')
-          .select('exercise_id')
-          .in('session_id', sessionIds)
-
-        const exerciseIds = Array.from(new Set((assignments || []).map(a => a.exercise_id)))
-        if (exerciseIds.length === 0) continue
-
-        // Get students enrolled in this course
-        const { data: enrollments } = await supabase
-          .from('course_enrollments')
-          .select('student_id')
-          .eq('course_id', course.id)
-          .eq('is_active', true)
-
-        const studentIds = (enrollments || []).map(e => e.student_id)
-        if (studentIds.length === 0) continue
-
-        // Get user progress
-        const { data: progress } = await supabase
-          .from('user_progress')
-          .select('user_id, exercise_id, status')
-          .in('user_id', studentIds)
-          .in('exercise_id', exerciseIds)
-
-        // Calculate completion rate for each student
-        const studentCompletionRates = studentIds.map(studentId => {
-          const studentProgress = (progress || []).filter(p => p.user_id === studentId)
-          const completed = studentProgress.filter(p => p.status === 'completed').length
-          return exerciseIds.length > 0 ? (completed / exerciseIds.length) * 100 : 0
-        })
-
-        const courseAvgCompletion = studentCompletionRates.length > 0
-          ? studentCompletionRates.reduce((sum, rate) => sum + rate, 0) / studentCompletionRates.length
-          : 0
-
-        courseCompletions.push({
-          courseId: course.id,
-          courseTitle: course.title,
-          avgCompletion: Math.round(courseAvgCompletion)
-        })
+      if (allUnitIds.length === 0) {
+        setAvgCompletion(0)
+        setCourseStats([])
+        return
       }
 
-      // Calculate overall average
+      // Batch: fetch all sessions for all units
+      const { data: allSessions } = await supabase
+        .from('sessions')
+        .select('id, unit_id')
+        .in('unit_id', allUnitIds)
+
+      const allSessionIds = (allSessions || []).map(s => s.id)
+      if (allSessionIds.length === 0) {
+        setAvgCompletion(0)
+        setCourseStats([])
+        return
+      }
+
+      // Batch: fetch all assignments + all progress in parallel
+      const allStudentIds = Array.from(new Set(allEnrollments.map(e => e.student_id)))
+      const [assignmentsRes, progressRes] = await Promise.all([
+        supabase.from('exercise_assignments').select('exercise_id, session_id').in('session_id', allSessionIds),
+        allStudentIds.length > 0
+          ? supabase.from('user_progress').select('user_id, exercise_id, status').in('user_id', allStudentIds).eq('status', 'completed')
+          : Promise.resolve({ data: [] }),
+      ])
+
+      const allAssignments = assignmentsRes.data || []
+      const allProgress = progressRes.data || []
+
+      // Build lookup maps
+      const sessionToUnit = new Map()
+      ;(allSessions || []).forEach(s => sessionToUnit.set(s.id, s.unit_id))
+
+      const unitToCourse = new Map()
+      allUnits.forEach(u => unitToCourse.set(u.id, u.course_id))
+
+      // Map exercise -> course
+      const exerciseToCourse = new Map()
+      allAssignments.forEach(a => {
+        const unitId = sessionToUnit.get(a.session_id)
+        if (unitId) {
+          const courseId = unitToCourse.get(unitId)
+          if (courseId) exerciseToCourse.set(a.exercise_id, courseId)
+        }
+      })
+
+      // Group exercises by course
+      const courseExercises = new Map()
+      exerciseToCourse.forEach((courseId, exerciseId) => {
+        if (!courseExercises.has(courseId)) courseExercises.set(courseId, new Set())
+        courseExercises.get(courseId).add(exerciseId)
+      })
+
+      // Group enrollments by course
+      const courseStudentIds = new Map()
+      allEnrollments.forEach(e => {
+        if (!courseStudentIds.has(e.course_id)) courseStudentIds.set(e.course_id, [])
+        courseStudentIds.get(e.course_id).push(e.student_id)
+      })
+
+      // Index completed progress
+      const completedSet = new Set()
+      allProgress.forEach(p => completedSet.add(`${p.user_id}-${p.exercise_id}`))
+
+      // Calculate per-course stats
+      const courseCompletions = courses.map(course => {
+        const exerciseSet = courseExercises.get(course.id)
+        const studentIds = courseStudentIds.get(course.id)
+        if (!exerciseSet || exerciseSet.size === 0 || !studentIds || studentIds.length === 0) {
+          return { courseId: course.id, courseTitle: course.title, avgCompletion: 0 }
+        }
+
+        const exerciseArr = Array.from(exerciseSet)
+        const studentCompletionRates = studentIds.map(sid => {
+          const completed = exerciseArr.filter(eid => completedSet.has(`${sid}-${eid}`)).length
+          return (completed / exerciseArr.length) * 100
+        })
+
+        const avg = studentCompletionRates.reduce((sum, r) => sum + r, 0) / studentCompletionRates.length
+        return { courseId: course.id, courseTitle: course.title, avgCompletion: Math.round(avg) }
+      }).filter(c => c.avgCompletion > 0 || courseExercises.has(c.courseId))
+
       const overallAvg = courseCompletions.length > 0
         ? Math.round(courseCompletions.reduce((sum, c) => sum + c.avgCompletion, 0) / courseCompletions.length)
         : 0

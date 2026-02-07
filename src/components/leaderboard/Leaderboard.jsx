@@ -264,18 +264,7 @@ const Leaderboard = () => {
   const getAllTimeLeaderboard = async () => {
     const { data: users, error: usersError } = await supabase
       .from('users')
-      .select(`
-        id,
-        email,
-        full_name,
-        xp,
-        current_level,
-        streak_count,
-        avatar_url,
-        active_title,
-        active_frame_ratio,
-        created_at
-      `)
+      .select('id, email, full_name, xp, streak_count, avatar_url, active_title, active_frame_ratio')
       .eq('role', 'user')
       .order('xp', { ascending: false })
       .limit(10)
@@ -309,20 +298,9 @@ const Leaderboard = () => {
     // First get all users
     const { data: users, error: usersError } = await supabase
       .from('users')
-      .select(`
-        id,
-        email,
-        full_name,
-        xp,
-        current_level,
-        streak_count,
-        avatar_url,
-        active_title,
-        active_frame_ratio,
-        created_at
-      `)
+      .select('id, email, full_name, xp, streak_count, avatar_url, active_title, active_frame_ratio')
       .eq('role', 'user')
-      .limit(200) // Get more users for filtering
+      .limit(100)
 
     if (usersError) throw usersError
 

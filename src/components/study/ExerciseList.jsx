@@ -93,26 +93,22 @@ function getExerciseIndices(count, positions, customMappings) {
 
 const ExerciseList = () => {
   const {
-    levelId: rawLevelId,
     courseId: rawCourseId,
     unitId,
     sessionId,
   } = useParams();
   const sanitizeId = (v) => (v && v !== "undefined" && v !== "null" ? v : null);
-  const levelId = sanitizeId(rawLevelId);
   const courseId = sanitizeId(rawCourseId);
-  // Support both level and course routes for backward compatibility
-  const currentId = courseId || levelId;
+  const currentId = courseId;
   const navigate = useNavigate();
-  const [level, setLevel] = useState(null);
+  const [course, setCourse] = useState(null);
   const [unit, setUnit] = useState(null);
   const [session, setSession] = useState(null);
   const [exercises, setExercises] = useState([]);
-  const [allLevelSessions, setAllLevelSessions] = useState([]);
+  const [allCourseSessions, setAllLevelSessions] = useState([]);
   const [sessionProgress, setSessionProgress] = useState({});
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
-  const [courseLevels, setCourseLevels] = useState([]);
   const [units, setUnits] = useState([]);
   const [showAssignExerciseModal, setShowAssignExerciseModal] = useState(false);
   const [assignToStudentExercise, setAssignToStudentExercise] = useState(null);
@@ -312,7 +308,7 @@ const ExerciseList = () => {
 
       // Step 2: fetch remaining data in parallel
       const [
-        levelResult,
+        courseResult,
         unitResult,
         sessionResult,
         exercisesResult,
@@ -333,16 +329,16 @@ const ExerciseList = () => {
           .from("exercise_assignments")
           .select(
             `
-          *,
-          exercises (*)
+          id, session_id, exercise_id, order_index,
+          exercises (id, title, exercise_type, xp_reward, is_active)
         `,
           )
           .eq("session_id", sessionId)
           .order("order_index"),
-        supabase.from("units").select("*").order("unit_number"),
+        supabase.from("units").select("id, course_id, unit_number").order("unit_number"),
       ]);
 
-      if (levelResult.error) throw levelResult.error;
+      if (courseResult.error) throw courseResult.error;
       if (unitResult.error) throw unitResult.error;
       if (sessionResult.error) throw sessionResult.error;
       if (exercisesResult.error) throw exercisesResult.error;
@@ -354,7 +350,7 @@ const ExerciseList = () => {
           .from("course_enrollments")
           .select("id")
           .eq("student_id", user.id)
-          .eq("course_id", levelResult.data.id)
+          .eq("course_id", courseResult.data.id)
           .eq("is_active", true)
           .single();
 
@@ -369,7 +365,7 @@ const ExerciseList = () => {
         }
       }
 
-      setLevel(levelResult.data);
+      setCourse(courseResult.data);
       setUnit(unitResult.data);
       setSession(sessionResult.data);
 
@@ -386,24 +382,24 @@ const ExerciseList = () => {
       console.log("📋 All exercise assignments loaded:", assignments);
       console.log("📋 Extracted exercises:", exercises);
 
-      // Fetch all sessions for this level (for sidebar)
+      // Fetch all sessions for this course (for sidebar)
       // Build unit ids for this course
-      const levelUnitIds =
+      const courseUnitIds =
         allUnitsResult.data
           ?.filter(
             (u) =>
-              u.course_id === levelResult.data.id || u.level_id === levelId,
+              u.course_id === courseResult.data.id,
           )
           .map((u) => u.id) || [];
-      const { data: allLevelSessions, error: allSessionsError } = await supabase
+      const { data: allCourseSessions, error: allSessionsError } = await supabase
         .from("sessions")
         .select("*")
-        .in("unit_id", levelUnitIds)
+        .in("unit_id", courseUnitIds)
         .eq("is_active", true)
         .order("session_number");
 
       if (allSessionsError) {
-        console.error("Error fetching all level sessions:", allSessionsError);
+        console.error("Error fetching all course sessions:", allSessionsError);
       }
 
       // Fetch session progress for sidebar
@@ -412,7 +408,7 @@ const ExerciseList = () => {
           .from("session_progress")
           .select("*")
           .eq("user_id", user.id)
-          .in("session_id", allLevelSessions?.map((s) => s.id) || []);
+          .in("session_id", allCourseSessions?.map((s) => s.id) || []);
 
       if (sessionProgressError) {
         console.error("Error fetching session progress:", sessionProgressError);
@@ -422,7 +418,7 @@ const ExerciseList = () => {
       const { data: allExercises, error: exercisesErr } = await supabase
         .from("exercises")
         .select("id, session_id, xp_reward, is_active")
-        .in("session_id", allLevelSessions?.map((s) => s.id) || [])
+        .in("session_id", allCourseSessions?.map((s) => s.id) || [])
         .eq("is_active", true);
 
       if (exercisesErr) {
@@ -465,7 +461,7 @@ const ExerciseList = () => {
       });
 
       // Fill/override computed fields
-      allLevelSessions?.forEach((s) => {
+      allCourseSessions?.forEach((s) => {
         const list = sessionIdToExercises[s.id] || [];
         const total = list.length;
         const completedCount = list.filter((ex) =>
@@ -503,9 +499,8 @@ const ExerciseList = () => {
         }
       });
 
-      setCourseLevels([]);
       setUnits(allUnitsResult.data || []);
-      setAllLevelSessions(allLevelSessions || []);
+      setAllLevelSessions(allCourseSessions || []);
       setSessionProgress(sessionProgressMap);
     } catch (err) {
       console.error("Error fetching exercises:", err);
@@ -513,7 +508,7 @@ const ExerciseList = () => {
     } finally {
       setLoading(false);
     }
-  }, [levelId, unitId, sessionId]);
+  }, [courseId, unitId, sessionId]);
 
   useEffect(() => {
     if (user && unitId && sessionId) {
@@ -532,16 +527,16 @@ const ExerciseList = () => {
   useEffect(() => {
     const handleBottomNavBack = () => {
       console.log('🎯 Bottom nav "Back" clicked in ExerciseList');
-      const base = levelId
-        ? `/study/level/${levelId}`
-        : `/study/course/${unit?.course_id || level?.id}`;
+      const base = courseId
+        ? `/study/course/${courseId}`
+        : `/study/course/${unit?.course_id || course?.id}`;
       navigate(`${base}/unit/${unitId}`);
     };
 
     window.addEventListener("bottomNavBack", handleBottomNavBack);
     return () =>
       window.removeEventListener("bottomNavBack", handleBottomNavBack);
-  }, [levelId, unitId, navigate]);
+  }, [courseId, unitId, navigate]);
 
   // Handle window resize for responsive node positions
   useEffect(() => {
@@ -970,7 +965,7 @@ const ExerciseList = () => {
     const { status, canAccess } = getExerciseStatus(exercise, index);
     const progress = userProgress.find((p) => p.exercise_id === exercise.id);
     const theme = getThemeColors(
-      session?.color_theme || unit?.color_theme || level?.color_theme,
+      session?.color_theme || unit?.color_theme || course?.color_theme,
     );
     const isLocked = !canAccess;
     const ExerciseIcon = getExerciseIcon(exercise.exercise_type);
@@ -987,7 +982,7 @@ const ExerciseList = () => {
     const handleExerciseClick = () => {
       if (!isLocked) {
         navigate(
-          `${getExercisePath(exercise)}?exerciseId=${exercise.id}&sessionId=${sessionId}&levelId=${levelId}&unitId=${unitId}`,
+          `${getExercisePath(exercise)}?exerciseId=${exercise.id}&sessionId=${sessionId}&courseId=${courseId}&unitId=${unitId}`,
         );
       }
     };
@@ -1163,12 +1158,12 @@ const ExerciseList = () => {
     );
   }
 
-  if (!session || !unit || !level) {
+  if (!session || !unit || !course) {
     return (
       <div className="text-center py-12">
         <div className="text-gray-600 mb-4">Không tìm thấy thông tin</div>
         <Button
-          onClick={() => navigate(`/study/level/${levelId}/unit/${unitId}`)}
+          onClick={() => navigate(`/study/course/${courseId}/unit/${unitId}`)}
           variant="outline"
         >
           Quay lại
@@ -1178,10 +1173,10 @@ const ExerciseList = () => {
   }
 
   const theme = getThemeColors(
-    session.color_theme || unit.color_theme || level.color_theme,
+    session.color_theme || unit.color_theme || course.color_theme,
   );
   const colorTheme =
-    session?.color_theme || unit?.color_theme || level?.color_theme || "blue";
+    session?.color_theme || unit?.color_theme || course?.color_theme || "blue";
   const mapTheme = getMapTheme(colorTheme);
 
   // Use desktop positions if available and on desktop, otherwise use mobile positions
@@ -1342,7 +1337,7 @@ const ExerciseList = () => {
       if (positionEditorMode) return; // Don't navigate in editor mode
       if (unlocked && !isDummy) {
         navigate(
-          `${getExercisePath(exercise)}?exerciseId=${exercise.id}&sessionId=${sessionId}&levelId=${levelId}&unitId=${unitId}`,
+          `${getExercisePath(exercise)}?exerciseId=${exercise.id}&sessionId=${sessionId}&courseId=${courseId}&unitId=${unitId}`,
         );
       }
     };
@@ -1496,7 +1491,7 @@ const ExerciseList = () => {
         {viewMode === "map" && (
           <img
             src={getThemeBackgroundImage(
-              session?.color_theme || unit?.color_theme || level?.color_theme,
+              session?.color_theme || unit?.color_theme || course?.color_theme,
               isDesktop,
             )}
             alt="Map"

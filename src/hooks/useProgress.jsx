@@ -33,10 +33,7 @@ export const ProgressProvider = ({ children }) => {
       setLoading(true)
       const { data, error } = await supabase
         .from('user_progress')
-        .select(`
-          *,
-          exercise:exercises(*)
-        `)
+        .select('id, exercise_id, status, score, max_score, attempts, time_spent, xp_earned, completed_at, first_attempt_at, updated_at')
         .eq('user_id', user.id)
 
       if (error) throw error
@@ -54,10 +51,7 @@ export const ProgressProvider = ({ children }) => {
     try {
       const { data, error } = await supabase
         .from('user_achievements')
-        .select(`
-          *,
-          achievement:achievements(*)
-        `)
+        .select('id, achievement_id, earned_at')
         .eq('user_id', user.id)
 
       if (error) throw error

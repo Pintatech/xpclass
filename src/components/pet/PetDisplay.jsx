@@ -57,6 +57,7 @@ const PetDisplay = () => {
   const [message, setMessage] = useState(null);
   const [chatBubble, setChatBubble] = useState(null);
   const [showPetInfo, setShowPetInfo] = useState(false);
+  const [showBonuses, setShowBonuses] = useState(false);
   const [isEating, setIsEating] = useState(false);
 
   // Feed animation state
@@ -262,6 +263,10 @@ const PetDisplay = () => {
       // Get energy gained from result or calculate from item
       const energyGained = result.energy_gained || 15;
 
+      // Play chomp sound
+      const chompSound = new Audio('https://xpclass.vn/xpclass/sound/chomp.mp3');
+      chompSound.play().catch(() => {});
+
       // Trigger flying food animation with energy gained
       triggerFeedAnimation(energyGained);
 
@@ -286,6 +291,12 @@ const PetDisplay = () => {
       // Trigger play animation with XP gained
       const xpGained = result.xp_gained || 10;
       triggerPlayAnimation(xpGained);
+
+      // Play training sound when XP text appears (4s delay matches floatUpXP animation delay)
+      setTimeout(() => {
+        const trainSound = new Audio('https://xpclass.vn/xpclass/sound/pet-training.mp3');
+        trainSound.play().catch(() => {});
+      }, 4000);
 
       // Check for evolution
       const evolved = result.evolution?.evolved;
@@ -561,7 +572,7 @@ const PetDisplay = () => {
             {/* Pet Status - top left */}
 
             
-            <div className="absolute top-2 left-2 z-10 space-y-1 w-24">
+            <div className="absolute top-2 left-2 z-20 space-y-1 w-24">
               
               <div className="flex items-center gap-1">
                 <span className="text-xs">😊</span>
@@ -587,7 +598,53 @@ const PetDisplay = () => {
                 </div>
               </div>
 
+              {bonuses.length > 0 && (
+                <div className="relative mt-1">
+                  <button
+                    onClick={() => setShowBonuses(!showBonuses)}
+                    className="w-8 h-8 hover:scale-110 transition-all"
+                    title="View bonuses"
+                  >
+                    <img
+                      src="https://xpclass.vn/xpclass/image/dashboard/pet-bonus.svg"
+                      alt="Pet bonuses"
+                      className="w-full h-full object-contain drop-shadow-lg"
+                    />
+                  </button>
 
+                  {showBonuses && (
+                    <>
+                      <div className="fixed inset-0 z-30" onClick={() => setShowBonuses(false)} />
+                      <div className="absolute top-0 left-full ml-2 bg-white rounded-lg shadow-xl p-3 z-40 border-2 border-yellow-200 min-w-[200px]">
+                        <div className="space-y-2">
+                          {bonuses.map((bonus, idx) => (
+                            <div key={idx}>
+                              {bonus.breakdown && (<>
+                                {bonus.breakdown.rarity > 0 && (
+                                  <div className="flex items-center justify-between text-xs">
+                                    <span className="text-gray-600">Rarity ({activePet.rarity})</span>
+                                    <span className="font-bold text-yellow-600">+{bonus.breakdown.rarity}%</span>
+                                  </div>
+                                )}
+                                {bonus.breakdown.evolution > 0 && (
+                                  <div className="flex items-center justify-between text-xs">
+                                    <span className="text-gray-600">Evolution Stg {activePet.evolution_stage}</span>
+                                    <span className="font-bold text-purple-600">+{bonus.breakdown.evolution}%</span>
+                                  </div>
+                                )}
+                                <div className="flex items-center justify-between text-xs border-t border-gray-200 pt-1 mt-1">
+                                  <span className="font-bold text-gray-800">Total XP Bonus</span>
+                                  <span className="font-bold text-green-600">+{bonus.value}%</span>
+                                </div>
+                              </>)}
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    </>
+                  )}
+                </div>
+              )}
             </div>
 
             {/* Chat Bubble - absolute positioned */}
@@ -803,11 +860,41 @@ const PetDisplay = () => {
               )}
             </div>
 
+            {/* Chat Button - Above Train Button */}
+            <div className="absolute bottom-[272px] right-2 z-10">
+              <button
+                onClick={() => setShowChat(!showChat)}
+                className="w-12 h-12 hover:scale-110 transition-all"
+                title="Chat with pet"
+              >
+                <img
+                  src="https://xpclass.vn/xpclass/image/dashboard/pet-chat.svg"
+                  alt="Chat with pet"
+                  className="w-12 h-12 object-contain drop-shadow-lg"
+                />
+              </button>
+            </div>
+
+            {/* Train Button - Above Food Bowl */}
+            <div className="absolute bottom-52 right-2 z-10">
+              <button
+                onClick={handlePlay}
+                className="w-12 h-12 hover:scale-110 transition-all"
+                title="Train pet"
+              >
+                <img
+                  src="https://xpclass.vn/xpclass/image/dashboard/pet-train.svg"
+                  alt="Train pet"
+                  className="w-full h-full object-contain drop-shadow-lg"
+                />
+              </button>
+            </div>
+
             {/* Food Bowl - Bottom Right */}
             <div className="absolute bottom-36 right-2 z-10">
               <button
                 onClick={() => setShowFeedMenu(!showFeedMenu)}
-                className="w-16 h-16 hover:scale-110 transition-all"
+                className="w-12 h-12 hover:scale-110 transition-all"
                 title="Feed pet"
               >
                 <img
@@ -950,68 +1037,6 @@ const PetDisplay = () => {
 
         {/* Pet Actions */}
         <div className="flex-1 p-4 space-y-4">
-          {/* Active Bonuses */}
-          {bonuses.length > 0 && (
-            <div className="bg-gradient-to-r from-yellow-50 to-orange-50 rounded-xl p-4 border-2 border-yellow-200">
-              <h3 className="font-bold text-gray-800 mb-2 flex items-center gap-2">
-                <Sparkles className="w-5 h-5 text-yellow-600" />
-                Active Bonuses
-              </h3>
-              <div className="space-y-1">
-                {bonuses.map((bonus, idx) => (
-                  <div key={idx}>
-                    {bonus.breakdown && (
-                      <div className="text-sm font-semibold text-gray-800 ml-5 mt-0.5 space-y-0.5">
-                        {bonus.breakdown.rarity > 0 && (
-                          <div>•Pet Rarity: +{bonus.breakdown.rarity}% XP</div>
-                        )}
-                        {bonus.breakdown.evolution > 0 && (
-                          <div>
-                            • Evolution Stage {activePet.evolution_stage}: +
-                            {bonus.breakdown.evolution}% XP
-                          </div>
-                        )}
-                      </div>
-                    )}
-                  </div>
-                ))}
-              </div>
-            </div>
-          )}
-
-          {/* Actions */}
-          <div className={showChat ? "flex gap-2" : "space-y-3"}>
-            {/* Train Button */}
-            <button
-              onClick={handlePlay}
-              className={`bg-green-400 hover:from-blue-600 hover:to-blue-700 text-white font-bold rounded-lg transition-all shadow-md ${
-                showChat
-                  ? "flex-1 py-2 px-3"
-                  : "w-full py-3 px-4 transform hover:scale-105"
-              }`}
-            >
-              <Sparkles
-                className={showChat ? "w-4 h-4 mx-auto" : "w-5 h-5 inline mr-2"}
-              />
-              {!showChat && "Train Pet"}
-            </button>
-
-            {/* Chat Button */}
-            <button
-              onClick={() => setShowChat(!showChat)}
-              className={`bg-gradient-to-r from-pink-500 to-rose-500 hover:from-pink-600 hover:to-rose-600 text-white font-bold rounded-lg transition-all shadow-md ${
-                showChat
-                  ? "flex-1 py-2 px-3"
-                  : "w-full py-3 px-4 transform hover:scale-105"
-              }`}
-            >
-              <MessageCircle
-                className={showChat ? "w-4 h-4 mx-auto" : "w-5 h-5 inline mr-2"}
-              />
-              {!showChat && "Chat with Pet"}
-            </button>
-          </div>
-
           {/* Chat Panel */}
           {showChat && (
             <div className="bg-white rounded-xl p-4 border-2 border-pink-200">
