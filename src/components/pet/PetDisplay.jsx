@@ -62,7 +62,6 @@ const PetDisplay = () => {
   // Feed animation state
   const [feedAnimation, setFeedAnimation] = useState(null); // { food: '🍖', particles: [] }
   const petContainerRef = useRef(null);
-  const feedButtonRef = useRef(null);
 
   // Play animation state
   const [playAnimation, setPlayAnimation] = useState(null); // { xpGained: 10, phase: 'active' }
@@ -415,17 +414,20 @@ const PetDisplay = () => {
     >
       {/* Feed Animation Styles */}
       <style>{`
+        .scrollbar-hide::-webkit-scrollbar {
+          display: none;
+        }
         @keyframes flyToPet {
           0% {
-            transform: translate(120px, 180px) scale(0.6);
+            transform: translate(0, 0) scale(0.8);
             opacity: 1;
           }
-          80% {
-            transform: translate(0, 0) scale(1.1);
+          70% {
+            transform: translate(clamp(-200px, -30vw, -100px), -150px) scale(1.4);
             opacity: 1;
           }
           100% {
-            transform: translate(0, 0) scale(0.8);
+            transform: translate(clamp(-200px, -30vw, -100px), -160px) scale(1);
             opacity: 0;
           }
         }
@@ -640,11 +642,10 @@ const PetDisplay = () => {
                   style={{
                     animation:
                       feedAnimation.phase === "flying"
-                        ? "flyToPet 0.6s ease-in forwards"
+                        ? "flyToPet 0.7s ease-out forwards"
                         : "none",
-                    left: "50%",
-                    top: "120px",
-                    marginLeft: "-0.5em",
+                    bottom: "144px",
+                    right: "24px",
                   }}
                 >
                   {feedAnimation.food}
@@ -676,7 +677,7 @@ const PetDisplay = () => {
 
                     {/* Floating +Energy Text */}
                     <div
-                      className="absolute z-20 pointer-events-none font-bold text-2xl"
+                      className="absolute z-20 pointer-events-none font-bold text-3xl"
                       style={{
                         left: "50%",
                         top: "120px",
@@ -699,7 +700,7 @@ const PetDisplay = () => {
             {/* Play Animation - Floating XP */}
             {playAnimation && (
               <>
-                {/* Floating +XP Text */}
+                {/* Floating +XP Text - appears after rotation ends */}
                 <div
                   className="absolute z-20 pointer-events-none font-bold text-3xl"
                   style={{
@@ -708,7 +709,8 @@ const PetDisplay = () => {
                     marginLeft: "-50px",
                     width: "100px",
                     textAlign: "center",
-                    animation: "floatUpXP 2s ease-out forwards",
+                    animation: "floatUpXP 2s ease-out 4s forwards",
+                    opacity: 0,
                     color: "#e7d214",
                     textShadow:
                       "0 0 10px rgba(208, 211, 17, 0.5), 2px 2px 4px rgba(0,0,0,0.3)",
@@ -798,6 +800,70 @@ const PetDisplay = () => {
                 <span className="text-6xl relative z-10">
                   {happinessStatus.emoji}
                 </span>
+              )}
+            </div>
+
+            {/* Food Bowl - Bottom Right */}
+            <div className="absolute bottom-36 right-2 z-10">
+              <button
+                onClick={() => setShowFeedMenu(!showFeedMenu)}
+                className="w-16 h-16 hover:scale-110 transition-all"
+                title="Feed pet"
+              >
+                <img
+                  src={profile?.active_bowl_url || "https://png.pngtree.com/png-clipart/20220111/original/pngtree-dog-food-bowl-png-image_7072429.png"}
+                  alt="Food bowl"
+                  className="w-full h-full object-contain drop-shadow-lg"
+                />
+              </button>
+
+              {/* Feed Menu - appears below the bowl */}
+              {showFeedMenu && (
+                <>
+                  {/* Overlay to close menu when clicking outside */}
+                  <div
+                    className="fixed inset-0 z-10"
+                    onClick={() => setShowFeedMenu(false)}
+                  />
+                  <div className="absolute top-full right-0 mt-2 bg-white rounded-lg shadow-xl p-4 z-20 border-2 border-orange-200 min-w-[200px]">
+
+                  {petFoodItems.length === 0 ? (
+                    <p className="text-xs text-gray-500 mb-2">
+                      No pet food in inventory
+                    </p>
+                  ) : (
+                    <div className="space-y-2 mb-2 max-h-40 overflow-y-auto scrollbar-hide" style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }}>
+                      {petFoodItems.map((item) => {
+                        const stats = getFoodStats(item.item.rarity);
+                        return (
+                          <button
+                            key={item.item.id}
+                            onClick={() => handleFeed(item.item.id)}
+                            className="w-full text-left p-2 rounded hover:bg-orange-50 transition-colors"
+                          >
+                            <div className="flex justify-between items-center">
+                              <span className="text-sm font-medium">
+                                {item.item.name}
+                              </span>
+                              <span className="text-xs text-gray-500">
+                                x{item.quantity}
+                              </span>
+                            </div>
+                            <div className="flex gap-3 mt-1 text-xs">
+                              <span className="text-orange-600">
+                                ⚡ +{stats.energy}
+                              </span>
+                              <span className="text-pink-600">
+                                💖 +{stats.happiness}
+                              </span>
+                            </div>
+                          </button>
+                        );
+                      })}
+                    </div>
+                  )}
+                </div>
+                </>
               )}
             </div>
 
@@ -915,80 +981,6 @@ const PetDisplay = () => {
 
           {/* Actions */}
           <div className={showChat ? "flex gap-2" : "space-y-3"}>
-            {/* Feed Button */}
-            <div
-              ref={feedButtonRef}
-              className={showChat ? "flex-1" : "relative"}
-            >
-              <button
-                onClick={() => setShowFeedMenu(!showFeedMenu)}
-                className={`bg-orange-400 hover:from-green-600 hover:to-emerald-600 text-white font-bold rounded-lg transition-all shadow-md ${
-                  showChat
-                    ? "w-full py-2 px-3"
-                    : "w-full py-3 px-4 transform hover:scale-105"
-                }`}
-              >
-                <Utensils
-                  className={
-                    showChat ? "w-4 h-4 mx-auto" : "w-5 h-5 inline mr-2"
-                  }
-                />
-                {!showChat && "Feed Pet"}
-              </button>
-
-              {/* Feed Menu */}
-              {showFeedMenu && (
-                <div className="absolute top-full left-0 right-0 mt-2 bg-white rounded-lg shadow-xl p-4 z-10 border-2 border-gray-200">
-                  <h4 className="font-bold text-sm text-gray-700 mb-3">
-                    Choose Food
-                  </h4>
-
-                  {petFoodItems.length === 0 ? (
-                    <p className="text-xs text-gray-500 mb-2">
-                      No pet food in inventory
-                    </p>
-                  ) : (
-                    <div className="space-y-2 mb-2 max-h-40 overflow-y-auto">
-                      {petFoodItems.map((item) => {
-                        const stats = getFoodStats(item.item.rarity);
-                        return (
-                          <button
-                            key={item.item.id}
-                            onClick={() => handleFeed(item.item.id)}
-                            className="w-full text-left p-2 rounded hover:bg-gray-100 transition-colors"
-                          >
-                            <div className="flex justify-between items-center">
-                              <span className="text-sm font-medium">
-                                {item.item.name}
-                              </span>
-                              <span className="text-xs text-gray-500">
-                                x{item.quantity}
-                              </span>
-                            </div>
-                            <div className="flex gap-3 mt-1 text-xs">
-                              <span className="text-green-600">
-                                ⚡ +{stats.energy}
-                              </span>
-                              <span className="text-pink-600">
-                                💖 +{stats.happiness}
-                              </span>
-                            </div>
-                          </button>
-                        );
-                      })}
-                    </div>
-                  )}
-
-                  <button
-                    onClick={() => setShowFeedMenu(false)}
-                    className="w-full text-xs text-gray-500 hover:text-gray-700 mt-2"
-                  >
-                    Cancel
-                  </button>
-                </div>
-              )}
-            </div>
-
             {/* Train Button */}
             <button
               onClick={handlePlay}
@@ -1115,7 +1107,7 @@ const PetDisplay = () => {
       {/* Pet Info Modal */}
       {showPetInfo && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-xl max-w-2xl w-full max-h-[90vh] overflow-y-auto shadow-2xl">
+          <div className="bg-white rounded-xl max-w-2xl w-full max-h-[90vh] overflow-y-auto scrollbar-hide shadow-2xl" style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }}>
             <div className="sticky top-0 bg-blue-500 text-white p-6 rounded-t-xl flex justify-between items-center">
               <h2 className="text-2xl font-bold">🐾 Pet System Guide</h2>
               <button

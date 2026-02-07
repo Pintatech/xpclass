@@ -14,6 +14,8 @@ import {
 const categoryOptions = [
   { value: 'avatar', label: 'Avatar' },
   { value: 'frame', label: 'Frame' },
+  { value: 'background', label: 'Background' },
+  { value: 'pet', label: 'Pet' },
   { value: 'school', label: 'School Things' },
 ]
 

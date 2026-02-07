@@ -1,7 +1,9 @@
 import { useEffect, useState } from 'react'
+import { useInventory } from '../../hooks/useInventory'
 import { X } from 'lucide-react'
 
 const ChestDropNotification = () => {
+  const { fetchUnopenedChests } = useInventory()
   const [chest, setChest] = useState(null)
   const [visible, setVisible] = useState(false)
   const [leaving, setLeaving] = useState(false)
@@ -9,10 +11,11 @@ const ChestDropNotification = () => {
   useEffect(() => {
     const handleChest = (e) => {
       setChest(e.detail)
+      fetchUnopenedChests()
     }
     window.addEventListener('chest-earned', handleChest)
     return () => window.removeEventListener('chest-earned', handleChest)
-  }, [])
+  }, [fetchUnopenedChests])
 
   useEffect(() => {
     if (chest) {

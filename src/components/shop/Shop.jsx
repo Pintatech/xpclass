@@ -131,6 +131,10 @@ const Shop = () => {
         } else {
           alert(data.error || 'Không thể trang bị background')
         }
+      } else if (item.category === 'pet') {
+        const bowlUrl = item.item_data?.bowl_url || item.image_url
+        await updateProfile({ active_bowl_url: bowlUrl })
+        alert('Đã trang bị bowl!')
       }
     } catch (err) {
       console.error('Error equipping item:', err)
@@ -142,13 +146,13 @@ const Shop = () => {
     { key: 'avatar', label: 'Avatar' },
     { key: 'frame', label: 'Frame' },
     { key: 'background', label: 'Background' },
+    { key: 'pet', label: 'Pet bowl' },
     { key: 'school', label: 'School things' },
-
   ]
 
 
 //Item nào hiện nút trang bị
-  const equippableCategories = ['avatar', 'frame', 'background']
+  const equippableCategories = ['avatar', 'frame', 'background', 'pet']
 
   const isEquipped = (item) => {
     if (item.category === 'avatar') {
@@ -161,6 +165,10 @@ const Shop = () => {
     if (item.category === 'background') {
       const backgroundUrl = item.item_data?.background_url || item.image_url
       return profile?.active_background_url === backgroundUrl
+    }
+    if (item.category === 'pet') {
+      const bowlUrl = item.item_data?.bowl_url || item.image_url
+      return profile?.active_bowl_url === bowlUrl
     }
     return false
   }

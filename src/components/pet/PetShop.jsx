@@ -49,7 +49,7 @@ const rarityButtonGradient = {
 
 const PetShop = () => {
   const { buyEgg } = usePet()
-  const { inventory, fetchInventory } = useInventory()
+  const { inventory, fetchInventory, incrementNewCount } = useInventory()
   const { user, profile, fetchUserProfile } = useAuth()
 
   const [eggCatalog, setEggCatalog] = useState([])
@@ -103,6 +103,7 @@ const PetShop = () => {
         : `-${result.gems_spent} gems`
       setMessage({ type: 'success', text: `Bought ${result.egg_name}! (${spentText})` })
       await fetchInventory()
+      incrementNewCount('eggs')
       if (user) await fetchUserProfile(user.id)
     } else {
       setMessage({ type: 'error', text: result.error || 'Failed to buy egg' })

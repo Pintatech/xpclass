@@ -17,10 +17,11 @@ import {
 } from 'lucide-react'
 
 const itemTypeOptions = [
-  { value: 'fragment', label: 'Fragment' },
-  { value: 'card', label: 'Card/Sticker' },
-  { value: 'material', label: 'Material' },
+  { value: 'item', label: 'Item' },
   { value: 'egg', label: 'Egg' },
+  { value: 'pet_food', label: 'Pet Food' },
+  { value: 'pet_toy', label: 'Pet Toy' },
+  { value: 'background', label: 'Background' },
 ]
 
 const rarityOptions = [
@@ -48,7 +49,7 @@ const defaultItemForm = {
   name: '',
   description: '',
   image_url: '',
-  item_type: 'fragment',
+  item_type: 'item',
   set_name: '',
   rarity: 'common',
   is_active: true,

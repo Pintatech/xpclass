@@ -229,6 +229,10 @@ export const InventoryProvider = ({ children }) => {
     setLastItemDrop(null)
   }
 
+  const incrementNewCount = (type) => {
+    setNewCounts(prev => ({ ...prev, [type]: prev[type] + 1 }))
+  }
+
   const value = {
     inventory,
     unopenedChests,
@@ -250,6 +254,7 @@ export const InventoryProvider = ({ children }) => {
     newCounts,
     markTabViewed,
     clearLastItemDrop,
+    incrementNewCount,
   }
 
   return (
