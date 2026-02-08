@@ -864,7 +864,15 @@ const PetDisplay = () => {
               {/* Training video overlay - uses naming convention: base-training.mp4 */}
               {playAnimation && activePet.image_url && (
                 <video
-                  src={getPetImage().replace(/\.([^.]+)$/, "-training.mp4")}
+                  src={(() => {
+                    // Use base image (not mood variant) to derive training video URL
+                    let baseImage = activePet.image_url;
+                    if (activePet.evolution_stages && activePet.evolution_stage > 0) {
+                      const stage = activePet.evolution_stages.find(s => s.stage === activePet.evolution_stage);
+                      if (stage?.image_url) baseImage = stage.image_url;
+                    }
+                    return baseImage.replace(/\.([^.]+)$/, "-training.mp4");
+                  })()}
                   autoPlay
                   muted
                   playsInline
