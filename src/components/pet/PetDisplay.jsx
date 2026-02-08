@@ -874,7 +874,6 @@ const PetDisplay = () => {
                     return baseImage.replace(/\.([^.]+)$/, "-training.mp4");
                   })()}
                   autoPlay
-                  muted
                   playsInline
                   className="absolute inset-0 w-full h-full object-contain z-20"
                   onLoadedData={() => setTrainingVideoLoaded(true)}
