@@ -66,6 +66,7 @@ const PetDisplay = () => {
 
   // Play animation state
   const [playAnimation, setPlayAnimation] = useState(null); // { xpGained: 10, phase: 'active' }
+  const [trainingVideoLoaded, setTrainingVideoLoaded] = useState(false);
 
   // Chat state
   const [showChat, setShowChat] = useState(false);
@@ -249,11 +250,13 @@ const PetDisplay = () => {
 
   // Trigger play animation with XP gain
   const triggerPlayAnimation = (xpGained = 10) => {
+    setTrainingVideoLoaded(false);
     setPlayAnimation({ xpGained, phase: "active" });
 
-    // Clear animation after 3 seconds
+    // Clear animation after 6 seconds
     setTimeout(() => {
       setPlayAnimation(null);
+      setTrainingVideoLoaded(false);
     }, 6000);
   };
 
@@ -759,7 +762,7 @@ const PetDisplay = () => {
               <>
                 {/* Floating +XP Text - appears after rotation ends */}
                 <div
-                  className="absolute z-20 pointer-events-none font-bold text-3xl"
+                  className="absolute z-30 pointer-events-none font-bold text-3xl"
                   style={{
                     left: "50%",
                     top: "120px",
@@ -785,8 +788,8 @@ const PetDisplay = () => {
               onClick={() => setShowPetInfo(true)}
               title="Click to learn about the pet system"
             >
-              {/* Aura Pulse Animation */}
-              {(playAnimation || feedAnimation?.phase === "burst") && (
+              {/* Aura Pulse Animation (hidden when training video is playing) */}
+              {((playAnimation && !trainingVideoLoaded) || feedAnimation?.phase === "burst") && (
                 <div
                   className="absolute inset-0 z-0 pointer-events-none flex items-center justify-center"
                 >
@@ -812,8 +815,8 @@ const PetDisplay = () => {
                   />
                 </div>
               )}
-              {/* Rotating background - temporarily hidden */}
-              {playAnimation && (
+              {/* Rotating background (hidden when training video is playing) */}
+              {playAnimation && !trainingVideoLoaded && (
                 <div
                   className="absolute w-56 h-56 left-1/2 top-1/2 pointer-events-none"
                   style={{
@@ -857,6 +860,22 @@ const PetDisplay = () => {
                 <span className="text-6xl relative z-10">
                   {happinessStatus.emoji}
                 </span>
+              )}
+              {/* Training video overlay - uses naming convention: base-training.mp4 */}
+              {playAnimation && activePet.image_url && (
+                <video
+                  src={getPetImage().replace(/\.([^.]+)$/, "-training.mp4")}
+                  autoPlay
+                  muted
+                  playsInline
+                  className="absolute inset-0 w-full h-full object-contain z-20"
+                  onLoadedData={() => setTrainingVideoLoaded(true)}
+                  onEnded={(e) => e.target.currentTime = 0}
+                  onError={(e) => {
+                    e.target.style.display = 'none';
+                    setTrainingVideoLoaded(false);
+                  }}
+                />
               )}
             </div>
 
