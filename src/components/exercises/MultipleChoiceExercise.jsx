@@ -833,8 +833,10 @@ const MultipleChoiceExercise = () => {
                             <div
                               className={buttonClass}
                               style={{
-                                display: 'block',
+                                display: 'flex',
+                                alignItems: 'center',
                                 boxSizing: 'border-box',
+                                height: '100%',
                                 transform: selectedAnswer === null ? 'translateY(-0.2em)' : 'translateY(0)',
                                 transition: 'transform 0.1s ease',
                                 padding: '0.75em 1.5em',
@@ -872,7 +874,7 @@ const MultipleChoiceExercise = () => {
                                 }
                               }}
                             >
-                            <div className="flex items-center justify-between gap-3">
+                            <div className="flex items-center justify-between gap-3 w-full">
                               <div className="flex-1">
                                 <RichTextWithAudio
                                   content={option}
@@ -1069,8 +1071,10 @@ const MultipleChoiceExercise = () => {
                               <div
                                 className={buttonClass}
                                 style={{
-                                  display: 'block',
+                                  display: 'flex',
+                                  alignItems: 'center',
                                   boxSizing: 'border-box',
+                                  height: '100%',
                                   transform: !showAllResults ? 'translateY(-0.2em)' : 'translateY(0)',
                                   transition: 'transform 0.1s ease',
                                   padding: '0.75em 1.5em',
@@ -1108,7 +1112,7 @@ const MultipleChoiceExercise = () => {
                                   }
                                 }}
                               >
-                              <div className="flex items-center justify-between gap-3">
+                              <div className="flex items-center justify-between gap-3 w-full">
                                 <div className="flex-1">
                                   <RichTextWithAudio
                                     content={option}

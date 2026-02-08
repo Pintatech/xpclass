@@ -190,10 +190,10 @@ const PetDisplay = () => {
   // Get energy and happiness gain based on food rarity
   const getFoodStats = (rarity) => {
     const stats = {
-      common: { energy: 15, happiness: 10 },
-      uncommon: { energy: 25, happiness: 17 },
-      rare: { energy: 35, happiness: 25 },
-      epic: { energy: 50, happiness: 37 },
+      common: { energy: 5, happiness: 10 },
+      uncommon: { energy: 10, happiness: 15 },
+      rare: { energy: 15, happiness: 20 },
+      epic: { energy: 20, happiness: 25 },
     };
     return stats[rarity] || stats.common;
   };
@@ -316,11 +316,11 @@ const PetDisplay = () => {
       setTimeout(() => setMessage(null), evolved ? 5000 : 3000);
     } else {
       if (result.cooldown_remaining) {
-        const hours = Math.floor(result.cooldown_remaining / 3600);
         const minutes = Math.floor((result.cooldown_remaining % 3600) / 60);
+        const seconds = result.cooldown_remaining % 60;
         setMessage({
           type: "error",
-          text: `Pet is tired. Come back in ${hours}h ${minutes}m`,
+          text: `Pet is tired. Come back in ${minutes}m ${seconds}s`,
         });
       } else {
         setMessage({
