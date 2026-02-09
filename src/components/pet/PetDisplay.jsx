@@ -35,6 +35,12 @@ const PET_MESSAGES = [
   "Fun fact: Venus is the only planet that spins clockwise! 🪐",
   "Did you know? Cows have best friends! 🐄💕",
   "Fun fact: The shortest war in history lasted 38 minutes!",
+  "Good-bye is a contraction of God be with ye",
+  "The original name for a butterfly was flutterby",
+  "Uncopyrightable is the longest word in common use that contains no letter more than once.",
+  "Go! is the shortest, grammatically correct sentence.",
+  "Almost is the longest word with all letters in alphabetical order.",
+
   // Encouragement
   "You're doing great! Keep it up! ⭐",
   "Learning is a journey, not a race! 🚀",

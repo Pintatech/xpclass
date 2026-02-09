@@ -59,8 +59,8 @@ const CraftingTable = ({ recipes, inventory, getItemQuantity, onCraft, crafting 
       const ingKeys = Object.keys(ingMap)
       // All slot items must be part of this recipe (no random extras)
       if (!slotKeys.every(k => ingMap[k])) return false
-      // All recipe ingredients must be present with at least enough quantity
-      return ingKeys.every(k => slotMap[k] && slotMap[k] >= ingMap[k])
+      // All recipe ingredients must be present with exact quantity
+      return ingKeys.every(k => slotMap[k] && slotMap[k] === ingMap[k])
     })
   }, [slotMap, recipes])
 
