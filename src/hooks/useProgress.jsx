@@ -455,6 +455,7 @@ export const ProgressProvider = ({ children }) => {
           const { data: chestData, error: chestError } = await supabase.rpc('award_exercise_chest', {
             p_user_id: user.id,
             p_exercise_id: exerciseId,
+            p_score: score,
           })
           if (chestError) {
             console.warn('📦 Chest RPC error:', chestError.message)

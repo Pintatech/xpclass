@@ -366,34 +366,45 @@ const Inventory = () => {
             </div>
           ) : (
             <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4">
-              {unopenedChests.map(uc => (
-                <div key={uc.id} className="bg-white rounded-xl border border-gray-200 p-4 hover:shadow-md transition-shadow">
-                  <div className="flex items-center gap-3 mb-3">
-                    <div className="w-16 h-16 bg-gradient-to-br from-yellow-100 to-amber-200 rounded-xl flex items-center justify-center flex-shrink-0">
-                      {uc.chest?.image_url ? (
-                        <img src={uc.chest.image_url} alt={uc.chest.name} className="w-12 h-12 object-contain" />
-                      ) : (
-                        <Box className="w-8 h-8 text-amber-600" />
-                      )}
+              {unopenedChests.map(uc => {
+                const chestRarityStyles = {
+                  common: { border: 'border-gray-300', bg: 'bg-gradient-to-br from-gray-100 to-gray-200', icon: 'text-gray-600', label: 'text-gray-600', btn: 'from-gray-400 to-gray-500 hover:from-gray-500 hover:to-gray-600' },
+                  uncommon: { border: 'border-green-400', bg: 'bg-gradient-to-br from-green-100 to-green-200', icon: 'text-green-600', label: 'text-green-600', btn: 'from-green-500 to-emerald-500 hover:from-green-600 hover:to-emerald-600' },
+                  rare: { border: 'border-blue-400', bg: 'bg-gradient-to-br from-blue-100 to-blue-200', icon: 'text-blue-600', label: 'text-blue-600', btn: 'from-blue-500 to-indigo-500 hover:from-blue-600 hover:to-indigo-600' },
+                  epic: { border: 'border-purple-400', bg: 'bg-gradient-to-br from-purple-100 to-purple-200', icon: 'text-purple-600', label: 'text-purple-600', btn: 'from-purple-500 to-violet-500 hover:from-purple-600 hover:to-violet-600' },
+                  legendary: { border: 'border-yellow-400', bg: 'bg-gradient-to-br from-yellow-100 to-amber-200', icon: 'text-yellow-600', label: 'text-yellow-600', btn: 'from-amber-500 to-yellow-500 hover:from-amber-600 hover:to-yellow-600' },
+                }
+                const rs = chestRarityStyles[uc.chest?.chest_type] || chestRarityStyles.common
+
+                return (
+                  <div key={uc.id} className={`bg-white rounded-xl border-2 ${rs.border} p-4 hover:shadow-md transition-shadow`}>
+                    <div className="flex items-center gap-3 mb-3">
+                      <div className={`w-16 h-16 ${rs.bg} rounded-xl flex items-center justify-center flex-shrink-0`}>
+                        {uc.chest?.image_url ? (
+                          <img src={uc.chest.image_url} alt={uc.chest.name} className="w-12 h-12 object-contain" />
+                        ) : (
+                          <Box className={`w-8 h-8 ${rs.icon}`} />
+                        )}
+                      </div>
+                      <div>
+                        <h4 className="font-semibold text-gray-900">{uc.chest?.name || 'Chest'}</h4>
+                        <p className={`text-xs font-medium capitalize ${rs.label}`}>
+                          {uc.chest?.chest_type || 'common'} - {uc.chest?.items_per_open} items
+                        </p>
+                        <p className="text-xs text-gray-400">From: {uc.source}</p>
+                      </div>
                     </div>
-                    <div>
-                      <h4 className="font-semibold text-gray-900">{uc.chest?.name || 'Chest'}</h4>
-                      <p className="text-xs text-gray-500">
-                        {uc.chest?.chest_type} - {uc.chest?.items_per_open} items
-                      </p>
-                      <p className="text-xs text-gray-400">From: {uc.source}</p>
-                    </div>
+                    <button
+                      onClick={() => handleOpenChest(uc)}
+                      disabled={!!openingChest}
+                      className={`w-full bg-gradient-to-r ${rs.btn} text-white font-medium py-2.5 rounded-lg transition-all disabled:opacity-50 flex items-center justify-center gap-2`}
+                    >
+                      <Sparkles className="w-4 h-4" />
+                      Open Chest
+                    </button>
                   </div>
-                  <button
-                    onClick={() => handleOpenChest(uc)}
-                    disabled={!!openingChest}
-                    className="w-full bg-gradient-to-r from-amber-500 to-yellow-500 text-white font-medium py-2.5 rounded-lg hover:from-amber-600 hover:to-yellow-600 transition-all disabled:opacity-50 flex items-center justify-center gap-2"
-                  >
-                    <Sparkles className="w-4 h-4" />
-                    Open Chest
-                  </button>
-                </div>
-              ))}
+                )
+              })}
             </div>
           )}
         </div>

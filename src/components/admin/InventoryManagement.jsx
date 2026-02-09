@@ -33,9 +33,11 @@ const rarityOptions = [
 ]
 
 const chestTypeOptions = [
-  { value: 'standard', label: 'Standard' },
-  { value: 'premium', label: 'Premium' },
-  { value: 'event', label: 'Event' },
+  { value: 'common', label: 'Common' },
+  { value: 'uncommon', label: 'Uncommon' },
+  { value: 'rare', label: 'Rare' },
+  { value: 'epic', label: 'Epic' },
+  { value: 'legendary', label: 'Legendary' },
 ]
 
 const resultTypeOptions = [
@@ -60,7 +62,7 @@ const defaultChestForm = {
   name: '',
   description: '',
   image_url: '',
-  chest_type: 'standard',
+  chest_type: 'common',
   loot_table: '[]',
   guaranteed_items: '[]',
   items_per_open: 3,
@@ -1133,7 +1135,7 @@ const RecipeForm = ({ formData, setFormData, onSubmit, onClose, editing, saving,
 
 const DropConfigEditor = ({ dropConfig, onSave, saving, items }) => {
   const defaultExercise = { base_chance: 0.30, rarity_weights: { common: 60, uncommon: 25, rare: 12, epic: 3 }, included_items: [] }
-  const defaultMilestone = { session_complete: 'standard', streak_7: 'standard', streak_30: 'premium', challenge_win_top3: 'standard' }
+  const defaultMilestone = { session_complete: 'common', streak_7: 'uncommon', streak_30: 'rare', challenge_win_top3: 'uncommon' }
 
   const [exerciseConfig, setExerciseConfig] = useState(
     JSON.stringify(dropConfig['exercise_drop_rate']?.config_value || defaultExercise, null, 2)
@@ -1154,7 +1156,7 @@ const DropConfigEditor = ({ dropConfig, onSave, saving, items }) => {
   const exercise = parseExercise()
   const milestone = parseMilestone()
   const rarities = ['common', 'uncommon', 'rare', 'epic']
-  const chestTypes = ['standard', 'premium', 'event']
+  const chestTypes = ['common', 'uncommon', 'rare', 'epic', 'legendary']
   const totalRarityWeight = rarities.reduce((sum, r) => sum + (Number(exercise.rarity_weights?.[r]) || 0), 0)
 
   const inputClass = "w-full px-2 py-1.5 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm"
@@ -1242,13 +1244,13 @@ const DropConfigEditor = ({ dropConfig, onSave, saving, items }) => {
 
       <Card className="p-6">
         <h3 className="text-lg font-semibold text-gray-900 mb-2">Milestone Chests</h3>
-        <p className="text-sm text-gray-500 mb-4">Maps milestone events to chest types (standard/premium/event)</p>
+        <p className="text-sm text-gray-500 mb-4">Maps milestone events to chest types (common/uncommon/rare/epic/legendary)</p>
 
         <div className="space-y-3">
           {Object.keys(milestone).map((eventKey) => (
             <div key={eventKey} className="flex items-center gap-3">
               <span className="w-44 text-sm text-gray-700">{eventKey.replace(/_/g, ' ')}</span>
-              <select value={milestone[eventKey] || 'standard'}
+              <select value={milestone[eventKey] || 'common'}
                 onChange={e => updateMilestone({ ...milestone, [eventKey]: e.target.value })}
                 className={`${inputClass} w-32`}>
                 {chestTypes.map(ct => <option key={ct} value={ct}>{ct}</option>)}
@@ -1262,7 +1264,7 @@ const DropConfigEditor = ({ dropConfig, onSave, saving, items }) => {
               const input = document.getElementById('new-milestone-key')
               const key = input.value.trim().replace(/\s+/g, '_')
               if (key && !milestone[key]) {
-                updateMilestone({ ...milestone, [key]: 'standard' })
+                updateMilestone({ ...milestone, [key]: 'common' })
                 input.value = ''
               }
             }} className="flex items-center gap-1.5 text-sm text-blue-600 hover:text-blue-800">

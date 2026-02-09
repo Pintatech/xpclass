@@ -1017,8 +1017,8 @@ const FlashcardExercise = () => {
                               scrolling="no"
                               style={{ border: 'none', overflow: 'hidden' }}
                             />
-                            {/* Block clicks to prevent navigating to TikTok */}
-                            <div className="absolute inset-0 z-10" />
+                            {/* Block clicks on top 90%, leave bottom strip open for mute/replay controls */}
+                            <div className="absolute top-0 left-0 right-0 z-10" style={{ bottom: '10%' }} />
                           </div>
                         ) : (
                           <video
@@ -1131,8 +1131,8 @@ const FlashcardExercise = () => {
                               scrolling="no"
                               style={{ border: 'none', overflow: 'hidden' }}
                             />
-                            {/* Block clicks to prevent navigating to TikTok */}
-                            <div className="absolute inset-0 z-10" />
+                            {/* Block clicks on top 90%, leave bottom strip open for mute/replay controls */}
+                            <div className="absolute top-0 left-0 right-0 z-10" style={{ bottom: '10%' }} />
                           </div>
                         ) : (
                           <>

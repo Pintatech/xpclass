@@ -1262,7 +1262,7 @@ CREATE TABLE IF NOT EXISTS public.chests (
   name text NOT NULL,
   description text,
   image_url text,
-  chest_type text NOT NULL DEFAULT 'standard' CHECK (chest_type IN ('standard', 'premium', 'event')),
+  chest_type text NOT NULL DEFAULT 'common' CHECK (chest_type IN ('common', 'uncommon', 'rare', 'epic', 'legendary')),
   loot_table jsonb NOT NULL DEFAULT '[]'::jsonb,
   guaranteed_items jsonb DEFAULT '[]'::jsonb,
   items_per_open integer NOT NULL DEFAULT 3,
@@ -1344,7 +1344,7 @@ CREATE TABLE IF NOT EXISTS public.drop_config (
 -- Seed default drop config
 INSERT INTO public.drop_config (config_key, config_value, description) VALUES
 ('exercise_drop_rate', '{"base_chance": 0.30, "rarity_weights": {"common": 60, "uncommon": 25, "rare": 12, "epic": 3}}', 'Chance of item drop on exercise completion (score >= 75%). Rarity weights for which item drops.'),
-('milestone_chests', '{"session_complete": "standard", "streak_7": "standard", "streak_30": "premium", "challenge_win_top3": "standard"}', 'Which chest type to award for each milestone type.')
+('milestone_chests', '{"session_complete": "common", "streak_7": "uncommon", "streak_30": "rare", "challenge_win_top3": "uncommon"}', 'Which chest type to award for each milestone type.')
 ON CONFLICT (config_key) DO NOTHING;
 
 -- ====================================
@@ -1791,7 +1791,8 @@ END;
 $$;
 
 -- Function: Award chest on exercise completion (only for courses with chest_enabled = true)
-CREATE OR REPLACE FUNCTION award_exercise_chest(p_user_id uuid, p_exercise_id uuid)
+-- Chest rarity is based on score: 75-79 common, 80-89 uncommon, 90-100 rare
+CREATE OR REPLACE FUNCTION award_exercise_chest(p_user_id uuid, p_exercise_id uuid, p_score integer DEFAULT 75)
 RETURNS json
 LANGUAGE plpgsql
 SECURITY DEFINER
@@ -1801,6 +1802,7 @@ DECLARE
   v_course record;
   v_chest record;
   v_existing_chest uuid;
+  v_chest_type text;
 BEGIN
   -- Find the course for this exercise via exercise_assignments -> session -> unit -> course
   SELECT c.id AS course_id, c.chest_enabled
@@ -1832,10 +1834,19 @@ BEGIN
     RETURN json_build_object('success', false, 'reason', 'already_awarded');
   END IF;
 
-  -- Find an active standard chest
+  -- Determine chest rarity based on score
+  IF p_score >= 90 THEN
+    v_chest_type := 'rare';
+  ELSIF p_score >= 80 THEN
+    v_chest_type := 'uncommon';
+  ELSE
+    v_chest_type := 'common';
+  END IF;
+
+  -- Find an active chest of the determined rarity
   SELECT * INTO v_chest
   FROM chests
-  WHERE chest_type = 'standard' AND is_active = true
+  WHERE chest_type = v_chest_type AND is_active = true
   ORDER BY random()
   LIMIT 1;
 
@@ -1851,7 +1862,8 @@ BEGIN
     'success', true,
     'chest_id', v_chest.id,
     'chest_name', v_chest.name,
-    'chest_image_url', v_chest.image_url
+    'chest_image_url', v_chest.image_url,
+    'chest_type', v_chest_type
   );
 END;
 $$;
