@@ -55,6 +55,47 @@ const getTikTokVideoId = (url) => {
   return match ? match[1] : null;
 };
 
+const TikTokEmbed = ({ videoUrl, videoId }) => {
+  const containerRef = useRef(null);
+
+  useEffect(() => {
+    const container = containerRef.current;
+    if (!container || !videoId) return;
+
+    // Clear previous content
+    container.innerHTML = '';
+
+    // Create blockquote element (official TikTok embed markup)
+    const blockquote = document.createElement('blockquote');
+    blockquote.className = 'tiktok-embed';
+    blockquote.setAttribute('cite', videoUrl || `https://www.tiktok.com/video/${videoId}`);
+    blockquote.setAttribute('data-video-id', videoId);
+    blockquote.style.maxWidth = '605px';
+    blockquote.style.minWidth = '325px';
+
+    const section = document.createElement('section');
+    blockquote.appendChild(section);
+    container.appendChild(blockquote);
+
+    // Load the TikTok embed SDK to initialize the player
+    const script = document.createElement('script');
+    script.src = 'https://www.tiktok.com/embed.js';
+    script.async = true;
+    container.appendChild(script);
+
+    return () => {
+      container.innerHTML = '';
+    };
+  }, [videoUrl, videoId]);
+
+  return (
+    <div
+      ref={containerRef}
+      className="w-full h-full flex items-center justify-center overflow-hidden bg-black"
+    />
+  );
+};
+
 const FlashcardExercise = () => {
   const location = useLocation();
   const [currentCard, setCurrentCard] = useState(0);
@@ -1008,18 +1049,10 @@ const FlashcardExercise = () => {
                     ) : (
                       <>
                         {getTikTokVideoId(currentFlashcard?.videoUrls?.[currentVideoIndex]) ? (
-                          <div className="relative w-full h-full">
-                            <iframe
-                              src={`https://www.tiktok.com/embed/v2/${getTikTokVideoId(currentFlashcard?.videoUrls?.[currentVideoIndex])}`}
-                              className="w-full h-full"
-                              allowFullScreen
-                              allow="encrypted-media"
-                              scrolling="no"
-                              style={{ border: 'none', overflow: 'hidden' }}
-                            />
-                            {/* Block clicks on top 90%, leave bottom strip open for mute/replay controls */}
-                            <div className="absolute top-0 left-0 right-0 z-10" style={{ bottom: '20%' }} />
-                          </div>
+                          <TikTokEmbed
+                            videoUrl={currentFlashcard?.videoUrls?.[currentVideoIndex]}
+                            videoId={getTikTokVideoId(currentFlashcard?.videoUrls?.[currentVideoIndex])}
+                          />
                         ) : (
                           <video
                             ref={(el) => {
@@ -1122,18 +1155,10 @@ const FlashcardExercise = () => {
                     ) : (
                       <>
                         {getTikTokVideoId(currentFlashcard?.videoUrls?.[currentVideoIndex]) ? (
-                          <div className="relative w-full h-full">
-                            <iframe
-                              src={`https://www.tiktok.com/embed/v2/${getTikTokVideoId(currentFlashcard?.videoUrls?.[currentVideoIndex])}`}
-                              className="w-full h-full"
-                              allowFullScreen
-                              allow="encrypted-media"
-                              scrolling="no"
-                              style={{ border: 'none', overflow: 'hidden' }}
-                            />
-                            {/* Block clicks on top 90%, leave bottom strip open for mute/replay controls */}
-                            <div className="absolute top-0 left-0 right-0 z-10" style={{ bottom: '10%' }} />
-                          </div>
+                          <TikTokEmbed
+                            videoUrl={currentFlashcard?.videoUrls?.[currentVideoIndex]}
+                            videoId={getTikTokVideoId(currentFlashcard?.videoUrls?.[currentVideoIndex])}
+                          />
                         ) : (
                           <>
                             <video
