@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { createPortal } from 'react-dom'
 import { Sparkles } from 'lucide-react'
 
@@ -34,18 +34,30 @@ const rarityBadge = {
   legendary: 'bg-yellow-200 text-yellow-800',
 }
 
-const EggOpenAnimation = ({ result, eggRarity, onClose, onNickname }) => {
-  // phases: wobbling -> cracking -> hatching -> reveal -> done
+const EggOpenAnimation = ({ result, eggRarity, allPets = [], onClose, onNickname }) => {
+  // phases: wobbling -> cracking -> hatching -> carousel -> reveal -> done
   const [phase, setPhase] = useState('wobbling')
   const [nickname, setNickname] = useState('')
+  const [carouselIndex, setCarouselIndex] = useState(0)
 
   const isDuplicate = result?.result_type === 'duplicate_gems'
   const pet = result?.pet
   const rarity = eggRarity || pet?.rarity || 'common'
 
+  // Build carousel pool: all pets of this rarity, shuffled
+  const carouselPets = useRef([])
   useEffect(() => {
-    const timer1 = setTimeout(() => setPhase('cracking'), 1200)
-    return () => clearTimeout(timer1)
+    const petsOfRarity = allPets.filter(p => p.rarity === rarity && p.id !== pet?.id)
+    // Shuffle
+    const shuffled = [...petsOfRarity].sort(() => Math.random() - 0.5)
+    // Take up to 8 for the carousel, then end with the actual pet
+    carouselPets.current = [...shuffled.slice(0, 8), pet].filter(Boolean)
+  }, [allPets, rarity, pet])
+
+  // Phase transitions
+  useEffect(() => {
+    const timer = setTimeout(() => setPhase('cracking'), 1200)
+    return () => clearTimeout(timer)
   }, [])
 
   useEffect(() => {
@@ -57,9 +69,51 @@ const EggOpenAnimation = ({ result, eggRarity, onClose, onNickname }) => {
 
   useEffect(() => {
     if (phase === 'hatching') {
-      const timer = setTimeout(() => setPhase('reveal'), 800)
+      const timer = setTimeout(() => {
+        if (!isDuplicate && carouselPets.current.length > 1) {
+          setPhase('carousel')
+        } else {
+          setPhase('reveal')
+        }
+      }, 800)
       return () => clearTimeout(timer)
     }
+  }, [phase, isDuplicate])
+
+  // Carousel: cycle through silhouettes, slowing down, then reveal
+  useEffect(() => {
+    if (phase !== 'carousel') return
+
+    const total = carouselPets.current.length
+    if (total === 0) {
+      setPhase('reveal')
+      return
+    }
+
+    // Speed starts fast then decelerates smoothly (ease-out curve)
+    let currentIdx = 0
+    const baseDelay = 120
+    const maxDelay = 600
+
+    const tick = () => {
+      currentIdx++
+      setCarouselIndex(currentIdx)
+
+      if (currentIdx >= total - 1) {
+        // Landed on the actual pet (last item) — pause then reveal
+        setTimeout(() => setPhase('reveal'), 700)
+        return
+      }
+
+      // Ease-out curve: slow down more as we approach the end
+      const progress = currentIdx / (total - 1)
+      const eased = 1 - Math.pow(1 - progress, 3) // cubic ease-out
+      const delay = baseDelay + eased * (maxDelay - baseDelay)
+      setTimeout(tick, delay)
+    }
+
+    const startTimer = setTimeout(tick, baseDelay)
+    return () => clearTimeout(startTimer)
   }, [phase])
 
   useEffect(() => {
@@ -75,6 +129,8 @@ const EggOpenAnimation = ({ result, eggRarity, onClose, onNickname }) => {
     }
     onClose()
   }
+
+  const currentCarouselPet = carouselPets.current[carouselIndex] || pet
 
   return createPortal(
     <div className="fixed inset-0 bg-black bg-opacity-70 flex items-center justify-center p-4 z-50">
@@ -100,6 +156,31 @@ const EggOpenAnimation = ({ result, eggRarity, onClose, onNickname }) => {
             <div className={`w-40 h-40 rounded-full bg-gradient-to-br ${rarityColors[rarity]} animate-egg-burst flex items-center justify-center shadow-2xl ${rarityGlow[rarity]}`}>
               <Sparkles className="w-16 h-16 text-white animate-spin" />
             </div>
+          </div>
+        )}
+
+        {/* Carousel - cycling through silhouettes sliding right to left */}
+        {phase === 'carousel' && (
+          <div className="flex flex-col items-center justify-center py-6">
+            <p className="text-gray-400 text-sm mb-4">Who could it be...?</p>
+            <div className={`w-32 h-32 mx-auto rounded-2xl bg-gradient-to-br ${rarityColors[rarity]} shadow-2xl ${rarityGlow[rarity]} overflow-hidden relative`}>
+              <div
+                key={carouselIndex}
+                className="absolute inset-0 flex items-center justify-center animate-carousel-slide"
+              >
+                {currentCarouselPet?.image_url ? (
+                  <img
+                    src={currentCarouselPet.image_url}
+                    alt="?"
+                    className="w-full h-full object-contain"
+                    style={{ filter: 'brightness(0)' }}
+                  />
+                ) : (
+                  <span className="text-6xl" style={{ filter: 'brightness(0)' }}>🐾</span>
+                )}
+              </div>
+            </div>
+            <p className="text-gray-500 text-xs mt-3">???</p>
           </div>
         )}
 
@@ -229,6 +310,17 @@ const EggOpenAnimation = ({ result, eggRarity, onClose, onNickname }) => {
         }
         .animate-egg-burst {
           animation: eggBurst 0.8s ease-out forwards;
+        }
+        @keyframes carouselSlide {
+          0% { transform: translateX(80%); opacity: 0; }
+          15% { opacity: 1; }
+          20% { transform: translateX(0); }
+          80% { transform: translateX(0); }
+          85% { opacity: 1; }
+          100% { transform: translateX(-80%); opacity: 0; }
+        }
+        .animate-carousel-slide {
+          animation: carouselSlide 0.45s cubic-bezier(0.25, 0.1, 0.25, 1) forwards;
         }
         @keyframes fadeIn {
           0% { opacity: 0; transform: translateY(20px) scale(0.9); }

@@ -75,7 +75,7 @@ const Inventory = () => {
     craftResult: craftResultFromHook,
     clearCraftResult,
   } = useInventory()
-  const { openEgg } = usePet()
+  const { openEgg, allPets } = usePet()
 
   const [activeTab, setActiveTab] = useState('items')
 
@@ -468,6 +468,7 @@ const Inventory = () => {
         <EggOpenAnimation
           result={openingEggResult}
           eggRarity={openingEggRarity}
+          allPets={allPets}
           onClose={handleEggAnimationClose}
           onNickname={handleEggNickname}
         />
