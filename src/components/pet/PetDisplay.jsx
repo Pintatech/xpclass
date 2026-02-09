@@ -366,12 +366,12 @@ const PetDisplay = () => {
   const getRarityAura = (rarity) => {
     const auras = {
       common: "https://xpclass.vn/xpclass/common.png",
-      uncommon: "https://xpclass.vn/xpclass/green.png",
-      rare: "https://xpclass.vn/xpclass/aura-rare.png",
-      epic: "https://xpclass.vn/xpclass/aura-epic.png",
-      legendary: "https://xpclass.vn/xpclass/aura-legendary.png",
+      uncommon: "https://xpclass.vn/xpclass/common.png",
+      rare: "https://xpclass.vn/xpclass/common.png",
+      epic: "https://xpclass.vn/xpclass/common.png",
+      legendary: "https://xpclass.vn/xpclass/common.png",
     };
-    return auras[rarity] || "https://xpclass.vn/xpclass/aura.png";
+    return auras[rarity] || "https://xpclass.vn/xpclass/common.png";
   };
 
   // Get pet image based on current stats and evolution stage
@@ -821,12 +821,12 @@ const PetDisplay = () => {
                   />
                 </div>
               )}
-              {/* Rotating background (hidden when training video is playing) */}
-              {playAnimation && !trainingVideoLoaded && (
+              {/* Rotating background - always visible, hidden when training video is playing */}
+              {!(playAnimation && trainingVideoLoaded) && (
                 <div
                   className="absolute w-56 h-56 left-1/2 top-1/2 pointer-events-none"
                   style={{
-                    animation: "spinBackground 6s linear",
+                    animation: "spinBackground 20s linear infinite",
                     transform: "translate(-50%, -50%)",
                   }}
                 >
@@ -1207,146 +1207,14 @@ const PetDisplay = () => {
                 </p>
               </div>
 
-              {/* Pet Stats */}
-              <div className="bg-blue-50 rounded-lg p-4">
-                <h4 className="font-bold text-gray-800 mb-3">📊 Pet Stats</h4>
-                <div className="space-y-2">
-                  <div className="flex items-start gap-2">
-                    <Smile className="w-5 h-5 text-pink-500 mt-0.5" />
-                    <div>
-                      <span className="font-semibold">Happiness:</span>
-                      <span className="text-gray-700 ml-2">
-                        Affects your pet&apos;s mood and bonuses. Keep it above
-                        70% for XP boost!
-                      </span>
-                    </div>
-                  </div>
-                  <div className="flex items-start gap-2">
-                    <Zap className="w-5 h-5 text-yellow-500 mt-0.5" />
-                    <div>
-                      <span className="font-semibold">Energy:</span>
-                      <span className="text-gray-700 ml-2">
-                        Required for playing and chatting. Restore by feeding
-                        your pet.
-                      </span>
-                    </div>
-                  </div>
-                  <div className="flex items-start gap-2">
-                    <Star className="w-5 h-5 text-yellow-500 mt-0.5" />
-                    <div>
-                      <span className="font-semibold">Level:</span>
-                      <span className="text-gray-700 ml-2">
-                        Increases every 100 XP. Higher levels unlock evolution
-                        stages!
-                      </span>
-                    </div>
-                  </div>
-                </div>
-              </div>
-
-              {/* Actions */}
-              <div className="bg-green-50 rounded-lg p-4">
-                <h4 className="font-bold text-gray-800 mb-3">
-                  🎮 What You Can Do
-                </h4>
-                <div className="space-y-3">
-                  <div>
-                    <div className="flex items-center gap-2 mb-1">
-                      <Utensils className="w-4 h-4 text-green-600" />
-                      <span className="font-semibold">Feed Pet</span>
-                    </div>
-                    <p className="text-sm text-gray-700 ml-6">
-                      Use pet food from your inventory to restore energy and
-                      increase happiness. Better food = more energy!
-                    </p>
-                  </div>
-                  <div>
-                    <div className="flex items-center gap-2 mb-1">
-                      <Sparkles className="w-4 h-4 text-blue-600" />
-                      <span className="font-semibold">Train Pet</span>
-                    </div>
-                    <p className="text-sm text-gray-700 ml-6">
-                      Gain pet XP and increase happiness. Training helps your pet
-                      level up and evolve! (Has cooldown)
-                    </p>
-                  </div>
-                  <div>
-                    <div className="flex items-center gap-2 mb-1">
-                      <MessageCircle className="w-4 h-4 text-pink-600" />
-                      <span className="font-semibold">Chat with Pet</span>
-                    </div>
-                    <p className="text-sm text-gray-700 ml-6">
-                      Talk to your pet for help with learning! Costs 5 energy
-                      per message.
-                    </p>
-                  </div>
-                </div>
-              </div>
-
-              {/* Bonuses */}
-              <div className="bg-yellow-50 rounded-lg p-4">
-                <h4 className="font-bold text-gray-800 mb-3">⭐ Pet Bonuses</h4>
-                <p className="text-gray-700 mb-2">
-                  When your pet&apos;s happiness is above 70%, you get XP
-                  bonuses:
-                </p>
-                <div className="space-y-2">
-                  <div className="font-semibold text-sm text-gray-800">
-                    Base Rarity Bonuses:
-                  </div>
-                  <div className="grid grid-cols-2 gap-2 text-sm">
-                    <div className="bg-gray-100 px-3 py-2 rounded">
-                      Common:{" "}
-                      <span className="font-bold text-gray-600">+5% XP</span>
-                    </div>
-                    <div className="bg-green-100 px-3 py-2 rounded">
-                      Uncommon:{" "}
-                      <span className="font-bold text-green-600">+10% XP</span>
-                    </div>
-                    <div className="bg-blue-100 px-3 py-2 rounded">
-                      Rare:{" "}
-                      <span className="font-bold text-blue-600">+15% XP</span>
-                    </div>
-                    <div className="bg-purple-100 px-3 py-2 rounded">
-                      Epic:{" "}
-                      <span className="font-bold text-purple-600">+20% XP</span>
-                    </div>
-                    <div className="bg-yellow-100 px-3 py-2 rounded col-span-2">
-                      Legendary:{" "}
-                      <span className="font-bold text-yellow-600">+25% XP</span>
-                    </div>
-                  </div>
-                  <div className="bg-purple-100 px-3 py-2 rounded mt-2">
-                    <span className="font-semibold text-purple-800">
-                      Evolution Bonus:
-                    </span>{" "}
-                    <span className="font-bold text-purple-700">
-                      +5% XP per stage
-                    </span>
-                    <div className="text-xs text-purple-600 mt-1">
-                      Stage 0: +0% • Stage 1: +5% • Stage 2: +10% • Stage 3:
-                      +15%...
-                    </div>
-                  </div>
-                </div>
-              </div>
-
-              {/* Evolution */}
+                            {/* Evolution */}
               <div className="bg-purple-50 rounded-lg p-4">
-                <h4 className="font-bold text-gray-800 mb-3">
-                  ✨ Evolution System
-                </h4>
-                <p className="text-gray-700 mb-2">
-                  Some pets can evolve into more powerful forms! Each evolution
-                  stage grants an additional +5% XP bonus and requires specific
-                  XP milestones.
-                </p>
 
                 {/* Evolution Stages for Current Pet */}
                 {activePet?.evolution_stages &&
                 activePet.evolution_stages.length > 0 ? (
-                  <div className="mt-4">
-                    <h5 className="font-semibold text-purple-800 text-sm mb-4">
+                  <div className="mb-4">
+                    <h5 className="font-bold text-purple-800 mb-4">
                       {activePet.nickname || activePet.name}&apos;s Evolution
                       Path:
                     </h5>
@@ -1489,6 +1357,56 @@ const PetDisplay = () => {
                   </div>
                 )}
               </div>
+
+              {/* Bonuses */}
+              <div className="bg-yellow-50 rounded-lg p-4">
+                <h4 className="font-bold text-gray-800 mb-3">⭐ Pet Bonuses</h4>
+                <p className="text-gray-700 mb-2">
+                  When your pet&apos;s happiness is above 70%, you get XP
+                  bonuses:
+                </p>
+                <div className="space-y-2">
+                  <div className="font-semibold text-sm text-gray-800">
+                    Base Rarity Bonuses:
+                  </div>
+                  <div className="grid grid-cols-2 gap-2 text-sm">
+                    <div className="bg-gray-100 px-3 py-2 rounded">
+                      Common:{" "}
+                      <span className="font-bold text-gray-600">+5% XP</span>
+                    </div>
+                    <div className="bg-green-100 px-3 py-2 rounded">
+                      Uncommon:{" "}
+                      <span className="font-bold text-green-600">+10% XP</span>
+                    </div>
+                    <div className="bg-blue-100 px-3 py-2 rounded">
+                      Rare:{" "}
+                      <span className="font-bold text-blue-600">+15% XP</span>
+                    </div>
+                    <div className="bg-purple-100 px-3 py-2 rounded">
+                      Epic:{" "}
+                      <span className="font-bold text-purple-600">+20% XP</span>
+                    </div>
+                    <div className="bg-yellow-100 px-3 py-2 rounded col-span-2">
+                      Legendary:{" "}
+                      <span className="font-bold text-yellow-600">+25% XP</span>
+                    </div>
+                  </div>
+                  <div className="bg-purple-100 px-3 py-2 rounded mt-2">
+                    <span className="font-semibold text-purple-800">
+                      Evolution Bonus:
+                    </span>{" "}
+                    <span className="font-bold text-purple-700">
+                      +5% XP per stage
+                    </span>
+                    <div className="text-xs text-purple-600 mt-1">
+                      Stage 0: +0% • Stage 1: +5% • Stage 2: +10% • Stage 3:
+                      +15%
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+
 
 
             </div>

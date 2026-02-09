@@ -18,14 +18,6 @@ const rarityGlow = {
   legendary: 'shadow-yellow-400',
 }
 
-const rarityText = {
-  common: 'text-gray-600',
-  uncommon: 'text-green-500',
-  rare: 'text-blue-500',
-  epic: 'text-purple-500',
-  legendary: 'text-yellow-500',
-}
-
 const rarityBadge = {
   common: 'bg-gray-200 text-gray-700',
   uncommon: 'bg-green-200 text-green-800',
@@ -34,12 +26,18 @@ const rarityBadge = {
   legendary: 'bg-yellow-200 text-yellow-800',
 }
 
+// Egg hatching videos - portrait for mobile, landscape for PC
+const EGG_HATCH_VIDEO_MOBILE = 'https://xpclass.vn/xpclass/image/pet/egg-hatch-mobile.mp4'
+const EGG_HATCH_VIDEO_PC = 'https://xpclass.vn/xpclass/image/pet/egg-hatch.mp4'
+
 const EggOpenAnimation = ({ result, eggRarity, allPets = [], onClose, onNickname }) => {
-  // phases: wobbling -> cracking -> hatching -> carousel -> reveal -> done
-  const [phase, setPhase] = useState('wobbling')
+  // phases: video -> carousel -> reveal -> done
+  const [phase, setPhase] = useState('video')
   const [nickname, setNickname] = useState('')
   const [carouselIndex, setCarouselIndex] = useState(0)
+  const videoRef = useRef(null)
 
+  const isMobile = window.innerWidth < 768
   const isDuplicate = result?.result_type === 'duplicate_gems'
   const pet = result?.pet
   const rarity = eggRarity || pet?.rarity || 'common'
@@ -48,37 +46,20 @@ const EggOpenAnimation = ({ result, eggRarity, allPets = [], onClose, onNickname
   const carouselPets = useRef([])
   useEffect(() => {
     const petsOfRarity = allPets.filter(p => p.rarity === rarity && p.id !== pet?.id)
-    // Shuffle
     const shuffled = [...petsOfRarity].sort(() => Math.random() - 0.5)
-    // Take up to 8 for the carousel, then end with the actual pet
     carouselPets.current = [...shuffled.slice(0, 8), pet].filter(Boolean)
   }, [allPets, rarity, pet])
 
-  // Phase transitions
-  useEffect(() => {
-    const timer = setTimeout(() => setPhase('cracking'), 1200)
-    return () => clearTimeout(timer)
-  }, [])
+  // When video ends, go straight to reveal
+  // To re-enable carousel: replace setPhase('reveal') with setPhase('carousel')
+  const handleVideoEnded = () => {
+    setPhase('reveal')
+  }
 
-  useEffect(() => {
-    if (phase === 'cracking') {
-      const timer = setTimeout(() => setPhase('hatching'), 1000)
-      return () => clearTimeout(timer)
-    }
-  }, [phase])
-
-  useEffect(() => {
-    if (phase === 'hatching') {
-      const timer = setTimeout(() => {
-        if (!isDuplicate && carouselPets.current.length > 1) {
-          setPhase('carousel')
-        } else {
-          setPhase('reveal')
-        }
-      }, 800)
-      return () => clearTimeout(timer)
-    }
-  }, [phase, isDuplicate])
+  // Fallback: if video fails to load, skip to reveal after a delay
+  const handleVideoError = () => {
+    setTimeout(() => setPhase('reveal'), 500)
+  }
 
   // Carousel: cycle through silhouettes, slowing down, then reveal
   useEffect(() => {
@@ -90,7 +71,6 @@ const EggOpenAnimation = ({ result, eggRarity, allPets = [], onClose, onNickname
       return
     }
 
-    // Speed starts fast then decelerates smoothly (ease-out curve)
     let currentIdx = 0
     const baseDelay = 120
     const maxDelay = 600
@@ -100,14 +80,12 @@ const EggOpenAnimation = ({ result, eggRarity, allPets = [], onClose, onNickname
       setCarouselIndex(currentIdx)
 
       if (currentIdx >= total - 1) {
-        // Landed on the actual pet (last item) — pause then reveal
         setTimeout(() => setPhase('reveal'), 700)
         return
       }
 
-      // Ease-out curve: slow down more as we approach the end
       const progress = currentIdx / (total - 1)
-      const eased = 1 - Math.pow(1 - progress, 3) // cubic ease-out
+      const eased = 1 - Math.pow(1 - progress, 3)
       const delay = baseDelay + eased * (maxDelay - baseDelay)
       setTimeout(tick, delay)
     }
@@ -130,36 +108,27 @@ const EggOpenAnimation = ({ result, eggRarity, allPets = [], onClose, onNickname
     onClose()
   }
 
+  // eslint-disable-next-line no-unused-vars
   const currentCarouselPet = carouselPets.current[carouselIndex] || pet
 
   return createPortal(
-    <div className="fixed inset-0 bg-black bg-opacity-70 flex items-center justify-center p-4 z-50">
-      <div className="bg-gradient-to-b from-gray-900 to-gray-800 rounded-2xl max-w-sm w-full p-8 text-center">
+    <div className="fixed inset-0 bg-black flex items-center justify-center z-50">
+      {/* Video Phase - fills entire overlay */}
+      {phase === 'video' && (
+        <video
+          ref={videoRef}
+          src={isMobile ? EGG_HATCH_VIDEO_MOBILE : EGG_HATCH_VIDEO_PC}
+          autoPlay
+          playsInline
+          onEnded={handleVideoEnded}
+          onError={handleVideoError}
+          className="max-w-full max-h-full object-contain"
+        />
+      )}
 
-        {/* Egg Animation Phases */}
-        {(phase === 'wobbling' || phase === 'cracking') && (
-          <div className="flex flex-col items-center justify-center py-8">
-            <div className={`w-28 h-36 rounded-[50%] bg-gradient-to-br ${rarityColors[rarity]} flex items-center justify-center transition-all shadow-2xl ${rarityGlow[rarity]} ${
-              phase === 'wobbling' ? 'animate-egg-wobble' : 'animate-egg-crack'
-            }`}>
-              <span className="text-4xl">{phase === 'cracking' ? '💥' : '🥚'}</span>
-            </div>
-            <p className="text-gray-400 text-sm mt-4">
-              {phase === 'wobbling' ? 'Something is moving inside...' : 'The egg is cracking!'}
-            </p>
-          </div>
-        )}
+      <div className={`bg-black rounded-2xl max-w-sm w-full p-8 text-center ${phase === 'video' ? 'hidden' : ''}`}>
 
-        {/* Hatching - bright flash */}
-        {phase === 'hatching' && (
-          <div className="flex items-center justify-center py-8">
-            <div className={`w-40 h-40 rounded-full bg-gradient-to-br ${rarityColors[rarity]} animate-egg-burst flex items-center justify-center shadow-2xl ${rarityGlow[rarity]}`}>
-              <Sparkles className="w-16 h-16 text-white animate-spin" />
-            </div>
-          </div>
-        )}
-
-        {/* Carousel - cycling through silhouettes sliding right to left */}
+        {/* Carousel - uncomment to re-enable (also change handleVideoEnded to setPhase('carousel'))
         {phase === 'carousel' && (
           <div className="flex flex-col items-center justify-center py-6">
             <p className="text-gray-400 text-sm mb-4">Who could it be...?</p>
@@ -183,6 +152,7 @@ const EggOpenAnimation = ({ result, eggRarity, allPets = [], onClose, onNickname
             <p className="text-gray-500 text-xs mt-3">???</p>
           </div>
         )}
+        */}
 
         {/* Reveal & Done */}
         {(phase === 'reveal' || phase === 'done') && (
@@ -222,7 +192,7 @@ const EggOpenAnimation = ({ result, eggRarity, allPets = [], onClose, onNickname
                 </div>
 
                 {/* Pet Image */}
-                <div className={`w-32 h-32 mx-auto rounded-2xl bg-gradient-to-br ${rarityColors[rarity]} flex items-center justify-center shadow-2xl ${rarityGlow[rarity]} overflow-hidden`}>
+                <div className={`w-60 h-60 mx-auto rounded-2xl bg-gradient-to-br ${rarityColors[rarity]} flex items-center justify-center shadow-2xl ${rarityGlow[rarity]} overflow-hidden`}>
                   {pet?.image_url ? (
                     <img src={pet.image_url} alt={pet.name} className="w-full h-full object-contain" />
                   ) : (
@@ -280,37 +250,6 @@ const EggOpenAnimation = ({ result, eggRarity, allPets = [], onClose, onNickname
 
       {/* CSS Animations */}
       <style>{`
-        @keyframes eggWobble {
-          0%, 100% { transform: rotate(0deg); }
-          15% { transform: rotate(-8deg); }
-          30% { transform: rotate(8deg); }
-          45% { transform: rotate(-10deg); }
-          60% { transform: rotate(10deg); }
-          75% { transform: rotate(-6deg); }
-          90% { transform: rotate(6deg); }
-        }
-        .animate-egg-wobble {
-          animation: eggWobble 0.6s ease-in-out infinite;
-        }
-        @keyframes eggCrack {
-          0% { transform: scale(1) rotate(0deg); }
-          20% { transform: scale(1.05) rotate(-3deg); }
-          40% { transform: scale(1.08) rotate(3deg); }
-          60% { transform: scale(1.12) rotate(-5deg); }
-          80% { transform: scale(1.15) rotate(5deg); }
-          100% { transform: scale(1.2) rotate(0deg); }
-        }
-        .animate-egg-crack {
-          animation: eggCrack 1s ease-out forwards;
-        }
-        @keyframes eggBurst {
-          0% { transform: scale(0.5); opacity: 0.5; }
-          50% { transform: scale(1.5); opacity: 1; }
-          100% { transform: scale(0); opacity: 0; }
-        }
-        .animate-egg-burst {
-          animation: eggBurst 0.8s ease-out forwards;
-        }
         @keyframes carouselSlide {
           0% { transform: translateX(80%); opacity: 0; }
           15% { opacity: 1; }
