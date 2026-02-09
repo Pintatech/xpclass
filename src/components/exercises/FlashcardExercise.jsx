@@ -1018,7 +1018,7 @@ const FlashcardExercise = () => {
                               style={{ border: 'none', overflow: 'hidden' }}
                             />
                             {/* Block clicks on top 90%, leave bottom strip open for mute/replay controls */}
-                            <div className="absolute top-0 left-0 right-0 z-10" style={{ bottom: '10%' }} />
+                            <div className="absolute top-0 left-0 right-0 z-10" style={{ bottom: '20%' }} />
                           </div>
                         ) : (
                           <video
