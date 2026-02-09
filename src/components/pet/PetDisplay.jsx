@@ -69,6 +69,8 @@ const PetDisplay = () => {
   const [trainingVideoLoaded, setTrainingVideoLoaded] = useState(false);
 
   // Chat state
+  const [playDisabled, setPlayDisabled] = useState(false);
+  const [playCooldown, setPlayCooldown] = useState(0);
   const [showChat, setShowChat] = useState(false);
   const [chatInput, setChatInput] = useState("");
   const [chatMessages, setChatMessages] = useState([]);
@@ -289,6 +291,19 @@ const PetDisplay = () => {
   };
 
   const handlePlay = async () => {
+    setPlayDisabled(true);
+    setPlayCooldown(10);
+    const cooldownInterval = setInterval(() => {
+      setPlayCooldown(prev => {
+        if (prev <= 1) {
+          clearInterval(cooldownInterval);
+          setPlayDisabled(false);
+          return 0;
+        }
+        return prev - 1;
+      });
+    }, 1000);
+
     const result = await playWithPet(activePet.id);
     if (result.success) {
       // Trigger play animation with XP gained
@@ -318,19 +333,10 @@ const PetDisplay = () => {
       });
       setTimeout(() => setMessage(null), evolved ? 5000 : 3000);
     } else {
-      if (result.cooldown_remaining) {
-        const minutes = Math.floor((result.cooldown_remaining % 3600) / 60);
-        const seconds = result.cooldown_remaining % 60;
-        setMessage({
-          type: "error",
-          text: `Pet is tired. Come back in ${minutes}m ${seconds}s`,
-        });
-      } else {
-        setMessage({
-          type: "error",
-          text: result.error || "Failed to play with pet",
-        });
-      }
+      setMessage({
+        type: "error",
+        text: result.error || "Failed to play with pet",
+      });
       setTimeout(() => setMessage(null), 3000);
     }
   };
@@ -905,7 +911,8 @@ const PetDisplay = () => {
             <div className="absolute bottom-52 right-2 z-10">
               <button
                 onClick={handlePlay}
-                className="w-12 h-12 hover:scale-110 transition-all"
+                disabled={playDisabled}
+                className={`w-12 h-12 transition-all relative ${playDisabled ? 'cursor-not-allowed' : 'hover:scale-110'}`}
                 title="Train pet"
               >
                 <img
@@ -913,6 +920,24 @@ const PetDisplay = () => {
                   alt="Train pet"
                   className="w-full h-full object-contain drop-shadow-lg"
                 />
+                {playDisabled && playCooldown > 0 && (
+                  <div className="absolute -inset-1 flex items-center justify-center rounded-full bg-black/50">
+                    <svg className="absolute w-14 h-14 -rotate-90" viewBox="0 0 56 56">
+                      <circle cx="28" cy="28" r="24" fill="none" stroke="rgba(255,255,255,0.2)" strokeWidth="3" />
+                      <circle
+                        cx="28" cy="28" r="24" fill="none"
+                        stroke="#f59e0b" strokeWidth="3"
+                        strokeLinecap="round"
+                        strokeDasharray={`${2 * Math.PI * 24}`}
+                        strokeDashoffset={`${2 * Math.PI * 24 * (1 - playCooldown / 10)}`}
+                        style={{ transition: 'stroke-dashoffset 1s linear' }}
+                      />
+                    </svg>
+                    <span className="text-white font-bold text-base drop-shadow-[0_1px_2px_rgba(0,0,0,0.8)]">
+                      {playCooldown}
+                    </span>
+                  </div>
+                )}
               </button>
             </div>
 

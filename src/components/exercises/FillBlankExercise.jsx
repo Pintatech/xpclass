@@ -94,20 +94,33 @@ const FillBlankExercise = () => {
   const currentQuestion = questions[currentQuestionIndex]
   const showAllQuestions = exercise?.content?.settings?.show_all_questions || false
 
-  // Extract audio URLs from question content
+  // Extract audio data from question content
   const extractAudioUrls = (htmlContent) => {
     if (!htmlContent) return []
     const parser = new DOMParser()
     const doc = parser.parseFromString(htmlContent, 'text/html')
     const audioElements = doc.querySelectorAll('audio')
-    const audioUrls = []
+    const audioData = []
     audioElements.forEach(el => {
       const src = el.getAttribute('src') || el.querySelector('source')?.getAttribute('src')
       if (src) {
-        audioUrls.push(src)
+        audioData.push({
+          url: src,
+          seekable: el.getAttribute('data-seekable') === 'true',
+          maxPlays: parseInt(el.getAttribute('data-max-plays') || '0', 10)
+        })
       }
     })
-    return audioUrls
+    return audioData
+  }
+
+  // Strip audio tags from HTML to avoid duplicate players
+  const stripAudioTags = (htmlContent) => {
+    if (!htmlContent) return ''
+    const parser = new DOMParser()
+    const doc = parser.parseFromString(htmlContent, 'text/html')
+    doc.querySelectorAll('audio').forEach(el => el.remove())
+    return doc.body.innerHTML
   }
 
   // Get audio URLs for current question
@@ -511,6 +524,8 @@ const FillBlankExercise = () => {
     } catch (err) {
       console.error('Error marking fill_blank exercise completed:', err)
     }
+
+    setExerciseCompleted(true)
   }
 
   const handleRecheck = () => {
@@ -996,7 +1011,7 @@ const FillBlankExercise = () => {
           {exercise?.content?.intro && String(exercise.content.intro).trim() && (
             <div className="w-full max-w-4xl min-w-0 mx-auto rounded-lg p-4 md:p-6 bg-white shadow-sm border border-gray-200">
               <RichTextRenderer
-                content={exercise.content.intro}
+                content={stripAudioTags(exercise.content.intro)}
                 allowImages={true}
                 allowLinks={false}
                 style={{ whiteSpace: 'pre-wrap' }}
@@ -1007,7 +1022,9 @@ const FillBlankExercise = () => {
                   {exerciseIntroAudio.map((audioUrl, index) => (
                     <AudioPlayer
                       key={index}
-                      audioUrl={audioUrl}
+                      audioUrl={audioUrl.url}
+                      seekable={audioUrl.seekable}
+                      maxPlays={audioUrl.maxPlays}
                       variant="outline"
                     />
                   ))}
@@ -1039,7 +1056,7 @@ const FillBlankExercise = () => {
                   {question.intro && String(question.intro).trim() && (
                     <div className="mb-4">
                       <RichTextRenderer
-                        content={question.intro}
+                        content={stripAudioTags(question.intro)}
                         allowImages={true}
                         allowLinks={false}
                       />
@@ -1052,7 +1069,9 @@ const FillBlankExercise = () => {
                       {questionIntroAudio.map((audioUrl, index) => (
                         <AudioPlayer
                           key={index}
-                          audioUrl={audioUrl}
+                          audioUrl={audioUrl.url}
+                          seekable={audioUrl.seekable}
+                          maxPlays={audioUrl.maxPlays}
                           variant="outline"
                         />
                       ))}
@@ -1069,10 +1088,37 @@ const FillBlankExercise = () => {
                       {questionAudio.map((audioUrl, index) => (
                         <AudioPlayer
                           key={index}
-                          audioUrl={audioUrl}
+                          audioUrl={audioUrl.url}
+                          seekable={audioUrl.seekable}
+                          maxPlays={audioUrl.maxPlays}
                           variant="outline"
                         />
                       ))}
+                    </div>
+                  )}
+
+                  {/* Correct answers for each question after submission */}
+                  {showResults && (
+                    <div className="mt-4 p-4 bg-gray-50 rounded-lg space-y-2">
+                      <h4 className="font-medium text-gray-700 text-sm">Correct Answers:</h4>
+                      {question.blanks.map((blank, blankIndex) => {
+                        const correctAns = blank.answer
+                          .split(',')
+                          .map(a => a.trim())
+                          .filter(a => a)
+                        return (
+                          <div key={blankIndex} className="flex items-center gap-2 flex-wrap">
+                            <span className="text-sm text-gray-600">Blank {blankIndex + 1}:</span>
+                            <div className="flex gap-1 flex-wrap">
+                              {correctAns.map((answer, answerIndex) => (
+                                <span key={answerIndex} className="px-2 py-1 bg-green-100 text-green-800 rounded text-sm">
+                                  {answer}
+                                </span>
+                              ))}
+                            </div>
+                          </div>
+                        )
+                      })}
                     </div>
                   )}
 
@@ -1249,7 +1295,9 @@ const FillBlankExercise = () => {
               {exerciseIntroAudio.map((audioUrl, index) => (
                 <AudioPlayer
                   key={index}
-                  audioUrl={audioUrl}
+                  audioUrl={audioUrl.url}
+                  seekable={audioUrl.seekable}
+                  maxPlays={audioUrl.maxPlays}
                   variant="outline"
                 />
               ))}
@@ -1264,7 +1312,7 @@ const FillBlankExercise = () => {
         {currentQuestion.intro && String(currentQuestion.intro).trim() && (
           <div className="mb-4">
             <RichTextRenderer
-              content={currentQuestion.intro}
+              content={stripAudioTags(currentQuestion.intro)}
               allowImages={true}
               allowLinks={false}
             />
@@ -1277,7 +1325,9 @@ const FillBlankExercise = () => {
             {currentQuestionIntroAudio.map((audioUrl, index) => (
               <AudioPlayer
                 key={index}
-                audioUrl={audioUrl}
+                audioUrl={audioUrl.url}
+                seekable={audioUrl.seekable}
+                maxPlays={audioUrl.maxPlays}
                 variant="outline"
               />
             ))}
@@ -1294,7 +1344,9 @@ const FillBlankExercise = () => {
             {currentQuestionAudio.map((audioUrl, index) => (
               <AudioPlayer
                 key={index}
-                audioUrl={audioUrl}
+                audioUrl={audioUrl.url}
+                seekable={audioUrl.seekable}
+                maxPlays={audioUrl.maxPlays}
                 variant="outline"
               />
             ))}

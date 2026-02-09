@@ -22,6 +22,7 @@ const AudioPlayer = ({
   onPlayComplete,
   onLimitReached,
   disabled = false,
+  seekable = false,
   externalPlayCount,
   onPlay
 }) => {
@@ -155,9 +156,18 @@ const AudioPlayer = ({
 
       {/* Progress bar */}
       <div className="flex items-center gap-2 min-w-[200px]">
-        <div className="relative w-full h-2 bg-gray-200 rounded-full overflow-hidden">
+        <div
+          className={`relative w-full h-2 bg-gray-200 rounded-full overflow-hidden ${seekable ? 'cursor-pointer' : ''}`}
+          onClick={seekable ? (e) => {
+            if (!audioRef.current) return
+            const rect = e.currentTarget.getBoundingClientRect()
+            const seekRatio = Math.max(0, Math.min(1, (e.clientX - rect.left) / rect.width))
+            audioRef.current.currentTime = seekRatio * audioRef.current.duration
+            setProgress(seekRatio * 100)
+          } : undefined}
+        >
           <div
-            className="absolute top-0 left-0 h-full bg-purple-500 transition-all duration-200 ease-linear"
+            className="absolute top-0 left-0 h-full bg-purple-500 transition-all duration-200 ease-linear pointer-events-none"
             style={{ width: `${progress}%` }}
           />
         </div>

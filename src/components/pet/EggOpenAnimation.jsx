@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react'
+import { createPortal } from 'react-dom'
 import { Sparkles } from 'lucide-react'
 
 const rarityColors = {
@@ -75,7 +76,7 @@ const EggOpenAnimation = ({ result, eggRarity, onClose, onNickname }) => {
     onClose()
   }
 
-  return (
+  return createPortal(
     <div className="fixed inset-0 bg-black bg-opacity-70 flex items-center justify-center p-4 z-50">
       <div className="bg-gradient-to-b from-gray-900 to-gray-800 rounded-2xl max-w-sm w-full p-8 text-center">
 
@@ -237,7 +238,8 @@ const EggOpenAnimation = ({ result, eggRarity, onClose, onNickname }) => {
           animation: fadeIn 0.5s ease-out forwards;
         }
       `}</style>
-    </div>
+    </div>,
+    document.body
   )
 }
 

@@ -203,9 +203,11 @@ const Leaderboard = () => {
         console.log('Today leaderboard - Vietnam date:', vietnamToday)
         leaderboardQuery = await getTimeframeLeaderboard('today', vietnamToday)
       } else if (timeframe === 'week') {
-        // Get last 7 days (including today)
+        // Get Monday of current week (Vietnam time)
+        const dayOfWeek = currentDate.getDay() // 0=Sun, 1=Mon, ...
+        const daysFromMonday = dayOfWeek === 0 ? 6 : dayOfWeek - 1
         const weekStart = new Date(currentDate)
-        weekStart.setDate(weekStart.getDate() - 6)
+        weekStart.setDate(weekStart.getDate() - daysFromMonday)
         leaderboardQuery = await getTimeframeLeaderboard('week', weekStart.toISOString().split('T')[0])
       } else if (timeframe === 'month') {
         // Get current month
@@ -863,7 +865,7 @@ const Leaderboard = () => {
                 )
                 .map((champion, index) => {
                   const earnedDate = new Date(champion.earned_at)
-                  const dateStr = earnedDate.toLocaleDateString('vi-VN', { day: '2-digit', month: '2-digit', year: 'numeric' })
+                  const dateStr = earnedDate.toLocaleDateString('vi-VN', { day: '2-digit', month: '2-digit', year: 'numeric', timeZone: 'Asia/Ho_Chi_Minh' })
                   return (
                     <div key={index} className="flex items-center justify-between px-4 py-3">
                       <div className="flex items-center gap-3">

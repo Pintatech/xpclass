@@ -35,10 +35,15 @@ const parseContentWithAudio = (content) => {
       const maxPlaysMatch = audioTag.match(/data-max-plays\s*=\s*["'](\d+)["']/)
       const maxPlays = maxPlaysMatch ? parseInt(maxPlaysMatch[1]) : 0
 
+      // Extract data-seekable attribute if present
+      const seekableMatch = audioTag.match(/data-seekable\s*=\s*["'](true|false)["']/)
+      const seekable = seekableMatch ? seekableMatch[1] === 'true' : null
+
       segments.push({
         type: 'audio',
         url: srcMatch[1],
-        maxPlays: maxPlays
+        maxPlays: maxPlays,
+        seekable: seekable
       })
     }
 
@@ -62,6 +67,7 @@ export const RichTextWithAudio = ({
   className = '',
   allowImages = true,
   allowLinks = false,
+  seekable = false,
   style = {}
 }) => {
   const segments = parseContentWithAudio(content)
@@ -75,6 +81,7 @@ export const RichTextWithAudio = ({
               <AudioPlayer
                 audioUrl={segment.url}
                 maxPlays={segment.maxPlays}
+                seekable={segment.seekable !== null ? segment.seekable : seekable}
                 variant="outline"
               />
             </div>
@@ -151,7 +158,9 @@ const RichTextRenderer = ({
 
     // Basic sanitization - remove dangerous attributes and scripts
     let sanitized = processedHtml
-      .replace(/<script[^>]*>.*?<\/script>/gi, '')
+      .replace(/<script[^>]*>.*?<\/script>/gis, '')
+      .replace(/<audio[^>]*>.*?<\/audio>/gis, '')
+      .replace(/<audio[^>]*\/?>/gi, '')
       .replace(/on\w+\s*=\s*["'][^"']*["']/gi, '')
       .replace(/javascript:/gi, '')
       .replace(/vbscript:/gi, '')
