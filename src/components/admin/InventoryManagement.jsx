@@ -600,7 +600,7 @@ const InventoryManagement = () => {
 
       {/* ===== RECIPES TAB ===== */}
       {activeSubTab === 'recipes' && (
-        <div className="space-y-4">
+        <div className="space-y-3">
           <div className="flex justify-end">
             <Button onClick={() => handleOpenRecipeModal()} className="flex items-center gap-2">
               <Plus className="w-4 h-4" />
@@ -608,66 +608,51 @@ const InventoryManagement = () => {
             </Button>
           </div>
 
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            {recipes.map(recipe => (
-              <Card key={recipe.id} className={`p-4 ${!recipe.is_active ? 'opacity-50' : ''}`}>
-                <div className="space-y-3">
-                  <div className="flex items-start gap-3">
-                    <div className="w-16 h-16 bg-gray-50 rounded-lg flex items-center justify-center overflow-hidden flex-shrink-0">
-                      {recipe.result_image_url ? (
-                        <img src={recipe.result_image_url} alt={recipe.name} className="w-full h-full object-contain" />
-                      ) : (
-                        <Layers className="w-8 h-8 text-gray-300" />
-                      )}
-                    </div>
-                    <div className="flex-1 min-w-0">
-                      <h4 className="font-semibold text-gray-900">{recipe.name}</h4>
-                      {recipe.description && <p className="text-xs text-gray-500">{recipe.description}</p>}
-                      <span className="text-xs bg-purple-100 text-purple-700 px-2 py-0.5 rounded-full mt-1 inline-block">
-                        {recipe.result_type === 'cosmetic' ? 'Cosmetic' : recipe.result_type === 'xp' ? `${recipe.result_xp} XP` : recipe.result_type === 'item' ? 'Collectible Item' : `${recipe.result_gems} Gems`}
-                      </span>
-                    </div>
-                  </div>
-
-                  <div className="text-xs text-gray-600">
-                    <p className="font-medium mb-1">Ingredients:</p>
-                    <div className="flex flex-wrap gap-1">
-                      {(recipe.ingredients || []).map((ing, idx) => (
-                        <span key={idx} className="bg-gray-100 px-2 py-0.5 rounded-full">
-                          {getItemName(ing.item_id)} x{ing.quantity}
-                        </span>
-                      ))}
-                    </div>
-                    {recipe.max_crafts_per_user && (
-                      <p className="mt-1 text-gray-400">Max {recipe.max_crafts_per_user} crafts per user</p>
-                    )}
-                    {recipe.success_rate != null && recipe.success_rate < 100 && (
-                      <p className={`mt-1 font-medium ${recipe.success_rate >= 70 ? 'text-green-600' : recipe.success_rate >= 40 ? 'text-yellow-600' : 'text-red-600'}`}>
-                        {recipe.success_rate}% success rate
-                      </p>
-                    )}
-                  </div>
-
-                  <div className="flex items-center gap-2 pt-2 border-t">
-                    <button onClick={() => handleOpenRecipeModal(recipe)} className="p-1 hover:bg-gray-100 rounded">
-                      <Edit className="w-4 h-4 text-gray-500" />
-                    </button>
-                    <button onClick={() => handleDeleteRecipe(recipe.id)} className="p-1 hover:bg-gray-100 rounded">
-                      <Trash2 className="w-4 h-4 text-red-500" />
-                    </button>
-                  </div>
-                </div>
-              </Card>
-            ))}
-          </div>
-
-          {recipes.length === 0 && (
+          {recipes.length === 0 ? (
             <Card className="p-8 text-center">
               <Layers className="w-12 h-12 text-gray-400 mx-auto mb-4" />
               <h3 className="text-lg font-medium text-gray-900 mb-2">No recipes yet</h3>
               <p className="text-gray-600 mb-4">Define crafting recipes for exclusive rewards</p>
               <Button onClick={() => handleOpenRecipeModal()}>Add First Recipe</Button>
             </Card>
+          ) : (
+            <div className="grid grid-cols-2 gap-2">
+              {[...recipes].sort((a, b) => a.name.localeCompare(b.name)).map(recipe => (
+                <div key={recipe.id} className={`flex items-center gap-2 px-2.5 py-1.5 border rounded-lg ${!recipe.is_active ? 'opacity-50' : ''}`}>
+                  <div className="w-8 h-8 bg-gray-50 rounded flex items-center justify-center overflow-hidden flex-shrink-0">
+                    {recipe.result_image_url ? (
+                      <img src={recipe.result_image_url} alt={recipe.name} className="w-full h-full object-contain" />
+                    ) : (
+                      <Layers className="w-4 h-4 text-gray-300" />
+                    )}
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-center gap-1.5">
+                      <span className="font-medium text-xs text-gray-900 truncate">{recipe.name}</span>
+                      <span className="text-[10px] bg-purple-100 text-purple-700 px-1.5 rounded-full flex-shrink-0">
+                        {recipe.result_type === 'cosmetic' ? 'Cosmetic' : recipe.result_type === 'xp' ? `${recipe.result_xp} XP` : recipe.result_type === 'item' ? 'Item' : `${recipe.result_gems} Gems`}
+                      </span>
+                      {recipe.success_rate != null && recipe.success_rate < 100 && (
+                        <span className={`text-[10px] font-medium flex-shrink-0 ${recipe.success_rate >= 70 ? 'text-green-600' : recipe.success_rate >= 40 ? 'text-yellow-600' : 'text-red-600'}`}>{recipe.success_rate}%</span>
+                      )}
+                    </div>
+                    <div className="flex flex-wrap gap-0.5 mt-0.5">
+                      {(recipe.ingredients || []).map((ing, idx) => (
+                        <span key={idx} className="text-[10px] text-gray-500">{getItemName(ing.item_id)} x{ing.quantity}{idx < (recipe.ingredients || []).length - 1 ? ',' : ''}</span>
+                      ))}
+                    </div>
+                  </div>
+                  <div className="flex items-center gap-0.5 flex-shrink-0">
+                    <button onClick={() => handleOpenRecipeModal(recipe)} className="p-0.5 hover:bg-gray-100 rounded">
+                      <Edit className="w-3 h-3 text-gray-400" />
+                    </button>
+                    <button onClick={() => handleDeleteRecipe(recipe.id)} className="p-0.5 hover:bg-gray-100 rounded">
+                      <Trash2 className="w-3 h-3 text-red-400" />
+                    </button>
+                  </div>
+                </div>
+              ))}
+            </div>
           )}
         </div>
       )}

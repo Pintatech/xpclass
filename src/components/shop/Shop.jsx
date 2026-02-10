@@ -1,18 +1,65 @@
 import { useState, useEffect } from 'react'
+import { useSearchParams } from 'react-router-dom'
 import { supabase } from '../../supabase/client'
 import { useAuth } from '../../hooks/useAuth'
 import { useProgress } from '../../hooks/useProgress'
-import { ShoppingBag, Check } from 'lucide-react'
+import { usePet } from '../../hooks/usePet'
+import { useInventory } from '../../hooks/useInventory'
+import { ShoppingBag, Check, Lock } from 'lucide-react'
+
+const rarityOrder = ['common', 'uncommon', 'rare', 'epic', 'legendary']
+
+const rarityCardColors = {
+  common: 'border-gray-300 bg-gray-50',
+  uncommon: 'border-green-300 bg-green-50',
+  rare: 'border-blue-300 bg-blue-50',
+  epic: 'border-purple-300 bg-purple-50',
+  legendary: 'border-yellow-300 bg-yellow-50',
+}
+
+const rarityBadgeColors = {
+  common: 'text-gray-700 bg-gray-200',
+  uncommon: 'text-green-700 bg-green-200',
+  rare: 'text-blue-700 bg-blue-200',
+  epic: 'text-purple-700 bg-purple-200',
+  legendary: 'text-yellow-700 bg-yellow-200',
+}
+
+const rarityEggGradient = {
+  common: 'from-gray-200 to-gray-400',
+  uncommon: 'from-green-200 to-green-400',
+  rare: 'from-blue-200 to-blue-400',
+  epic: 'from-purple-200 to-purple-500',
+  legendary: 'from-yellow-200 to-amber-400',
+}
+
+const rarityButtonGradient = {
+  common: 'from-gray-400 to-gray-500 hover:from-gray-500 hover:to-gray-600',
+  uncommon: 'from-green-400 to-green-500 hover:from-green-500 hover:to-green-600',
+  rare: 'from-blue-400 to-blue-500 hover:from-blue-500 hover:to-blue-600',
+  epic: 'from-purple-400 to-purple-500 hover:from-purple-500 hover:to-purple-600',
+  legendary: 'from-yellow-400 to-amber-500 hover:from-yellow-500 hover:to-amber-600',
+}
 
 const Shop = () => {
-  const { user, profile, updateProfile } = useAuth()
+  const [searchParams] = useSearchParams()
+  const { user, profile, updateProfile, fetchUserProfile } = useAuth()
   const { spendGems, spendXP } = useProgress()
+  const { buyEgg } = usePet()
+  const { inventory, fetchInventory, incrementNewCount } = useInventory()
+
   const [items, setItems] = useState([])
   const [purchases, setPurchases] = useState([])
+  const [eggCatalog, setEggCatalog] = useState([])
   const [loading, setLoading] = useState(true)
-  const [activeTab, setActiveTab] = useState('avatar')
+  const [activeTab, setActiveTab] = useState(searchParams.get('tab') || 'avatar')
   const [purchasing, setPurchasing] = useState(null)
   const [confirmItem, setConfirmItem] = useState(null)
+
+  // Egg-specific state
+  const [buyingEggId, setBuyingEggId] = useState(null)
+  const [confirmEggCurrency, setConfirmEggCurrency] = useState(null) // 'gems' or 'xp' when confirmItem is an egg
+  const [message, setMessage] = useState(null)
 
   useEffect(() => {
     if (user) {
@@ -24,7 +71,7 @@ const Shop = () => {
     try {
       setLoading(true)
 
-      const [itemsResult, purchasesResult] = await Promise.all([
+      const [itemsResult, purchasesResult, eggsResult] = await Promise.all([
         supabase
           .from('shop_items')
           .select('*')
@@ -33,14 +80,22 @@ const Shop = () => {
         supabase
           .from('user_purchases')
           .select('item_id, purchased_at')
-          .eq('user_id', user.id)
+          .eq('user_id', user.id),
+        supabase
+          .from('collectible_items')
+          .select('*')
+          .eq('item_type', 'egg')
+          .eq('is_active', true)
+          .order('sort_order', { ascending: true })
       ])
 
       if (itemsResult.error) throw itemsResult.error
       if (purchasesResult.error) throw purchasesResult.error
+      if (eggsResult.error) throw eggsResult.error
 
       setItems(itemsResult.data || [])
       setPurchases(purchasesResult.data || [])
+      setEggCatalog(eggsResult.data || [])
     } catch (err) {
       console.error('Error fetching shop data:', err)
     } finally {
@@ -108,6 +163,34 @@ const Shop = () => {
     }
   }
 
+  // Egg purchase handlers
+  const handleConfirmEggPurchase = async () => {
+    if (!confirmItem || !confirmEggCurrency) return
+
+    const egg = confirmItem
+    const currency = confirmEggCurrency
+    setBuyingEggId(egg.id)
+    setConfirmItem(null)
+    setConfirmEggCurrency(null)
+
+    const result = await buyEgg(egg.id, currency)
+
+    if (result.success) {
+      const spentText = currency === 'xp'
+        ? `-${result.xp_spent} XP`
+        : `-${result.gems_spent} gems`
+      setMessage({ type: 'success', text: `Bought ${result.egg_name}! (${spentText})` })
+      await fetchInventory()
+      incrementNewCount('eggs')
+      if (user) await fetchUserProfile(user.id)
+    } else {
+      setMessage({ type: 'error', text: result.error || 'Failed to buy egg' })
+    }
+
+    setBuyingEggId(null)
+    setTimeout(() => setMessage(null), 3000)
+  }
+
   const handleEquip = async (item) => {
     try {
       if (item.category === 'avatar') {
@@ -147,6 +230,7 @@ const Shop = () => {
     { key: 'frame', label: 'Frame' },
     { key: 'background', label: 'Background' },
     { key: 'pet', label: 'Pet bowl' },
+    { key: 'egg', label: 'Egg' },
     { key: 'school', label: 'School things' },
   ]
 
@@ -179,6 +263,8 @@ const Shop = () => {
       return isXPItem(a) ? -1 : 1
     })
 
+  const sortedEggs = eggCatalog.sort((a, b) => rarityOrder.indexOf(a.rarity) - rarityOrder.indexOf(b.rarity))
+
   if (loading) {
     return (
       <div className="max-w-4xl mx-auto p-6">
@@ -196,6 +282,15 @@ const Shop = () => {
 
   return (
     <div className="max-w-4xl mx-auto p-6">
+      {/* Message Toast */}
+      {message && (
+        <div className={`fixed top-4 right-4 z-50 px-4 py-3 rounded-lg shadow-lg ${
+          message.type === 'success' ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'
+        }`}>
+          {message.text}
+        </div>
+      )}
+
       {/* Header */}
       <div className="flex items-center justify-between mb-6">
         <div className="flex items-center gap-3">
@@ -230,121 +325,205 @@ const Shop = () => {
         ))}
       </div>
 
-      {/* Items Grid */}
-      {filteredItems.length === 0 ? (
-        <div className="text-center py-16 text-gray-400">
-          <ShoppingBag className="w-16 h-16 mx-auto mb-4 opacity-30" />
-          <p className="text-lg">Chưa có vật phẩm nào</p>
-          <p className="text-sm mt-1">Hãy quay lại sau nhé!</p>
-        </div>
-      ) : (
-        <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-4">
-          {filteredItems.map(item => {
-            const owned = isOwned(item.id)
-            const canAfford = canAffordItem(item)
+      {/* Egg Grid */}
+      {activeTab === 'egg' ? (
+        sortedEggs.length === 0 ? (
+          <div className="text-center py-16 text-gray-400">
+            <ShoppingBag className="w-16 h-16 mx-auto mb-4 opacity-30" />
+            <p className="text-lg">Chưa có trứng nào</p>
+            <p className="text-sm mt-1">Hãy quay lại sau nhé!</p>
+          </div>
+        ) : (
+          <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-5 gap-4">
+            {sortedEggs.map(egg => {
+              const canAffordGems = (profile?.gems || 0) >= egg.price_gems
 
-            return (
-              <div
-                key={item.id}
-                className={`relative bg-white rounded-xl border-2 overflow-hidden transition-all hover:shadow-lg ${
-                  !owned && !canAfford
-                    ? 'border-gray-200 opacity-75'
-                    : 'border-gray-200 hover:border-blue-300'
-                  }`}
-              >
-                {/* Equipped badge */}
-                {isEquipped(item) && (
-                  <div className="absolute top-2 right-2 bg-blue-500 text-white rounded-full p-1 z-10">
-                    <Check className="w-3 h-3" />
+              return (
+                <div
+                  key={egg.id}
+                  className={`border-2 rounded-xl p-4 transition-all hover:shadow-lg ${rarityCardColors[egg.rarity]}`}
+                >
+                  {/* Rarity Badge */}
+                  <div className="flex justify-between items-start mb-3">
+                    <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold ${rarityBadgeColors[egg.rarity]}`}>
+                      {egg.rarity.toUpperCase()}
+                    </span>
                   </div>
-                )}
 
-                {/* Item image */}
-                <div className="aspect-square bg-gray-50 flex items-center justify-center p-4">
-                  {item.image_url ? (
-                    item.category === 'background' ? (
-                      <div
-                        className="w-full h-full rounded-lg bg-cover bg-center"
-                        style={{ backgroundImage: `url(${item.item_data?.background_url || item.image_url})` }}
-                      />
+                  {/* Egg Image */}
+                  <div className={`w-full aspect-square rounded-xl bg-gradient-to-br ${rarityEggGradient[egg.rarity]} flex items-center justify-center mb-3 shadow-inner`}>
+                    {egg.image_url ? (
+                      <img src={egg.image_url} alt={egg.name} className="w-3/4 h-3/4 object-contain" />
                     ) : (
-                      <img
-                        src={item.image_url}
-                        alt={item.name}
-                        className="w-full h-full object-contain rounded-lg"
-                      />
-                    )
-                  ) : (
-                    <div className="w-16 h-16 bg-gray-200 rounded-full flex items-center justify-center text-2xl">
-                      {item.category === 'avatar' ? '👤' : '🏷️'}
-                    </div>
-                  )}
-                </div>
+                      <span className="text-4xl">🥚</span>
+                    )}
+                  </div>
 
-                {/* Item info */}
-                <div className="p-3">
-                  <h3 className="font-semibold text-sm text-gray-800 truncate">{item.name}</h3>
-                  {item.description && (
-                    <p className="text-xs text-gray-500 mt-0.5 truncate">{item.description}</p>
-                  )}
+                  {/* Egg Name */}
+                  <h3 className="text-sm font-bold text-gray-800 mb-2 text-center">{egg.name}</h3>
 
-                  {/* Price / Action */}
-                  <div className="mt-2">
-                    {owned ? (
-                      equippableCategories.includes(item.category) ? (
-                        isEquipped(item) ? (
-                          <button
-                            disabled
-                            className="w-full py-1.5 bg-blue-100 text-blue-700 rounded-lg text-sm font-medium opacity-60 cursor-not-allowed"
-                          >
-                            Đã trang bị
-                          </button>
-                        ) : (
-                          <button
-                            onClick={() => handleEquip(item)}
-                            className="w-full py-1.5 bg-blue-100 text-blue-700 rounded-lg text-sm font-medium hover:bg-blue-200 transition-colors"
-                          >
-                            Trang bị
-                          </button>
-                        )
-                      ) : (
-                        <div className="w-full py-1.5 bg-gray-100 text-gray-500 rounded-lg text-sm font-medium text-center">
-                          Đã mua
-                        </div>
-                      )
-                    ) : (
+                  {/* Buy Buttons */}
+                  <div className="space-y-2">
+                    {egg.price_gems > 0 && (
                       <button
-                        onClick={() => handlePurchase(item)}
-                        disabled={!canAfford || purchasing === item.id}
-                        className={`w-full py-1.5 rounded-lg text-sm font-medium flex items-center justify-center gap-1 transition-colors ${canAfford
-                            ? 'bg-blue-500 text-white hover:bg-blue-600'
+                        onClick={() => { setConfirmItem(egg); setConfirmEggCurrency('gems') }}
+                        disabled={buyingEggId === egg.id || !canAffordGems}
+                        className={`w-full py-1.5 rounded-lg text-xs font-bold flex items-center justify-center gap-1 transition-colors ${
+                          canAffordGems
+                            ? `bg-gradient-to-r ${rarityButtonGradient[egg.rarity]} text-white`
                             : 'bg-gray-200 text-gray-400 cursor-not-allowed'
-                          }`}
+                        } disabled:opacity-50`}
                       >
-                        {purchasing === item.id ? (
-                          'Đang mua...'
-                        ) : (
-                          <>
-                            {isXPItem(item) ? (
-                              <img src="https://xpclass.vn/xpclass/image/study/xp2.png" alt="XP" className="w-4 h-4" />
-                            ) : (
-                              <img src="https://xpclass.vn/xpclass/image/study/gem.png" alt="Gem" className="w-4 h-4" />
-                            )}
-                            {item.price}
-                          </>
-                        )}
+                        <img src="https://xpclass.vn/xpclass/image/study/gem.png" alt="Gem" className="w-3.5 h-3.5" />
+                        {buyingEggId === egg.id ? '...' : egg.price_gems}
                       </button>
+                    )}
+
+                    {egg.price_xp > 0 && (
+                      <button
+                        onClick={() => { setConfirmItem(egg); setConfirmEggCurrency('xp') }}
+                        disabled={buyingEggId === egg.id || (profile?.xp || 0) < egg.price_xp}
+                        className={`w-full py-1.5 rounded-lg text-xs font-bold flex items-center justify-center gap-1 transition-colors ${
+                          (profile?.xp || 0) >= egg.price_xp
+                            ? `bg-gradient-to-r ${rarityButtonGradient[egg.rarity]} text-white`
+                            : 'bg-gray-200 text-gray-400 cursor-not-allowed'
+                        } disabled:opacity-50`}
+                      >
+                        <img src="https://xpclass.vn/xpclass/image/study/xp2.png" alt="XP" className="w-3.5 h-3.5" />
+                        {buyingEggId === egg.id ? '...' : egg.price_xp}
+                      </button>
+                    )}
+
+                    {(!egg.price_gems || egg.price_gems <= 0) && (!egg.price_xp || egg.price_xp <= 0) && (
+                      <div className="w-full py-1.5 flex items-center justify-center gap-1 text-gray-400 text-xs">
+                        <Lock className="w-3 h-3" />
+                        Not for sale
+                      </div>
                     )}
                   </div>
                 </div>
-              </div>
-            )
-          })}
-        </div>
+              )
+            })}
+          </div>
+        )
+      ) : (
+        /* Regular Items Grid */
+        filteredItems.length === 0 ? (
+          <div className="text-center py-16 text-gray-400">
+            <ShoppingBag className="w-16 h-16 mx-auto mb-4 opacity-30" />
+            <p className="text-lg">Chưa có vật phẩm nào</p>
+            <p className="text-sm mt-1">Hãy quay lại sau nhé!</p>
+          </div>
+        ) : (
+          <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-4">
+            {filteredItems.map(item => {
+              const owned = isOwned(item.id)
+              const canAfford = canAffordItem(item)
+
+              return (
+                <div
+                  key={item.id}
+                  className={`relative bg-white rounded-xl border-2 overflow-hidden transition-all hover:shadow-lg ${
+                    !owned && !canAfford
+                      ? 'border-gray-200 opacity-75'
+                      : 'border-gray-200 hover:border-blue-300'
+                    }`}
+                >
+                  {/* Equipped badge */}
+                  {isEquipped(item) && (
+                    <div className="absolute top-2 right-2 bg-blue-500 text-white rounded-full p-1 z-10">
+                      <Check className="w-3 h-3" />
+                    </div>
+                  )}
+
+                  {/* Item image */}
+                  <div className="aspect-square bg-gray-50 flex items-center justify-center p-4">
+                    {item.image_url ? (
+                      item.category === 'background' ? (
+                        <div
+                          className="w-full h-full rounded-lg bg-cover bg-center"
+                          style={{ backgroundImage: `url(${item.item_data?.background_url || item.image_url})` }}
+                        />
+                      ) : (
+                        <img
+                          src={item.image_url}
+                          alt={item.name}
+                          className="w-full h-full object-contain rounded-lg"
+                        />
+                      )
+                    ) : (
+                      <div className="w-16 h-16 bg-gray-200 rounded-full flex items-center justify-center text-2xl">
+                        {item.category === 'avatar' ? '👤' : '🏷️'}
+                      </div>
+                    )}
+                  </div>
+
+                  {/* Item info */}
+                  <div className="p-3">
+                    <h3 className="font-semibold text-sm text-gray-800 truncate">{item.name}</h3>
+                    {item.description && (
+                      <p className="text-xs text-gray-500 mt-0.5 truncate">{item.description}</p>
+                    )}
+
+                    {/* Price / Action */}
+                    <div className="mt-2">
+                      {owned ? (
+                        equippableCategories.includes(item.category) ? (
+                          isEquipped(item) ? (
+                            <button
+                              disabled
+                              className="w-full py-1.5 bg-blue-100 text-blue-700 rounded-lg text-sm font-medium opacity-60 cursor-not-allowed"
+                            >
+                              Đã trang bị
+                            </button>
+                          ) : (
+                            <button
+                              onClick={() => handleEquip(item)}
+                              className="w-full py-1.5 bg-blue-100 text-blue-700 rounded-lg text-sm font-medium hover:bg-blue-200 transition-colors"
+                            >
+                              Trang bị
+                            </button>
+                          )
+                        ) : (
+                          <div className="w-full py-1.5 bg-gray-100 text-gray-500 rounded-lg text-sm font-medium text-center">
+                            Đã mua
+                          </div>
+                        )
+                      ) : (
+                        <button
+                          onClick={() => handlePurchase(item)}
+                          disabled={!canAfford || purchasing === item.id}
+                          className={`w-full py-1.5 rounded-lg text-sm font-medium flex items-center justify-center gap-1 transition-colors ${canAfford
+                              ? 'bg-blue-500 text-white hover:bg-blue-600'
+                              : 'bg-gray-200 text-gray-400 cursor-not-allowed'
+                            }`}
+                        >
+                          {purchasing === item.id ? (
+                            'Đang mua...'
+                          ) : (
+                            <>
+                              {isXPItem(item) ? (
+                                <img src="https://xpclass.vn/xpclass/image/study/xp2.png" alt="XP" className="w-4 h-4" />
+                              ) : (
+                                <img src="https://xpclass.vn/xpclass/image/study/gem.png" alt="Gem" className="w-4 h-4" />
+                              )}
+                              {item.price}
+                            </>
+                          )}
+                        </button>
+                      )}
+                    </div>
+                  </div>
+                </div>
+              )
+            })}
+          </div>
+        )
       )}
+
       {/* Confirm Modal */}
       {confirmItem && (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50" onClick={() => setConfirmItem(null)}>
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50" onClick={() => { setConfirmItem(null); setConfirmEggCurrency(null) }}>
           <div className="bg-white rounded-2xl p-6 mx-4 max-w-xs w-full shadow-xl" onClick={e => e.stopPropagation()}>
             <div className="flex flex-col items-center">
               {confirmItem.image_url && (
@@ -352,23 +531,39 @@ const Shop = () => {
               )}
               <h3 className="font-bold text-lg text-gray-800">{confirmItem.name}</h3>
               <div className="flex items-center gap-1 mt-2 text-base font-semibold text-gray-600">
-                {isXPItem(confirmItem) ? (
-                  <img src="https://xpclass.vn/xpclass/image/study/xp2.png" alt="XP" className="w-5 h-5" />
+                {confirmEggCurrency ? (
+                  confirmEggCurrency === 'xp' ? (
+                    <>
+                      <img src="https://xpclass.vn/xpclass/image/study/xp2.png" alt="XP" className="w-5 h-5" />
+                      {confirmItem.price_xp}
+                    </>
+                  ) : (
+                    <>
+                      <img src="https://xpclass.vn/xpclass/image/study/gem.png" alt="Gem" className="w-5 h-5" />
+                      {confirmItem.price_gems}
+                    </>
+                  )
                 ) : (
-                  <img src="https://xpclass.vn/xpclass/image/study/gem.png" alt="Gem" className="w-5 h-5" />
+                  <>
+                    {isXPItem(confirmItem) ? (
+                      <img src="https://xpclass.vn/xpclass/image/study/xp2.png" alt="XP" className="w-5 h-5" />
+                    ) : (
+                      <img src="https://xpclass.vn/xpclass/image/study/gem.png" alt="Gem" className="w-5 h-5" />
+                    )}
+                    {confirmItem.price}
+                  </>
                 )}
-                {confirmItem.price}
               </div>
             </div>
             <div className="flex gap-3 mt-5">
               <button
-                onClick={() => setConfirmItem(null)}
+                onClick={() => { setConfirmItem(null); setConfirmEggCurrency(null) }}
                 className="flex-1 py-2 rounded-xl bg-gray-100 text-gray-600 font-medium hover:bg-gray-200 transition-colors"
               >
                 Hủy
               </button>
               <button
-                onClick={confirmPurchase}
+                onClick={confirmEggCurrency ? handleConfirmEggPurchase : confirmPurchase}
                 className="flex-1 py-2 rounded-xl bg-blue-500 text-white font-medium hover:bg-blue-600 transition-colors"
               >
                 Mua

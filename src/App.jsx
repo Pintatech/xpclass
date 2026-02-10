@@ -15,7 +15,6 @@ import Progress from './components/progress/Progress'
 import Profile from './components/profile/Profile'
 import Shop from './components/shop/Shop'
 import Inventory from './components/inventory/Inventory'
-import PetShop from './components/pet/PetShop'
 import PetInventory from './components/pet/PetInventory'
 import AdminDashboard from './components/admin/AdminDashboard'
 import TeacherDashboard from './components/teacher/TeacherDashboard'
@@ -47,7 +46,6 @@ function App() {
                 <Route path="shop" element={<Shop />} />
                 <Route path="inventory" element={<Inventory />} />
                 <Route path="pets" element={<PetInventory />} />
-                <Route path="pets/shop" element={<PetShop />} />
                 <Route path="profile/:userId" element={<Profile />} />
                 <Route path="admin/*" element={
                   <ProtectedRoute requireAdmin>

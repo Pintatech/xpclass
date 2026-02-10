@@ -87,7 +87,7 @@ const PetInventory = () => {
             Pet Dex
           </button>
           <button
-            onClick={() => navigate('/pets/shop')}
+            onClick={() => navigate('/shop?tab=egg')}
             className="bg-blue-500 hover:bg-blue-600 text-white font-bold py-3 px-6 rounded-lg transition-all transform hover:scale-105 shadow-md inline-flex items-center gap-2"
           >
             <ShoppingBag className="w-5 h-5" />

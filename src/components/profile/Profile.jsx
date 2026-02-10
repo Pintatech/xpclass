@@ -939,7 +939,7 @@ const Profile = () => {
                   <p>{isOwnProfile ? 'No pets yet. Visit the Egg Shop to hatch your first companion!' : 'This user has no pets yet.'}</p>
                   {isOwnProfile && (
                     <button
-                      onClick={() => navigate('/pets/shop')}
+                      onClick={() => navigate('/shop?tab=egg')}
                       className="mt-4 px-4 py-2 text-sm text-blue-600 hover:text-blue-700 hover:bg-blue-50 rounded-lg transition-colors"
                     >
                       Visit Egg Shop

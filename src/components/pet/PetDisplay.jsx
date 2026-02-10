@@ -39,7 +39,7 @@ const PET_MESSAGES = [
   "The original name for a butterfly was flutterby",
   "Uncopyrightable is the longest word in common use that contains no letter more than once.",
   "Go! is the shortest, grammatically correct sentence.",
-  "Almost is the longest word with all letters in alphabetical order.",
+  "Aegilops is the longest word with all letters in alphabetical order.",
 
   // Encouragement
   "You're doing great! Keep it up! ⭐",
