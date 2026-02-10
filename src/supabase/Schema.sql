@@ -1244,7 +1244,9 @@ CREATE INDEX IF NOT EXISTS idx_collectible_items_set ON public.collectible_items
 CREATE TABLE IF NOT EXISTS public.user_inventory (
   id uuid NOT NULL DEFAULT uuid_generate_v4(),
   user_id uuid NOT NULL,
+  user_name text,
   item_id uuid NOT NULL,
+  item_name text,
   quantity integer NOT NULL DEFAULT 1 CHECK (quantity >= 0),
   obtained_at timestamp with time zone DEFAULT now(),
   updated_at timestamp with time zone DEFAULT now(),
@@ -1442,8 +1444,8 @@ BEGIN
   END IF;
 
   -- Add to user inventory
-  INSERT INTO user_inventory (user_id, item_id, quantity)
-  VALUES (p_user_id, selected_item.id, 1)
+  INSERT INTO user_inventory (user_id, user_name, item_id, item_name, quantity)
+  VALUES (p_user_id, (SELECT full_name FROM users WHERE id = p_user_id), selected_item.id, selected_item.name, 1)
   ON CONFLICT (user_id, item_id)
   DO UPDATE SET quantity = user_inventory.quantity + 1, updated_at = now();
 
@@ -1499,8 +1501,8 @@ BEGIN
       selected_item_id := (guaranteed_entry->>'item_id')::uuid;
       drop_qty := COALESCE((guaranteed_entry->>'quantity')::integer, 1);
 
-      INSERT INTO user_inventory (user_id, item_id, quantity)
-      VALUES (p_user_id, selected_item_id, drop_qty)
+      INSERT INTO user_inventory (user_id, user_name, item_id, item_name, quantity)
+      VALUES (p_user_id, (SELECT full_name FROM users WHERE id = p_user_id), selected_item_id, (SELECT name FROM collectible_items WHERE id = selected_item_id), drop_qty)
       ON CONFLICT (user_id, item_id)
       DO UPDATE SET quantity = user_inventory.quantity + drop_qty, updated_at = now();
 
@@ -1533,8 +1535,8 @@ BEGIN
             drop_qty := drop_qty + floor(random() * ((loot_entry->>'max_qty')::integer - drop_qty + 1))::integer;
           END IF;
 
-          INSERT INTO user_inventory (user_id, item_id, quantity)
-          VALUES (p_user_id, selected_item_id, drop_qty)
+          INSERT INTO user_inventory (user_id, user_name, item_id, item_name, quantity)
+          VALUES (p_user_id, (SELECT full_name FROM users WHERE id = p_user_id), selected_item_id, (SELECT name FROM collectible_items WHERE id = selected_item_id), drop_qty)
           ON CONFLICT (user_id, item_id)
           DO UPDATE SET quantity = user_inventory.quantity + drop_qty, updated_at = now();
 
@@ -1700,8 +1702,8 @@ BEGIN
   ELSIF recipe_record.result_type = 'gems' AND recipe_record.result_gems > 0 THEN
     UPDATE users SET gems = gems + recipe_record.result_gems WHERE id = p_user_id;
   ELSIF recipe_record.result_type = 'item' AND recipe_record.result_item_id IS NOT NULL THEN
-    INSERT INTO user_inventory (user_id, item_id, quantity)
-    VALUES (p_user_id, recipe_record.result_item_id, COALESCE(recipe_record.result_quantity, 1))
+    INSERT INTO user_inventory (user_id, user_name, item_id, item_name, quantity)
+    VALUES (p_user_id, (SELECT full_name FROM users WHERE id = p_user_id), recipe_record.result_item_id, (SELECT name FROM collectible_items WHERE id = recipe_record.result_item_id), COALESCE(recipe_record.result_quantity, 1))
     ON CONFLICT (user_id, item_id)
     DO UPDATE SET quantity = user_inventory.quantity + COALESCE(recipe_record.result_quantity, 1), updated_at = now();
   END IF;

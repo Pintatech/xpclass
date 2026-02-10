@@ -219,21 +219,15 @@ const PetDisplay = () => {
   };
 
   // Trigger flying food animation
-  const triggerFeedAnimation = (energyGained = 15) => {
-    const foods = ["🍖", "🍗", "🥩", "🍕", "🌮", "🍔", "🥪", "🍩"];
-    const randomFood = foods[Math.floor(Math.random() * foods.length)];
-
-    // Create particles for the burst effect
+  const triggerFeedAnimation = (energyGained = 15, foodImageUrl = null) => {
     const particles = Array.from({ length: 8 }, (_, i) => ({
       id: i,
-      emoji: ["🍖", "🍗", "🥩", "🍕", "🌮", "🍔", "🥪", "🍩"][
-        Math.floor(Math.random() * 6)
-      ],
+      image: foodImageUrl,
       angle: i * 45 + Math.random() * 20,
       distance: 40 + Math.random() * 30,
     }));
 
-    setFeedAnimation({ food: randomFood, particles, phase: "flying", energyGained });
+    setFeedAnimation({ food: foodImageUrl, particles, phase: "flying", energyGained });
 
     // After food reaches pet, show burst
     setTimeout(() => {
@@ -274,12 +268,16 @@ const PetDisplay = () => {
       // Get energy gained from result or calculate from item
       const energyGained = result.energy_gained || 15;
 
+      // Find the food item image
+      const foodItem = itemId ? petFoodItems.find(i => i.item.id === itemId) : null;
+      const foodImageUrl = foodItem?.item?.image_url || null;
+
       // Play chomp sound
       const chompSound = new Audio('https://xpclass.vn/xpclass/sound/chomp.mp3');
       chompSound.play().catch(() => {});
 
       // Trigger flying food animation with energy gained
-      triggerFeedAnimation(energyGained);
+      triggerFeedAnimation(energyGained, foodImageUrl);
 
       setMessage({
         type: "success",
@@ -720,7 +718,9 @@ const PetDisplay = () => {
                     right: "24px",
                   }}
                 >
-                  {feedAnimation.food}
+                  {feedAnimation.food ? (
+                    <img src={feedAnimation.food} alt="food" className="w-10 h-10 object-contain" />
+                  ) : "🍖"}
                 </div>
 
                 {/* Particle Burst */}
@@ -735,14 +735,16 @@ const PetDisplay = () => {
                       {feedAnimation.particles.map((particle) => (
                         <div
                           key={particle.id}
-                          className="absolute text-xl"
+                          className="absolute"
                           style={{
                             animation: `particle${particle.id} 1.2s ease-out forwards`,
-                            marginLeft: "-0.5em",
-                            marginTop: "-0.5em",
+                            marginLeft: "-12px",
+                            marginTop: "-12px",
                           }}
                         >
-                          {particle.emoji}
+                          {particle.image ? (
+                            <img src={particle.image} alt="" className="w-6 h-6 object-contain" />
+                          ) : "🍖"}
                         </div>
                       ))}
                     </div>
@@ -983,23 +985,28 @@ const PetDisplay = () => {
                           <button
                             key={item.item.id}
                             onClick={() => handleFeed(item.item.id)}
-                            className="w-full text-left p-2 rounded hover:bg-orange-50 transition-colors"
+                            className="w-full text-left p-2 rounded hover:bg-orange-50 transition-colors flex items-center gap-2"
                           >
-                            <div className="flex justify-between items-center">
-                              <span className="text-sm font-medium">
-                                {item.item.name}
-                              </span>
-                              <span className="text-xs text-gray-500">
-                                x{item.quantity}
-                              </span>
-                            </div>
-                            <div className="flex gap-3 mt-1 text-xs">
-                              <span className="text-orange-600">
-                                ⚡ +{stats.energy}
-                              </span>
-                              <span className="text-pink-600">
-                                💖 +{stats.happiness}
-                              </span>
+                            {item.item.image_url && (
+                              <img src={item.item.image_url} alt={item.item.name} className="w-8 h-8 object-contain flex-shrink-0" />
+                            )}
+                            <div className="flex-1 min-w-0">
+                              <div className="flex justify-between items-center">
+                                <span className="text-sm font-medium truncate">
+                                  {item.item.name}
+                                </span>
+                                <span className="text-xs text-gray-500 flex-shrink-0">
+                                  x{item.quantity}
+                                </span>
+                              </div>
+                              <div className="flex gap-3 mt-0.5 text-xs">
+                                <span className="text-orange-600">
+                                  ⚡ +{stats.energy}
+                                </span>
+                                <span className="text-pink-600">
+                                  💖 +{stats.happiness}
+                                </span>
+                              </div>
                             </div>
                           </button>
                         );
