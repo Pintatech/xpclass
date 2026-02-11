@@ -1186,6 +1186,34 @@ const FlashcardExercise = () => {
                   </div>
                 </div>
 
+                {/* Score Indicator */}
+                {Object.keys(cardScores).length > 0 && (() => {
+                  const practicedCount = Object.keys(cardScores).length;
+                  const totalCount = displayedCards.length;
+                  const scores = Object.values(cardScores).map((c) => c.bestScore);
+                  const avgScore = Math.round(scores.reduce((sum, s) => sum + s, 0) / scores.length);
+                  const scoreColor = avgScore >= 80 ? 'text-green-600' : avgScore >= 60 ? 'text-yellow-600' : 'text-red-500';
+                  const barColor = avgScore >= 80 ? 'bg-green-500' : avgScore >= 60 ? 'bg-yellow-500' : 'bg-red-500';
+                  return (
+                    <div className="px-4 pt-3 pb-1 bg-white">
+                      <div className="flex items-center justify-between text-xs sm:text-sm mb-1">
+                        <span className="text-gray-500">
+                          {practicedCount}/{totalCount} thẻ
+                        </span>
+                        <span className={`font-bold ${scoreColor}`}>
+                          Điểm TB: {avgScore}%
+                        </span>
+                      </div>
+                      <div className="w-full h-2 bg-gray-200 rounded-full overflow-hidden">
+                        <div
+                          className={`h-full ${barColor} rounded-full transition-all duration-500`}
+                          style={{ width: `${(practicedCount / totalCount) * 100}%` }}
+                        />
+                      </div>
+                    </div>
+                  );
+                })()}
+
                 {/* Controls */}
                 <div className="p-3 sm:p-4 md:p-6 bg-white flex justify-center items-center gap-2 sm:gap-3 md:gap-4">
                   <button
