@@ -35,8 +35,8 @@ const themeSideImages = {
     right: "https://xpclass.vn/xpclass/image/theme_question/ninja_right.png"
   },
   red: {
-    left: "https://static.vecteezy.com/system/resources/thumbnails/044/449/594/small/rough-gray-stone-blocks-rock-platforms-pedestals-for-bath-decor-or-summer-sea-beach-png.png",
-    right: "https://png.pngtree.com/png-vector/20221221/ourmid/pngtree-dino-baby-png-image_6528109.png"
+    left: "https://xpclass.vn/xpclass/image/theme_question/dino_left.png",
+    right: "https://xpclass.vn/xpclass/image/theme_question/dino_right.png"
   },
   yellow: {
     left: "https://xpclass.vn/xpclass/image/theme_question/desert_left.png",

@@ -4,11 +4,8 @@ import { useInventory } from "../../hooks/useInventory";
 import { useAuth } from "../../hooks/useAuth";
 import { chatWithPet } from "../../utils/petChatService";
 import {
-  Smile,
-  Utensils,
   Star,
   Sparkles,
-  Zap,
   MessageCircle,
   Send,
   X,
@@ -265,11 +262,10 @@ const PetDisplay = () => {
   const handleFeed = async (itemId = null) => {
     const result = await feedPet(activePet.id, itemId);
     if (result.success) {
-      // Get energy gained from result or calculate from item
-      const energyGained = result.energy_gained || 15;
-
       // Find the food item image
       const foodItem = itemId ? petFoodItems.find(i => i.item.id === itemId) : null;
+      // Get energy gained from result or calculate from item rarity
+      const energyGained = result.energy_gained || (foodItem ? getFoodStats(foodItem.item.rarity).energy : 15);
       const foodImageUrl = foodItem?.item?.image_url || null;
 
       // Play chomp sound
@@ -585,7 +581,7 @@ const PetDisplay = () => {
             {/* Pet Status - top left */}
 
             
-            <div className="absolute top-2 left-2 z-20 space-y-1 w-24">
+            {!(playAnimation && trainingVideoLoaded) && <div className="absolute top-2 left-2 z-20 space-y-1 w-24">
               
               <div className="flex items-center gap-1">
                 <span className="text-xs">😊</span>
@@ -658,10 +654,10 @@ const PetDisplay = () => {
                   )}
                 </div>
               )}
-            </div>
+            </div>}
 
             {/* Chat Bubble - absolute positioned */}
-            {chatBubble && (
+            {chatBubble && !(playAnimation && trainingVideoLoaded) && (
               <div className="absolute top-2 right-2 z-10">
                 <div
                   className="relative bg-white rounded-[20px] px-4 py-2 shadow-lg max-w-[200px]"

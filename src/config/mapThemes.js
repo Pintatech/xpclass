@@ -59,7 +59,7 @@ const mapThemes = {
     ],
     // Custom position mappings for mobile (indices are 0-based)
     customMappings: {
-      1: [0],                               // Position 1
+      1: [2],                               // Position 1
       2: [0, 10],                           // Positions 1, 11
       3: [0, 4, 10],                        // Positions 1, 6, 11
       4: [0, 4, 7, 10],                     // Positions 1, 5, 8, 11
@@ -72,7 +72,7 @@ const mapThemes = {
     },
     // Custom position mappings for desktop/PC
     desktopCustomMappings: {
-      1: [0],
+      1: [2],
       2: [0, 10],
       3: [0, 5, 10],
       4: [0, 3, 6, 9],
@@ -137,7 +137,7 @@ const mapThemes = {
       { x: 82, y: 80 },   // curve 10 → 11
     ],
     customMappings: {
-      1: [0],
+      1: [2],
       2: [0, 10],
       3: [0, 5, 10],
       4: [0, 4, 7, 10],
@@ -149,7 +149,7 @@ const mapThemes = {
       10: [0, 2, 3, 4, 5, 6, 7, 8, 9, 10],
     },
     desktopCustomMappings: {
-      1: [0],
+      1: [2],
       2: [0, 10],
       3: [0, 5, 10],
       4: [0, 4, 7, 10],
@@ -214,7 +214,7 @@ const mapThemes = {
       { x: 82, y: 80 },   // curve 10 → 11
     ],
     customMappings: {
-      1: [0],
+      1: [2],
       2: [0, 10],
       3: [0, 5, 10],
       4: [0, 4, 7, 10],
@@ -226,7 +226,7 @@ const mapThemes = {
       10: [0, 2, 3, 4, 5, 6, 7, 8, 9, 10],
     },
     desktopCustomMappings: {
-      1: [0],
+      1: [2],
       2: [0, 10],
       3: [0, 5, 10],
       4: [2, 4, 7, 10],
@@ -291,7 +291,7 @@ const mapThemes = {
       { x: 82, y: 80 },   // curve 10 → 11
     ],
     customMappings: {
-      1: [0],
+      1: [2],
       2: [0, 10],
       3: [0, 5, 10],
       4: [0, 4, 7, 10],
@@ -303,7 +303,7 @@ const mapThemes = {
       10: [0, 2, 3, 4, 5, 6, 7, 8, 9, 10],
     },
     desktopCustomMappings: {
-      1: [0],
+      1: [2],
       2: [0, 10],
       3: [0, 5, 10],
       4: [0, 4, 7, 10],
@@ -368,7 +368,7 @@ const mapThemes = {
       { x: 82, y: 80 },   // curve 10 → 11
     ],
     customMappings: {
-      1: [0],
+      1: [2],
       2: [0, 10],
       3: [0, 5, 10],
       4: [0, 4, 7, 10],
@@ -380,7 +380,7 @@ const mapThemes = {
       10: [0, 2, 3, 4, 5, 6, 7, 8, 9, 10],
     },
     desktopCustomMappings: {
-      1: [0],
+      1: [2],
       2: [0, 10],
       3: [0, 5, 10],
       4: [0, 4, 7, 10],
@@ -446,7 +446,7 @@ const mapThemes = {
       { x: 83, y: 58 },   // curve 10 → 11
     ],
     customMappings: {
-      1: [0],
+      1: [2],
       2: [0, 10],
       3: [0, 5, 10],
       4: [0, 4, 7, 10],
@@ -458,7 +458,7 @@ const mapThemes = {
       10: [0, 2, 3, 4, 5, 6, 7, 8, 9, 10],
     },
     desktopCustomMappings: {
-      1: [0],
+      1: [2],
       2: [0, 10],
       3: [0, 5, 10],
       4: [0, 4, 7, 10],
