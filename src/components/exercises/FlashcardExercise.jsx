@@ -1192,23 +1192,45 @@ const FlashcardExercise = () => {
                   const totalCount = displayedCards.length;
                   const scores = Object.values(cardScores).map((c) => c.bestScore);
                   const avgScore = Math.round(scores.reduce((sum, s) => sum + s, 0) / scores.length);
-                  const scoreColor = avgScore >= 80 ? 'text-green-600' : avgScore >= 60 ? 'text-yellow-600' : 'text-red-500';
-                  const barColor = avgScore >= 80 ? 'bg-green-500' : avgScore >= 60 ? 'bg-yellow-500' : 'bg-red-500';
+                  const chest = avgScore >= 90
+                    ? { label: 'Rare', text: 'text-blue-700', img: 'https://xpclass.vn/xpclass/image/chest/chest-gold.png' }
+                    : avgScore >= 80
+                    ? { label: 'Uncommon', text: 'text-green-700', img: 'https://xpclass.vn/xpclass/image/chest/chest-silver.png' }
+                    : { label: 'Common', text: 'text-gray-600', img: 'https://xpclass.vn/xpclass/image/chest/chest-bronze.png' };
+                  const barColor = avgScore >= 90 ? 'bg-blue-500' : avgScore >= 80 ? 'bg-green-500' : 'bg-gray-400';
                   return (
                     <div className="px-4 pt-3 pb-1 bg-white">
-                      <div className="flex items-center justify-between text-xs sm:text-sm mb-1">
-                        <span className="text-gray-500">
-                          {practicedCount}/{totalCount} thẻ
-                        </span>
-                        <span className={`font-bold ${scoreColor}`}>
-                          Điểm TB: {avgScore}%
-                        </span>
-                      </div>
-                      <div className="w-full h-2 bg-gray-200 rounded-full overflow-hidden">
-                        <div
-                          className={`h-full ${barColor} rounded-full transition-all duration-500`}
-                          style={{ width: `${(practicedCount / totalCount) * 100}%` }}
-                        />
+                      <div className="flex items-center gap-3">
+                        {/* Chest image */}
+                        <div className="flex-shrink-0 text-center min-w-[3rem]">
+                          <img src={chest.img} alt={chest.label} className="w-10 h-10 sm:w-12 sm:h-12 object-contain mx-auto" />
+                          <div className={`text-[10px] sm:text-xs font-bold ${chest.text} leading-tight mt-0.5`}>{chest.label}</div>
+                        </div>
+                        {/* Score info */}
+                        <div className="flex-1 min-w-0">
+                          <div className="flex items-center justify-between text-xs sm:text-sm mb-1">
+                            <span className="text-gray-500">
+                              {practicedCount}/{totalCount} thẻ
+                            </span>
+                            <span className={`font-bold ${chest.text}`}>
+                              {avgScore}%
+                            </span>
+                          </div>
+                          <div className="w-full h-2 bg-gray-200 rounded-full overflow-hidden relative">
+                            <div
+                              className={`h-full ${barColor} rounded-full transition-all duration-500`}
+                              style={{ width: `${avgScore}%` }}
+                            />
+                            {/* Threshold markers */}
+                            <div className="absolute top-0 h-full w-px bg-green-600 opacity-50" style={{ left: '80%' }} title="Uncommon 80%" />
+                            <div className="absolute top-0 h-full w-px bg-blue-600 opacity-50" style={{ left: '90%' }} title="Rare 90%" />
+                          </div>
+                          <div className="flex justify-between text-[9px] text-gray-400 mt-0.5">
+                            <span>Common</span>
+                            <span>Uncommon 80%+</span>
+                            <span>Rare 90%+</span>
+                          </div>
+                        </div>
                       </div>
                     </div>
                   );
