@@ -13,6 +13,8 @@ import {
   Mic,
   Video,
   Image,
+  Info,
+  X,
 } from "lucide-react";
 import { assessPronunciation } from "../../utils/azurePronunciationService";
 
@@ -117,6 +119,7 @@ const FlashcardExercise = () => {
   const audioChunksRef = useRef([]);
   const [cardScores, setCardScores] = useState({});
   const [colorTheme, setColorTheme] = useState('blue');
+  const [showTutorial, setShowTutorial] = useState(false);
 
   // Get exerciseId and sessionId from URL search params
   const searchParams = new URLSearchParams(location.search);
@@ -1256,6 +1259,15 @@ const FlashcardExercise = () => {
                   </button>
 
                   <button
+                    onClick={() => setShowTutorial(true)}
+                    className="button-3d btn-blue w-10 h-10 sm:w-12 sm:h-12 bg-sky-500 hover:bg-sky-600 text-white rounded-full flex items-center justify-center transition-colors duration-200 flex-shrink-0"
+                    title="Tutorial"
+                    style={{ boxShadow: '0 4px 0 #0369a1' }}
+                  >
+                    <Info className="w-5 h-5 sm:w-6 sm:h-6" />
+                  </button>
+
+                  <button
                     onClick={goToNextCard}
                     className="button-3d btn-gray w-10 h-10 sm:w-12 sm:h-12 bg-gray-600 hover:bg-gray-700 text-white rounded-full flex items-center justify-center transition-colors duration-200 flex-shrink-0"
                     title="Next Card"
@@ -1395,6 +1407,73 @@ const FlashcardExercise = () => {
           </div>
         )}
       </div>
+
+      {/* Tutorial Modal */}
+      {showTutorial && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/60"
+          onClick={() => setShowTutorial(false)}
+        >
+          <div
+            className="bg-white rounded-2xl shadow-xl w-[90%] max-w-md mx-4 max-h-[80vh] overflow-y-auto"
+            onClick={(e) => e.stopPropagation()}
+          >
+            {/* Modal Header */}
+            <div className="flex items-center justify-between p-4 border-b border-gray-200">
+              <h2 className="text-lg font-bold text-gray-800">Hướng dẫn</h2>
+              <button
+                onClick={() => setShowTutorial(false)}
+                className="w-8 h-8 rounded-full bg-gray-100 hover:bg-gray-200 flex items-center justify-center transition-colors"
+              >
+                <X className="w-5 h-5 text-gray-600" />
+              </button>
+            </div>
+
+            {/* Modal Body */}
+            <div className="p-4 space-y-4 text-sm text-gray-700">
+              <div className="flex items-start gap-3">
+                <div className="w-10 h-10 rounded-full bg-yellow-100 flex items-center justify-center flex-shrink-0">
+                  <span className="text-yellow-600 text-lg">🏆</span>
+                </div>
+                <div>
+                  <p className="font-semibold text-gray-800">Cách tính điểm</p>
+                  <p>Điểm của bài để nhận rương là điểm cao nhất của mỗi thẻ rồi cộng trung bình lại. Chỉ tính điểm lần đầu ấn hoàn thành để nhận rương. Các bạn có thể đọc một thẻ nhiều lần cho đến khi được điểm như ý nhé!</p>
+                </div>
+              </div>
+
+              <div className="flex items-start gap-3">
+                <div className="w-10 h-10 rounded-full bg-red-100 flex items-center justify-center flex-shrink-0">
+                  <span className="text-red-500 text-lg">❤️</span>
+                </div>
+                <div>
+                  <p className="font-semibold text-gray-800">Video không phát được?</p>
+                  <p>Nhấn thả tim để xem trên Tiktok.</p>
+                </div>
+              </div>
+
+              <div className="flex items-start gap-3">
+                <div className="w-10 h-10 rounded-full bg-purple-100 flex items-center justify-center flex-shrink-0">
+                  <span className="text-purple-600 text-lg">🎁</span>
+                </div>
+                <div>
+                  <p className="font-semibold text-gray-800">Rương huyền thoại</p>
+                  <p>Tương tác video và follow page để có cơ hội nhận rương huyền thoại nhé các bạn!</p>
+                </div>
+              </div>
+            </div>
+
+            {/* Modal Footer */}
+            <div className="p-4 border-t border-gray-200">
+              <button
+                onClick={() => setShowTutorial(false)}
+                className="w-full py-2.5 bg-sky-500 hover:bg-sky-600 text-white font-semibold rounded-lg transition-colors"
+              >
+                Đã hiểu!
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </>
   );
 };
