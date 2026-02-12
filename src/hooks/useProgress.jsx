@@ -392,6 +392,23 @@ export const ProgressProvider = ({ children }) => {
         return 0
       }
 
+      // Check if the course has chest_enabled (allows XP on repeat attempts up to 3)
+      // Only check on repeat attempts (2nd/3rd) to avoid unnecessary queries on first completion
+      let courseChestEnabled = false
+      if (isAlreadyCompleted && newAttempts <= 3) {
+        try {
+          const { data: assignRow } = await supabase
+            .from('exercise_assignments')
+            .select('sessions:session_id ( units:unit_id ( courses:course_id ( chest_enabled ) ) )')
+            .eq('exercise_id', exerciseId)
+            .maybeSingle()
+          courseChestEnabled = assignRow?.sessions?.units?.courses?.chest_enabled === true
+          if (courseChestEnabled) console.log('📦 Course has chest_enabled - repeat XP allowed (up to 3 attempts)')
+        } catch (err) {
+          console.warn('Could not check course chest_enabled:', err)
+        }
+      }
+
       // Only award XP if score requirement is met
       let actualXpAwarded = 0
       let petBonusPercent = 0
@@ -402,8 +419,11 @@ export const ProgressProvider = ({ children }) => {
         itemBonusResult = await getEquippedItemsXPBonus()
         const totalBonusPercent = petBonusPercent + itemBonusResult.total
 
-        if (!isAlreadyCompleted) {
-          // First completion - award full XP + all bonuses
+        // Allow full XP on repeat attempts (up to 3) for chest_enabled courses
+        const allowRepeatXP = courseChestEnabled && newAttempts <= 3
+
+        if (!isAlreadyCompleted || allowRepeatXP) {
+          // First completion OR repeat attempt in chest_enabled course (up to 3 attempts)
           const bonusXP = totalBonusPercent > 0 ? Math.round(xpReward * totalBonusPercent / 100) : 0
           const totalWithBonus = xpReward + bonusXP
           await addXP(totalWithBonus)
@@ -414,9 +434,13 @@ export const ProgressProvider = ({ children }) => {
           if (itemBonusResult.total > 0) {
             console.log(`🎨 Item bonus: +${itemBonusResult.total}% (${itemBonusResult.items.map(i => i.name).join(', ')})`)
           }
-          console.log('💎 Awarded XP for first completion:', totalWithBonus)
+          if (allowRepeatXP && isAlreadyCompleted) {
+            console.log(`💎 Awarded XP for repeat attempt ${newAttempts}/3 (chest_enabled course):`, totalWithBonus)
+          } else {
+            console.log('💎 Awarded XP for first completion:', totalWithBonus)
+          }
         } else {
-          // Already completed - check if new score earns a higher bonus tier
+          // Already completed (attempt 4+, or non-chest course) - check if new score earns a higher bonus tier
           const oldScorePercent = existingProgressData?.max_score
             ? (existingProgressData.score / existingProgressData.max_score) * 100
             : existingProgressData?.score || 0

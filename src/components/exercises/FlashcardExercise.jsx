@@ -6,6 +6,8 @@ import { useProgress } from "../../hooks/useProgress";
 import { supabase } from "../../supabase/client";
 import Button from "../ui/Button";
 import LoadingSpinner from "../ui/LoadingSpinner";
+import CelebrationScreen from "../ui/CelebrationScreen";
+import { useFeedback } from "../../hooks/useFeedback";
 import {
   Volume2,
   ChevronLeft,
@@ -220,6 +222,11 @@ const FlashcardExercise = () => {
   const [cardScores, setCardScores] = useState({});
   const [colorTheme, setColorTheme] = useState('blue');
   const [showTutorial, setShowTutorial] = useState(false);
+  const [showCelebration, setShowCelebration] = useState(false);
+  const [celebrationScore, setCelebrationScore] = useState(0);
+  const [celebrationXP, setCelebrationXP] = useState(0);
+  const [hasPlayedPassAudio, setHasPlayedPassAudio] = useState(false);
+  const { playCelebration, passGif } = useFeedback();
 
   // Get exerciseId and sessionId from URL search params
   const searchParams = new URLSearchParams(location.search);
@@ -381,22 +388,88 @@ const FlashcardExercise = () => {
     }
 
     // Mark current exercise as completed for progress tracking
+    let xpResult = 0;
     try {
       if (user && exerciseId) {
         const baseXP = exercise?.xp_reward || 10;
         const bonusXP = finalScore >= 95 ? Math.round(baseXP * 0.5) : finalScore >= 90 ? Math.round(baseXP * 0.3) : 0;
         const totalXP = baseXP + bonusXP;
 
-        await completeExerciseWithXP(exerciseId, totalXP, {
+        const result = await completeExerciseWithXP(exerciseId, totalXP, {
           score: finalScore,
           max_score: 100,
           xp_earned: totalXP,
           challengeId: challengeId,
           challengeStartedAt: challengeStartTime,
         });
+        xpResult = result?.xpAwarded ?? 0;
       }
     } catch (e) {
       console.error("Failed to mark exercise completed:", e);
+    }
+
+    // Show celebration screen instead of navigating directly
+    setCelebrationScore(finalScore);
+    setCelebrationXP(xpResult);
+    setShowCelebration(true);
+  };
+
+  // Finish daily challenge and go back to dashboard
+  const goToFinishChallenge = async () => {
+    // Validate that ALL cards have been practiced
+    const totalCards = displayedCards.length;
+    const practicedCards = Object.keys(cardScores).length;
+
+    if (totalCards > 0 && practicedCards < totalCards) {
+      alert(
+        `Please practice pronunciation for all ${totalCards} cards. You've practiced ${practicedCards} so far.`
+      );
+      return;
+    }
+
+    // Calculate average of best scores
+    let score = 0;
+
+    if (practicedCards > 0) {
+      const scores = Object.values(cardScores).map((card) => card.bestScore);
+      const totalScore = scores.reduce((sum, s) => sum + s, 0);
+      score = Math.round(totalScore / scores.length);
+    }
+
+    // Use completeExerciseWithXP (same as MultipleChoice) to handle progress + challenge tracking
+    let xpResult = 0;
+    try {
+      const baseXP = exercise?.xp_reward || 10;
+      const bonusXP = score >= 95 ? Math.round(baseXP * 0.5) : score >= 90 ? Math.round(baseXP * 0.3) : 0;
+      const totalXP = baseXP + bonusXP;
+
+      const result = await completeExerciseWithXP(exerciseId, totalXP, {
+        score: score,
+        max_score: 100,
+        xp_earned: totalXP,
+        challengeId: challengeId,
+        challengeStartedAt: challengeStartTime,
+      });
+      xpResult = result?.xpAwarded ?? 0;
+
+      if (result.xpAwarded > 0) {
+        console.log(`✅ Challenge completed! Awarded ${result.xpAwarded} XP`);
+      }
+    } catch (e) {
+      console.error("Failed to save challenge progress:", e);
+    }
+
+    // Show celebration screen instead of navigating directly
+    setCelebrationScore(score);
+    setCelebrationXP(xpResult);
+    setShowCelebration(true);
+  };
+
+  // Handle navigation when user dismisses the celebration screen
+  const handleCelebrationDismiss = async () => {
+    if (isChallenge) {
+      navigate("/");
+      return;
     }
 
     const nextExercise = await getNextExercise();
@@ -433,52 +506,6 @@ const FlashcardExercise = () => {
         );
       }
     }
-  };
-
-  // Finish daily challenge and go back to dashboard
-  const goToFinishChallenge = async () => {
-    // Validate that ALL cards have been practiced
-    const totalCards = displayedCards.length;
-    const practicedCards = Object.keys(cardScores).length;
-
-    if (totalCards > 0 && practicedCards < totalCards) {
-      alert(
-        `Please practice pronunciation for all ${totalCards} cards. You've practiced ${practicedCards} so far.`
-      );
-      return;
-    }
-
-    // Calculate average of best scores
-    let score = 0;
-
-    if (practicedCards > 0) {
-      const scores = Object.values(cardScores).map((card) => card.bestScore);
-      const totalScore = scores.reduce((sum, s) => sum + s, 0);
-      score = Math.round(totalScore / scores.length);
-    }
-
-    // Use completeExerciseWithXP (same as MultipleChoice) to handle progress + challenge tracking
-    try {
-      const baseXP = exercise?.xp_reward || 10;
-      const bonusXP = score >= 95 ? Math.round(baseXP * 0.5) : score >= 90 ? Math.round(baseXP * 0.3) : 0;
-      const totalXP = baseXP + bonusXP;
-
-      const result = await completeExerciseWithXP(exerciseId, totalXP, {
-        score: score,
-        max_score: 100,
-        xp_earned: totalXP,
-        challengeId: challengeId,
-        challengeStartedAt: challengeStartTime,
-      });
-
-      if (result.xpAwarded > 0) {
-        console.log(`✅ Challenge completed! Awarded ${result.xpAwarded} XP`);
-      }
-    } catch (e) {
-      console.error("Failed to save challenge progress:", e);
-    }
-
-    navigate("/");
   };
 
   const handleCardSelect = (index) => {
@@ -806,11 +833,13 @@ const FlashcardExercise = () => {
     }
   };
 
-  // When user navigates away (next exercise or finish), also mark current exercise completed if there are cards
+  // Play celebration audio when celebration screen shows and score passes
   useEffect(() => {
-    if (!exerciseId) return;
-    // No-op here; marking is handled on user action
-  }, [exerciseId]);
+    if (showCelebration && !hasPlayedPassAudio && celebrationScore >= 80) {
+      playCelebration();
+      setHasPlayedPassAudio(true);
+    }
+  }, [showCelebration, hasPlayedPassAudio, celebrationScore, playCelebration]);
 
   // Auto-play video when switching to video mode or changing video index
   useEffect(() => {
@@ -1566,6 +1595,24 @@ const FlashcardExercise = () => {
           </div>
         )}
       </div>
+
+      {/* Celebration Screen */}
+      {showCelebration && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+          <CelebrationScreen
+            score={celebrationScore}
+            correctAnswers={Object.keys(cardScores).length}
+            totalQuestions={displayedCards.length}
+            passThreshold={80}
+            xpAwarded={celebrationXP}
+            passGif={passGif}
+            isRetryMode={false}
+            wrongQuestionsCount={0}
+            onBackToList={handleCelebrationDismiss}
+            exerciseId={exerciseId}
+          />
+        </div>
+      )}
 
       {/* Tutorial Modal */}
       {showTutorial && (
