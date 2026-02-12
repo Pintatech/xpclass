@@ -780,11 +780,11 @@ const ExerciseList = () => {
     return exercises.every((exercise) => {
       const progress = userProgress.find((p) => p.exercise_id === exercise.id);
       if (!progress || progress.status !== "completed") return false;
-      // Check if score is at least 90 (2 stars requirement)
+      // Check if score is at least 80 (2 stars requirement)
       const scorePercent = progress.max_score && progress.max_score !== 100
         ? (progress.score / progress.max_score) * 100
         : progress.score;
-      return scorePercent >= 90;
+      return scorePercent >= 80;
     });
   };
 

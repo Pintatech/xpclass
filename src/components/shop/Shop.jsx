@@ -440,6 +440,13 @@ const Shop = () => {
                     </div>
                   )}
 
+                  {/* XP bonus badge */}
+                  {item.item_data?.xp_bonus > 0 && (
+                    <div className="absolute top-2 left-2 bg-yellow-400 text-yellow-900 rounded-full px-1.5 py-0.5 text-[10px] font-bold z-10 shadow">
+                      +{item.item_data.xp_bonus}% XP
+                    </div>
+                  )}
+
                   {/* Item image */}
                   <div className="aspect-square bg-gray-50 flex items-center justify-center p-4">
                     {item.image_url ? (

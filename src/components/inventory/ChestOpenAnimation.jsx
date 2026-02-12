@@ -1,42 +1,83 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { createPortal } from 'react-dom'
-import { Box, Sparkles, Package } from 'lucide-react'
+import { Sparkles, Package } from 'lucide-react'
 
 const rarityColors = {
-  common: 'border-gray-300 bg-gray-50 text-gray-700',
-  uncommon: 'border-green-400 bg-green-50 text-green-700',
-  rare: 'border-blue-400 bg-blue-50 text-blue-700',
-  epic: 'border-purple-400 bg-purple-50 text-purple-700',
-  legendary: 'border-yellow-400 bg-yellow-50 text-yellow-700',
+  common: 'from-gray-300 to-gray-400',
+  uncommon: 'from-green-300 to-green-500',
+  rare: 'from-blue-300 to-blue-500',
+  epic: 'from-purple-400 to-purple-600',
+  legendary: 'from-yellow-300 to-amber-500',
 }
 
 const rarityGlow = {
-  common: '',
-  uncommon: 'shadow-green-200 shadow-md',
-  rare: 'shadow-blue-300 shadow-lg',
-  epic: 'shadow-purple-400 shadow-xl',
-  legendary: 'shadow-yellow-400 shadow-2xl',
+  common: 'shadow-gray-300',
+  uncommon: 'shadow-green-400',
+  rare: 'shadow-blue-400',
+  epic: 'shadow-purple-500',
+  legendary: 'shadow-yellow-400',
 }
 
-const ChestOpenAnimation = ({ result, onClose }) => {
-  const [phase, setPhase] = useState('shaking') // shaking -> opening -> revealing -> done
+const rarityBadge = {
+  common: 'bg-gray-200 text-gray-700',
+  uncommon: 'bg-green-200 text-green-800',
+  rare: 'bg-blue-200 text-blue-800',
+  epic: 'bg-purple-200 text-purple-800',
+  legendary: 'bg-yellow-200 text-yellow-800',
+}
+
+const rarityLightColor = {
+  common: 'rgba(156,163,175,0.5)',
+  uncommon: 'rgba(74,222,128,0.5)',
+  rare: 'rgba(96,165,250,0.5)',
+  epic: 'rgba(192,132,252,0.5)',
+  legendary: 'rgba(250,204,21,0.5)',
+}
+
+// Chest opening videos per chest type
+const chestVideos = {
+  common: 'https://xpclass.vn/xpclass/image/chest/chest-opening-common.mp4',
+  uncommon: 'https://xpclass.vn/xpclass/image/chest/chest-opening-uncommon.mp4',
+  rare: 'https://xpclass.vn/xpclass/image/chest/chest-opening-rare.mp4',
+  epic: 'https://xpclass.vn/xpclass/image/chest/chest-opening-epic.mp4',
+  legendary: 'https://xpclass.vn/xpclass/image/chest/chest-opening-legendary.mp4',
+}
+const DEFAULT_CHEST_VIDEO = 'https://xpclass.vn/xpclass/image/chest/chest-opening.mp4'
+
+const ChestOpenAnimation = ({ result, chestType, onClose }) => {
+  // phases: video -> revealing -> done
+  const [phase, setPhase] = useState('video')
   const [revealedCount, setRevealedCount] = useState(0)
+  const videoRef = useRef(null)
 
+  const videoSrc = chestVideos[chestType] || DEFAULT_CHEST_VIDEO
   const items = result?.items || []
+  // Use the highest rarity item for the glow effect
+  const rarityOrder = ['common', 'uncommon', 'rare', 'epic', 'legendary']
+  const bestRarity = items.reduce((best, item) => {
+    const idx = rarityOrder.indexOf(item.rarity)
+    const bestIdx = rarityOrder.indexOf(best)
+    return idx > bestIdx ? item.rarity : best
+  }, 'common')
 
-  useEffect(() => {
-    // Shaking phase
-    const shakeTimer = setTimeout(() => setPhase('opening'), 1000)
-    return () => clearTimeout(shakeTimer)
-  }, [])
+  // When video ends, go to revealing
+  const handleVideoEnded = () => {
+    setPhase('revealing')
+  }
 
+  // Fallback: if video fails to load, skip to revealing after a delay
+  const handleVideoError = () => {
+    setTimeout(() => setPhase('revealing'), 500)
+  }
+
+  // Play reveal audio when revealing starts
   useEffect(() => {
-    if (phase === 'opening') {
-      const openTimer = setTimeout(() => setPhase('revealing'), 800)
-      return () => clearTimeout(openTimer)
+    if (phase === 'revealing') {
+      new Audio('https://xpclass.vn/xpclass/sound/pet-reveal.mp3').play().catch(() => {})
     }
   }, [phase])
 
+  // Reveal items one by one
   useEffect(() => {
     if (phase === 'revealing' && revealedCount < items.length) {
       const revealTimer = setTimeout(() => {
@@ -44,101 +85,108 @@ const ChestOpenAnimation = ({ result, onClose }) => {
       }, 400)
       return () => clearTimeout(revealTimer)
     } else if (phase === 'revealing' && revealedCount >= items.length) {
-      setTimeout(() => setPhase('done'), 500)
+      const doneTimer = setTimeout(() => setPhase('done'), 500)
+      return () => clearTimeout(doneTimer)
     }
   }, [phase, revealedCount, items.length])
 
   return createPortal(
-    <div className="fixed inset-0 bg-black bg-opacity-70 flex items-center justify-center p-4 z-50">
-      <div className="bg-gradient-to-b from-gray-900 to-gray-800 rounded-2xl max-w-md w-full p-6 text-center">
-        {/* Chest Name */}
-        <h3 className="text-lg font-bold text-white mb-6">
-          {result.chest_name || 'Chest'}
-        </h3>
+    <div className="fixed inset-0 bg-black flex items-center justify-center z-50">
+      {/* Video Phase - fills entire overlay */}
+      {phase === 'video' && (
+        <video
+          ref={videoRef}
+          src={videoSrc}
+          autoPlay
+          playsInline
+          onEnded={handleVideoEnded}
+          onError={handleVideoError}
+          className="max-w-full max-h-full object-contain"
+        />
+      )}
 
-        {/* Chest Animation */}
-        {(phase === 'shaking' || phase === 'opening') && (
-          <div className="flex items-center justify-center py-12">
-            <div className={`w-24 h-24 rounded-xl flex items-center justify-center transition-all ${
-              phase === 'shaking' ? 'animate-shake' : 'animate-open-chest scale-125 opacity-50'
-            }`}>
-              <img src="https://images-wixmp-ed30a86b8c4ca887773594c2.wixmp.com/f/39da6277-d7e8-4885-9cd8-12328bbe53a9/dgifusj-93812081-dcac-461a-b21e-eb324065b502.png?token=eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzI1NiJ9.eyJzdWIiOiJ1cm46YXBwOjdlMGQxODg5ODIyNjQzNzNhNWYwZDQxNWVhMGQyNmUwIiwiaXNzIjoidXJuOmFwcDo3ZTBkMTg4OTgyMjY0MzczYTVmMGQ0MTVlYTBkMjZlMCIsIm9iaiI6W1t7InBhdGgiOiIvZi8zOWRhNjI3Ny1kN2U4LTQ4ODUtOWNkOC0xMjMyOGJiZTUzYTkvZGdpZnVzai05MzgxMjA4MS1kY2FjLTQ2MWEtYjIxZS1lYjMyNDA2NWI1MDIucG5nIn1dXSwiYXVkIjpbInVybjpzZXJ2aWNlOmZpbGUuZG93bmxvYWQiXX0.71KnXbVROsoT4FQIMdStIfV7AQa1EaMh6G5PiwaVmc0" className=" text-yellow-100" />
-            </div>
-          </div>
-        )}
-
+      <div className={`bg-black rounded-2xl max-w-sm w-full p-8 text-center ${phase === 'video' ? 'hidden' : ''}`}>
         {/* Revealed Items */}
         {(phase === 'revealing' || phase === 'done') && (
-          <div className="space-y-4">
+          <div className="space-y-4 animate-fade-in">
             <div className="flex items-center justify-center gap-1 text-yellow-400 mb-2">
               <Sparkles className="w-5 h-5" />
-              <span className="text-sm font-medium">Items Received</span>
+              <span className="text-sm font-medium">{result.chest_name || 'Chest'}</span>
               <Sparkles className="w-5 h-5" />
             </div>
-            <div className="grid grid-cols-3 gap-3">
-              {items.map((item, idx) => (
-                <div
-                  key={idx}
-                  className={`rounded-xl border-2 p-3 transition-all duration-500 ${
-                    idx < revealedCount
-                      ? `${rarityColors[item.rarity]} ${rarityGlow[item.rarity]} opacity-100 scale-100`
-                      : 'border-gray-700 bg-gray-800 opacity-30 scale-75'
-                  }`}
-                >
-                  <div className="aspect-square bg-white rounded-lg flex items-center justify-center overflow-hidden mb-1.5">
-                    {item.image_url ? (
-                      <img src={item.image_url} alt={item.name} className="w-full h-full object-contain" />
-                    ) : (
-                      <Package className="w-6 h-6 text-gray-300" />
+
+            {/* Items grid with light rays */}
+            <div className="relative flex items-center justify-center mx-auto" style={{ minHeight: 200 }}>
+              {/* Pulsing glow */}
+              <div
+                className="absolute animate-pulse-glow rounded-2xl"
+                style={{
+                  inset: 0,
+                  boxShadow: `0 0 40px 10px ${rarityLightColor[bestRarity]}, 0 0 80px 20px ${rarityLightColor[bestRarity]}`,
+                }}
+              />
+
+              <div className="relative grid grid-cols-3 gap-3 w-full px-3">
+                {items.map((item, idx) => (
+                  <div
+                    key={idx}
+                    className={`rounded-xl border-2 p-3 transition-all duration-500 ${
+                      idx < revealedCount
+                        ? `border-transparent bg-gradient-to-br ${rarityColors[item.rarity]} shadow-2xl ${rarityGlow[item.rarity]} opacity-100 scale-100`
+                        : 'border-gray-700 bg-gray-800 opacity-30 scale-75'
+                    }`}
+                  >
+                    <div className="aspect-square bg-white/20 rounded-lg flex items-center justify-center overflow-hidden mb-1.5">
+                      {item.image_url ? (
+                        <img src={item.image_url} alt={item.name} className="w-full h-full object-contain" />
+                      ) : (
+                        <Package className="w-6 h-6 text-gray-300" />
+                      )}
+                    </div>
+                    <p className="text-white text-[10px] font-medium truncate text-center">
+                      {idx < revealedCount ? item.name : '???'}
+                    </p>
+                    {idx < revealedCount && (
+                      <span className={`inline-block mt-0.5 px-1.5 py-0.5 rounded-full text-[8px] font-bold ${rarityBadge[item.rarity]}`}>
+                        {item.rarity?.toUpperCase()}
+                      </span>
+                    )}
+                    {idx < revealedCount && item.quantity > 1 && (
+                      <p className="text-[10px] text-white/75 text-center">x{item.quantity}</p>
                     )}
                   </div>
-                  <p className="text-[10px] font-medium truncate text-center">
-                    {idx < revealedCount ? item.name : '???'}
-                  </p>
-                  {idx < revealedCount && item.quantity > 1 && (
-                    <p className="text-[10px] text-center opacity-75">x{item.quantity}</p>
-                  )}
-                </div>
-              ))}
+                ))}
+              </div>
             </div>
-          </div>
-        )}
 
-        {/* Close button */}
-        {phase === 'done' && (
-          <button
-            onClick={onClose}
-            className="mt-6 bg-amber-500 text-white px-8 py-2.5 rounded-lg hover:bg-amber-600 transition-colors font-medium"
-          >
-            Collect
-          </button>
+            {/* Collect button */}
+            {phase === 'done' && (
+              <button
+                onClick={onClose}
+                className="mt-4 px-8 py-2.5 rounded-lg font-medium transition-colors bg-gradient-to-r from-amber-500 to-yellow-500 hover:from-amber-600 hover:to-yellow-600 text-white"
+              >
+                Collect
+              </button>
+            )}
+          </div>
         )}
       </div>
 
       {/* CSS Animations */}
       <style>{`
-        @keyframes shake {
-          0%, 100% { transform: translateX(0) rotate(0); }
-          10% { transform: translateX(-4px) rotate(-2deg); }
-          20% { transform: translateX(4px) rotate(2deg); }
-          30% { transform: translateX(-6px) rotate(-3deg); }
-          40% { transform: translateX(6px) rotate(3deg); }
-          50% { transform: translateX(-4px) rotate(-2deg); }
-          60% { transform: translateX(4px) rotate(2deg); }
-          70% { transform: translateX(-6px) rotate(-3deg); }
-          80% { transform: translateX(6px) rotate(3deg); }
-          90% { transform: translateX(-4px) rotate(-1deg); }
+        @keyframes fadeIn {
+          0% { opacity: 0; transform: translateY(20px) scale(0.9); }
+          100% { opacity: 1; transform: translateY(0) scale(1); }
         }
-        .animate-shake {
-          animation: shake 0.8s ease-in-out infinite;
+        .animate-fade-in {
+          animation: fadeIn 0.5s ease-out forwards;
         }
-        @keyframes openChest {
-          0% { transform: scale(1); opacity: 1; }
-          50% { transform: scale(1.3); opacity: 0.8; }
-          100% { transform: scale(0.5); opacity: 0; }
+        @keyframes pulseGlow {
+          0%, 100% { opacity: 0.4; }
+          50% { opacity: 1; }
         }
-        .animate-open-chest {
-          animation: openChest 0.8s ease-out forwards;
+        .animate-pulse-glow {
+          animation: pulseGlow 2s ease-in-out infinite;
         }
       `}</style>
     </div>,

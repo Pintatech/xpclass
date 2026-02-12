@@ -9,11 +9,11 @@ import Button from '../ui/Button'
 import { SimpleBadge } from '../ui/StudentBadge'
 import { Trophy, Medal, Award, Crown, Star, RefreshCw } from 'lucide-react'
 import AvatarWithFrame from '../ui/AvatarWithFrame'
-import DailyChallengeLeaderboard from './DailyChallengeLeaderboard'
+// import DailyChallengeLeaderboard from './DailyChallengeLeaderboard' // temporarily hidden
 
 const Leaderboard = () => {
   const navigate = useNavigate()
-  const [timeframe, setTimeframe] = useState('week')
+  const [timeframe, setTimeframe] = useState('banh_chung')
   const [leaderboardData, setLeaderboardData] = useState([])
   const [currentUserRank, setCurrentUserRank] = useState(null)
   const [loading, setLoading] = useState(true)
@@ -23,8 +23,64 @@ const Leaderboard = () => {
   const [weeklyChampionReward, setWeeklyChampionReward] = useState(null)
   const [monthlyChampionReward, setMonthlyChampionReward] = useState(null)
   const [previousChampions, setPreviousChampions] = useState([])
+  const [banhChungData, setBanhChungData] = useState([])
+  const [banhChungLoading, setBanhChungLoading] = useState(false)
   const { user } = useAuth()
   const { studentLevels } = useStudentLevels()
+
+  const BANH_CHUNG_ITEM_ID = 'af6097d6-4a6a-485b-b79b-54b49369987a'
+
+  const fetchBanhChungData = async () => {
+    try {
+      setBanhChungLoading(true)
+      const { data, error } = await supabase
+        .from('user_inventory')
+        .select('user_id, user_name, quantity')
+        .eq('item_id', BANH_CHUNG_ITEM_ID)
+        .gt('quantity', 0)
+        .order('quantity', { ascending: false })
+        .limit(50)
+
+      if (error) throw error
+
+      // Fetch user details for avatars/frames, only regular users
+      const userIds = (data || []).map(d => d.user_id)
+      if (userIds.length === 0) { setBanhChungData([]); return }
+
+      const { data: users } = await supabase
+        .from('users')
+        .select('id, full_name, avatar_url, active_title, active_frame_ratio')
+        .in('id', userIds)
+        .eq('role', 'user')
+
+      const userMap = {}
+      users?.forEach(u => { userMap[u.id] = u })
+
+      const formatted = data
+        .filter(entry => userMap[entry.user_id])
+        .map((entry, index) => ({
+          rank: index + 1,
+          userId: entry.user_id,
+          name: userMap[entry.user_id]?.full_name || entry.user_name || 'Unknown',
+          avatar: userMap[entry.user_id]?.avatar_url,
+          frame: userMap[entry.user_id]?.active_title,
+          frameRatio: userMap[entry.user_id]?.active_frame_ratio,
+          quantity: entry.quantity
+        }))
+
+      setBanhChungData(formatted)
+    } catch (err) {
+      console.error('Error fetching bánh chưng leaderboard:', err)
+    } finally {
+      setBanhChungLoading(false)
+    }
+  }
+
+  useEffect(() => {
+    if (timeframe === 'banh_chung') {
+      fetchBanhChungData()
+    }
+  }, [timeframe])
 
   // Handle badge click for mobile
   const handleBadgeClick = (badge) => {
@@ -302,24 +358,16 @@ const Leaderboard = () => {
       .from('users')
       .select('id, email, full_name, xp, streak_count, avatar_url, active_title, active_frame_ratio')
       .eq('role', 'user')
-      .limit(100)
+      .limit(500)
 
     if (usersError) throw usersError
 
     const userIds = users.map(u => u.id)
 
-    // Get user progress in the timeframe with XP data (includes score for bonus calc)
+    // Get user progress in the timeframe (no FK join - fetch exercises separately for reliability)
     let progressQuery = supabase
       .from('user_progress')
-      .select(`
-        user_id,
-        completed_at,
-        score,
-        max_score,
-        exercises (
-          xp_reward
-        )
-      `)
+      .select('user_id, exercise_id, completed_at, score, max_score')
       .eq('status', 'completed')
       .in('user_id', userIds)
 
@@ -336,6 +384,18 @@ const Leaderboard = () => {
     const { data: progressData, error: progressError } = await progressQuery
 
     if (progressError) throw progressError
+
+    // Fetch xp_reward for all exercises referenced in progress data
+    const exerciseIds = [...new Set(progressData.map(p => p.exercise_id).filter(Boolean))]
+    const exerciseXpMap = {}
+    if (exerciseIds.length > 0) {
+      const { data: exercisesData } = await supabase
+        .from('exercises')
+        .select('id, xp_reward')
+        .in('id', exerciseIds)
+
+      exercisesData?.forEach(e => { exerciseXpMap[e.id] = e.xp_reward || 10 })
+    }
 
     // Fetch chest XP from session_reward_claims for the timeframe
     let chestQuery = supabase
@@ -378,7 +438,7 @@ const Leaderboard = () => {
       }
 
       if (includeInTimeframe) {
-        const baseXp = progress.exercises?.xp_reward || 0
+        const baseXp = exerciseXpMap[progress.exercise_id] || 10
         const scorePercent = progress.max_score > 0
           ? (progress.score / progress.max_score) * 100
           : 0
@@ -489,7 +549,7 @@ const Leaderboard = () => {
             { key: 'week', label: 'Tuần này' },
             { key: 'month', label: 'Tháng này' },
             { key: 'all', label: 'Tất cả' },
-            { key: 'daily_challenge', label: 'Đấu trường' }
+            { key: 'banh_chung', label: 'Bánh chưng' }
           ].map((option) => (
             <Button
               key={option.key}
@@ -504,13 +564,61 @@ const Leaderboard = () => {
         </div>
       </div>
 
-      {/* Daily Challenge Leaderboard */}
-      {timeframe === 'daily_challenge' && (
-        <DailyChallengeLeaderboard />
+      {/* Bánh Chưng Leaderboard */}
+      {timeframe === 'banh_chung' && (
+        banhChungLoading ? (
+          <div className="flex justify-center py-8">
+            <RefreshCw className="w-8 h-8 animate-spin text-gray-600" />
+          </div>
+        ) : banhChungData.length === 0 ? (
+          <div className="text-center py-8 text-gray-500">Chưa ai có bánh chưng</div>
+        ) : (
+          <Card>
+            <Card.Header>
+              <h3 className="text-lg font-semibold text-gray-900"><img src="https://xpclass.vn/event/tet-2026/banhchung.png" alt="Bánh chưng" className="w-5 h-5 inline" /> Ai nhiều Bánh Chưng nhất?</h3>
+            </Card.Header>
+            <Card.Content className="p-0">
+              <div className="divide-y divide-gray-200">
+                {banhChungData.map((entry) => (
+                  <div
+                    key={entry.userId}
+                    className={`py-3 px-4 flex items-center justify-between ${
+                      entry.rank === 1 ? 'bg-gradient-to-r from-yellow-50 to-yellow-100' :
+                      entry.rank === 2 ? 'bg-gradient-to-r from-gray-50 to-gray-100' :
+                      entry.rank === 3 ? 'bg-gradient-to-r from-orange-50 to-orange-100' : ''
+                    }`}
+                  >
+                    <div className="flex items-center space-x-3">
+                      <div className="flex items-center justify-center w-8 h-8">
+                        {getRankIcon(entry.rank)}
+                      </div>
+                      <AvatarWithFrame
+                        avatarUrl={entry.avatar}
+                        frameUrl={entry.frame}
+                        frameRatio={entry.frameRatio}
+                        size={40}
+                        fallback={entry.name.charAt(0).toUpperCase()}
+                      />
+                      <span
+                        className="font-semibold text-gray-900 cursor-pointer hover:text-blue-600 transition-colors"
+                        onClick={() => handleProfileClick(entry.userId)}
+                      >
+                        {entry.name}
+                      </span>
+                    </div>
+                    <div className="font-bold text-lg text-gray-900">
+                      {entry.quantity} <img src="https://xpclass.vn/event/tet-2026/banhchung.png" alt="Bánh chưng" className="w-5 h-5 inline" />
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </Card.Content>
+          </Card>
+        )
       )}
 
       {/* Champion Reward Banner */}
-      {timeframe !== 'daily_challenge' && (
+      {timeframe !== 'daily_challenge' && timeframe !== 'banh_chung' && (
         <>
       {/* Champion Reward Banner */}
       {timeframe === 'week' && weeklyChampionReward && (

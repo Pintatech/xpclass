@@ -3,6 +3,8 @@ import { CheckCircle, XCircle, RotateCcw, Trophy, Loader2 } from "lucide-react";
 import Button3D from "../ui/Button3D";
 import { supabase } from "../../supabase/client";
 import { useAuth } from "../../hooks/useAuth";
+import { useProgress } from "../../hooks/useProgress";
+import { usePet } from "../../hooks/usePet";
 import AvatarWithFrame from "./AvatarWithFrame";
 
 const formatTime = (seconds) => {
@@ -27,15 +29,30 @@ const CelebrationScreen = ({
   exerciseId,
 }) => {
   const { user } = useAuth();
+  const { getEquippedItemsXPBonus } = useProgress();
+  const { getActiveBonuses } = usePet();
   const passed = score >= passThreshold;
   const [leaderboard, setLeaderboard] = useState([]);
   const [leaderboardLoading, setLeaderboardLoading] = useState(false);
+  const [bonusInfo, setBonusInfo] = useState({ petBonus: 0, itemBonus: 0, itemDetails: [] });
 
   useEffect(() => {
     if (exerciseId && !isRetryMode) {
       fetchExerciseLeaderboard();
     }
   }, [exerciseId, isRetryMode]);
+
+  useEffect(() => {
+    if (xpAwarded > 0 && passed) {
+      const fetchBonuses = async () => {
+        const petBonuses = getActiveBonuses();
+        const petBonus = petBonuses.reduce((s, b) => s + (b.value || 0), 0);
+        const itemResult = await getEquippedItemsXPBonus();
+        setBonusInfo({ petBonus, itemBonus: itemResult.total, itemDetails: itemResult.items });
+      };
+      fetchBonuses();
+    }
+  }, [xpAwarded, passed]);
 
   const fetchExerciseLeaderboard = async () => {
     try {
@@ -89,11 +106,11 @@ const CelebrationScreen = ({
     }
   };
 
-  // Get star count based on score: 95-100 = 3 stars, 90-95 = 2 stars, passed = 1 star
+  // Get star count based on score: 90-100 = 3 stars, 80-90 = 2 stars, passed = 1 star
   const getStarCount = () => {
     if (!passed) return 0;
-    if (score >= 95) return 3;
-    if (score >= 90) return 2;
+    if (score >= 90) return 3;
+    if (score >= 80) return 2;
     return 1;
   };
 
@@ -191,15 +208,33 @@ const CelebrationScreen = ({
         </div>
 
         {/* XP Reward section - only show when passed */}
-        {xpAwarded > 0 && passed && (
-          <div className="mb-4">
-            <p className="text-orange-300 text-sm md:text-2xl font-extrabold tracking-wider uppercase mb-2">Reward</p>
-            <div className="flex items-center justify-center gap-2">              
-              <span className="text-3xl md:text-5xl font-extrabold text-orange-800">{xpAwarded}</span>
-              <img src="https://xpclass.vn/xpclass/image/study/xp2.png" alt="XP" className="w-8 h-8 md:w-12 md:h-12" />
+        {xpAwarded > 0 && passed && (() => {
+          const totalBonusPercent = bonusInfo.petBonus + bonusInfo.itemBonus;
+          const baseXP = totalBonusPercent > 0 ? Math.round(xpAwarded / (1 + totalBonusPercent / 100)) : xpAwarded;
+          const bonusXP = xpAwarded - baseXP;
+          return (
+            <div className="mb-4">
+              <p className="text-orange-300 text-sm md:text-2xl font-extrabold tracking-wider uppercase mb-2">Reward</p>
+              <div className="flex items-center justify-center gap-2">
+                <span className="text-3xl md:text-5xl font-extrabold text-orange-800">{xpAwarded}</span>
+                <img src="https://xpclass.vn/xpclass/image/study/xp2.png" alt="XP" className="w-8 h-8 md:w-12 md:h-12" />
+              </div>
+              {bonusXP > 0 && (
+                <div className="mt-2 bg-white/60 rounded-xl py-2 px-4 inline-block">
+                  <p className="text-xs text-gray-500 mb-1">{baseXP} base + {bonusXP} bonus</p>
+                  <div className="flex items-center justify-center gap-3 flex-wrap">
+                    {bonusInfo.petBonus > 0 && (
+                      <span className="text-xs font-bold text-purple-600">Pet +{bonusInfo.petBonus}%</span>
+                    )}
+                    {bonusInfo.itemDetails.map((item, i) => (
+                      <span key={i} className="text-xs font-bold text-blue-600">{item.name} +{item.bonus}%</span>
+                    ))}
+                  </div>
+                </div>
+              )}
             </div>
-          </div>
-        )}
+          );
+        })()}
 
         {/* Exercise Leaderboard */}
         {leaderboard.length >= 2 && (

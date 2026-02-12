@@ -163,6 +163,45 @@ export const ProgressProvider = ({ children }) => {
     }
   }
 
+  // Fetch XP bonus from equipped shop items (frames, bowls, backgrounds)
+  // Each item can have xp_bonus in its item_data JSONB field
+  const getEquippedItemsXPBonus = async () => {
+    if (!user || !profile) return { total: 0, items: [] }
+    try {
+      const hasAvatar = !!profile.avatar_url
+      const hasFrame = !!profile.active_title
+      const hasBackground = !!profile.active_background_url
+      const hasBowl = !!profile.active_bowl_url
+
+      if (!hasAvatar && !hasFrame && !hasBackground && !hasBowl) return { total: 0, items: [] }
+
+      const { data, error } = await supabase
+        .from('shop_items')
+        .select('name, category, image_url, item_data')
+        .eq('is_active', true)
+
+      if (error || !data) return { total: 0, items: [] }
+
+      const bonusItems = []
+      for (const item of data) {
+        const isEquipped = (
+          (hasAvatar && (item.item_data?.avatar_url || item.image_url) === profile.avatar_url) ||
+          (hasFrame && item.image_url === profile.active_title) ||
+          (hasBackground && (item.item_data?.background_url || item.image_url) === profile.active_background_url) ||
+          (hasBowl && (item.item_data?.bowl_url || item.image_url) === profile.active_bowl_url)
+        )
+        if (isEquipped && item.item_data?.xp_bonus > 0) {
+          bonusItems.push({ name: item.name, category: item.category, bonus: item.item_data.xp_bonus })
+        }
+      }
+
+      const total = bonusItems.reduce((sum, i) => sum + i.bonus, 0)
+      return { total, items: bonusItems }
+    } catch {
+      return { total: 0, items: [] }
+    }
+  }
+
   const addXP = async (xpAmount) => {
     if (!user || !profile) return
 
@@ -356,19 +395,26 @@ export const ProgressProvider = ({ children }) => {
       // Only award XP if score requirement is met
       let actualXpAwarded = 0
       let petBonusPercent = 0
+      let itemBonusResult = { total: 0, items: [] }
       if (meetingRequirement && xpReward && xpReward > 0) {
-        // Check for active pet XP bonus
+        // Check for active pet XP bonus + equipped item bonuses
         petBonusPercent = await getPetXPBonus()
+        itemBonusResult = await getEquippedItemsXPBonus()
+        const totalBonusPercent = petBonusPercent + itemBonusResult.total
+
         if (!isAlreadyCompleted) {
-          // First completion - award full XP + pet bonus
-          const petBonusXP = petBonusPercent > 0 ? Math.round(xpReward * petBonusPercent / 100) : 0
-          const totalWithPetBonus = xpReward + petBonusXP
-          await addXP(totalWithPetBonus)
-          actualXpAwarded = totalWithPetBonus
-          if (petBonusXP > 0) {
-            console.log(`🐾 Pet bonus applied: +${petBonusPercent}% (+${petBonusXP} XP)`)
+          // First completion - award full XP + all bonuses
+          const bonusXP = totalBonusPercent > 0 ? Math.round(xpReward * totalBonusPercent / 100) : 0
+          const totalWithBonus = xpReward + bonusXP
+          await addXP(totalWithBonus)
+          actualXpAwarded = totalWithBonus
+          if (petBonusPercent > 0) {
+            console.log(`🐾 Pet bonus: +${petBonusPercent}%`)
           }
-          console.log('💎 Awarded XP for first completion:', totalWithPetBonus)
+          if (itemBonusResult.total > 0) {
+            console.log(`🎨 Item bonus: +${itemBonusResult.total}% (${itemBonusResult.items.map(i => i.name).join(', ')})`)
+          }
+          console.log('💎 Awarded XP for first completion:', totalWithBonus)
         } else {
           // Already completed - check if new score earns a higher bonus tier
           const oldScorePercent = existingProgressData?.max_score
@@ -384,14 +430,14 @@ export const ProgressProvider = ({ children }) => {
             const currentBonusMultiplier = 1 + newBonusTier
             const baseXP = Math.round(xpReward / currentBonusMultiplier)
 
-            // Award only the bonus difference + pet bonus on that difference
+            // Award only the bonus difference + all bonuses on that difference
             const bonusDifference = Math.round(baseXP * (newBonusTier - oldBonusTier))
             if (bonusDifference > 0) {
-              const petBonusOnDiff = petBonusPercent > 0 ? Math.round(bonusDifference * petBonusPercent / 100) : 0
-              const totalDiff = bonusDifference + petBonusOnDiff
+              const allBonusOnDiff = totalBonusPercent > 0 ? Math.round(bonusDifference * totalBonusPercent / 100) : 0
+              const totalDiff = bonusDifference + allBonusOnDiff
               await addXP(totalDiff)
               actualXpAwarded = totalDiff
-              console.log(`💎 Awarded bonus XP difference: ${totalDiff} (old tier: ${oldBonusTier * 100}%, new tier: ${newBonusTier * 100}%${petBonusOnDiff > 0 ? `, pet: +${petBonusOnDiff}` : ''})`)
+              console.log(`💎 Awarded bonus XP difference: ${totalDiff} (old tier: ${oldBonusTier * 100}%, new tier: ${newBonusTier * 100}%, total bonus: +${totalBonusPercent}%)`)
             }
           } else {
             console.log('🔄 No additional XP - score did not reach higher bonus tier')
@@ -492,6 +538,8 @@ export const ProgressProvider = ({ children }) => {
         error: null,
         xpAwarded: actualXpAwarded,
         petBonusPercent: petBonusPercent,
+        itemBonusPercent: itemBonusResult.total,
+        itemBonusDetails: itemBonusResult.items,
         completed: meetingRequirement,
         score: score,
         attempts: newAttempts,
@@ -887,7 +935,9 @@ export const ProgressProvider = ({ children }) => {
     // Daily Challenge functions
     getTodayChallenge,
     recordChallengeParticipation,
-    checkChallengeCompletion
+    checkChallengeCompletion,
+    // Item bonus
+    getEquippedItemsXPBonus
   }
 
   return (

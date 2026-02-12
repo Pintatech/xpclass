@@ -26,6 +26,14 @@ const rarityBadge = {
   legendary: 'bg-yellow-200 text-yellow-800',
 }
 
+const rarityLightColor = {
+  common: 'rgba(156,163,175,0.5)',
+  uncommon: 'rgba(74,222,128,0.5)',
+  rare: 'rgba(96,165,250,0.5)',
+  epic: 'rgba(192,132,252,0.5)',
+  legendary: 'rgba(250,204,21,0.5)',
+}
+
 // Egg hatching videos - portrait for mobile, landscape for PC
 const EGG_HATCH_VIDEO_MOBILE = 'https://xpclass.vn/xpclass/image/pet/egg-hatch-mobile.mp4'
 const EGG_HATCH_VIDEO_PC = 'https://xpclass.vn/xpclass/image/pet/egg-hatch.mp4'
@@ -53,7 +61,6 @@ const EggOpenAnimation = ({ result, eggRarity, allPets = [], onClose, onNickname
   // When video ends, go straight to reveal
   // To re-enable carousel: replace setPhase('reveal') with setPhase('carousel')
   const handleVideoEnded = () => {
-    new Audio('https://xpclass.vn/xpclass/sound/pet-reveal.mp3').play().catch(() => {})
     setPhase('reveal')
   }
 
@@ -97,6 +104,7 @@ const EggOpenAnimation = ({ result, eggRarity, allPets = [], onClose, onNickname
 
   useEffect(() => {
     if (phase === 'reveal') {
+      new Audio('https://xpclass.vn/xpclass/sound/pet-reveal.mp3').play().catch(() => {})
       const timer = setTimeout(() => setPhase('done'), 600)
       return () => clearTimeout(timer)
     }
@@ -192,18 +200,35 @@ const EggOpenAnimation = ({ result, eggRarity, allPets = [], onClose, onNickname
                   <Sparkles className="w-5 h-5" />
                 </div>
 
-                {/* Pet Image */}
-                <div className={`w-60 h-60 mx-auto rounded-2xl bg-gradient-to-br ${rarityColors[rarity]} flex items-center justify-center shadow-2xl ${rarityGlow[rarity]} overflow-hidden`}>
-                  {pet?.image_url ? (
-                    <img src={pet.image_url} alt={pet.name} className="w-full h-full object-contain" />
-                  ) : (
-                    <span className="text-6xl">
-                      {rarity === 'legendary' ? '🐉' :
-                       rarity === 'epic' ? '🦅' :
-                       rarity === 'rare' ? '🦊' :
-                       rarity === 'uncommon' ? '🐱' : '🐶'}
-                    </span>
-                  )}
+                {/* Pet Image with light rays */}
+                <div className="relative flex items-center justify-center mx-auto" style={{ width: 280, height: 280 }}>
+                  {/* Spinning light rays */}
+                  <div
+                    className="absolute inset-0 animate-light-rays"
+                    style={{
+                      background: `conic-gradient(from 0deg, transparent 0deg, ${rarityLightColor[rarity]} 15deg, transparent 30deg, transparent 45deg, ${rarityLightColor[rarity]} 60deg, transparent 75deg, transparent 90deg, ${rarityLightColor[rarity]} 105deg, transparent 120deg, transparent 135deg, ${rarityLightColor[rarity]} 150deg, transparent 165deg, transparent 180deg, ${rarityLightColor[rarity]} 195deg, transparent 210deg, transparent 225deg, ${rarityLightColor[rarity]} 240deg, transparent 255deg, transparent 270deg, ${rarityLightColor[rarity]} 285deg, transparent 300deg, transparent 315deg, ${rarityLightColor[rarity]} 330deg, transparent 345deg, transparent 360deg)`,
+                      borderRadius: '50%',
+                      filter: 'blur(8px)',
+                    }}
+                  />
+                  {/* Pulsing glow ring */}
+                  <div
+                    className="absolute animate-pulse-glow rounded-2xl"
+                    style={{ inset: 8, boxShadow: `0 0 40px 10px ${rarityLightColor[rarity]}, 0 0 80px 20px ${rarityLightColor[rarity]}` }}
+                  />
+                  {/* Pet container */}
+                  <div className={`relative w-60 h-60 rounded-2xl bg-gradient-to-br ${rarityColors[rarity]} flex items-center justify-center shadow-2xl ${rarityGlow[rarity]} overflow-hidden animate-pet-pulse`}>
+                    {pet?.image_url ? (
+                      <img src={pet.image_url} alt={pet.name} className="w-full h-full object-contain" />
+                    ) : (
+                      <span className="text-6xl">
+                        {rarity === 'legendary' ? '🐉' :
+                         rarity === 'epic' ? '🦅' :
+                         rarity === 'rare' ? '🦊' :
+                         rarity === 'uncommon' ? '🐱' : '🐶'}
+                      </span>
+                    )}
+                  </div>
                 </div>
 
                 {/* Pet Info */}
@@ -268,6 +293,28 @@ const EggOpenAnimation = ({ result, eggRarity, allPets = [], onClose, onNickname
         }
         .animate-fade-in {
           animation: fadeIn 0.5s ease-out forwards;
+        }
+        @keyframes lightRays {
+          0% { transform: rotate(0deg); opacity: 0; }
+          20% { opacity: 1; }
+          100% { transform: rotate(360deg); opacity: 1; }
+        }
+        .animate-light-rays {
+          animation: lightRays 8s linear infinite;
+        }
+        @keyframes pulseGlow {
+          0%, 100% { opacity: 0.4; transform: scale(1); }
+          50% { opacity: 1; transform: scale(1.05); }
+        }
+        .animate-pulse-glow {
+          animation: pulseGlow 2s ease-in-out infinite;
+        }
+        @keyframes petPulse {
+          0%, 100% { transform: scale(1); }
+          50% { transform: scale(1.03); }
+        }
+        .animate-pet-pulse {
+          animation: petPulse 2s ease-in-out infinite;
         }
       `}</style>
     </div>,

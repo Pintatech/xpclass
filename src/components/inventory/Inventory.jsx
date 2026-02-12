@@ -470,6 +470,7 @@ const Inventory = () => {
       {chestResult && (
         <ChestOpenAnimation
           result={chestResult}
+          chestType={openingChest?.chest?.chest_type}
           onClose={handleCloseChestAnimation}
         />
       )}

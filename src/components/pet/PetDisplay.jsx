@@ -2,6 +2,7 @@ import React, { useState, useEffect, useRef } from "react";
 import { usePet } from "../../hooks/usePet";
 import { useInventory } from "../../hooks/useInventory";
 import { useAuth } from "../../hooks/useAuth";
+import { useProgress } from "../../hooks/useProgress";
 import { chatWithPet } from "../../utils/petChatService";
 import {
   Star,
@@ -56,11 +57,13 @@ const PetDisplay = () => {
   } = usePet();
   const { inventory } = useInventory();
   const { profile } = useAuth();
+  const { getEquippedItemsXPBonus } = useProgress();
   const [showFeedMenu, setShowFeedMenu] = useState(false);
   const [message, setMessage] = useState(null);
   const [chatBubble, setChatBubble] = useState(null);
   const [showPetInfo, setShowPetInfo] = useState(false);
   const [showBonuses, setShowBonuses] = useState(false);
+  const [itemBonuses, setItemBonuses] = useState({ total: 0, items: [] });
   const [isEating, setIsEating] = useState(false);
 
   // Feed animation state
@@ -79,6 +82,15 @@ const PetDisplay = () => {
   const [chatMessages, setChatMessages] = useState([]);
   const [chatLoading, setChatLoading] = useState(false);
   const chatContainerRef = useRef(null);
+
+  // Fetch equipped item XP bonuses
+  useEffect(() => {
+    const fetchItemBonuses = async () => {
+      const result = await getEquippedItemsXPBonus()
+      setItemBonuses(result)
+    }
+    fetchItemBonuses()
+  }, [profile?.active_title, profile?.active_background_url, profile?.active_bowl_url])
 
   // Scroll chat to bottom when new messages arrive (only inside chat container)
   useEffect(() => {
@@ -607,7 +619,7 @@ const PetDisplay = () => {
                 </div>
               </div>
 
-              {bonuses.length > 0 && (
+              {(bonuses.length > 0 || itemBonuses.total > 0) && (
                 <div className="relative mt-1">
                   <button
                     onClick={() => setShowBonuses(!showBonuses)}
@@ -641,13 +653,19 @@ const PetDisplay = () => {
                                     <span className="font-bold text-purple-600">+{bonus.breakdown.evolution}%</span>
                                   </div>
                                 )}
-                                <div className="flex items-center justify-between text-xs border-t border-gray-200 pt-1 mt-1">
-                                  <span className="font-bold text-gray-800">Total XP Bonus</span>
-                                  <span className="font-bold text-green-600">+{bonus.value}%</span>
-                                </div>
                               </>)}
                             </div>
                           ))}
+                          {itemBonuses.items.map((item, idx) => (
+                            <div key={`item-${idx}`} className="flex items-center justify-between text-xs">
+                              <span className="text-gray-600">{item.name}</span>
+                              <span className="font-bold text-blue-600">+{item.bonus}%</span>
+                            </div>
+                          ))}
+                          <div className="flex items-center justify-between text-xs border-t border-gray-200 pt-1 mt-1">
+                            <span className="font-bold text-gray-800">Total XP Bonus</span>
+                            <span className="font-bold text-green-600">+{(bonuses.reduce((s, b) => s + (b.value || 0), 0)) + itemBonuses.total}%</span>
+                          </div>
                         </div>
                       </div>
                     </>
