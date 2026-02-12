@@ -15,6 +15,7 @@ import {
   Image,
   Info,
   X,
+  Play,
 } from "lucide-react";
 import { assessPronunciation } from "../../utils/azurePronunciationService";
 
@@ -51,50 +52,149 @@ const getThemeSideImages = (theme) => {
 }
 
 // Helper to detect TikTok URLs and extract video ID
-const getTikTokVideoId = (url) => {
-  if (!url) return null;
-  const match = url.match(/tiktok\.com\/(?:@[^/]+\/video\/|embed\/v2\/)(\d+)/);
-  return match ? match[1] : null;
+const getTikTokVideoId = (raw) => {
+  if (!raw) return null;
+  const m1 = raw.match(/\/video\/(\d{10,25})/);
+  if (m1?.[1]) return m1[1];
+  const m2 = raw.match(/\/embed\/v2\/(\d{10,25})/);
+  if (m2?.[1]) return m2[1];
+  const m3 = raw.match(/\/player\/v1\/(\d{10,25})/);
+  if (m3?.[1]) return m3[1];
+  const m4 = raw.match(/(\d{10,25})/);
+  return m4?.[1] ?? null;
 };
 
-const TikTokEmbed = ({ videoUrl, videoId }) => {
-  const containerRef = useRef(null);
+const TT_ORIGIN = 'https://www.tiktok.com';
+
+const postToTikTok = (iframe, msg) => {
+  const win = iframe?.contentWindow;
+  if (!win) return;
+  win.postMessage({ ...msg, 'x-tiktok-player': true }, TT_ORIGIN);
+};
+
+const TikTokEmbed = ({ videoId }) => {
+  const iframeRef = useRef(null);
+  const playingRef = useRef(false);
+
+  const [ttReady, setTtReady] = useState(false);
+  const [ttPlaying, setTtPlaying] = useState(false);
+  const [ttMuted, setTtMuted] = useState(true);
+  const [showTapToPlay, setShowTapToPlay] = useState(false);
+  const [showSoundBtn, setShowSoundBtn] = useState(true);
+
+  const embedSrc = videoId
+    ? `https://www.tiktok.com/player/v1/${videoId}?controls=1&autoplay=1&description=0&music_info=0`
+    : '';
+
+  const enableSound = () => {
+    if (!ttReady) return;
+    setShowSoundBtn(false);
+    postToTikTok(iframeRef.current, { type: 'unMute' });
+    postToTikTok(iframeRef.current, { type: 'play' });
+    setTtMuted(false);
+  };
+
+  const handleTapPlay = () => {
+    postToTikTok(iframeRef.current, { type: 'play' });
+    setShowTapToPlay(false);
+  };
 
   useEffect(() => {
-    const container = containerRef.current;
-    if (!container || !videoId) return;
+    setTtReady(false);
+    setTtPlaying(false);
+    setTtMuted(true);
+    setShowTapToPlay(false);
+    setShowSoundBtn(true);
+    playingRef.current = false;
 
-    // Clear previous content
-    container.innerHTML = '';
+    if (!videoId) return;
 
-    // Create blockquote element (official TikTok embed markup)
-    const blockquote = document.createElement('blockquote');
-    blockquote.className = 'tiktok-embed';
-    blockquote.setAttribute('cite', videoUrl || `https://www.tiktok.com/video/${videoId}`);
-    blockquote.setAttribute('data-video-id', videoId);
-    blockquote.style.maxWidth = '605px';
-    blockquote.style.minWidth = '325px';
+    const onMessage = (event) => {
+      if (event.origin !== TT_ORIGIN) return;
 
-    const section = document.createElement('section');
-    blockquote.appendChild(section);
-    container.appendChild(blockquote);
+      let data = null;
+      if (typeof event.data === 'string') {
+        try { data = JSON.parse(event.data); } catch { data = null; }
+      } else if (typeof event.data === 'object' && event.data) {
+        data = event.data;
+      }
+      if (!data || data['x-tiktok-player'] !== true) return;
 
-    // Load the TikTok embed SDK to initialize the player
-    const script = document.createElement('script');
-    script.src = 'https://www.tiktok.com/embed.js';
-    script.async = true;
-    container.appendChild(script);
+      if (data.type === 'onPlayerReady') {
+        setTtReady(true);
+        postToTikTok(iframeRef.current, { type: 'mute' });
+        postToTikTok(iframeRef.current, { type: 'play' });
+        setTtMuted(true);
+        window.setTimeout(() => {
+          if (!playingRef.current) setShowTapToPlay(true);
+        }, 1200);
+      }
 
-    return () => {
-      container.innerHTML = '';
+      if (data.type === 'onStateChange') {
+        const state = Number(data.value);
+        if (state === 1) {
+          playingRef.current = true;
+          setTtPlaying(true);
+          setShowTapToPlay(false);
+        } else if (state === 2 || state === 0) {
+          playingRef.current = false;
+          setTtPlaying(false);
+        }
+      }
+
+      if (data.type === 'onMute') {
+        const muted = Boolean(data.value);
+        setTtMuted(muted);
+        if (!muted) setShowSoundBtn(false);
+      }
     };
-  }, [videoUrl, videoId]);
+
+    window.addEventListener('message', onMessage);
+    return () => window.removeEventListener('message', onMessage);
+  }, [videoId]);
+
+  if (!embedSrc) return null;
 
   return (
-    <div
-      ref={containerRef}
-      className="w-full h-full flex items-center justify-center overflow-hidden bg-black"
-    />
+    <div className="w-full h-full relative bg-black">
+      <iframe
+        ref={iframeRef}
+        src={embedSrc}
+        className="w-full h-full"
+        scrolling="no"
+        allow="autoplay; encrypted-media; fullscreen"
+        allowFullScreen
+        title="TikTok Player"
+        style={{ border: 'none' }}
+      />
+
+      {/* Tap to play overlay (autoplay blocked) */}
+      {showTapToPlay && (
+        <button
+          type="button"
+          onClick={handleTapPlay}
+          className="absolute inset-0 z-20 flex items-center justify-center bg-black/35 backdrop-blur-[1px]"
+        >
+          <span className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-white text-red-600 font-extrabold shadow-xl">
+            <Play className="w-4 h-4" /> Chạm để phát
+          </span>
+        </button>
+      )}
+
+      {/* Enable sound overlay */}
+      {ttReady && ttPlaying && ttMuted && !showTapToPlay && showSoundBtn && (
+        <button
+          type="button"
+          onClick={enableSound}
+          className="absolute inset-0 z-20 flex items-center justify-center bg-black/35 backdrop-blur-[1px]"
+        >
+          <span className="inline-flex items-center gap-3 px-7 py-3 rounded-full bg-white text-red-600 text-sm font-extrabold shadow-2xl">
+            <Volume2 className="w-5 h-5" />
+            BẬT TIẾNG
+          </span>
+        </button>
+      )}
+    </div>
   );
 };
 
@@ -112,7 +212,7 @@ const FlashcardExercise = () => {
   const [speechSynth] = useState(window.speechSynthesis);
   const [isRecording, setIsRecording] = useState(false);
   const [pronunciationResult, setPronunciationResult] = useState(null);
-  const [mediaMode, setMediaMode] = useState("image"); // 'image' or 'video'
+  const [mediaMode, setMediaMode] = useState("video"); // 'video' or 'image'
   const [currentVideoIndex, setCurrentVideoIndex] = useState(0);
   const [videoRefs, setVideoRefs] = useState([]);
   const mediaRecorderRef = useRef(null);
@@ -394,7 +494,8 @@ const FlashcardExercise = () => {
     pauseAllVideos();
     // Reset flip state, video index, and pronunciation result
     setIsFlipped(false);
-    setMediaMode("image");
+    const nextCard = displayedCards[index];
+    setMediaMode(nextCard?.videoUrls?.length > 0 ? "video" : "image");
     setCurrentVideoIndex(0);
     setPronunciationResult(null);
     setCurrentCard(index);
@@ -519,7 +620,17 @@ const FlashcardExercise = () => {
   };
 
   const flipCard = () => {
-    setIsFlipped(!isFlipped);
+    if (mediaMode === "video") {
+      // In video mode, flip toggles to image card view
+      pauseAllVideos();
+      setMediaMode("image");
+    } else if (!isFlipped && currentFlashcard?.videoUrls?.length > 0) {
+      // In image mode front face, flip back to video
+      setMediaMode("video");
+    } else {
+      // Normal image flip (front <-> back)
+      setIsFlipped(!isFlipped);
+    }
   };
 
   const goToNextCard = () => {
@@ -1053,7 +1164,6 @@ const FlashcardExercise = () => {
                       <>
                         {getTikTokVideoId(currentFlashcard?.videoUrls?.[currentVideoIndex]) ? (
                           <TikTokEmbed
-                            videoUrl={currentFlashcard?.videoUrls?.[currentVideoIndex]}
                             videoId={getTikTokVideoId(currentFlashcard?.videoUrls?.[currentVideoIndex])}
                           />
                         ) : (
@@ -1159,7 +1269,6 @@ const FlashcardExercise = () => {
                       <>
                         {getTikTokVideoId(currentFlashcard?.videoUrls?.[currentVideoIndex]) ? (
                           <TikTokEmbed
-                            videoUrl={currentFlashcard?.videoUrls?.[currentVideoIndex]}
                             videoId={getTikTokVideoId(currentFlashcard?.videoUrls?.[currentVideoIndex])}
                           />
                         ) : (
@@ -1247,8 +1356,8 @@ const FlashcardExercise = () => {
                     <ChevronLeft className="w-5 h-5 sm:w-6 sm:h-6" />
                   </button>
 
-                  {/* Media toggle button */}
-                  <button
+                  {/* Media toggle button - hidden, kept for later */}
+                  {/* <button
                     onClick={toggleMediaMode}
                     className="button-3d btn-orange w-12 h-12 sm:w-12 sm:h-12 md:w-16 md:h-16 bg-orange-600 hover:bg-orange-700 text-white rounded-full flex items-center justify-center transition-colors duration-200 flex-shrink-0 disabled:opacity-30 disabled:cursor-not-allowed"
                     title={
@@ -1266,7 +1375,7 @@ const FlashcardExercise = () => {
                     ) : (
                       <Image className="w-5 h-5 sm:w-6 sm:h-6" />
                     )}
-                  </button>
+                  </button> */}
 
                   <button
                     onClick={playAudio}
