@@ -458,7 +458,7 @@ const MultipleChoiceExercise = () => {
     if (!activePet || petTutorLoading) return
 
     // Check and drain pet energy first
-    const energyResult = await drainPetEnergy(10)
+    const energyResult = await drainPetEnergy(5)
     if (!energyResult.success) {
       setShowPetTutor(true)
       setPetTutorMessage(`*${activePet.nickname || activePet.name} ngáp dài* Mình hơi mệt rồi... cho mình nghỉ ngơi hoặc ăn gì đó nhé! 😴`)

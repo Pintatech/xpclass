@@ -847,7 +847,7 @@ const ExerciseList = () => {
       let xp = 0;
       let gems = 0;
       if (isGemReward) {
-        gems = Math.floor(Math.random() * 2) + 1; // 1-2 gems
+        gems = Math.random() < 0.7 ? 1 : 2; // 70% chance 1 gem, 30% chance 2 gems
       } else {
         xp = 5 + exercises.length * 3 + (Math.floor(Math.random() * 10) + 1);
       }
@@ -864,7 +864,7 @@ const ExerciseList = () => {
           const otherIsGem = Math.random() < 0.3;
           if (otherIsGem) {
             otherXP[num] = 0;
-            otherGems[num] = Math.floor(Math.random() * 3) + 1;
+            otherGems[num] = Math.floor(Math.random() * 2) + 1;
           } else {
             otherXP[num] =
               5 + exercises.length * 3 + (Math.floor(Math.random() * 10) + 1);

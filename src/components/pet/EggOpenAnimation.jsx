@@ -53,6 +53,7 @@ const EggOpenAnimation = ({ result, eggRarity, allPets = [], onClose, onNickname
   // When video ends, go straight to reveal
   // To re-enable carousel: replace setPhase('reveal') with setPhase('carousel')
   const handleVideoEnded = () => {
+    new Audio('https://xpclass.vn/xpclass/sound/pet-reveal.mp3').play().catch(() => {})
     setPhase('reveal')
   }
 

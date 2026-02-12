@@ -1415,8 +1415,33 @@ const PetDisplay = () => {
                 </div>
               </div>
 
-
-
+              {/* Energy */}
+              <div className="bg-orange-50 rounded-lg p-4">
+                <h4 className="font-bold text-gray-800 mb-3">⚡ Energy System</h4>
+                <div className="space-y-2 text-sm text-gray-700">
+                  <div className="bg-white rounded p-3 space-y-1">
+                    <div className="flex justify-between">
+                      <span>Training</span>
+                      <span className="font-bold text-orange-600">-10 energy</span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span>Ask pet (in exercises)</span>
+                      <span className="font-bold text-orange-600">-5 energy</span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span>Chat message</span>
+                      <span className="font-bold text-orange-600">-5 energy</span>
+                    </div>
+                  </div>
+                  <div className="bg-orange-100 px-3 py-2 rounded mt-2">
+                    <span className="font-semibold text-orange-800">Auto Regeneration:</span>{" "}
+                    <span className="font-bold text-orange-700">+5 energy every 15 minutes</span>
+                  </div>
+                  <p className="text-xs text-gray-500 mt-1">
+                    You can also feed your pet to restore energy instantly!
+                  </p>
+                </div>
+              </div>
 
             </div>
 

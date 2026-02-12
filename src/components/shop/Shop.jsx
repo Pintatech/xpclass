@@ -153,6 +153,9 @@ const Shop = () => {
 
       if (error) throw error
 
+      // Play purchase sound
+      new Audio('https://xpclass.vn/xpclass/sound/shop-purchase.mp3').play().catch(() => {})
+
       // Refresh purchases
       setPurchases(prev => [...prev, { item_id: item.id, purchased_at: new Date().toISOString() }])
     } catch (err) {
@@ -176,6 +179,7 @@ const Shop = () => {
     const result = await buyEgg(egg.id, currency)
 
     if (result.success) {
+      new Audio('https://xpclass.vn/xpclass/sound/shop-purchase.mp3').play().catch(() => {})
       const spentText = currency === 'xp'
         ? `-${result.xp_spent} XP`
         : `-${result.gems_spent} gems`
