@@ -12,6 +12,10 @@ import {
   X,
   Loader2,
 } from "lucide-react";
+import PetCatchGame from "./PetCatchGame";
+import PetFlappyGame from "./PetFlappyGame";
+import PetWordScramble from "./PetWordScramble";
+import PetWhackMole from "./PetWhackMole";
 
 // Pet chat messages - replace with your own!
 const PET_MESSAGES = [
@@ -77,6 +81,7 @@ const PetDisplay = () => {
   // Chat state
   const [playDisabled, setPlayDisabled] = useState(false);
   const [playCooldown, setPlayCooldown] = useState(0);
+  const [showGame, setShowGame] = useState(null); // null | 'picker' | 'catch' | 'flappy'
   const [showChat, setShowChat] = useState(false);
   const [chatInput, setChatInput] = useState("");
   const [chatMessages, setChatMessages] = useState([]);
@@ -303,6 +308,12 @@ const PetDisplay = () => {
   };
 
   const handlePlay = async () => {
+    setShowGame('picker');
+  };
+
+  const handleGameEnd = async (score) => {
+    setShowGame(null);
+
     setPlayDisabled(true);
     setPlayCooldown(10);
     const cooldownInterval = setInterval(() => {
@@ -318,21 +329,18 @@ const PetDisplay = () => {
 
     const result = await playWithPet(activePet.id);
     if (result.success) {
-      // Trigger play animation with XP gained
       const xpGained = result.xp_gained || 10;
       triggerPlayAnimation(xpGained);
 
-      // Play training sound when XP text appears (4s delay matches floatUpXP animation delay)
       setTimeout(() => {
         const trainSound = new Audio('https://xpclass.vn/xpclass/sound/pet-training.mp3');
         trainSound.play().catch(() => {});
       }, 4000);
 
-      // Check for evolution
       const evolved = result.evolution?.evolved;
       const levelUp = result.level_up;
 
-      let message = `${activePet.nickname || activePet.name} finished training! 💪`;
+      let message = `${activePet.nickname || activePet.name} scored ${score} points! 💪`;
       if (evolved) {
         message = `🌟 ${activePet.nickname || activePet.name} evolved to Stage ${result.evolution.new_stage}! ✨`;
       } else if (levelUp) {
@@ -1473,6 +1481,107 @@ const PetDisplay = () => {
             </div>
           </div>
         </div>
+      )}
+
+      {/* Game Picker Modal */}
+      {showGame === 'picker' && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4"
+          onClick={() => setShowGame(null)}
+        >
+          <div className="bg-white rounded-2xl shadow-2xl max-w-sm w-full p-6 text-center"
+            onClick={e => e.stopPropagation()}
+          >
+            <h3 className="text-xl font-bold text-gray-800 mb-1">Choose Training Game</h3>
+            <p className="text-sm text-gray-500 mb-5">Pick a mini-game to train {activePet.nickname || activePet.name}!</p>
+            <div className="grid grid-cols-2 gap-3">
+              <button
+                onClick={() => setShowGame('scramble')}
+                className="flex flex-col items-center gap-2 p-4 rounded-xl border-2 border-purple-200 hover:border-purple-400 hover:bg-purple-50 transition-all group"
+              >
+                <span className="text-4xl group-hover:scale-110 transition-transform">🔤</span>
+                <span className="font-bold text-gray-800">Word Scramble</span>
+                <span className="text-xs text-gray-500">Pop the bubbles!</span>
+              </button>
+              <button
+                onClick={() => setShowGame('whackmole')}
+                className="flex flex-col items-center gap-2 p-4 rounded-xl border-2 border-green-200 hover:border-green-400 hover:bg-green-50 transition-all group"
+              >
+                <span className="text-4xl group-hover:scale-110 transition-transform">🐹</span>
+                <span className="font-bold text-gray-800">Whack-a-Mole</span>
+                <span className="text-xs text-gray-500">Whack the right word!</span>
+              </button>
+            </div>
+            <button
+              onClick={() => setShowGame(null)}
+              className="mt-4 text-sm text-gray-400 hover:text-gray-600 transition-colors"
+            >
+              Cancel
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* Catch Mini-Game */}
+      {showGame === 'catch' && (
+        <PetCatchGame
+          bowlImageUrl={profile?.active_bowl_url || "https://png.pngtree.com/png-clipart/20220111/original/pngtree-dog-food-bowl-png-image_7072429.png"}
+          petName={activePet.nickname || activePet.name}
+          onGameEnd={handleGameEnd}
+          onClose={() => setShowGame(null)}
+        />
+      )}
+
+      {/* Flappy Pet Mini-Game */}
+      {showGame === 'flappy' && (
+        <PetFlappyGame
+          petImageUrl={(() => {
+            // Use base image (not mood variant) for the game so it always loads
+            let baseImage = activePet.image_url;
+            if (activePet.evolution_stages && activePet.evolution_stage > 0) {
+              const stage = activePet.evolution_stages.find(s => s.stage === activePet.evolution_stage);
+              if (stage?.image_url) baseImage = stage.image_url;
+            }
+            return baseImage;
+          })()}
+          petName={activePet.nickname || activePet.name}
+          onGameEnd={handleGameEnd}
+          onClose={() => setShowGame(null)}
+        />
+      )}
+
+      {/* Word Scramble Mini-Game */}
+      {showGame === 'scramble' && (
+        <PetWordScramble
+          petImageUrl={(() => {
+            // Use base image (not mood variant) for the game so it always loads
+            let baseImage = activePet.image_url;
+            if (activePet.evolution_stages && activePet.evolution_stage > 0) {
+              const stage = activePet.evolution_stages.find(s => s.stage === activePet.evolution_stage);
+              if (stage?.image_url) baseImage = stage.image_url;
+            }
+            return baseImage;
+          })()}
+          petName={activePet.nickname || activePet.name}
+          onGameEnd={handleGameEnd}
+          onClose={() => setShowGame(null)}
+        />
+      )}
+
+      {/* Whack-a-Mole Mini-Game */}
+      {showGame === 'whackmole' && (
+        <PetWhackMole
+          petImageUrl={(() => {
+            let baseImage = activePet.image_url;
+            if (activePet.evolution_stages && activePet.evolution_stage > 0) {
+              const stage = activePet.evolution_stages.find(s => s.stage === activePet.evolution_stage);
+              if (stage?.image_url) baseImage = stage.image_url;
+            }
+            return baseImage;
+          })()}
+          petName={activePet.nickname || activePet.name}
+          onGameEnd={handleGameEnd}
+          onClose={() => setShowGame(null)}
+        />
       )}
     </div>
   );

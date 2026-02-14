@@ -219,6 +219,8 @@ const FlashcardExercise = () => {
   const [videoRefs, setVideoRefs] = useState([]);
   const mediaRecorderRef = useRef(null);
   const audioChunksRef = useRef([]);
+  const recognitionRef = useRef(null);
+  const [azureAvailable, setAzureAvailable] = useState(false);
   const [cardScores, setCardScores] = useState({});
   const [colorTheme, setColorTheme] = useState('blue');
   const [showTutorial, setShowTutorial] = useState(false);
@@ -226,7 +228,7 @@ const FlashcardExercise = () => {
   const [celebrationScore, setCelebrationScore] = useState(0);
   const [celebrationXP, setCelebrationXP] = useState(0);
   const [hasPlayedPassAudio, setHasPlayedPassAudio] = useState(false);
-  const { playCelebration, passGif } = useFeedback();
+  const { currentMeme, showMeme, playFeedback, playCelebration, passGif } = useFeedback();
 
   // Get exerciseId and sessionId from URL search params
   const searchParams = new URLSearchParams(location.search);
@@ -700,7 +702,109 @@ const FlashcardExercise = () => {
       ) {
         mediaRecorderRef.current.stop();
       }
+      if (recognitionRef.current) {
+        recognitionRef.current.stop();
+        recognitionRef.current = null;
+      }
       setIsRecording(false);
+    } else if (!azureAvailable) {
+      // Fallback: Use browser Web Speech API when Azure quota is exhausted
+      try {
+        const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+        if (!SpeechRecognition) {
+          alert("Speech recognition is not supported in this browser.");
+          return;
+        }
+
+        const recognition = new SpeechRecognition();
+        recognition.lang = "en-US";
+        recognition.continuous = false;
+        recognition.interimResults = false;
+        recognition.maxAlternatives = 1;
+        recognitionRef.current = recognition;
+
+        setIsRecording(true);
+
+        recognition.onresult = (event) => {
+          const transcript = event.results[0][0].transcript;
+          const confidence = event.results[0][0].confidence;
+          const referenceText = currentFlashcard?.front || "";
+          const recognizedLower = transcript.toLowerCase().trim();
+          const referenceLower = referenceText.toLowerCase().trim();
+          const isMatch =
+            recognizedLower.includes(referenceLower) ||
+            referenceLower.includes(recognizedLower);
+          const syllableScore = isMatch
+            ? Math.round(confidence * 100)
+            : 30;
+
+          // Update card scores
+          const cardId = currentFlashcard?.id;
+          setCardScores((prev) => {
+            const existing = prev[cardId];
+            const newBestScore = existing
+              ? Math.max(existing.bestScore, syllableScore)
+              : syllableScore;
+            const newAttempts = existing ? existing.attempts + 1 : 1;
+            return {
+              ...prev,
+              [cardId]: {
+                word: currentFlashcard?.front,
+                bestScore: newBestScore,
+                attempts: newAttempts,
+                lastAttempt: new Date(),
+              },
+            };
+          });
+
+          setPronunciationResult({
+            transcript,
+            targetWord: referenceText,
+            accuracy: syllableScore,
+            isCorrect: syllableScore >= 70,
+            error: false,
+            words: [],
+          });
+
+          playFeedback(syllableScore >= 80);
+          setIsRecording(false);
+          recognitionRef.current = null;
+
+          setTimeout(() => setPronunciationResult(null), 5000);
+        };
+
+        recognition.onerror = (event) => {
+          console.error("Speech recognition error:", event.error);
+          setIsRecording(false);
+          recognitionRef.current = null;
+          setPronunciationResult({
+            transcript: "Could not recognize speech",
+            targetWord: currentFlashcard?.front,
+            accuracy: 0,
+            isCorrect: false,
+            error: true,
+          });
+          setTimeout(() => setPronunciationResult(null), 3000);
+        };
+
+        recognition.onend = () => {
+          setIsRecording(false);
+          recognitionRef.current = null;
+        };
+
+        recognition.start();
+
+        // Auto-stop after 5 seconds (same as Azure path)
+        setTimeout(() => {
+          if (recognitionRef.current) {
+            recognitionRef.current.stop();
+          }
+        }, 5000);
+      } catch (error) {
+        console.error("Error with speech recognition:", error);
+        alert("Speech recognition failed. Please check permissions.");
+        setIsRecording(false);
+      }
     } else {
       // Start recording
       try {
@@ -782,9 +886,19 @@ const FlashcardExercise = () => {
               isCorrect: syllableScore >= 70,
               error: false,
             });
+
+            // Play meme + sound feedback based on score
+            playFeedback(syllableScore >= 80);
           } else {
+            // If Azure service error (quota exhausted, etc.), switch to browser fallback
+            if (result.error === 'SERVICE_ERROR' || result.error === 'RECOGNITION_FAILED') {
+              setAzureAvailable(false);
+              console.warn('⚠️ Azure unavailable, switching to browser Speech Recognition fallback');
+            }
             setPronunciationResult({
-              transcript: result.message || "Error",
+              transcript: result.error === 'SERVICE_ERROR'
+                ? "Azure unavailable — try again, using browser mode"
+                : (result.message || "Error"),
               targetWord: currentFlashcard?.front,
               accuracy: 0,
               isCorrect: false,
@@ -1610,6 +1724,18 @@ const FlashcardExercise = () => {
             wrongQuestionsCount={0}
             onBackToList={handleCelebrationDismiss}
             exerciseId={exerciseId}
+          />
+        </div>
+      )}
+
+      {/* Meme Overlay */}
+      {showMeme && (
+        <div className="fixed inset-0 flex items-center justify-center z-50 pointer-events-none">
+          <img
+            src={currentMeme}
+            alt="Reaction meme"
+            className="rounded-lg shadow-2xl"
+            style={{ width: '200px', height: 'auto' }}
           />
         </div>
       )}

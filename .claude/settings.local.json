@@ -46,7 +46,8 @@
       "Bash(npm install:*)",
       "Bash(git checkout:*)",
       "Bash(taskkill:*)",
-      "Bash(psql:*)"
+      "Bash(psql:*)",
+      "Bash(npx vite build:*)"
     ],
     "deny": [],
     "ask": []
