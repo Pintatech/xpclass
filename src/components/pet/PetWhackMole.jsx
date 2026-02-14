@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef, useCallback } from 'react'
 import { createPortal } from 'react-dom'
 import { Trophy } from 'lucide-react'
+import WORD_BANK from './wordBank'
 
 const GAME_DURATION = 60
 const MOLE_SHOW_MIN = 1500
@@ -9,59 +10,6 @@ const GRID_COLS = 3
 const GRID_ROWS = 3
 const HOLES = GRID_COLS * GRID_ROWS
 
-// Word pairs: English word + Vietnamese hint
-const WORD_PAIRS = [
-  { en: 'cat', vi: 'Con m\u00e8o' },
-  { en: 'dog', vi: 'Con ch\u00f3' },
-  { en: 'sun', vi: 'M\u1eb7t tr\u1eddi' },
-  { en: 'book', vi: 'Quy\u1ec3n s\u00e1ch' },
-  { en: 'fish', vi: 'Con c\u00e1' },
-  { en: 'bird', vi: 'Con chim' },
-  { en: 'tree', vi: 'C\u00e1i c\u00e2y' },
-  { en: 'rain', vi: 'M\u01b0a' },
-  { en: 'star', vi: 'Ng\u00f4i sao' },
-  { en: 'cake', vi: 'B\u00e1nh' },
-  { en: 'door', vi: 'C\u00e1i c\u1eeda' },
-  { en: 'hand', vi: 'B\u00e0n tay' },
-  { en: 'moon', vi: 'M\u1eb7t tr\u0103ng' },
-  { en: 'frog', vi: 'Con \u1ebfch' },
-  { en: 'apple', vi: 'Qu\u1ea3 t\u00e1o' },
-  { en: 'house', vi: 'Ng\u00f4i nh\u00e0' },
-  { en: 'water', vi: 'N\u01b0\u1edbc' },
-  { en: 'smile', vi: 'N\u1ee5 c\u01b0\u1eddi' },
-  { en: 'table', vi: 'C\u00e1i b\u00e0n' },
-  { en: 'chair', vi: 'C\u00e1i gh\u1ebf' },
-  { en: 'sleep', vi: 'Ng\u1ee7' },
-  { en: 'happy', vi: 'Vui v\u1ebb' },
-  { en: 'music', vi: '\u00c2m nh\u1ea1c' },
-  { en: 'dance', vi: 'Nh\u1ea3y m\u00faa' },
-  { en: 'green', vi: 'M\u00e0u xanh l\u00e1' },
-  { en: 'bread', vi: 'B\u00e1nh m\u00ec' },
-  { en: 'tiger', vi: 'Con h\u1ed5' },
-  { en: 'cloud', vi: '\u0110\u00e1m m\u00e2y' },
-  { en: 'light', vi: '\u00c1nh s\u00e1ng' },
-  { en: 'flower', vi: 'B\u00f4ng hoa' },
-  { en: 'school', vi: 'Tr\u01b0\u1eddng h\u1ecdc' },
-  { en: 'friend', vi: 'B\u1ea1n b\u00e8' },
-  { en: 'family', vi: 'Gia \u0111\u00ecnh' },
-  { en: 'orange', vi: 'Qu\u1ea3 cam' },
-  { en: 'monkey', vi: 'Con kh\u1ec9' },
-  { en: 'rabbit', vi: 'Con th\u1ecf' },
-  { en: 'mother', vi: 'M\u1eb9' },
-  { en: 'father', vi: 'B\u1ed1' },
-  { en: 'garden', vi: 'Khu v\u01b0\u1eddn' },
-  { en: 'winter', vi: 'M\u00f9a \u0111\u00f4ng' },
-  { en: 'summer', vi: 'M\u00f9a h\u00e8' },
-  { en: 'banana', vi: 'Qu\u1ea3 chu\u1ed1i' },
-  { en: 'kitchen', vi: 'Nh\u00e0 b\u1ebfp' },
-  { en: 'teacher', vi: 'Gi\u00e1o vi\u00ean' },
-  { en: 'picture', vi: 'B\u1ee9c tranh' },
-  { en: 'chicken', vi: 'Con g\u00e0' },
-  { en: 'student', vi: 'H\u1ecdc sinh' },
-  { en: 'rainbow', vi: 'C\u1ea7u v\u1ed3ng' },
-  { en: 'morning', vi: 'Bu\u1ed5i s\u00e1ng' },
-  { en: 'dolphin', vi: 'C\u00e1 heo' },
-]
 
 const shuffle = (arr) => {
   const a = [...arr]
@@ -86,6 +34,7 @@ const PetWhackMole = ({ petImageUrl, petName, onGameEnd, onClose }) => {
   const [floatingTexts, setFloatingTexts] = useState([])
   const [hammerPos, setHammerPos] = useState({ x: -100, y: -100 })
   const [hammerSwing, setHammerSwing] = useState(false)
+  const [wordHistory, setWordHistory] = useState([])
 
   const timerRef = useRef(null)
   const moleTimersRef = useRef([])
@@ -94,12 +43,15 @@ const PetWhackMole = ({ petImageUrl, petName, onGameEnd, onClose }) => {
   const targetRef = useRef(null)
   const animFrameRef = useRef(null)
   const gameContainerRef = useRef(null)
+  const roundHitRef = useRef(false)
 
   // Pick a new target word and spawn moles
   const spawnRound = useCallback(() => {
-    const pair = WORD_PAIRS[Math.floor(Math.random() * WORD_PAIRS.length)]
+    const pair = WORD_BANK[Math.floor(Math.random() * WORD_BANK.length)]
     setTargetWord(pair)
     targetRef.current = pair
+    roundHitRef.current = false
+    setWordHistory(prev => [...prev, { word: pair.word, hint: pair.hint, correct: false }])
 
     // Pick 2-4 moles to show (one correct, rest wrong)
     const moleCount = Math.min(HOLES, 2 + Math.floor(Math.random() * 3))
@@ -107,14 +59,14 @@ const PetWhackMole = ({ petImageUrl, petName, onGameEnd, onClose }) => {
     const correctPos = positions[Math.floor(Math.random() * positions.length)]
 
     // Pick distractor words (different from target)
-    const distractors = shuffle(WORD_PAIRS.filter(w => w.en !== pair.en))
+    const distractors = shuffle(WORD_BANK.filter(w => w.word !== pair.word))
 
     const newHoles = Array.from({ length: HOLES }, (_, i) => {
       const posIndex = positions.indexOf(i)
       if (posIndex === -1) {
         return { id: i, word: null, visible: false, hit: false, wrong: false, hiding: false }
       }
-      const word = i === correctPos ? pair.en : distractors[posIndex % distractors.length].en
+      const word = i === correctPos ? pair.word : distractors[posIndex % distractors.length].word
       return { id: i, word, visible: true, hit: false, wrong: false, hiding: false }
     })
 
@@ -146,6 +98,7 @@ const PetWhackMole = ({ petImageUrl, petName, onGameEnd, onClose }) => {
     setStreak(0)
     setDisplayTime(GAME_DURATION)
     setFloatingTexts([])
+    setWordHistory([])
     setPhase('playing')
   }, [])
 
@@ -226,8 +179,10 @@ const PetWhackMole = ({ petImageUrl, petName, onGameEnd, onClose }) => {
     setHammerSwing(true)
     setTimeout(() => setHammerSwing(false), 200)
 
-    if (hole.word === target.en) {
+    if (hole.word === target.word) {
       // CORRECT!
+      roundHitRef.current = true
+      setWordHistory(prev => prev.map((w, i) => i === prev.length - 1 ? { ...w, correct: true } : w))
       const newStreak = streakRef.current + 1
       streakRef.current = newStreak
       setStreak(newStreak)
@@ -254,7 +209,7 @@ const PetWhackMole = ({ petImageUrl, petName, onGameEnd, onClose }) => {
       }])
 
       try {
-        const sound = new Audio('https://xpclass.vn/xpclass/sound/pop2.mp3')
+        const sound = new Audio('https://xpclass.vn/xpclass/pet-game/mole-correct.mp3')
         sound.volume = 0.4
         sound.play().catch(() => {})
       } catch {}
@@ -286,7 +241,7 @@ const PetWhackMole = ({ petImageUrl, petName, onGameEnd, onClose }) => {
       }])
 
       try {
-        const sound = new Audio('https://xpclass.vn/xpclass/sound/flappy-hit.mp3')
+        const sound = new Audio('https://xpclass.vn/xpclass/pet-game/mole-incorrect.mp3')
         sound.volume = 0.4
         sound.play().catch(() => {})
       } catch {}
@@ -498,7 +453,7 @@ const PetWhackMole = ({ petImageUrl, petName, onGameEnd, onClose }) => {
                   style={{ animation: 'hintPulse 2s ease-in-out infinite' }}
                 >
                   <p className="text-xs text-gray-500 font-semibold mb-0.5">Find the word for:</p>
-                  <p className="text-2xl font-black text-gray-800">{targetWord.vi}</p>
+                  <p className="text-2xl font-black text-gray-800">{targetWord.hint}</p>
                 </div>
               )}
             </div>
@@ -551,7 +506,7 @@ const PetWhackMole = ({ petImageUrl, petName, onGameEnd, onClose }) => {
                               : '0 4px 12px rgba(0,0,0,0.3), inset 0 2px 0 rgba(255,255,255,0.3)',
                           }}
                         >
-                          <span className="text-2xl mb-0.5">🐹</span>
+                          <img src="https://xpclass.vn/xpclass/pet-game/mole-normal.png" alt="mole" className="w-10 h-10 object-contain mb-0.5" />
                           <span className="text-xs font-black text-gray-800 uppercase tracking-wide leading-tight text-center break-all">
                             {hole.word}
                           </span>
@@ -566,7 +521,7 @@ const PetWhackMole = ({ petImageUrl, petName, onGameEnd, onClose }) => {
                         style={{ animation: 'moleWhacked 0.4s ease-out forwards' }}
                       >
                         <div className="w-full h-full flex flex-col items-center justify-center rounded-2xl bg-green-400/90">
-                          <span className="text-3xl">⭐</span>
+                          <img src="https://xpclass.vn/xpclass/pet-game/mole-whacked.png" alt="whacked" className="w-12 h-12 object-contain" />
                         </div>
                       </div>
                     )}
@@ -578,19 +533,18 @@ const PetWhackMole = ({ petImageUrl, petName, onGameEnd, onClose }) => {
             {/* Hammer cursor */}
             {hammerPos.x > 0 && (
               <img
-                src="https://static.vecteezy.com/system/resources/thumbnails/054/196/132/small/3d-render-wooden-hammer-illustration-png.png"
+                src="https://xpclass.vn/xpclass/pet-game/mole-hammer.png"
                 alt="hammer"
                 className="absolute pointer-events-none z-30"
                 style={{
-                  width: 64,
-                  height: 64,
+                  height: 32,
                   left: hammerPos.x,
                   top: hammerPos.y,
                   transformOrigin: '50% 50%',
                   transform: hammerSwing
-                    ? 'translate(-50%, -50%) rotate(-5deg) scale(1.1)'
-                    : 'translate(-50%, -50%) rotate(25deg)',
-                  transition: hammerSwing ? 'transform 0.08s ease-in' : 'transform 0.15s ease-out',
+                    ? 'translate(-50%, -50%) rotate(-20deg) scale(1.2)'
+                    : 'translate(-50%, -50%) rotate(45deg)',
+                  transition: hammerSwing ? 'transform 0.05s ease-in' : 'transform 0.12s ease-out',
                   filter: 'drop-shadow(2px 4px 6px rgba(0,0,0,0.4))',
                 }}
               />
@@ -616,9 +570,9 @@ const PetWhackMole = ({ petImageUrl, petName, onGameEnd, onClose }) => {
 
         {/* Results Phase */}
         {phase === 'results' && (
-          <div className="absolute inset-0 flex items-center justify-center p-6 z-50">
+          <div className="absolute inset-0 flex flex-col items-center justify-start overflow-y-auto p-6 z-50">
             <div
-              className="bg-white rounded-3xl shadow-2xl max-w-sm w-full p-8 text-center"
+              className="bg-white rounded-3xl shadow-2xl max-w-sm w-full p-8 text-center my-auto"
               style={{ animation: 'moleResultsFadeIn 0.5s ease-out' }}
             >
               <div
@@ -644,6 +598,21 @@ const PetWhackMole = ({ petImageUrl, petName, onGameEnd, onClose }) => {
                 <p className={`text-5xl font-black ${score >= 20 ? 'text-green-600' : 'text-gray-400'}`}>{score}</p>
                 <p className={`text-sm font-semibold mt-1 ${score >= 20 ? 'text-green-400' : 'text-gray-400'}`}>moles whacked</p>
               </div>
+
+              {/* Missed Words */}
+              {wordHistory.some(w => !w.correct) && (
+                <div className="mb-5 text-left">
+                  <p className="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-2 text-center">Words to Practice</p>
+                  <div className="max-h-[180px] overflow-y-auto rounded-xl border border-gray-100 divide-y divide-gray-50">
+                    {wordHistory.filter(w => !w.correct).map((w, i) => (
+                      <div key={i} className="flex items-center gap-2 px-3 py-2">
+                        <span className="font-bold text-sm text-gray-800">{w.word}</span>
+                        <span className="text-xs text-gray-400 ml-auto">{w.hint}</span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
 
               <p className="text-sm text-gray-600 mb-6">
                 {score >= 20

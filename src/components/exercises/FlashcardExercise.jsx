@@ -744,11 +744,14 @@ const FlashcardExercise = () => {
           setPronunciationResult({ loading: true });
 
           try {
+            console.log("🎤 Sending audio to AssemblyAI...", { blobSize: audioBlob.size, blobType: audioBlob.type });
             const res = await fetch("/api/transcribe", {
               method: "POST",
               body: audioBlob,
             });
+            console.log("📡 AssemblyAI response status:", res.status);
             const data = await res.json();
+            console.log("📊 AssemblyAI result:", JSON.stringify(data, null, 2));
 
             if (data.success && data.text) {
               const referenceText = currentFlashcard?.front || "";

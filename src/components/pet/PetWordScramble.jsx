@@ -1,73 +1,12 @@
 import { useState, useEffect, useRef, useCallback } from 'react'
 import { createPortal } from 'react-dom'
 import { X, Trophy } from 'lucide-react'
+import WORD_BANK from './wordBank'
 
 const GAME_DURATION = 60
 const POINTS_PER_WORD = 10
 const STREAK_BONUS = 5
 
-// Word list grouped by difficulty (short → long)
-const WORD_POOL = [
-  // 3-4 letters
-  { word: 'cat', hint: 'Con m\u00e8o' },
-  { word: 'dog', hint: 'Con ch\u00f3' },
-  { word: 'sun', hint: 'M\u1eb7t tr\u1eddi' },
-  { word: 'run', hint: 'Ch\u1ea1y' },
-  { word: 'book', hint: 'Quy\u1ec3n s\u00e1ch' },
-  { word: 'fish', hint: 'Con c\u00e1' },
-  { word: 'bird', hint: 'Con chim' },
-  { word: 'tree', hint: 'C\u00e1i c\u00e2y' },
-  { word: 'rain', hint: 'M\u01b0a' },
-  { word: 'star', hint: 'Ng\u00f4i sao' },
-  { word: 'cake', hint: 'B\u00e1nh' },
-  { word: 'door', hint: 'C\u00e1i c\u1eeda' },
-  { word: 'hand', hint: 'B\u00e0n tay' },
-  { word: 'moon', hint: 'M\u1eb7t tr\u0103ng' },
-  { word: 'frog', hint: 'Con \u1ebfch' },
-  // 5 letters
-  { word: 'apple', hint: 'Qu\u1ea3 t\u00e1o' },
-  { word: 'house', hint: 'Ng\u00f4i nh\u00e0' },
-  { word: 'water', hint: 'N\u01b0\u1edbc' },
-  { word: 'smile', hint: 'N\u1ee5 c\u01b0\u1eddi' },
-  { word: 'table', hint: 'C\u00e1i b\u00e0n' },
-  { word: 'chair', hint: 'C\u00e1i gh\u1ebf' },
-  { word: 'sleep', hint: 'Ng\u1ee7' },
-  { word: 'happy', hint: 'Vui v\u1ebb' },
-  { word: 'music', hint: '\u00c2m nh\u1ea1c' },
-  { word: 'dance', hint: 'Nh\u1ea3y m\u00faa' },
-  { word: 'green', hint: 'M\u00e0u xanh l\u00e1' },
-  { word: 'bread', hint: 'B\u00e1nh m\u00ec' },
-  { word: 'tiger', hint: 'Con h\u1ed5' },
-  { word: 'cloud', hint: '\u0110\u00e1m m\u00e2y' },
-  { word: 'light', hint: '\u00c1nh s\u00e1ng' },
-  // 6+ letters
-  { word: 'flower', hint: 'B\u00f4ng hoa' },
-  { word: 'school', hint: 'Tr\u01b0\u1eddng h\u1ecdc' },
-  { word: 'friend', hint: 'B\u1ea1n b\u00e8' },
-  { word: 'family', hint: 'Gia \u0111\u00ecnh' },
-  { word: 'orange', hint: 'Qu\u1ea3 cam' },
-  { word: 'monkey', hint: 'Con kh\u1ec9' },
-  { word: 'rabbit', hint: 'Con th\u1ecf' },
-  { word: 'mother', hint: 'M\u1eb9' },
-  { word: 'father', hint: 'B\u1ed1' },
-  { word: 'sister', hint: 'Ch\u1ecb/em g\u00e1i' },
-  { word: 'garden', hint: 'Khu v\u01b0\u1eddn' },
-  { word: 'winter', hint: 'M\u00f9a \u0111\u00f4ng' },
-  { word: 'summer', hint: 'M\u00f9a h\u00e8' },
-  { word: 'banana', hint: 'Qu\u1ea3 chu\u1ed1i' },
-  { word: 'planet', hint: 'H\u00e0nh tinh' },
-  // 7+ letters
-  { word: 'kitchen', hint: 'Nh\u00e0 b\u1ebfp' },
-  { word: 'teacher', hint: 'Gi\u00e1o vi\u00ean' },
-  { word: 'picture', hint: 'B\u1ee9c tranh' },
-  { word: 'chicken', hint: 'Con g\u00e0' },
-  { word: 'student', hint: 'H\u1ecdc sinh' },
-  { word: 'rainbow', hint: 'C\u1ea7u v\u1ed3ng' },
-  { word: 'morning', hint: 'Bu\u1ed5i s\u00e1ng' },
-  { word: 'evening', hint: 'Bu\u1ed5i t\u1ed1i' },
-  { word: 'dolphin', hint: 'C\u00e1 heo' },
-  { word: 'giraffe', hint: 'H\u01b0\u01a1u cao c\u1ed5' },
-]
 
 // Shuffle array (Fisher-Yates)
 const shuffle = (arr) => {
@@ -81,10 +20,10 @@ const shuffle = (arr) => {
 
 // Pick words for a game session, ordered by difficulty
 const pickGameWords = () => {
-  const short = shuffle(WORD_POOL.filter(w => w.word.length <= 4)).slice(0, 5)
-  const medium = shuffle(WORD_POOL.filter(w => w.word.length === 5)).slice(0, 5)
-  const long = shuffle(WORD_POOL.filter(w => w.word.length === 6)).slice(0, 5)
-  const longer = shuffle(WORD_POOL.filter(w => w.word.length >= 7)).slice(0, 5)
+  const short = shuffle(WORD_BANK.filter(w => w.word.length <= 4)).slice(0, 5)
+  const medium = shuffle(WORD_BANK.filter(w => w.word.length === 5)).slice(0, 5)
+  const long = shuffle(WORD_BANK.filter(w => w.word.length === 6)).slice(0, 5)
+  const longer = shuffle(WORD_BANK.filter(w => w.word.length >= 7)).slice(0, 5)
   return [...short, ...medium, ...long, ...longer]
 }
 
@@ -102,6 +41,7 @@ const PetWordScramble = ({ petImageUrl, petName, onGameEnd, onClose }) => {
   const [wordsCompleted, setWordsCompleted] = useState(0)
   const [particles, setParticles] = useState([]) // explosion particles
   const [screenShake, setScreenShake] = useState(0)
+  const [skippedWords, setSkippedWords] = useState([])
 
   const scoreRef = useRef(0)
   const timerRef = useRef(null)
@@ -109,14 +49,6 @@ const PetWordScramble = ({ petImageUrl, petName, onGameEnd, onClose }) => {
   const animationFrameRef = useRef(null)
   const gameAreaRef = useRef(null)
   const containerRef = useRef(null)
-
-  // Generate distractor letters that are NOT in the word
-  const getDistractorLetters = useCallback((word, count) => {
-    const alphabet = 'abcdefghijklmnopqrstuvwxyz'
-    const wordLetters = new Set(word.split(''))
-    const available = alphabet.split('').filter(l => !wordLetters.has(l))
-    return shuffle(available).slice(0, count)
-  }, [])
 
   // Create floating bubbles for a word, spread out in a grid-ish layout
   const createBubbles = useCallback((word, containerWidth, containerHeight) => {
@@ -128,17 +60,6 @@ const PetWordScramble = ({ petImageUrl, petName, onGameEnd, onClose }) => {
       attempts++
     } while (scrambled.join('') === word && attempts < 10)
 
-    // Add 2-3 distractor letters based on word length
-    const distractorCount = word.length <= 4 ? 2 : 3
-    const distractors = getDistractorLetters(word, distractorCount)
-
-    const allBubbleLetters = [...scrambled, ...distractors]
-    const shuffledAll = shuffle(allBubbleLetters.map((letter, i) => ({
-      letter,
-      isDistractor: i >= scrambled.length,
-      origIndex: i,
-    })))
-
     const bubbleSize = 70
     const padding = 30
     const safeTop = 140
@@ -148,28 +69,27 @@ const PetWordScramble = ({ petImageUrl, petName, onGameEnd, onClose }) => {
     const availableW = safeRight - safeLeft
     const availableH = safeBottom - safeTop
 
-    const total = shuffledAll.length
+    const total = scrambled.length
     const cols = Math.min(total, Math.floor(availableW / (bubbleSize + 20)))
     const rows = Math.ceil(total / cols)
     const cellW = availableW / cols
     const cellH = availableH / Math.max(rows, 1)
 
-    return shuffledAll.map((item, i) => {
+    return scrambled.map((letter, i) => {
       const col = i % cols
       const row = Math.floor(i / cols)
       return {
-        id: `${item.letter}-${i}-${Date.now()}`,
-        letter: item.letter,
-        isDistractor: item.isDistractor,
+        id: `${letter}-${i}-${Date.now()}`,
+        letter,
         x: safeLeft + col * cellW + cellW / 2 + (Math.random() - 0.5) * 30,
         y: safeTop + row * cellH + cellH / 2 + (Math.random() - 0.5) * 20,
-        vx: (Math.random() - 0.5) * (item.isDistractor ? 3.5 : 2.5),
-        vy: (Math.random() - 0.5) * (item.isDistractor ? 3.5 : 2.5),
+        vx: (Math.random() - 0.5) * 2.5,
+        vy: (Math.random() - 0.5) * 2.5,
         popping: false,
         captured: false,
       }
     })
-  }, [getDistractorLetters])
+  }, [])
 
   // Setup a new word
   const setupWord = useCallback((gameWords, index, width, height) => {
@@ -190,6 +110,7 @@ const PetWordScramble = ({ petImageUrl, petName, onGameEnd, onClose }) => {
     setDisplayScore(0)
     setDisplayTime(GAME_DURATION)
     setWordsCompleted(0)
+    setSkippedWords([])
     setStreak(0)
     scoreRef.current = 0
     streakRef.current = 0
@@ -282,57 +203,6 @@ const PetWordScramble = ({ petImageUrl, petName, onGameEnd, onClose }) => {
     const currentWord = currentWordObj.word
     const nextIndex = placedLetters.length
 
-    // Distractor bubbles always count as wrong
-    if (bubble.isDistractor) {
-      setBubbles(prev => prev.map(b =>
-        b.id === bubble.id ? { ...b, popping: true } : b
-      ))
-      setCombo(0)
-      setScreenShake(12)
-
-      // Time penalty: lose 3 seconds
-      setDisplayTime(prev => Math.max(1, prev - 3))
-
-      try {
-        const sound = new Audio('https://xpclass.vn/xpclass/sound/flappy-hit.mp3')
-        sound.volume = 0.4
-        sound.play().catch(() => {})
-      } catch {
-        // Ignore audio errors
-      }
-
-      // Red explosion particles
-      const explosionParticles = Array.from({ length: 12 }, (_, i) => ({
-        id: `${bubble.id}-explosion-${i}`,
-        x: bubble.x,
-        y: bubble.y,
-        vx: Math.cos(i * Math.PI / 6) * 6,
-        vy: Math.sin(i * Math.PI / 6) * 6,
-        color: '#ef4444',
-        opacity: 1,
-      }))
-      setParticles(prev => [...prev, ...explosionParticles])
-
-      // Respawn distractor
-      setTimeout(() => {
-        const w = containerRef.current?.clientWidth || 400
-        const h = containerRef.current?.clientHeight || 700
-        setBubbles(prev => prev.map(b =>
-          b.id === bubble.id
-            ? {
-                ...b,
-                popping: false,
-                x: Math.random() * (w - 60) + 30,
-                y: Math.random() * (h - 400) + 140,
-                vx: (Math.random() - 0.5) * 3.5,
-                vy: (Math.random() - 0.5) * 3.5,
-              }
-            : b
-        ))
-      }, 300)
-      return
-    }
-
     // Check if this is the correct next letter
     if (bubble.letter === currentWord[nextIndex]) {
       // CORRECT! Pop and capture
@@ -413,6 +283,24 @@ const PetWordScramble = ({ petImageUrl, petName, onGameEnd, onClose }) => {
       }, 300)
     }
   }, [phase, feedback, placedLetters, combo])
+
+  // Skip current word
+  const handleSkip = useCallback(() => {
+    if (phase !== 'playing' || feedback === 'correct') return
+    streakRef.current = 0
+    setStreak(0)
+    setSkippedWords(prev => [...prev, words[wordIndex]])
+    setDisplayTime(prev => Math.max(1, prev - 2))
+    const nextIdx = wordIndex + 1
+    if (nextIdx < words.length) {
+      setWordIndex(nextIdx)
+      const width = containerRef.current?.clientWidth || 400
+      const height = containerRef.current?.clientHeight || 700
+      setupWord(words, nextIdx, width, height)
+    } else {
+      setPhase('results')
+    }
+  }, [phase, feedback, wordIndex, words, setupWord])
 
   // Handle tapping a placed letter to remove it
   const handlePlacedTap = useCallback((letterObj) => {
@@ -587,7 +475,7 @@ const PetWordScramble = ({ petImageUrl, petName, onGameEnd, onClose }) => {
               Word Scramble
             </h2>
             <p className="text-lg text-white/80 mb-1">
-              Pop the right bubbles, avoid the fakes!
+              Pop the bubbles in the right order!
             </p>
             <p className="text-sm text-white/60">
               Train {petName}&apos;s brain!
@@ -657,7 +545,7 @@ const PetWordScramble = ({ petImageUrl, petName, onGameEnd, onClose }) => {
           <div className="absolute top-0 left-0 right-0 p-4 z-10 pointer-events-none">
             <div className="w-full max-w-md mx-auto flex flex-col items-center gap-2 pointer-events-auto">
               {/* Score / Pet / Timer row */}
-              <div className="w-full flex items-center justify-between">
+              <div className="w-full flex items-center justify-between pl-12">
                 <div className="bg-white/20 backdrop-blur rounded-2xl px-4 py-2 flex items-center gap-2">
                   <span className="text-xl font-black text-white">{displayScore}</span>
                 </div>
@@ -773,10 +661,16 @@ const PetWordScramble = ({ petImageUrl, petName, onGameEnd, onClose }) => {
                 })}
               </div>
 
-              {/* Instruction */}
-              <p className="text-xs text-white/50">
-                Avoid purple fakes! (-3s)
-              </p>
+              {/* Skip + Instruction */}
+              <div className="flex items-center gap-3">
+
+                <button
+                  onClick={handleSkip}
+                  className="text-xs text-white/50 hover:text-white/80 underline transition-colors"
+                >
+                  Skip (-2s)
+                </button>
+              </div>
             </div>
           </div>
         </div>
@@ -784,9 +678,9 @@ const PetWordScramble = ({ petImageUrl, petName, onGameEnd, onClose }) => {
 
       {/* Results Phase */}
       {phase === 'results' && (
-        <div className="flex items-center justify-center p-6 w-full">
+        <div className="absolute inset-0 flex flex-col items-center justify-start overflow-y-auto p-6 z-50">
           <div
-            className="bg-white rounded-3xl shadow-2xl max-w-sm w-full p-8 text-center"
+            className="bg-white rounded-3xl shadow-2xl max-w-sm w-full p-8 text-center my-auto"
             style={{ animation: 'scrambleResultsFadeIn 0.5s ease-out' }}
           >
             <div
@@ -812,6 +706,21 @@ const PetWordScramble = ({ petImageUrl, petName, onGameEnd, onClose }) => {
               <p className={`text-5xl font-black ${wordsCompleted >= 10 ? 'text-purple-600' : 'text-gray-400'}`}>{wordsCompleted}</p>
               <p className={`text-sm font-semibold mt-1 ${wordsCompleted >= 10 ? 'text-purple-400' : 'text-gray-400'}`}>words completed</p>
             </div>
+
+            {/* Skipped Words */}
+            {skippedWords.length > 0 && (
+              <div className="mb-5 text-left">
+                <p className="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-2 text-center">Words to Practice</p>
+                <div className="max-h-[180px] overflow-y-auto rounded-xl border border-gray-100 divide-y divide-gray-50">
+                  {skippedWords.map((w, i) => (
+                    <div key={i} className="flex items-center gap-2 px-3 py-2">
+                      <span className="font-bold text-sm text-gray-800">{w.word}</span>
+                      <span className="text-xs text-gray-400 ml-auto">{w.hint}</span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
 
             <p className="text-sm text-gray-600 mb-6">
               {wordsCompleted >= 15
