@@ -708,77 +708,159 @@ const FlashcardExercise = () => {
       }
       setIsRecording(false);
     } else if (!azureAvailable) {
-      // Fallback: Use browser Web Speech API when Azure quota is exhausted
+      // Fallback: Use MediaRecorder + AssemblyAI speech-to-text
       try {
-        const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
-        if (!SpeechRecognition) {
-          alert("Speech recognition is not supported in this browser.");
-          return;
-        }
+        const stream = await navigator.mediaDevices.getUserMedia({
+          audio: true,
+        });
+        const mediaRecorder = new MediaRecorder(stream);
+        mediaRecorderRef.current = mediaRecorder;
+        audioChunksRef.current = [];
 
-        const recognition = new SpeechRecognition();
-        recognition.lang = "en-US";
-        recognition.continuous = false;
-        recognition.interimResults = false;
-        recognition.maxAlternatives = 1;
-        recognitionRef.current = recognition;
+        mediaRecorder.ondataavailable = (event) => {
+          if (event.data.size > 0) {
+            audioChunksRef.current.push(event.data);
+          }
+        };
 
-        setIsRecording(true);
-
-        recognition.onresult = (event) => {
-          const transcript = event.results[0][0].transcript;
-          const confidence = event.results[0][0].confidence;
-          const referenceText = currentFlashcard?.front || "";
-          const recognizedLower = transcript.toLowerCase().trim();
-          const referenceLower = referenceText.toLowerCase().trim();
-          const isMatch =
-            recognizedLower.includes(referenceLower) ||
-            referenceLower.includes(recognizedLower);
-          const syllableScore = isMatch
-            ? Math.round(confidence * 100)
-            : 30;
-
-          // Update card scores
-          const cardId = currentFlashcard?.id;
-          setCardScores((prev) => {
-            const existing = prev[cardId];
-            const newBestScore = existing
-              ? Math.max(existing.bestScore, syllableScore)
-              : syllableScore;
-            const newAttempts = existing ? existing.attempts + 1 : 1;
-            return {
-              ...prev,
-              [cardId]: {
-                word: currentFlashcard?.front,
-                bestScore: newBestScore,
-                attempts: newAttempts,
-                lastAttempt: new Date(),
-              },
-            };
+        mediaRecorder.onstop = async () => {
+          stream.getTracks().forEach((track) => track.stop());
+          const audioBlob = new Blob(audioChunksRef.current, {
+            type: "audio/webm",
           });
 
-          setPronunciationResult({
-            transcript,
-            targetWord: referenceText,
-            accuracy: syllableScore,
-            isCorrect: syllableScore >= 70,
-            error: false,
-            words: [],
-          });
+          if (audioBlob.size < 1000) {
+            setPronunciationResult({
+              transcript: "Recording too short — speak louder",
+              targetWord: currentFlashcard?.front,
+              accuracy: 0,
+              isCorrect: false,
+              error: true,
+            });
+            setTimeout(() => setPronunciationResult(null), 3000);
+            return;
+          }
 
-          playFeedback(syllableScore >= 80);
-          setIsRecording(false);
-          recognitionRef.current = null;
+          setPronunciationResult({ loading: true });
+
+          try {
+            const res = await fetch("/api/transcribe", {
+              method: "POST",
+              body: audioBlob,
+            });
+            const data = await res.json();
+
+            if (data.success && data.text) {
+              const referenceText = currentFlashcard?.front || "";
+              const transcript = data.text;
+              const referenceLower = referenceText.toLowerCase().trim();
+              const transcriptLower = transcript.toLowerCase().trim();
+
+              // Score: exact/contains match uses confidence, otherwise string similarity
+              let syllableScore;
+              if (
+                transcriptLower === referenceLower ||
+                transcriptLower.includes(referenceLower) ||
+                referenceLower.includes(transcriptLower)
+              ) {
+                syllableScore = Math.max(
+                  70,
+                  Math.round((data.confidence || 0.8) * 100)
+                );
+              } else {
+                // Levenshtein similarity
+                const maxLen = Math.max(
+                  referenceLower.length,
+                  transcriptLower.length
+                );
+                if (maxLen === 0) {
+                  syllableScore = 0;
+                } else {
+                  const dp = Array.from(
+                    { length: transcriptLower.length + 1 },
+                    (_, i) => [i]
+                  );
+                  for (let j = 0; j <= referenceLower.length; j++)
+                    dp[0][j] = j;
+                  for (let i = 1; i <= transcriptLower.length; i++) {
+                    for (let j = 1; j <= referenceLower.length; j++) {
+                      const cost =
+                        transcriptLower[i - 1] === referenceLower[j - 1]
+                          ? 0
+                          : 1;
+                      dp[i][j] = Math.min(
+                        dp[i - 1][j] + 1,
+                        dp[i][j - 1] + 1,
+                        dp[i - 1][j - 1] + cost
+                      );
+                    }
+                  }
+                  const dist =
+                    dp[transcriptLower.length][referenceLower.length];
+                  syllableScore = Math.round(
+                    ((maxLen - dist) / maxLen) * 100
+                  );
+                }
+              }
+
+              // Update card scores
+              const cardId = currentFlashcard?.id;
+              setCardScores((prev) => {
+                const existing = prev[cardId];
+                const newBestScore = existing
+                  ? Math.max(existing.bestScore, syllableScore)
+                  : syllableScore;
+                const newAttempts = existing ? existing.attempts + 1 : 1;
+                return {
+                  ...prev,
+                  [cardId]: {
+                    word: currentFlashcard?.front,
+                    bestScore: newBestScore,
+                    attempts: newAttempts,
+                    lastAttempt: new Date(),
+                  },
+                };
+              });
+
+              setPronunciationResult({
+                transcript,
+                targetWord: referenceText,
+                accuracy: syllableScore,
+                isCorrect: syllableScore >= 70,
+                error: false,
+                words: [],
+              });
+
+              playFeedback(syllableScore >= 80);
+            } else {
+              setPronunciationResult({
+                transcript: data.error || "No speech detected",
+                targetWord: currentFlashcard?.front,
+                accuracy: 0,
+                isCorrect: false,
+                error: true,
+              });
+            }
+          } catch (err) {
+            console.error("Transcription error:", err);
+            setPronunciationResult({
+              transcript: "Transcription failed — check connection",
+              targetWord: currentFlashcard?.front,
+              accuracy: 0,
+              isCorrect: false,
+              error: true,
+            });
+          }
 
           setTimeout(() => setPronunciationResult(null), 5000);
         };
 
-        recognition.onerror = (event) => {
-          console.error("Speech recognition error:", event.error);
+        mediaRecorder.onerror = (error) => {
+          console.error("MediaRecorder error:", error);
+          stream.getTracks().forEach((track) => track.stop());
           setIsRecording(false);
-          recognitionRef.current = null;
           setPronunciationResult({
-            transcript: "Could not recognize speech",
+            transcript: "Recording error",
             targetWord: currentFlashcard?.front,
             accuracy: 0,
             isCorrect: false,
@@ -787,22 +869,19 @@ const FlashcardExercise = () => {
           setTimeout(() => setPronunciationResult(null), 3000);
         };
 
-        recognition.onend = () => {
-          setIsRecording(false);
-          recognitionRef.current = null;
-        };
+        mediaRecorder.start(100);
+        setIsRecording(true);
 
-        recognition.start();
-
-        // Auto-stop after 5 seconds (same as Azure path)
+        // Auto-stop after 5 seconds
         setTimeout(() => {
-          if (recognitionRef.current) {
-            recognitionRef.current.stop();
+          if (mediaRecorder.state === "recording") {
+            mediaRecorder.stop();
+            setIsRecording(false);
           }
         }, 5000);
       } catch (error) {
-        console.error("Error with speech recognition:", error);
-        alert("Speech recognition failed. Please check permissions.");
+        console.error("Error accessing microphone:", error);
+        alert("Failed to access microphone. Please check permissions.");
         setIsRecording(false);
       }
     } else {
