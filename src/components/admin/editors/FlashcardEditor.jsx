@@ -9,6 +9,26 @@ import {
   Video,
 } from 'lucide-react'
 
+const getYouTubeVideoId = (raw) => {
+  if (!raw) return null;
+  const m1 = raw.match(/[?&]v=([a-zA-Z0-9_-]{11})/);
+  if (m1?.[1]) return m1[1];
+  const m2 = raw.match(/youtu\.be\/([a-zA-Z0-9_-]{11})/);
+  if (m2?.[1]) return m2[1];
+  const m3 = raw.match(/youtube\.com\/embed\/([a-zA-Z0-9_-]{11})/);
+  if (m3?.[1]) return m3[1];
+  const m4 = raw.match(/youtube\.com\/shorts\/([a-zA-Z0-9_-]{11})/);
+  if (m4?.[1]) return m4[1];
+  return null;
+};
+
+const getTikTokVideoId = (raw) => {
+  if (!raw) return null;
+  const m1 = raw.match(/\/video\/(\d{10,25})/);
+  if (m1?.[1]) return m1[1];
+  return null;
+};
+
 const FlashcardEditor = ({ cards, onCardsChange }) => {
   const [localCards, setLocalCards] = useState(cards || [])
   const [showCSVImport, setShowCSVImport] = useState(false)
@@ -314,15 +334,41 @@ const FlashcardEditor = ({ cards, onCardsChange }) => {
                       {/* Video Thumbnail */}
                       {videoUrl && (
                         <div className="flex-shrink-0">
-                          <video
-                            src={videoUrl}
-                            className="w-20 h-20 rounded border object-cover cursor-pointer hover:opacity-80 transition-opacity"
-                            onClick={(e) => {
-                              e.target.requestFullscreen?.() || e.target.webkitRequestFullscreen?.()
-                            }}
-                            onError={(e) => e.target.style.display = 'none'}
-                            title="Click to view fullscreen"
-                          />
+                          {getYouTubeVideoId(videoUrl) ? (
+                            <a
+                              href={videoUrl}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="block w-20 h-20 rounded border overflow-hidden hover:opacity-80 transition-opacity"
+                              title="Open YouTube video"
+                            >
+                              <img
+                                src={`https://img.youtube.com/vi/${getYouTubeVideoId(videoUrl)}/mqdefault.jpg`}
+                                alt="YouTube thumbnail"
+                                className="w-full h-full object-cover"
+                              />
+                            </a>
+                          ) : getTikTokVideoId(videoUrl) ? (
+                            <a
+                              href={videoUrl}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="flex w-20 h-20 rounded border bg-black items-center justify-center hover:opacity-80 transition-opacity"
+                              title="Open TikTok video"
+                            >
+                              <span className="text-white text-xs font-bold">TikTok</span>
+                            </a>
+                          ) : (
+                            <video
+                              src={videoUrl}
+                              className="w-20 h-20 rounded border object-cover cursor-pointer hover:opacity-80 transition-opacity"
+                              onClick={(e) => {
+                                e.target.requestFullscreen?.() || e.target.webkitRequestFullscreen?.()
+                              }}
+                              onError={(e) => e.target.style.display = 'none'}
+                              title="Click to view fullscreen"
+                            />
+                          )}
                         </div>
                       )}
                       <div className="flex-1">
@@ -331,7 +377,7 @@ const FlashcardEditor = ({ cards, onCardsChange }) => {
                           value={videoUrl || ''}
                           onChange={(e) => updateVideoUrl(index, videoIndex, e.target.value)}
                           className="w-full p-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 text-sm"
-                          placeholder="https://example.com/video.mp4"
+                          placeholder="https://youtube.com/watch?v=... or video.mp4"
                         />
                       </div>
                       <button

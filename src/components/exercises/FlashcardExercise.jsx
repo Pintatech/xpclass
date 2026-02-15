@@ -53,6 +53,52 @@ const getThemeSideImages = (theme) => {
   return themeSideImages[theme] || themeSideImages.blue
 }
 
+// Helper to detect YouTube URLs and extract video ID
+const getYouTubeVideoId = (raw) => {
+  if (!raw) return null;
+  // youtube.com/watch?v=ID
+  const m1 = raw.match(/[?&]v=([a-zA-Z0-9_-]{11})/);
+  if (m1?.[1]) return m1[1];
+  // youtu.be/ID
+  const m2 = raw.match(/youtu\.be\/([a-zA-Z0-9_-]{11})/);
+  if (m2?.[1]) return m2[1];
+  // youtube.com/embed/ID
+  const m3 = raw.match(/youtube\.com\/embed\/([a-zA-Z0-9_-]{11})/);
+  if (m3?.[1]) return m3[1];
+  // youtube.com/shorts/ID
+  const m4 = raw.match(/youtube\.com\/shorts\/([a-zA-Z0-9_-]{11})/);
+  if (m4?.[1]) return m4[1];
+  return null;
+};
+
+const isYouTubeShort = (raw) => {
+  if (!raw) return false;
+  return /youtube\.com\/shorts\//.test(raw);
+};
+
+// Returns the aspect class for a video URL in video mode
+const getVideoAspectClass = (url) => {
+  if (getTikTokVideoId(url) || isYouTubeShort(url)) return "aspect-[9/16] md:aspect-square";
+  if (getYouTubeVideoId(url)) return "aspect-video md:aspect-square";
+  return "aspect-square";
+};
+
+const YouTubeEmbed = ({ videoId }) => {
+  if (!videoId) return null;
+  return (
+    <div className="w-full h-full relative bg-black">
+      <iframe
+        src={`https://www.youtube.com/embed/${videoId}?autoplay=1&mute=1&rel=0`}
+        className="w-full h-full"
+        allow="autoplay; encrypted-media; fullscreen"
+        allowFullScreen
+        title="YouTube Player"
+        style={{ border: 'none' }}
+      />
+    </div>
+  );
+};
+
 // Helper to detect TikTok URLs and extract video ID
 const getTikTokVideoId = (raw) => {
   if (!raw) return null;
@@ -1268,15 +1314,15 @@ const FlashcardExercise = () => {
                 {/* Card Content - Front or Back */}
                 <div
                   className={`flip-card-inner ${
-                    mediaMode === "video" && getTikTokVideoId(currentFlashcard?.videoUrls?.[currentVideoIndex])
-                      ? "aspect-[9/16] md:aspect-square"
+                    mediaMode === "video"
+                      ? getVideoAspectClass(currentFlashcard?.videoUrls?.[currentVideoIndex])
                       : "aspect-square"
                   } ${isFlipped ? "flipped" : ""}`}
                 >
                   {/* Front Face */}
                   <div className={`flip-card-front ${
-                    mediaMode === "video" && getTikTokVideoId(currentFlashcard?.videoUrls?.[currentVideoIndex])
-                      ? "aspect-[9/16] md:aspect-square"
+                    mediaMode === "video"
+                      ? getVideoAspectClass(currentFlashcard?.videoUrls?.[currentVideoIndex])
                       : "aspect-square"
                   } relative`}>
                     {mediaMode === "image" ? (
@@ -1391,6 +1437,10 @@ const FlashcardExercise = () => {
                           <TikTokEmbed
                             videoId={getTikTokVideoId(currentFlashcard?.videoUrls?.[currentVideoIndex])}
                           />
+                        ) : getYouTubeVideoId(currentFlashcard?.videoUrls?.[currentVideoIndex]) ? (
+                          <YouTubeEmbed
+                            videoId={getYouTubeVideoId(currentFlashcard?.videoUrls?.[currentVideoIndex])}
+                          />
                         ) : (
                           <video
                             ref={(el) => {
@@ -1414,8 +1464,8 @@ const FlashcardExercise = () => {
                             }}
                           />
                         )}
-                        {/* Text overlay - only for non-TikTok videos */}
-                        {!getTikTokVideoId(currentFlashcard?.videoUrls?.[currentVideoIndex]) && (
+                        {/* Text overlay - only for non-TikTok/YouTube videos */}
+                        {!getTikTokVideoId(currentFlashcard?.videoUrls?.[currentVideoIndex]) && !getYouTubeVideoId(currentFlashcard?.videoUrls?.[currentVideoIndex]) && (
                           <div className="absolute inset-0 bg-black/30 flex items-center justify-center px-4 pointer-events-none">
                             <div className="text-center text-white">
                               <h2 className="text-2xl sm:text-3xl md:text-4xl lg:text-5xl font-bold mb-2 drop-shadow-lg break-words max-w-full">
@@ -1449,6 +1499,10 @@ const FlashcardExercise = () => {
                                     <div className="w-full h-full bg-black flex items-center justify-center">
                                       <span className="text-white text-xs font-bold">TT</span>
                                     </div>
+                                  ) : getYouTubeVideoId(videoUrl) ? (
+                                    <div className="w-full h-full bg-red-600 flex items-center justify-center">
+                                      <span className="text-white text-xs font-bold">YT</span>
+                                    </div>
                                   ) : (
                                     <video
                                       src={videoUrl}
@@ -1470,8 +1524,8 @@ const FlashcardExercise = () => {
 
                   {/* Back Face */}
                   <div className={`flip-card-back ${
-                    mediaMode === "video" && getTikTokVideoId(currentFlashcard?.videoUrls?.[currentVideoIndex])
-                      ? "aspect-[9/16] md:aspect-square"
+                    mediaMode === "video"
+                      ? getVideoAspectClass(currentFlashcard?.videoUrls?.[currentVideoIndex])
                       : "aspect-square"
                   } relative`}>
                     {mediaMode === "image" ? (
@@ -1495,6 +1549,10 @@ const FlashcardExercise = () => {
                         {getTikTokVideoId(currentFlashcard?.videoUrls?.[currentVideoIndex]) ? (
                           <TikTokEmbed
                             videoId={getTikTokVideoId(currentFlashcard?.videoUrls?.[currentVideoIndex])}
+                          />
+                        ) : getYouTubeVideoId(currentFlashcard?.videoUrls?.[currentVideoIndex]) ? (
+                          <YouTubeEmbed
+                            videoId={getYouTubeVideoId(currentFlashcard?.videoUrls?.[currentVideoIndex])}
                           />
                         ) : (
                           <>
