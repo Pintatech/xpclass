@@ -61,7 +61,7 @@ const PetDisplay = () => {
   } = usePet();
   const { inventory } = useInventory();
   const { profile } = useAuth();
-  const { getEquippedItemsXPBonus } = useProgress();
+  const { getEquippedItemsXPBonus, addXP } = useProgress();
   const [showFeedMenu, setShowFeedMenu] = useState(false);
   const [message, setMessage] = useState(null);
   const [chatBubble, setChatBubble] = useState(null);
@@ -331,6 +331,7 @@ const PetDisplay = () => {
     if (result.success) {
       const xpGained = result.xp_gained || 10;
       triggerPlayAnimation(xpGained);
+      await addXP(10);
 
       setTimeout(() => {
         const trainSound = new Audio('https://xpclass.vn/xpclass/sound/pet-training.mp3');
