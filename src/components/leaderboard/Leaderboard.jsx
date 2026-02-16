@@ -548,7 +548,6 @@ const Leaderboard = () => {
           {[
             { key: 'week', label: 'Tuần này' },
             { key: 'month', label: 'Tháng này' },
-            { key: 'all', label: 'Tất cả' },
             { key: 'banh_chung', label: 'Bánh chưng' }
           ].map((option) => (
             <Button

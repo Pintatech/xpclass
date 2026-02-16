@@ -1482,6 +1482,8 @@ DECLARE
   drop_qty integer;
   received_items jsonb := '[]'::jsonb;
   i integer;
+  reward_type text;
+  shop_item_record record;
 BEGIN
   -- Verify ownership and unopened status
   SELECT uc.*, c.loot_table, c.guaranteed_items, c.items_per_open, c.name as chest_name
@@ -1498,15 +1500,43 @@ BEGIN
   IF user_chest_record.guaranteed_items IS NOT NULL AND jsonb_array_length(user_chest_record.guaranteed_items) > 0 THEN
     FOR guaranteed_entry IN SELECT * FROM jsonb_array_elements(user_chest_record.guaranteed_items)
     LOOP
-      selected_item_id := (guaranteed_entry->>'item_id')::uuid;
+      reward_type := COALESCE(guaranteed_entry->>'reward_type', 'item');
       drop_qty := COALESCE((guaranteed_entry->>'quantity')::integer, 1);
 
-      INSERT INTO user_inventory (user_id, user_name, item_id, item_name, quantity)
-      VALUES (p_user_id, (SELECT full_name FROM users WHERE id = p_user_id), selected_item_id, (SELECT name FROM collectible_items WHERE id = selected_item_id), drop_qty)
-      ON CONFLICT (user_id, item_id)
-      DO UPDATE SET quantity = user_inventory.quantity + drop_qty, updated_at = now();
-
-      received_items := received_items || jsonb_build_object('item_id', selected_item_id, 'quantity', drop_qty, 'source', 'guaranteed');
+      IF reward_type = 'xp' THEN
+        UPDATE users SET xp = xp + drop_qty WHERE id = p_user_id;
+        received_items := received_items || jsonb_build_object(
+          'reward_type', 'xp', 'quantity', drop_qty, 'source', 'guaranteed',
+          'name', drop_qty || ' XP', 'rarity', 'epic', 'item_type', 'xp', 'image_url', ''
+        );
+      ELSIF reward_type = 'gems' THEN
+        UPDATE users SET gems = gems + drop_qty WHERE id = p_user_id;
+        received_items := received_items || jsonb_build_object(
+          'reward_type', 'gems', 'quantity', drop_qty, 'source', 'guaranteed',
+          'name', drop_qty || ' Gems', 'rarity', 'rare', 'item_type', 'gems', 'image_url', ''
+        );
+      ELSIF reward_type = 'shop_item' THEN
+        selected_item_id := (guaranteed_entry->>'shop_item_id')::uuid;
+        SELECT * INTO shop_item_record FROM shop_items WHERE id = selected_item_id;
+        IF shop_item_record IS NOT NULL THEN
+          INSERT INTO user_purchases (user_id, item_id)
+          VALUES (p_user_id, selected_item_id)
+          ON CONFLICT (user_id, item_id) DO NOTHING;
+          received_items := received_items || jsonb_build_object(
+            'reward_type', 'shop_item', 'shop_item_id', selected_item_id, 'quantity', 1, 'source', 'guaranteed',
+            'name', shop_item_record.name, 'rarity', 'legendary', 'item_type', 'shop_item',
+            'image_url', COALESCE(shop_item_record.image_url, '')
+          );
+        END IF;
+      ELSE
+        -- Default: inventory item
+        selected_item_id := (guaranteed_entry->>'item_id')::uuid;
+        INSERT INTO user_inventory (user_id, user_name, item_id, item_name, quantity)
+        VALUES (p_user_id, (SELECT full_name FROM users WHERE id = p_user_id), selected_item_id, (SELECT name FROM collectible_items WHERE id = selected_item_id), drop_qty)
+        ON CONFLICT (user_id, item_id)
+        DO UPDATE SET quantity = user_inventory.quantity + drop_qty, updated_at = now();
+        received_items := received_items || jsonb_build_object('item_id', selected_item_id, 'quantity', drop_qty, 'source', 'guaranteed', 'reward_type', 'item');
+      END IF;
     END LOOP;
   END IF;
 
@@ -1529,18 +1559,47 @@ BEGIN
       LOOP
         cumulative_weight := cumulative_weight + COALESCE((loot_entry->>'weight')::integer, 1);
         IF roll <= cumulative_weight THEN
-          selected_item_id := (loot_entry->>'item_id')::uuid;
+          reward_type := COALESCE(loot_entry->>'reward_type', 'item');
           drop_qty := COALESCE((loot_entry->>'min_qty')::integer, 1);
           IF (loot_entry->>'max_qty') IS NOT NULL THEN
             drop_qty := drop_qty + floor(random() * ((loot_entry->>'max_qty')::integer - drop_qty + 1))::integer;
           END IF;
 
-          INSERT INTO user_inventory (user_id, user_name, item_id, item_name, quantity)
-          VALUES (p_user_id, (SELECT full_name FROM users WHERE id = p_user_id), selected_item_id, (SELECT name FROM collectible_items WHERE id = selected_item_id), drop_qty)
-          ON CONFLICT (user_id, item_id)
-          DO UPDATE SET quantity = user_inventory.quantity + drop_qty, updated_at = now();
+          IF reward_type = 'xp' THEN
+            UPDATE users SET xp = xp + drop_qty WHERE id = p_user_id;
+            received_items := received_items || jsonb_build_object(
+              'reward_type', 'xp', 'quantity', drop_qty, 'source', 'random',
+              'name', drop_qty || ' XP', 'rarity', 'epic', 'item_type', 'xp', 'image_url', ''
+            );
+          ELSIF reward_type = 'gems' THEN
+            UPDATE users SET gems = gems + drop_qty WHERE id = p_user_id;
+            received_items := received_items || jsonb_build_object(
+              'reward_type', 'gems', 'quantity', drop_qty, 'source', 'random',
+              'name', drop_qty || ' Gems', 'rarity', 'rare', 'item_type', 'gems', 'image_url', ''
+            );
+          ELSIF reward_type = 'shop_item' THEN
+            selected_item_id := (loot_entry->>'shop_item_id')::uuid;
+            SELECT * INTO shop_item_record FROM shop_items WHERE id = selected_item_id;
+            IF shop_item_record IS NOT NULL THEN
+              INSERT INTO user_purchases (user_id, item_id)
+              VALUES (p_user_id, selected_item_id)
+              ON CONFLICT (user_id, item_id) DO NOTHING;
+              received_items := received_items || jsonb_build_object(
+                'reward_type', 'shop_item', 'shop_item_id', selected_item_id, 'quantity', 1, 'source', 'random',
+                'name', shop_item_record.name, 'rarity', 'legendary', 'item_type', 'shop_item',
+                'image_url', COALESCE(shop_item_record.image_url, '')
+              );
+            END IF;
+          ELSE
+            -- Default: inventory item
+            selected_item_id := (loot_entry->>'item_id')::uuid;
+            INSERT INTO user_inventory (user_id, user_name, item_id, item_name, quantity)
+            VALUES (p_user_id, (SELECT full_name FROM users WHERE id = p_user_id), selected_item_id, (SELECT name FROM collectible_items WHERE id = selected_item_id), drop_qty)
+            ON CONFLICT (user_id, item_id)
+            DO UPDATE SET quantity = user_inventory.quantity + drop_qty, updated_at = now();
+            received_items := received_items || jsonb_build_object('item_id', selected_item_id, 'quantity', drop_qty, 'source', 'random', 'reward_type', 'item');
+          END IF;
 
-          received_items := received_items || jsonb_build_object('item_id', selected_item_id, 'quantity', drop_qty, 'source', 'random');
           EXIT;
         END IF;
       END LOOP;
@@ -1553,21 +1612,40 @@ BEGIN
   WHERE id = p_user_chest_id;
 
   -- Return received items with details
+  -- For inventory items, join with collectible_items; for other types, use embedded fields
   RETURN json_build_object(
     'success', true,
     'chest_name', user_chest_record.chest_name,
     'items', (
-      SELECT json_agg(json_build_object(
-        'item_id', ri->>'item_id',
-        'quantity', (ri->>'quantity')::integer,
-        'source', ri->>'source',
-        'name', ci.name,
-        'image_url', ci.image_url,
-        'rarity', ci.rarity,
-        'item_type', ci.item_type
-      ))
+      SELECT json_agg(
+        CASE
+          WHEN ri->>'reward_type' IN ('xp', 'gems', 'shop_item') THEN
+            json_build_object(
+              'item_id', COALESCE(ri->>'item_id', ri->>'shop_item_id'),
+              'quantity', (ri->>'quantity')::integer,
+              'source', ri->>'source',
+              'name', ri->>'name',
+              'image_url', ri->>'image_url',
+              'rarity', ri->>'rarity',
+              'item_type', ri->>'item_type',
+              'reward_type', ri->>'reward_type'
+            )
+          ELSE
+            json_build_object(
+              'item_id', ri->>'item_id',
+              'quantity', (ri->>'quantity')::integer,
+              'source', ri->>'source',
+              'name', ci.name,
+              'image_url', ci.image_url,
+              'rarity', ci.rarity,
+              'item_type', ci.item_type,
+              'reward_type', 'item'
+            )
+        END
+      )
       FROM jsonb_array_elements(received_items) ri
-      JOIN collectible_items ci ON ci.id = (ri->>'item_id')::uuid
+      LEFT JOIN collectible_items ci ON ci.id = (ri->>'item_id')::uuid
+        AND COALESCE(ri->>'reward_type', 'item') = 'item'
     )
   );
 END;

@@ -690,6 +690,7 @@ const InventoryManagement = () => {
                 editing={!!editingRecord}
                 saving={saving}
                 items={items}
+                shopItems={shopItems}
               />
             )}
             {activeSubTab === 'recipes' && (
@@ -783,7 +784,7 @@ const ItemForm = ({ formData, setFormData, onSubmit, onClose, editing, saving })
   </form>
 )
 
-const ChestForm = ({ formData, setFormData, onSubmit, onClose, editing, saving, items }) => {
+const ChestForm = ({ formData, setFormData, onSubmit, onClose, editing, saving, items, shopItems }) => {
   const parseLootTable = () => {
     try { return JSON.parse(formData.loot_table) } catch { return [] }
   }
@@ -800,6 +801,13 @@ const ChestForm = ({ formData, setFormData, onSubmit, onClose, editing, saving, 
   const lootEntries = parseLootTable()
   const guaranteedEntries = parseGuaranteedItems()
   const totalWeight = lootEntries.reduce((sum, e) => sum + (Number(e.weight) || 0), 0)
+
+  const rewardTypeOptions = [
+    { value: 'item', label: 'Item' },
+    { value: 'xp', label: 'XP' },
+    { value: 'gems', label: 'Gems' },
+    { value: 'shop_item', label: 'Shop Item' },
+  ]
 
   const inputClass = "w-full px-2 py-1.5 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm"
 
@@ -851,20 +859,57 @@ const ChestForm = ({ formData, setFormData, onSubmit, onClose, editing, saving, 
           <div className="space-y-2">
             {lootEntries.map((entry, idx) => {
               const pct = totalWeight > 0 ? ((Number(entry.weight) || 0) / totalWeight * 100).toFixed(1) : '0.0'
+              const rt = entry.reward_type || 'item'
               return (
                 <div key={idx} className="flex items-center gap-2">
-                  <div className="flex-1 min-w-0">
-                    {idx === 0 && <div className="text-xs text-gray-500 mb-1">Item</div>}
-                    <select value={entry.item_id || ''} onChange={e => {
+                  <div className="w-24">
+                    {idx === 0 && <div className="text-xs text-gray-500 mb-1">Type</div>}
+                    <select value={rt} onChange={e => {
                       const updated = [...lootEntries]
-                      updated[idx] = { ...updated[idx], item_id: e.target.value }
+                      const newType = e.target.value
+                      updated[idx] = { ...updated[idx], reward_type: newType }
+                      if (newType === 'xp' || newType === 'gems') {
+                        delete updated[idx].item_id
+                        delete updated[idx].shop_item_id
+                      } else if (newType === 'shop_item') {
+                        delete updated[idx].item_id
+                      } else {
+                        delete updated[idx].shop_item_id
+                      }
                       updateLootTable(updated)
-                    }} className={`${inputClass} w-full`}>
-                      <option value="">-- Select Item --</option>
-                      {items.map(item => (
-                        <option key={item.id} value={item.id}>{item.name}</option>
-                      ))}
+                    }} className={`${inputClass}`}>
+                      {rewardTypeOptions.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
                     </select>
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    {idx === 0 && <div className="text-xs text-gray-500 mb-1">{rt === 'xp' || rt === 'gems' ? 'Amount' : 'Item'}</div>}
+                    {rt === 'item' && (
+                      <select value={entry.item_id || ''} onChange={e => {
+                        const updated = [...lootEntries]
+                        updated[idx] = { ...updated[idx], item_id: e.target.value }
+                        updateLootTable(updated)
+                      }} className={`${inputClass} w-full`}>
+                        <option value="">-- Select Item --</option>
+                        {items.map(item => (
+                          <option key={item.id} value={item.id}>{item.name}</option>
+                        ))}
+                      </select>
+                    )}
+                    {rt === 'shop_item' && (
+                      <select value={entry.shop_item_id || ''} onChange={e => {
+                        const updated = [...lootEntries]
+                        updated[idx] = { ...updated[idx], shop_item_id: e.target.value }
+                        updateLootTable(updated)
+                      }} className={`${inputClass} w-full`}>
+                        <option value="">-- Select Shop Item --</option>
+                        {(shopItems || []).map(si => (
+                          <option key={si.id} value={si.id}>{si.name} ({si.category})</option>
+                        ))}
+                      </select>
+                    )}
+                    {(rt === 'xp' || rt === 'gems') && (
+                      <div className="text-xs text-gray-400 py-1.5 px-2">Use Min/Max for amount</div>
+                    )}
                   </div>
                   <div className="w-20">
                     {idx === 0 && <div className="text-xs text-gray-500 mb-1 text-center">Weight</div>}
@@ -906,54 +951,93 @@ const ChestForm = ({ formData, setFormData, onSubmit, onClose, editing, saving, 
               )
             })}
             <button type="button" onClick={() => {
-              updateLootTable([...lootEntries, { item_id: '', weight: 10, min_qty: 1, max_qty: 1 }])
+              updateLootTable([...lootEntries, { reward_type: 'item', item_id: '', weight: 10, min_qty: 1, max_qty: 1 }])
             }} className="flex items-center gap-1.5 text-sm text-blue-600 hover:text-blue-800 mt-1">
-              <Plus size={14} /> Add Item
+              <Plus size={14} /> Add Loot Entry
             </button>
           </div>
         </div>
 
         {/* Guaranteed Items Visual Editor */}
         <div className="md:col-span-2">
-          <label className="block text-sm font-medium text-gray-700 mb-2">Guaranteed Items</label>
+          <label className="block text-sm font-medium text-gray-700 mb-2">Guaranteed Rewards</label>
           <div className="space-y-2">
-            {guaranteedEntries.map((entry, idx) => (
-              <div key={idx} className="flex items-center gap-2">
-                <div className="flex-1 min-w-0">
-                  {idx === 0 && <div className="text-xs text-gray-500 mb-1">Item</div>}
-                  <select value={entry.item_id || ''} onChange={e => {
-                    const updated = [...guaranteedEntries]
-                    updated[idx] = { ...updated[idx], item_id: e.target.value }
-                    updateGuaranteedItems(updated)
-                  }} className={`${inputClass} w-full`}>
-                    <option value="">-- Select Item --</option>
-                    {items.map(item => (
-                      <option key={item.id} value={item.id}>{item.name}</option>
-                    ))}
-                  </select>
+            {guaranteedEntries.map((entry, idx) => {
+              const rt = entry.reward_type || 'item'
+              return (
+                <div key={idx} className="flex items-center gap-2">
+                  <div className="w-24">
+                    {idx === 0 && <div className="text-xs text-gray-500 mb-1">Type</div>}
+                    <select value={rt} onChange={e => {
+                      const updated = [...guaranteedEntries]
+                      const newType = e.target.value
+                      updated[idx] = { ...updated[idx], reward_type: newType }
+                      if (newType === 'xp' || newType === 'gems') {
+                        delete updated[idx].item_id
+                        delete updated[idx].shop_item_id
+                      } else if (newType === 'shop_item') {
+                        delete updated[idx].item_id
+                      } else {
+                        delete updated[idx].shop_item_id
+                      }
+                      updateGuaranteedItems(updated)
+                    }} className={`${inputClass}`}>
+                      {rewardTypeOptions.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
+                    </select>
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    {idx === 0 && <div className="text-xs text-gray-500 mb-1">{rt === 'xp' || rt === 'gems' ? 'Amount' : 'Item'}</div>}
+                    {rt === 'item' && (
+                      <select value={entry.item_id || ''} onChange={e => {
+                        const updated = [...guaranteedEntries]
+                        updated[idx] = { ...updated[idx], item_id: e.target.value }
+                        updateGuaranteedItems(updated)
+                      }} className={`${inputClass} w-full`}>
+                        <option value="">-- Select Item --</option>
+                        {items.map(item => (
+                          <option key={item.id} value={item.id}>{item.name}</option>
+                        ))}
+                      </select>
+                    )}
+                    {rt === 'shop_item' && (
+                      <select value={entry.shop_item_id || ''} onChange={e => {
+                        const updated = [...guaranteedEntries]
+                        updated[idx] = { ...updated[idx], shop_item_id: e.target.value }
+                        updateGuaranteedItems(updated)
+                      }} className={`${inputClass} w-full`}>
+                        <option value="">-- Select Shop Item --</option>
+                        {(shopItems || []).map(si => (
+                          <option key={si.id} value={si.id}>{si.name} ({si.category})</option>
+                        ))}
+                      </select>
+                    )}
+                    {(rt === 'xp' || rt === 'gems') && (
+                      <div className="text-xs text-gray-400 py-1.5 px-2">Set quantity below</div>
+                    )}
+                  </div>
+                  <div className="w-20">
+                    {idx === 0 && <div className="text-xs text-gray-500 mb-1 text-center">Quantity</div>}
+                    <input type="number" value={entry.quantity ?? ''} min="1" placeholder="Qty" onChange={e => {
+                      const updated = [...guaranteedEntries]
+                      updated[idx] = { ...updated[idx], quantity: Number(e.target.value) || 1 }
+                      updateGuaranteedItems(updated)
+                    }} className={`${inputClass} text-center`} />
+                  </div>
+                  <div className="w-8">
+                    {idx === 0 && <div className="text-xs text-gray-500 mb-1">&nbsp;</div>}
+                    <button type="button" onClick={() => {
+                      updateGuaranteedItems(guaranteedEntries.filter((_, i) => i !== idx))
+                    }} className="w-8 h-8 flex items-center justify-center text-red-400 hover:text-red-600 hover:bg-red-50 rounded">
+                      <Trash2 size={14} />
+                    </button>
+                  </div>
                 </div>
-                <div className="w-20">
-                  {idx === 0 && <div className="text-xs text-gray-500 mb-1 text-center">Quantity</div>}
-                  <input type="number" value={entry.quantity ?? ''} min="1" placeholder="Qty" onChange={e => {
-                    const updated = [...guaranteedEntries]
-                    updated[idx] = { ...updated[idx], quantity: Number(e.target.value) || 1 }
-                    updateGuaranteedItems(updated)
-                  }} className={`${inputClass} text-center`} />
-                </div>
-                <div className="w-8">
-                  {idx === 0 && <div className="text-xs text-gray-500 mb-1">&nbsp;</div>}
-                  <button type="button" onClick={() => {
-                    updateGuaranteedItems(guaranteedEntries.filter((_, i) => i !== idx))
-                  }} className="w-8 h-8 flex items-center justify-center text-red-400 hover:text-red-600 hover:bg-red-50 rounded">
-                    <Trash2 size={14} />
-                  </button>
-                </div>
-              </div>
-            ))}
+              )
+            })}
             <button type="button" onClick={() => {
-              updateGuaranteedItems([...guaranteedEntries, { item_id: '', quantity: 1 }])
+              updateGuaranteedItems([...guaranteedEntries, { reward_type: 'item', item_id: '', quantity: 1 }])
             }} className="flex items-center gap-1.5 text-sm text-blue-600 hover:text-blue-800 mt-1">
-              <Plus size={14} /> Add Item
+              <Plus size={14} /> Add Guaranteed Reward
             </button>
           </div>
         </div>

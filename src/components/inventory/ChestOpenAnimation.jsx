@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef } from 'react'
 import { createPortal } from 'react-dom'
-import { Sparkles, Package } from 'lucide-react'
+import { Sparkles, Package, ShoppingBag } from 'lucide-react'
 
 const rarityColors = {
   common: 'from-gray-300 to-gray-400',
@@ -137,7 +137,13 @@ const ChestOpenAnimation = ({ result, chestType, onClose }) => {
                     }`}
                   >
                     <div className="aspect-square bg-white/20 rounded-lg flex items-center justify-center overflow-hidden mb-1.5">
-                      {item.image_url ? (
+                      {item.reward_type === 'xp' ? (
+                        <img src="https://xpclass.vn/xpclass/icon/profile/XP.svg" alt="XP" className="w-10 h-10" />
+                      ) : item.reward_type === 'gems' ? (
+                        <img src="https://xpclass.vn/xpclass/image/study/gem.png" alt="Gems" className="w-10 h-10" />
+                      ) : item.reward_type === 'shop_item' && !item.image_url ? (
+                        <ShoppingBag className="w-8 h-8 text-purple-300" />
+                      ) : item.image_url ? (
                         <img src={item.image_url} alt={item.name} className="w-full h-full object-contain" />
                       ) : (
                         <Package className="w-6 h-6 text-gray-300" />
@@ -151,7 +157,7 @@ const ChestOpenAnimation = ({ result, chestType, onClose }) => {
                         {item.rarity?.toUpperCase()}
                       </span>
                     )}
-                    {idx < revealedCount && item.quantity > 1 && (
+                    {idx < revealedCount && item.quantity > 1 && !item.reward_type?.match(/^(xp|gems)$/) && (
                       <p className="text-[10px] text-white/75 text-center">x{item.quantity}</p>
                     )}
                   </div>
