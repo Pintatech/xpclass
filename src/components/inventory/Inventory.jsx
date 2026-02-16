@@ -6,6 +6,7 @@ import { Package, Box, Layers, Sparkles, Egg, History } from 'lucide-react'
 import ChestOpenAnimation from './ChestOpenAnimation'
 import EggOpenAnimation from '../pet/EggOpenAnimation'
 import CraftingTab from './CraftingTab'
+import GiftcodeRedemption from '../giftcode/GiftcodeRedemption'
 
 const rarityColors = {
   common: 'border-gray-300 bg-gray-50',
@@ -214,9 +215,12 @@ const Inventory = () => {
   return (
     <div className="max-w-4xl mx-auto space-y-6">
       {/* Header */}
-      <div>
-        <h1 className="text-2xl font-bold text-gray-900">Inventory</h1>
-        <p className="text-gray-600">Your collected items, chests, and crafting recipes</p>
+      <div className="flex items-center justify-between">
+        <div>
+          <h1 className="text-2xl font-bold text-gray-900">Inventory</h1>
+          <p className="text-gray-600">Your collected items, chests, and crafting recipes</p>
+        </div>
+        <GiftcodeRedemption />
       </div>
 
       {/* Tabs */}

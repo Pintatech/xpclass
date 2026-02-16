@@ -16,7 +16,9 @@ import {
   ShoppingBag,
   Activity,
   Package,
-  Cat
+  Cat,
+  Gift,
+  Bell
 } from 'lucide-react';
 import { supabase } from '../../supabase/client';
 import { useAuth } from '../../hooks/useAuth';
@@ -36,6 +38,8 @@ import ShopManagement from './ShopManagement';
 import InventoryManagement from './InventoryManagement';
 import DailyChallengeManagement from './DailyChallengeManagement';
 import PetManagement from './PetManagement';
+import GiftcodeManagement from './GiftcodeManagement';
+import NotificationManagement from './NotificationManagement';
 import RecentActivities from './RecentActivities';
 import { useCohorts } from '../../hooks/useCohorts';
 
@@ -192,6 +196,8 @@ const AdminDashboard = () => {
     { id: 'shop', label: 'Shop', icon: ShoppingBag },
     { id: 'inventory', label: 'Inventory', icon: Package },
     { id: 'pets', label: 'Pet Management', icon: Cat },
+    { id: 'giftcodes', label: 'Gift Codes', icon: Gift },
+    { id: 'notifications', label: 'Notifications', icon: Bell },
     { id: 'users', label: 'Users', icon: Users },
     { id: 'activities', label: 'Activities', icon: Activity },
     { id: 'analytics', label: 'Analytics', icon: BarChart3 }
@@ -268,7 +274,8 @@ const AdminDashboard = () => {
                   {activeTab === 'achievements' && 'Manage achievements and badges'}
                   {activeTab === 'shop' && 'Manage shop items and pricing'}
                   {activeTab === 'inventory' && 'Manage collectible items, chests, and recipes'}
-
+                  {activeTab === 'giftcodes' && 'Create and manage gift codes'}
+                  {activeTab === 'notifications' && 'Send announcements to users'}
                   {activeTab === 'users' && 'User management and profiles'}
                   {activeTab === 'activities' && 'Recent student exercise attempts'}
                   {activeTab === 'analytics' && 'Platform analytics and insights'}
@@ -326,6 +333,8 @@ const AdminDashboard = () => {
               <Route path="shop" element={<ShopManagement />} />
               <Route path="inventory" element={<InventoryManagement />} />
               <Route path="pets" element={<PetManagement />} />
+              <Route path="giftcodes" element={<GiftcodeManagement />} />
+              <Route path="notifications" element={<NotificationManagement />} />
               {/* Redirect legacy exercises path to bank */}
               <Route path="exercises" element={<ExerciseBank />} />
               <Route path="users" element={<UserManagement />} />

@@ -219,6 +219,24 @@ export const useDailyChallenge = () => {
       })
 
       if (error) throw error
+
+      // Create notification for challenge result
+      if (data?.success && data?.is_passing && profile?.id) {
+        try {
+          const rankText = data.rank ? `Hạng ${data.rank}` : ''
+          await supabase.from('notifications').insert([{
+            user_id: profile.id,
+            type: 'daily_challenge_result',
+            title: 'Thử thách hàng ngày',
+            message: `Bạn đạt ${score} điểm${rankText ? ` - ${rankText}` : ''}! +${data.xp_awarded || 0} XP`,
+            icon: 'Trophy',
+            data: { challenge_id: challengeId, score, rank: data.rank }
+          }])
+        } catch (e) {
+          console.error('Error creating challenge notification:', e)
+        }
+      }
+
       return data
     } catch (err) {
       console.error('Error recording participation:', err)

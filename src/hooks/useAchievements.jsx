@@ -98,9 +98,26 @@ export const useAchievements = () => {
 
       if (error) throw error
       
-      // If new achievements were awarded, refresh the list
+      // If new achievements were awarded, refresh the list and create notifications
       if (data && data.length > 0) {
         await fetchUserAchievements()
+
+        // Create notifications for each new achievement
+        for (const achievement of data) {
+          try {
+            await supabase.from('notifications').insert([{
+              user_id: user.id,
+              type: 'achievement_earned',
+              title: 'Thành tựu mới!',
+              message: `Bạn đã đạt được "${achievement.title || 'Thành tựu'}"`,
+              icon: 'Trophy',
+              data: { achievement_id: achievement.id || achievement.achievement_id }
+            }])
+          } catch (e) {
+            console.error('Error creating achievement notification:', e)
+          }
+        }
+
         return data // Return newly earned achievements for notifications
       }
       

@@ -1,3 +1,4 @@
+import { useState, useRef, useEffect } from 'react'
 import { Link, useLocation } from 'react-router-dom'
 import { useAuth } from '../../hooks/useAuth'
 import { useStudentLevels } from '../../hooks/useStudentLevels'
@@ -7,15 +8,31 @@ import {
   Shield,
   GraduationCap,
   ShoppingBag,
-  Package
+  Package,
+  Bell
 } from 'lucide-react'
 import { useInventory } from '../../hooks/useInventory'
+import { useNotifications } from '../../hooks/useNotifications'
+import NotificationPanel from '../notifications/NotificationPanel'
 
 const LeftSidebar = () => {
   const { profile, signOut, isAdmin, isTeacher } = useAuth()
   const { currentBadge } = useStudentLevels()
   const { newItemCount } = useInventory()
+  const { notifications, unreadCount, markAsRead, markAllAsRead } = useNotifications()
+  const [showNotifPanel, setShowNotifPanel] = useState(false)
+  const notifRef = useRef(null)
   const location = useLocation()
+
+  useEffect(() => {
+    const handleClickOutside = (e) => {
+      if (notifRef.current && !notifRef.current.contains(e.target)) {
+        setShowNotifPanel(false)
+      }
+    }
+    if (showNotifPanel) document.addEventListener('mousedown', handleClickOutside)
+    return () => document.removeEventListener('mousedown', handleClickOutside)
+  }, [showNotifPanel])
 
   const navItems = [
     { path: '/', imageSrc: 'https://xpclass.vn/xpclass/icon/navigation/home.svg', label: 'Trang chủ' },
@@ -153,6 +170,40 @@ const LeftSidebar = () => {
 
           {/* Bottom Actions */}
           <div className="p-4 border-t border-gray-200 space-y-1">
+            {/* Notification Bell */}
+            <div className="relative" ref={notifRef}>
+              <button
+                onClick={() => setShowNotifPanel(!showNotifPanel)}
+                className={`w-full flex items-center space-x-3 px-4 py-3 rounded-lg transition-all ${
+                  showNotifPanel
+                    ? 'bg-primary-100 text-primary-700 font-medium shadow-sm'
+                    : 'text-gray-600 hover:text-primary-600 hover:bg-gray-100'
+                }`}
+              >
+                <div className="relative">
+                  <Bell size={22} />
+                  {unreadCount > 0 && (
+                    <span className="absolute -top-1.5 -right-2 bg-red-500 text-white text-[10px] font-bold w-4 h-4 rounded-full flex items-center justify-center">
+                      {unreadCount > 99 ? '99+' : unreadCount}
+                    </span>
+                  )}
+                </div>
+                <span className="font-medium">Thông báo</span>
+              </button>
+
+              {showNotifPanel && (
+                <div className="fixed left-64 bottom-4 w-96 z-50">
+                  <NotificationPanel
+                    notifications={notifications}
+                    onMarkAsRead={markAsRead}
+                    onMarkAllAsRead={markAllAsRead}
+                    onClose={() => setShowNotifPanel(false)}
+                    className="w-full max-h-[70vh] overflow-y-auto"
+                  />
+                </div>
+              )}
+            </div>
+
             <Link
               to="/profile"
               className={`flex items-center space-x-3 px-4 py-3 rounded-lg transition-all ${

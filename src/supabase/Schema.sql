@@ -1870,6 +1870,212 @@ BEGIN
 END;
 $$;
 
+-- ====================================
+-- NOTIFICATION SYSTEM
+-- ====================================
+
+CREATE TABLE IF NOT EXISTS public.notifications (
+  id uuid NOT NULL DEFAULT uuid_generate_v4(),
+  user_id uuid,
+  type text NOT NULL CHECK (type IN (
+    'achievement_earned', 'level_up', 'streak_milestone',
+    'daily_challenge_result', 'admin_announcement',
+    'giftcode_redeemed', 'chest_received', 'item_drop'
+  )),
+  title text NOT NULL,
+  message text NOT NULL,
+  icon text,
+  data jsonb DEFAULT '{}'::jsonb,
+  is_read boolean DEFAULT false,
+  cohort_id uuid,
+  created_at timestamp with time zone DEFAULT now(),
+  expires_at timestamp with time zone,
+  CONSTRAINT notifications_pkey PRIMARY KEY (id),
+  CONSTRAINT notifications_user_id_fkey FOREIGN KEY (user_id) REFERENCES public.users(id) ON DELETE CASCADE,
+  CONSTRAINT notifications_cohort_id_fkey FOREIGN KEY (cohort_id) REFERENCES public.cohorts(id) ON DELETE SET NULL
+);
+
+CREATE INDEX IF NOT EXISTS idx_notifications_user_unread ON public.notifications(user_id, is_read) WHERE is_read = false;
+CREATE INDEX IF NOT EXISTS idx_notifications_user_created ON public.notifications(user_id, created_at DESC);
+CREATE INDEX IF NOT EXISTS idx_notifications_broadcast ON public.notifications(created_at DESC) WHERE user_id IS NULL;
+CREATE INDEX IF NOT EXISTS idx_notifications_cohort ON public.notifications(cohort_id, created_at DESC) WHERE cohort_id IS NOT NULL;
+
+-- Tracks read status for broadcast/cohort notifications per user
+CREATE TABLE IF NOT EXISTS public.notification_reads (
+  id uuid NOT NULL DEFAULT uuid_generate_v4(),
+  notification_id uuid NOT NULL,
+  user_id uuid NOT NULL,
+  read_at timestamp with time zone DEFAULT now(),
+  CONSTRAINT notification_reads_pkey PRIMARY KEY (id),
+  CONSTRAINT notification_reads_unique UNIQUE (notification_id, user_id),
+  CONSTRAINT notification_reads_notification_fkey FOREIGN KEY (notification_id) REFERENCES public.notifications(id) ON DELETE CASCADE,
+  CONSTRAINT notification_reads_user_fkey FOREIGN KEY (user_id) REFERENCES public.users(id) ON DELETE CASCADE
+);
+
+CREATE INDEX IF NOT EXISTS idx_notification_reads_user ON public.notification_reads(user_id);
+
+-- ====================================
+-- GIFTCODE SYSTEM
+-- ====================================
+
+CREATE TABLE IF NOT EXISTS public.giftcodes (
+  id uuid NOT NULL DEFAULT uuid_generate_v4(),
+  code text NOT NULL UNIQUE,
+  description text,
+  rewards jsonb NOT NULL DEFAULT '{}'::jsonb,
+  max_redemptions integer,
+  current_redemptions integer DEFAULT 0,
+  is_single_use boolean DEFAULT false,
+  expires_at timestamp with time zone,
+  is_active boolean DEFAULT true,
+  created_by uuid,
+  created_at timestamp with time zone DEFAULT now(),
+  updated_at timestamp with time zone DEFAULT now(),
+  CONSTRAINT giftcodes_pkey PRIMARY KEY (id),
+  CONSTRAINT giftcodes_created_by_fkey FOREIGN KEY (created_by) REFERENCES public.users(id)
+);
+
+CREATE INDEX IF NOT EXISTS idx_giftcodes_code ON public.giftcodes(code);
+CREATE INDEX IF NOT EXISTS idx_giftcodes_active ON public.giftcodes(is_active, expires_at);
+
+CREATE TABLE IF NOT EXISTS public.giftcode_redemptions (
+  id uuid NOT NULL DEFAULT uuid_generate_v4(),
+  giftcode_id uuid NOT NULL,
+  user_id uuid NOT NULL,
+  redeemed_at timestamp with time zone DEFAULT now(),
+  rewards_granted jsonb,
+  CONSTRAINT giftcode_redemptions_pkey PRIMARY KEY (id),
+  CONSTRAINT giftcode_redemptions_unique UNIQUE (giftcode_id, user_id),
+  CONSTRAINT giftcode_redemptions_giftcode_fkey FOREIGN KEY (giftcode_id) REFERENCES public.giftcodes(id) ON DELETE CASCADE,
+  CONSTRAINT giftcode_redemptions_user_fkey FOREIGN KEY (user_id) REFERENCES public.users(id) ON DELETE CASCADE
+);
+
+CREATE INDEX IF NOT EXISTS idx_giftcode_redemptions_user ON public.giftcode_redemptions(user_id);
+CREATE INDEX IF NOT EXISTS idx_giftcode_redemptions_giftcode ON public.giftcode_redemptions(giftcode_id);
+
+-- ====================================
+-- RPC: Redeem Giftcode
+-- ====================================
+CREATE OR REPLACE FUNCTION redeem_giftcode(p_user_id uuid, p_code text)
+RETURNS json
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = public
+AS $$
+DECLARE
+  v_giftcode record;
+  v_reward_item jsonb;
+  v_total_xp integer := 0;
+  v_total_gems integer := 0;
+BEGIN
+  SELECT * INTO v_giftcode
+  FROM giftcodes
+  WHERE UPPER(code) = UPPER(p_code) AND is_active = true;
+
+  IF v_giftcode IS NULL THEN
+    RETURN json_build_object('success', false, 'error', 'Mã không hợp lệ hoặc đã hết hạn');
+  END IF;
+
+  IF v_giftcode.expires_at IS NOT NULL AND v_giftcode.expires_at < NOW() THEN
+    RETURN json_build_object('success', false, 'error', 'Mã đã hết hạn');
+  END IF;
+
+  IF v_giftcode.is_single_use AND v_giftcode.current_redemptions >= 1 THEN
+    RETURN json_build_object('success', false, 'error', 'Mã đã được sử dụng');
+  END IF;
+
+  IF v_giftcode.max_redemptions IS NOT NULL AND v_giftcode.current_redemptions >= v_giftcode.max_redemptions THEN
+    RETURN json_build_object('success', false, 'error', 'Mã đã hết lượt sử dụng');
+  END IF;
+
+  IF EXISTS (SELECT 1 FROM giftcode_redemptions WHERE giftcode_id = v_giftcode.id AND user_id = p_user_id) THEN
+    RETURN json_build_object('success', false, 'error', 'Bạn đã sử dụng mã này rồi');
+  END IF;
+
+  -- Award XP and gems
+  v_total_xp := COALESCE((v_giftcode.rewards->>'xp')::integer, 0);
+  v_total_gems := COALESCE((v_giftcode.rewards->>'gems')::integer, 0);
+
+  IF v_total_xp > 0 OR v_total_gems > 0 THEN
+    UPDATE users SET xp = xp + v_total_xp, gems = gems + v_total_gems WHERE id = p_user_id;
+  END IF;
+
+  -- Award items
+  IF v_giftcode.rewards->'items' IS NOT NULL THEN
+    FOR v_reward_item IN SELECT * FROM jsonb_array_elements(v_giftcode.rewards->'items')
+    LOOP
+      INSERT INTO user_inventory (user_id, user_name, item_id, item_name, quantity)
+      VALUES (
+        p_user_id,
+        (SELECT full_name FROM users WHERE id = p_user_id),
+        (v_reward_item->>'item_id')::uuid,
+        (SELECT name FROM collectible_items WHERE id = (v_reward_item->>'item_id')::uuid),
+        COALESCE((v_reward_item->>'quantity')::integer, 1)
+      )
+      ON CONFLICT (user_id, item_id)
+      DO UPDATE SET quantity = user_inventory.quantity + COALESCE((v_reward_item->>'quantity')::integer, 1), updated_at = now();
+    END LOOP;
+  END IF;
+
+  -- Award chests
+  IF v_giftcode.rewards->'chests' IS NOT NULL THEN
+    FOR v_reward_item IN SELECT * FROM jsonb_array_elements(v_giftcode.rewards->'chests')
+    LOOP
+      INSERT INTO user_chests (user_id, chest_id, source, source_ref)
+      VALUES (p_user_id, (v_reward_item->>'chest_id')::uuid, 'giftcode', v_giftcode.code);
+    END LOOP;
+  END IF;
+
+  -- Award pets
+  IF v_giftcode.rewards->'pets' IS NOT NULL THEN
+    FOR v_reward_item IN SELECT * FROM jsonb_array_elements(v_giftcode.rewards->'pets')
+    LOOP
+      INSERT INTO user_pets (user_id, pet_id)
+      VALUES (p_user_id, (v_reward_item->>'pet_id')::uuid)
+      ON CONFLICT DO NOTHING;
+    END LOOP;
+  END IF;
+
+  -- Award cosmetics (shop items)
+  IF v_giftcode.rewards->'cosmetics' IS NOT NULL THEN
+    FOR v_reward_item IN SELECT * FROM jsonb_array_elements(v_giftcode.rewards->'cosmetics')
+    LOOP
+      INSERT INTO user_purchases (user_id, item_id)
+      VALUES (p_user_id, (v_reward_item->>'shop_item_id')::uuid)
+      ON CONFLICT (user_id, item_id) DO NOTHING;
+    END LOOP;
+  END IF;
+
+  -- Record redemption
+  INSERT INTO giftcode_redemptions (giftcode_id, user_id, rewards_granted)
+  VALUES (v_giftcode.id, p_user_id, v_giftcode.rewards);
+
+  UPDATE giftcodes SET current_redemptions = current_redemptions + 1, updated_at = now() WHERE id = v_giftcode.id;
+
+  IF v_giftcode.is_single_use THEN
+    UPDATE giftcodes SET is_active = false, updated_at = now() WHERE id = v_giftcode.id;
+  END IF;
+
+  -- Create notification for the user
+  INSERT INTO notifications (user_id, type, title, message, icon, data)
+  VALUES (
+    p_user_id,
+    'giftcode_redeemed',
+    'Nhập mã thành công!',
+    'Bạn đã nhận phần thưởng từ mã ' || v_giftcode.code,
+    'Gift',
+    json_build_object('code', v_giftcode.code, 'rewards', v_giftcode.rewards)::jsonb
+  );
+
+  RETURN json_build_object(
+    'success', true,
+    'rewards', v_giftcode.rewards,
+    'code', v_giftcode.code,
+    'description', v_giftcode.description
+  );
+END;
+$$;
+
 -- Function: Award winners for a single challenge (admin trigger)
 CREATE OR REPLACE FUNCTION award_single_challenge_winners(p_challenge_id uuid)
 RETURNS json
