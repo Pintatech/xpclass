@@ -2392,7 +2392,7 @@ DECLARE
   week_end_date timestamptz;
   champion_user_id uuid;
   champion_score integer;
-  xp_prize integer := 150;
+  gem_prize integer := 1;
 BEGIN
   -- Last week: Monday 00:00 to Sunday 23:59:59 (Vietnam time, converted to UTC)
   week_end_date := (date_trunc('day', NOW() AT TIME ZONE 'Asia/Ho_Chi_Minh') AT TIME ZONE 'Asia/Ho_Chi_Minh');
@@ -2413,9 +2413,9 @@ BEGIN
     RETURN json_build_object('status', 'no_players', 'week_start', week_start_date);
   END IF;
 
-  -- Award XP to champion
+  -- Award gem to champion
   UPDATE users
-  SET xp = xp + xp_prize,
+  SET gems = COALESCE(gems, 0) + gem_prize,
       updated_at = NOW()
   WHERE id = champion_user_id;
 
@@ -2423,7 +2423,7 @@ BEGIN
     'status', 'awarded',
     'user_id', champion_user_id,
     'score', champion_score,
-    'xp_awarded', xp_prize,
+    'gems_awarded', gem_prize,
     'week_start', week_start_date,
     'week_end', week_end_date
   );

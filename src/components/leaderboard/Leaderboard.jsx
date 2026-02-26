@@ -606,7 +606,7 @@ const Leaderboard = () => {
                 <Trophy className="w-5 h-5 text-purple-500 flex-shrink-0" />
                 <span className="text-gray-700">
                   Top 1 cuối tuần nhận{' '}
-                  <strong className="text-yellow-600 inline-flex items-center gap-1">150 <img src="https://xpclass.vn/xpclass/image/study/xp.png" alt="XP" className="w-4 h-4" /></strong>
+                  <strong className="text-emerald-600 inline-flex items-center gap-1">1 <img src="https://xpclass.vn/xpclass/image/study/gem.png" alt="Gem" className="w-4 h-4" /></strong>
                 </span>
                 {countdownText && (
                   <span className="text-gray-400 ml-1">({countdownText})</span>
