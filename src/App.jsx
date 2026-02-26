@@ -19,7 +19,11 @@ import PetInventory from './components/pet/PetInventory'
 import AdminDashboard from './components/admin/AdminDashboard'
 import TeacherDashboard from './components/teacher/TeacherDashboard'
 import TeacherExerciseBank from './components/teacher/TeacherExerciseBank'
+import TeacherClassReports from './components/teacher/TeacherClassReports'
+import TeacherCourseOverview from './components/teacher/TeacherCourseOverview'
+import StudentLessonHistory from './components/teacher/StudentLessonHistory'
 import ProtectedRoute from './components/auth/ProtectedRoute'
+import { TeacherCourseProvider } from './hooks/useTeacherCourseContext'
 
 
 function App() {
@@ -53,7 +57,14 @@ function App() {
                   </ProtectedRoute>
                 } />
                 <Route path="teacher" element={<TeacherDashboard />} />
+                <Route path="teacher/overview" element={<TeacherCourseOverview />} />
+                <Route path="teacher/student-history/:courseId/:studentId" element={<StudentLessonHistory />} />
                 <Route path="teacher/exercise-bank" element={<TeacherExerciseBank />} />
+                <Route path="teacher/class-reports" element={
+                  <TeacherCourseProvider>
+                    <TeacherClassReports />
+                  </TeacherCourseProvider>
+                } />
               </Route>
             </Routes>
           </Router>

@@ -306,7 +306,7 @@ const DailyChallenge = () => {
             <div className="flex items-center gap-2 bg-white border border-gray-200 rounded px-2 py-1">
               <span className="text-xs font-semibold text-gray-600">Reward:</span>
               <span className="flex items-center gap-1">
-                <img src="https://xpclass.vn/xpclass/image/study/xp2.png" alt="XP" className="w-4 h-4" />
+                <img src="https://xpclass.vn/xpclass/image/study/xp.png" alt="XP" className="w-4 h-4" />
                 <span className="font-bold text-gray-900 text-xs">{todayChallenge.base_xp_reward}</span>
               </span>
               {todayChallenge.base_gem_reward > 0 && (
@@ -353,7 +353,7 @@ const DailyChallenge = () => {
                 {i < 3 && (achievementRewards[todayChallenge.difficulty_level]?.[`top${i + 1}`]?.xp > 0 || achievementRewards[todayChallenge.difficulty_level]?.[`top${i + 1}`]?.gems > 0) && (
                   <span className="flex items-center gap-1 text-xs text-yellow-600 font-semibold">
                     {achievementRewards[todayChallenge.difficulty_level]?.[`top${i + 1}`]?.xp > 0 && (
-                      <>+{achievementRewards[todayChallenge.difficulty_level]?.[`top${i + 1}`]?.xp} <img src="https://xpclass.vn/xpclass/image/study/xp2.png" alt="XP" className="w-3 h-3 inline" /></>
+                      <>+{achievementRewards[todayChallenge.difficulty_level]?.[`top${i + 1}`]?.xp} <img src="https://xpclass.vn/xpclass/image/study/xp.png" alt="XP" className="w-3 h-3 inline" /></>
                     )}
                     {achievementRewards[todayChallenge.difficulty_level]?.[`top${i + 1}`]?.gems > 0 && (
                       <>+{achievementRewards[todayChallenge.difficulty_level]?.[`top${i + 1}`]?.gems} <img src="https://xpclass.vn/xpclass/image/study/gem.png" alt="Gems" className="w-3 h-3 inline" /></>

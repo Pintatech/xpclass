@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react'
+import React, { useState, useEffect, useRef } from 'react'
 import { useLocation, useNavigate } from 'react-router-dom'
 import { supabase } from '../../supabase/client'
 import { RotateCcw, CheckCircle, XCircle } from 'lucide-react'
@@ -132,10 +132,10 @@ const renderQuestionWithDropZones = (questionText, dropZones, renderDropZone) =>
   })
 }
 
-const DragDropExercise = () => {
+const DragDropExercise = ({ testMode = false, exerciseData = null, onAnswersCollected = null, initialAnswers = null }) => {
   const location = useLocation()
   const navigate = useNavigate()
-  
+
   // Get exerciseId and sessionId from URL search params
   const searchParams = new URLSearchParams(location.search)
   const exerciseId = searchParams.get('exerciseId')
@@ -174,7 +174,36 @@ const DragDropExercise = () => {
   const [hasPlayedPassAudio, setHasPlayedPassAudio] = useState(false)
   const [colorTheme, setColorTheme] = useState('blue')
 
+  // testMode: load exercise data from props
   useEffect(() => {
+    if (!testMode || !exerciseData) return
+    setExercise(exerciseData)
+    // Initialize user answers (restore from saved or empty)
+    if (initialAnswers && Object.keys(initialAnswers).length > 0) {
+      setUserAnswers(initialAnswers)
+    } else {
+      const emptyAnswers = {}
+      if (exerciseData.content?.questions) {
+        exerciseData.content.questions.forEach((_, index) => {
+          emptyAnswers[index] = {}
+        })
+      }
+      setUserAnswers(emptyAnswers)
+    }
+    setLoading(false)
+  }, [testMode, exerciseData])
+
+  // testMode: notify parent of answer changes (use ref to avoid infinite loops)
+  const onAnswersCollectedRef = useRef(onAnswersCollected)
+  onAnswersCollectedRef.current = onAnswersCollected
+  useEffect(() => {
+    if (testMode && onAnswersCollectedRef.current) {
+      onAnswersCollectedRef.current(userAnswers)
+    }
+  }, [userAnswers, testMode])
+
+  useEffect(() => {
+    if (testMode) return
     const initExercise = async () => {
       await fetchExercise()
       // Track when student enters the exercise
@@ -195,6 +224,7 @@ const DragDropExercise = () => {
 
   // Fetch session info for navigation
   useEffect(() => {
+    if (testMode) return
     const fetchSessionInfo = async () => {
       try {
         const { data, error } = await supabase
@@ -229,6 +259,7 @@ const DragDropExercise = () => {
 
   // Play celebration when result screen shows and passed
   useEffect(() => {
+    if (testMode) return
     if (showResultScreen && !hasPlayedPassAudio && questionResults.length > 0) {
       const correctAnswers = questionResults.filter(r => r.isCorrect).length
       const totalQuestions = questionResults.length
@@ -815,6 +846,116 @@ const DragDropExercise = () => {
     currentQuestionIndex,
     totalQuestions: exercise?.content?.questions?.length || 0
   })
+
+  // testMode: render all questions without gamification
+  if (testMode) {
+    const allQuestions = exercise.content.questions || []
+    return (
+      <div className="space-y-8" style={{ userSelect: 'none' }}>
+        {allQuestions.map((question, qIndex) => {
+          const qAnswer = userAnswers[qIndex] || {}
+          const qItems = question.items || []
+          const placedItemIds = Object.values(qAnswer).filter(Boolean)
+
+          return (
+            <div key={qIndex} className="w-full max-w-4xl min-w-0 mx-auto rounded-lg p-4 md:p-8 bg-white shadow-md border border-gray-200">
+              {/* Question with inline drop zones */}
+              <div className="mb-6">
+                <h2 className="text-lg font-normal text-gray-900 mb-4 leading-relaxed">
+                  {renderQuestionWithDropZones(
+                    question.question,
+                    question.drop_zones,
+                    (zoneId, index) => {
+                      const itemId = qAnswer[zoneId]
+                      const item = qItems.find(i => i.id === itemId)
+
+                      return (
+                        <span
+                          key={index}
+                          onDragOver={(e) => e.preventDefault()}
+                          onDrop={(e) => {
+                            e.preventDefault()
+                            if (!draggedItem || draggedItem.questionIndex !== qIndex) return
+                            const newAnswers = { ...userAnswers }
+                            if (!newAnswers[qIndex]) newAnswers[qIndex] = {}
+                            Object.keys(newAnswers[qIndex]).forEach(zone => {
+                              if (newAnswers[qIndex][zone] === draggedItem.itemId) delete newAnswers[qIndex][zone]
+                            })
+                            newAnswers[qIndex][zoneId] = draggedItem.itemId
+                            setUserAnswers(newAnswers)
+                            setDraggedItem(null)
+                          }}
+                          onClick={() => itemId && (() => {
+                            const newAnswers = { ...userAnswers }
+                            if (newAnswers[qIndex]) delete newAnswers[qIndex][zoneId]
+                            setUserAnswers(newAnswers)
+                          })()}
+                          data-zone-id={zoneId}
+                          data-question-index={qIndex}
+                          className="inline-block relative mx-1 cursor-pointer"
+                        >
+                          {item ? (
+                            <span className="px-2 py-1 rounded text-m font-medium bg-blue-100 text-blue-800">
+                              {item.text}
+                            </span>
+                          ) : (
+                            <span className="inline-block px-3 py-1 mx-1 min-w-[80px] text-center border-2 border-solid border-blue-200 bg-blue-50 rounded text-blue-400 font-medium">
+                              _____
+                            </span>
+                          )}
+                        </span>
+                      )
+                    }
+                  )}
+                </h2>
+              </div>
+
+              {/* Drag Items */}
+              <div className="mb-4">
+                <h3 className="text-lg font-medium text-gray-700 mb-3">Items to drag:</h3>
+                <div className="flex flex-wrap gap-2">
+                  {qItems.map((item) => {
+                    const isUsed = placedItemIds.includes(item.id)
+                    return (
+                      <div
+                        key={item.id}
+                        draggable={!isUsed}
+                        onDragStart={(e) => {
+                          setDraggedItem({ itemId: item.id, questionIndex: qIndex })
+                          e.dataTransfer.effectAllowed = 'move'
+                        }}
+                        onClick={() => !isUsed && handleItemClick(item.id, qIndex)}
+                        style={{
+                          borderRadius: '0.75em', padding: 0, transition: 'all 0.1s',
+                          cursor: isUsed ? 'default' : 'grab',
+                          boxShadow: isUsed ? 'none' : '0 4px 0 0 #bfdbfe',
+                          transform: isUsed ? 'none' : 'translateY(-0.2em)',
+                        }}
+                      >
+                        <div
+                          className={`select-none text-m rounded-lg ${
+                            isUsed ? 'bg-gray-100 text-gray-400' : 'bg-blue-50 text-blue-700 hover:bg-blue-100'
+                          }`}
+                          style={{ padding: '0.5em 1em', borderRadius: '0.75em' }}
+                        >
+                          {parseContentWithAudio(item.text).map((segment, segIndex) => {
+                            if (segment.type === 'audio') {
+                              return <span key={segIndex} className="inline-block align-middle mx-1"><AudioPlayer audioUrl={segment.url} maxPlays={segment.maxPlays} variant="outline" /></span>
+                            }
+                            return <span key={segIndex}>{segment.content}</span>
+                          })}
+                        </div>
+                      </div>
+                    )
+                  })}
+                </div>
+              </div>
+            </div>
+          )
+        })}
+      </div>
+    )
+  }
 
   const sideImages = getThemeSideImages(colorTheme)
 

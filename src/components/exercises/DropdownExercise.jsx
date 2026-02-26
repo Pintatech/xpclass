@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react'
+import React, { useState, useEffect, useRef } from 'react'
 import { useLocation, useNavigate } from 'react-router-dom'
 import { supabase } from '../../supabase/client'
 import { useAuth } from '../../hooks/useAuth'
@@ -43,7 +43,7 @@ const getThemeSideImages = (theme) => {
   return themeSideImages[theme] || themeSideImages.blue
 }
 
-const DropdownExercise = () => {
+const DropdownExercise = ({ testMode = false, exerciseData = null, onAnswersCollected = null, initialAnswers = null }) => {
   const location = useLocation()
   const navigate = useNavigate()
   const { user } = useAuth()
@@ -56,7 +56,7 @@ const DropdownExercise = () => {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState(null)
   const [currentQuestionIndex, setCurrentQuestionIndex] = useState(0)
-  const [userAnswers, setUserAnswers] = useState({})
+  const [userAnswers, setUserAnswers] = useState(() => (testMode && initialAnswers) ? initialAnswers : {})
   const [showResults, setShowResults] = useState(false)
   const [score, setScore] = useState(0)
   const [showExplanation, setShowExplanation] = useState(false)
@@ -79,17 +79,36 @@ const DropdownExercise = () => {
 
   // Play celebration when exercise is completed and passed
   useEffect(() => {
+    if (testMode) return
     if (exerciseCompleted && !hasPlayedPassAudio && totalScore >= 80) {
       playCelebration()
       setHasPlayedPassAudio(true)
     }
-  }, [exerciseCompleted, hasPlayedPassAudio, totalScore, playCelebration])
+  }, [exerciseCompleted, hasPlayedPassAudio, totalScore, playCelebration, testMode])
+
+  // testMode: load exercise data from props
+  useEffect(() => {
+    if (!testMode || !exerciseData) return
+    setExercise(exerciseData)
+    setLoading(false)
+  }, [testMode, exerciseData])
+
+  // testMode: notify parent of answer changes (use ref to avoid infinite loops)
+  const onAnswersCollectedRef = useRef(onAnswersCollected)
+  onAnswersCollectedRef.current = onAnswersCollected
+  useEffect(() => {
+    if (testMode && onAnswersCollectedRef.current) {
+      onAnswersCollectedRef.current(userAnswers)
+    }
+  }, [userAnswers, testMode])
 
   useEffect(() => {
+    if (testMode) return
     loadExercise()
   }, [])
 
   useEffect(() => {
+    if (testMode) return
     const urlParams = new URLSearchParams(location.search)
     const sessionId = urlParams.get('sessionId')
     if (sessionId) {
@@ -125,6 +144,7 @@ const DropdownExercise = () => {
   }
 
   useEffect(() => {
+    if (testMode) return
     // Track when student enters the exercise
     const initExercise = async () => {
       const urlParams = new URLSearchParams(location.search)
@@ -403,6 +423,86 @@ const DropdownExercise = () => {
     )
   }
 
+  // Convert simple markdown/HTML to safe HTML similar to editors
+  const markdownToHtml = (text) => {
+    if (!text) return ''
+    let html = text
+    // Images markdown ![](url)
+    html = html.replace(/!\[(.*?)\]\((.*?)\)/g, (m, alt, url) => `<img src="${url}" alt="${alt || ''}" class="max-w-full h-auto align-middle" />`)
+    // HTML <img>
+    html = html.replace(/<img([^>]*?)>/g, (m, attrs) => `<img${attrs} class="max-w-full h-auto align-middle" />`)
+    // HTML <audio>
+    html = html.replace(/<audio([^>]*?)>/g, (m, attrs) => `<audio${attrs} class="w-full align-middle"></audio>`)
+    // Links [text](url)
+    html = html.replace(/\[(.*?)\]\((.*?)\)/g, (m, t, url) => `<a href="${url}" target="_blank" rel="noreferrer">${t || url}</a>`)
+    // Preserve line breaks
+    html = html.replace(/\n/g, '<br/>')
+    return html
+  }
+
+  // testMode: render all questions without gamification
+  if (testMode) {
+    const renderTestQuestionText = (questionIndex) => {
+      const question = questions[questionIndex]
+      let text = question.question || ''
+      let dropdownIndex = 0
+
+      return text.split(/(\[[^\]]+\])/g).map((part, index) => {
+        if (part.match(/^\[.+\]$/)) {
+          const currentDropdownIndex = dropdownIndex++
+          const dropdown = question.dropdowns?.[currentDropdownIndex]
+          if (!dropdown) return null
+
+          const selectedValue = userAnswers[questionIndex]?.[currentDropdownIndex] || ''
+          const allOptions = [...new Set([...(dropdown.options || []), dropdown.correct_answer])].filter(opt => opt && opt.trim())
+
+          return (
+            <span key={index} className="inline-block mx-1">
+              <div className="relative inline-block">
+                <select
+                  value={selectedValue}
+                  onChange={(e) => {
+                    setUserAnswers(prev => ({
+                      ...prev,
+                      [questionIndex]: { ...prev[questionIndex], [currentDropdownIndex]: e.target.value }
+                    }))
+                  }}
+                  className={`px-2 py-0 border-0 border-b-2 appearance-none pr-6 cursor-pointer focus:outline-none bg-transparent ${
+                    selectedValue ? 'font-bold border-b-blue-500' : 'border-b-gray-400 hover:border-b-blue-500'
+                  }`}
+                >
+                  <option value="" disabled hidden></option>
+                  {allOptions.map((option, oi) => (
+                    <option key={oi} value={option}>{option}</option>
+                  ))}
+                </select>
+                <ChevronDown className="absolute right-0 bottom-[5%] -translate-y-1/2 w-4 h-4 pointer-events-none text-gray-500" />
+              </div>
+            </span>
+          )
+        }
+        const html = markdownToHtml(part)
+        return (
+          <span key={index} className="inline">
+            <RichTextRenderer content={html} allowImages allowLinks className="prose inline max-w-none" />
+          </span>
+        )
+      })
+    }
+
+    return (
+      <div className="space-y-8">
+        {questions.map((question, qIndex) => (
+          <div key={qIndex} className="bg-white rounded-lg shadow-md p-6 border border-gray-200">
+            <div className="text-lg leading-relaxed">
+              {renderTestQuestionText(qIndex)}
+            </div>
+          </div>
+        ))}
+      </div>
+    )
+  }
+
   // Show results screen when exercise is completed
   if (exerciseCompleted) {
     // Calculate correct answers and wrong questions
@@ -535,23 +635,6 @@ const DropdownExercise = () => {
         </span>
       )
     })
-  }
-
-  // Convert simple markdown/HTML to safe HTML similar to editors
-  const markdownToHtml = (text) => {
-    if (!text) return ''
-    let html = text
-    // Images markdown ![](url)
-    html = html.replace(/!\[(.*?)\]\((.*?)\)/g, (m, alt, url) => `<img src="${url}" alt="${alt || ''}" class="max-w-full h-auto align-middle" />`)
-    // HTML <img>
-    html = html.replace(/<img([^>]*?)>/g, (m, attrs) => `<img${attrs} class="max-w-full h-auto align-middle" />`)
-    // HTML <audio>
-    html = html.replace(/<audio([^>]*?)>/g, (m, attrs) => `<audio${attrs} class="w-full align-middle"></audio>`)
-    // Links [text](url)
-    html = html.replace(/\[(.*?)\]\((.*?)\)/g, (m, t, url) => `<a href="${url}" target="_blank" rel="noreferrer">${t || url}</a>`)
-    // Preserve line breaks
-    html = html.replace(/\n/g, '<br/>')
-    return html
   }
 
   const sideImages = getThemeSideImages(colorTheme)

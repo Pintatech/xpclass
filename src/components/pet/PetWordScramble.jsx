@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef, useCallback } from 'react'
 import { createPortal } from 'react-dom'
-import { X, Trophy } from 'lucide-react'
+import { X, Trophy, Volume2, VolumeX } from 'lucide-react'
 import WORD_BANK from './wordBank'
 
 const GAME_DURATION = 60
@@ -42,6 +42,7 @@ const PetWordScramble = ({ petImageUrl, petName, onGameEnd, onClose }) => {
   const [particles, setParticles] = useState([]) // explosion particles
   const [screenShake, setScreenShake] = useState(0)
   const [skippedWords, setSkippedWords] = useState([])
+  const [muted, setMuted] = useState(false)
 
   const scoreRef = useRef(0)
   const timerRef = useRef(null)
@@ -49,6 +50,7 @@ const PetWordScramble = ({ petImageUrl, petName, onGameEnd, onClose }) => {
   const animationFrameRef = useRef(null)
   const gameAreaRef = useRef(null)
   const containerRef = useRef(null)
+  const bgMusicRef = useRef(null)
 
   // Create floating bubbles for a word, spread out in a grid-ish layout
   const createBubbles = useCallback((word, containerWidth, containerHeight) => {
@@ -120,6 +122,15 @@ const PetWordScramble = ({ petImageUrl, petName, onGameEnd, onClose }) => {
     const height = containerRef.current?.clientHeight || 700
     setupWord(gameWords, 0, width, height)
     setPhase('playing')
+
+    // Start background music
+    try {
+      const music = new Audio('https://xpclass.vn/xpclass/sound/pet-word-scamble-2-faster.mp3')
+      music.loop = true
+      music.volume = 0.3
+      bgMusicRef.current = music
+      music.play().catch(() => {})
+    } catch {}
   }, [setupWord])
 
   // Timer
@@ -139,6 +150,24 @@ const PetWordScramble = ({ petImageUrl, petName, onGameEnd, onClose }) => {
 
     return () => clearInterval(timerRef.current)
   }, [phase])
+
+  // Stop background music when game ends
+  useEffect(() => {
+    if (phase === 'results' && bgMusicRef.current) {
+      bgMusicRef.current.pause()
+      bgMusicRef.current = null
+    }
+  }, [phase])
+
+  // Cleanup on unmount
+  useEffect(() => {
+    return () => {
+      if (bgMusicRef.current) {
+        bgMusicRef.current.pause()
+        bgMusicRef.current = null
+      }
+    }
+  }, [])
 
   // Bubble physics animation loop
   useEffect(() => {
@@ -290,7 +319,6 @@ const PetWordScramble = ({ petImageUrl, petName, onGameEnd, onClose }) => {
     streakRef.current = 0
     setStreak(0)
     setSkippedWords(prev => [...prev, words[wordIndex]])
-    setDisplayTime(prev => Math.max(1, prev - 2))
     const nextIdx = wordIndex + 1
     if (nextIdx < words.length) {
       setWordIndex(nextIdx)
@@ -455,6 +483,7 @@ const PetWordScramble = ({ petImageUrl, petName, onGameEnd, onClose }) => {
         </button>
       )}
 
+
       {/* Ready Phase */}
       {phase === 'ready' && (
         <div className="flex flex-col items-center gap-6 p-8 text-center">
@@ -615,6 +644,20 @@ const PetWordScramble = ({ petImageUrl, petName, onGameEnd, onClose }) => {
                     </div>
                   )
                 })()}
+
+                {/* Mute Button */}
+                <button
+                  onClick={() => {
+                    setMuted(prev => {
+                      const next = !prev
+                      if (bgMusicRef.current) bgMusicRef.current.muted = next
+                      return next
+                    })
+                  }}
+                  className="bg-white/20 backdrop-blur rounded-full p-1.5"
+                >
+                  {muted ? <VolumeX className="w-4 h-4 text-white" /> : <Volume2 className="w-4 h-4 text-white" />}
+                </button>
               </div>
 
               {/* Hint */}
@@ -668,7 +711,7 @@ const PetWordScramble = ({ petImageUrl, petName, onGameEnd, onClose }) => {
                   onClick={handleSkip}
                   className="text-xs text-white/50 hover:text-white/80 underline transition-colors"
                 >
-                  Skip (-2s)
+                  Skip
                 </button>
               </div>
             </div>

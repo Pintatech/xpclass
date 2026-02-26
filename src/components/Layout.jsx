@@ -28,8 +28,10 @@ const Layout = () => {
   // Check if on session/exercise list page (e.g., /study/course/123/unit/456/session/789)
   const isSessionPage = /\/study\/(course|level)\/[^/]+\/unit\/[^/]+\/session\/[^/]+/.test(location.pathname)
 
-  const hideBottomNav = exercisePaths.some(p => location.pathname.startsWith(p)) || isSessionPage
-  const hideSidebar = exercisePaths.some(p => location.pathname.startsWith(p))
+  const isTestPage = location.pathname.startsWith('/study/test-runner')
+
+  const hideBottomNav = exercisePaths.some(p => location.pathname.startsWith(p)) || isSessionPage || isTestPage
+  const hideSidebar = exercisePaths.some(p => location.pathname.startsWith(p)) || isTestPage
 
   if (loading) {
     return <LoadingSpinner />

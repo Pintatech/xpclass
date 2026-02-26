@@ -180,7 +180,7 @@ const EggOpenAnimation = ({ result, eggRarity, allPets = [], onClose, onNickname
                 }`}>
                   <img
                     src={result.refund_type === 'xp'
-                      ? 'https://xpclass.vn/xpclass/image/study/xp2.png'
+                      ? 'https://xpclass.vn/xpclass/image/study/xp.png'
                       : 'https://xpclass.vn/xpclass/image/study/gem.png'
                     }
                     alt={result.refund_type === 'xp' ? 'XP' : 'Gems'}

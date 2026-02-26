@@ -13,7 +13,7 @@ import AvatarWithFrame from '../ui/AvatarWithFrame'
 
 const Leaderboard = () => {
   const navigate = useNavigate()
-  const [timeframe, setTimeframe] = useState('banh_chung')
+  const [timeframe, setTimeframe] = useState('week')
   const [leaderboardData, setLeaderboardData] = useState([])
   const [currentUserRank, setCurrentUserRank] = useState(null)
   const [loading, setLoading] = useState(true)
@@ -23,64 +23,12 @@ const Leaderboard = () => {
   const [weeklyChampionReward, setWeeklyChampionReward] = useState(null)
   const [monthlyChampionReward, setMonthlyChampionReward] = useState(null)
   const [previousChampions, setPreviousChampions] = useState([])
-  const [banhChungData, setBanhChungData] = useState([])
-  const [banhChungLoading, setBanhChungLoading] = useState(false)
+  const [trainingData, setTrainingData] = useState([])
+  const [trainingLoading, setTrainingLoading] = useState(false)
+  const [currentTrainingRank, setCurrentTrainingRank] = useState(null)
   const { user } = useAuth()
   const { studentLevels } = useStudentLevels()
 
-  const BANH_CHUNG_ITEM_ID = 'af6097d6-4a6a-485b-b79b-54b49369987a'
-
-  const fetchBanhChungData = async () => {
-    try {
-      setBanhChungLoading(true)
-      const { data, error } = await supabase
-        .from('user_inventory')
-        .select('user_id, user_name, quantity')
-        .eq('item_id', BANH_CHUNG_ITEM_ID)
-        .gt('quantity', 0)
-        .order('quantity', { ascending: false })
-        .limit(50)
-
-      if (error) throw error
-
-      // Fetch user details for avatars/frames, only regular users
-      const userIds = (data || []).map(d => d.user_id)
-      if (userIds.length === 0) { setBanhChungData([]); return }
-
-      const { data: users } = await supabase
-        .from('users')
-        .select('id, full_name, avatar_url, active_title, active_frame_ratio')
-        .in('id', userIds)
-        .eq('role', 'user')
-
-      const userMap = {}
-      users?.forEach(u => { userMap[u.id] = u })
-
-      const formatted = data
-        .filter(entry => userMap[entry.user_id])
-        .map((entry, index) => ({
-          rank: index + 1,
-          userId: entry.user_id,
-          name: userMap[entry.user_id]?.full_name || entry.user_name || 'Unknown',
-          avatar: userMap[entry.user_id]?.avatar_url,
-          frame: userMap[entry.user_id]?.active_title,
-          frameRatio: userMap[entry.user_id]?.active_frame_ratio,
-          quantity: entry.quantity
-        }))
-
-      setBanhChungData(formatted)
-    } catch (err) {
-      console.error('Error fetching bánh chưng leaderboard:', err)
-    } finally {
-      setBanhChungLoading(false)
-    }
-  }
-
-  useEffect(() => {
-    if (timeframe === 'banh_chung') {
-      fetchBanhChungData()
-    }
-  }, [timeframe])
 
   // Handle badge click for mobile
   const handleBadgeClick = (badge) => {
@@ -167,13 +115,13 @@ const Leaderboard = () => {
 
     let timer
     const start = () => {
-      if (timeframe !== 'week' && timeframe !== 'month') {
+      if (timeframe !== 'week' && timeframe !== 'month' && timeframe !== 'training') {
         setCountdownText('')
         return
       }
       const tick = () => {
         const now = getVietnamNow()
-        const end = timeframe === 'week' ? getEndOfWeekVN(now) : getEndOfMonthVN(now)
+        const end = (timeframe === 'week' || timeframe === 'training') ? getEndOfWeekVN(now) : getEndOfMonthVN(now)
         const diff = end - now
         setCountdownText(formatCountdown(diff))
       }
@@ -317,6 +265,87 @@ const Leaderboard = () => {
       setLoading(false)
     }
   }
+
+  // Fetch training (Word Scramble) leaderboard
+  const fetchTrainingLeaderboard = async () => {
+    try {
+      setTrainingLoading(true)
+
+      // Get Monday of current week (Vietnam time)
+      const vietnamToday = getVietnamDate()
+      const currentDate = new Date(vietnamToday)
+      const dayOfWeek = currentDate.getDay()
+      const daysFromMonday = dayOfWeek === 0 ? 6 : dayOfWeek - 1
+      const weekStart = new Date(currentDate)
+      weekStart.setDate(weekStart.getDate() - daysFromMonday)
+      const weekStartISO = weekStart.toISOString().split('T')[0] + 'T00:00:00+07:00'
+
+      // Fetch all scramble scores this week
+      const { data: scores } = await supabase
+        .from('training_scores')
+        .select('user_id, score')
+        .eq('game_type', 'scramble')
+        .gte('played_at', weekStartISO)
+
+      if (!scores || scores.length === 0) {
+        setTrainingData([])
+        setCurrentTrainingRank(null)
+        return
+      }
+
+      // Get best score per user
+      const bestScores = {}
+      scores.forEach(s => {
+        if (!bestScores[s.user_id] || s.score > bestScores[s.user_id]) {
+          bestScores[s.user_id] = s.score
+        }
+      })
+
+      const userIds = Object.keys(bestScores)
+
+      // Fetch user details
+      const { data: users } = await supabase
+        .from('users')
+        .select('id, full_name, email, avatar_url, xp, active_title, active_frame_ratio')
+        .in('id', userIds)
+        .eq('role', 'user')
+
+      if (!users) { setTrainingData([]); return }
+
+      const sorted = users
+        .map(u => ({ ...u, bestScore: bestScores[u.id] || 0 }))
+        .sort((a, b) => b.bestScore - a.bestScore)
+        .slice(0, 50)
+
+      const formatted = sorted.map((u, index) => {
+        const levelInfo = getUserLevelInfo(u.xp || 0)
+        return {
+          id: u.id,
+          rank: index + 1,
+          name: u.full_name || u.email?.split('@')[0] || 'Unknown',
+          xp: u.bestScore,
+          avatar: u.avatar_url,
+          frame: u.active_title,
+          frameRatio: u.active_frame_ratio,
+          badge: { ...levelInfo.badge, levelNumber: levelInfo.level },
+          isCurrentUser: u.id === user?.id
+        }
+      })
+
+      setTrainingData(formatted)
+      setCurrentTrainingRank(formatted.find(u => u.id === user?.id) || null)
+    } catch (err) {
+      console.error('Error fetching training leaderboard:', err)
+    } finally {
+      setTrainingLoading(false)
+    }
+  }
+
+  useEffect(() => {
+    if (timeframe === 'training') {
+      fetchTrainingLeaderboard()
+    }
+  }, [timeframe])
 
   // Get all-time leaderboard (existing logic)
   const getAllTimeLeaderboard = async () => {
@@ -548,7 +577,7 @@ const Leaderboard = () => {
           {[
             { key: 'week', label: 'Tuần này' },
             { key: 'month', label: 'Tháng này' },
-            { key: 'banh_chung', label: 'Bánh chưng' }
+            { key: 'training', label: 'Word Scramble' }
           ].map((option) => (
             <Button
               key={option.key}
@@ -563,61 +592,140 @@ const Leaderboard = () => {
         </div>
       </div>
 
-      {/* Bánh Chưng Leaderboard */}
-      {timeframe === 'banh_chung' && (
-        banhChungLoading ? (
+      {/* Training (Word Scramble) Leaderboard */}
+      {timeframe === 'training' && (
+        trainingLoading ? (
           <div className="flex justify-center py-8">
             <RefreshCw className="w-8 h-8 animate-spin text-gray-600" />
           </div>
-        ) : banhChungData.length === 0 ? (
-          <div className="text-center py-8 text-gray-500">Chưa ai có bánh chưng</div>
         ) : (
-          <Card>
-            <Card.Header>
-              <h3 className="text-lg font-semibold text-gray-900"><img src="https://xpclass.vn/event/tet-2026/banhchung.png" alt="Bánh chưng" className="w-5 h-5 inline" /> Ai nhiều Bánh Chưng nhất?</h3>
-            </Card.Header>
-            <Card.Content className="p-0">
-              <div className="divide-y divide-gray-200">
-                {banhChungData.map((entry) => (
-                  <div
-                    key={entry.userId}
-                    className={`py-3 px-4 flex items-center justify-between ${
-                      entry.rank === 1 ? 'bg-gradient-to-r from-yellow-50 to-yellow-100' :
-                      entry.rank === 2 ? 'bg-gradient-to-r from-gray-50 to-gray-100' :
-                      entry.rank === 3 ? 'bg-gradient-to-r from-orange-50 to-orange-100' : ''
-                    }`}
-                  >
-                    <div className="flex items-center space-x-3">
-                      <div className="flex items-center justify-center w-8 h-8">
-                        {getRankIcon(entry.rank)}
-                      </div>
-                      <AvatarWithFrame
-                        avatarUrl={entry.avatar}
-                        frameUrl={entry.frame}
-                        frameRatio={entry.frameRatio}
-                        size={40}
-                        fallback={entry.name.charAt(0).toUpperCase()}
-                      />
-                      <span
-                        className="font-semibold text-gray-900 cursor-pointer hover:text-blue-600 transition-colors"
-                        onClick={() => handleProfileClick(entry.userId)}
-                      >
-                        {entry.name}
-                      </span>
-                    </div>
-                    <div className="font-bold text-lg text-gray-900">
-                      {entry.quantity} <img src="https://xpclass.vn/event/tet-2026/banhchung.png" alt="Bánh chưng" className="w-5 h-5 inline" />
-                    </div>
-                  </div>
-                ))}
+          <>
+            {/* Prize & Countdown */}
+            <div className="flex justify-center">
+              <div className="inline-flex items-center gap-2 bg-gradient-to-r from-purple-50 to-indigo-50 border border-purple-200 rounded-lg px-4 py-3 text-sm">
+                <Trophy className="w-5 h-5 text-purple-500 flex-shrink-0" />
+                <span className="text-gray-700">
+                  Top 1 cuối tuần nhận{' '}
+                  <strong className="text-yellow-600 inline-flex items-center gap-1">150 <img src="https://xpclass.vn/xpclass/image/study/xp.png" alt="XP" className="w-4 h-4" /></strong>
+                </span>
+                {countdownText && (
+                  <span className="text-gray-400 ml-1">({countdownText})</span>
+                )}
               </div>
-            </Card.Content>
-          </Card>
+            </div>
+
+            {trainingData.length === 0 ? (
+              <div className="text-center py-8 text-gray-500">Chưa có ai chơi tuần này</div>
+            ) : (
+              <>
+                {/* Top 3 Podium */}
+                <div className="grid grid-cols-3 gap-2 md:gap-4 mb-4 md:mb-8 items-end">
+                  {/* 2nd Place */}
+                  {trainingData[1] && (
+                    <div className="order-1">
+                      <Card className="text-center p-2 md:p-6 bg-gradient-to-t from-gray-400/80 to-gray-100/80 border-white border-t-0 relative overflow-hidden">
+                        <div className="mx-auto mb-2 md:mb-4 relative z-10">
+                          <AvatarWithFrame avatarUrl={trainingData[1].avatar} frameUrl={trainingData[1].frame} frameRatio={trainingData[1].frameRatio} size={80} className="mx-auto" fallback={trainingData[1].name.charAt(0).toUpperCase()} />
+                        </div>
+                        <div className="font-bold text-gray-900 text-xs md:text-base cursor-pointer hover:text-blue-600 transition-colors break-words text-center relative z-10" onClick={() => handleProfileClick(trainingData[1].id)}>
+                          {trainingData[1].name}
+                        </div>
+                        <div className="text-sm md:text-lg font-semibold text-gray-900 mt-1 md:mt-2 relative z-10">
+                          {trainingData[1].xp} điểm
+                        </div>
+                      </Card>
+                    </div>
+                  )}
+                  {/* 1st Place */}
+                  {trainingData[0] && (
+                    <div className="order-2">
+                      <Card className="text-center p-2 md:p-6 bg-gradient-to-t from-yellow-600/80 to-yellow-100/80 border-white border-t-0 md:transform md:scale-105 relative overflow-hidden">
+                        <Crown className="w-6 h-6 md:w-8 md:h-8 text-yellow-500 mx-auto mb-1 md:mb-2 relative z-10" />
+                        <div className="mx-auto mb-2 md:mb-4 relative z-10">
+                          <AvatarWithFrame avatarUrl={trainingData[0].avatar} frameUrl={trainingData[0].frame} frameRatio={trainingData[0].frameRatio} size={80} className="mx-auto" fallback={trainingData[0].name.charAt(0).toUpperCase()} />
+                        </div>
+                        <div className="font-bold text-gray-900 text-xs md:text-lg cursor-pointer hover:text-blue-600 transition-colors break-words text-center relative z-10" onClick={() => handleProfileClick(trainingData[0].id)}>
+                          {trainingData[0].name}
+                        </div>
+                        <div className="text-sm md:text-xl font-semibold text-white-900 mt-1 md:mt-2 relative z-10">
+                          {trainingData[0].xp} điểm
+                        </div>
+                        <div className="hidden md:flex items-center justify-center mt-2 text-yellow-600 relative z-10">
+                          <Star size={16} fill="currentColor" />
+                          <span className="ml-1 text-sm">Vua Word Scramble</span>
+                        </div>
+                      </Card>
+                    </div>
+                  )}
+                  {/* 3rd Place */}
+                  {trainingData[2] && (
+                    <div className="order-3">
+                      <Card className="text-center p-2 md:p-6 bg-gradient-to-t from-orange-600/80 to-orange-50/80 border-white border-t-0 relative overflow-hidden">
+                        <div className="mx-auto mb-2 md:mb-4 relative z-10">
+                          <AvatarWithFrame avatarUrl={trainingData[2].avatar} frameUrl={trainingData[2].frame} frameRatio={trainingData[2].frameRatio} size={56} className="mx-auto" fallback={trainingData[2].name.charAt(0).toUpperCase()} />
+                        </div>
+                        <div className="font-bold text-gray-900 text-xs md:text-base cursor-pointer hover:text-blue-600 transition-colors break-words text-center relative z-10" onClick={() => handleProfileClick(trainingData[2].id)}>
+                          {trainingData[2].name}
+                        </div>
+                        <div className="text-sm md:text-lg font-semibold text-gray-900 mt-1 md:mt-2 relative z-10">
+                          {trainingData[2].xp} điểm
+                        </div>
+                      </Card>
+                    </div>
+                  )}
+                </div>
+
+                {/* Full Ranked List */}
+                <Card>
+                  <Card.Content className="p-0">
+                    <div className="divide-y divide-gray-200">
+                      {trainingData.slice(3, 10).map((entry) => (
+                        <div key={entry.id} className={`py-2 md:py-4 md:px-4 ${getRankColor(entry.rank)} flex items-center justify-between`}>
+                          <div className="flex items-center space-x-2 md:space-x-4">
+                            <div className="flex items-center justify-center w-6 md:w-8 h-6 md:h-8">
+                              {getRankIcon(entry.rank)}
+                            </div>
+                            <AvatarWithFrame avatarUrl={entry.avatar} frameUrl={entry.frame} frameRatio={entry.frameRatio} size={48} fallback={entry.name.charAt(0).toUpperCase()} />
+                            <div>
+                              <div className="font-semibold text-gray-900 cursor-pointer hover:text-blue-600 transition-colors" onClick={() => handleProfileClick(entry.id)}>
+                                {entry.name}
+                              </div>
+                            </div>
+                          </div>
+                          <div className="text-right">
+                            <div className="font-bold text-sm text-gray-900">{entry.xp} điểm</div>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </Card.Content>
+                </Card>
+
+                {/* Your Rank */}
+                {currentTrainingRank && (
+                  <Card className="bg-gradient-to-r from-purple-50 to-indigo-50 border-purple-200">
+                    <Card.Content>
+                      <div className="flex items-center justify-between p-4">
+                        <div className="flex items-center space-x-4">
+                          <AvatarWithFrame avatarUrl={currentTrainingRank.avatar} frameUrl={currentTrainingRank.frame} frameRatio={currentTrainingRank.frameRatio} size={48} fallback={currentTrainingRank.name.charAt(0).toUpperCase()} />
+                          <div>
+                            <div className="font-semibold text-gray-900">Bạn ({currentTrainingRank.name})</div>
+                            <span className="text-sm text-gray-600">Hạng #{currentTrainingRank.rank}</span>
+                          </div>
+                        </div>
+                        <div className="font-bold text-lg text-gray-900">{currentTrainingRank.xp} điểm</div>
+                      </div>
+                    </Card.Content>
+                  </Card>
+                )}
+              </>
+            )}
+          </>
         )
       )}
 
       {/* Champion Reward Banner */}
-      {timeframe !== 'daily_challenge' && timeframe !== 'banh_chung' && (
+      {timeframe !== 'daily_challenge' && timeframe !== 'training' && (
         <>
       {/* Champion Reward Banner */}
       {timeframe === 'week' && weeklyChampionReward && (
@@ -626,7 +734,7 @@ const Leaderboard = () => {
             <Trophy className="w-5 h-5 text-yellow-500 flex-shrink-0" />
             <span className="text-gray-700">
               Top 1 cuối tuần này nhận{' '}
-              {weeklyChampionReward.xp_reward > 0 && <strong className="text-yellow-600 inline-flex items-center gap-1">{weeklyChampionReward.xp_reward} <img src="https://xpclass.vn/xpclass/image/study/xp2.png" alt="XP" className="w-4 h-4" /></strong>}
+              {weeklyChampionReward.xp_reward > 0 && <strong className="text-yellow-600 inline-flex items-center gap-1">{weeklyChampionReward.xp_reward} <img src="https://xpclass.vn/xpclass/image/study/xp.png" alt="XP" className="w-4 h-4" /></strong>}
               {weeklyChampionReward.xp_reward > 0 && weeklyChampionReward.gem_reward > 0 && ' + '}
               {weeklyChampionReward.gem_reward > 0 && <strong className="text-emerald-600 inline-flex items-center gap-1">{weeklyChampionReward.gem_reward} <img src="https://xpclass.vn/xpclass/image/study/gem.png" alt="Gem" className="w-4 h-4" /></strong>}
             </span>
@@ -642,7 +750,7 @@ const Leaderboard = () => {
             <Crown className="w-5 h-5 text-purple-500 flex-shrink-0" />
             <span className="text-gray-700">
               Top 1 cuối tháng này nhận{' '}
-              {monthlyChampionReward.xp_reward > 0 && <strong className="text-purple-600 inline-flex items-center gap-1">{monthlyChampionReward.xp_reward} <img src="https://xpclass.vn/xpclass/image/study/xp2.png" alt="XP" className="w-4 h-4" /></strong>}
+              {monthlyChampionReward.xp_reward > 0 && <strong className="text-purple-600 inline-flex items-center gap-1">{monthlyChampionReward.xp_reward} <img src="https://xpclass.vn/xpclass/image/study/xp.png" alt="XP" className="w-4 h-4" /></strong>}
               {monthlyChampionReward.xp_reward > 0 && monthlyChampionReward.gem_reward > 0 && ' + '}
               {monthlyChampionReward.gem_reward > 0 && <strong className="text-emerald-600 inline-flex items-center gap-1">{monthlyChampionReward.gem_reward} <img src="https://xpclass.vn/xpclass/image/study/gem.png" alt="Gem" className="w-4 h-4" /></strong>}
             </span>
@@ -698,7 +806,7 @@ const Leaderboard = () => {
                 <div className="text-sm md:text-lg font-semibold text-gray-900 mt-1 md:mt-2 relative z-10">
                   <div className="flex items-center justify-center gap-1">
                     {leaderboardData[1].xp.toLocaleString()}
-                    <img src="https://xpclass.vn/xpclass/image/study/xp2.png" alt="XP" className="w-3 md:w-4 h-3 md:h-4" />
+                    <img src="https://xpclass.vn/xpclass/image/study/xp.png" alt="XP" className="w-3 md:w-4 h-3 md:h-4" />
                   </div>
                 </div>
               </Card>
@@ -742,7 +850,7 @@ const Leaderboard = () => {
                 <div className="text-sm md:text-xl font-semibold text-white-900 mt-1 md:mt-2 relative z-10">
                   <div className="flex items-center justify-center gap-1">
                     {leaderboardData[0].xp.toLocaleString()}
-                    <img src="https://xpclass.vn/xpclass/image/study/xp2.png" alt="XP" className="w-3 md:w-5 h-3 md:h-5" />
+                    <img src="https://xpclass.vn/xpclass/image/study/xp.png" alt="XP" className="w-3 md:w-5 h-3 md:h-5" />
                   </div>
                 </div>
                 <div className="hidden md:flex items-center justify-center mt-2 text-yellow-600 relative z-10">
@@ -789,7 +897,7 @@ const Leaderboard = () => {
                 <div className="text-sm md:text-lg font-semibold text-gray-900 mt-1 md:mt-2 relative z-10">
                   <div className="flex items-center justify-center gap-1">
                     {leaderboardData[2].xp.toLocaleString()}
-                    <img src="https://xpclass.vn/xpclass/image/study/xp2.png" alt="XP" className="w-3 md:w-4 h-3 md:h-4" />
+                    <img src="https://xpclass.vn/xpclass/image/study/xp.png" alt="XP" className="w-3 md:w-4 h-3 md:h-4" />
                   </div>
                 </div>
               </Card>
@@ -844,7 +952,7 @@ const Leaderboard = () => {
                 <div className="text-right">
                   <div className="font-bold text-sm text-gray-900 flex items-center gap-2 justify-end">
                     {user.xp.toLocaleString()}
-                    <img src="https://xpclass.vn/xpclass/image/study/xp2.png" alt="XP" className="w-5 h-5" />
+                    <img src="https://xpclass.vn/xpclass/image/study/xp.png" alt="XP" className="w-5 h-5" />
                   </div>
                 </div>
               </div>
@@ -883,7 +991,7 @@ const Leaderboard = () => {
               <div className="text-right">
                 <div className="font-bold text-lg text-gray-900 flex items-center gap-2 justify-end">
                   {currentUserRank.xp.toLocaleString()}
-                  <img src="https://xpclass.vn/xpclass/image/study/xp2.png" alt="XP" className="w-5 h-5" />
+                  <img src="https://xpclass.vn/xpclass/image/study/xp.png" alt="XP" className="w-5 h-5" />
                 </div>
               </div>
             </div>
@@ -908,7 +1016,7 @@ const Leaderboard = () => {
                 <span className="text-sm text-gray-600">
                   <div className="flex items-center gap-1">
                     Cần thêm {getNextLevelXpRequired(currentUserRank.xp).toLocaleString()}
-                    <img src="https://xpclass.vn/xpclass/image/study/xp2.png" alt="XP" className="w-4 h-4" />
+                    <img src="https://xpclass.vn/xpclass/image/study/xp.png" alt="XP" className="w-4 h-4" />
                   </div>
                 </span>
               </div>
@@ -925,7 +1033,7 @@ const Leaderboard = () => {
                   <span className="text-sm text-gray-600">
                     <div className="flex items-center gap-1">
                       Cần thêm {(leaderboardData[currentUserRank.rank - 2].xp - currentUserRank.xp + 1).toLocaleString()}
-                      <img src="https://xpclass.vn/xpclass/image/study/xp2.png" alt="XP" className="w-4 h-4" />
+                      <img src="https://xpclass.vn/xpclass/image/study/xp.png" alt="XP" className="w-4 h-4" />
                     </div>
                   </span>
                 </div>
@@ -942,7 +1050,7 @@ const Leaderboard = () => {
                     {leaderboardData[9] ? (
                       <>
                         Cần thêm {Math.max(1, leaderboardData[9].xp - currentUserRank.xp + 1).toLocaleString()}
-                        <img src="https://xpclass.vn/xpclass/image/study/xp2.png" alt="XP" className="w-4 h-4" />
+                        <img src="https://xpclass.vn/xpclass/image/study/xp.png" alt="XP" className="w-4 h-4" />
                       </>
                     ) : (
                       'Đang tính toán...'

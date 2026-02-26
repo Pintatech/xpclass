@@ -516,6 +516,13 @@ const ExerciseList = () => {
     }
   }, [fetchData]);
 
+  // Redirect to test runner if session is marked as test (students only)
+  useEffect(() => {
+    if (session?.is_test && !canCreateContent()) {
+      navigate(`/study/test-runner?sessionId=${sessionId}&courseId=${courseId}&unitId=${unitId}`, { replace: true })
+    }
+  }, [session])
+
   // Refresh progress when userProgress changes
   useEffect(() => {
     if (userProgress.length > 0) {
@@ -1765,7 +1772,7 @@ const ExerciseList = () => {
               <div className="bg-gradient-to-r from-yellow-400 to-orange-500 text-white rounded-lg py-2 px-4 text-lg font-bold flex items-center justify-center gap-1">
                 {5 + exercises.length * 3 + 1} - {5 + exercises.length * 3 + 10}{" "}
                 <img
-                  src="https://xpclass.vn/xpclass/image/study/xp2.png"
+                  src="https://xpclass.vn/xpclass/image/study/xp.png"
                   alt="XP"
                   className="w-6 h-6"
                 />
@@ -1859,7 +1866,7 @@ const ExerciseList = () => {
                                   +{cardXP}
                                 </div>
                                 <img
-                                  src="https://xpclass.vn/xpclass/image/study/xp2.png"
+                                  src="https://xpclass.vn/xpclass/image/study/xp.png"
                                   alt="XP"
                                   className="w-8 h-8 mx-auto mt-1"
                                 />
@@ -1917,7 +1924,7 @@ const ExerciseList = () => {
               <div className="bg-gradient-to-r from-yellow-400 to-orange-500 text-white rounded-lg py-2 px-4 text-lg font-bold flex items-center justify-center gap-1">
                 {5 + exercises.length * 3 + 1} - {5 + exercises.length * 3 + 10}{" "}
                 <img
-                  src="https://xpclass.vn/xpclass/image/study/xp2.png"
+                  src="https://xpclass.vn/xpclass/image/study/xp.png"
                   alt="XP"
                   className="w-6 h-6"
                 />
@@ -1971,7 +1978,7 @@ const ExerciseList = () => {
                 <div className="bg-gradient-to-r from-yellow-400 to-orange-500 text-white rounded-lg py-3 px-6 text-2xl sm:text-3xl font-bold shadow-lg flex items-center justify-center gap-2">
                   <span>+{sessionRewards[sessionId]?.xp}</span>
                   <img
-                    src="https://xpclass.vn/xpclass/image/study/xp2.png"
+                    src="https://xpclass.vn/xpclass/image/study/xp.png"
                     alt="XP"
                     className="w-6 h-6"
                   />

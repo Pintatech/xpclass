@@ -303,7 +303,7 @@ const Shop = () => {
         </div>
         <div className="flex items-center gap-2">
           <div className="bg-yellow-400 text-white rounded-full px-4 py-2 flex items-center gap-2 font-bold shadow-md">
-            <img src="https://xpclass.vn/xpclass/image/study/xp2.png" alt="XP" className="w-5 h-5" />
+            <img src="https://xpclass.vn/xpclass/image/study/xp.png" alt="XP" className="w-5 h-5" />
             {(profile?.xp || 0).toLocaleString()}
           </div>
           <div className="bg-blue-400 text-white rounded-full px-4 py-2 flex items-center gap-2 font-bold shadow-md">
@@ -393,7 +393,7 @@ const Shop = () => {
                             : 'bg-gray-200 text-gray-400 cursor-not-allowed'
                         } disabled:opacity-50`}
                       >
-                        <img src="https://xpclass.vn/xpclass/image/study/xp2.png" alt="XP" className="w-3.5 h-3.5" />
+                        <img src="https://xpclass.vn/xpclass/image/study/xp.png" alt="XP" className="w-3.5 h-3.5" />
                         {buyingEggId === egg.id ? '...' : egg.price_xp}
                       </button>
                     )}
@@ -514,7 +514,7 @@ const Shop = () => {
                           ) : (
                             <>
                               {isXPItem(item) ? (
-                                <img src="https://xpclass.vn/xpclass/image/study/xp2.png" alt="XP" className="w-4 h-4" />
+                                <img src="https://xpclass.vn/xpclass/image/study/xp.png" alt="XP" className="w-4 h-4" />
                               ) : (
                                 <img src="https://xpclass.vn/xpclass/image/study/gem.png" alt="Gem" className="w-4 h-4" />
                               )}
@@ -545,7 +545,7 @@ const Shop = () => {
                 {confirmEggCurrency ? (
                   confirmEggCurrency === 'xp' ? (
                     <>
-                      <img src="https://xpclass.vn/xpclass/image/study/xp2.png" alt="XP" className="w-5 h-5" />
+                      <img src="https://xpclass.vn/xpclass/image/study/xp.png" alt="XP" className="w-5 h-5" />
                       {confirmItem.price_xp}
                     </>
                   ) : (
@@ -557,7 +557,7 @@ const Shop = () => {
                 ) : (
                   <>
                     {isXPItem(confirmItem) ? (
-                      <img src="https://xpclass.vn/xpclass/image/study/xp2.png" alt="XP" className="w-5 h-5" />
+                      <img src="https://xpclass.vn/xpclass/image/study/xp.png" alt="XP" className="w-5 h-5" />
                     ) : (
                       <img src="https://xpclass.vn/xpclass/image/study/gem.png" alt="Gem" className="w-5 h-5" />
                     )}

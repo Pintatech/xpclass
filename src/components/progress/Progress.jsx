@@ -374,7 +374,7 @@ const Progress = () => {
             <div>
               <div className="text-lg font-bold text-gray-900 flex items-center gap-2">
                 {profile?.xp || 0}
-                <img src="https://xpclass.vn/xpclass/image/study/xp2.png" alt="XP" className="w-5 h-5" />
+                <img src="https://xpclass.vn/xpclass/image/study/xp.png" alt="XP" className="w-5 h-5" />
               </div>
               <div className="text-sm text-gray-600">Tổng</div>
             </div>

@@ -30,7 +30,11 @@ const UnitSessionManager = () => {
     title: '',
     description: '',
     session_number: '',
-    icon: ''
+    icon: '',
+    is_test: false,
+    time_limit_minutes: 30,
+    passing_score: 70,
+    max_attempts: 1
   })
 
   useEffect(() => {
@@ -78,7 +82,11 @@ const UnitSessionManager = () => {
       title: '',
       description: '',
       session_number: sessions.length + 1,
-      icon: ''
+      icon: '',
+      is_test: false,
+      time_limit_minutes: 30,
+      passing_score: 70,
+      max_attempts: 1
     })
     setShowModal(true)
   }
@@ -89,7 +97,11 @@ const UnitSessionManager = () => {
       title: session.title,
       description: session.description || '',
       session_number: session.session_number,
-      icon: session.icon || ''
+      icon: session.icon || '',
+      is_test: session.is_test || false,
+      time_limit_minutes: session.time_limit_minutes || 30,
+      passing_score: session.passing_score || 70,
+      max_attempts: session.max_attempts || 1
     })
     setShowModal(true)
   }
@@ -106,8 +118,12 @@ const UnitSessionManager = () => {
         title: formData.title.trim(),
         description: formData.description.trim(),
         session_number: parseInt(formData.session_number) || 1,
-        session_type: 'mixed', // Default to mixed type
-        difficulty_level: 1 // Default to beginner level
+        session_type: 'mixed',
+        difficulty_level: 1,
+        is_test: formData.is_test || false,
+        time_limit_minutes: formData.is_test ? (parseInt(formData.time_limit_minutes) || 30) : null,
+        passing_score: formData.is_test ? (parseInt(formData.passing_score) || 70) : null,
+        max_attempts: formData.is_test ? (parseInt(formData.max_attempts) || 1) : null
       }
 
       // Only add icon if the column exists in your schema
@@ -250,7 +266,12 @@ const UnitSessionManager = () => {
                       <div className="text-3xl">{session.icon}</div>
                     )}
                     <div>
-                      <div className="text-sm text-gray-500">Session {session.session_number}</div>
+                      <div className="text-sm text-gray-500 flex items-center gap-2">
+                        Session {session.session_number}
+                        {session.is_test && (
+                          <span className="text-xs font-bold text-orange-600 bg-orange-100 px-2 py-0.5 rounded-full">TEST</span>
+                        )}
+                      </div>
                       <h3 className="text-lg font-semibold text-gray-900">{session.title}</h3>
                     </div>
                   </div>
@@ -359,6 +380,69 @@ const UnitSessionManager = () => {
                   maxLength="2"
                 />
               </div>
+
+              {/* Test Mode Toggle */}
+              <div className="border-t pt-4">
+                <label className="flex items-center gap-3 cursor-pointer">
+                  <input
+                    type="checkbox"
+                    checked={formData.is_test}
+                    onChange={(e) => setFormData({ ...formData, is_test: e.target.checked })}
+                    className="w-5 h-5 rounded border-gray-300 text-orange-500 focus:ring-orange-500"
+                  />
+                  <div>
+                    <span className="font-medium text-gray-900">Test Mode</span>
+                    <p className="text-xs text-gray-500">Students will take a timed test instead of the exercise map</p>
+                  </div>
+                </label>
+              </div>
+
+              {formData.is_test && (
+                <div className="bg-orange-50 p-3 rounded-lg border border-orange-200 space-y-3">
+                  <div className="grid grid-cols-2 gap-4">
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">
+                        Time Limit (min)
+                      </label>
+                      <input
+                        type="number"
+                        value={formData.time_limit_minutes}
+                        onChange={(e) => setFormData({ ...formData, time_limit_minutes: e.target.value })}
+                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-transparent"
+                        min="1"
+                        max="180"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">
+                        Pass Score (%)
+                      </label>
+                      <input
+                        type="number"
+                        value={formData.passing_score}
+                        onChange={(e) => setFormData({ ...formData, passing_score: e.target.value })}
+                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-transparent"
+                        min="0"
+                        max="100"
+                      />
+                    </div>
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                      Max Attempts
+                    </label>
+                    <input
+                      type="number"
+                      value={formData.max_attempts}
+                      onChange={(e) => setFormData({ ...formData, max_attempts: e.target.value })}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-transparent"
+                      min="1"
+                      max="10"
+                    />
+                    <p className="text-xs text-gray-500 mt-1">How many times a student can take this test</p>
+                  </div>
+                </div>
+              )}
             </div>
 
             <div className="flex items-center gap-3 mt-6">

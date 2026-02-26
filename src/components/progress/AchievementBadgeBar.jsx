@@ -142,7 +142,7 @@ const AchievementBadgeBar = ({ achievements, userStats, onClaimXP, userAchieveme
                         </div>
                         <div className="text-xs text-gray-600 flex items-center gap-1">
                           +{achievement.xp_reward}
-                          <img src="https://xpclass.vn/xpclass/image/study/xp2.png" alt="XP" className="w-3 h-3" />
+                          <img src="https://xpclass.vn/xpclass/image/study/xp.png" alt="XP" className="w-3 h-3" />
                         </div>
                       </div>
                     </div>

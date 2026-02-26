@@ -158,7 +158,7 @@ const LeftSidebar = () => {
                   </div>
                   <div className="text-xs text-gray-600 flex items-center gap-1">
                     {profile.xp || 0}
-                    <img src="https://xpclass.vn/xpclass/image/study/xp2.png" alt="XP" className="w-3 h-3" />
+                    <img src="https://xpclass.vn/xpclass/image/study/xp.png" alt="XP" className="w-3 h-3" />
                     <span className="mx-0.5 text-gray-300">|</span>
                     {profile.gems || 0}
                     <img src="https://xpclass.vn/xpclass/image/study/gem.png" alt="Gems" className="w-3 h-3" />

@@ -5,6 +5,7 @@ import { useAuth } from '../../hooks/useAuth';
 import StudentExerciseMatrix from './StudentExerciseMatrix';
 import UnitProgressView from './UnitProgressView';
 import LessonReportView from './LessonReportView';
+import TestResultsView from './TestResultsView';
 import {
   BookOpen,
   Users,
@@ -13,7 +14,8 @@ import {
   ChevronRight,
   Grid,
   Eye,
-  BarChart3
+  BarChart3,
+  FileText
 } from 'lucide-react';
 
 const TeacherDashboard = () => {
@@ -330,6 +332,17 @@ const TeacherDashboard = () => {
       {/* Quick Actions */}
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
           <div
+            onClick={() => navigate('/teacher/overview')}
+            className="bg-gradient-to-br from-green-50 to-green-100 p-6 rounded-lg shadow-sm hover:shadow-md cursor-pointer transition-all border border-green-200"
+          >
+            <div className="flex items-center space-x-3 mb-2">
+              <Users className="w-8 h-8 text-green-600" />
+              <h3 className="font-semibold text-gray-800">Điểm danh</h3>
+            </div>
+            <p className="text-sm text-gray-600">All classes at a glance with student performance history</p>
+          </div>
+
+          <div
             onClick={() => navigate('/teacher/exercise-bank')}
             className="bg-gradient-to-br from-blue-50 to-blue-100 p-6 rounded-lg shadow-sm hover:shadow-md cursor-pointer transition-all border border-blue-200"
           >
@@ -415,6 +428,17 @@ const TeacherDashboard = () => {
                   >
                     <BarChart3 className="w-4 h-4" />
                     <span>Lessons</span>
+                  </button>
+                  <button
+                    onClick={() => setCurrentView('test-results')}
+                    className={`flex items-center space-x-2 px-4 py-2 rounded-lg transition-colors ${
+                      currentView === 'test-results'
+                        ? 'bg-blue-600 text-white'
+                        : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                    }`}
+                  >
+                    <FileText className="w-4 h-4" />
+                    <span>Tests</span>
                   </button>
                 </div>
               </div>
@@ -620,6 +644,11 @@ const TeacherDashboard = () => {
       {/* Lesson Report View */}
       {selectedCourse && currentView === 'lesson-report' && (
         <LessonReportView selectedCourse={selectedCourse} />
+      )}
+
+      {/* Test Results View */}
+      {selectedCourse && currentView === 'test-results' && (
+        <TestResultsView selectedCourse={selectedCourse} />
       )}
 
       {/* No Courses */}

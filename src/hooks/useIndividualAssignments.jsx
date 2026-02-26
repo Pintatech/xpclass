@@ -236,6 +236,49 @@ export const useIndividualAssignments = () => {
     }
   }
 
+  // Fetch assignments for all students in a course (for teachers)
+  const fetchAssignmentsByCourse = async (courseId) => {
+    try {
+      setLoading(true)
+      setError(null)
+
+      // First, get all students enrolled in the course
+      const { data: enrollments, error: enrollError } = await supabase
+        .from('course_enrollments')
+        .select('student_id')
+        .eq('course_id', courseId)
+        .eq('is_active', true)
+
+      if (enrollError) throw enrollError
+
+      const studentIds = enrollments.map(e => e.student_id)
+
+      if (studentIds.length === 0) {
+        setAssignments([])
+        return []
+      }
+
+      // Fetch assignments for these students
+      const { data, error: fetchError } = await supabase
+        .from('individual_assignments_with_details')
+        .select('*')
+        .in('user_id', studentIds)
+        .order('due_date', { ascending: true, nullsLast: true })
+        .order('created_at', { ascending: false })
+
+      if (fetchError) throw fetchError
+
+      setAssignments(data || [])
+      return data || []
+    } catch (err) {
+      console.error('Error fetching assignments by course:', err)
+      setError(err.message)
+      return []
+    } finally {
+      setLoading(false)
+    }
+  }
+
   useEffect(() => {
     if (user) {
       fetchMyAssignments()
@@ -248,6 +291,7 @@ export const useIndividualAssignments = () => {
     error,
     fetchMyAssignments,
     fetchAllAssignments,
+    fetchAssignmentsByCourse,
     createAssignment,
     updateAssignmentStatus,
     updateAssignment,

@@ -47,7 +47,7 @@ const getThemeSideImages = (theme) => {
   return themeSideImages[theme] || themeSideImages.blue
 }
 
-const FillBlankExercise = () => {
+const FillBlankExercise = ({ testMode = false, exerciseData = null, onAnswersCollected = null, initialAnswers = null }) => {
   const location = useLocation()
   const navigate = useNavigate()
   const { user } = useAuth()
@@ -62,7 +62,7 @@ const FillBlankExercise = () => {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState(null)
   const [currentQuestionIndex, setCurrentQuestionIndex] = useState(0)
-  const [userAnswers, setUserAnswers] = useState({})
+  const [userAnswers, setUserAnswers] = useState(() => (testMode && initialAnswers) ? initialAnswers : {})
   const [showResults, setShowResults] = useState(false)
   const [score, setScore] = useState(0)
   const [showExplanation, setShowExplanation] = useState(false)
@@ -138,18 +138,37 @@ const FillBlankExercise = () => {
 
   // Play celebration when exercise is completed and passed
   useEffect(() => {
+    if (testMode) return
     if (exerciseCompleted && !hasPlayedPassAudio && totalScore >= 80) {
       playCelebration()
       setHasPlayedPassAudio(true)
     }
-  }, [exerciseCompleted, hasPlayedPassAudio, totalScore, playCelebration])
+  }, [exerciseCompleted, hasPlayedPassAudio, totalScore, playCelebration, testMode])
+
+  // testMode: load exercise data from props
+  useEffect(() => {
+    if (!testMode || !exerciseData) return
+    setExercise(exerciseData)
+    setLoading(false)
+  }, [testMode, exerciseData])
+
+  // testMode: notify parent of answer changes (use ref to avoid infinite loops)
+  const onAnswersCollectedRef = useRef(onAnswersCollected)
+  onAnswersCollectedRef.current = onAnswersCollected
+  useEffect(() => {
+    if (testMode && onAnswersCollectedRef.current) {
+      onAnswersCollectedRef.current(userAnswers)
+    }
+  }, [userAnswers, testMode])
 
   useEffect(() => {
+    if (testMode) return
     loadExercise()
   }, [])
 
   // Fetch max attempt_number from database to continue from where we left off
   useEffect(() => {
+    if (testMode) return
     const fetchMaxAttemptNumber = async () => {
       if (!exerciseId || !user) return
 
@@ -177,6 +196,7 @@ const FillBlankExercise = () => {
   }, [exerciseId, user])
 
   useEffect(() => {
+    if (testMode) return
     // Track when student enters the exercise
     const initExercise = async () => {
       const urlParams = new URLSearchParams(location.search)
@@ -197,6 +217,7 @@ const FillBlankExercise = () => {
   }, [user])
 
   useEffect(() => {
+    if (testMode) return
     const fetchSessionInfo = async () => {
       const urlParams = new URLSearchParams(location.search)
       const sessionId = urlParams.get('sessionId')
@@ -403,6 +424,24 @@ const FillBlankExercise = () => {
     if (e.key === 'Enter') {
       e.preventDefault()
       e.stopPropagation() // Stop event from bubbling to global listener
+
+      // In testMode, just move to next blank/question without submitting
+      if (testMode) {
+        const currentQ = questions[questionIndex]
+        const totalBlanks = currentQ.blanks.length
+        const nextBlankIndex = blankIndex + 1
+        if (nextBlankIndex < totalBlanks) {
+          const nextInput = inputRefs.current[questionIndex]?.[nextBlankIndex]
+          if (nextInput) nextInput.focus()
+        } else {
+          const nextQuestionIndex = questionIndex + 1
+          if (nextQuestionIndex < questions.length) {
+            const nextInput = inputRefs.current[nextQuestionIndex]?.[0]
+            if (nextInput) nextInput.focus()
+          }
+        }
+        return
+      }
 
       // Don't do anything if results are already showing
       if (showResults) return
@@ -952,6 +991,70 @@ const FillBlankExercise = () => {
     // Preserve line breaks
     html = html.replace(/\n/g, '<br/>')
     return html
+  }
+
+  // testMode: render all questions without gamification
+  if (testMode) {
+    return (
+      <div className="space-y-6">
+        {/* Global Intro */}
+        {exercise?.content?.intro && String(exercise.content.intro).trim() && (
+          <div className="w-full max-w-4xl min-w-0 mx-auto rounded-lg p-4 md:p-6 bg-white shadow-sm border border-gray-200">
+            <RichTextRenderer
+              content={stripAudioTags(exercise.content.intro)}
+              allowImages={true}
+              allowLinks={false}
+              style={{ whiteSpace: 'pre-wrap' }}
+            />
+            {exerciseIntroAudio.length > 0 && (
+              <div className="mt-4 space-y-2">
+                {exerciseIntroAudio.map((audioUrl, index) => (
+                  <AudioPlayer key={index} audioUrl={audioUrl.url} seekable={audioUrl.seekable} maxPlays={audioUrl.maxPlays} variant="outline" />
+                ))}
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* All Questions */}
+        <div className="space-y-8">
+          {questions.map((question, qIndex) => {
+            const questionIntroAudio = question.intro ? extractAudioUrls(question.intro) : []
+            const questionAudio = question.question ? extractAudioUrls(question.question) : []
+
+            return (
+              <div key={qIndex} className="bg-white rounded-lg shadow-md p-6 border border-gray-200">
+                <div className="flex items-center gap-2 mb-4">
+                  <span className="text-sm font-semibold text-blue-600">Question {qIndex + 1}</span>
+                </div>
+                {question.intro && String(question.intro).trim() && (
+                  <div className="mb-4">
+                    <RichTextRenderer content={stripAudioTags(question.intro)} allowImages={true} allowLinks={false} />
+                  </div>
+                )}
+                {questionIntroAudio.length > 0 && (
+                  <div className="mb-4 space-y-2">
+                    {questionIntroAudio.map((audioUrl, index) => (
+                      <AudioPlayer key={index} audioUrl={audioUrl.url} seekable={audioUrl.seekable} maxPlays={audioUrl.maxPlays} variant="outline" />
+                    ))}
+                  </div>
+                )}
+                <div className="text-lg leading-relaxed">
+                  {renderQuestionText(qIndex)}
+                </div>
+                {questionAudio.length > 0 && (
+                  <div className="mt-4 space-y-2">
+                    {questionAudio.map((audioUrl, index) => (
+                      <AudioPlayer key={index} audioUrl={audioUrl.url} seekable={audioUrl.seekable} maxPlays={audioUrl.maxPlays} variant="outline" />
+                    ))}
+                  </div>
+                )}
+              </div>
+            )
+          })}
+        </div>
+      </div>
+    )
   }
 
   // Render all questions on one page

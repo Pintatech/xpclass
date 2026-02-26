@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { Link, useLocation, useNavigate } from 'react-router-dom'
 import { saveRecentExercise } from '../../utils/recentExercise'
 import { useAuth } from '../../hooks/useAuth'
@@ -48,7 +48,7 @@ const getThemeSideImages = (theme) => {
   return themeSideImages[theme] || themeSideImages.blue
 }
 
-const MultipleChoiceExercise = () => {
+const MultipleChoiceExercise = ({ testMode = false, exerciseData = null, onAnswersCollected = null, initialAnswers = null }) => {
   const location = useLocation()
   const navigate = useNavigate()
   const { user } = useAuth()
@@ -88,10 +88,19 @@ const MultipleChoiceExercise = () => {
   const [xpAwarded, setXpAwarded] = useState(0)
   const [isBatmanMoving, setIsBatmanMoving] = useState(false)
 
-  // View mode state - read from exercise settings
-  const [viewMode, setViewMode] = useState('one-by-one') // 'one-by-one' or 'all-at-once'
-  const [allAnswers, setAllAnswers] = useState({}) // Object to store all answers: {questionIndex: selectedAnswerIndex}
+  // View mode state - read from exercise settings (force all-at-once in testMode)
+  const [viewMode, setViewMode] = useState(testMode ? 'all-at-once' : 'one-by-one')
+  const [allAnswers, setAllAnswers] = useState(() => (testMode && initialAnswers) ? initialAnswers : {}) // Object to store all answers: {questionIndex: selectedAnswerIndex}
   const [showAllResults, setShowAllResults] = useState(false)
+
+  // testMode: notify parent of answer changes (use ref to avoid infinite loops)
+  const onAnswersCollectedRef = useRef(onAnswersCollected)
+  onAnswersCollectedRef.current = onAnswersCollected
+  useEffect(() => {
+    if (testMode && onAnswersCollectedRef.current) {
+      onAnswersCollectedRef.current(allAnswers)
+    }
+  }, [allAnswers, testMode])
 
   // Celebration state
   const [hasPlayedPassAudio, setHasPlayedPassAudio] = useState(false)
@@ -103,6 +112,7 @@ const MultipleChoiceExercise = () => {
 
   // Play pass audio and show GIF when quiz is completed and passed
   useEffect(() => {
+    if (testMode) return
     if (isQuizComplete && !hasPlayedPassAudio) {
       const correctAnswers = questionResults.filter(r => r.isCorrect).length
       const totalQuestions = questionResults.length
@@ -114,10 +124,24 @@ const MultipleChoiceExercise = () => {
         setHasPlayedPassAudio(true)
       }
     }
-  }, [isQuizComplete, hasPlayedPassAudio, questionResults, playCelebration])
+  }, [isQuizComplete, hasPlayedPassAudio, questionResults, playCelebration, testMode])
 
+
+  // testMode: load exercise data from props
+  useEffect(() => {
+    if (!testMode || !exerciseData) return
+    setExercise(exerciseData)
+    setViewMode('all-at-once')
+
+    // In testMode: skip shuffling so indices match original correct_answer for grading
+    const processedQuestions = (exerciseData.content?.questions || []).map(q => q)
+    setQuestions(processedQuestions)
+    setOriginalQuestions(processedQuestions)
+    setLoading(false)
+  }, [testMode, exerciseData])
 
   useEffect(() => {
+    if (testMode) return
     const initExercise = async () => {
       if (exerciseId) {
         await fetchExercise()
@@ -144,6 +168,7 @@ const MultipleChoiceExercise = () => {
 
   // Fetch max attempt_number from database to continue from where we left off
   useEffect(() => {
+    if (testMode) return
     const fetchMaxAttemptNumber = async () => {
       if (!exerciseId || !user) return
 
@@ -179,6 +204,7 @@ const MultipleChoiceExercise = () => {
   }, [])
 
   useEffect(() => {
+    if (testMode) return
     if (sessionId) {
       fetchSessionInfo()
     }
@@ -186,6 +212,7 @@ const MultipleChoiceExercise = () => {
 
   // Handle quiz completion (both first attempt and retry)
   useEffect(() => {
+    if (testMode) return
     if (isQuizComplete && questionResults.length > 0) {
       markExerciseCompleted()
     }
@@ -604,6 +631,7 @@ const MultipleChoiceExercise = () => {
 
   // Handle bottom nav back
   useEffect(() => {
+    if (testMode) return
     const handleBottomNavBack = () => {
       if (session && session.units) {
         const unitId = session.units.id
@@ -640,9 +668,87 @@ const MultipleChoiceExercise = () => {
     return (
       <div className="text-center py-12">
         <div className="text-gray-600 mb-4">Không có câu hỏi nào</div>
-        <Link to="/study">
-          <Button variant="outline">Quay lại</Button>
-        </Link>
+        {!testMode && (
+          <Link to="/study">
+            <Button variant="outline">Quay lại</Button>
+          </Link>
+        )}
+      </div>
+    )
+  }
+
+  // testMode: render only the all-at-once questions, no gamification
+  if (testMode) {
+    return (
+      <div className="space-y-6">
+        {/* Global Intro */}
+        {exercise?.content?.intro && String(exercise.content.intro).trim() && (
+          <div className="w-full max-w-4xl min-w-0 mx-auto rounded-lg p-4 md:p-6 bg-white shadow-sm border border-gray-200">
+            <RichTextWithAudio content={exercise.content.intro} allowImages={true} allowLinks={false} />
+          </div>
+        )}
+
+        {questions.map((question, questionIndex) => (
+          <div key={questionIndex} className="w-full max-w-4xl min-w-0 mx-auto rounded-lg p-4 md:p-8 bg-white shadow-md border border-gray-200">
+            <div className="space-y-4 md:space-y-6">
+              <div className="mb-6">
+                {question.intro && String(question.intro).trim() && (
+                  <div className="mb-4">
+                    <RichTextWithAudio content={question.intro} allowImages={true} allowLinks={false} />
+                  </div>
+                )}
+                <RichTextWithAudio
+                  content={
+                    question.audio_url
+                      ? `${question.question}<audio src="${question.audio_url}" data-max-plays="${question.max_audio_plays || 0}"></audio>`
+                      : question.question
+                  }
+                  className="question-text"
+                  allowImages={true}
+                  allowLinks={false}
+                  style={{ fontSize: '1.125rem', fontWeight: '400', color: '#1f2937', lineHeight: '1.75' }}
+                />
+              </div>
+
+              <div className="space-y-3 md:space-y-0">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-3 md:gap-4">
+                  {question.options.map((option, optionIndex) => {
+                    const isSelected = allAnswers[questionIndex] === optionIndex
+                    let shadowColor = isSelected ? '#3b82f6' : '#e5e7eb'
+
+                    return (
+                      <button
+                        key={optionIndex}
+                        onClick={() => handleAllAtOnceAnswerSelect(questionIndex, optionIndex)}
+                        className="w-full border-none rounded-lg transition-all duration-100 text-sm md:text-base font-medium"
+                        style={{ padding: 0, borderRadius: '0.75em', backgroundColor: shadowColor }}
+                      >
+                        <div
+                          className={`w-full p-3 md:p-4 text-left border-2 rounded-lg transition-all duration-200 text-sm md:text-base font-medium ${
+                            isSelected
+                              ? 'border-blue-500 bg-blue-50 text-blue-900 shadow-sm'
+                              : 'bg-white border-gray-200 cursor-pointer hover:shadow-sm'
+                          }`}
+                          style={{
+                            display: 'flex', alignItems: 'center', boxSizing: 'border-box', height: '100%',
+                            transform: 'translateY(-0.2em)', transition: 'transform 0.1s ease',
+                            padding: '0.75em 1.5em', borderRadius: '0.75em'
+                          }}
+                        >
+                          <div className="flex items-center gap-3 w-full">
+                            <div className="flex-1">
+                              <RichTextWithAudio content={option} allowImages={true} allowLinks={false} />
+                            </div>
+                          </div>
+                        </div>
+                      </button>
+                    )
+                  })}
+                </div>
+              </div>
+            </div>
+          </div>
+        ))}
       </div>
     )
   }

@@ -11,6 +11,7 @@ import AIFillBlankExercise from '../exercises/AIFillBlankExercise'
 import DropdownExercise from '../exercises/DropdownExercise'
 import PronunciationExercise from '../exercises/PronunciationExercise'
 import ImageHotspotExercise from '../exercises/ImageHotspotExercise'
+import TestRunner from '../test/TestRunner'
 
 const StudyModule = () => {
   return (
@@ -21,6 +22,9 @@ const StudyModule = () => {
       <Route path="course/:courseId" element={<UnitList />} />
       <Route path="course/:courseId/unit/:unitId" element={<UnitSessionManager />} />
       <Route path="course/:courseId/unit/:unitId/session/:sessionId" element={<ExerciseList />} />
+
+      {/* Test runner */}
+      <Route path="test-runner" element={<TestRunner />} />
 
       {/* Legacy level routes for compatibility */}
       <Route path="level/:levelId" element={<UnitList />} />

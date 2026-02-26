@@ -17,6 +17,7 @@ import {
   Edit,
   List,
   Trash2,
+  FileText,
 } from "lucide-react";
 
 // Theme-based background images for unit cards
@@ -566,6 +567,16 @@ const UnitList = () => {
             {isLocked && (
               <div className="absolute top-2 right-2 z-40">
                 <Lock className="w-4 h-4 text-gray-600" />
+              </div>
+            )}
+
+            {/* Test badge */}
+            {session.is_test && (
+              <div className="absolute top-1 left-1 z-40">
+                <div className="bg-orange-500 rounded px-1 py-0.5 flex items-center gap-0.5 shadow-sm">
+                  <FileText className="w-2.5 h-2.5 text-white" />
+                  <span className="text-white text-[7px] font-bold leading-none">TEST</span>
+                </div>
               </div>
             )}
 

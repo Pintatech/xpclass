@@ -2286,3 +2286,354 @@ BEGIN
   RETURN json_build_object('success', true, 'awarded', results);
 END;
 $$;
+
+-- ============================================================
+-- lesson_info: One row per lesson (course + date)
+-- ============================================================
+CREATE TABLE IF NOT EXISTS public.lesson_info (
+  id uuid NOT NULL DEFAULT uuid_generate_v4(),
+  course_id uuid NOT NULL,
+  session_date date NOT NULL,
+  lesson_name text,
+  lesson_mode text,
+  skill text,
+  feedback text,
+  recorded_by uuid NOT NULL,
+  created_at timestamp with time zone DEFAULT now(),
+  updated_at timestamp with time zone DEFAULT now(),
+  CONSTRAINT lesson_info_pkey PRIMARY KEY (id),
+  CONSTRAINT lesson_info_unique UNIQUE (course_id, session_date),
+  CONSTRAINT lesson_info_course_fkey FOREIGN KEY (course_id) REFERENCES public.courses(id) ON DELETE CASCADE,
+  CONSTRAINT lesson_info_recorded_by_fkey FOREIGN KEY (recorded_by) REFERENCES public.users(id)
+);
+
+CREATE INDEX IF NOT EXISTS idx_lesson_info_course_date
+  ON public.lesson_info(course_id, session_date DESC);
+
+-- ============================================================
+-- lesson_records: One row per student per lesson
+-- ============================================================
+CREATE TABLE IF NOT EXISTS public.lesson_records (
+  id uuid NOT NULL DEFAULT uuid_generate_v4(),
+  lesson_info_id uuid NOT NULL,
+  student_id uuid NOT NULL,
+  attendance_status text DEFAULT 'present',
+  participation_level text DEFAULT 'medium',
+  homework_status text,
+  homework_notes text,
+  homework_score integer DEFAULT NULL,
+  performance_rating text,
+  star_flag text DEFAULT '',
+  engagement_level text DEFAULT 'medium',
+  notes text,
+  recorded_by uuid,
+  recorded_at timestamp with time zone DEFAULT now(),
+  updated_at timestamp with time zone DEFAULT now(),
+  CONSTRAINT lesson_records_pkey PRIMARY KEY (id),
+  CONSTRAINT lesson_records_unique UNIQUE (lesson_info_id, student_id),
+  CONSTRAINT lesson_records_lesson_fkey FOREIGN KEY (lesson_info_id) REFERENCES public.lesson_info(id) ON DELETE CASCADE,
+  CONSTRAINT lesson_records_student_fkey FOREIGN KEY (student_id) REFERENCES public.users(id) ON DELETE CASCADE,
+  CONSTRAINT lesson_records_recorded_by_fkey FOREIGN KEY (recorded_by) REFERENCES public.users(id)
+);
+
+CREATE INDEX IF NOT EXISTS idx_lesson_records_lesson_info
+  ON public.lesson_records(lesson_info_id);
+
+CREATE INDEX IF NOT EXISTS idx_lesson_records_student
+  ON public.lesson_records(student_id);
+
+-- ============================================================
+-- add_xp_batch: Award XP to multiple students (SECURITY DEFINER bypasses RLS)
+-- Called by teacher after saving lesson records
+-- Formula: bonus x (performance + homework - 15), -15 if late, 0 if absent
+-- performance: ok=30, good=60, wow=90 | homework: ok=15, good=30, wow=45
+-- ============================================================
+CREATE OR REPLACE FUNCTION add_xp_batch(updates jsonb)
+RETURNS void
+LANGUAGE plpgsql
+SECURITY DEFINER
+AS $$
+DECLARE
+  item jsonb;
+BEGIN
+  FOR item IN SELECT * FROM jsonb_array_elements(updates)
+  LOOP
+    UPDATE users
+    SET xp = COALESCE(xp, 0) + (item->>'xp')::int,
+        updated_at = now()
+    WHERE id = (item->>'student_id')::uuid;
+  END LOOP;
+END;
+$$;
+
+-- ============================================================
+-- Training Scores (pet mini-game results)
+-- ============================================================
+CREATE TABLE IF NOT EXISTS public.training_scores (
+  id uuid DEFAULT gen_random_uuid() PRIMARY KEY,
+  user_id uuid REFERENCES public.users(id) ON DELETE CASCADE,
+  game_type text NOT NULL,
+  score integer NOT NULL DEFAULT 0,
+  played_at timestamptz DEFAULT now()
+);
+CREATE INDEX idx_training_scores_user_game ON training_scores(user_id, game_type, played_at);
+
+-- ============================================================
+-- Award weekly Word Scramble champion (cron: every Monday 00:05 VN time)
+-- ============================================================
+CREATE OR REPLACE FUNCTION award_weekly_scramble_champion()
+RETURNS json
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = public
+AS $$
+DECLARE
+  week_start_date timestamptz;
+  week_end_date timestamptz;
+  champion_user_id uuid;
+  champion_score integer;
+  xp_prize integer := 150;
+BEGIN
+  -- Last week: Monday 00:00 to Sunday 23:59:59 (Vietnam time, converted to UTC)
+  week_end_date := (date_trunc('day', NOW() AT TIME ZONE 'Asia/Ho_Chi_Minh') AT TIME ZONE 'Asia/Ho_Chi_Minh');
+  week_start_date := week_end_date - INTERVAL '7 days';
+
+  -- Find the user with the highest best score last week
+  SELECT user_id, MAX(score) AS best_score
+  INTO champion_user_id, champion_score
+  FROM training_scores
+  WHERE game_type = 'scramble'
+    AND played_at >= week_start_date
+    AND played_at < week_end_date
+  GROUP BY user_id
+  ORDER BY best_score DESC
+  LIMIT 1;
+
+  IF champion_user_id IS NULL THEN
+    RETURN json_build_object('status', 'no_players', 'week_start', week_start_date);
+  END IF;
+
+  -- Award XP to champion
+  UPDATE users
+  SET xp = xp + xp_prize,
+      updated_at = NOW()
+  WHERE id = champion_user_id;
+
+  RETURN json_build_object(
+    'status', 'awarded',
+    'user_id', champion_user_id,
+    'score', champion_score,
+    'xp_awarded', xp_prize,
+    'week_start', week_start_date,
+    'week_end', week_end_date
+  );
+END;
+$$;
+
+-- Schedule: SELECT cron.schedule('award-weekly-scramble', '5 17 * * 0', 'SELECT award_weekly_scramble_champion()');
+-- (17:05 UTC = 00:05 Monday VN time)
+
+-- ============================================================
+-- Award weekly XP champion (cron: every Monday 00:10 VN time)
+-- Finds the user who earned the most XP last week (exercises + chests)
+-- and awards them the achievement reward from 'weekly_xp_leader'
+-- ============================================================
+CREATE OR REPLACE FUNCTION award_weekly_xp_champion()
+RETURNS json
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = public
+AS $$
+DECLARE
+  week_start timestamptz;
+  week_end timestamptz;
+  champion_id uuid;
+  champion_xp integer;
+  ach_id uuid;
+  ach_xp integer;
+  ach_gems integer;
+BEGIN
+  -- Last week boundaries (Vietnam time)
+  week_end := (date_trunc('day', NOW() AT TIME ZONE 'Asia/Ho_Chi_Minh') AT TIME ZONE 'Asia/Ho_Chi_Minh');
+  week_start := week_end - INTERVAL '7 days';
+
+  -- Get achievement rewards
+  SELECT id, COALESCE(xp_reward, 0), COALESCE(gem_reward, 0)
+  INTO ach_id, ach_xp, ach_gems
+  FROM achievements
+  WHERE criteria_type = 'weekly_xp_leader' AND is_active = true
+  LIMIT 1;
+
+  IF ach_id IS NULL THEN
+    RETURN json_build_object('status', 'no_achievement_configured');
+  END IF;
+
+  -- Calculate XP from exercises (with score bonuses) + chest rewards
+  WITH exercise_xp AS (
+    SELECT up.user_id,
+      SUM(
+        CASE
+          WHEN up.max_score > 0 AND (up.score::float / up.max_score) >= 0.95 THEN ROUND(COALESCE(e.xp_reward, 10) * 1.5)
+          WHEN up.max_score > 0 AND (up.score::float / up.max_score) >= 0.90 THEN ROUND(COALESCE(e.xp_reward, 10) * 1.3)
+          ELSE COALESCE(e.xp_reward, 10)
+        END
+      ) AS total_xp
+    FROM user_progress up
+    LEFT JOIN exercises e ON e.id = up.exercise_id
+    WHERE up.status = 'completed'
+      AND up.completed_at >= week_start
+      AND up.completed_at < week_end
+    GROUP BY up.user_id
+  ),
+  chest_xp AS (
+    SELECT user_id, SUM(xp_awarded) AS total_xp
+    FROM session_reward_claims
+    WHERE xp_awarded > 0
+      AND claimed_at >= week_start
+      AND claimed_at < week_end
+    GROUP BY user_id
+  ),
+  combined AS (
+    SELECT COALESCE(ex.user_id, ch.user_id) AS user_id,
+           COALESCE(ex.total_xp, 0) + COALESCE(ch.total_xp, 0) AS total_xp
+    FROM exercise_xp ex
+    FULL OUTER JOIN chest_xp ch ON ex.user_id = ch.user_id
+  )
+  SELECT c.user_id, c.total_xp
+  INTO champion_id, champion_xp
+  FROM combined c
+  JOIN users u ON u.id = c.user_id AND u.role = 'user'
+  ORDER BY c.total_xp DESC
+  LIMIT 1;
+
+  IF champion_id IS NULL THEN
+    RETURN json_build_object('status', 'no_activity', 'week_start', week_start);
+  END IF;
+
+  -- Record achievement
+  INSERT INTO user_achievements (user_id, achievement_id, earned_at, claimed_at, xp_claimed)
+  VALUES (champion_id, ach_id, NOW(), NOW(), ach_xp);
+
+  -- Award XP and gems
+  UPDATE users
+  SET xp = xp + ach_xp,
+      gems = gems + ach_gems,
+      updated_at = NOW()
+  WHERE id = champion_id;
+
+  RETURN json_build_object(
+    'status', 'awarded',
+    'user_id', champion_id,
+    'weekly_xp', champion_xp,
+    'xp_awarded', ach_xp,
+    'gems_awarded', ach_gems,
+    'week_start', week_start,
+    'week_end', week_end
+  );
+END;
+$$;
+
+-- Schedule: SELECT cron.schedule('award-weekly-xp-champion', '10 17 * * 0', 'SELECT award_weekly_xp_champion()');
+-- (17:10 UTC = 00:10 Monday VN time)
+
+-- ============================================================
+-- Award monthly XP champion (cron: 1st of each month 00:10 VN time)
+-- Same logic but for the previous month
+-- ============================================================
+CREATE OR REPLACE FUNCTION award_monthly_xp_champion()
+RETURNS json
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = public
+AS $$
+DECLARE
+  month_start timestamptz;
+  month_end timestamptz;
+  champion_id uuid;
+  champion_xp integer;
+  ach_id uuid;
+  ach_xp integer;
+  ach_gems integer;
+BEGIN
+  -- Last month boundaries (Vietnam time)
+  month_end := (date_trunc('month', NOW() AT TIME ZONE 'Asia/Ho_Chi_Minh') AT TIME ZONE 'Asia/Ho_Chi_Minh');
+  month_start := (date_trunc('month', (NOW() AT TIME ZONE 'Asia/Ho_Chi_Minh') - INTERVAL '1 day') AT TIME ZONE 'Asia/Ho_Chi_Minh');
+
+  -- Get achievement rewards
+  SELECT id, COALESCE(xp_reward, 0), COALESCE(gem_reward, 0)
+  INTO ach_id, ach_xp, ach_gems
+  FROM achievements
+  WHERE criteria_type = 'monthly_xp_leader' AND is_active = true
+  LIMIT 1;
+
+  IF ach_id IS NULL THEN
+    RETURN json_build_object('status', 'no_achievement_configured');
+  END IF;
+
+  -- Calculate XP from exercises (with score bonuses) + chest rewards
+  WITH exercise_xp AS (
+    SELECT up.user_id,
+      SUM(
+        CASE
+          WHEN up.max_score > 0 AND (up.score::float / up.max_score) >= 0.95 THEN ROUND(COALESCE(e.xp_reward, 10) * 1.5)
+          WHEN up.max_score > 0 AND (up.score::float / up.max_score) >= 0.90 THEN ROUND(COALESCE(e.xp_reward, 10) * 1.3)
+          ELSE COALESCE(e.xp_reward, 10)
+        END
+      ) AS total_xp
+    FROM user_progress up
+    LEFT JOIN exercises e ON e.id = up.exercise_id
+    WHERE up.status = 'completed'
+      AND up.completed_at >= month_start
+      AND up.completed_at < month_end
+    GROUP BY up.user_id
+  ),
+  chest_xp AS (
+    SELECT user_id, SUM(xp_awarded) AS total_xp
+    FROM session_reward_claims
+    WHERE xp_awarded > 0
+      AND claimed_at >= month_start
+      AND claimed_at < month_end
+    GROUP BY user_id
+  ),
+  combined AS (
+    SELECT COALESCE(ex.user_id, ch.user_id) AS user_id,
+           COALESCE(ex.total_xp, 0) + COALESCE(ch.total_xp, 0) AS total_xp
+    FROM exercise_xp ex
+    FULL OUTER JOIN chest_xp ch ON ex.user_id = ch.user_id
+  )
+  SELECT c.user_id, c.total_xp
+  INTO champion_id, champion_xp
+  FROM combined c
+  JOIN users u ON u.id = c.user_id AND u.role = 'user'
+  ORDER BY c.total_xp DESC
+  LIMIT 1;
+
+  IF champion_id IS NULL THEN
+    RETURN json_build_object('status', 'no_activity', 'month_start', month_start);
+  END IF;
+
+  -- Record achievement
+  INSERT INTO user_achievements (user_id, achievement_id, earned_at, claimed_at, xp_claimed)
+  VALUES (champion_id, ach_id, NOW(), NOW(), ach_xp);
+
+  -- Award XP and gems
+  UPDATE users
+  SET xp = xp + ach_xp,
+      gems = gems + ach_gems,
+      updated_at = NOW()
+  WHERE id = champion_id;
+
+  RETURN json_build_object(
+    'status', 'awarded',
+    'user_id', champion_id,
+    'monthly_xp', champion_xp,
+    'xp_awarded', ach_xp,
+    'gems_awarded', ach_gems,
+    'month_start', month_start,
+    'month_end', month_end
+  );
+END;
+$$;
+
+-- Schedule: SELECT cron.schedule('award-monthly-xp-champion', '10 17 1 * *', 'SELECT award_monthly_xp_champion()');
+-- (17:10 UTC on 1st = 00:10 on 1st VN time)

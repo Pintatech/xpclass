@@ -43,7 +43,7 @@ const getThemeSideImages = (theme) => {
   return themeSideImages[theme] || themeSideImages.blue
 }
 
-const ImageHotspotExercise = () => {
+const ImageHotspotExercise = ({ testMode = false, exerciseData = null, onAnswersCollected = null, initialAnswers = null }) => {
   const location = useLocation()
   const navigate = useNavigate()
 
@@ -61,7 +61,7 @@ const ImageHotspotExercise = () => {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState(null)
   const [selectedLabel, setSelectedLabel] = useState(null)
-  const [userAnswers, setUserAnswers] = useState({}) // { hotspot_id: label_id }
+  const [userAnswers, setUserAnswers] = useState(() => (testMode && initialAnswers) ? initialAnswers : {}) // { hotspot_id: label_id }
   const [hotspotFeedback, setHotspotFeedback] = useState({}) // { hotspot_id: { correct, attempts, showFeedback } }
   const [shuffledLabels, setShuffledLabels] = useState([])
   const [exerciseComplete, setExerciseComplete] = useState(false)
@@ -118,14 +118,32 @@ const ImageHotspotExercise = () => {
 
   // Play celebration when exercise is completed
   useEffect(() => {
+    if (testMode) return
     if (exerciseComplete && !hasPlayedPassAudio) {
       playCelebration()
       setHasPlayedPassAudio(true)
     }
-  }, [exerciseComplete, hasPlayedPassAudio, playCelebration])
+  }, [exerciseComplete, hasPlayedPassAudio, playCelebration, testMode])
+
+  // testMode: load exercise data from props
+  useEffect(() => {
+    if (!testMode || !exerciseData) return
+    setExercise(exerciseData)
+    setLoading(false)
+  }, [testMode, exerciseData])
+
+  // testMode: notify parent of answer changes (use ref to avoid infinite loops)
+  const onAnswersCollectedRef = useRef(onAnswersCollected)
+  onAnswersCollectedRef.current = onAnswersCollected
+  useEffect(() => {
+    if (testMode && onAnswersCollectedRef.current) {
+      onAnswersCollectedRef.current(userAnswers)
+    }
+  }, [userAnswers, testMode])
 
   // Fetch exercise
   useEffect(() => {
+    if (testMode) return
     const initExercise = async () => {
       if (exerciseId && user) {
         await fetchExercise()
@@ -145,6 +163,7 @@ const ImageHotspotExercise = () => {
   }, [exerciseId, user])
 
   useEffect(() => {
+    if (testMode) return
     const fetchSessionInfo = async () => {
       if (!sessionId) return
 
@@ -541,6 +560,84 @@ const ImageHotspotExercise = () => {
   const progress = isSubmitted
     ? (totalHotspots > 0 ? (completedHotspots / totalHotspots) * 100 : 0)
     : (totalHotspots > 0 ? (filledHotspots / totalHotspots) * 100 : 0)
+
+  // testMode: render image with hotspots and labels, no gamification
+  if (testMode) {
+    return (
+      <div className="space-y-4">
+        {/* Question text */}
+        {questionText && (
+          <div className="text-sm text-gray-700 prose prose-sm max-w-none" dangerouslySetInnerHTML={{ __html: questionText }} />
+        )}
+        {/* Question Audio */}
+        {questionAudio && questionAudio.length > 0 && (
+          <div className="space-y-2">
+            {questionAudio.map((audioUrl, index) => (
+              <AudioPlayer key={index} audioUrl={audioUrl} variant="outline" className="w-full" />
+            ))}
+          </div>
+        )}
+
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
+          {/* Image with hotspots */}
+          <div className="lg:col-span-2">
+            <div className="bg-white rounded-lg shadow-md p-4 border border-gray-200 space-y-4">
+              {questionImages && (
+                <div className="prose prose-sm max-w-none" dangerouslySetInnerHTML={{ __html: questionImages }} />
+              )}
+              <div ref={containerRef} className="relative">
+                <img
+                  ref={imageRef}
+                  src={exercise.content.image_url.replace('https://xpclass.vn', '/proxy-image')}
+                  alt="Exercise"
+                  className="w-full h-auto rounded"
+                />
+                <svg className="absolute top-0 left-0 w-full h-full" style={{ pointerEvents: 'none' }}>
+                  <g style={{ pointerEvents: 'all' }}>
+                    {renderHotspots()}
+                  </g>
+                </svg>
+              </div>
+              {selectedLabel && (
+                <p className="mt-4 text-sm text-blue-600 font-medium text-center">
+                  Click on the image to place "{selectedLabel.text}"
+                </p>
+              )}
+            </div>
+          </div>
+
+          {/* Labels sidebar */}
+          <div className="lg:col-span-1">
+            <div className="bg-white rounded-lg shadow-md p-4 border border-gray-200">
+              <h2 className="text-lg font-semibold mb-4">
+                {selectedLabel ? `Selected: ${selectedLabel.text}` : 'Select a label'}
+              </h2>
+              <div className="grid grid-cols-4 lg:grid-cols-1 gap-2">
+                {shuffledLabels.map(label => {
+                  const isUsed = Object.values(userAnswers).includes(label.id)
+                  const isSelected = selectedLabel?.id === label.id
+                  return (
+                    <button
+                      key={label.id}
+                      onClick={() => handleLabelClick(label)}
+                      className={`
+                        w-full px-4 py-3 rounded-lg font-medium transition-all cursor-pointer
+                        ${isSelected ? 'bg-blue-500 text-white scale-105 shadow-lg' : ''}
+                        ${isUsed && !isSelected ? 'bg-green-100 text-green-800 opacity-50' : ''}
+                        ${!isSelected && !isUsed ? 'bg-gray-100 hover:bg-gray-200 text-gray-800' : ''}
+                      `}
+                    >
+                      {label.text}
+                    </button>
+                  )
+                })}
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    )
+  }
 
   const sideImages = getThemeSideImages(colorTheme)
 

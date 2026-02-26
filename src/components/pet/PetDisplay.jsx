@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useRef } from "react";
+import { supabase } from "../../supabase/client";
 import { usePet } from "../../hooks/usePet";
 import { useInventory } from "../../hooks/useInventory";
 import { useAuth } from "../../hooks/useAuth";
@@ -60,7 +61,7 @@ const PetDisplay = () => {
     getActiveBonuses,
   } = usePet();
   const { inventory } = useInventory();
-  const { profile } = useAuth();
+  const { user, profile } = useAuth();
   const { getEquippedItemsXPBonus, addXP } = useProgress();
   const [showFeedMenu, setShowFeedMenu] = useState(false);
   const [message, setMessage] = useState(null);
@@ -311,8 +312,17 @@ const PetDisplay = () => {
     setShowGame('picker');
   };
 
-  const handleGameEnd = async (score) => {
+  const handleGameEnd = async (score, gameType) => {
     setShowGame(null);
+
+    // Save training score for leaderboard
+    if (gameType && user?.id) {
+      supabase.from('training_scores').insert({
+        user_id: user.id,
+        game_type: gameType,
+        score
+      }).then(() => {});
+    }
 
     setPlayDisabled(true);
     setPlayCooldown(10);
@@ -331,7 +341,7 @@ const PetDisplay = () => {
     if (result.success) {
       const xpGained = result.xp_gained || 10;
       triggerPlayAnimation(xpGained);
-      await addXP(10);
+      await addXP(5);
 
       setTimeout(() => {
         const trainSound = new Audio('https://xpclass.vn/xpclass/sound/pet-training.mp3');
@@ -1527,7 +1537,7 @@ const PetDisplay = () => {
         <PetCatchGame
           bowlImageUrl={profile?.active_bowl_url || "https://png.pngtree.com/png-clipart/20220111/original/pngtree-dog-food-bowl-png-image_7072429.png"}
           petName={activePet.nickname || activePet.name}
-          onGameEnd={handleGameEnd}
+          onGameEnd={(score) => handleGameEnd(score, 'catch')}
           onClose={() => setShowGame(null)}
         />
       )}
@@ -1545,7 +1555,7 @@ const PetDisplay = () => {
             return baseImage;
           })()}
           petName={activePet.nickname || activePet.name}
-          onGameEnd={handleGameEnd}
+          onGameEnd={(score) => handleGameEnd(score, 'flappy')}
           onClose={() => setShowGame(null)}
         />
       )}
@@ -1563,7 +1573,7 @@ const PetDisplay = () => {
             return baseImage;
           })()}
           petName={activePet.nickname || activePet.name}
-          onGameEnd={handleGameEnd}
+          onGameEnd={(score) => handleGameEnd(score, 'scramble')}
           onClose={() => setShowGame(null)}
         />
       )}
@@ -1580,7 +1590,7 @@ const PetDisplay = () => {
             return baseImage;
           })()}
           petName={activePet.nickname || activePet.name}
-          onGameEnd={handleGameEnd}
+          onGameEnd={(score) => handleGameEnd(score, 'whackmole')}
           onClose={() => setShowGame(null)}
         />
       )}
