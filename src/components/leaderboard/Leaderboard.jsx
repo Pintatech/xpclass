@@ -13,7 +13,7 @@ import AvatarWithFrame from '../ui/AvatarWithFrame'
 
 const Leaderboard = () => {
   const navigate = useNavigate()
-  const [timeframe, setTimeframe] = useState('week')
+  const [timeframe, setTimeframe] = useState('training')
   const [leaderboardData, setLeaderboardData] = useState([])
   const [currentUserRank, setCurrentUserRank] = useState(null)
   const [loading, setLoading] = useState(true)
