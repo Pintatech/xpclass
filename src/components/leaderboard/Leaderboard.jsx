@@ -606,7 +606,7 @@ const Leaderboard = () => {
                 <Trophy className="w-5 h-5 text-purple-500 flex-shrink-0" />
                 <span className="text-gray-700">
                   Top 1 cuối tuần nhận{' '}
-                  <strong className="text-emerald-600 inline-flex items-center gap-1">1 <img src="https://xpclass.vn/xpclass/image/study/gem.png" alt="Gem" className="w-4 h-4" /></strong>
+                  <strong className="text-blue-600 inline-flex items-center gap-1">1 <img src="https://xpclass.vn/xpclass/image/study/gem.png" alt="Gem" className="w-4 h-4" /></strong>
                 </span>
                 {countdownText && (
                   <span className="text-gray-400 ml-1">({countdownText})</span>
@@ -736,7 +736,7 @@ const Leaderboard = () => {
               Top 1 cuối tuần này nhận{' '}
               {weeklyChampionReward.xp_reward > 0 && <strong className="text-yellow-600 inline-flex items-center gap-1">{weeklyChampionReward.xp_reward} <img src="https://xpclass.vn/xpclass/image/study/xp.png" alt="XP" className="w-4 h-4" /></strong>}
               {weeklyChampionReward.xp_reward > 0 && weeklyChampionReward.gem_reward > 0 && ' + '}
-              {weeklyChampionReward.gem_reward > 0 && <strong className="text-emerald-600 inline-flex items-center gap-1">{weeklyChampionReward.gem_reward} <img src="https://xpclass.vn/xpclass/image/study/gem.png" alt="Gem" className="w-4 h-4" /></strong>}
+              {weeklyChampionReward.gem_reward > 0 && <strong className="text-blue-500 inline-flex items-center gap-1">{weeklyChampionReward.gem_reward} <img src="https://xpclass.vn/xpclass/image/study/gem.png" alt="Gem" className="w-4 h-4" /></strong>}
             </span>
             {countdownText && (
               <span className="text-gray-400 ml-1">({countdownText})</span>
@@ -752,7 +752,7 @@ const Leaderboard = () => {
               Top 1 cuối tháng này nhận{' '}
               {monthlyChampionReward.xp_reward > 0 && <strong className="text-purple-600 inline-flex items-center gap-1">{monthlyChampionReward.xp_reward} <img src="https://xpclass.vn/xpclass/image/study/xp.png" alt="XP" className="w-4 h-4" /></strong>}
               {monthlyChampionReward.xp_reward > 0 && monthlyChampionReward.gem_reward > 0 && ' + '}
-              {monthlyChampionReward.gem_reward > 0 && <strong className="text-emerald-600 inline-flex items-center gap-1">{monthlyChampionReward.gem_reward} <img src="https://xpclass.vn/xpclass/image/study/gem.png" alt="Gem" className="w-4 h-4" /></strong>}
+              {monthlyChampionReward.gem_reward > 0 && <strong className="text-blue-500 inline-flex items-center gap-1">{monthlyChampionReward.gem_reward} <img src="https://xpclass.vn/xpclass/image/study/gem.png" alt="Gem" className="w-4 h-4" /></strong>}
             </span>
             {countdownText && (
               <span className="text-gray-400 ml-1">({countdownText})</span>

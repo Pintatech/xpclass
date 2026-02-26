@@ -15,15 +15,34 @@ export const useTests = () => {
       .eq('status', 'in_progress')
       .single()
 
-    if (existing) return existing
+    if (existing) {
+      // Check if a completed attempt already exists (race condition: stale in_progress)
+      const { count: completedCount } = await supabase
+        .from('test_attempts')
+        .select('*', { count: 'exact', head: true })
+        .eq('session_id', sessionId)
+        .eq('user_id', user.id)
+        .in('status', ['completed', 'timed_out'])
 
-    // Check attempt limit (count ALL non-abandoned attempts)
+      if (completedCount > 0) {
+        // Abandon stale in_progress attempt
+        await supabase
+          .from('test_attempts')
+          .update({ status: 'abandoned' })
+          .eq('id', existing.id)
+      } else {
+        return existing
+      }
+    }
+
+    // Check attempt limit (count only completed/timed_out attempts)
     if (maxAttempts && maxAttempts > 0) {
       const { count } = await supabase
         .from('test_attempts')
         .select('*', { count: 'exact', head: true })
         .eq('session_id', sessionId)
         .eq('user_id', user.id)
+        .in('status', ['completed', 'timed_out'])
 
       if (count >= maxAttempts) {
         // Fetch completed attempts for display

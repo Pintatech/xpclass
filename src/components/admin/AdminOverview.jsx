@@ -1,10 +1,7 @@
 import { useState, useEffect } from 'react'
-import Card from '../ui/Card'
 import { supabase } from '../../supabase/client'
 import {
-  BookOpen,
   Trophy,
-  X,
   ChevronDown,
   ChevronRight,
   CheckCircle,
@@ -14,7 +11,6 @@ import {
 
 const AdminOverview = () => {
   const [loading, setLoading] = useState(true)
-  const [avgCompletion, setAvgCompletion] = useState(0)
   const [courseStats, setCourseStats] = useState([])
   const [selectedCourse, setSelectedCourse] = useState(null)
   const [courseStudents, setCourseStudents] = useState([])
@@ -23,14 +19,13 @@ const AdminOverview = () => {
   const [studentUnitProgress, setStudentUnitProgress] = useState(new Map())
 
   useEffect(() => {
-    fetchCourseCompletionStats()
+    fetchCourses()
   }, [])
 
-  const fetchCourseCompletionStats = async () => {
+  const fetchCourses = async () => {
     try {
       setLoading(true)
 
-      // Get all courses
       const { data: courses, error: coursesError } = await supabase
         .from('courses')
         .select('id, title')
@@ -38,117 +33,16 @@ const AdminOverview = () => {
 
       if (coursesError) throw coursesError
 
-      if (!courses || courses.length === 0) {
-        setAvgCompletion(0)
-        setCourseStats([])
-        return
+      const courseList = (courses || []).map(c => ({ courseId: c.id, courseTitle: c.title }))
+      setCourseStats(courseList)
+
+      // Auto-select first course
+      if (courseList.length > 0) {
+        fetchCourseStudents(courseList[0].courseId, courseList[0].courseTitle)
       }
-
-      const courseIds = courses.map(c => c.id)
-
-      // Batch: fetch all units, enrollments in parallel
-      const [unitsRes, enrollmentsRes] = await Promise.all([
-        supabase.from('units').select('id, course_id').in('course_id', courseIds),
-        supabase.from('course_enrollments').select('student_id, course_id').in('course_id', courseIds).eq('is_active', true),
-      ])
-
-      const allUnits = unitsRes.data || []
-      const allEnrollments = enrollmentsRes.data || []
-      const allUnitIds = allUnits.map(u => u.id)
-
-      if (allUnitIds.length === 0) {
-        setAvgCompletion(0)
-        setCourseStats([])
-        return
-      }
-
-      // Batch: fetch all sessions for all units
-      const { data: allSessions } = await supabase
-        .from('sessions')
-        .select('id, unit_id')
-        .in('unit_id', allUnitIds)
-
-      const allSessionIds = (allSessions || []).map(s => s.id)
-      if (allSessionIds.length === 0) {
-        setAvgCompletion(0)
-        setCourseStats([])
-        return
-      }
-
-      // Batch: fetch all assignments + all progress in parallel
-      const allStudentIds = Array.from(new Set(allEnrollments.map(e => e.student_id)))
-      const [assignmentsRes, progressRes] = await Promise.all([
-        supabase.from('exercise_assignments').select('exercise_id, session_id').in('session_id', allSessionIds),
-        allStudentIds.length > 0
-          ? supabase.from('user_progress').select('user_id, exercise_id, status').in('user_id', allStudentIds).eq('status', 'completed')
-          : Promise.resolve({ data: [] }),
-      ])
-
-      const allAssignments = assignmentsRes.data || []
-      const allProgress = progressRes.data || []
-
-      // Build lookup maps
-      const sessionToUnit = new Map()
-      ;(allSessions || []).forEach(s => sessionToUnit.set(s.id, s.unit_id))
-
-      const unitToCourse = new Map()
-      allUnits.forEach(u => unitToCourse.set(u.id, u.course_id))
-
-      // Map exercise -> course
-      const exerciseToCourse = new Map()
-      allAssignments.forEach(a => {
-        const unitId = sessionToUnit.get(a.session_id)
-        if (unitId) {
-          const courseId = unitToCourse.get(unitId)
-          if (courseId) exerciseToCourse.set(a.exercise_id, courseId)
-        }
-      })
-
-      // Group exercises by course
-      const courseExercises = new Map()
-      exerciseToCourse.forEach((courseId, exerciseId) => {
-        if (!courseExercises.has(courseId)) courseExercises.set(courseId, new Set())
-        courseExercises.get(courseId).add(exerciseId)
-      })
-
-      // Group enrollments by course
-      const courseStudentIds = new Map()
-      allEnrollments.forEach(e => {
-        if (!courseStudentIds.has(e.course_id)) courseStudentIds.set(e.course_id, [])
-        courseStudentIds.get(e.course_id).push(e.student_id)
-      })
-
-      // Index completed progress
-      const completedSet = new Set()
-      allProgress.forEach(p => completedSet.add(`${p.user_id}-${p.exercise_id}`))
-
-      // Calculate per-course stats
-      const courseCompletions = courses.map(course => {
-        const exerciseSet = courseExercises.get(course.id)
-        const studentIds = courseStudentIds.get(course.id)
-        if (!exerciseSet || exerciseSet.size === 0 || !studentIds || studentIds.length === 0) {
-          return { courseId: course.id, courseTitle: course.title, avgCompletion: 0 }
-        }
-
-        const exerciseArr = Array.from(exerciseSet)
-        const studentCompletionRates = studentIds.map(sid => {
-          const completed = exerciseArr.filter(eid => completedSet.has(`${sid}-${eid}`)).length
-          return (completed / exerciseArr.length) * 100
-        })
-
-        const avg = studentCompletionRates.reduce((sum, r) => sum + r, 0) / studentCompletionRates.length
-        return { courseId: course.id, courseTitle: course.title, avgCompletion: Math.round(avg) }
-      }).filter(c => c.avgCompletion > 0 || courseExercises.has(c.courseId))
-
-      const overallAvg = courseCompletions.length > 0
-        ? Math.round(courseCompletions.reduce((sum, c) => sum + c.avgCompletion, 0) / courseCompletions.length)
-        : 0
-
-      setAvgCompletion(overallAvg)
-      setCourseStats(courseCompletions)
 
     } catch (error) {
-      console.error('Error fetching course completion stats:', error)
+      console.error('Error fetching courses:', error)
     } finally {
       setLoading(false)
     }
@@ -341,11 +235,14 @@ const AdminOverview = () => {
     }
   }
 
-  const closeModal = () => {
-    setSelectedCourse(null)
-    setCourseStudents([])
-    setExpandedStudent(null)
-    setStudentUnitProgress(new Map())
+  const handleCourseChange = (e) => {
+    const courseId = e.target.value
+    const course = courseStats.find(c => c.courseId === courseId)
+    if (course) {
+      setExpandedStudent(null)
+      setStudentUnitProgress(new Map())
+      fetchCourseStudents(course.courseId, course.courseTitle)
+    }
   }
 
   if (loading) {
@@ -357,200 +254,169 @@ const AdminOverview = () => {
     )
   }
 
+  const selectedCourseStat = courseStats.find(c => c.courseId === selectedCourse?.id)
+
   return (
     <div className="space-y-8">
-      {/* Header */}
+      {/* Header with course selector */}
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-3xl font-bold text-gray-900 mb-2">Admin Overview</h1>
           <p className="text-gray-600">Course completion statistics</p>
         </div>
-      </div>
-
-      {/* Average Completion Card */}
-      <div className="bg-white rounded-lg shadow-sm border p-8">
-        <div className="flex items-center justify-center">
-          <div className="text-center">
-            <Trophy className="w-16 h-16 text-yellow-600 mx-auto mb-4" />
-            <p className="text-sm font-medium text-gray-600 mb-2">Overall Average Completion</p>
-            <p className="text-6xl font-bold text-gray-900 mb-2">{avgCompletion}%</p>
-            <p className="text-sm text-gray-500">Across all courses</p>
-          </div>
-        </div>
-      </div>
-
-      {/* Course Breakdown */}
-      {courseStats.length > 0 && (
-        <div>
-          <h2 className="text-2xl font-bold text-gray-900 mb-6">Completion by Course</h2>
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-            {courseStats.map((course, index) => (
-              <Card
-                key={index}
-                hover
-                className="cursor-pointer"
-                onClick={() => fetchCourseStudents(course.courseId, course.courseTitle)}
-              >
-                <Card.Content className="p-6">
-                  <div className="flex items-center justify-between">
-                    <div className="flex-1">
-                      <p className="text-sm font-medium text-gray-900 mb-2">{course.courseTitle}</p>
-                      <p className="text-3xl font-bold text-gray-900">{course.avgCompletion}%</p>
-                      <p className="text-xs text-gray-500 mt-1">Average completion</p>
-                    </div>
-                    <div className="ml-4">
-                      <BookOpen className="w-8 h-8 text-blue-600" />
-                    </div>
-                  </div>
-                </Card.Content>
-              </Card>
+        {courseStats.length > 0 && (
+          <select
+            value={selectedCourse?.id || ''}
+            onChange={handleCourseChange}
+            className="px-4 py-2 border border-gray-300 rounded-lg bg-white text-gray-900 font-medium focus:outline-none focus:ring-2 focus:ring-blue-500"
+          >
+            {courseStats.map(course => (
+              <option key={course.courseId} value={course.courseId}>
+                {course.courseTitle}
+              </option>
             ))}
+          </select>
+        )}
+      </div>
+
+      {/* Selected Course Completion Card */}
+      {selectedCourseStat && (
+        <div className="bg-white rounded-lg shadow-sm border p-8">
+          <div className="flex items-center justify-center">
+            <div className="text-center">
+              <Trophy className="w-16 h-16 text-yellow-600 mx-auto mb-4" />
+              <p className="text-sm font-medium text-gray-600 mb-2">{selectedCourseStat.courseTitle} — Average Completion</p>
+              <p className="text-6xl font-bold text-gray-900 mb-2">
+                {courseStudents.length > 0
+                  ? Math.round(courseStudents.reduce((sum, s) => sum + s.completionRate, 0) / courseStudents.length)
+                  : selectedCourseStat.avgCompletion}%
+              </p>
+              <p className="text-sm text-gray-500">{courseStudents.length} students enrolled</p>
+            </div>
           </div>
         </div>
       )}
 
-      {/* Modal for Course Students */}
+      {/* Student List */}
       {selectedCourse && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-lg shadow-xl max-w-4xl w-full max-h-[90vh] overflow-hidden">
-            {/* Modal Header */}
-            <div className="flex items-center justify-between p-6 border-b">
-              <div>
-                <h2 className="text-2xl font-bold text-gray-900">{selectedCourse.title}</h2>
-                <p className="text-sm text-gray-600 mt-1">Student Completion Rates</p>
-              </div>
-              <button
-                onClick={closeModal}
-                className="text-gray-400 hover:text-gray-600 transition-colors"
-              >
-                <X className="w-6 h-6" />
-              </button>
+        <div>
+          <h2 className="text-2xl font-bold text-gray-900 mb-4">Student Completion Rates</h2>
+          {loadingStudents ? (
+            <div className="flex items-center justify-center py-12">
+              <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
+              <p className="ml-3 text-gray-600">Loading students...</p>
             </div>
+          ) : courseStudents.length === 0 ? (
+            <div className="text-center py-12 bg-white rounded-lg border">
+              <p className="text-gray-600">No students enrolled in this course.</p>
+            </div>
+          ) : (
+            <div className="space-y-2">
+              {courseStudents.map((student) => {
+                const isExpanded = expandedStudent === student.id
+                const unitKeys = Array.from(studentUnitProgress.keys())
+                  .filter(key => key.startsWith(`${student.id}-`))
+                const allStudentUnits = unitKeys
+                  .map(key => studentUnitProgress.get(key))
+                const studentUnits = allStudentUnits
+                  .filter(unit => unit.total > 0)
+                  .sort((a, b) => b.unitNumber - a.unitNumber)
+                  .slice(0, 3)
 
-            {/* Modal Body */}
-            <div className="p-6 overflow-y-auto max-h-[calc(90vh-120px)]">
-              {loadingStudents ? (
-                <div className="flex items-center justify-center py-12">
-                  <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
-                  <p className="ml-3 text-gray-600">Loading students...</p>
-                </div>
-              ) : courseStudents.length === 0 ? (
-                <div className="text-center py-12">
-                  <p className="text-gray-600">No students enrolled in this course.</p>
-                </div>
-              ) : (
-                <div className="space-y-2">
-                  {courseStudents.map((student, index) => {
-                    const isExpanded = expandedStudent === student.id
-                    // Get unit progress for this student
-                    const unitKeys = Array.from(studentUnitProgress.keys())
-                      .filter(key => key.startsWith(`${student.id}-`))
-                    const allStudentUnits = unitKeys
-                      .map(key => studentUnitProgress.get(key))
-                    const studentUnits = allStudentUnits
-                      .filter(unit => unit.total > 0) // Only show units with exercises
-                      .sort((a, b) => b.unitNumber - a.unitNumber)
-                      .slice(0, 3) // Show only the 3 latest units
-
-                    return (
-                      <div key={student.id}>
-                        <div
-                          className="flex items-center justify-between p-4 bg-gray-50 rounded-lg hover:bg-gray-100 transition-colors"
+                return (
+                  <div key={student.id}>
+                    <div className="flex items-center justify-between p-4 bg-gray-50 rounded-lg hover:bg-gray-100 transition-colors">
+                      <div className="flex items-center space-x-4 flex-1">
+                        <button
+                          onClick={() => setExpandedStudent(isExpanded ? null : student.id)}
+                          className="p-1 hover:bg-gray-200 rounded"
                         >
-                          <div className="flex items-center space-x-4 flex-1">
-                            <button
-                              onClick={() => setExpandedStudent(isExpanded ? null : student.id)}
-                              className="p-1 hover:bg-gray-200 rounded"
-                            >
-                              {isExpanded ? (
-                                <ChevronDown className="w-4 h-4 text-gray-400" />
-                              ) : (
-                                <ChevronRight className="w-4 h-4 text-gray-400" />
-                              )}
-                            </button>
-                            <div className="w-10 h-10 bg-blue-100 rounded-full flex items-center justify-center">
-                              <span className="text-blue-600 font-semibold text-sm">
-                                {student.full_name?.charAt(0).toUpperCase() || '?'}
-                              </span>
-                            </div>
-                            <div className="flex-1">
-                              <div className="text-sm font-medium text-gray-900">
-                                {student.full_name || 'No name'}
-                              </div>
-                              <div className="text-xs text-gray-600">{student.email}</div>
-                            </div>
+                          {isExpanded ? (
+                            <ChevronDown className="w-4 h-4 text-gray-400" />
+                          ) : (
+                            <ChevronRight className="w-4 h-4 text-gray-400" />
+                          )}
+                        </button>
+                        <div className="w-10 h-10 bg-blue-100 rounded-full flex items-center justify-center">
+                          <span className="text-blue-600 font-semibold text-sm">
+                            {student.full_name?.charAt(0).toUpperCase() || '?'}
+                          </span>
+                        </div>
+                        <div className="flex-1">
+                          <div className="text-sm font-medium text-gray-900">
+                            {student.full_name || 'No name'}
                           </div>
-                          <div className="flex items-center space-x-4">
-                            <div className="text-right">
-                              <div className="text-xs text-gray-500">
-                                {student.completed}/{student.total} exercises
-                              </div>
-                            </div>
-                            <div className={`text-lg font-bold px-3 py-1 rounded-full ${
-                              student.completionRate >= 90 ? 'bg-green-200 text-green-800' :
-                              student.completionRate >= 75 ? 'bg-blue-200 text-blue-800' :
-                              student.completionRate >= 60 ? 'bg-yellow-200 text-yellow-800' :
-                              'bg-red-200 text-red-800'
-                            }`}>
-                              {student.completionRate}%
-                            </div>
+                          <div className="text-xs text-gray-600">{student.email}</div>
+                        </div>
+                      </div>
+                      <div className="flex items-center space-x-4">
+                        <div className="text-right">
+                          <div className="text-xs text-gray-500">
+                            {student.completed}/{student.total} exercises
                           </div>
                         </div>
-                        {isExpanded && studentUnits.length > 0 && (
-                          <div className="ml-12 mt-2 p-4 bg-white border rounded-lg">
-                            <h4 className="text-sm font-semibold text-gray-900 mb-3">Progress by Unit</h4>
-                            <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
-                              {studentUnits.map(unit => {
-                                const getProgressBadge = () => {
-                                  if (unit.status === 'completed') {
-                                    return (
-                                      <div className="flex items-center px-3 py-1 rounded-full bg-green-100 text-green-800">
-                                        <CheckCircle className="w-4 h-4 mr-1" />
-                                        <span className="text-sm font-medium">{unit.percentage}%</span>
-                                      </div>
-                                    )
-                                  } else if (unit.status === 'in_progress') {
-                                    return (
-                                      <div className="flex items-center px-3 py-1 rounded-full bg-yellow-100 text-yellow-800">
-                                        <Clock className="w-4 h-4 mr-1" />
-                                        <span className="text-sm font-medium">{unit.percentage}%</span>
-                                      </div>
-                                    )
-                                  } else {
-                                    return (
-                                      <div className="flex items-center px-3 py-1 rounded-full bg-gray-100 text-gray-600">
-                                        <Circle className="w-4 h-4 mr-1" />
-                                        <span className="text-sm font-medium">{unit.percentage}%</span>
-                                      </div>
-                                    )
-                                  }
-                                }
-
+                        <div className={`text-lg font-bold px-3 py-1 rounded-full ${
+                          student.completionRate >= 90 ? 'bg-green-200 text-green-800' :
+                          student.completionRate >= 75 ? 'bg-blue-200 text-blue-800' :
+                          student.completionRate >= 60 ? 'bg-yellow-200 text-yellow-800' :
+                          'bg-red-200 text-red-800'
+                        }`}>
+                          {student.completionRate}%
+                        </div>
+                      </div>
+                    </div>
+                    {isExpanded && studentUnits.length > 0 && (
+                      <div className="ml-12 mt-2 p-4 bg-white border rounded-lg">
+                        <h4 className="text-sm font-semibold text-gray-900 mb-3">Progress by Unit</h4>
+                        <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+                          {studentUnits.map(unit => {
+                            const getProgressBadge = () => {
+                              if (unit.status === 'completed') {
                                 return (
-                                  <div key={unit.unitId} className="p-3 bg-gray-50 rounded border">
-                                    <div className="flex items-center justify-between mb-2">
-                                      <h5 className="text-sm font-medium text-gray-900">{unit.unitTitle}</h5>
-                                      {getProgressBadge()}
-                                    </div>
-                                    <div className="text-xs text-gray-600">
-                                      Exercises: {unit.completed} / {unit.total}
-                                    </div>
+                                  <div className="flex items-center px-3 py-1 rounded-full bg-green-100 text-green-800">
+                                    <CheckCircle className="w-4 h-4 mr-1" />
+                                    <span className="text-sm font-medium">{unit.percentage}%</span>
                                   </div>
                                 )
-                              })}
-                            </div>
-                          </div>
-                        )}
+                              } else if (unit.status === 'in_progress') {
+                                return (
+                                  <div className="flex items-center px-3 py-1 rounded-full bg-yellow-100 text-yellow-800">
+                                    <Clock className="w-4 h-4 mr-1" />
+                                    <span className="text-sm font-medium">{unit.percentage}%</span>
+                                  </div>
+                                )
+                              } else {
+                                return (
+                                  <div className="flex items-center px-3 py-1 rounded-full bg-gray-100 text-gray-600">
+                                    <Circle className="w-4 h-4 mr-1" />
+                                    <span className="text-sm font-medium">{unit.percentage}%</span>
+                                  </div>
+                                )
+                              }
+                            }
+
+                            return (
+                              <div key={unit.unitId} className="p-3 bg-gray-50 rounded border">
+                                <div className="flex items-center justify-between mb-2">
+                                  <h5 className="text-sm font-medium text-gray-900">{unit.unitTitle}</h5>
+                                  {getProgressBadge()}
+                                </div>
+                                <div className="text-xs text-gray-600">
+                                  Exercises: {unit.completed} / {unit.total}
+                                </div>
+                              </div>
+                            )
+                          })}
+                        </div>
                       </div>
-                    )
-                  })}
-                </div>
-              )}
+                    )}
+                  </div>
+                )
+              })}
             </div>
-          </div>
+          )}
         </div>
       )}
-
     </div>
   )
 }

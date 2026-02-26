@@ -356,9 +356,10 @@ const PetWordScramble = ({ petImageUrl, petName, onGameEnd, onClose }) => {
       const newStreak = streakRef.current + 1
       streakRef.current = newStreak
       setStreak(newStreak)
+      const lengthBonus = Math.max(0, currentWord.length - 4) * 5
       const bonus = newStreak > 1 ? STREAK_BONUS * (newStreak - 1) : 0
       const comboBonus = combo > 5 ? combo * 2 : 0
-      const points = POINTS_PER_WORD + bonus + comboBonus
+      const points = POINTS_PER_WORD + lengthBonus + bonus + comboBonus
       scoreRef.current += points
       setDisplayScore(scoreRef.current)
       setWordsCompleted(prev => prev + 1)

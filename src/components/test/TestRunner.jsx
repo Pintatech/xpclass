@@ -8,7 +8,7 @@ import FillBlankExercise from '../exercises/FillBlankExercise'
 import DragDropExercise from '../exercises/DragDropExercise'
 import DropdownExercise from '../exercises/DropdownExercise'
 import ImageHotspotExercise from '../exercises/ImageHotspotExercise'
-import { Clock, AlertTriangle, Send, CheckCircle, XCircle, ChevronRight } from 'lucide-react'
+import { Clock, AlertTriangle, Send, CheckCircle, ChevronRight, FileText, Play } from 'lucide-react'
 
 const exerciseTypeLabels = {
   multiple_choice: 'Multiple Choice',
@@ -39,15 +39,19 @@ const TestRunner = () => {
   const [showConfirmSubmit, setShowConfirmSubmit] = useState(false)
   const [limitReached, setLimitReached] = useState(false)
   const [previousAttempts, setPreviousAttempts] = useState([])
+  const [showInfo, setShowInfo] = useState(false)
   const [initialAnswers, setInitialAnswers] = useState(null) // restored from draft_answers
   const autoSubmitRef = useRef(false)
   const answersRef = useRef({})
+  const loadingRef = useRef(false)
 
   useEffect(() => {
-    if (sessionId) loadTest()
+    if (sessionId && !loadingRef.current) loadTest()
   }, [sessionId])
 
   const loadTest = async () => {
+    if (loadingRef.current) return
+    loadingRef.current = true
     try {
       setLoading(true)
 
@@ -78,41 +82,50 @@ const TestRunner = () => {
         .filter(Boolean)
       setExercises(exList)
 
-      // Start or resume attempt (pass max_attempts for limit check)
+      // Check if there's an existing in-progress attempt to resume
       const att = await startTestAttempt(sessionId, sessionData.max_attempts)
 
       if (att.limitReached) {
-        // Fetch previous attempts to show results
         const prev = await fetchMyAttempts(sessionId)
         setPreviousAttempts(prev)
         setLimitReached(true)
         return
       }
 
-      setAttempt(att)
-
-      // Restore draft answers if resuming
+      // If resuming an existing attempt, go straight to the test
       if (att.draft_answers && Object.keys(att.draft_answers).length > 0) {
+        setAttempt(att)
         setAnswers(att.draft_answers)
         answersRef.current = att.draft_answers
         setInitialAnswers(att.draft_answers)
+
+        const startedAt = new Date(att.started_at).getTime()
+        const totalSeconds = (sessionData.time_limit_minutes || 30) * 60
+        const elapsed = Math.floor((Date.now() - startedAt) / 1000)
+        const remaining = Math.max(0, totalSeconds - elapsed)
+        setTimeRemaining(remaining)
+
+        if (remaining <= 0 && att.status === 'in_progress') {
+          autoSubmitRef.current = true
+        }
+        return
       }
 
-      // Calculate remaining time
-      const startedAt = new Date(att.started_at).getTime()
-      const totalSeconds = (sessionData.time_limit_minutes || 30) * 60
-      const elapsed = Math.floor((Date.now() - startedAt) / 1000)
-      const remaining = Math.max(0, totalSeconds - elapsed)
-      setTimeRemaining(remaining)
-
-      if (remaining <= 0 && att.status === 'in_progress') {
-        autoSubmitRef.current = true
-      }
+      // New attempt — show info screen first
+      setAttempt(att)
+      setShowInfo(true)
     } catch (error) {
       console.error('Error loading test:', error)
     } finally {
       setLoading(false)
     }
+  }
+
+  const beginTest = () => {
+    setShowInfo(false)
+    // Start the timer now
+    const totalSeconds = (session.time_limit_minutes || 30) * 60
+    setTimeRemaining(totalSeconds)
   }
 
   // Timer countdown
@@ -426,20 +439,12 @@ const TestRunner = () => {
 
   // Limit reached screen
   if (limitReached) {
-    const bestAttempt = previousAttempts.reduce((best, a) => (!best || (a.score || 0) > (best.score || 0)) ? a : best, null)
-    const hasPassed = bestAttempt?.passed
     return (
       <div className="min-h-screen bg-white p-4">
         <div className="max-w-md mx-auto mt-12">
-          <div className={`rounded-2xl p-8 text-center ${hasPassed ? 'bg-green-50 border-2 border-green-200' : 'bg-orange-50 border-2 border-orange-200'}`}>
-            {hasPassed
-              ? <CheckCircle className="w-12 h-12 text-green-500 mx-auto mb-4" />
-              : <AlertTriangle className="w-12 h-12 text-orange-500 mx-auto mb-4" />
-            }
-            <h2 className="text-xl font-bold text-gray-900 mb-2">No Attempts Remaining</h2>
-            <p className={`text-lg font-bold mb-2 ${hasPassed ? 'text-green-600' : 'text-red-600'}`}>
-              {hasPassed ? 'Passed' : 'Not Passed'}
-            </p>
+          <div className="rounded-2xl p-8 text-center bg-blue-50 border-2 border-blue-200">
+            <CheckCircle className="w-12 h-12 text-blue-500 mx-auto mb-4" />
+            <h2 className="text-xl font-bold text-gray-900 mb-2">Test Completed</h2>
             <p className="text-gray-500 text-sm">
               You have completed this test. Results are available from your teacher.
             </p>
@@ -455,21 +460,66 @@ const TestRunner = () => {
     )
   }
 
-  // Results screen — only show pass/fail, no details
+  // Info screen before starting
+  if (showInfo) {
+    return (
+      <div className="min-h-screen bg-white p-4">
+        <div className="max-w-md mx-auto mt-12">
+          <div className="rounded-2xl p-8 bg-white border-2 border-gray-200 shadow-sm">
+            <FileText className="w-14 h-14 text-blue-600 mx-auto mb-4" />
+            <h2 className="text-2xl font-bold text-gray-900 text-center mb-6">{session.title}</h2>
+
+            <div className="space-y-3 mb-8">
+              <div className="flex items-center justify-between py-3 px-4 bg-gray-50 rounded-lg">
+                <span className="text-sm text-gray-600">Tasks</span>
+                <span className="text-sm font-bold text-gray-900">{exercises.length}</span>
+              </div>
+              <div className="flex items-center justify-between py-3 px-4 bg-gray-50 rounded-lg">
+                <span className="text-sm text-gray-600">Time Limit</span>
+                <span className="text-sm font-bold text-gray-900">{session.time_limit_minutes || 30} minutes</span>
+              </div>
+              {session.max_attempts && session.max_attempts > 0 && (
+                <div className="flex items-center justify-between py-3 px-4 bg-gray-50 rounded-lg">
+                  <span className="text-sm text-gray-600">Attempts</span>
+                  <span className="text-sm font-bold text-gray-900">{session.max_attempts}</span>
+                </div>
+              )}
+            </div>
+
+            <p className="text-xs text-gray-400 text-center mb-6">
+              The timer starts when you press the button below. Good luck!
+            </p>
+
+            <button
+              onClick={beginTest}
+              className="w-full flex items-center justify-center gap-2 px-6 py-3 bg-blue-600 text-white rounded-xl font-medium hover:bg-blue-700 transition-colors"
+            >
+              <Play className="w-5 h-5" />
+              Start Test
+            </button>
+
+            <button
+              onClick={goBack}
+              className="w-full mt-3 px-6 py-3 text-gray-500 text-sm hover:text-gray-700 transition-colors"
+            >
+              Go Back
+            </button>
+          </div>
+        </div>
+      </div>
+    )
+  }
+
+  // Results screen — just show completed, no pass/fail
   if (results) {
     return (
       <div className="min-h-screen bg-white p-4">
         <div className="max-w-md mx-auto mt-12">
-          <div className={`rounded-2xl p-8 text-center ${results.passed ? 'bg-green-50 border-2 border-green-200' : 'bg-red-50 border-2 border-red-200'}`}>
-            <div className={`w-20 h-20 rounded-full flex items-center justify-center mx-auto mb-4 ${results.passed ? 'bg-green-100' : 'bg-red-100'}`}>
-              {results.passed
-                ? <CheckCircle className="w-10 h-10 text-green-600" />
-                : <XCircle className="w-10 h-10 text-red-600" />
-              }
+          <div className="rounded-2xl p-8 text-center bg-blue-50 border-2 border-blue-200">
+            <div className="w-20 h-20 rounded-full flex items-center justify-center mx-auto mb-4 bg-blue-100">
+              <CheckCircle className="w-10 h-10 text-blue-600" />
             </div>
-            <h2 className={`text-2xl font-bold mb-2 ${results.passed ? 'text-green-700' : 'text-red-700'}`}>
-              {results.passed ? 'Passed!' : 'Not Passed'}
-            </h2>
+            <h2 className="text-2xl font-bold mb-2 text-blue-700">Test Completed</h2>
             {results.timedOut && (
               <p className="text-orange-600 text-sm mb-2 flex items-center justify-center gap-1">
                 <Clock size={14} /> Time expired — auto-submitted
