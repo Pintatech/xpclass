@@ -307,6 +307,11 @@ const PetDisplay = () => {
   };
 
   const handlePlay = async () => {
+    if ((activePet.energy ?? 100) < 5) {
+      setMessage({ type: 'error', text: `${activePet.nickname || activePet.name} is too tired to train! Feed your pet first. 😴` });
+      setTimeout(() => setMessage(null), 3000);
+      return;
+    }
     setShowGame('picker');
   };
 
@@ -1081,7 +1086,7 @@ const PetDisplay = () => {
               <div>
                 <div className="flex justify-between text-xs text-gray-600 mb-1">
                   <span>Level Progress</span>
-                  <span>{activePet.xp % 100}/100 XP</span>
+                  
                 </div>
                 <div className="w-full bg-gray-200 rounded-full h-2">
                   <div
@@ -1106,9 +1111,7 @@ const PetDisplay = () => {
                           <Sparkles className="w-3 h-3" />
                           Evolution Stage {nextEvolution.stage}
                         </span>
-                        <span>
-                          {activePet.xp}/{nextEvolution.xp_required} XP
-                        </span>
+
                       </div>
                       <div className="w-full bg-purple-100 rounded-full h-2">
                         <div
@@ -1501,17 +1504,17 @@ const PetDisplay = () => {
                 onClick={() => setShowGame('scramble')}
                 className="flex flex-col items-center gap-2 p-4 rounded-xl border-2 border-purple-200 hover:border-purple-400 hover:bg-purple-50 transition-all group"
               >
-                <span className="text-4xl group-hover:scale-110 transition-transform">🔤</span>
-                <span className="font-bold text-gray-800">Word Scramble</span>
-                <span className="text-xs text-gray-500">Pop the bubbles!</span>
+                <img src="https://xpclass.vn/xpclass/image/dashboard/pet-scramble.jpg" alt="Word Scramble" className="w-20 h-20 object-cover rounded-lg group-hover:scale-110 transition-transform" />
+                <span className="font-bold text-gray-800 text-xs">Word Scramble</span>
+                
               </button>
               <button
                 onClick={() => setShowGame('whackmole')}
                 className="flex flex-col items-center gap-2 p-4 rounded-xl border-2 border-green-200 hover:border-green-400 hover:bg-green-50 transition-all group"
               >
-                <span className="text-4xl group-hover:scale-110 transition-transform">🐹</span>
-                <span className="font-bold text-gray-800">Whack-a-Mole</span>
-                <span className="text-xs text-gray-500">Whack the right word!</span>
+                <img src="https://xpclass.vn/xpclass/pet-game/mole-normal.png" alt="Whack-a-Mole" className="w-20 h-20 object-contain group-hover:scale-110 transition-transform" />
+                <span className="font-bold text-gray-800 text-xs">Whack-a-Mole</span>
+               
               </button>
             </div>
             <button
@@ -1530,7 +1533,7 @@ const PetDisplay = () => {
           bowlImageUrl={profile?.active_bowl_url || "https://png.pngtree.com/png-clipart/20220111/original/pngtree-dog-food-bowl-png-image_7072429.png"}
           petName={activePet.nickname || activePet.name}
           onGameEnd={(score) => handleGameEnd(score, 'catch')}
-          onClose={() => setShowGame(null)}
+          onClose={() => { drainPetEnergy(5); setShowGame(null); }}
         />
       )}
 
@@ -1548,7 +1551,7 @@ const PetDisplay = () => {
           })()}
           petName={activePet.nickname || activePet.name}
           onGameEnd={(score) => handleGameEnd(score, 'flappy')}
-          onClose={() => setShowGame(null)}
+          onClose={() => { drainPetEnergy(5); setShowGame(null); }}
         />
       )}
 
@@ -1566,7 +1569,7 @@ const PetDisplay = () => {
           })()}
           petName={activePet.nickname || activePet.name}
           onGameEnd={(score) => handleGameEnd(score, 'scramble')}
-          onClose={() => setShowGame(null)}
+          onClose={() => { drainPetEnergy(5); setShowGame(null); }}
         />
       )}
 
@@ -1583,7 +1586,7 @@ const PetDisplay = () => {
           })()}
           petName={activePet.nickname || activePet.name}
           onGameEnd={(score) => handleGameEnd(score, 'whackmole')}
-          onClose={() => setShowGame(null)}
+          onClose={() => { drainPetEnergy(5); setShowGame(null); }}
         />
       )}
     </div>

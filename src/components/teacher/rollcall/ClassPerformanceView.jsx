@@ -1,9 +1,9 @@
 import { Users, Star, Flag } from 'lucide-react';
 
 const ratingOptions = [
-  { value: 'wow', label: 'Wow', color: 'bg-green-500 text-white', inactive: 'bg-green-50 text-green-700 border border-green-300 hover:bg-green-100' },
-  { value: 'good', label: 'Good', color: 'bg-yellow-500 text-white', inactive: 'bg-yellow-50 text-yellow-700 border border-yellow-300 hover:bg-yellow-100' },
-  { value: 'ok', label: 'Ok', color: 'bg-red-500 text-white', inactive: 'bg-red-50 text-red-700 border border-red-300 hover:bg-red-100' },
+  { value: 'wow', label: 'Wow', color: 'bg-green-500 text-white', inactive: 'bg-white text-green-700 border border-green-300 hover:bg-green-100' },
+  { value: 'good', label: 'Good', color: 'bg-yellow-500 text-white', inactive: 'bg-white text-yellow-700 border border-yellow-300 hover:bg-yellow-100' },
+  { value: 'ok', label: 'Ok', color: 'bg-red-500 text-white', inactive: 'bg-white text-red-700 border border-red-300 hover:bg-red-100' },
 ];
 
 const ClassPerformanceView = ({ students, records, onChange, onMarkAll, loading }) => {

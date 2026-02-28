@@ -1,3 +1,4 @@
+import { useState } from 'react'
 import { CheckCheck, Trophy, TrendingUp, Flame, Megaphone, Gift, Package, Star } from 'lucide-react'
 
 const iconMap = {
@@ -48,14 +49,17 @@ const getRelativeTime = (dateStr) => {
 }
 
 const NotificationPanel = ({ notifications, onMarkAsRead, onMarkAllAsRead, onClose, className = '' }) => {
+  const [expandedId, setExpandedId] = useState(null)
+
   const handleItemClick = (notif) => {
     if (!notif.is_read) {
       onMarkAsRead(notif.id)
     }
+    setExpandedId(prev => prev === notif.id ? null : notif.id)
   }
 
   return (
-    <div className={`bg-white rounded-xl shadow-2xl border border-gray-200 z-50 overflow-hidden ${className || 'absolute right-0 top-full mt-2 w-80 md:w-96'}`}>
+    <div className={`bg-white rounded-xl shadow-2xl border border-gray-200 z-50 overflow-hidden ${className || 'absolute right-0 top-full mt-2 w-[calc(100vw-2rem)] max-w-96'}`}>
       {/* Header */}
       <div className="flex items-center justify-between px-4 py-3 border-b bg-gray-50">
         <h3 className="font-semibold text-gray-800">Thông báo</h3>
@@ -106,7 +110,7 @@ const NotificationPanel = ({ notifications, onMarkAsRead, onMarkAllAsRead, onClo
                       <span className="flex-shrink-0 w-2 h-2 mt-1.5 bg-blue-500 rounded-full" />
                     )}
                   </div>
-                  <p className="text-xs text-gray-500 mt-0.5 line-clamp-2">{notif.message}</p>
+                  <p className={`text-xs text-gray-500 mt-0.5 ${expandedId === notif.id ? '' : 'line-clamp-2'}`}>{notif.message}</p>
                   <p className="text-xs text-gray-400 mt-1">{getRelativeTime(notif.created_at)}</p>
                 </div>
               </div>

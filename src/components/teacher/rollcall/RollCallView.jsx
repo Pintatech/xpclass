@@ -1,9 +1,9 @@
 import { CheckCircle, Clock, XCircle, Users } from 'lucide-react';
 
 const statusOptions = [
-  { value: 'present', label: 'Present', color: 'bg-green-500 text-white', inactive: 'bg-green-50 text-green-700 border border-green-300 hover:bg-green-100' },
-  { value: 'late', label: 'Late', color: 'bg-yellow-500 text-white', inactive: 'bg-yellow-50 text-yellow-700 border border-yellow-300 hover:bg-yellow-100' },
-  { value: 'absent', label: 'Absent', color: 'bg-red-500 text-white', inactive: 'bg-red-50 text-red-700 border border-red-300 hover:bg-red-100' },
+  { value: 'present', label: 'Present', color: 'bg-green-500 text-white', inactive: 'bg-white text-green-700 border border-green-300 hover:bg-green-100' },
+  { value: 'late', label: 'Late', color: 'bg-yellow-500 text-white', inactive: 'bg-white text-yellow-700 border border-yellow-300 hover:bg-yellow-100' },
+  { value: 'absent', label: 'Absent', color: 'bg-red-500 text-white', inactive: 'bg-white text-red-700 border border-red-300 hover:bg-red-100' },
 ];
 
 const RollCallView = ({ students, records, onChange, onMarkAllPresent, onMarkAllLate, onMarkAllAbsent, loading }) => {
@@ -26,7 +26,7 @@ const RollCallView = ({ students, records, onChange, onMarkAllPresent, onMarkAll
         <button
           onClick={onMarkAllPresent}
           disabled={loading}
-          className="flex items-center gap-2 px-4 py-2 bg-green-50 text-green-700 rounded-lg hover:bg-green-100 border border-green-200 transition-colors disabled:opacity-50"
+          className="flex items-center gap-2 px-4 py-2 bg-white text-green-700 rounded-lg hover:bg-green-100 border border-green-200 transition-colors disabled:opacity-50 text-sm font-medium"
         >
           <CheckCircle className="w-4 h-4" />
           Mark All Present
@@ -34,7 +34,7 @@ const RollCallView = ({ students, records, onChange, onMarkAllPresent, onMarkAll
         <button
           onClick={onMarkAllLate}
           disabled={loading}
-          className="flex items-center gap-2 px-4 py-2 bg-yellow-50 text-yellow-700 rounded-lg hover:bg-yellow-100 border border-yellow-200 transition-colors disabled:opacity-50"
+          className="flex items-center gap-2 px-4 py-2 bg-white text-yellow-700 rounded-lg hover:bg-yellow-100 border border-yellow-200 transition-colors disabled:opacity-50 text-sm font-medium"
         >
           <Clock className="w-4 h-4" />
           Mark All Late
@@ -42,7 +42,7 @@ const RollCallView = ({ students, records, onChange, onMarkAllPresent, onMarkAll
         <button
           onClick={onMarkAllAbsent}
           disabled={loading}
-          className="flex items-center gap-2 px-4 py-2 bg-red-50 text-red-700 rounded-lg hover:bg-red-100 border border-red-200 transition-colors disabled:opacity-50"
+          className="flex items-center gap-2 px-4 py-2 bg-white text-red-700 rounded-lg hover:bg-red-100 border border-red-200 transition-colors disabled:opacity-50 text-sm font-medium"
         >
           <XCircle className="w-4 h-4" />
           Mark All Absent
