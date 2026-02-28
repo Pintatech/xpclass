@@ -88,19 +88,19 @@ const RollCallView = ({ students, records, onChange, onMarkAllPresent, onMarkAll
               const status = record.attendance_status || 'present';
 
               return (
-                <div key={student.id} className="flex items-center justify-between p-4 border-b hover:bg-gray-50">
-                  <div className="flex items-center gap-3 flex-1">
-                    <div className="w-10 h-10 bg-blue-100 rounded-full flex items-center justify-center flex-shrink-0">
+                <div key={student.id} className="flex items-center justify-between p-3 md:p-4 border-b hover:bg-gray-50 gap-2">
+                  <div className="flex items-center gap-2 md:gap-3 flex-1 min-w-0">
+                    <div className="w-8 h-8 md:w-10 md:h-10 bg-blue-100 rounded-full flex items-center justify-center flex-shrink-0">
                       {student.avatar_url ? (
-                        <img src={student.avatar_url} alt={student.full_name} className="w-10 h-10 rounded-full" />
+                        <img src={student.avatar_url} alt={student.full_name} className="w-8 h-8 md:w-10 md:h-10 rounded-full" />
                       ) : (
-                        <span className="text-blue-600 font-semibold">
+                        <span className="text-blue-600 font-semibold text-sm md:text-base">
                           {student.full_name?.charAt(0).toUpperCase() || 'S'}
                         </span>
                       )}
                     </div>
                     <div className="min-w-0 flex-1">
-                      <p className="font-medium text-gray-900 truncate">{student.full_name}</p>
+                      <p className="font-medium text-gray-900 truncate text-sm md:text-base">{student.full_name}</p>
                     </div>
                   </div>
 
@@ -109,7 +109,7 @@ const RollCallView = ({ students, records, onChange, onMarkAllPresent, onMarkAll
                       <button
                         key={opt.value}
                         onClick={() => onChange(student.id, { attendance_status: opt.value })}
-                        className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
+                        className={`px-2.5 md:px-4 py-1.5 md:py-2 rounded-lg text-xs md:text-sm font-medium transition-colors ${
                           status === opt.value ? opt.color : opt.inactive
                         }`}
                       >

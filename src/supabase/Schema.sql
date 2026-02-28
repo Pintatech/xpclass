@@ -239,6 +239,10 @@ CREATE TABLE public.sessions (
   estimated_duration integer,
   created_at timestamp with time zone DEFAULT now(),
   updated_at timestamp with time zone DEFAULT now(),
+  is_test boolean DEFAULT false,
+  time_limit_minutes integer DEFAULT 30,
+  passing_score integer DEFAULT 70,
+  max_attempts integer DEFAULT 1,
   CONSTRAINT sessions_pkey PRIMARY KEY (id),
   CONSTRAINT sessions_unit_id_fkey FOREIGN KEY (unit_id) REFERENCES public.units(id)
 );
@@ -2321,10 +2325,12 @@ CREATE TABLE IF NOT EXISTS public.lesson_records (
   participation_level text DEFAULT 'medium',
   homework_status text,
   homework_notes text,
+  homework_photo_url text,
   homework_score integer DEFAULT NULL,
   performance_rating text,
   star_flag text DEFAULT '',
   engagement_level text DEFAULT 'medium',
+  photo_url text,
   notes text,
   recorded_by uuid,
   recorded_at timestamp with time zone DEFAULT now(),
@@ -2341,6 +2347,50 @@ CREATE INDEX IF NOT EXISTS idx_lesson_records_lesson_info
 
 CREATE INDEX IF NOT EXISTS idx_lesson_records_student
   ON public.lesson_records(student_id);
+
+-- ============================================================
+-- test_attempts: tracks each student's test submission (linked to session)
+-- ============================================================
+CREATE TABLE IF NOT EXISTS public.test_attempts (
+  id uuid NOT NULL DEFAULT uuid_generate_v4(),
+  session_id uuid NOT NULL,
+  user_id uuid NOT NULL,
+  score integer CHECK (score >= 0 AND score <= 100),
+  passed boolean,
+  started_at timestamp with time zone DEFAULT now(),
+  completed_at timestamp with time zone,
+  time_used_seconds integer,
+  status text NOT NULL DEFAULT 'in_progress' CHECK (status IN ('in_progress', 'completed', 'timed_out')),
+  draft_answers jsonb,
+  created_at timestamp with time zone DEFAULT now(),
+  CONSTRAINT test_attempts_pkey PRIMARY KEY (id),
+  CONSTRAINT test_attempts_session_id_fkey FOREIGN KEY (session_id) REFERENCES public.sessions(id),
+  CONSTRAINT test_attempts_user_id_fkey FOREIGN KEY (user_id) REFERENCES public.users(id)
+);
+
+-- ============================================================
+-- test_question_attempts: individual question tracking within a test attempt
+-- ============================================================
+CREATE TABLE IF NOT EXISTS public.test_question_attempts (
+  id uuid NOT NULL DEFAULT uuid_generate_v4(),
+  test_attempt_id uuid NOT NULL,
+  exercise_id uuid NOT NULL,
+  question_index integer NOT NULL DEFAULT 0,
+  exercise_type text,
+  selected_answer jsonb,
+  correct_answer jsonb,
+  is_correct boolean NOT NULL,
+  teacher_override boolean DEFAULT false,
+  teacher_is_correct boolean,
+  teacher_note text,
+  overridden_by uuid,
+  overridden_at timestamp with time zone,
+  created_at timestamp with time zone DEFAULT now(),
+  CONSTRAINT test_question_attempts_pkey PRIMARY KEY (id),
+  CONSTRAINT test_question_attempts_attempt_id_fkey FOREIGN KEY (test_attempt_id) REFERENCES public.test_attempts(id) ON DELETE CASCADE,
+  CONSTRAINT test_question_attempts_exercise_id_fkey FOREIGN KEY (exercise_id) REFERENCES public.exercises(id),
+  CONSTRAINT test_question_attempts_overridden_by_fkey FOREIGN KEY (overridden_by) REFERENCES public.users(id)
+);
 
 -- ============================================================
 -- add_xp_batch: Award XP to multiple students (SECURITY DEFINER bypasses RLS)

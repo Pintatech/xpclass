@@ -351,71 +351,70 @@ const TeacherClassReports = () => {
     <div className="min-h-screen bg-white">
       {/* Top Header */}
       <div className="bg-white shadow-sm border-b sticky top-0 z-10">
-        <div className="max-w-7xl mx-auto px-6 py-4">
-          <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
-            <div className="flex items-center gap-4">
-              <button
-                onClick={() => navigate('/teacher/overview')}
-                className="flex items-center gap-2 text-blue-600 hover:text-blue-700 text-sm font-medium"
-              >
-                <ArrowLeft className="w-4 h-4" />
-                Back to Overview
-              </button>
-              <div>
-                <h1 className="text-xl font-bold text-gray-900">Lesson Report</h1>
-                {selectedCourseData && (
-                  <p className="text-sm text-gray-600">
-                    Course {selectedCourseData.level_number}: {selectedCourseData.title}
-                  </p>
-                )}
-              </div>
-            </div>
-
-            {/* Course & Date Selector */}
-            <div className="flex items-center gap-4">
-              <div className="flex items-center gap-2">
-                <label className="text-sm font-medium text-gray-700">Course:</label>
-                <select
-                  value={selectedCourse || ''}
-                  onChange={(e) => setSelectedCourse(e.target.value)}
-                  className="p-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500 min-w-[200px]"
+        <div className="max-w-7xl mx-auto px-4 md:px-6 py-3 md:py-4">
+          <div className="flex flex-col gap-3">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-3">
+                <button
+                  onClick={() => navigate('/teacher/overview')}
+                  className="flex items-center gap-1 text-blue-600 hover:text-blue-700 text-sm font-medium"
                 >
-                  {courses.map(course => (
-                    <option key={course.id} value={course.id}>
-                      {course.level_number}: {course.title}
-                    </option>
-                  ))}
-                </select>
+                  <ArrowLeft className="w-4 h-4" />
+                  <span className="hidden sm:inline">Back to Overview</span>
+                </button>
+                <div>
+                  <h1 className="text-lg md:text-xl font-bold text-gray-900">Lesson Report</h1>
+                  {selectedCourseData && (
+                    <p className="text-xs md:text-sm text-gray-600 truncate max-w-[200px] md:max-w-none">
+                      Course {selectedCourseData.level_number}: {selectedCourseData.title}
+                    </p>
+                  )}
+                </div>
               </div>
-              <div className="flex items-center gap-2">
-                <Calendar className="w-4 h-4 text-gray-500" />
+
+              {/* Date Selector */}
+              <div className="flex items-center gap-1">
+                <Calendar className="w-4 h-4 text-gray-500 hidden sm:block" />
                 <input
                   type="date"
                   value={selectedDate}
                   onChange={(e) => setSelectedDate(e.target.value)}
                   max={new Date().toISOString().split('T')[0]}
-                  className="p-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                  className="p-1.5 md:p-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                 />
               </div>
             </div>
+
+            {/* Course Selector - full width on mobile */}
+            <select
+              value={selectedCourse || ''}
+              onChange={(e) => setSelectedCourse(e.target.value)}
+              className="w-full p-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+            >
+              {courses.map(course => (
+                <option key={course.id} value={course.id}>
+                  {course.level_number}: {course.title}
+                </option>
+              ))}
+            </select>
           </div>
 
-          {/* Tabs */}
-          <div className="flex gap-1 mt-4 -mb-4 border-b-0">
+          {/* Tabs - horizontally scrollable on mobile */}
+          <div className="flex gap-1 mt-3 -mb-3 md:mt-4 md:-mb-4 overflow-x-auto scrollbar-hide">
             {tabs.map((tab) => {
               const Icon = tab.icon;
               return (
                 <button
                   key={tab.id}
                   onClick={() => setActiveTab(tab.id)}
-                  className={`flex items-center gap-2 px-4 py-2.5 text-sm font-medium rounded-t-lg transition-colors ${
+                  className={`flex items-center gap-1.5 px-3 md:px-4 py-2 text-sm font-medium rounded-t-lg transition-colors whitespace-nowrap flex-shrink-0 ${
                     activeTab === tab.id
                       ? 'bg-gray-50 text-blue-600 border border-b-0 border-gray-200 -mb-px'
                       : 'text-gray-500 hover:text-gray-700 hover:bg-gray-50'
                   }`}
                 >
                   <Icon className="w-4 h-4" />
-                  {tab.label}
+                  <span className="hidden sm:inline">{tab.label}</span>
                 </button>
               );
             })}
@@ -425,7 +424,7 @@ const TeacherClassReports = () => {
 
       {/* Notification */}
       {notification && (
-        <div className="max-w-7xl mx-auto px-6 pt-6">
+        <div className="max-w-7xl mx-auto px-4 md:px-6 pt-4 md:pt-6">
           <div
             className={`p-4 rounded-lg ${
               notification.type === 'error'
@@ -439,7 +438,7 @@ const TeacherClassReports = () => {
       )}
 
       {/* Tab Content */}
-      <div className="max-w-7xl mx-auto px-6 py-8">
+      <div className="max-w-7xl mx-auto px-4 md:px-6 py-4 md:py-8">
         <div className={activeTab === 'info' ? '' : 'hidden'}>
           <LessonInfoView
             lessonInfo={lessonInfo}
@@ -487,7 +486,7 @@ const TeacherClassReports = () => {
       {/* Save Button - always visible */}
       {selectedCourse && (
         <div className="sticky bottom-0 bg-white border-t shadow-lg">
-          <div className="max-w-7xl mx-auto px-6 py-4 flex items-center justify-between">
+          <div className="max-w-7xl mx-auto px-4 md:px-6 py-3 md:py-4 flex items-center justify-between gap-3">
             {!canSave && (
               <p className="text-sm text-red-500">
                 Incomplete: {incompleteTabs.join(', ')}
