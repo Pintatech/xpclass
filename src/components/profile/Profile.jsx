@@ -501,7 +501,19 @@ const Profile = () => {
     }
   }
 
+  const getNameChangeCooldown = () => {
+    if (!profile?.name_changed_at) return null
+    const changedAt = new Date(profile.name_changed_at)
+    const unlockAt = new Date(changedAt.getTime() + 30 * 24 * 60 * 60 * 1000)
+    const now = new Date()
+    if (now >= unlockAt) return null
+    return Math.ceil((unlockAt - now) / (24 * 60 * 60 * 1000))
+  }
+
+  const nameChangeCooldownDays = getNameChangeCooldown()
+
   const handleEditToggle = () => {
+    if (!isEditing && nameChangeCooldownDays) return
     setIsEditing(!isEditing)
     if (!isEditing) {
       setEditData({
@@ -512,7 +524,14 @@ const Profile = () => {
 
   const handleSaveProfile = async () => {
     try {
-      await updateProfile(editData)
+      const nameChanged = editData.full_name !== profile?.full_name
+      if (nameChanged && !window.confirm('Bạn chỉ được đổi tên 1 lần trong 30 ngày. Bạn có chắc chắn muốn đổi không?')) {
+        return
+      }
+      await updateProfile({
+        ...editData,
+        ...(nameChanged ? { name_changed_at: new Date().toISOString() } : {})
+      })
       setIsEditing(false)
     } catch (error) {
       console.error('Error updating profile:', error)
@@ -673,10 +692,15 @@ const Profile = () => {
                     </Button>
                   </div>
                 ) : (
-                  <Button onClick={handleEditToggle} variant="ghost" className="text-white">
-                    <Edit3 className="w-4 h-4 mr-2" />
-                    Edit
-                  </Button>
+                  <div>
+                    <Button onClick={handleEditToggle} variant="ghost" className="text-white" disabled={!!nameChangeCooldownDays}>
+                      <Edit3 className="w-4 h-4 mr-2" />
+                      Edit
+                    </Button>
+                    {nameChangeCooldownDays && (
+                      <p className="text-xs text-blue-200 mt-1">Đổi tên sau {nameChangeCooldownDays} ngày</p>
+                    )}
+                  </div>
                 )}
               </div>
             )}

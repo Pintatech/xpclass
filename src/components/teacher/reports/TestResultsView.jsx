@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react'
-import { supabase } from '../../supabase/client'
+import { supabase } from '../../../supabase/client'
 import {
   CheckCircle,
   XCircle,
@@ -8,7 +8,8 @@ import {
   ChevronRight,
   Trophy,
   Users,
-  FileText
+  FileText,
+  Edit3
 } from 'lucide-react'
 
 const TestResultsView = ({ selectedCourse }) => {
@@ -18,6 +19,7 @@ const TestResultsView = ({ selectedCourse }) => {
   const [loading, setLoading] = useState(false)
   const [expandedStudent, setExpandedStudent] = useState(null)
   const [expandedAttempt, setExpandedAttempt] = useState(null)
+  const [savingOverride, setSavingOverride] = useState(null) // question attempt id being saved
 
   // Fetch test sessions for this course
   useEffect(() => {
@@ -135,6 +137,56 @@ const TestResultsView = ({ selectedCourse }) => {
     if (passed) return 'text-green-600 bg-green-100'
     if (score >= 50) return 'text-yellow-600 bg-yellow-100'
     return 'text-red-600 bg-red-100'
+  }
+
+  // Teacher override: toggle a question's correctness and recalculate attempt score
+  const handleOverride = async (attempt, qa, newIsCorrect) => {
+    setSavingOverride(qa.id)
+    try {
+      // Update the question attempt with override
+      const { error: qaErr } = await supabase
+        .from('test_question_attempts')
+        .update({
+          is_correct: newIsCorrect,
+          teacher_override: true,
+          teacher_is_correct: newIsCorrect,
+          overridden_at: new Date().toISOString()
+        })
+        .eq('id', qa.id)
+
+      if (qaErr) throw qaErr
+
+      // Recalculate attempt score
+      const allQAs = attempt.test_question_attempts || []
+      const updatedQAs = allQAs.map(q => q.id === qa.id ? { ...q, is_correct: newIsCorrect, teacher_override: true } : q)
+      const totalQ = updatedQAs.length
+      const correctQ = updatedQAs.filter(q => q.is_correct).length
+      const newScore = totalQ > 0 ? Math.round((correctQ / totalQ) * 100) : 0
+      const newPassed = newScore >= passingScore
+
+      const { error: attErr } = await supabase
+        .from('test_attempts')
+        .update({ score: newScore, passed: newPassed })
+        .eq('id', attempt.id)
+
+      if (attErr) throw attErr
+
+      // Update local state
+      setAttempts(prev => prev.map(a => {
+        if (a.id !== attempt.id) return a
+        return {
+          ...a,
+          score: newScore,
+          passed: newPassed,
+          test_question_attempts: updatedQAs
+        }
+      }))
+    } catch (err) {
+      console.error('Error saving override:', err)
+      alert('Failed to save override')
+    } finally {
+      setSavingOverride(null)
+    }
   }
 
   if (testSessions.length === 0) {
@@ -293,6 +345,7 @@ const TestResultsView = ({ selectedCourse }) => {
                                       if (typeof val === 'object') return JSON.stringify(val)
                                       return String(val)
                                     }
+                                    const isSaving = savingOverride === qa.id
                                     return (
                                       <div
                                         key={qi}
@@ -318,6 +371,22 @@ const TestResultsView = ({ selectedCourse }) => {
                                             </span>
                                           </>
                                         )}
+                                        {qa.teacher_override && (
+                                          <span className="text-orange-500 text-[10px] font-medium px-1.5 py-0.5 bg-orange-50 rounded-full shrink-0">overridden</span>
+                                        )}
+                                        {/* Override toggle button */}
+                                        <button
+                                          onClick={(e) => { e.stopPropagation(); handleOverride(attempt, qa, !qa.is_correct) }}
+                                          disabled={isSaving}
+                                          className="ml-auto shrink-0 p-1 rounded hover:bg-gray-200 transition-colors text-gray-400 hover:text-blue-600 disabled:opacity-50"
+                                          title={qa.is_correct ? 'Mark as incorrect' : 'Mark as correct'}
+                                        >
+                                          {isSaving ? (
+                                            <div className="w-3.5 h-3.5 border-2 border-blue-500 border-t-transparent rounded-full animate-spin" />
+                                          ) : (
+                                            <Edit3 size={14} />
+                                          )}
+                                        </button>
                                       </div>
                                     )
                                   })

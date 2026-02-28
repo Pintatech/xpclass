@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { supabase } from '../../supabase/client';
+import { supabase } from '../../../supabase/client';
 import { ArrowLeft, Star, Flag, Users } from 'lucide-react';
 
 const ratingLabel = { wow: 'Wow', good: 'Good', ok: 'Ok' };

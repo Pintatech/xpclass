@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
-import { supabase } from '../../supabase/client';
+import { supabase } from '../../../supabase/client';
 import {
   FileText,
   ArrowLeft,
@@ -11,10 +11,10 @@ import {
   Info,
   MessageSquare
 } from 'lucide-react';
-import { useAuth } from '../../hooks/useAuth';
-import { useTeacherCourse } from '../../hooks/useTeacherCourseContext';
-import { useLessonRecords } from '../../hooks/useLessonRecords';
-import { useLessonInfo } from '../../hooks/useLessonInfo';
+import { useAuth } from '../../../hooks/useAuth';
+import { useTeacherCourse } from '../../../hooks/useTeacherCourseContext';
+import { useLessonRecords } from '../../../hooks/useLessonRecords';
+import { useLessonInfo } from '../../../hooks/useLessonInfo';
 
 import LessonInfoView from './LessonInfoView';
 import RollCallView from './RollCallView';

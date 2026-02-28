@@ -73,7 +73,7 @@ const XPRateCircle = ({ rate }) => {
   const radius = (size - stroke) / 2;
   const circumference = 2 * Math.PI * radius;
   const progress = (rate / 10) * circumference;
-  const color = rate >= 7 ? '#16a34a' : rate >= 4 ? '#ca8a04' : '#ef4444';
+  const color = rate >= 8 ? '#16a34a' : rate >= 5 ? '#ca8a04' : '#ef4444';
 
   return (
     <div className="flex flex-col items-center gap-0.5">
@@ -491,65 +491,54 @@ const TeacherCourseOverview = () => {
           {!popoverData.record ? (
             <p className="text-sm text-gray-400">No record for this lesson</p>
           ) : (
-            <div className="space-y-2 text-sm">
-              {/* Star/Flag */}
-              {popoverData.record.star_flag && (
-                <div className="flex items-center gap-2">
-                  {popoverData.record.star_flag === 'star' && <Star className="w-4 h-4 fill-yellow-400 text-yellow-400" />}
-                  {popoverData.record.star_flag === 'flag' && <Flag className="w-4 h-4 fill-red-500 text-red-500" />}
-                  <span className="text-gray-600 capitalize">{popoverData.record.star_flag === 'star' ? 'Starred' : 'Flagged'}</span>
+            <div className="space-y-1 text-xs">
+              {/* Star/Flag + Attendance inline */}
+              <div className="flex items-center gap-2">
+                {popoverData.record.attendance_status && (
+                  <span className={`font-medium px-1.5 py-0.5 rounded capitalize ${
+                    popoverData.record.attendance_status === 'present' ? 'bg-green-100 text-green-700' :
+                    popoverData.record.attendance_status === 'late' ? 'bg-yellow-100 text-yellow-700' :
+                    popoverData.record.attendance_status === 'absent' ? 'bg-red-100 text-red-700' :
+                    'bg-gray-100 text-gray-600'
+                  }`}>{attendanceLabel[popoverData.record.attendance_status] || popoverData.record.attendance_status}</span>
+                )}
+                {popoverData.record.star_flag === 'star' && <Star className="w-3.5 h-3.5 fill-yellow-400 text-yellow-400" />}
+                {popoverData.record.star_flag === 'flag' && <Flag className="w-3.5 h-3.5 fill-red-500 text-red-500" />}
+              </div>
+
+              {/* Performance tag + note on one row */}
+              {(popoverData.record.performance_rating || popoverData.record.notes) && (
+                <div className="flex items-center gap-1.5">
+                  {popoverData.record.performance_rating && (
+                    <span className={`font-medium px-1.5 py-0.5 rounded shrink-0 ${
+                      popoverData.record.performance_rating === 'wow' ? 'bg-green-100 text-green-700' :
+                      popoverData.record.performance_rating === 'good' ? 'bg-yellow-100 text-yellow-700' :
+                      'bg-red-100 text-red-700'
+                    }`}>
+                      Class: {ratingLabel[popoverData.record.performance_rating] || popoverData.record.performance_rating}
+                    </span>
+                  )}
+                  {popoverData.record.notes && (
+                    <span className="text-gray-600 truncate">{popoverData.record.notes}</span>
+                  )}
                 </div>
               )}
 
-              {/* Attendance */}
-              {popoverData.record.attendance_status && (
-                <div className="flex justify-between">
-                  <span className="text-gray-500">Attendance</span>
-                  <span className="font-medium capitalize">{attendanceLabel[popoverData.record.attendance_status] || popoverData.record.attendance_status}</span>
-                </div>
-              )}
-
-              {/* Performance */}
-              {popoverData.record.performance_rating && (
-                <div className="flex justify-between">
-                  <span className="text-gray-500">Performance</span>
-                  <span className={`font-medium px-2 py-0.5 rounded text-xs ${
-                    popoverData.record.performance_rating === 'wow' ? 'bg-green-100 text-green-700' :
-                    popoverData.record.performance_rating === 'good' ? 'bg-yellow-100 text-yellow-700' :
-                    'bg-red-100 text-red-700'
-                  }`}>
-                    {ratingLabel[popoverData.record.performance_rating] || popoverData.record.performance_rating}
-                  </span>
-                </div>
-              )}
-
-              {/* Performance Notes */}
-              {popoverData.record.notes && (
-                <div>
-                  <span className="text-gray-500 text-xs">Performance Notes</span>
-                  <p className="text-gray-800 mt-0.5">{popoverData.record.notes}</p>
-                </div>
-              )}
-
-              {/* Homework */}
-              {popoverData.record.homework_status && (
-                <div className="flex justify-between">
-                  <span className="text-gray-500">Homework</span>
-                  <span className={`font-medium px-2 py-0.5 rounded text-xs ${
-                    popoverData.record.homework_status === 'wow' ? 'bg-green-100 text-green-700' :
-                    popoverData.record.homework_status === 'good' ? 'bg-yellow-100 text-yellow-700' :
-                    'bg-red-100 text-red-700'
-                  }`}>
-                    {homeworkLabel[popoverData.record.homework_status] || popoverData.record.homework_status}
-                  </span>
-                </div>
-              )}
-
-              {/* Homework Notes */}
-              {popoverData.record.homework_notes && (
-                <div>
-                  <span className="text-gray-500 text-xs">Homework Notes</span>
-                  <p className="text-gray-800 mt-0.5">{popoverData.record.homework_notes}</p>
+              {/* Homework tag + note on one row */}
+              {(popoverData.record.homework_status || popoverData.record.homework_notes) && (
+                <div className="flex items-center gap-1.5">
+                  {popoverData.record.homework_status && (
+                    <span className={`font-medium px-1.5 py-0.5 rounded shrink-0 ${
+                      popoverData.record.homework_status === 'wow' ? 'bg-green-100 text-green-700' :
+                      popoverData.record.homework_status === 'good' ? 'bg-yellow-100 text-yellow-700' :
+                      'bg-red-100 text-red-700'
+                    }`}>
+                      Home: {homeworkLabel[popoverData.record.homework_status] || popoverData.record.homework_status}
+                    </span>
+                  )}
+                  {popoverData.record.homework_notes && (
+                    <span className="text-gray-600 truncate">{popoverData.record.homework_notes}</span>
+                  )}
                 </div>
               )}
             </div>

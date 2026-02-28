@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
-import { supabase } from '../../supabase/client';
-import { useAuth } from '../../hooks/useAuth';
+import { supabase } from '../../../supabase/client';
+import { useAuth } from '../../../hooks/useAuth';
 import { CheckCircle, XCircle, Clock, Minus, RotateCcw, Eye, X, ChevronDown, RefreshCw } from 'lucide-react';
 
 const StudentExerciseMatrix = ({ selectedCourse }) => {

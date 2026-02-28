@@ -1,5 +1,5 @@
 import React, { useState } from 'react'
-import { supabase } from '../../supabase/client'
+import { supabase } from '../../../supabase/client'
 import { X, PlayCircle, Plus } from 'lucide-react'
 
 const AddSessionModal = ({ unitId, onClose, onCreated }) => {

@@ -91,8 +91,7 @@ const PetManagement = () => {
           pet_id: data[0].id,
           bonus_type: 'xp_boost',
           bonus_value: bonusValue,
-          min_happiness: 70,
-          description: 'Bonus XP when pet is happy'
+          description: 'Pet XP bonus'
         }])
       }
 

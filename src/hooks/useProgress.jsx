@@ -148,12 +148,12 @@ export const ProgressProvider = ({ children }) => {
     try {
       const { data, error } = await supabase
         .from('user_pets')
-        .select('happiness, rarity:pets(rarity)')
+        .select('rarity:pets(rarity)')
         .eq('user_id', user.id)
         .eq('is_active', true)
         .maybeSingle()
 
-      if (error || !data || data.happiness < 70) return 0
+      if (error || !data) return 0
 
       const rarity = data.rarity?.rarity
       const bonusMap = { common: 5, uncommon: 10, rare: 15, epic: 20, legendary: 25 }
@@ -488,7 +488,7 @@ export const ProgressProvider = ({ children }) => {
         await checkAndAwardAchievements(progressData)
       }
 
-      // Update pet happiness and stats when student completes exercise
+      // Update pet stats when student completes exercise
       if (meetingRequirement) {
         try {
           await supabase.rpc('update_pet_on_activity', { p_user_id: user.id })

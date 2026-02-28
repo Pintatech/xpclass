@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react'
-import { supabase } from '../../supabase/client'
+import { supabase } from '../../../supabase/client'
 import { X, BookOpen, Save } from 'lucide-react'
 
 const EditUnitModal = ({ unit, onClose, onUpdated }) => {

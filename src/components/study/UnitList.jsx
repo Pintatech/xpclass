@@ -4,8 +4,8 @@ import { supabase } from "../../supabase/client";
 import { useAuth } from "../../hooks/useAuth";
 import { usePermissions } from "../../hooks/usePermissions";
 import Button from "../ui/Button";
-import AddUnitModal from "./AddUnitModal";
-import EditUnitModal from "./EditUnitModal";
+import AddUnitModal from "./modals/AddUnitModal";
+import EditUnitModal from "./modals/EditUnitModal";
 // Thay spinner bằng skeleton để điều hướng mượt hơn
 import {
   ArrowLeft,

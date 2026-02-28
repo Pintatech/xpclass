@@ -35,6 +35,7 @@ const PetWhackMole = ({ petImageUrl, petName, onGameEnd, onClose }) => {
   const [hammerPos, setHammerPos] = useState({ x: -100, y: -100 })
   const [hammerSwing, setHammerSwing] = useState(false)
   const [wordHistory, setWordHistory] = useState([])
+  const [impacts, setImpacts] = useState([])
 
   const timerRef = useRef(null)
   const moleTimersRef = useRef([])
@@ -44,6 +45,7 @@ const PetWhackMole = ({ petImageUrl, petName, onGameEnd, onClose }) => {
   const animFrameRef = useRef(null)
   const gameContainerRef = useRef(null)
   const roundHitRef = useRef(false)
+  const bgMusicRef = useRef(null)
 
   // Pick a new target word and spawn moles
   const spawnRound = useCallback(() => {
@@ -100,6 +102,33 @@ const PetWhackMole = ({ petImageUrl, petName, onGameEnd, onClose }) => {
     setFloatingTexts([])
     setWordHistory([])
     setPhase('playing')
+
+    // Start background music
+    try {
+      const music = new Audio('https://xpclass.vn/xpclass/sound/pet-word-scamble.mp3')
+      music.loop = true
+      music.volume = 0.3
+      bgMusicRef.current = music
+      music.play().catch(() => {})
+    } catch {}
+  }, [])
+
+  // Stop background music when game ends
+  useEffect(() => {
+    if (phase === 'results' && bgMusicRef.current) {
+      bgMusicRef.current.pause()
+      bgMusicRef.current = null
+    }
+  }, [phase])
+
+  // Cleanup music on unmount
+  useEffect(() => {
+    return () => {
+      if (bgMusicRef.current) {
+        bgMusicRef.current.pause()
+        bgMusicRef.current = null
+      }
+    }
   }, [])
 
   // Start spawning when playing begins
@@ -175,10 +204,6 @@ const PetWhackMole = ({ petImageUrl, petName, onGameEnd, onClose }) => {
     const target = targetRef.current
     if (!target) return
 
-    // Trigger hammer swing
-    setHammerSwing(true)
-    setTimeout(() => setHammerSwing(false), 200)
-
     if (hole.word === target.word) {
       // CORRECT!
       roundHitRef.current = true
@@ -228,17 +253,6 @@ const PetWhackMole = ({ petImageUrl, petName, onGameEnd, onClose }) => {
       setHoles(prev => prev.map((h, i) =>
         i === holeIndex ? { ...h, wrong: true } : h
       ))
-      // Time penalty
-      setDisplayTime(prev => Math.max(1, prev - 2))
-
-      setFloatingTexts(prev => [...prev, {
-        id: Date.now(),
-        text: '-2s',
-        x: 50,
-        y: 50,
-        opacity: 1,
-        color: '#ef4444',
-      }])
 
       try {
         const sound = new Audio('https://xpclass.vn/xpclass/pet-game/mole-incorrect.mp3')
@@ -313,6 +327,11 @@ const PetWhackMole = ({ petImageUrl, petName, onGameEnd, onClose }) => {
         .whack-game-playing, .whack-game-playing * {
           cursor: none !important;
         }
+        @keyframes whackImpact {
+          0% { transform: translate(-50%, -50%) scale(0); opacity: 1; }
+          50% { transform: translate(-50%, -50%) scale(1); opacity: 0.8; }
+          100% { transform: translate(-50%, -50%) scale(1.5); opacity: 0; }
+        }
         @keyframes hammerSwing {
           0% { transform: translate(-30%, -70%) rotate(-15deg); }
           40% { transform: translate(-30%, -70%) rotate(40deg) scale(1.1); }
@@ -324,6 +343,18 @@ const PetWhackMole = ({ petImageUrl, petName, onGameEnd, onClose }) => {
       <div
         ref={gameContainerRef}
         className={`relative w-full max-w-[400px] h-full max-h-[100dvh] overflow-hidden rounded-none sm:rounded-2xl sm:max-h-[90vh] sm:shadow-2xl ${phase === 'playing' ? 'whack-game-playing' : ''}`}
+        onPointerDown={(e) => {
+          if (phase === 'playing') {
+            setHammerSwing(true)
+            setTimeout(() => setHammerSwing(false), 100)
+            const rect = gameContainerRef.current.getBoundingClientRect()
+            const x = (e.touches ? e.touches[0].clientX : e.clientX) - rect.left
+            const y = (e.touches ? e.touches[0].clientY : e.clientY) - rect.top
+            const id = Date.now() + Math.random()
+            setImpacts(prev => [...prev, { id, x, y }])
+            setTimeout(() => setImpacts(prev => prev.filter(imp => imp.id !== id)), 300)
+          }
+        }}
         style={{
           background: 'linear-gradient(to bottom, #86efac, #22c55e 40%, #65a30d 80%, #4d7c0f)',
           transform: screenShake > 0 ? `translate(${Math.sin(screenShake) * 4}px, ${Math.cos(screenShake) * 4}px)` : 'none',
@@ -530,6 +561,36 @@ const PetWhackMole = ({ petImageUrl, petName, onGameEnd, onClose }) => {
               </div>
             </div>
 
+            {/* Impact effects */}
+            {impacts.map(imp => (
+              <div
+                key={imp.id}
+                className="absolute pointer-events-none z-20"
+                style={{
+                  left: imp.x,
+                  top: imp.y,
+                  width: 60,
+                  height: 60,
+                  animation: 'whackImpact 0.3s ease-out forwards',
+                }}
+              >
+                <svg viewBox="0 0 60 60" width="60" height="60">
+                  {[0, 45, 90, 135, 180, 225, 270, 315].map(angle => (
+                    <line
+                      key={angle}
+                      x1="30" y1="30"
+                      x2={30 + 25 * Math.cos(angle * Math.PI / 180)}
+                      y2={30 + 25 * Math.sin(angle * Math.PI / 180)}
+                      stroke="#fbbf24"
+                      strokeWidth="3"
+                      strokeLinecap="round"
+                    />
+                  ))}
+                  <circle cx="30" cy="30" r="8" fill="#fbbf24" opacity="0.6" />
+                </svg>
+              </div>
+            ))}
+
             {/* Hammer cursor */}
             {hammerPos.x > 0 && (
               <img
@@ -544,7 +605,7 @@ const PetWhackMole = ({ petImageUrl, petName, onGameEnd, onClose }) => {
                   transform: hammerSwing
                     ? 'translate(-50%, -50%) rotate(-20deg) scale(1.2)'
                     : 'translate(-50%, -50%) rotate(45deg)',
-                  transition: hammerSwing ? 'transform 0.05s ease-in' : 'transform 0.12s ease-out',
+                  transition: hammerSwing ? 'transform 0.03s ease-in' : 'transform 0.06s ease-out',
                   filter: 'drop-shadow(2px 4px 6px rgba(0,0,0,0.4))',
                 }}
               />
@@ -583,12 +644,12 @@ const PetWhackMole = ({ petImageUrl, petName, onGameEnd, onClose }) => {
               </div>
 
               <h2 className="text-2xl font-bold text-gray-800 mb-1">
-                {score >= 20 ? 'Training Complete!' : 'Not Enough Whacks!'}
+                {score >= 20 ? 'Training Complete!' : 'Not Enough Score!'}
               </h2>
               <p className="text-gray-500 mb-5">
                 {score >= 20
-                  ? `${petName} whacked ${score} moles!`
-                  : `${petName} only whacked ${score}/20 moles`}
+                  ? `${petName} scored ${score} points!`
+                  : `${petName} only scored ${score}/20 points`}
               </p>
 
               <div
@@ -596,7 +657,7 @@ const PetWhackMole = ({ petImageUrl, petName, onGameEnd, onClose }) => {
                 style={{ animation: 'moleScorePopIn 0.6s ease-out 0.5s both' }}
               >
                 <p className={`text-5xl font-black ${score >= 20 ? 'text-green-600' : 'text-gray-400'}`}>{score}</p>
-                <p className={`text-sm font-semibold mt-1 ${score >= 20 ? 'text-green-400' : 'text-gray-400'}`}>moles whacked</p>
+                <p className={`text-sm font-semibold mt-1 ${score >= 20 ? 'text-green-400' : 'text-gray-400'}`}>score</p>
               </div>
 
               {/* Missed Words */}
@@ -619,7 +680,7 @@ const PetWhackMole = ({ petImageUrl, petName, onGameEnd, onClose }) => {
                   ? 'Whack master! 🏆'
                   : score >= 20
                     ? 'Amazing reflexes! 🌟'
-                    : 'Need at least 20 whacks to earn XP. Try again! 💪'}
+                    : 'Need at least 20 score to earn XP. Try again! 💪'}
               </p>
 
               {score >= 20 ? (

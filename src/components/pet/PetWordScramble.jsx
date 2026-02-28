@@ -35,7 +35,6 @@ const PetWordScramble = ({ petImageUrl, petName, onGameEnd, onClose }) => {
   const [wordIndex, setWordIndex] = useState(0)
   const [bubbles, setBubbles] = useState([]) // { id, letter, x, y, vx, vy, popping, captured }
   const [placedLetters, setPlacedLetters] = useState([]) // { id, letter }
-  const [streak, setStreak] = useState(0)
   const [combo, setCombo] = useState(0)
   const [feedback, setFeedback] = useState(null) // 'correct' | 'wrong' | null
   const [wordsCompleted, setWordsCompleted] = useState(0)
@@ -43,6 +42,7 @@ const PetWordScramble = ({ petImageUrl, petName, onGameEnd, onClose }) => {
   const [screenShake, setScreenShake] = useState(0)
   const [skippedWords, setSkippedWords] = useState([])
   const [muted, setMuted] = useState(false)
+  const [wordPopup, setWordPopup] = useState(null) // { points, streak, combo }
 
   const scoreRef = useRef(0)
   const timerRef = useRef(null)
@@ -100,7 +100,6 @@ const PetWordScramble = ({ petImageUrl, petName, onGameEnd, onClose }) => {
     setBubbles(createBubbles(w.word, width, height))
     setPlacedLetters([])
     setFeedback(null)
-    setCombo(0)
     return true
   }, [createBubbles])
 
@@ -113,9 +112,10 @@ const PetWordScramble = ({ petImageUrl, petName, onGameEnd, onClose }) => {
     setDisplayTime(GAME_DURATION)
     setWordsCompleted(0)
     setSkippedWords([])
-    setStreak(0)
+
     scoreRef.current = 0
     streakRef.current = 0
+    setCombo(0)
 
     // Use container dimensions for initial setup
     const width = containerRef.current?.clientWidth || 400
@@ -317,7 +317,8 @@ const PetWordScramble = ({ petImageUrl, petName, onGameEnd, onClose }) => {
   const handleSkip = useCallback(() => {
     if (phase !== 'playing' || feedback === 'correct') return
     streakRef.current = 0
-    setStreak(0)
+
+    setCombo(0)
     setSkippedWords(prev => [...prev, words[wordIndex]])
     const nextIdx = wordIndex + 1
     if (nextIdx < words.length) {
@@ -355,7 +356,7 @@ const PetWordScramble = ({ petImageUrl, petName, onGameEnd, onClose }) => {
       // Correct! Word complete!
       const newStreak = streakRef.current + 1
       streakRef.current = newStreak
-      setStreak(newStreak)
+
       const lengthBonus = Math.max(0, currentWord.length - 4) * 5
       const bonus = newStreak > 1 ? STREAK_BONUS * (newStreak - 1) : 0
       const comboBonus = combo > 5 ? combo * 2 : 0
@@ -365,6 +366,8 @@ const PetWordScramble = ({ petImageUrl, petName, onGameEnd, onClose }) => {
       setWordsCompleted(prev => prev + 1)
       setFeedback('correct')
       setScreenShake(15)
+      setWordPopup({ points, streak: newStreak, combo })
+      setTimeout(() => setWordPopup(null), 1200)
 
       // Victory sound
       try {
@@ -439,6 +442,12 @@ const PetWordScramble = ({ petImageUrl, petName, onGameEnd, onClose }) => {
           0% { transform: scale(0); }
           70% { transform: scale(1.15); }
           100% { transform: scale(1); }
+        }
+        @keyframes wordPopupAnim {
+          0% { transform: scale(0.5) translateY(0); opacity: 0; }
+          15% { transform: scale(1.1) translateY(0); opacity: 1; }
+          30% { transform: scale(1) translateY(0); opacity: 1; }
+          100% { transform: scale(1) translateY(-60px); opacity: 0; }
         }
         @keyframes streakPulse {
           0% { transform: scale(1); }
@@ -580,28 +589,12 @@ const PetWordScramble = ({ petImageUrl, petName, onGameEnd, onClose }) => {
                   <span className="text-xl font-black text-white">{displayScore}</span>
                 </div>
 
-                <div className="flex items-center gap-2">
-                  {streak > 1 && (
-                    <div className="bg-yellow-400 text-yellow-900 rounded-full px-3 py-1 text-sm font-bold"
-                      style={{ animation: 'streakPulse 0.6s ease-in-out' }}
-                    >
-                      {streak}x
-                    </div>
-                  )}
-                  {combo > 3 && (
-                    <div className="bg-gradient-to-r from-purple-500 to-pink-500 text-white rounded-full px-3 py-1 text-sm font-bold shadow-lg"
-                      style={{ animation: 'streakPulse 0.6s ease-in-out' }}
-                    >
-                      🔥{combo}x
-                    </div>
-                  )}
-                  {petImageUrl && (
-                    <img src={petImageUrl} alt={petName}
-                      className="w-10 h-10 object-contain drop-shadow-md"
-                      onError={(e) => { e.target.style.display = 'none' }}
-                    />
-                  )}
-                </div>
+                {petImageUrl && (
+                  <img src={petImageUrl} alt={petName}
+                    className="w-10 h-10 object-contain drop-shadow-md"
+                    onError={(e) => { e.target.style.display = 'none' }}
+                  />
+                )}
 
                 {(() => {
                   const pct = displayTime / GAME_DURATION
@@ -661,13 +654,85 @@ const PetWordScramble = ({ petImageUrl, petName, onGameEnd, onClose }) => {
                 </button>
               </div>
 
-              {/* Hint */}
-              <div className="bg-white/10 backdrop-blur rounded-xl px-6 py-2 text-center">
-                <span className="text-sm text-white/60 mr-2">Hint:</span>
-                <span className="text-xl font-bold text-white">{currentWord.hint}</span>
+              {/* Hint + Streak/Combo */}
+              <div className="w-full flex items-center gap-2">
+                <div className={`rounded-full px-2.5 py-1 text-xs font-bold flex items-center gap-1 shrink-0 ${
+                  streakRef.current >= 3 ? 'bg-yellow-400 text-yellow-900' : 'bg-white/20 text-white/70'
+                }`}>
+                  <img src="https://xpclass.vn/xpclass/icon/profile/streak.svg" alt="streak" className="w-3.5 h-3.5" />{streakRef.current}x
+                </div>
+                <div className="flex-1 bg-white/10 backdrop-blur rounded-xl px-4 py-2 text-center min-w-0">
+                  <span className="text-sm text-white/60 mr-2">Hint:</span>
+                  <span className="text-xl font-bold text-white">{currentWord.hint}</span>
+                </div>
+                <div className={`rounded-full px-2.5 py-1 text-xs font-bold shrink-0 ${
+                  combo > 5 ? 'bg-gradient-to-r from-purple-500 to-pink-500 text-white' : 'bg-white/20 text-white/70'
+                }`}>
+                  {combo}x
+                </div>
               </div>
+
+            </div>
+
+            {/* Progress dots - outside pointer-events-auto wrapper */}
+            <div className="flex items-center justify-center gap-1.5 mt-2">
+              {Array.from({ length: 10 }, (_, i) => (
+                <div
+                  key={i}
+                  className="relative"
+                  style={{
+                    width: 24,
+                    height: 24,
+                    transition: 'transform 0.3s ease',
+                    transform: i === wordsCompleted ? 'scale(1.3)' : 'scale(1)',
+                  }}
+                >
+                  {i < wordsCompleted ? (
+                    <div className="w-full h-full rounded-full flex items-center justify-center text-xs"
+                      style={{
+                        background: 'linear-gradient(135deg, #a78bfa, #7c3aed)',
+                        boxShadow: '0 0 8px rgba(139,92,246,0.5)',
+                        animation: 'streakPulse 0.4s ease-out',
+                      }}
+                    >
+                      <span className="text-white font-bold">✓</span>
+                    </div>
+                  ) : i === wordsCompleted ? (
+                    <div className="w-full h-full rounded-full border-2 border-white/60 flex items-center justify-center"
+                      style={{ background: 'rgba(255,255,255,0.15)', animation: 'hintPulse 1.5s ease-in-out infinite' }}
+                    >
+                      <span className="text-white/80 font-bold text-[10px]">{i + 1}</span>
+                    </div>
+                  ) : (
+                    <div className="w-full h-full rounded-full border border-white/20 flex items-center justify-center"
+                      style={{ background: 'rgba(255,255,255,0.08)' }}
+                    >
+                      <span className="text-white/30 text-[10px]">{i + 1}</span>
+                    </div>
+                  )}
+                </div>
+              ))}
             </div>
           </div>
+
+          {/* === WORD COMPLETE POPUP === */}
+          {wordPopup && (
+            <div className="absolute inset-0 z-20 flex items-center justify-center pointer-events-none">
+              <div className="flex flex-col items-center gap-1" style={{ animation: 'wordPopupAnim 1.2s ease-out forwards' }}>
+                <div className="text-3xl font-black text-white drop-shadow-lg">+{wordPopup.points}</div>
+                {wordPopup.streak > 1 && (
+                  <div className="flex items-center gap-1 bg-yellow-400 text-yellow-900 rounded-full px-3 py-1 text-sm font-bold">
+                    <img src="https://xpclass.vn/xpclass/icon/profile/streak.svg" alt="streak" className="w-4 h-4" />{wordPopup.streak}x streak
+                  </div>
+                )}
+                {wordPopup.combo > 5 && (
+                  <div className="bg-gradient-to-r from-purple-500 to-pink-500 text-white rounded-full px-3 py-1 text-sm font-bold">
+                    {wordPopup.combo}x combo
+                  </div>
+                )}
+              </div>
+            </div>
+          )}
 
           {/* === BOTTOM: Answer Slots === */}
           <div className="absolute bottom-0 left-0 right-0 pb-8 pt-4 z-10 pointer-events-none"

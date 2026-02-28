@@ -1,5 +1,5 @@
 import React, { useState } from 'react'
-import { supabase } from '../../supabase/client'
+import { supabase } from '../../../supabase/client'
 import { X, BookOpen, Plus } from 'lucide-react'
 
 const AddUnitModal = ({ levelId, onClose, onCreated }) => {

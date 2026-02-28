@@ -65,11 +65,14 @@ const PetInventory = () => {
     return gradients[rarity] || gradients.common
   }
 
-  const getHappinessColor = (happiness) => {
-    if (happiness >= 80) return 'text-green-600'
-    if (happiness >= 50) return 'text-yellow-600'
-    if (happiness >= 20) return 'text-orange-600'
-    return 'text-red-600'
+  // Get the current evolution image or fallback to base image
+  const getPetImage = (userPet) => {
+    const pet = userPet.pet
+    if (userPet.evolution_stage > 0 && pet.evolution_stages) {
+      const stage = pet.evolution_stages.find(s => s.stage === userPet.evolution_stage)
+      if (stage?.image_url) return stage.image_url
+    }
+    return pet.image_url
   }
 
   return (
@@ -148,8 +151,8 @@ const PetInventory = () => {
 
               {/* Pet Image */}
               <div className={`w-full h-40 ${getRarityGradient(pet.rarity)} rounded-lg flex items-center justify-center mb-4 overflow-hidden`}>
-                {pet.image_url ? (
-                  <img src={pet.image_url} alt={pet.name} className="w-full h-full object-contain" />
+                {getPetImage(userPet) ? (
+                  <img src={getPetImage(userPet)} alt={pet.name} className="w-full h-full object-contain" />
                 ) : (
                   <span className="text-5xl">
                     {pet.rarity === 'legendary' ? '🐉' :
@@ -214,8 +217,8 @@ const PetInventory = () => {
 
             {/* Pet Preview */}
             <div className="bg-gradient-to-br from-purple-100 to-pink-100 rounded-lg p-6 mb-4 text-center overflow-hidden">
-              {selectedPet.pet.image_url ? (
-                <img src={selectedPet.pet.image_url} alt={selectedPet.pet.name} className="w-32 h-32 mx-auto object-contain rounded-lg mb-4" />
+              {getPetImage(selectedPet) ? (
+                <img src={getPetImage(selectedPet)} alt={selectedPet.pet.name} className="w-32 h-32 mx-auto object-contain rounded-lg mb-4" />
               ) : (
                 <div className="text-6xl mb-4">
                   {selectedPet.pet.rarity === 'legendary' ? '🐉' :

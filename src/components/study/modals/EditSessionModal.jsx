@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react'
-import { supabase } from '../../supabase/client'
+import { supabase } from '../../../supabase/client'
 import { X, PlayCircle, Save } from 'lucide-react'
 
 const EditSessionModal = ({ session, onClose, onUpdated }) => {

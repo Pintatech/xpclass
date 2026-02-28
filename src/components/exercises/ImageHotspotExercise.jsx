@@ -200,8 +200,9 @@ const ImageHotspotExercise = ({ testMode = false, exerciseData = null, onAnswers
   useEffect(() => {
     if (imageRef.current && containerRef.current) {
       const updateScale = () => {
-        if (imageRef.current.complete && imageRef.current.naturalWidth > 0) {
-          const containerWidth = containerRef.current.clientWidth
+        if (imageRef.current && imageRef.current.complete && imageRef.current.naturalWidth > 0) {
+          const containerWidth = containerRef.current?.clientWidth
+          if (!containerWidth) return // still hidden (display: none)
           const naturalWidth = imageRef.current.naturalWidth
           const scale = containerWidth / naturalWidth
           setImageScale(scale)
@@ -212,8 +213,14 @@ const ImageHotspotExercise = ({ testMode = false, exerciseData = null, onAnswers
       window.addEventListener('resize', updateScale)
       updateScale()
 
+      // Use ResizeObserver to recalculate when container becomes visible
+      // (e.g. switching tabs in TestRunner changes display from none to block)
+      const observer = new ResizeObserver(updateScale)
+      observer.observe(containerRef.current)
+
       return () => {
         window.removeEventListener('resize', updateScale)
+        observer.disconnect()
       }
     }
   }, [exercise])

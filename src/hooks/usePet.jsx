@@ -246,17 +246,10 @@ export const PetProvider = ({ children }) => {
     }
   }
 
-  const getPetHappinessStatus = (happiness) => {
-    if (happiness >= 80) return { status: 'happy', emoji: '😊', color: 'text-green-500' }
-    if (happiness >= 50) return { status: 'neutral', emoji: '😐', color: 'text-yellow-500' }
-    if (happiness >= 20) return { status: 'sad', emoji: '😢', color: 'text-orange-500' }
-    return { status: 'very_sad', emoji: '😭', color: 'text-red-500' }
-  }
-
   const getActiveBonuses = () => {
-    if (!activePet || activePet.happiness < 70) return []
+    if (!activePet) return []
 
-    // Calculate bonuses based on pet rarity and happiness
+    // Calculate bonuses based on pet rarity
     const bonuses = []
 
     // Base rarity bonus
@@ -300,7 +293,6 @@ export const PetProvider = ({ children }) => {
     playWithPet,
     updatePetOnActivity,
     drainPetEnergy,
-    getPetHappinessStatus,
     getActiveBonuses,
     fetchActivePet,
     fetchUserPets,

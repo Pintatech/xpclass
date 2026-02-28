@@ -52,8 +52,8 @@ const callMegaLLMPetChat = async (pet, userMessage, _chatHistory, language, retr
 
   // Simplified prompt for reliability
   const systemPrompt = language === 'vi'
-    ? `Bạn tên là ${petName}, một ${petType} dễ thương. Trả lời ngắn (1-2 câu), vui vẻ, có thể dùng emoji. Level: ${pet.level}, Vui: ${pet.happiness}%.`
-    : `Your name is ${petName}, a cute ${petType}. Reply short (1-2 sentences), cheerful, can use emojis. Level: ${pet.level}, Happy: ${pet.happiness}%.`
+    ? `Bạn tên là ${petName}, một ${petType} dễ thương. Trả lời ngắn (1-2 câu), vui vẻ, có thể dùng emoji. Level: ${pet.level}.`
+    : `Your name is ${petName}, a cute ${petType}. Reply short (1-2 sentences), cheerful, can use emojis. Level: ${pet.level}.`
 
   const messages = [
     { role: 'system', content: systemPrompt },

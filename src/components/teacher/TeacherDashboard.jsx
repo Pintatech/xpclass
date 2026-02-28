@@ -2,10 +2,10 @@ import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { supabase } from '../../supabase/client';
 import { useAuth } from '../../hooks/useAuth';
-import StudentExerciseMatrix from './StudentExerciseMatrix';
-import UnitProgressView from './UnitProgressView';
-import LessonReportView from './LessonReportView';
-import TestResultsView from './TestResultsView';
+import StudentExerciseMatrix from './reports/StudentExerciseMatrix';
+import UnitProgressView from './reports/UnitProgressView';
+import LessonReportView from './reports/LessonReportView';
+import TestResultsView from './reports/TestResultsView';
 import {
   BookOpen,
   Users,

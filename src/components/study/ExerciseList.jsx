@@ -5,7 +5,7 @@ import { useAuth } from "../../hooks/useAuth";
 import { usePermissions } from "../../hooks/usePermissions";
 import { useProgress } from "../../hooks/useProgress";
 import Button from "../ui/Button";
-import AssignExerciseModal from "./AssignExerciseModal";
+import AssignExerciseModal from "./modals/AssignExerciseModal";
 import AssignToStudentModal from "../admin/AssignToStudentModal";
 import EditExerciseModal from "../admin/ExerciseBank/EditExerciseModal";
 import {

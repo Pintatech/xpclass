@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react'
-import { supabase } from '../../supabase/client'
+import { supabase } from '../../../supabase/client'
 import { X, Search, BookOpen, Mic, Edit3, HelpCircle, Plus, Check, Copy, Brain, Image } from 'lucide-react'
 
 const AssignExerciseModal = ({ sessionId, onClose, onAssigned }) => {

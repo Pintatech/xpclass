@@ -57,7 +57,6 @@ const PetDisplay = () => {
     feedPet,
     playWithPet,
     drainPetEnergy,
-    getPetHappinessStatus,
     getActiveBonuses,
   } = usePet();
   const { inventory } = useInventory();
@@ -204,20 +203,19 @@ const PetDisplay = () => {
     );
   }
 
-  const happinessStatus = getPetHappinessStatus(activePet.happiness);
   const bonuses = getActiveBonuses();
 
   const petFoodItems = inventory.filter(
     (item) => item.item?.item_type === "pet_food" && item.quantity > 0,
   );
 
-  // Get energy and happiness gain based on food rarity
+  // Get energy gain based on food rarity
   const getFoodStats = (rarity) => {
     const stats = {
-      common: { energy: 5, happiness: 10 },
-      uncommon: { energy: 10, happiness: 15 },
-      rare: { energy: 15, happiness: 20 },
-      epic: { energy: 20, happiness: 25 },
+      common: { energy: 5 },
+      uncommon: { energy: 10 },
+      rare: { energy: 15 },
+      epic: { energy: 20 },
     };
     return stats[rarity] || stats.common;
   };
@@ -421,17 +419,11 @@ const PetDisplay = () => {
 
     if (!baseImage) return null;
 
-    // Check for state variations (priority: eating > sad > sleepy > default)
-    // State images use naming pattern: base-eating.png, base-sad.png, base-sleepy.png
+    // Check for state variations (priority: eating > sleepy > default)
+    // State images use naming pattern: base-eating.png, base-sleepy.png
     if (isEating) {
       const eatingImage = baseImage.replace(/\.([^.]+)$/, "-eating.$1");
       return eatingImage;
-    }
-
-    if (activePet.happiness < 30) {
-      // Try stage-specific sad image first
-      const sadImage = baseImage.replace(/\.([^.]+)$/, "-sad.$1");
-      return sadImage;
     }
 
     if ((activePet.energy ?? 100) < 30) {
@@ -612,28 +604,32 @@ const PetDisplay = () => {
             {/* Pet Status - top left */}
 
             
-            {!(playAnimation && trainingVideoLoaded) && <div className="absolute top-2 left-2 z-20 space-y-1 w-24">
-              
-              <div className="flex items-center gap-1">
-                <span className="text-xs">😊</span>
-
-                <div className="flex-1 bg-gray-200 rounded-full h-1.5">
-                  <div
-                    className={`h-1.5 rounded-full bg-yellow-500
-                      }`}
-                    style={{ width: `${activePet.happiness}%` }}
+            {!(playAnimation && trainingVideoLoaded) && <div className="absolute top-2 left-2 z-20 space-y-1 w-32">
+              <div className="flex items-center">
+                {/* Icon overlapping the bar */}
+                <img src="https://xpclass.vn/xpclass/image/dashboard/energy.svg" alt="energy"
+                  className="w-7 h-7 relative z-10 drop-shadow-lg" style={{ marginRight: '-16px' }}
+                />
+                {/* Bar track - pointed right end like game UI */}
+                <div className="flex-1 relative h-2.5 overflow-hidden"
+                  style={{
+                    background: '#e5e7eb',
+                    borderRadius: '2px 8px 8px 2px',
+                   
+                  }}
+                >
+                  {/* Fill bar */}
+                  <div className="absolute inset-y-0 left-0"
+                    style={{
+                      width: `${activePet.energy ?? 100}%`,
+                      background: 'linear-gradient(180deg, #fde047 0%, #f59e0b 40%, #d97706 100%)',
+                      boxShadow: 'inset 0 2px 3px rgba(255,255,255,0.4)',
+                      borderRadius: '1px 4px 4px 1px',
+                    }}
                   />
-                </div>
-              </div>
-              <div className="flex items-center gap-1">
-                <span className="text-xs">⚡</span>
-
-                <div className="flex-1 bg-gray-200 rounded-full h-1.5">
-                  <div
-                    className={`h-1.5 rounded-full bg-orange-500
-                       
-                      }`}
-                    style={{ width: `${activePet.energy ?? 100}%` }}
+                  {/* Shine highlight */}
+                  <div className="absolute inset-x-0 top-0 h-[40%]"
+                    style={{ background: 'linear-gradient(180deg, rgba(255,255,255,0.25) 0%, transparent 100%)', borderRadius: '2px 8px 0 0' }}
                   />
                 </div>
               </div>
@@ -797,7 +793,7 @@ const PetDisplay = () => {
                           "0 0 10px rgba(249, 115, 22, 0.5), 2px 2px 4px rgba(0,0,0,0.3)",
                       }}
                     >
-                      +{feedAnimation.energyGained} ⚡
+                      +{feedAnimation.energyGained} <img src="https://xpclass.vn/xpclass/image/dashboard/energy.svg" alt="energy" className="inline w-5 h-5" />
                     </div>
                   </>
                 )}
@@ -905,7 +901,7 @@ const PetDisplay = () => {
                 />
               ) : (
                 <span className="text-6xl relative z-10">
-                  {happinessStatus.emoji}
+                  🐾
                 </span>
               )}
               {/* Training video overlay - uses naming convention: base-training.mp4 */}
@@ -1034,10 +1030,7 @@ const PetDisplay = () => {
                               </div>
                               <div className="flex gap-3 mt-0.5 text-xs">
                                 <span className="text-orange-600">
-                                  ⚡ +{stats.energy}
-                                </span>
-                                <span className="text-pink-600">
-                                  💖 +{stats.happiness}
+                                  <img src="https://xpclass.vn/xpclass/image/dashboard/energy.svg" alt="energy" className="inline w-3.5 h-3.5 mr-0.5" />+{stats.energy}
                                 </span>
                               </div>
                             </div>
@@ -1215,7 +1208,7 @@ const PetDisplay = () => {
                 </div>
                 <div className="flex items-center justify-between text-xs text-gray-500">
                   <span>
-                    ⚡ {activePet.energy ?? 100}/100{" "}
+                    <img src="https://xpclass.vn/xpclass/image/dashboard/energy.svg" alt="energy" className="inline w-3.5 h-3.5 mr-0.5" />{activePet.energy ?? 100}/100{" "}
                     {(activePet.energy ?? 100) < 10 && "(Mệt rồi!)"}
                   </span>
                   <span>-5 energy/message</span>
@@ -1408,8 +1401,7 @@ const PetDisplay = () => {
               <div className="bg-yellow-50 rounded-lg p-4">
                 <h4 className="font-bold text-gray-800 mb-3">⭐ Pet Bonuses</h4>
                 <p className="text-gray-700 mb-2">
-                  When your pet&apos;s happiness is above 70%, you get XP
-                  bonuses:
+                  Your pet gives you XP bonuses:
                 </p>
                 <div className="space-y-2">
                   <div className="font-semibold text-sm text-gray-800">
@@ -1454,7 +1446,7 @@ const PetDisplay = () => {
 
               {/* Energy */}
               <div className="bg-orange-50 rounded-lg p-4">
-                <h4 className="font-bold text-gray-800 mb-3">⚡ Energy System</h4>
+                <h4 className="font-bold text-gray-800 mb-3 flex items-center gap-1"><img src="https://xpclass.vn/xpclass/image/dashboard/energy.svg" alt="energy" className="w-5 h-5" /> Energy System</h4>
                 <div className="space-y-2 text-sm text-gray-700">
                   <div className="bg-white rounded p-3 space-y-1">
                     <div className="flex justify-between">

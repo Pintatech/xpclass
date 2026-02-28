@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { supabase } from '../../supabase/client';
+import { supabase } from '../../../supabase/client';
 import { CheckCircle, Clock, Circle, ChevronDown, ChevronRight } from 'lucide-react';
 
 const UnitProgressView = ({ selectedCourse }) => {
