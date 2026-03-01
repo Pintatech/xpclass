@@ -318,13 +318,31 @@ const PetDisplay = () => {
   const handleGameEnd = async (score, gameType) => {
     setShowGame(null);
 
-    // Save training score for leaderboard
+    // Save training score for leaderboard (only if game competition is active for this game type)
     if (gameType && user?.id) {
-      supabase.from('training_scores').insert({
-        user_id: user.id,
-        game_type: gameType,
-        score
-      }).then(() => {});
+      const { data: settings } = await supabase
+        .from('site_settings')
+        .select('setting_key, setting_value')
+        .in('setting_key', [
+          'leaderboard_competition_active',
+          'leaderboard_competition_type',
+          'leaderboard_competition_game_type',
+        ]);
+
+      const settingsMap = {};
+      settings?.forEach(s => { settingsMap[s.setting_key] = s.setting_value; });
+
+      const isActive = settingsMap['leaderboard_competition_active'] !== 'false';
+      const compType = settingsMap['leaderboard_competition_type'] || 'game';
+      const activeGameType = settingsMap['leaderboard_competition_game_type'] || 'scramble';
+
+      if (isActive && compType === 'game' && gameType === activeGameType) {
+        supabase.from('training_scores').insert({
+          user_id: user.id,
+          game_type: gameType,
+          score
+        }).then(() => {});
+      }
     }
 
     setPlayDisabled(true);

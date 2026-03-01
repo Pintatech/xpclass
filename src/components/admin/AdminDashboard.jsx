@@ -41,6 +41,7 @@ import PetManagement from './PetManagement';
 import GiftcodeManagement from './GiftcodeManagement';
 import NotificationManagement from './NotificationManagement';
 import RecentActivities from './RecentActivities';
+import LeaderboardSettings from './LeaderboardSettings';
 import { useCohorts } from '../../hooks/useCohorts';
 
 const AdminDashboard = () => {
@@ -200,6 +201,7 @@ const AdminDashboard = () => {
     { id: 'notifications', label: 'Notifications', icon: Bell },
     { id: 'users', label: 'Users', icon: Users },
     { id: 'activities', label: 'Activities', icon: Activity },
+    { id: 'leaderboard', label: 'Leaderboard', icon: Trophy },
     { id: 'analytics', label: 'Analytics', icon: BarChart3 }
   ];
 
@@ -339,6 +341,7 @@ const AdminDashboard = () => {
               <Route path="exercises" element={<ExerciseBank />} />
               <Route path="users" element={<UserManagement />} />
               <Route path="activities" element={<RecentActivities />} />
+              <Route path="leaderboard" element={<LeaderboardSettings />} />
               <Route path="analytics" element={<AnalyticsView stats={stats} />} />
             </Routes>
           </div>

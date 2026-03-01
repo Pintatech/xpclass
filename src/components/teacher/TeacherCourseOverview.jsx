@@ -278,7 +278,7 @@ const TeacherCourseOverview = () => {
                     </div>
                   </div>
                   <button
-                    onClick={() => navigate(`/teacher/class-reports?tab=roll-call&course=${course.id}`)}
+                    onClick={() => navigate(`/teacher/class-reports?tab=info&course=${course.id}`)}
                     className="flex items-center gap-2 bg-blue-600 text-white px-4 py-2 rounded-lg text-sm font-medium hover:bg-blue-700 transition-colors"
                   >
                     <ClipboardCheck className="w-4 h-4" />

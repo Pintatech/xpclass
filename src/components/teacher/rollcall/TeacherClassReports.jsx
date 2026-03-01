@@ -7,9 +7,11 @@ import {
   ClipboardCheck,
   BarChart3,
   Calendar,
-  Save,
+  Save as SaveIcon,
   Info,
-  MessageSquare
+  MessageSquare,
+  X,
+  Eye
 } from 'lucide-react';
 import { useAuth } from '../../../hooks/useAuth';
 import { useTeacherCourse } from '../../../hooks/useTeacherCourseContext';
@@ -67,6 +69,7 @@ const TeacherClassReports = () => {
   const [saving, setSaving] = useState(false);
   const [notification, setNotification] = useState(null);
   const [hasDraft, setHasDraft] = useState(false);
+  const [showOverview, setShowOverview] = useState(false);
   const skipDraftSave = useRef(false);
 
   // Pre-select course from URL param
@@ -82,7 +85,7 @@ const TeacherClassReports = () => {
     { id: 'info', label: 'Info', icon: Info },
     { id: 'roll-call', label: 'Roll Call', icon: ClipboardCheck },
     { id: 'homework', label: 'Homework', icon: FileText },
-    { id: 'performance', label: 'Performance', icon: BarChart3 },
+    { id: 'performance', label: 'Class Work', icon: BarChart3 },
     { id: 'feedback', label: 'Feedback', icon: MessageSquare }
   ];
 
@@ -226,7 +229,7 @@ const TeacherClassReports = () => {
     const allHavePerformance = students.length > 0 && students.every(s =>
       records[s.id]?.performance_rating
     );
-    if (!allHavePerformance) missing.push('Performance');
+    if (!allHavePerformance) missing.push('Class Work');
 
     // Feedback: feedback text required
     if (!lessonInfo.feedback?.trim()) missing.push('Feedback');
@@ -237,7 +240,30 @@ const TeacherClassReports = () => {
   const incompleteTabs = getIncompleTabs();
   const canSave = incompleteTabs.length === 0;
 
+  const perfXP = { ok: 30, good: 60, wow: 90 };
+  const hwXP = { ok: 15, good: 30, wow: 45 };
+
+  const calcXpUpdates = () => {
+    const bonus = lessonInfo.xp_bonus || 1;
+    const recordsArray = Object.values(records).filter(r => r.student_id);
+    return recordsArray
+      .map(rec => {
+        const isPresent = rec.attendance_status === 'present' || rec.attendance_status === 'late';
+        if (!isPresent) return null;
+
+        const perf = perfXP[rec.performance_rating] || 0;
+        const hw = hwXP[rec.homework_status] || 0;
+        if (perf === 0 && hw === 0) return null;
+        let xp = bonus * (perf + hw - (rec.attendance_status === 'late' ? 15 : 0));
+        if (xp <= 0) return null;
+
+        return { student_id: rec.student_id, xp };
+      })
+      .filter(Boolean);
+  };
+
   const handleSave = async () => {
+    setShowOverview(false);
     try {
       setSaving(true);
 
@@ -264,26 +290,8 @@ const TeacherClassReports = () => {
         }
       }
 
-      // 3. Award XP to students based on attendance, performance, homework
-      const bonus = lessonInfo.xp_bonus || 1;
-      const perfXP = { ok: 30, good: 60, wow: 90 };
-      const hwXP = { ok: 15, good: 30, wow: 45 };
-
-      const xpUpdates = recordsArray
-        .map(rec => {
-          const isPresent = rec.attendance_status === 'present' || rec.attendance_status === 'late';
-          if (!isPresent) return null;
-
-          const perf = perfXP[rec.performance_rating] || 0;
-          const hw = hwXP[rec.homework_status] || 0;
-          if (perf === 0 && hw === 0) return null;
-          let xp = bonus * (perf + hw - (rec.attendance_status === 'late' ? 15 : 0));
-          if (xp <= 0) return null;
-
-          return { student_id: rec.student_id, xp };
-        })
-        .filter(Boolean);
-
+      // 3. Award XP to students
+      const xpUpdates = calcXpUpdates();
       if (xpUpdates.length > 0) {
         const { error: xpError } = await supabase.rpc('add_xp_batch', {
           updates: xpUpdates
@@ -494,16 +502,146 @@ const TeacherClassReports = () => {
             )}
             {canSave && <div />}
             <button
-              onClick={handleSave}
+              onClick={() => setShowOverview(true)}
               disabled={!canSave || saving || loading}
               className="flex items-center gap-2 px-6 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 shadow-sm transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
             >
-              <Save className="w-5 h-5" />
-              {saving ? 'Saving...' : 'Save Lesson'}
+              <Eye className="w-5 h-5" />
+              {saving ? 'Saving...' : 'Review & Save'}
             </button>
           </div>
         </div>
       )}
+      {/* Save Overview Modal */}
+      {showOverview && (() => {
+        const xpUpdates = calcXpUpdates();
+        const totalXP = xpUpdates.reduce((sum, u) => sum + u.xp, 0);
+        const attendanceLabels = { present: 'Present', late: 'Late', absent: 'Absent' };
+        const ratingLabels = { ok: 'OK', good: 'Good', wow: 'Wow' };
+        const bonus = lessonInfo.xp_bonus || 1;
+
+        return (
+          <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4" onClick={() => setShowOverview(false)}>
+            <div className="bg-white rounded-xl shadow-xl max-w-lg w-full max-h-[85vh] overflow-hidden flex flex-col" onClick={e => e.stopPropagation()}>
+              {/* Header */}
+              <div className="flex items-center justify-between px-5 py-4 border-b">
+                <h2 className="text-lg font-bold text-gray-900">Lesson Overview</h2>
+                <button onClick={() => setShowOverview(false)} className="text-gray-400 hover:text-gray-600">
+                  <X className="w-5 h-5" />
+                </button>
+              </div>
+
+              {/* Body */}
+              <div className="overflow-y-auto px-5 py-4 space-y-4">
+                {/* Lesson Info */}
+                <div className="bg-gray-50 rounded-lg p-4 space-y-1 text-sm">
+                  <div className="flex justify-between">
+                    <span className="text-gray-500">Lesson</span>
+                    <span className="font-medium text-gray-900">{lessonInfo.lesson_name || '—'}</span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span className="text-gray-500">Skill</span>
+                    <span className="font-medium text-gray-900 capitalize">{lessonInfo.skill || '—'}</span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span className="text-gray-500">Date</span>
+                    <span className="font-medium text-gray-900">{selectedDate}</span>
+                  </div>
+                  {bonus > 1 && (
+                    <div className="flex justify-between">
+                      <span className="text-gray-500">XP Bonus</span>
+                      <span className="font-medium text-yellow-600">x{bonus}</span>
+                    </div>
+                  )}
+                </div>
+
+                {/* Student XP Table */}
+                <div>
+                  <h3 className="text-sm font-semibold text-gray-700 mb-2">Student XP Awards</h3>
+                  <div className="border rounded-lg overflow-hidden">
+                    <table className="w-full text-sm">
+                      <thead className="bg-gray-50">
+                        <tr>
+                          <th className="text-left px-3 py-2 font-medium text-gray-600">Student</th>
+                          <th className="text-center px-2 py-2 font-medium text-gray-600">Attend.</th>
+                          <th className="text-center px-2 py-2 font-medium text-gray-600">CW</th>
+                          <th className="text-center px-2 py-2 font-medium text-gray-600">HW</th>
+                          <th className="text-right px-3 py-2 font-medium text-gray-600">XP</th>
+                        </tr>
+                      </thead>
+                      <tbody className="divide-y divide-gray-100">
+                        {students.map(s => {
+                          const rec = records[s.id] || {};
+                          const xpEntry = xpUpdates.find(u => u.student_id === s.id);
+                          const isAbsent = rec.attendance_status === 'absent';
+                          return (
+                            <tr key={s.id} className={isAbsent ? 'text-gray-400' : ''}>
+                              <td className="px-3 py-2 truncate max-w-[140px]">{s.full_name}</td>
+                              <td className="px-2 py-2 text-center text-xs">
+                                <span className={`inline-block px-1.5 py-0.5 rounded-full ${
+                                  rec.attendance_status === 'present' ? 'bg-green-100 text-green-700' :
+                                  rec.attendance_status === 'late' ? 'bg-yellow-100 text-yellow-700' :
+                                  'bg-red-100 text-red-700'
+                                }`}>
+                                  {attendanceLabels[rec.attendance_status] || '—'}
+                                </span>
+                              </td>
+                              <td className="px-2 py-2 text-center text-xs">
+                                <span className={`inline-block px-1.5 py-0.5 rounded-full ${
+                                  rec.performance_rating === 'wow' ? 'bg-green-100 text-green-700' :
+                                  rec.performance_rating === 'good' ? 'bg-yellow-100 text-yellow-700' :
+                                  rec.performance_rating === 'ok' ? 'bg-red-100 text-red-700' :
+                                  'bg-gray-100 text-gray-500'
+                                }`}>
+                                  {ratingLabels[rec.performance_rating] || '—'}
+                                </span>
+                              </td>
+                              <td className="px-2 py-2 text-center text-xs">
+                                <span className={`inline-block px-1.5 py-0.5 rounded-full ${
+                                  rec.homework_status === 'wow' ? 'bg-green-100 text-green-700' :
+                                  rec.homework_status === 'good' ? 'bg-yellow-100 text-yellow-700' :
+                                  rec.homework_status === 'ok' ? 'bg-red-100 text-red-700' :
+                                  'bg-gray-100 text-gray-500'
+                                }`}>
+                                  {ratingLabels[rec.homework_status] || '—'}
+                                </span>
+                              </td>
+                              <td className="px-3 py-2 text-right font-medium">
+                                {xpEntry ? <span className="text-blue-600">+{xpEntry.xp}</span> : <span className="text-gray-300">0</span>}
+                              </td>
+                            </tr>
+                          );
+                        })}
+                      </tbody>
+                    </table>
+                  </div>
+                  <div className="flex justify-between items-center mt-2 px-1">
+                    <span className="text-sm text-gray-500">{xpUpdates.length} students receiving XP</span>
+                    <span className="text-sm font-bold text-blue-600">Total: +{totalXP} XP</span>
+                  </div>
+                </div>
+              </div>
+
+              {/* Footer */}
+              <div className="flex items-center justify-end gap-3 px-5 py-4 border-t bg-gray-50">
+                <button
+                  onClick={() => setShowOverview(false)}
+                  className="px-4 py-2.5 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors"
+                >
+                  Cancel
+                </button>
+                <button
+                  onClick={handleSave}
+                  className="flex items-center gap-2 px-5 py-2.5 text-sm font-medium text-white bg-blue-600 rounded-lg hover:bg-blue-700 transition-colors"
+                >
+                  <SaveIcon className="w-4 h-4" />
+                  Confirm Save
+                </button>
+              </div>
+            </div>
+          </div>
+        );
+      })()}
     </div>
   );
 };

@@ -13,7 +13,7 @@ import AvatarWithFrame from '../ui/AvatarWithFrame'
 
 const Leaderboard = () => {
   const navigate = useNavigate()
-  const [timeframe, setTimeframe] = useState('training')
+  const [timeframe, setTimeframe] = useState(null) // set after settings load
   const [leaderboardData, setLeaderboardData] = useState([])
   const [currentUserRank, setCurrentUserRank] = useState(null)
   const [loading, setLoading] = useState(true)
@@ -29,6 +29,106 @@ const Leaderboard = () => {
   const { user } = useAuth()
   const { studentLevels } = useStudentLevels()
 
+  // Leaderboard settings from site_settings
+  const [visibleTabs, setVisibleTabs] = useState(['week', 'month', 'training'])
+  const [competitionActive, setCompetitionActive] = useState(true)
+  const [competitionType, setCompetitionType] = useState('game') // 'game' or 'items'
+  const [competitionGameType, setCompetitionGameType] = useState('scramble')
+  const [competitionItemId, setCompetitionItemId] = useState('')
+  const [competitionItemInfo, setCompetitionItemInfo] = useState(null)
+  const [scrambleRewardGems, setScrambleRewardGems] = useState(1)
+  const [settingsLoaded, setSettingsLoaded] = useState(false)
+
+  const GAME_LABELS = {
+    scramble: 'Word Scramble',
+    whackmole: 'Whack-a-Mole',
+    catch: 'Catch Game',
+    flappy: 'Flappy Pet',
+  }
+
+  // Fetch leaderboard settings on mount
+  useEffect(() => {
+    const fetchLeaderboardSettings = async () => {
+      try {
+        const { data } = await supabase
+          .from('site_settings')
+          .select('setting_key, setting_value')
+          .in('setting_key', [
+            'leaderboard_visible_tabs',
+            'leaderboard_default_tab',
+            'leaderboard_competition_active',
+            'leaderboard_competition_type',
+            'leaderboard_competition_game_type',
+            'leaderboard_competition_item_id',
+            'leaderboard_competition_reward_gems',
+          ])
+
+        let tabs = ['week', 'month', 'training']
+        let defaultTab = 'training'
+        let active = true
+        let compType = 'game'
+        let gameType = 'scramble'
+        let itemId = ''
+        let gems = 1
+
+        data?.forEach((row) => {
+          switch (row.setting_key) {
+            case 'leaderboard_visible_tabs':
+              try { tabs = JSON.parse(row.setting_value) } catch {}
+              break
+            case 'leaderboard_default_tab':
+              defaultTab = row.setting_value
+              break
+            case 'leaderboard_competition_active':
+              active = row.setting_value === 'true'
+              break
+            case 'leaderboard_competition_type':
+              compType = row.setting_value
+              break
+            case 'leaderboard_competition_game_type':
+              gameType = row.setting_value
+              break
+            case 'leaderboard_competition_item_id':
+              itemId = row.setting_value
+              break
+            case 'leaderboard_competition_reward_gems':
+              gems = parseInt(row.setting_value) || 1
+              break
+          }
+        })
+
+        // If competition is not active, hide training tab
+        if (!active) {
+          tabs = tabs.filter(t => t !== 'training')
+        }
+
+        setVisibleTabs(tabs)
+        setCompetitionActive(active)
+        setCompetitionType(compType)
+        setCompetitionGameType(gameType)
+        setCompetitionItemId(itemId)
+        setScrambleRewardGems(gems)
+        setTimeframe(tabs.includes(defaultTab) ? defaultTab : tabs[0] || 'week')
+
+        // Fetch item info if item competition
+        if (compType === 'items' && itemId) {
+          const { data: itemData } = await supabase
+            .from('collectible_items')
+            .select('id, name, image_url')
+            .eq('id', itemId)
+            .single()
+          if (itemData) setCompetitionItemInfo(itemData)
+        }
+      } catch (err) {
+        console.error('Error fetching leaderboard settings:', err)
+        setTimeframe('training') // fallback
+      } finally {
+        setSettingsLoaded(true)
+      }
+    }
+    fetchLeaderboardSettings()
+  }, [])
+
 
   // Handle badge click for mobile
   const handleBadgeClick = (badge) => {
@@ -43,7 +143,7 @@ const Leaderboard = () => {
   }
 
   useEffect(() => {
-    if (studentLevels && studentLevels.length > 0) {
+    if (timeframe && studentLevels && studentLevels.length > 0) {
       fetchLeaderboardData()
     }
   }, [timeframe, studentLevels])
@@ -266,74 +366,125 @@ const Leaderboard = () => {
     }
   }
 
-  // Fetch training (Word Scramble) leaderboard
+  // Fetch training/competition leaderboard (game scores or item collection)
   const fetchTrainingLeaderboard = async () => {
     try {
       setTrainingLoading(true)
 
-      // Get Monday of current week (Vietnam time)
-      const vietnamToday = getVietnamDate()
-      const currentDate = new Date(vietnamToday)
-      const dayOfWeek = currentDate.getDay()
-      const daysFromMonday = dayOfWeek === 0 ? 6 : dayOfWeek - 1
-      const weekStart = new Date(currentDate)
-      weekStart.setDate(weekStart.getDate() - daysFromMonday)
-      const weekStartISO = weekStart.toISOString().split('T')[0] + 'T00:00:00+07:00'
+      if (competitionType === 'items' && competitionItemId) {
+        // Item collection leaderboard - who has the most of a specific item
+        const { data: inventory } = await supabase
+          .from('user_inventory')
+          .select('user_id, quantity')
+          .eq('item_id', competitionItemId)
+          .gt('quantity', 0)
 
-      // Fetch all scramble scores this week
-      const { data: scores } = await supabase
-        .from('training_scores')
-        .select('user_id, score')
-        .eq('game_type', 'scramble')
-        .gte('played_at', weekStartISO)
+        if (!inventory || inventory.length === 0) {
+          setTrainingData([])
+          setCurrentTrainingRank(null)
+          return
+        }
 
-      if (!scores || scores.length === 0) {
-        setTrainingData([])
-        setCurrentTrainingRank(null)
-        return
+        const userIds = inventory.map(i => i.user_id)
+        const quantityMap = {}
+        inventory.forEach(i => { quantityMap[i.user_id] = i.quantity })
+
+        const { data: users } = await supabase
+          .from('users')
+          .select('id, full_name, email, avatar_url, xp, active_title, active_frame_ratio')
+          .in('id', userIds)
+          .eq('role', 'user')
+
+        if (!users) { setTrainingData([]); return }
+
+        const sorted = users
+          .map(u => ({ ...u, bestScore: quantityMap[u.id] || 0 }))
+          .sort((a, b) => b.bestScore - a.bestScore)
+          .slice(0, 50)
+
+        const formatted = sorted.map((u, index) => {
+          const levelInfo = getUserLevelInfo(u.xp || 0)
+          return {
+            id: u.id,
+            rank: index + 1,
+            name: u.full_name || u.email?.split('@')[0] || 'Unknown',
+            xp: u.bestScore,
+            avatar: u.avatar_url,
+            frame: u.active_title,
+            frameRatio: u.active_frame_ratio,
+            badge: { ...levelInfo.badge, levelNumber: levelInfo.level },
+            isCurrentUser: u.id === user?.id
+          }
+        })
+
+        setTrainingData(formatted)
+        setCurrentTrainingRank(formatted.find(u => u.id === user?.id) || null)
+      } else {
+        // Game score leaderboard
+        const activeGameType = competitionGameType || 'scramble'
+
+        // Get Monday of current week (Vietnam time)
+        const vietnamToday = getVietnamDate()
+        const currentDate = new Date(vietnamToday)
+        const dayOfWeek = currentDate.getDay()
+        const daysFromMonday = dayOfWeek === 0 ? 6 : dayOfWeek - 1
+        const weekStart = new Date(currentDate)
+        weekStart.setDate(weekStart.getDate() - daysFromMonday)
+        const weekStartISO = weekStart.toISOString().split('T')[0] + 'T00:00:00+07:00'
+
+        const { data: scores } = await supabase
+          .from('training_scores')
+          .select('user_id, score')
+          .eq('game_type', activeGameType)
+          .gte('played_at', weekStartISO)
+
+        if (!scores || scores.length === 0) {
+          setTrainingData([])
+          setCurrentTrainingRank(null)
+          return
+        }
+
+        // Get best score per user
+        const bestScores = {}
+        scores.forEach(s => {
+          if (!bestScores[s.user_id] || s.score > bestScores[s.user_id]) {
+            bestScores[s.user_id] = s.score
+          }
+        })
+
+        const userIds = Object.keys(bestScores)
+
+        const { data: users } = await supabase
+          .from('users')
+          .select('id, full_name, email, avatar_url, xp, active_title, active_frame_ratio')
+          .in('id', userIds)
+          .eq('role', 'user')
+
+        if (!users) { setTrainingData([]); return }
+
+        const sorted = users
+          .map(u => ({ ...u, bestScore: bestScores[u.id] || 0 }))
+          .sort((a, b) => b.bestScore - a.bestScore)
+          .slice(0, 50)
+
+        const formatted = sorted.map((u, index) => {
+          const levelInfo = getUserLevelInfo(u.xp || 0)
+          return {
+            id: u.id,
+            rank: index + 1,
+            name: u.full_name || u.email?.split('@')[0] || 'Unknown',
+            xp: u.bestScore,
+            avatar: u.avatar_url,
+            frame: u.active_title,
+            frameRatio: u.active_frame_ratio,
+            badge: { ...levelInfo.badge, levelNumber: levelInfo.level },
+            isCurrentUser: u.id === user?.id
+          }
+        })
+
+        setTrainingData(formatted)
+        setCurrentTrainingRank(formatted.find(u => u.id === user?.id) || null)
       }
-
-      // Get best score per user
-      const bestScores = {}
-      scores.forEach(s => {
-        if (!bestScores[s.user_id] || s.score > bestScores[s.user_id]) {
-          bestScores[s.user_id] = s.score
-        }
-      })
-
-      const userIds = Object.keys(bestScores)
-
-      // Fetch user details
-      const { data: users } = await supabase
-        .from('users')
-        .select('id, full_name, email, avatar_url, xp, active_title, active_frame_ratio')
-        .in('id', userIds)
-        .eq('role', 'user')
-
-      if (!users) { setTrainingData([]); return }
-
-      const sorted = users
-        .map(u => ({ ...u, bestScore: bestScores[u.id] || 0 }))
-        .sort((a, b) => b.bestScore - a.bestScore)
-        .slice(0, 50)
-
-      const formatted = sorted.map((u, index) => {
-        const levelInfo = getUserLevelInfo(u.xp || 0)
-        return {
-          id: u.id,
-          rank: index + 1,
-          name: u.full_name || u.email?.split('@')[0] || 'Unknown',
-          xp: u.bestScore,
-          avatar: u.avatar_url,
-          frame: u.active_title,
-          frameRatio: u.active_frame_ratio,
-          badge: { ...levelInfo.badge, levelNumber: levelInfo.level },
-          isCurrentUser: u.id === user?.id
-        }
-      })
-
-      setTrainingData(formatted)
-      setCurrentTrainingRank(formatted.find(u => u.id === user?.id) || null)
     } catch (err) {
       console.error('Error fetching training leaderboard:', err)
     } finally {
@@ -342,10 +493,10 @@ const Leaderboard = () => {
   }
 
   useEffect(() => {
-    if (timeframe === 'training') {
+    if (timeframe === 'training' && settingsLoaded) {
       fetchTrainingLeaderboard()
     }
-  }, [timeframe])
+  }, [timeframe, settingsLoaded])
 
   // Get all-time leaderboard (existing logic)
   const getAllTimeLeaderboard = async () => {
@@ -535,7 +686,7 @@ const Leaderboard = () => {
     }
   }
 
-  if (loading) {
+  if (loading || !settingsLoaded) {
     return (
       <div className="space-y-8">
         <div className="text-center">
@@ -577,8 +728,10 @@ const Leaderboard = () => {
           {[
             { key: 'week', label: 'Tuần này' },
             { key: 'month', label: 'Tháng này' },
-            { key: 'training', label: 'Word Scramble' }
-          ].map((option) => (
+            { key: 'training', label: competitionType === 'items' && competitionItemInfo
+              ? competitionItemInfo.name
+              : GAME_LABELS[competitionGameType] || 'Competition' }
+          ].filter(option => visibleTabs.includes(option.key)).map((option) => (
             <Button
               key={option.key}
               variant={timeframe === option.key ? 'primary' : 'ghost'}
@@ -592,7 +745,7 @@ const Leaderboard = () => {
         </div>
       </div>
 
-      {/* Training (Word Scramble) Leaderboard */}
+      {/* Competition Leaderboard */}
       {timeframe === 'training' && (
         trainingLoading ? (
           <div className="flex justify-center py-8">
@@ -606,7 +759,7 @@ const Leaderboard = () => {
                 <Trophy className="w-5 h-5 text-purple-500 flex-shrink-0" />
                 <span className="text-gray-700">
                   Top 1 cuối tuần nhận{' '}
-                  <strong className="text-blue-600 inline-flex items-center gap-1">1 <img src="https://xpclass.vn/xpclass/image/study/gem.png" alt="Gem" className="w-4 h-4" /></strong>
+                  <strong className="text-blue-600 inline-flex items-center gap-1">{scrambleRewardGems} <img src="https://xpclass.vn/xpclass/image/study/gem.png" alt="Gem" className="w-4 h-4" /></strong>
                 </span>
                 {countdownText && (
                   <span className="text-gray-400 ml-1">({countdownText})</span>
@@ -615,7 +768,9 @@ const Leaderboard = () => {
             </div>
 
             {trainingData.length === 0 ? (
-              <div className="text-center py-8 text-gray-500">Chưa có ai chơi tuần này</div>
+              <div className="text-center py-8 text-gray-500">
+                {competitionType === 'items' ? 'Chưa có ai sở hữu vật phẩm này' : 'Chưa có ai chơi tuần này'}
+              </div>
             ) : (
               <>
                 {/* Top 3 Podium */}
@@ -631,7 +786,7 @@ const Leaderboard = () => {
                           {trainingData[1].name}
                         </div>
                         <div className="text-sm md:text-lg font-semibold text-gray-900 mt-1 md:mt-2 relative z-10">
-                          {trainingData[1].xp} điểm
+                          {trainingData[1].xp}{competitionType !== 'items' && ' điểm'}
                         </div>
                       </Card>
                     </div>
@@ -648,11 +803,13 @@ const Leaderboard = () => {
                           {trainingData[0].name}
                         </div>
                         <div className="text-sm md:text-xl font-semibold text-white-900 mt-1 md:mt-2 relative z-10">
-                          {trainingData[0].xp} điểm
+                          {trainingData[0].xp}{competitionType !== 'items' && ' điểm'}
                         </div>
                         <div className="hidden md:flex items-center justify-center mt-2 text-yellow-600 relative z-10">
                           <Star size={16} fill="currentColor" />
-                          <span className="ml-1 text-sm">Vua Word Scramble</span>
+                          <span className="ml-1 text-sm">{competitionType === 'items' && competitionItemInfo
+                            ? `Vua ${competitionItemInfo.name}`
+                            : `Vua ${GAME_LABELS[competitionGameType] || 'Competition'}`}</span>
                         </div>
                       </Card>
                     </div>
@@ -668,7 +825,7 @@ const Leaderboard = () => {
                           {trainingData[2].name}
                         </div>
                         <div className="text-sm md:text-lg font-semibold text-gray-900 mt-1 md:mt-2 relative z-10">
-                          {trainingData[2].xp} điểm
+                          {trainingData[2].xp}{competitionType !== 'items' && ' điểm'}
                         </div>
                       </Card>
                     </div>
@@ -693,7 +850,7 @@ const Leaderboard = () => {
                             </div>
                           </div>
                           <div className="text-right">
-                            <div className="font-bold text-sm text-gray-900">{entry.xp} điểm</div>
+                            <div className="font-bold text-sm text-gray-900">{entry.xp}{competitionType !== 'items' && ' điểm'}</div>
                           </div>
                         </div>
                       ))}
@@ -713,7 +870,7 @@ const Leaderboard = () => {
                             <span className="text-sm text-gray-600">Hạng #{currentTrainingRank.rank}</span>
                           </div>
                         </div>
-                        <div className="font-bold text-lg text-gray-900">{currentTrainingRank.xp} điểm</div>
+                        <div className="font-bold text-lg text-gray-900">{currentTrainingRank.xp}{competitionType !== 'items' && ' điểm'}</div>
                       </div>
                     </Card.Content>
                   </Card>
