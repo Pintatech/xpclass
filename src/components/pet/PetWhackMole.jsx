@@ -3,6 +3,7 @@ import { createPortal } from 'react-dom'
 import { Trophy } from 'lucide-react'
 import WORD_BANK from './wordBank'
 
+import { assetUrl } from '../../hooks/useBranding';
 const GAME_DURATION = 60
 const MOLE_SHOW_MIN = 1500
 const MOLE_SHOW_MAX = 2500
@@ -105,7 +106,7 @@ const PetWhackMole = ({ petImageUrl, petName, onGameEnd, onClose }) => {
 
     // Start background music
     try {
-      const music = new Audio('https://xpclass.vn/xpclass/sound/pet-word-scamble.mp3')
+      const music = new Audio(assetUrl('/sound/pet-word-scamble.mp3'))
       music.loop = true
       music.volume = 0.3
       bgMusicRef.current = music
@@ -234,7 +235,7 @@ const PetWhackMole = ({ petImageUrl, petName, onGameEnd, onClose }) => {
       }])
 
       try {
-        const sound = new Audio('https://xpclass.vn/xpclass/pet-game/mole-correct.mp3')
+        const sound = new Audio(assetUrl('/pet-game/mole-correct.mp3'))
         sound.volume = 0.4
         sound.play().catch(() => {})
       } catch {}
@@ -255,7 +256,7 @@ const PetWhackMole = ({ petImageUrl, petName, onGameEnd, onClose }) => {
       ))
 
       try {
-        const sound = new Audio('https://xpclass.vn/xpclass/pet-game/mole-incorrect.mp3')
+        const sound = new Audio(assetUrl('/pet-game/mole-incorrect.mp3'))
         sound.volume = 0.4
         sound.play().catch(() => {})
       } catch {}
@@ -537,7 +538,7 @@ const PetWhackMole = ({ petImageUrl, petName, onGameEnd, onClose }) => {
                               : '0 4px 12px rgba(0,0,0,0.3), inset 0 2px 0 rgba(255,255,255,0.3)',
                           }}
                         >
-                          <img src="https://xpclass.vn/xpclass/pet-game/mole-normal.png" alt="mole" className="w-10 h-10 object-contain mb-0.5" />
+                          <img src={assetUrl('/pet-game/mole-normal.png')} alt="mole" className="w-10 h-10 object-contain mb-0.5" />
                           <span className="text-xs font-black text-gray-800 uppercase tracking-wide leading-tight text-center break-all">
                             {hole.word}
                           </span>
@@ -552,7 +553,7 @@ const PetWhackMole = ({ petImageUrl, petName, onGameEnd, onClose }) => {
                         style={{ animation: 'moleWhacked 0.4s ease-out forwards' }}
                       >
                         <div className="w-full h-full flex flex-col items-center justify-center rounded-2xl bg-green-400/90">
-                          <img src="https://xpclass.vn/xpclass/pet-game/mole-whacked.png" alt="whacked" className="w-12 h-12 object-contain" />
+                          <img src={assetUrl('/pet-game/mole-whacked.png')} alt="whacked" className="w-12 h-12 object-contain" />
                         </div>
                       </div>
                     )}
@@ -594,7 +595,7 @@ const PetWhackMole = ({ petImageUrl, petName, onGameEnd, onClose }) => {
             {/* Hammer cursor */}
             {hammerPos.x > 0 && (
               <img
-                src="https://xpclass.vn/xpclass/pet-game/mole-hammer.png"
+                src={assetUrl('/pet-game/mole-hammer.png')}
                 alt="hammer"
                 className="absolute pointer-events-none z-30"
                 style={{

@@ -1,7 +1,9 @@
 import React, { useState, useEffect, useRef } from 'react'
 import { Plus, Trash2, Eye, EyeOff, Upload, Image as ImageIcon, AlertCircle, X, Music } from 'lucide-react'
 
+import { useBranding } from '../../../hooks/useBranding';
 const ImageHotspotEditor = ({ content, onContentChange }) => {
+  const { branding } = useBranding()
   const [imageUrl, setImageUrl] = useState(content?.image_url || '')
   const [hotspots, setHotspots] = useState(content?.hotspots || [])
   const [labels, setLabels] = useState(content?.labels || [])
@@ -418,7 +420,7 @@ const ImageHotspotEditor = ({ content, onContentChange }) => {
             >
               <img
                 ref={imageRef}
-                src={imageUrl.replace('https://xpclass.vn', '/proxy-image')}
+                src={imageUrl.replace(branding.baseSiteUrl, '/proxy-image')}
                 alt="Exercise"
                 className="w-full h-auto"
                 onLoad={handleImageLoad}
@@ -832,14 +834,14 @@ const ImageHotspotEditor = ({ content, onContentChange }) => {
                   </label>
                   {urlModal.type === 'image' ? (
                     <img
-                      src={urlInput.replace('https://xpclass.vn', '/proxy-image')}
+                      src={urlInput.replace(branding.baseSiteUrl, '/proxy-image')}
                       alt="Preview"
                       className="max-w-full rounded border"
                       onError={(e) => e.target.style.display = 'none'}
                     />
                   ) : (
                     <audio
-                      src={urlInput.replace('https://xpclass.vn', '/proxy-image')}
+                      src={urlInput.replace(branding.baseSiteUrl, '/proxy-image')}
                       controls
                       className="w-full"
                     />

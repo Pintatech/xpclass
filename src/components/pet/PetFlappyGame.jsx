@@ -2,6 +2,7 @@ import React, { useState, useEffect, useRef, useCallback } from 'react'
 import { createPortal } from 'react-dom'
 import { X, Trophy } from 'lucide-react'
 
+import { assetUrl } from '../../hooks/useBranding';
 // Physics
 const GRAVITY = 0.45
 const JUMP_VELOCITY = -7.5
@@ -48,7 +49,7 @@ const PetFlappyGame = ({ petImageUrl, petName, onGameEnd, onClose }) => {
     petVelocityRef.current = JUMP_VELOCITY
     // Play flap sound
     try {
-      const sound = new Audio('https://xpclass.vn/xpclass/sound/flappy-wing.mp3')
+      const sound = new Audio(assetUrl('/sound/flappy-wing.mp3'))
       sound.volume = 0.3
       sound.play().catch(() => {})
     } catch {}
@@ -146,7 +147,7 @@ const PetFlappyGame = ({ petImageUrl, petName, onGameEnd, onClose }) => {
           gameOverRef.current = true
           // Ground hit sound
           try {
-            const sound = new Audio('https://xpclass.vn/xpclass/sound/flappy-die.mp3')
+            const sound = new Audio(assetUrl('/sound/flappy-die.mp3'))
             sound.volume = 0.5
             sound.play().catch(() => {})
           } catch {}
@@ -225,7 +226,7 @@ const PetFlappyGame = ({ petImageUrl, petName, onGameEnd, onClose }) => {
           setDisplayScore(scoreRef.current)
           // Score sound
           try {
-            const sound = new Audio('https://xpclass.vn/xpclass/sound/flappy-point.mp3')
+            const sound = new Audio(assetUrl('/sound/flappy-point.mp3'))
             sound.volume = 0.4
             sound.play().catch(() => {})
           } catch {}
@@ -263,7 +264,7 @@ const PetFlappyGame = ({ petImageUrl, petName, onGameEnd, onClose }) => {
       petVelocityRef.current = JUMP_VELOCITY * 0.5 // small upward bump on hit
       // Hit sound
       try {
-        const sound = new Audio('https://xpclass.vn/xpclass/sound/flappy-hit.mp3')
+        const sound = new Audio(assetUrl('/sound/flappy-hit.mp3'))
         sound.volume = 0.5
         sound.play().catch(() => {})
       } catch {}

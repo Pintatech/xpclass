@@ -5,6 +5,7 @@ import { useInventory } from '../../hooks/useInventory'
 import { useNotifications } from '../../hooks/useNotifications'
 import NotificationPanel from '../notifications/NotificationPanel'
 
+import { assetUrl } from '../../hooks/useBranding';
 const BottomNavigation = () => {
   const location = useLocation()
   const { newItemCount } = useInventory()
@@ -29,16 +30,16 @@ const BottomNavigation = () => {
   }, [showNotifPanel, showMoreMenu])
 
   const mainItems = [
-    { path: '/', imageSrc: 'https://xpclass.vn/xpclass/icon/navigation/home.svg', label: 'Home' },
-    { path: '/pets', imageSrc: 'https://xpclass.vn/xpclass/icon/navigation/pet.svg', label: 'Pet' },
-    { path: '/shop', imageSrc: 'https://xpclass.vn/xpclass/icon/navigation/shop.svg', label: 'Shop' },
+    { path: '/', imageSrc: assetUrl('/icon/navigation/home.svg'), label: 'Home' },
+    { path: '/pets', imageSrc: assetUrl('/icon/navigation/pet.svg'), label: 'Pet' },
+    { path: '/shop', imageSrc: assetUrl('/icon/navigation/shop.svg'), label: 'Shop' },
   ]
 
   const moreItems = [
-    { path: '/leaderboard', imageSrc: 'https://xpclass.vn/xpclass/icon/navigation/leaderboard.svg', label: 'BXH' },
-    { path: '/inventory', imageSrc: 'https://xpclass.vn/xpclass/icon/navigation/inventory.svg', label: 'Kho đồ', badge: newItemCount },
+    { path: '/leaderboard', imageSrc: assetUrl('/icon/navigation/leaderboard.svg'), label: 'BXH' },
+    { path: '/inventory', imageSrc: assetUrl('/icon/navigation/inventory.svg'), label: 'Kho đồ', badge: newItemCount },
     { id: 'notifications', label: 'Thông báo', isNotification: true, badge: unreadCount },
-    { path: '/profile', imageSrc: 'https://xpclass.vn/xpclass/icon/navigation/account.svg', label: 'Account' },
+    { path: '/profile', imageSrc: assetUrl('/icon/navigation/account.svg'), label: 'Account' },
   ]
 
   const isMoreActive = ['/leaderboard', '/inventory', '/profile'].some(

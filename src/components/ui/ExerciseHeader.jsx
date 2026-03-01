@@ -1,28 +1,29 @@
+import { assetUrl, siteUrl } from '../../hooks/useBranding';
 // Theme-based character images
 const themeCharacters = {
   blue: {
-    standing: "https://xpclass.vn/xpclass/image/theme_header/ice_standing.gif",
-    running: "https://xpclass.vn/xpclass/image/theme_header/ice_running.gif"
+    standing: assetUrl('/image/theme_header/ice_standing.gif'),
+    running: assetUrl('/image/theme_header/ice_running.gif')
   },
   green: {
-    standing: "https://xpclass.vn/xpclass/image/theme_header/forest_standing.gif",
-    running: "https://xpclass.vn/xpclass/image/theme_header/forest_running.gif"
+    standing: assetUrl('/image/theme_header/forest_standing.gif'),
+    running: assetUrl('/image/theme_header/forest_running.gif')
   },
   purple: {
-    standing: "https://xpclass.vn/xpclass/image/theme_header/pirate_running.png",
-    running: "https://xpclass.vn/xpclass/image/theme_header/pirate_running.png"
+    standing: assetUrl('/image/theme_header/pirate_running.png'),
+    running: assetUrl('/image/theme_header/pirate_running.png')
   },
   orange: {
-    standing: "https://xpclass.vn/xpclass/image/theme_header/ninja_standing.gif",
-    running: "https://xpclass.vn/xpclass/image/theme_header/ninja_running.gif"
+    standing: assetUrl('/image/theme_header/ninja_standing.gif'),
+    running: assetUrl('/image/theme_header/ninja_running.gif')
   },
   red: {
-    standing: "https://xpclass.vn/xpclass/materials/batman_standing.gif",
-    running: "https://xpclass.vn/LMS_enhance/gif/Left%20running/batman.gif"
+    standing: assetUrl('/materials/batman_standing.gif'),
+    running: siteUrl('/LMS_enhance/gif/Left%20running/batman.gif')
   },
   yellow: {
-    standing: "https://xpclass.vn/xpclass/image/theme_header/desert_standing.gif",
-    running: "https://xpclass.vn/xpclass/image/theme_header/desert_running.gif"
+    standing: assetUrl('/image/theme_header/desert_standing.gif'),
+    running: assetUrl('/image/theme_header/desert_running.gif')
   }
 }
 

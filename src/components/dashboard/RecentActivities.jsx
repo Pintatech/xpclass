@@ -4,6 +4,7 @@ import { supabase } from '../../supabase/client'
 import { Clock, Star, Trophy, BookOpen, Edit3, HelpCircle, Award, Crown } from 'lucide-react'
 import AvatarWithFrame from '../ui/AvatarWithFrame'
 
+import { assetUrl } from '../../hooks/useBranding';
 const RecentActivities = () => {
   const navigate = useNavigate()
   const [activities, setActivities] = useState([])
@@ -127,7 +128,7 @@ const RecentActivities = () => {
             {/* Activity Content */}
             <div className="flex-1 min-w-0">
               <div className="flex items-center space-x-2">
-                <img src="https://xpclass.vn/xpclass/icon/profile/achievement.svg" alt="achievement" className="w-4 h-4 flex-shrink-0" />
+                <img src={assetUrl('/icon/profile/achievement.svg')} alt="achievement" className="w-4 h-4 flex-shrink-0" />
                 <span
                   className="text-sm font-medium text-gray-900 truncate cursor-pointer hover:text-yellow-600 transition-colors"
                   onClick={() => handleUserClick(activity.users.id)}

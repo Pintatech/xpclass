@@ -18,6 +18,7 @@ import PetFlappyGame from "./PetFlappyGame";
 import PetWordScramble from "./PetWordScramble";
 import PetWhackMole from "./PetWhackMole";
 
+import { assetUrl } from '../../hooks/useBranding';
 // Pet chat messages - replace with your own!
 const PET_MESSAGES = [
   // English Idioms
@@ -285,7 +286,7 @@ const PetDisplay = () => {
       const foodImageUrl = foodItem?.item?.image_url || null;
 
       // Play chomp sound
-      const chompSound = new Audio('https://xpclass.vn/xpclass/sound/chomp.mp3');
+      const chompSound = new Audio(assetUrl('/sound/chomp.mp3'));
       chompSound.play().catch(() => {});
 
       // Trigger flying food animation with energy gained
@@ -365,7 +366,7 @@ const PetDisplay = () => {
       await addXP(5);
 
       setTimeout(() => {
-        const trainSound = new Audio('https://xpclass.vn/xpclass/sound/pet-training.mp3');
+        const trainSound = new Audio(assetUrl('/sound/pet-training.mp3'));
         trainSound.play().catch(() => {});
       }, 4000);
 
@@ -417,13 +418,13 @@ const PetDisplay = () => {
 
   const getRarityAura = (rarity) => {
     const auras = {
-      common: "https://xpclass.vn/xpclass/common.png",
-      uncommon: "https://xpclass.vn/xpclass/common.png",
-      rare: "https://xpclass.vn/xpclass/common.png",
-      epic: "https://xpclass.vn/xpclass/common.png",
-      legendary: "https://xpclass.vn/xpclass/common.png",
+      common: assetUrl('/common.png'),
+      uncommon: assetUrl('/common.png'),
+      rare: assetUrl('/common.png'),
+      epic: assetUrl('/common.png'),
+      legendary: assetUrl('/common.png'),
     };
-    return auras[rarity] || "https://xpclass.vn/xpclass/common.png";
+    return auras[rarity] || assetUrl('/common.png');
   };
 
   // Get pet image based on current stats and evolution stage
@@ -475,7 +476,7 @@ const PetDisplay = () => {
     <div
       className="rounded-xl shadow-lg relative bg-cover bg-center bg-blue-200"
       style={{
-        backgroundImage: `url(https://xpclass.vn/xpclass/image/dashboard/2709577_14710.jpg)`,
+        backgroundImage: `url(${assetUrl('/')}image/dashboard/2709577_14710.jpg)`,
       }}
     >
       {/* Feed Animation Styles */}
@@ -630,7 +631,7 @@ const PetDisplay = () => {
             {!(playAnimation && trainingVideoLoaded) && <div className="absolute top-2 left-2 z-20 space-y-1 w-32">
               <div className="flex items-center">
                 {/* Icon overlapping the bar */}
-                <img src="https://xpclass.vn/xpclass/image/dashboard/energy.svg" alt="energy"
+                <img src={assetUrl('/image/dashboard/energy.svg')} alt="energy"
                   className="w-7 h-7 relative z-10 drop-shadow-lg" style={{ marginRight: '-16px' }}
                 />
                 {/* Bar track - pointed right end like game UI */}
@@ -665,7 +666,7 @@ const PetDisplay = () => {
                     title="View bonuses"
                   >
                     <img
-                      src="https://xpclass.vn/xpclass/image/dashboard/pet-bonus.svg"
+                      src={assetUrl('/image/dashboard/pet-bonus.svg')}
                       alt="Pet bonuses"
                       className="w-full h-full object-contain drop-shadow-lg"
                     />
@@ -816,7 +817,7 @@ const PetDisplay = () => {
                           "0 0 10px rgba(249, 115, 22, 0.5), 2px 2px 4px rgba(0,0,0,0.3)",
                       }}
                     >
-                      +{feedAnimation.energyGained} <img src="https://xpclass.vn/xpclass/image/dashboard/energy.svg" alt="energy" className="inline w-5 h-5" />
+                      +{feedAnimation.energyGained} <img src={assetUrl('/image/dashboard/energy.svg')} alt="energy" className="inline w-5 h-5" />
                     </div>
                   </>
                 )}
@@ -960,7 +961,7 @@ const PetDisplay = () => {
                 title="Chat with pet"
               >
                 <img
-                  src="https://xpclass.vn/xpclass/image/dashboard/pet-chat.svg"
+                  src={assetUrl('/image/dashboard/pet-chat.svg')}
                   alt="Chat with pet"
                   className="w-12 h-12 object-contain drop-shadow-lg"
                 />
@@ -976,7 +977,7 @@ const PetDisplay = () => {
                 title="Train pet"
               >
                 <img
-                  src="https://xpclass.vn/xpclass/image/dashboard/pet-train.svg"
+                  src={assetUrl('/image/dashboard/pet-train.svg')}
                   alt="Train pet"
                   className="w-full h-full object-contain drop-shadow-lg"
                 />
@@ -1053,7 +1054,7 @@ const PetDisplay = () => {
                               </div>
                               <div className="flex gap-3 mt-0.5 text-xs">
                                 <span className="text-orange-600">
-                                  <img src="https://xpclass.vn/xpclass/image/dashboard/energy.svg" alt="energy" className="inline w-3.5 h-3.5 mr-0.5" />+{stats.energy}
+                                  <img src={assetUrl('/image/dashboard/energy.svg')} alt="energy" className="inline w-3.5 h-3.5 mr-0.5" />+{stats.energy}
                                 </span>
                               </div>
                             </div>
@@ -1229,7 +1230,7 @@ const PetDisplay = () => {
                 </div>
                 <div className="flex items-center justify-between text-xs text-gray-500">
                   <span>
-                    <img src="https://xpclass.vn/xpclass/image/dashboard/energy.svg" alt="energy" className="inline w-3.5 h-3.5 mr-0.5" />{activePet.energy ?? 100}/100{" "}
+                    <img src={assetUrl('/image/dashboard/energy.svg')} alt="energy" className="inline w-3.5 h-3.5 mr-0.5" />{activePet.energy ?? 100}/100{" "}
                     {(activePet.energy ?? 100) < 10 && "(Mệt rồi!)"}
                   </span>
                   <span>-5 energy/message</span>
@@ -1467,7 +1468,7 @@ const PetDisplay = () => {
 
               {/* Energy */}
               <div className="bg-orange-50 rounded-lg p-4">
-                <h4 className="font-bold text-gray-800 mb-3 flex items-center gap-1"><img src="https://xpclass.vn/xpclass/image/dashboard/energy.svg" alt="energy" className="w-5 h-5" /> Energy System</h4>
+                <h4 className="font-bold text-gray-800 mb-3 flex items-center gap-1"><img src={assetUrl('/image/dashboard/energy.svg')} alt="energy" className="w-5 h-5" /> Energy System</h4>
                 <div className="space-y-2 text-sm text-gray-700">
                   <div className="bg-white rounded p-3 space-y-1">
                     <div className="flex justify-between">
@@ -1522,7 +1523,7 @@ const PetDisplay = () => {
                 onClick={() => setShowGame('scramble')}
                 className="flex flex-col items-center gap-2 p-4 rounded-xl border-2 border-purple-200 hover:border-purple-400 hover:bg-purple-50 transition-all group"
               >
-                <img src="https://xpclass.vn/xpclass/image/dashboard/pet-scramble.jpg" alt="Word Scramble" className="w-20 h-20 object-cover rounded-lg group-hover:scale-110 transition-transform" />
+                <img src={assetUrl('/image/dashboard/pet-scramble.jpg')} alt="Word Scramble" className="w-20 h-20 object-cover rounded-lg group-hover:scale-110 transition-transform" />
                 <span className="font-bold text-gray-800 text-xs">Word Scramble</span>
                 
               </button>
@@ -1530,7 +1531,7 @@ const PetDisplay = () => {
                 onClick={() => setShowGame('whackmole')}
                 className="flex flex-col items-center gap-2 p-4 rounded-xl border-2 border-green-200 hover:border-green-400 hover:bg-green-50 transition-all group"
               >
-                <img src="https://xpclass.vn/xpclass/pet-game/mole-normal.png" alt="Whack-a-Mole" className="w-20 h-20 object-contain group-hover:scale-110 transition-transform" />
+                <img src={assetUrl('/pet-game/mole-normal.png')} alt="Whack-a-Mole" className="w-20 h-20 object-contain group-hover:scale-110 transition-transform" />
                 <span className="font-bold text-gray-800 text-xs">Whack-a-Mole</span>
                
               </button>

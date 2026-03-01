@@ -7,6 +7,7 @@ import { usePet } from '../../hooks/usePet'
 import { useInventory } from '../../hooks/useInventory'
 import { ShoppingBag, Check, Lock } from 'lucide-react'
 
+import { assetUrl } from '../../hooks/useBranding';
 const rarityOrder = ['common', 'uncommon', 'rare', 'epic', 'legendary']
 
 const rarityCardColors = {
@@ -154,7 +155,7 @@ const Shop = () => {
       if (error) throw error
 
       // Play purchase sound
-      new Audio('https://xpclass.vn/xpclass/sound/shop-purchase.mp3').play().catch(() => {})
+      new Audio(assetUrl('/sound/shop-purchase.mp3')).play().catch(() => {})
 
       // Refresh purchases
       setPurchases(prev => [...prev, { item_id: item.id, purchased_at: new Date().toISOString() }])
@@ -179,7 +180,7 @@ const Shop = () => {
     const result = await buyEgg(egg.id, currency)
 
     if (result.success) {
-      new Audio('https://xpclass.vn/xpclass/sound/shop-purchase.mp3').play().catch(() => {})
+      new Audio(assetUrl('/sound/shop-purchase.mp3')).play().catch(() => {})
       const spentText = currency === 'xp'
         ? `-${result.xp_spent} XP`
         : `-${result.gems_spent} gems`
@@ -303,11 +304,11 @@ const Shop = () => {
         </div>
         <div className="flex items-center gap-2">
           <div className="bg-yellow-400 text-white rounded-full px-4 py-2 flex items-center gap-2 font-bold shadow-md">
-            <img src="https://xpclass.vn/xpclass/image/study/xp.png" alt="XP" className="w-5 h-5" />
+            <img src={assetUrl('/image/study/xp.png')} alt="XP" className="w-5 h-5" />
             {(profile?.xp || 0).toLocaleString()}
           </div>
           <div className="bg-blue-400 text-white rounded-full px-4 py-2 flex items-center gap-2 font-bold shadow-md">
-            <img src="https://xpclass.vn/xpclass/image/study/gem.png" alt="Gems" className="w-5 h-5" />
+            <img src={assetUrl('/image/study/gem.png')} alt="Gems" className="w-5 h-5" />
             {profile?.gems || 0}
           </div>
         </div>
@@ -378,7 +379,7 @@ const Shop = () => {
                             : 'bg-gray-200 text-gray-400 cursor-not-allowed'
                         } disabled:opacity-50`}
                       >
-                        <img src="https://xpclass.vn/xpclass/image/study/gem.png" alt="Gem" className="w-3.5 h-3.5" />
+                        <img src={assetUrl('/image/study/gem.png')} alt="Gem" className="w-3.5 h-3.5" />
                         {buyingEggId === egg.id ? '...' : egg.price_gems}
                       </button>
                     )}
@@ -393,7 +394,7 @@ const Shop = () => {
                             : 'bg-gray-200 text-gray-400 cursor-not-allowed'
                         } disabled:opacity-50`}
                       >
-                        <img src="https://xpclass.vn/xpclass/image/study/xp.png" alt="XP" className="w-3.5 h-3.5" />
+                        <img src={assetUrl('/image/study/xp.png')} alt="XP" className="w-3.5 h-3.5" />
                         {buyingEggId === egg.id ? '...' : egg.price_xp}
                       </button>
                     )}
@@ -514,9 +515,9 @@ const Shop = () => {
                           ) : (
                             <>
                               {isXPItem(item) ? (
-                                <img src="https://xpclass.vn/xpclass/image/study/xp.png" alt="XP" className="w-4 h-4" />
+                                <img src={assetUrl('/image/study/xp.png')} alt="XP" className="w-4 h-4" />
                               ) : (
-                                <img src="https://xpclass.vn/xpclass/image/study/gem.png" alt="Gem" className="w-4 h-4" />
+                                <img src={assetUrl('/image/study/gem.png')} alt="Gem" className="w-4 h-4" />
                               )}
                               {item.price}
                             </>
@@ -545,21 +546,21 @@ const Shop = () => {
                 {confirmEggCurrency ? (
                   confirmEggCurrency === 'xp' ? (
                     <>
-                      <img src="https://xpclass.vn/xpclass/image/study/xp.png" alt="XP" className="w-5 h-5" />
+                      <img src={assetUrl('/image/study/xp.png')} alt="XP" className="w-5 h-5" />
                       {confirmItem.price_xp}
                     </>
                   ) : (
                     <>
-                      <img src="https://xpclass.vn/xpclass/image/study/gem.png" alt="Gem" className="w-5 h-5" />
+                      <img src={assetUrl('/image/study/gem.png')} alt="Gem" className="w-5 h-5" />
                       {confirmItem.price_gems}
                     </>
                   )
                 ) : (
                   <>
                     {isXPItem(confirmItem) ? (
-                      <img src="https://xpclass.vn/xpclass/image/study/xp.png" alt="XP" className="w-5 h-5" />
+                      <img src={assetUrl('/image/study/xp.png')} alt="XP" className="w-5 h-5" />
                     ) : (
-                      <img src="https://xpclass.vn/xpclass/image/study/gem.png" alt="Gem" className="w-5 h-5" />
+                      <img src={assetUrl('/image/study/gem.png')} alt="Gem" className="w-5 h-5" />
                     )}
                     {confirmItem.price}
                   </>

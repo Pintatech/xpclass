@@ -20,22 +20,22 @@ import {
 // Theme-based background images for exercise map
 // Mobile (vertical) images
 const themeBackgroundsMobile = {
-  blue: "https://xpclass.vn/xpclass/image/theme_exercise/ice1.webp",
-  green: "https://xpclass.vn/xpclass/image/theme_exercise/forest1.webp",
-  purple: "https://xpclass.vn/xpclass/image/theme_exercise/pirate1.webp",
-  orange: "https://xpclass.vn/xpclass/image/theme_exercise/ninja1.webp",
-  red: "https://xpclass.vn/xpclass/image/theme_exercise/dino.webp",
-  yellow: "https://xpclass.vn/xpclass/image/theme_exercise/desert1.webp",
+  blue: assetUrl('/image/theme_exercise/ice1.webp'),
+  green: assetUrl('/image/theme_exercise/forest1.webp'),
+  purple: assetUrl('/image/theme_exercise/pirate1.webp'),
+  orange: assetUrl('/image/theme_exercise/ninja1.webp'),
+  red: assetUrl('/image/theme_exercise/dino.webp'),
+  yellow: assetUrl('/image/theme_exercise/desert1.webp'),
 };
 
 // Desktop (horizontal) images - update these URLs with your horizontal images
 const themeBackgroundsDesktop = {
-  blue: "https://xpclass.vn/xpclass/image/theme_exercise_PC/ice1.webp", //blue
-  green: "https://xpclass.vn/xpclass/image/theme_exercise_PC/forest1.webp", //forest
-  purple: "https://xpclass.vn/xpclass/image/theme_exercise_PC/pirate1.webp", //pirate
-  orange: "https://xpclass.vn/xpclass/image/theme_exercise_PC/ninja1.webp", //ninja
-  red: "https://xpclass.vn/xpclass/image/theme_exercise_PC/dino.webp", // dino
-  yellow: "https://xpclass.vn/xpclass/image/theme_exercise_PC/desert1.webp", //desert
+  blue: assetUrl('/image/theme_exercise_PC/ice1.webp'), //blue
+  green: assetUrl('/image/theme_exercise_PC/forest1.webp'), //forest
+  purple: assetUrl('/image/theme_exercise_PC/pirate1.webp'), //pirate
+  orange: assetUrl('/image/theme_exercise_PC/ninja1.webp'), //ninja
+  red: assetUrl('/image/theme_exercise_PC/dino.webp'), // dino
+  yellow: assetUrl('/image/theme_exercise_PC/desert1.webp'), //desert
 };
 
 const getThemeBackgroundImage = (colorTheme, isDesktop = false) => {
@@ -69,6 +69,7 @@ import {
 
 import { getMapTheme } from "../../config/mapThemes";
 
+import { assetUrl } from '../../hooks/useBranding';
 // Returns indices of positions where real exercises should be placed
 // customMappings comes from the theme config in mapThemes.js
 function getExerciseIndices(count, positions, customMappings) {
@@ -619,43 +620,43 @@ const ExerciseList = () => {
     const icons = {
       fill_blank: (props) => (
         <IconImg
-          src="https://xpclass.vn/xpclass/icon/exercise_type/fill_blank.svg"
+          src={assetUrl('/icon/exercise_type/fill_blank.svg')}
           {...props}
         />
       ),
       drag_drop: (props) => (
         <IconImg
-          src="https://xpclass.vn/xpclass/icon/exercise_type/drag_drop.svg"
+          src={assetUrl('/icon/exercise_type/drag_drop.svg')}
           {...props}
         />
       ),
       multiple_choice: (props) => (
         <IconImg
-          src="https://xpclass.vn/xpclass/icon/exercise_type/multiple_choice.svg"
+          src={assetUrl('/icon/exercise_type/multiple_choice.svg')}
           {...props}
         />
       ),
       dropdown: (props) => (
         <IconImg
-          src="https://xpclass.vn/xpclass/icon/exercise_type/drop_down.svg"
+          src={assetUrl('/icon/exercise_type/drop_down.svg')}
           {...props}
         />
       ),
       ai_fill_blank: (props) => (
         <IconImg
-          src="https://xpclass.vn/xpclass/icon/exercise_type/fill_blank.svg"
+          src={assetUrl('/icon/exercise_type/fill_blank.svg')}
           {...props}
         />
       ),
       flashcard: (props) => (
         <IconImg
-          src={"https://xpclass.vn/xpclass/icon/exercise_type/flashcard.svg"}
+          src={assetUrl('/icon/exercise_type/flashcard.svg')}
           {...props}
         />
       ),
       image_hotspot: (props) => (
         <IconImg
-          src="https://xpclass.vn/xpclass/icon/exercise_type/hotspot.svg"
+          src={assetUrl('/icon/exercise_type/hotspot.svg')}
           {...props}
         />
       ),
@@ -844,7 +845,7 @@ const ExerciseList = () => {
     setClaimingReward(sessionId);
 
     // Play chest opening sound
-    const audio = new Audio("https://xpclass.vn/xpclass/sound/woosh.mp3");
+    const audio = new Audio(assetUrl('/sound/woosh.mp3'));
     audio.play().catch((err) => console.error("Error playing sound:", err));
 
     try {
@@ -1449,8 +1450,8 @@ const ExerciseList = () => {
                 key={star}
                 src={
                   star <= stars
-                    ? "https://xpclass.vn/xpclass/image/star_fill.png"
-                    : "https://xpclass.vn/xpclass/image/star_empty.png"
+                    ? assetUrl('/image/star_fill.png')
+                    : assetUrl('/image/star_empty.png')
                 }
                 alt={star <= stars ? "Star filled" : "Star empty"}
                 className="w-4 h-4 md:w-8 md:h-8 block"
@@ -1701,8 +1702,8 @@ const ExerciseList = () => {
           <img
             src={
               sessionRewards[sessionId]?.claimed
-                ? "https://xpclass.vn/xpclass/image/study/chest_open.png" // Opened
-                : "https://xpclass.vn/xpclass/image/study/chest_lock.png" // Locked or Ready
+                ? assetUrl('/image/study/chest_open.png') // Opened
+                : assetUrl('/image/study/chest_lock.png') // Locked or Ready
             }
             alt="Chest"
             className={`w-full h-full object-contain drop-shadow-lg ${
@@ -1772,7 +1773,7 @@ const ExerciseList = () => {
               <div className="bg-gradient-to-r from-yellow-400 to-orange-500 text-white rounded-lg py-2 px-4 text-lg font-bold flex items-center justify-center gap-1">
                 {5 + exercises.length * 3 + 1} - {5 + exercises.length * 3 + 10}{" "}
                 <img
-                  src="https://xpclass.vn/xpclass/image/study/xp.png"
+                  src={assetUrl('/image/study/xp.png')}
                   alt="XP"
                   className="w-6 h-6"
                 />
@@ -1780,7 +1781,7 @@ const ExerciseList = () => {
               <span className="text-gray-400 font-bold">or</span>
               <div className="bg-gradient-to-r from-emerald-400 to-teal-500 text-white rounded-lg py-2 px-4 text-lg font-bold flex items-center justify-center gap-1">
                 <img
-                  src="https://xpclass.vn/xpclass/image/study/gem.png"
+                  src={assetUrl('/image/study/gem.png')}
                   alt="Gem"
                   className="w-6 h-6"
                 />
@@ -1855,7 +1856,7 @@ const ExerciseList = () => {
                                   +{cardGems}
                                 </div>
                                 <img
-                                  src="https://xpclass.vn/xpclass/image/study/gem.png"
+                                  src={assetUrl('/image/study/gem.png')}
                                   alt="Gem"
                                   className="w-8 h-8 mx-auto mt-1"
                                 />
@@ -1866,7 +1867,7 @@ const ExerciseList = () => {
                                   +{cardXP}
                                 </div>
                                 <img
-                                  src="https://xpclass.vn/xpclass/image/study/xp.png"
+                                  src={assetUrl('/image/study/xp.png')}
                                   alt="XP"
                                   className="w-8 h-8 mx-auto mt-1"
                                 />
@@ -1908,7 +1909,7 @@ const ExerciseList = () => {
           >
             <div className="mb-4">
               <img
-                src="https://xpclass.vn/xpclass/image/study/chest_lock.png"
+                src={assetUrl('/image/study/chest_lock.png')}
                 alt="Locked Chest"
                 className="w-20 h-20 sm:w-24 sm:h-24 mx-auto object-contain"
               />
@@ -1924,7 +1925,7 @@ const ExerciseList = () => {
               <div className="bg-gradient-to-r from-yellow-400 to-orange-500 text-white rounded-lg py-2 px-4 text-lg font-bold flex items-center justify-center gap-1">
                 {5 + exercises.length * 3 + 1} - {5 + exercises.length * 3 + 10}{" "}
                 <img
-                  src="https://xpclass.vn/xpclass/image/study/xp.png"
+                  src={assetUrl('/image/study/xp.png')}
                   alt="XP"
                   className="w-6 h-6"
                 />
@@ -1933,7 +1934,7 @@ const ExerciseList = () => {
               <span className="text-gray-400 font-bold">or</span>
               <div className="bg-gradient-to-r from-emerald-400 to-teal-500 text-white rounded-lg py-2 px-4 text-lg font-bold flex items-center justify-center gap-1">
                 <img
-                  src="https://xpclass.vn/xpclass/image/study/gem.png"
+                  src={assetUrl('/image/study/gem.png')}
                   alt="Gem"
                   className="w-6 h-6"
                 />
@@ -1962,7 +1963,7 @@ const ExerciseList = () => {
           >
             <div className="mb-4">
               <img
-                src="https://xpclass.vn/xpclass/image/study/chest_open.png"
+                src={assetUrl('/image/study/chest_open.png')}
                 alt="Opened Chest"
                 className="w-20 h-20 sm:w-24 sm:h-24 mx-auto object-contain"
               />
@@ -1978,7 +1979,7 @@ const ExerciseList = () => {
                 <div className="bg-gradient-to-r from-yellow-400 to-orange-500 text-white rounded-lg py-3 px-6 text-2xl sm:text-3xl font-bold shadow-lg flex items-center justify-center gap-2">
                   <span>+{sessionRewards[sessionId]?.xp}</span>
                   <img
-                    src="https://xpclass.vn/xpclass/image/study/xp.png"
+                    src={assetUrl('/image/study/xp.png')}
                     alt="XP"
                     className="w-6 h-6"
                   />
@@ -1987,7 +1988,7 @@ const ExerciseList = () => {
                 <div className="bg-gradient-to-r from-emerald-400 to-teal-500 text-white rounded-lg py-3 px-6 text-2xl sm:text-3xl font-bold shadow-lg flex items-center justify-center gap-2">
                   <span>+{sessionRewards[sessionId]?.gems}</span>
                   <img
-                    src="https://xpclass.vn/xpclass/image/study/gem.png"
+                    src={assetUrl('/image/study/gem.png')}
                     alt="Gem"
                     className="w-6 h-6"
                   />

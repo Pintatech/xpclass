@@ -1,6 +1,7 @@
 import React from 'react'
 import { useStudentLevels } from '../../hooks/useStudentLevels'
 
+import { assetUrl } from '../../hooks/useBranding';
 // Individual Badge Component
 const Badge = ({
   badge,
@@ -238,7 +239,7 @@ const LevelProgressBar = ({ showNextBadge = true, className = '' }) => {
 
           <div className="text-center mt-2 text-sm text-gray-600 flex items-center justify-center gap-1">
             {levelProgress.xpNeeded.toLocaleString()}
-            <img src="https://xpclass.vn/xpclass/image/study/xp.png" alt="XP" className="w-4 h-4" />
+            <img src={assetUrl('/image/study/xp.png')} alt="XP" className="w-4 h-4" />
             needed for {nextBadge?.name}
           </div>
         </>

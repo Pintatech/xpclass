@@ -7,6 +7,7 @@ import { useProgress } from "../../hooks/useProgress";
 import { usePet } from "../../hooks/usePet";
 import AvatarWithFrame from "./AvatarWithFrame";
 
+import { assetUrl } from '../../hooks/useBranding';
 const formatTime = (seconds) => {
   if (!seconds || seconds <= 0) return "--";
   const m = Math.floor(seconds / 60);
@@ -169,7 +170,7 @@ const CelebrationScreen = ({
       {starCount > 0 && (
         <div className="absolute -top-16 left-1/2 -translate-x-1/2 z-30">
           <img
-            src={`https://xpclass.vn/xpclass/image/${starCount}_star.png`}
+            src={assetUrl(`/image/${starCount}_star.png`)}
             alt={`${starCount} star`}
             className="h-16 md:h-20 drop-shadow-lg"
           />
@@ -217,7 +218,7 @@ const CelebrationScreen = ({
               <p className="text-orange-300 text-sm md:text-2xl font-extrabold tracking-wider uppercase mb-2">Reward</p>
               <div className="flex items-center justify-center gap-2">
                 <span className="text-3xl md:text-5xl font-extrabold text-orange-800">{xpAwarded}</span>
-                <img src="https://xpclass.vn/xpclass/image/study/xp.png" alt="XP" className="w-8 h-8 md:w-12 md:h-12" />
+                <img src={assetUrl('/image/study/xp.png')} alt="XP" className="w-8 h-8 md:w-12 md:h-12" />
               </div>
               {bonusXP > 0 && (
                 <div className="mt-2 bg-white/60 rounded-xl py-2 px-4 inline-block">

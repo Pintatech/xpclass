@@ -6,6 +6,7 @@ import { usePermissions } from "../../hooks/usePermissions";
 import Button from "../ui/Button";
 import AddUnitModal from "./modals/AddUnitModal";
 import EditUnitModal from "./modals/EditUnitModal";
+import { assetUrl } from '../../hooks/useBranding';
 // Thay spinner bằng skeleton để điều hướng mượt hơn
 import {
   ArrowLeft,
@@ -23,12 +24,12 @@ import {
 // Theme-based background images for unit cards
 const getThemeBackground = (colorTheme) => {
   const themeBackgrounds = {
-    blue: "https://xpclass.vn/xpclass/image/theme_unit/ice.webp",
-    green: "https://xpclass.vn/xpclass/image/theme_unit/forest.webp",
-    purple: "https://xpclass.vn/xpclass/image/theme_unit/pirate.webp",
-    orange: "https://xpclass.vn/xpclass/image/theme_unit/ninja.PNG",
-    red: "https://xpclass.vn/xpclass/image/theme_unit/dino.webp",
-    yellow: "https://xpclass.vn/xpclass/image/theme_unit/dessert.webp",
+    blue: assetUrl('/image/theme_unit/ice.webp'),
+    green: assetUrl('/image/theme_unit/forest.webp'),
+    purple: assetUrl('/image/theme_unit/pirate.webp'),
+    orange: assetUrl('/image/theme_unit/ninja.PNG'),
+    red: assetUrl('/image/theme_unit/dino.webp'),
+    yellow: assetUrl('/image/theme_unit/dessert.webp'),
   };
   return themeBackgrounds[colorTheme] || themeBackgrounds.blue;
 };
@@ -36,12 +37,12 @@ const getThemeBackground = (colorTheme) => {
 // Theme-based ribbon images for unit titles
 const getRibbonImage = (colorTheme) => {
   const themeRibbons = {
-    blue: "https://xpclass.vn/xpclass/image/unit_list/ice_label1.png",
-    green: "https://xpclass.vn/xpclass/image/unit_list/forest_label.png",
-    purple: "https://xpclass.vn/xpclass/image/unit_list/pirate_label.png",
-    orange: "https://xpclass.vn/xpclass/image/unit_list/ninja_label1.png",
-    red: "https://xpclass.vn/xpclass/image/unit_list/dino_label.webp",
-    yellow: "https://xpclass.vn/xpclass/image/unit_list/desert_label.png",
+    blue: assetUrl('/image/unit_list/ice_label1.png'),
+    green: assetUrl('/image/unit_list/forest_label.png'),
+    purple: assetUrl('/image/unit_list/pirate_label.png'),
+    orange: assetUrl('/image/unit_list/ninja_label1.png'),
+    red: assetUrl('/image/unit_list/dino_label.webp'),
+    yellow: assetUrl('/image/unit_list/desert_label.png'),
   };
   return themeRibbons[colorTheme] || themeRibbons.blue;
 };

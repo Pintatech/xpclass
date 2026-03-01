@@ -5,6 +5,7 @@ import { ProgressProvider } from './hooks/useProgress'
 import { InventoryProvider } from './hooks/useInventory'
 import { StudentLevelsProvider } from './hooks/useStudentLevels'
 import { PetProvider } from './hooks/usePet'
+import { BrandingProvider } from './hooks/useBranding'
 import Layout from './components/Layout'
 import Dashboard from './components/dashboard/Dashboard'
 import LoginPage from './components/auth/LoginPage'
@@ -28,6 +29,7 @@ import { TeacherCourseProvider } from './hooks/useTeacherCourseContext'
 
 function App() {
   return (
+    <BrandingProvider>
     <AuthProvider>
       <ProgressProvider>
         <InventoryProvider>
@@ -73,6 +75,7 @@ function App() {
         </InventoryProvider>
       </ProgressProvider>
     </AuthProvider>
+    </BrandingProvider>
   )
 }
 

@@ -2,6 +2,7 @@ import React, { useState, useEffect, useRef, useCallback } from 'react'
 import { createPortal } from 'react-dom'
 import { X, Trophy } from 'lucide-react'
 
+import { assetUrl } from '../../hooks/useBranding';
 const FOOD_ITEMS = [
   { emoji: '🍎', points: 10, weight: 30, color: '#ef4444' },
   { emoji: '🍕', points: 15, weight: 25, color: '#f97316' },
@@ -43,7 +44,7 @@ const PetCatchGame = ({ bowlImageUrl, petName, onGameEnd, onClose }) => {
 
   // Pre-load catch sound
   useEffect(() => {
-    catchSoundRef.current = new Audio('https://xpclass.vn/xpclass/sound/chomp.mp3')
+    catchSoundRef.current = new Audio(assetUrl('/sound/chomp.mp3'))
     catchSoundRef.current.volume = 0.5
   }, [])
 

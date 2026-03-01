@@ -21,31 +21,32 @@ import {
 } from "lucide-react";
 import { assessPronunciation } from "../../utils/azurePronunciationService";
 
+import { assetUrl } from '../../hooks/useBranding';
 // Theme-based side decoration images for PC
 const themeSideImages = {
   blue: {
-    left: "https://xpclass.vn/xpclass/image/theme_question/ice_left.png",
-    right: "https://xpclass.vn/xpclass/image/theme_question/ice_right.png",
+    left: assetUrl('/image/theme_question/ice_left.png'),
+    right: assetUrl('/image/theme_question/ice_right.png'),
   },
   green: {
-    left: "https://xpclass.vn/xpclass/image/theme_question/forest_left.png",
-    right: "https://xpclass.vn/xpclass/image/theme_question/forest_right.png"
+    left: assetUrl('/image/theme_question/forest_left.png'),
+    right: assetUrl('/image/theme_question/forest_right.png')
   },
   purple: {
-    left: "https://xpclass.vn/xpclass/image/theme_question/pirate.png",
-    right: "https://xpclass.vn/xpclass/image/theme_question/pirate.png"
+    left: assetUrl('/image/theme_question/pirate.png'),
+    right: assetUrl('/image/theme_question/pirate.png')
   },
   orange: {
-    left: "https://xpclass.vn/xpclass/image/theme_question/ninja_left.png",
-    right: "https://xpclass.vn/xpclass/image/theme_question/ninja_right.png"
+    left: assetUrl('/image/theme_question/ninja_left.png'),
+    right: assetUrl('/image/theme_question/ninja_right.png')
   },
   red: {
-    left: "https://xpclass.vn/xpclass/image/theme_question/dino_left.png",
-    right: "https://xpclass.vn/xpclass/image/theme_question/dino_right.png"
+    left: assetUrl('/image/theme_question/dino_left.png'),
+    right: assetUrl('/image/theme_question/dino_right.png')
   },
   yellow: {
-    left: "https://xpclass.vn/xpclass/image/theme_question/desert_left.png",
-    right: "https://xpclass.vn/xpclass/image/theme_question/desert_right.png"
+    left: assetUrl('/image/theme_question/desert_left.png'),
+    right: assetUrl('/image/theme_question/desert_right.png')
   }
 }
 
@@ -1585,10 +1586,10 @@ const FlashcardExercise = () => {
                   const scores = Object.values(cardScores).map((c) => c.bestScore);
                   const avgScore = Math.round(scores.reduce((sum, s) => sum + s, 0) / scores.length);
                   const chest = avgScore >= 90
-                    ? { label: 'Rare', text: 'text-blue-700', img: 'https://xpclass.vn/xpclass/image/chest/chest-gold.png' }
+                    ? { label: 'Rare', text: 'text-blue-700', img: assetUrl('/image/chest/chest-gold.png') }
                     : avgScore >= 80
-                    ? { label: 'Uncommon', text: 'text-green-700', img: 'https://xpclass.vn/xpclass/image/chest/chest-silver.png' }
-                    : { label: 'Common', text: 'text-gray-600', img: 'https://xpclass.vn/xpclass/image/chest/chest-bronze.png' };
+                    ? { label: 'Uncommon', text: 'text-green-700', img: assetUrl('/image/chest/chest-silver.png') }
+                    : { label: 'Common', text: 'text-gray-600', img: assetUrl('/image/chest/chest-bronze.png') };
                   const barColor = avgScore >= 90 ? 'bg-blue-500' : avgScore >= 80 ? 'bg-green-500' : 'bg-gray-400';
                   return (
                     <div className="px-4 pt-3 pb-1 bg-white">

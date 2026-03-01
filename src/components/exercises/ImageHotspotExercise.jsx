@@ -11,31 +11,32 @@ import { useProgress } from '../../hooks/useProgress'
 import { useFeedback } from '../../hooks/useFeedback'
 import ExerciseHeader from '../ui/ExerciseHeader'
 
+import { assetUrl, useBranding } from '../../hooks/useBranding';
 // Theme-based side decoration images for PC
 const themeSideImages = {
   blue: {
-    left: "https://xpclass.vn/xpclass/image/theme_question/ice_left.png",
-    right: "https://xpclass.vn/xpclass/image/theme_question/ice_right.png",
+    left: assetUrl('/image/theme_question/ice_left.png'),
+    right: assetUrl('/image/theme_question/ice_right.png'),
   },
   green: {
-    left: "https://xpclass.vn/xpclass/image/theme_question/forest_left.png",
-    right: "https://xpclass.vn/xpclass/image/theme_question/forest_right.png"
+    left: assetUrl('/image/theme_question/forest_left.png'),
+    right: assetUrl('/image/theme_question/forest_right.png')
   },
   purple: {
-    left: "https://xpclass.vn/xpclass/image/theme_question/pirate.png",
-    right: "https://xpclass.vn/xpclass/image/theme_question/pirate.png"
+    left: assetUrl('/image/theme_question/pirate.png'),
+    right: assetUrl('/image/theme_question/pirate.png')
   },
   orange: {
-    left: "https://xpclass.vn/xpclass/image/theme_question/ninja_left.png",
-    right: "https://xpclass.vn/xpclass/image/theme_question/ninja_right.png"
+    left: assetUrl('/image/theme_question/ninja_left.png'),
+    right: assetUrl('/image/theme_question/ninja_right.png')
   },
   red: {
-    left: "https://xpclass.vn/xpclass/image/theme_question/dino_left.png",
-    right: "https://xpclass.vn/xpclass/image/theme_question/dino_right.png"
+    left: assetUrl('/image/theme_question/dino_left.png'),
+    right: assetUrl('/image/theme_question/dino_right.png')
   },
   yellow: {
-    left: "https://xpclass.vn/xpclass/image/theme_question/desert_left.png",
-    right: "https://xpclass.vn/xpclass/image/theme_question/desert_right.png"
+    left: assetUrl('/image/theme_question/desert_left.png'),
+    right: assetUrl('/image/theme_question/desert_right.png')
   }
 }
 
@@ -46,6 +47,7 @@ const getThemeSideImages = (theme) => {
 const ImageHotspotExercise = ({ testMode = false, exerciseData = null, onAnswersCollected = null, initialAnswers = null }) => {
   const location = useLocation()
   const navigate = useNavigate()
+  const { branding } = useBranding()
 
   const searchParams = new URLSearchParams(location.search)
   const exerciseId = searchParams.get('exerciseId')
@@ -321,7 +323,7 @@ const ImageHotspotExercise = ({ testMode = false, exerciseData = null, onAnswers
 
     // Play whoosh sound
     try {
-      const audio = new Audio('https://xpclass.vn/xpclass/sound/pop.mp3')
+      const audio = new Audio(assetUrl('/sound/pop.mp3'))
       audio.volume = 0.5
       audio.play().catch(e => console.log('Could not play sound:', e))
     } catch (e) {
@@ -595,7 +597,7 @@ const ImageHotspotExercise = ({ testMode = false, exerciseData = null, onAnswers
               <div ref={containerRef} className="relative">
                 <img
                   ref={imageRef}
-                  src={exercise.content.image_url.replace('https://xpclass.vn', '/proxy-image')}
+                  src={exercise.content.image_url.replace(branding.baseSiteUrl, '/proxy-image')}
                   alt="Exercise"
                   className="w-full h-auto rounded"
                 />
@@ -732,7 +734,7 @@ const ImageHotspotExercise = ({ testMode = false, exerciseData = null, onAnswers
               <div ref={containerRef} className="relative">
                 <img
                   ref={imageRef}
-                  src={exercise.content.image_url.replace('https://xpclass.vn', '/proxy-image')}
+                  src={exercise.content.image_url.replace(branding.baseSiteUrl, '/proxy-image')}
                   alt="Exercise"
                   className="w-full h-auto rounded"
                 />

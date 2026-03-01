@@ -9,6 +9,7 @@ import Button from '../ui/Button'
 import { SimpleBadge } from '../ui/StudentBadge'
 import { Trophy, Medal, Award, Crown, Star, RefreshCw } from 'lucide-react'
 import AvatarWithFrame from '../ui/AvatarWithFrame'
+import { assetUrl } from '../../hooks/useBranding';
 // import DailyChallengeLeaderboard from './DailyChallengeLeaderboard' // temporarily hidden
 
 const Leaderboard = () => {
@@ -759,7 +760,7 @@ const Leaderboard = () => {
                 <Trophy className="w-5 h-5 text-purple-500 flex-shrink-0" />
                 <span className="text-gray-700">
                   Top 1 cuối tuần nhận{' '}
-                  <strong className="text-blue-600 inline-flex items-center gap-1">{scrambleRewardGems} <img src="https://xpclass.vn/xpclass/image/study/gem.png" alt="Gem" className="w-4 h-4" /></strong>
+                  <strong className="text-blue-600 inline-flex items-center gap-1">{scrambleRewardGems} <img src={assetUrl('/image/study/gem.png')} alt="Gem" className="w-4 h-4" /></strong>
                 </span>
                 {countdownText && (
                   <span className="text-gray-400 ml-1">({countdownText})</span>
@@ -891,9 +892,9 @@ const Leaderboard = () => {
             <Trophy className="w-5 h-5 text-yellow-500 flex-shrink-0" />
             <span className="text-gray-700">
               Top 1 cuối tuần này nhận{' '}
-              {weeklyChampionReward.xp_reward > 0 && <strong className="text-yellow-600 inline-flex items-center gap-1">{weeklyChampionReward.xp_reward} <img src="https://xpclass.vn/xpclass/image/study/xp.png" alt="XP" className="w-4 h-4" /></strong>}
+              {weeklyChampionReward.xp_reward > 0 && <strong className="text-yellow-600 inline-flex items-center gap-1">{weeklyChampionReward.xp_reward} <img src={assetUrl('/image/study/xp.png')} alt="XP" className="w-4 h-4" /></strong>}
               {weeklyChampionReward.xp_reward > 0 && weeklyChampionReward.gem_reward > 0 && ' + '}
-              {weeklyChampionReward.gem_reward > 0 && <strong className="text-blue-500 inline-flex items-center gap-1">{weeklyChampionReward.gem_reward} <img src="https://xpclass.vn/xpclass/image/study/gem.png" alt="Gem" className="w-4 h-4" /></strong>}
+              {weeklyChampionReward.gem_reward > 0 && <strong className="text-blue-500 inline-flex items-center gap-1">{weeklyChampionReward.gem_reward} <img src={assetUrl('/image/study/gem.png')} alt="Gem" className="w-4 h-4" /></strong>}
             </span>
             {countdownText && (
               <span className="text-gray-400 ml-1">({countdownText})</span>
@@ -907,9 +908,9 @@ const Leaderboard = () => {
             <Crown className="w-5 h-5 text-purple-500 flex-shrink-0" />
             <span className="text-gray-700">
               Top 1 cuối tháng này nhận{' '}
-              {monthlyChampionReward.xp_reward > 0 && <strong className="text-purple-600 inline-flex items-center gap-1">{monthlyChampionReward.xp_reward} <img src="https://xpclass.vn/xpclass/image/study/xp.png" alt="XP" className="w-4 h-4" /></strong>}
+              {monthlyChampionReward.xp_reward > 0 && <strong className="text-purple-600 inline-flex items-center gap-1">{monthlyChampionReward.xp_reward} <img src={assetUrl('/image/study/xp.png')} alt="XP" className="w-4 h-4" /></strong>}
               {monthlyChampionReward.xp_reward > 0 && monthlyChampionReward.gem_reward > 0 && ' + '}
-              {monthlyChampionReward.gem_reward > 0 && <strong className="text-blue-500 inline-flex items-center gap-1">{monthlyChampionReward.gem_reward} <img src="https://xpclass.vn/xpclass/image/study/gem.png" alt="Gem" className="w-4 h-4" /></strong>}
+              {monthlyChampionReward.gem_reward > 0 && <strong className="text-blue-500 inline-flex items-center gap-1">{monthlyChampionReward.gem_reward} <img src={assetUrl('/image/study/gem.png')} alt="Gem" className="w-4 h-4" /></strong>}
             </span>
             {countdownText && (
               <span className="text-gray-400 ml-1">({countdownText})</span>
@@ -963,7 +964,7 @@ const Leaderboard = () => {
                 <div className="text-sm md:text-lg font-semibold text-gray-900 mt-1 md:mt-2 relative z-10">
                   <div className="flex items-center justify-center gap-1">
                     {leaderboardData[1].xp.toLocaleString()}
-                    <img src="https://xpclass.vn/xpclass/image/study/xp.png" alt="XP" className="w-3 md:w-4 h-3 md:h-4" />
+                    <img src={assetUrl('/image/study/xp.png')} alt="XP" className="w-3 md:w-4 h-3 md:h-4" />
                   </div>
                 </div>
               </Card>
@@ -1007,7 +1008,7 @@ const Leaderboard = () => {
                 <div className="text-sm md:text-xl font-semibold text-white-900 mt-1 md:mt-2 relative z-10">
                   <div className="flex items-center justify-center gap-1">
                     {leaderboardData[0].xp.toLocaleString()}
-                    <img src="https://xpclass.vn/xpclass/image/study/xp.png" alt="XP" className="w-3 md:w-5 h-3 md:h-5" />
+                    <img src={assetUrl('/image/study/xp.png')} alt="XP" className="w-3 md:w-5 h-3 md:h-5" />
                   </div>
                 </div>
                 <div className="hidden md:flex items-center justify-center mt-2 text-yellow-600 relative z-10">
@@ -1054,7 +1055,7 @@ const Leaderboard = () => {
                 <div className="text-sm md:text-lg font-semibold text-gray-900 mt-1 md:mt-2 relative z-10">
                   <div className="flex items-center justify-center gap-1">
                     {leaderboardData[2].xp.toLocaleString()}
-                    <img src="https://xpclass.vn/xpclass/image/study/xp.png" alt="XP" className="w-3 md:w-4 h-3 md:h-4" />
+                    <img src={assetUrl('/image/study/xp.png')} alt="XP" className="w-3 md:w-4 h-3 md:h-4" />
                   </div>
                 </div>
               </Card>
@@ -1109,7 +1110,7 @@ const Leaderboard = () => {
                 <div className="text-right">
                   <div className="font-bold text-sm text-gray-900 flex items-center gap-2 justify-end">
                     {user.xp.toLocaleString()}
-                    <img src="https://xpclass.vn/xpclass/image/study/xp.png" alt="XP" className="w-5 h-5" />
+                    <img src={assetUrl('/image/study/xp.png')} alt="XP" className="w-5 h-5" />
                   </div>
                 </div>
               </div>
@@ -1148,7 +1149,7 @@ const Leaderboard = () => {
               <div className="text-right">
                 <div className="font-bold text-lg text-gray-900 flex items-center gap-2 justify-end">
                   {currentUserRank.xp.toLocaleString()}
-                  <img src="https://xpclass.vn/xpclass/image/study/xp.png" alt="XP" className="w-5 h-5" />
+                  <img src={assetUrl('/image/study/xp.png')} alt="XP" className="w-5 h-5" />
                 </div>
               </div>
             </div>
@@ -1173,7 +1174,7 @@ const Leaderboard = () => {
                 <span className="text-sm text-gray-600">
                   <div className="flex items-center gap-1">
                     Cần thêm {getNextLevelXpRequired(currentUserRank.xp).toLocaleString()}
-                    <img src="https://xpclass.vn/xpclass/image/study/xp.png" alt="XP" className="w-4 h-4" />
+                    <img src={assetUrl('/image/study/xp.png')} alt="XP" className="w-4 h-4" />
                   </div>
                 </span>
               </div>
@@ -1190,7 +1191,7 @@ const Leaderboard = () => {
                   <span className="text-sm text-gray-600">
                     <div className="flex items-center gap-1">
                       Cần thêm {(leaderboardData[currentUserRank.rank - 2].xp - currentUserRank.xp + 1).toLocaleString()}
-                      <img src="https://xpclass.vn/xpclass/image/study/xp.png" alt="XP" className="w-4 h-4" />
+                      <img src={assetUrl('/image/study/xp.png')} alt="XP" className="w-4 h-4" />
                     </div>
                   </span>
                 </div>
@@ -1207,7 +1208,7 @@ const Leaderboard = () => {
                     {leaderboardData[9] ? (
                       <>
                         Cần thêm {Math.max(1, leaderboardData[9].xp - currentUserRank.xp + 1).toLocaleString()}
-                        <img src="https://xpclass.vn/xpclass/image/study/xp.png" alt="XP" className="w-4 h-4" />
+                        <img src={assetUrl('/image/study/xp.png')} alt="XP" className="w-4 h-4" />
                       </>
                     ) : (
                       'Đang tính toán...'

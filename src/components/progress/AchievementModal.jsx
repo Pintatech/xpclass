@@ -3,6 +3,7 @@ import { X, Star, Flame, Trophy, Target, Zap, BookOpen, Crown, Heart, Shield, Gi
 import Card from '../ui/Card'
 import Button from '../ui/Button'
 
+import { assetUrl } from '../../hooks/useBranding';
 const AchievementModal = ({ isOpen, onClose, achievements, userStats, onClaimXP, userAchievements = [], challengeWinCounts = {} }) => {
   const [claiming, setClaiming] = useState({})
   const [claimMessage, setClaimMessage] = useState('')
@@ -228,7 +229,7 @@ const AchievementModal = ({ isOpen, onClose, achievements, userStats, onClaimXP,
                           {achievement.xp_reward > 0 && (
                             <div className="text-xs text-blue-600 mt-1 flex items-center gap-1">
                               +{achievement.xp_reward}
-                              <img src="https://xpclass.vn/xpclass/image/study/xp.png" alt="XP" className="w-3 h-3" />
+                              <img src={assetUrl('/image/study/xp.png')} alt="XP" className="w-3 h-3" />
                             </div>
                           )}
                           {unlocked && (
@@ -305,7 +306,7 @@ const AchievementModal = ({ isOpen, onClose, achievements, userStats, onClaimXP,
                           {achievement.xp_reward > 0 && (
                             <div className="text-xs text-gray-500 mt-1 flex items-center gap-1">
                               +{achievement.xp_reward}
-                              <img src="https://xpclass.vn/xpclass/image/study/xp.png" alt="XP" className="w-3 h-3" />
+                              <img src={assetUrl('/image/study/xp.png')} alt="XP" className="w-3 h-3" />
                             </div>
                           )}
                           <div className="mt-2">

@@ -1,5 +1,5 @@
--- WARNING: This schema is for context only and is not meant to be run.
--- Table order and constraints may not be valid for execution.
+-- Schema for XPclass LMS
+-- Table order follows foreign key dependencies for fresh database setup.
 
 CREATE TABLE public.achievements (
   id uuid NOT NULL DEFAULT uuid_generate_v4(),
@@ -31,17 +31,94 @@ CREATE TABLE public.avatars (
   updated_at timestamp with time zone DEFAULT now(),
   CONSTRAINT avatars_pkey PRIMARY KEY (id)
 );
-CREATE TABLE public.cohort_members (
+CREATE TABLE public.site_settings (
   id uuid NOT NULL DEFAULT uuid_generate_v4(),
-  cohort_id uuid,
-  student_id uuid,
-  joined_at timestamp with time zone DEFAULT now(),
+  setting_key text NOT NULL UNIQUE,
+  setting_value text NOT NULL,
+  description text,
+  created_at timestamp with time zone DEFAULT now(),
+  updated_at timestamp with time zone DEFAULT now(),
+  CONSTRAINT site_settings_pkey PRIMARY KEY (id)
+);
+CREATE TABLE public.student_levels (
+  id uuid NOT NULL DEFAULT uuid_generate_v4(),
+  level_number integer NOT NULL UNIQUE,
+  xp_required integer NOT NULL,
+  badge_name text NOT NULL,
+  badge_tier text NOT NULL CHECK (badge_tier = ANY (ARRAY['bronze'::text, 'silver'::text, 'gold'::text, 'platinum'::text, 'diamond'::text])),
+  badge_icon text,
+  badge_color text NOT NULL,
+  badge_description text,
+  title_unlocked text,
+  perks_unlocked jsonb,
   is_active boolean DEFAULT true,
   created_at timestamp with time zone DEFAULT now(),
   updated_at timestamp with time zone DEFAULT now(),
-  CONSTRAINT cohort_members_pkey PRIMARY KEY (id),
-  CONSTRAINT cohort_members_cohort_id_fkey FOREIGN KEY (cohort_id) REFERENCES public.cohorts(id),
-  CONSTRAINT cohort_members_student_id_fkey FOREIGN KEY (student_id) REFERENCES public.users(id)
+  CONSTRAINT student_levels_pkey PRIMARY KEY (id)
+);
+CREATE TABLE public.student_levels_backup (
+  id uuid,
+  level_number integer,
+  xp_required integer,
+  badge_name text,
+  badge_tier text,
+  badge_icon text,
+  badge_color text,
+  badge_description text,
+  title_unlocked text,
+  perks_unlocked jsonb,
+  is_active boolean,
+  created_at timestamp with time zone,
+  updated_at timestamp with time zone
+);
+CREATE TABLE public.shop_items (
+  id uuid NOT NULL DEFAULT uuid_generate_v4(),
+  name text NOT NULL,
+  description text,
+  category text NOT NULL,
+  price integer NOT NULL,
+  image_url text,
+  item_data jsonb,
+  is_active boolean DEFAULT true,
+  created_at timestamp with time zone DEFAULT now(),
+  CONSTRAINT shop_items_pkey PRIMARY KEY (id)
+);
+CREATE TABLE public.exercise_folders (
+  id uuid NOT NULL DEFAULT uuid_generate_v4(),
+  name text NOT NULL,
+  parent_folder_id uuid,
+  description text,
+  color text DEFAULT 'blue'::text,
+  icon text DEFAULT 'folder'::text,
+  sort_order integer DEFAULT 0,
+  created_at timestamp with time zone DEFAULT now(),
+  updated_at timestamp with time zone DEFAULT now(),
+  CONSTRAINT exercise_folders_pkey PRIMARY KEY (id),
+  CONSTRAINT exercise_folders_parent_folder_id_fkey FOREIGN KEY (parent_folder_id) REFERENCES public.exercise_folders(id)
+);
+CREATE TABLE public.users (
+  id uuid NOT NULL,
+  email text NOT NULL,
+  full_name text,
+  avatar_url text,
+  role text DEFAULT 'user'::text CHECK (role = ANY (ARRAY['user'::text, 'admin'::text, 'teacher'::text])),
+  current_level integer DEFAULT 1,
+  xp integer DEFAULT 0,
+  streak_count integer DEFAULT 0,
+  last_activity_date date,
+  total_practice_time integer DEFAULT 0,
+  created_at timestamp with time zone DEFAULT now(),
+  updated_at timestamp with time zone DEFAULT now(),
+  level integer DEFAULT 1,
+  username text UNIQUE,
+  gems integer DEFAULT 0,
+  active_title text,
+  active_frame_ratio text,
+  active_background_url text,
+  active_bowl_url text,
+  name_changed_at timestamp with time zone,
+  CONSTRAINT users_pkey PRIMARY KEY (id),
+  CONSTRAINT users_id_fkey FOREIGN KEY (id) REFERENCES auth.users(id)
 );
 CREATE TABLE public.cohorts (
   id uuid NOT NULL DEFAULT uuid_generate_v4(),
@@ -53,6 +130,35 @@ CREATE TABLE public.cohorts (
   updated_at timestamp with time zone DEFAULT now(),
   CONSTRAINT cohorts_pkey PRIMARY KEY (id),
   CONSTRAINT cohorts_created_by_fkey FOREIGN KEY (created_by) REFERENCES public.users(id)
+);
+CREATE TABLE public.courses (
+  id uuid NOT NULL DEFAULT uuid_generate_v4(),
+  title text NOT NULL,
+  description text,
+  level_number integer NOT NULL UNIQUE,
+  difficulty_label text NOT NULL,
+  color_theme text DEFAULT 'blue'::text,
+  unlock_requirement integer DEFAULT 0,
+  is_active boolean DEFAULT true,
+  thumbnail_url text,
+  created_at timestamp with time zone DEFAULT now(),
+  updated_at timestamp with time zone DEFAULT now(),
+  teacher_id uuid,
+  chest_enabled boolean DEFAULT false,
+  CONSTRAINT courses_pkey PRIMARY KEY (id),
+  CONSTRAINT courses_teacher_id_fkey FOREIGN KEY (teacher_id) REFERENCES public.users(id)
+);
+CREATE TABLE public.cohort_members (
+  id uuid NOT NULL DEFAULT uuid_generate_v4(),
+  cohort_id uuid,
+  student_id uuid,
+  joined_at timestamp with time zone DEFAULT now(),
+  is_active boolean DEFAULT true,
+  created_at timestamp with time zone DEFAULT now(),
+  updated_at timestamp with time zone DEFAULT now(),
+  CONSTRAINT cohort_members_pkey PRIMARY KEY (id),
+  CONSTRAINT cohort_members_cohort_id_fkey FOREIGN KEY (cohort_id) REFERENCES public.cohorts(id),
+  CONSTRAINT cohort_members_student_id_fkey FOREIGN KEY (student_id) REFERENCES public.users(id)
 );
 CREATE TABLE public.course_enrollments (
   id uuid NOT NULL DEFAULT uuid_generate_v4(),
@@ -94,22 +200,66 @@ CREATE TABLE public.course_teachers (
   CONSTRAINT course_teachers_course_id_fkey FOREIGN KEY (course_id) REFERENCES public.courses(id),
   CONSTRAINT course_teachers_teacher_id_fkey FOREIGN KEY (teacher_id) REFERENCES public.users(id)
 );
-CREATE TABLE public.courses (
+CREATE TABLE public.units (
   id uuid NOT NULL DEFAULT uuid_generate_v4(),
+  course_id uuid,
   title text NOT NULL,
   description text,
-  level_number integer NOT NULL UNIQUE,
-  difficulty_label text NOT NULL,
+  unit_number integer NOT NULL,
   color_theme text DEFAULT 'blue'::text,
   unlock_requirement integer DEFAULT 0,
   is_active boolean DEFAULT true,
   thumbnail_url text,
+  estimated_duration integer,
   created_at timestamp with time zone DEFAULT now(),
   updated_at timestamp with time zone DEFAULT now(),
-  teacher_id uuid,
-  chest_enabled boolean DEFAULT false,
-  CONSTRAINT courses_pkey PRIMARY KEY (id),
-  CONSTRAINT courses_teacher_id_fkey FOREIGN KEY (teacher_id) REFERENCES public.users(id)
+  CONSTRAINT units_pkey PRIMARY KEY (id),
+  CONSTRAINT units_level_id_fkey FOREIGN KEY (course_id) REFERENCES public.courses(id)
+);
+CREATE TABLE public.sessions (
+  id uuid NOT NULL DEFAULT uuid_generate_v4(),
+  unit_id uuid,
+  title text NOT NULL,
+  description text,
+  session_number integer NOT NULL,
+  session_type text DEFAULT 'mixed'::text CHECK (session_type = ANY (ARRAY['vocabulary'::text, 'grammar'::text, 'pronunciation'::text, 'listening'::text, 'mixed'::text])),
+  difficulty_level integer DEFAULT 1 CHECK (difficulty_level >= 1 AND difficulty_level <= 5),
+  xp_reward integer DEFAULT 50,
+  unlock_requirement text,
+  is_active boolean DEFAULT true,
+  thumbnail_url text,
+  estimated_duration integer,
+  created_at timestamp with time zone DEFAULT now(),
+  updated_at timestamp with time zone DEFAULT now(),
+  is_test boolean DEFAULT false,
+  time_limit_minutes integer DEFAULT 30,
+  passing_score integer DEFAULT 70,
+  max_attempts integer DEFAULT 1,
+  CONSTRAINT sessions_pkey PRIMARY KEY (id),
+  CONSTRAINT sessions_unit_id_fkey FOREIGN KEY (unit_id) REFERENCES public.units(id)
+);
+CREATE TABLE public.exercises (
+  id uuid NOT NULL DEFAULT uuid_generate_v4(),
+  session_id uuid,
+  title text NOT NULL,
+  exercise_type text NOT NULL CHECK (exercise_type = ANY (ARRAY['flashcard'::text, 'pronunciation'::text, 'fill_blank'::text, 'video'::text, 'quiz'::text, 'multiple_choice'::text, 'listening'::text, 'speaking'::text, 'drag_drop'::text, 'dropdown'::text, 'ai_fill_blank'::text, 'image_hotspot'::text])),
+  content jsonb NOT NULL,
+  image_urls text[],
+  difficulty_level integer DEFAULT 1 CHECK (difficulty_level >= 1 AND difficulty_level <= 5),
+  xp_reward integer DEFAULT 10,
+  order_index integer NOT NULL,
+  is_active boolean DEFAULT true,
+  estimated_duration integer,
+  created_at timestamp with time zone DEFAULT now(),
+  updated_at timestamp with time zone DEFAULT now(),
+  folder_id uuid,
+  is_in_bank boolean DEFAULT false,
+  tags text[],
+  category text,
+  description text,
+  CONSTRAINT exercises_pkey PRIMARY KEY (id),
+  CONSTRAINT exercises_session_id_fkey FOREIGN KEY (session_id) REFERENCES public.sessions(id),
+  CONSTRAINT exercises_folder_id_fkey FOREIGN KEY (folder_id) REFERENCES public.exercise_folders(id)
 );
 CREATE TABLE public.daily_quests (
   id uuid NOT NULL DEFAULT uuid_generate_v4(),
@@ -134,42 +284,6 @@ CREATE TABLE public.exercise_assignments (
   CONSTRAINT exercise_assignments_pkey PRIMARY KEY (id),
   CONSTRAINT exercise_assignments_exercise_id_fkey FOREIGN KEY (exercise_id) REFERENCES public.exercises(id),
   CONSTRAINT exercise_assignments_session_id_fkey FOREIGN KEY (session_id) REFERENCES public.sessions(id)
-);
-CREATE TABLE public.exercise_folders (
-  id uuid NOT NULL DEFAULT uuid_generate_v4(),
-  name text NOT NULL,
-  parent_folder_id uuid,
-  description text,
-  color text DEFAULT 'blue'::text,
-  icon text DEFAULT 'folder'::text,
-  sort_order integer DEFAULT 0,
-  created_at timestamp with time zone DEFAULT now(),
-  updated_at timestamp with time zone DEFAULT now(),
-  CONSTRAINT exercise_folders_pkey PRIMARY KEY (id),
-  CONSTRAINT exercise_folders_parent_folder_id_fkey FOREIGN KEY (parent_folder_id) REFERENCES public.exercise_folders(id)
-);
-CREATE TABLE public.exercises (
-  id uuid NOT NULL DEFAULT uuid_generate_v4(),
-  session_id uuid,
-  title text NOT NULL,
-  exercise_type text NOT NULL CHECK (exercise_type = ANY (ARRAY['flashcard'::text, 'pronunciation'::text, 'fill_blank'::text, 'video'::text, 'quiz'::text, 'multiple_choice'::text, 'listening'::text, 'speaking'::text, 'drag_drop'::text, 'dropdown'::text, 'ai_fill_blank'::text, 'image_hotspot'::text])),
-  content jsonb NOT NULL,
-  image_urls ARRAY,
-  difficulty_level integer DEFAULT 1 CHECK (difficulty_level >= 1 AND difficulty_level <= 5),
-  xp_reward integer DEFAULT 10,
-  order_index integer NOT NULL,
-  is_active boolean DEFAULT true,
-  estimated_duration integer,
-  created_at timestamp with time zone DEFAULT now(),
-  updated_at timestamp with time zone DEFAULT now(),
-  folder_id uuid,
-  is_in_bank boolean DEFAULT false,
-  tags ARRAY,
-  category text,
-  description text,
-  CONSTRAINT exercises_pkey PRIMARY KEY (id),
-  CONSTRAINT exercises_session_id_fkey FOREIGN KEY (session_id) REFERENCES public.sessions(id),
-  CONSTRAINT exercises_folder_id_fkey FOREIGN KEY (folder_id) REFERENCES public.exercise_folders(id)
 );
 CREATE TABLE public.individual_exercise_assignments (
   id uuid NOT NULL DEFAULT uuid_generate_v4(),
@@ -224,67 +338,17 @@ CREATE TABLE public.session_progress (
   CONSTRAINT session_progress_user_id_fkey FOREIGN KEY (user_id) REFERENCES public.users(id),
   CONSTRAINT session_progress_session_id_fkey FOREIGN KEY (session_id) REFERENCES public.sessions(id)
 );
-CREATE TABLE public.sessions (
+CREATE TABLE public.session_reward_claims (
   id uuid NOT NULL DEFAULT uuid_generate_v4(),
-  unit_id uuid,
-  title text NOT NULL,
-  description text,
-  session_number integer NOT NULL,
-  session_type text DEFAULT 'mixed'::text CHECK (session_type = ANY (ARRAY['vocabulary'::text, 'grammar'::text, 'pronunciation'::text, 'listening'::text, 'mixed'::text])),
-  difficulty_level integer DEFAULT 1 CHECK (difficulty_level >= 1 AND difficulty_level <= 5),
-  xp_reward integer DEFAULT 50,
-  unlock_requirement text,
-  is_active boolean DEFAULT true,
-  thumbnail_url text,
-  estimated_duration integer,
-  created_at timestamp with time zone DEFAULT now(),
-  updated_at timestamp with time zone DEFAULT now(),
-  is_test boolean DEFAULT false,
-  time_limit_minutes integer DEFAULT 30,
-  passing_score integer DEFAULT 70,
-  max_attempts integer DEFAULT 1,
-  CONSTRAINT sessions_pkey PRIMARY KEY (id),
-  CONSTRAINT sessions_unit_id_fkey FOREIGN KEY (unit_id) REFERENCES public.units(id)
-);
-CREATE TABLE public.site_settings (
-  id uuid NOT NULL DEFAULT uuid_generate_v4(),
-  setting_key text NOT NULL UNIQUE,
-  setting_value text NOT NULL,
-  description text,
-  created_at timestamp with time zone DEFAULT now(),
-  updated_at timestamp with time zone DEFAULT now(),
-  CONSTRAINT site_settings_pkey PRIMARY KEY (id)
-);
-CREATE TABLE public.student_levels (
-  id uuid NOT NULL DEFAULT uuid_generate_v4(),
-  level_number integer NOT NULL UNIQUE,
-  xp_required integer NOT NULL,
-  badge_name text NOT NULL,
-  badge_tier text NOT NULL CHECK (badge_tier = ANY (ARRAY['bronze'::text, 'silver'::text, 'gold'::text, 'platinum'::text, 'diamond'::text])),
-  badge_icon text,
-  badge_color text NOT NULL,
-  badge_description text,
-  title_unlocked text,
-  perks_unlocked jsonb,
-  is_active boolean DEFAULT true,
-  created_at timestamp with time zone DEFAULT now(),
-  updated_at timestamp with time zone DEFAULT now(),
-  CONSTRAINT student_levels_pkey PRIMARY KEY (id)
-);
-CREATE TABLE public.student_levels_backup (
-  id uuid,
-  level_number integer,
-  xp_required integer,
-  badge_name text,
-  badge_tier text,
-  badge_icon text,
-  badge_color text,
-  badge_description text,
-  title_unlocked text,
-  perks_unlocked jsonb,
-  is_active boolean,
-  created_at timestamp with time zone,
-  updated_at timestamp with time zone
+  user_id uuid NOT NULL,
+  session_id uuid NOT NULL,
+  full_name text,
+  xp_awarded integer NOT NULL DEFAULT 0,
+  gems_awarded integer DEFAULT 0,
+  claimed_at timestamp with time zone DEFAULT now(),
+  CONSTRAINT session_reward_claims_pkey PRIMARY KEY (id),
+  CONSTRAINT session_reward_claims_user_id_fkey FOREIGN KEY (user_id) REFERENCES public.users(id),
+  CONSTRAINT session_reward_claims_session_id_fkey FOREIGN KEY (session_id) REFERENCES public.sessions(id)
 );
 CREATE TABLE public.unit_reward_claims (
   id uuid NOT NULL DEFAULT uuid_generate_v4(),
@@ -296,22 +360,6 @@ CREATE TABLE public.unit_reward_claims (
   CONSTRAINT unit_reward_claims_pkey PRIMARY KEY (id),
   CONSTRAINT unit_reward_claims_user_id_fkey FOREIGN KEY (user_id) REFERENCES public.users(id),
   CONSTRAINT unit_reward_claims_unit_id_fkey FOREIGN KEY (unit_id) REFERENCES public.units(id)
-);
-CREATE TABLE public.units (
-  id uuid NOT NULL DEFAULT uuid_generate_v4(),
-  course_id uuid,
-  title text NOT NULL,
-  description text,
-  unit_number integer NOT NULL,
-  color_theme text DEFAULT 'blue'::text,
-  unlock_requirement integer DEFAULT 0,
-  is_active boolean DEFAULT true,
-  thumbnail_url text,
-  estimated_duration integer,
-  created_at timestamp with time zone DEFAULT now(),
-  updated_at timestamp with time zone DEFAULT now(),
-  CONSTRAINT units_pkey PRIMARY KEY (id),
-  CONSTRAINT units_level_id_fkey FOREIGN KEY (course_id) REFERENCES public.courses(id)
 );
 CREATE TABLE public.user_achievements (
   id uuid NOT NULL DEFAULT uuid_generate_v4(),
@@ -351,49 +399,6 @@ CREATE TABLE public.user_progress (
   CONSTRAINT user_progress_session_id_fkey FOREIGN KEY (session_id) REFERENCES public.sessions(id),
   CONSTRAINT user_progress_exercise_id_fkey FOREIGN KEY (exercise_id) REFERENCES public.exercises(id)
 );
-CREATE TABLE public.users (
-  id uuid NOT NULL,
-  email text NOT NULL,
-  full_name text,
-  avatar_url text,
-  role text DEFAULT 'user'::text CHECK (role = ANY (ARRAY['user'::text, 'admin'::text, 'teacher'::text])),
-  current_level integer DEFAULT 1,
-  xp integer DEFAULT 0,
-  streak_count integer DEFAULT 0,
-  last_activity_date date,
-  total_practice_time integer DEFAULT 0,
-  created_at timestamp with time zone DEFAULT now(),
-  updated_at timestamp with time zone DEFAULT now(),
-  level integer DEFAULT 1,
-  username text UNIQUE,
-  gems integer DEFAULT 0,
-  CONSTRAINT users_pkey PRIMARY KEY (id),
-  CONSTRAINT users_id_fkey FOREIGN KEY (id) REFERENCES auth.users(id)
-);
-CREATE TABLE public.session_reward_claims (
-  id uuid NOT NULL DEFAULT uuid_generate_v4(),
-  user_id uuid NOT NULL,
-  session_id uuid NOT NULL,
-  full_name text,
-  xp_awarded integer NOT NULL DEFAULT 0,
-  gems_awarded integer DEFAULT 0,
-  claimed_at timestamp with time zone DEFAULT now(),
-  CONSTRAINT session_reward_claims_pkey PRIMARY KEY (id),
-  CONSTRAINT session_reward_claims_user_id_fkey FOREIGN KEY (user_id) REFERENCES public.users(id),
-  CONSTRAINT session_reward_claims_session_id_fkey FOREIGN KEY (session_id) REFERENCES public.sessions(id)
-);
-CREATE TABLE public.shop_items (
-  id uuid NOT NULL DEFAULT uuid_generate_v4(),
-  name text NOT NULL,
-  description text,
-  category text NOT NULL,
-  price integer NOT NULL,
-  image_url text,
-  item_data jsonb,
-  is_active boolean DEFAULT true,
-  created_at timestamp with time zone DEFAULT now(),
-  CONSTRAINT shop_items_pkey PRIMARY KEY (id)
-);
 CREATE TABLE public.user_purchases (
   id uuid NOT NULL DEFAULT uuid_generate_v4(),
   user_id uuid NOT NULL,
@@ -415,6 +420,7 @@ CREATE TABLE public.weekly_xp_tracking (
   CONSTRAINT weekly_xp_tracking_user_id_fkey FOREIGN KEY (user_id) REFERENCES public.users(id)
 );
 
+-- ====================================
 -- ====================================
 -- DAILY CHALLENGE SYSTEM
 -- ====================================
@@ -1079,8 +1085,7 @@ BEGIN
 
   RETURN json_build_object('success', true, 'awarded', results);
 END;
-$$
-);
+$$;
 
 -- ====================================
 -- PET SYSTEM
@@ -1103,6 +1108,21 @@ CREATE TABLE IF NOT EXISTS public.pets (
 
 -- Add info column to pets table (if not exists)
 ALTER TABLE public.pets ADD COLUMN IF NOT EXISTS info text;
+
+-- Pet Bonuses (stat bonuses each pet provides)
+CREATE TABLE IF NOT EXISTS public.pet_bonuses (
+  id uuid NOT NULL DEFAULT uuid_generate_v4(),
+  pet_id uuid NOT NULL,
+  bonus_type text NOT NULL,
+  bonus_value integer NOT NULL DEFAULT 0,
+  min_happiness integer DEFAULT 0,
+  description text,
+  created_at timestamp with time zone DEFAULT now(),
+  CONSTRAINT pet_bonuses_pkey PRIMARY KEY (id),
+  CONSTRAINT pet_bonuses_pet_id_fkey FOREIGN KEY (pet_id) REFERENCES public.pets(id) ON DELETE CASCADE
+);
+
+CREATE INDEX IF NOT EXISTS idx_pet_bonuses_pet ON public.pet_bonuses(pet_id);
 
 -- User's owned pets
 CREATE TABLE IF NOT EXISTS public.user_pets (

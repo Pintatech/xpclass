@@ -3,6 +3,7 @@ import { useAuth } from '../../hooks/useAuth'
 import { useProgress } from '../../hooks/useProgress'
 import Card from '../ui/Card'
 import Button from '../ui/Button'
+import { assetUrl, siteUrl } from '../../hooks/useBranding';
 import { 
   Target, 
   Star, 
@@ -144,7 +145,7 @@ const DailyQuest = () => {
       <Card 
         className="border-orange-200 relative overflow-hidden"
         style={{
-          backgroundImage: 'url("https://xpclass.vn/kevhocsat/general%20materials/quest%20background.jpg")',
+          backgroundImage: 'url(siteUrl('/kevhocsat/general%20materials/quest%20background.jpg'))',
           backgroundSize: 'cover',
           backgroundPosition: 'center',
           backgroundRepeat: 'no-repeat'
@@ -166,7 +167,7 @@ const DailyQuest = () => {
       <Card 
         className="border-orange-200 relative overflow-hidden"
         style={{
-          backgroundImage: 'url("https://xpclass.vn/kevhocsat/general%20materials/quest%20background.jpg")',
+          backgroundImage: 'url(siteUrl('/kevhocsat/general%20materials/quest%20background.jpg'))',
           backgroundSize: 'cover',
           backgroundPosition: 'center',
           backgroundRepeat: 'no-repeat'
@@ -188,7 +189,7 @@ const DailyQuest = () => {
     <Card 
       className="border-orange-200 relative overflow-hidden"
       style={{
-        backgroundImage: 'url("https://xpclass.vn/kevhocsat/general%20materials/quest%20background.jpg")',
+        backgroundImage: 'url(siteUrl('/kevhocsat/general%20materials/quest%20background.jpg'))',
         backgroundSize: 'cover',
         backgroundPosition: 'center',
         backgroundRepeat: 'no-repeat'
@@ -241,7 +242,7 @@ const DailyQuest = () => {
             <span className="text-sm font-medium text-white" style={{ textShadow: '0 0 8px rgba(255, 255, 255, 0.6), 0 0 16px rgba(255, 255, 255, 0.4)' }}>Phần thưởng:</span>
             <div className="flex items-center gap-2">
               <span className="text-lg font-bold text-white" style={{ textShadow: '0 0 10px rgba(255, 255, 255, 0.8), 0 0 20px rgba(255, 255, 255, 0.6), 0 0 30px rgba(255, 255, 255, 0.4)' }}>{quest.xp_reward}</span>
-              <img src="https://xpclass.vn/xpclass/image/study/xp.png" alt="XP" className="w-5 h-5" style={{ filter: 'drop-shadow(0 0 8px rgba(255, 255, 255, 0.8))' }} />
+              <img src={assetUrl('/image/study/xp.png')} alt="XP" className="w-5 h-5" style={{ filter: 'drop-shadow(0 0 8px rgba(255, 255, 255, 0.8))' }} />
             </div>
           </div>
           

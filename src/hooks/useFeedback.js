@@ -1,6 +1,7 @@
 import React, { useState } from "react";
 import confetti from "canvas-confetti";
 
+import { assetUrl, siteUrl } from './useBranding';
 /**
  * Custom hook for handling feedback (memes + sounds) for exercises
  * @returns {Object} { currentMeme, showMeme, playFeedback, playCelebration, passGif }
@@ -12,56 +13,56 @@ export const useFeedback = () => {
 
   // Correct answer memes
   const correctMemes = [
-    'https://xpclass.vn/xpclass/meme/right_cat_thumb_up.png',
-'https://xpclass.vn/xpclass/meme/right_drake_yes.jpg',
-'https://xpclass.vn/xpclass/meme/right_kid_thumb_up.png',
-'https://xpclass.vn/xpclass/meme/right_Leonardo-Dicaprio-Cheers.jpg',
-'https://xpclass.vn/xpclass/meme/right_not_bad_kid.png',
-'https://xpclass.vn/xpclass/meme/right_pooh.PNG',
-'https://xpclass.vn/xpclass/meme/right_Satisfied-Seal.jpg',
-'https://xpclass.vn/xpclass/meme/right_success_kid.png',
-'https://xpclass.vn/xpclass/meme/right_tapping_head.jpg'
+    assetUrl('/meme/right_cat_thumb_up.png'),
+assetUrl('/meme/right_drake_yes.jpg'),
+assetUrl('/meme/right_kid_thumb_up.png'),
+assetUrl('/meme/right_Leonardo-Dicaprio-Cheers.jpg'),
+assetUrl('/meme/right_not_bad_kid.png'),
+assetUrl('/meme/right_pooh.PNG'),
+assetUrl('/meme/right_Satisfied-Seal.jpg'),
+assetUrl('/meme/right_success_kid.png'),
+assetUrl('/meme/right_tapping_head.jpg')
 
   ];
 
   // Wrong answer memes
   const wrongMemes = [
-    'https://xpclass.vn/xpclass/meme/wrong_0_day.jpg',
-'https://xpclass.vn/xpclass/meme/wrong_always_has_been.jpg',
-'https://xpclass.vn/xpclass/meme/wrong_batman_slap.jpg',
-'https://xpclass.vn/xpclass/meme/wrong_bf.jpg',
-'https://xpclass.vn/xpclass/meme/wrong_Black-Girl-Wat.png',
-'https://xpclass.vn/xpclass/meme/wrong_drake.jpg',
-'https://xpclass.vn/xpclass/meme/wrong_Futurama-Fry.jpg',
-'https://xpclass.vn/xpclass/meme/wrong_leo_laugh.jpg',
-'https://xpclass.vn/xpclass/meme/wrong_megamind.webp',
-'https://xpclass.vn/xpclass/meme/wrong_Mocking-Spongebob.jpg',
-'https://xpclass.vn/xpclass/meme/wrong_nick_young.jpg',
-'https://xpclass.vn/xpclass/meme/wrong_pooh.PNG',
-'https://xpclass.vn/xpclass/meme/wrong_tom_confused.jpg',
-'https://xpclass.vn/xpclass/meme/wrong_you-guys-are-getting-paid.jpg',
+    assetUrl('/meme/wrong_0_day.jpg'),
+assetUrl('/meme/wrong_always_has_been.jpg'),
+assetUrl('/meme/wrong_batman_slap.jpg'),
+assetUrl('/meme/wrong_bf.jpg'),
+assetUrl('/meme/wrong_Black-Girl-Wat.png'),
+assetUrl('/meme/wrong_drake.jpg'),
+assetUrl('/meme/wrong_Futurama-Fry.jpg'),
+assetUrl('/meme/wrong_leo_laugh.jpg'),
+assetUrl('/meme/wrong_megamind.webp'),
+assetUrl('/meme/wrong_Mocking-Spongebob.jpg'),
+assetUrl('/meme/wrong_nick_young.jpg'),
+assetUrl('/meme/wrong_pooh.PNG'),
+assetUrl('/meme/wrong_tom_confused.jpg'),
+assetUrl('/meme/wrong_you-guys-are-getting-paid.jpg'),
 
   ];
 
   // Pass celebration GIFs
   const passGifs = [
-    "https://xpclass.vn/leaderboard/end_gif/end%201.gif",
-    "https://xpclass.vn/leaderboard/end_gif/end%202.gif",
-    "https://xpclass.vn/leaderboard/end_gif/end%203.gif",
-    "https://xpclass.vn/leaderboard/end_gif/end%204.gif",
-    "https://xpclass.vn/leaderboard/end_gif/end%205.gif",
-    "https://xpclass.vn/leaderboard/end_gif/end%206.gif",
-    "https://xpclass.vn/leaderboard/end_gif/end%207.gif",
-    "https://xpclass.vn/leaderboard/end_gif/end%208.gif"
+    siteUrl('/leaderboard/end_gif/end%201.gif'),
+    siteUrl('/leaderboard/end_gif/end%202.gif'),
+    siteUrl('/leaderboard/end_gif/end%203.gif'),
+    siteUrl('/leaderboard/end_gif/end%204.gif'),
+    siteUrl('/leaderboard/end_gif/end%205.gif'),
+    siteUrl('/leaderboard/end_gif/end%206.gif'),
+    siteUrl('/leaderboard/end_gif/end%207.gif'),
+    siteUrl('/leaderboard/end_gif/end%208.gif')
   ];
 
   // Sound URLs
-  const correctSounds = ["https://xpclass.vn/xpclass/sound/correct.mp3"];
+  const correctSounds = [assetUrl('/sound/correct.mp3')];
 
-  const wrongSounds = ["https://xpclass.vn/xpclass/sound/Bruh.mp3",
-    "https://xpclass.vn/xpclass/sound/error.mp3",
-    "https://xpclass.vn/xpclass/sound/ohhhroblox.mp3",
-    "https://xpclass.vn/xpclass/sound/vineboom.mp3"
+  const wrongSounds = [assetUrl('/sound/Bruh.mp3'),
+    assetUrl('/sound/error.mp3'),
+    assetUrl('/sound/ohhhroblox.mp3'),
+    assetUrl('/sound/vineboom.mp3')
   ];
 
   /**
@@ -108,7 +109,7 @@ export const useFeedback = () => {
     });
 
     // Play celebration sound
-    const audio = new Audio("https://xpclass.vn/xpclass/sound/victory.mp3");
+    const audio = new Audio(assetUrl('/sound/victory.mp3'));
     audio.play().catch((err) => console.log("Audio play failed:", err));
 
     // Show random celebration GIF

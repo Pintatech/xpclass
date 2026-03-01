@@ -3,6 +3,7 @@ import { createPortal } from 'react-dom'
 import { X, Trophy, Volume2, VolumeX } from 'lucide-react'
 import WORD_BANK from './wordBank'
 
+import { assetUrl } from '../../hooks/useBranding';
 const GAME_DURATION = 60
 const POINTS_PER_WORD = 10
 const STREAK_BONUS = 5
@@ -125,7 +126,7 @@ const PetWordScramble = ({ petImageUrl, petName, onGameEnd, onClose }) => {
 
     // Start background music
     try {
-      const music = new Audio('https://xpclass.vn/xpclass/sound/pet-word-scamble-2-faster.mp3')
+      const music = new Audio(assetUrl('/sound/pet-word-scamble-2-faster.mp3'))
       music.loop = true
       music.volume = 0.3
       bgMusicRef.current = music
@@ -243,7 +244,7 @@ const PetWordScramble = ({ petImageUrl, petName, onGameEnd, onClose }) => {
 
       // Pop sound
       try {
-        const sound = new Audio('https://xpclass.vn/xpclass/sound/pop2.mp3')
+        const sound = new Audio(assetUrl('/sound/pop2.mp3'))
         sound.volume = 0.3
         sound.playbackRate = 1 + (combo * 0.1)
         sound.play().catch(() => {})
@@ -274,7 +275,7 @@ const PetWordScramble = ({ petImageUrl, petName, onGameEnd, onClose }) => {
 
       // Wrong sound
       try {
-        const sound = new Audio('https://xpclass.vn/xpclass/sound/flappy-hit.mp3')
+        const sound = new Audio(assetUrl('/sound/flappy-hit.mp3'))
         sound.volume = 0.3
         sound.play().catch(() => {})
       } catch {
@@ -371,7 +372,7 @@ const PetWordScramble = ({ petImageUrl, petName, onGameEnd, onClose }) => {
 
       // Victory sound
       try {
-        const sound = new Audio('https://xpclass.vn/xpclass/sound/scram-correct.mp3')
+        const sound = new Audio(assetUrl('/sound/scram-correct.mp3'))
         sound.volume = 0.5
         sound.playbackRate = 1.2
         sound.play().catch(() => {})
@@ -659,7 +660,7 @@ const PetWordScramble = ({ petImageUrl, petName, onGameEnd, onClose }) => {
                 <div className={`rounded-full px-2.5 py-1 text-xs font-bold flex items-center gap-1 shrink-0 ${
                   streakRef.current >= 3 ? 'bg-yellow-400 text-yellow-900' : 'bg-white/20 text-white/70'
                 }`}>
-                  <img src="https://xpclass.vn/xpclass/icon/profile/streak.svg" alt="streak" className="w-3.5 h-3.5" />{streakRef.current}x
+                  <img src={assetUrl('/icon/profile/streak.svg')} alt="streak" className="w-3.5 h-3.5" />{streakRef.current}x
                 </div>
                 <div className="flex-1 bg-white/10 backdrop-blur rounded-xl px-4 py-2 text-center min-w-0">
                   <span className="text-sm text-white/60 mr-2">Hint:</span>
@@ -722,7 +723,7 @@ const PetWordScramble = ({ petImageUrl, petName, onGameEnd, onClose }) => {
                 <div className="text-3xl font-black text-white drop-shadow-lg">+{wordPopup.points}</div>
                 {wordPopup.streak > 1 && (
                   <div className="flex items-center gap-1 bg-yellow-400 text-yellow-900 rounded-full px-3 py-1 text-sm font-bold">
-                    <img src="https://xpclass.vn/xpclass/icon/profile/streak.svg" alt="streak" className="w-4 h-4" />{wordPopup.streak}x streak
+                    <img src={assetUrl('/icon/profile/streak.svg')} alt="streak" className="w-4 h-4" />{wordPopup.streak}x streak
                   </div>
                 )}
                 {wordPopup.combo > 5 && (

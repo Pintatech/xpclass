@@ -15,6 +15,7 @@ import { useInventory } from '../../hooks/useInventory'
 import { useNotifications } from '../../hooks/useNotifications'
 import NotificationPanel from '../notifications/NotificationPanel'
 
+import { assetUrl } from '../../hooks/useBranding';
 const LeftSidebar = () => {
   const { profile, signOut, isAdmin, isTeacher } = useAuth()
   const { currentBadge } = useStudentLevels()
@@ -35,12 +36,12 @@ const LeftSidebar = () => {
   }, [showNotifPanel])
 
   const navItems = [
-    { path: '/', imageSrc: 'https://xpclass.vn/xpclass/icon/navigation/home.svg', label: 'Trang chủ' },
-    { path: '/leaderboard', imageSrc: 'https://xpclass.vn/xpclass/icon/navigation/leaderboard.svg', label: 'Xếp hạng' },
-    { path: '/pets', label: 'Thú cưng',imageSrc: 'https://xpclass.vn/xpclass/icon/navigation/pet.svg' },
-    { path: '/inventory',  imageSrc: 'https://xpclass.vn/xpclass/icon/navigation/inventory.svg', label: 'Kho đồ', badge: newItemCount },
-    { path: '/progress', imageSrc: 'https://xpclass.vn/xpclass/icon/navigation/progress.svg', label: 'Tiến độ' },
-    { path: '/shop', imageSrc: 'https://xpclass.vn/xpclass/icon/navigation/shop.svg', label: 'Cửa hàng'},
+    { path: '/', imageSrc: assetUrl('/icon/navigation/home.svg'), label: 'Trang chủ' },
+    { path: '/leaderboard', imageSrc: assetUrl('/icon/navigation/leaderboard.svg'), label: 'Xếp hạng' },
+    { path: '/pets', label: 'Thú cưng',imageSrc: assetUrl('/icon/navigation/pet.svg') },
+    { path: '/inventory',  imageSrc: assetUrl('/icon/navigation/inventory.svg'), label: 'Kho đồ', badge: newItemCount },
+    { path: '/progress', imageSrc: assetUrl('/icon/navigation/progress.svg'), label: 'Tiến độ' },
+    { path: '/shop', imageSrc: assetUrl('/icon/navigation/shop.svg'), label: 'Cửa hàng'},
   ]
 
   const handleSignOut = async () => {
@@ -55,7 +56,7 @@ const LeftSidebar = () => {
           {/* Logo */}
           <div className="flex items-center p-4">
             <Link to="/" className="flex items-center space-x-2">
-              <img src="https://xpclass.vn/xpclass/Asset%205.png" alt="Logo" className="h-10 w-auto" />
+              <img src={assetUrl('/Asset%205.png')} alt="Logo" className="h-10 w-auto" />
               <span className="text-lg font-bold text-gray-900">Pinta English</span>
             </Link>
           </div>
@@ -158,10 +159,10 @@ const LeftSidebar = () => {
                   </div>
                   <div className="text-xs text-gray-600 flex items-center gap-1">
                     {profile.xp || 0}
-                    <img src="https://xpclass.vn/xpclass/image/study/xp.png" alt="XP" className="w-3 h-3" />
+                    <img src={assetUrl('/image/study/xp.png')} alt="XP" className="w-3 h-3" />
                     <span className="mx-0.5 text-gray-300">|</span>
                     {profile.gems || 0}
-                    <img src="https://xpclass.vn/xpclass/image/study/gem.png" alt="Gems" className="w-3 h-3" />
+                    <img src={assetUrl('/image/study/gem.png')} alt="Gems" className="w-3 h-3" />
                   </div>
                 </div>
               </div>

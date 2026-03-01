@@ -2,6 +2,7 @@ import { useState, useEffect, useRef } from 'react'
 import { createPortal } from 'react-dom'
 import { Sparkles } from 'lucide-react'
 
+import { assetUrl } from '../../hooks/useBranding';
 const rarityColors = {
   common: 'from-gray-300 to-gray-400',
   uncommon: 'from-green-300 to-green-500',
@@ -35,8 +36,8 @@ const rarityLightColor = {
 }
 
 // Egg hatching videos - portrait for mobile, landscape for PC
-const EGG_HATCH_VIDEO_MOBILE = 'https://xpclass.vn/xpclass/image/pet/egg-hatch-mobile.mp4'
-const EGG_HATCH_VIDEO_PC = 'https://xpclass.vn/xpclass/image/pet/egg-hatch.mp4'
+const EGG_HATCH_VIDEO_MOBILE = assetUrl('/image/pet/egg-hatch-mobile.mp4')
+const EGG_HATCH_VIDEO_PC = assetUrl('/image/pet/egg-hatch.mp4')
 
 const EggOpenAnimation = ({ result, eggRarity, allPets = [], onClose, onNickname }) => {
   // phases: video -> carousel -> reveal -> done
@@ -104,7 +105,7 @@ const EggOpenAnimation = ({ result, eggRarity, allPets = [], onClose, onNickname
 
   useEffect(() => {
     if (phase === 'reveal') {
-      new Audio('https://xpclass.vn/xpclass/sound/pet-reveal.mp3').play().catch(() => {})
+      new Audio(assetUrl('/sound/pet-reveal.mp3')).play().catch(() => {})
       const timer = setTimeout(() => setPhase('done'), 600)
       return () => clearTimeout(timer)
     }
@@ -180,8 +181,8 @@ const EggOpenAnimation = ({ result, eggRarity, allPets = [], onClose, onNickname
                 }`}>
                   <img
                     src={result.refund_type === 'xp'
-                      ? 'https://xpclass.vn/xpclass/image/study/xp.png'
-                      : 'https://xpclass.vn/xpclass/image/study/gem.png'
+                      ? assetUrl('/image/study/xp.png')
+                      : assetUrl('/image/study/gem.png')
                     }
                     alt={result.refund_type === 'xp' ? 'XP' : 'Gems'}
                     className="w-14 h-14"

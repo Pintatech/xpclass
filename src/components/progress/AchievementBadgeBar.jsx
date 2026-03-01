@@ -2,6 +2,7 @@ import { useState } from 'react'
 import { Trophy, Star, Flame, Target, Zap, BookOpen, Crown, Heart, Shield } from 'lucide-react'
 import AchievementModal from './AchievementModal'
 
+import { assetUrl } from '../../hooks/useBranding';
 const AchievementBadgeBar = ({ achievements, userStats, onClaimXP, userAchievements = [], claimedFallbackAchievements = new Set(), challengeWinCounts = {} }) => {
   const [isModalOpen, setIsModalOpen] = useState(false)
   const [claimingAchievements, setClaimingAchievements] = useState(new Set())
@@ -142,7 +143,7 @@ const AchievementBadgeBar = ({ achievements, userStats, onClaimXP, userAchieveme
                         </div>
                         <div className="text-xs text-gray-600 flex items-center gap-1">
                           +{achievement.xp_reward}
-                          <img src="https://xpclass.vn/xpclass/image/study/xp.png" alt="XP" className="w-3 h-3" />
+                          <img src={assetUrl('/image/study/xp.png')} alt="XP" className="w-3 h-3" />
                         </div>
                       </div>
                     </div>

@@ -2,6 +2,7 @@ import { useState, useEffect, useRef } from 'react'
 import { createPortal } from 'react-dom'
 import { Sparkles, Package, ShoppingBag } from 'lucide-react'
 
+import { assetUrl } from '../../hooks/useBranding';
 const rarityColors = {
   common: 'from-gray-300 to-gray-400',
   uncommon: 'from-green-300 to-green-500',
@@ -36,13 +37,13 @@ const rarityLightColor = {
 
 // Chest opening videos per chest type
 const chestVideos = {
-  common: 'https://xpclass.vn/xpclass/image/chest/chest-opening-common.mp4',
-  uncommon: 'https://xpclass.vn/xpclass/image/chest/chest-opening-uncommon.mp4',
-  rare: 'https://xpclass.vn/xpclass/image/chest/chest-opening-rare.mp4',
-  epic: 'https://xpclass.vn/xpclass/image/chest/chest-opening-epic.mp4',
-  legendary: 'https://xpclass.vn/xpclass/image/chest/chest-opening-legendary.mp4',
+  common: assetUrl('/image/chest/chest-opening-common.mp4'),
+  uncommon: assetUrl('/image/chest/chest-opening-uncommon.mp4'),
+  rare: assetUrl('/image/chest/chest-opening-rare.mp4'),
+  epic: assetUrl('/image/chest/chest-opening-epic.mp4'),
+  legendary: assetUrl('/image/chest/chest-opening-legendary.mp4'),
 }
-const DEFAULT_CHEST_VIDEO = 'https://xpclass.vn/xpclass/image/chest/chest-opening.mp4'
+const DEFAULT_CHEST_VIDEO = assetUrl('/image/chest/chest-opening.mp4')
 
 const ChestOpenAnimation = ({ result, chestType, onClose }) => {
   // phases: video -> revealing -> done
@@ -73,7 +74,7 @@ const ChestOpenAnimation = ({ result, chestType, onClose }) => {
   // Play reveal audio when revealing starts
   useEffect(() => {
     if (phase === 'revealing') {
-      new Audio('https://xpclass.vn/xpclass/sound/pet-reveal.mp3').play().catch(() => {})
+      new Audio(assetUrl('/sound/pet-reveal.mp3')).play().catch(() => {})
     }
   }, [phase])
 
@@ -138,9 +139,9 @@ const ChestOpenAnimation = ({ result, chestType, onClose }) => {
                   >
                     <div className="aspect-square bg-white/20 rounded-lg flex items-center justify-center overflow-hidden mb-1.5">
                       {item.reward_type === 'xp' ? (
-                        <img src="https://xpclass.vn/xpclass/icon/profile/XP.svg" alt="XP" className="w-10 h-10" />
+                        <img src={assetUrl('/icon/profile/XP.svg')} alt="XP" className="w-10 h-10" />
                       ) : item.reward_type === 'gems' ? (
-                        <img src="https://xpclass.vn/xpclass/image/study/gem.png" alt="Gems" className="w-10 h-10" />
+                        <img src={assetUrl('/image/study/gem.png')} alt="Gems" className="w-10 h-10" />
                       ) : item.reward_type === 'shop_item' && !item.image_url ? (
                         <ShoppingBag className="w-8 h-8 text-purple-300" />
                       ) : item.image_url ? (

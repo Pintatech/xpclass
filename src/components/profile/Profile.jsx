@@ -9,6 +9,7 @@ import Card from '../ui/Card'
 import Button from '../ui/Button'
 import LoadingSpinner from '../ui/LoadingSpinner'
 import AvatarWithFrame from '../ui/AvatarWithFrame'
+import { assetUrl } from '../../hooks/useBranding';
 import {
   Trophy,
   Target,
@@ -545,17 +546,17 @@ const Profile = () => {
 
     const icons = {
       multiple_choice: (props) => (
-        <IconImg src="https://xpclass.vn/xpclass/icon/exercise_type/multiple_choice.svg" {...props} />
+        <IconImg src={assetUrl('/icon/exercise_type/multiple_choice.svg')} {...props} />
       ),
       flashcard: BookOpen,
       fill_blank: (props) => (
-        <IconImg src="https://xpclass.vn/xpclass/icon/exercise_type/fill_blank.svg" {...props} />
+        <IconImg src={assetUrl('/icon/exercise_type/fill_blank.svg')} {...props} />
       ),
       drag_drop: (props) => (
-        <IconImg src="https://xpclass.vn/xpclass/icon/exercise_type/drag_drop.svg" {...props} />
+        <IconImg src={assetUrl('/icon/exercise_type/drag_drop.svg')} {...props} />
       ),
       dropdown: (props) => (
-        <IconImg src="https://xpclass.vn/xpclass/icon/exercise_type/drop_down.svg" {...props} />
+        <IconImg src={assetUrl('/icon/exercise_type/drop_down.svg')} {...props} />
       )
     }
     return icons[type] || BookOpen
@@ -636,7 +637,7 @@ const Profile = () => {
         {/* Background Image */}
         <div
           className="absolute inset-0 bg-cover bg-center bg-no-repeat"
-          style={{ backgroundImage: "url('https://xpclass.vn/xpclass/image/dashboard/blue_dashboard_hero_section.jpeg')" }}
+          style={{ backgroundImage: "url(assetUrl('/image/dashboard/blue_dashboard_hero_section.jpeg'))" }}
         />
         {/* Dark overlay for better text readability */}
         <div className="absolute inset-0 bg-black/30" />
@@ -981,7 +982,7 @@ const Profile = () => {
         <Card className="text-center">
           <Card.Content className="p-4">
             <div className="w-12 h-12 rounded-full flex items-center justify-center mx-auto mb-2">
-              <img src="https://xpclass.vn/xpclass/icon/profile/XP.svg" alt="XP" className="w-12 h-12" />
+              <img src={assetUrl('/icon/profile/XP.svg')} alt="XP" className="w-12 h-12" />
             </div>
             <div className="text-2xl font-bold text-gray-900">{stats.totalXP}</div>
             <div className="text-sm text-gray-600">Total XP</div>
@@ -996,7 +997,7 @@ const Profile = () => {
         <Card className="text-center">
           <Card.Content className="p-4">
             <div className="w-12 h-12 rounded-full flex items-center justify-center mx-auto mb-2">
-              <img src="https://xpclass.vn/xpclass/icon/profile/paper.svg" alt="Exercises" className="w-12 h-12" />
+              <img src={assetUrl('/icon/profile/paper.svg')} alt="Exercises" className="w-12 h-12" />
             </div>
             <div className="text-2xl font-bold text-gray-900">{stats.exercisesCompleted}</div>
             <div className="text-sm text-gray-600">Bài tập hoàn thành</div>
@@ -1006,7 +1007,7 @@ const Profile = () => {
         <Card className="text-center">
           <Card.Content className="p-4">
             <div className="w-12 h-12 rounded-full flex items-center justify-center mx-auto mb-2">
-              <img src="https://xpclass.vn/xpclass/icon/profile/streak.svg" alt="Streak" className="w-12 h-12" />
+              <img src={assetUrl('/icon/profile/streak.svg')} alt="Streak" className="w-12 h-12" />
             </div>
             <div className="text-2xl font-bold text-gray-900">{stats.streakCount}</div>
             <div className="text-sm text-gray-600">Chuỗi ngày học</div>
@@ -1016,7 +1017,7 @@ const Profile = () => {
         <Card className="text-center">
           <Card.Content className="p-4">
             <div className="w-12 h-12 rounded-full flex items-center justify-center mx-auto mb-2">
-              <img src="https://xpclass.vn/xpclass/icon/profile/score%20metric.svg" alt="Score" className="w-12 h-12" />
+              <img src={assetUrl('/icon/profile/score%20metric.svg')} alt="Score" className="w-12 h-12" />
             </div>
             <div className="text-2xl font-bold text-gray-900">{stats.averageScore}%</div>
             <div className="text-sm text-gray-600">Điểm trung bình</div>
@@ -1040,7 +1041,7 @@ const Profile = () => {
                   return (
                     <div key={`achievement-${activity.id}`} className="flex items-center space-x-3 p-3 rounded-lg bg-yellow-50 border border-yellow-200">
                       <div className="w-10 h-10 bg-yellow-100 rounded-full flex items-center justify-center">
-                        <img src="https://xpclass.vn/xpclass/icon/profile/achievement.svg" alt="achievement" className="w-5 h-5" />
+                        <img src={assetUrl('/icon/profile/achievement.svg')} alt="achievement" className="w-5 h-5" />
                       </div>
                       <div className="flex-1">
                         <h4 className="font-medium text-gray-900">

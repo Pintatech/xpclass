@@ -12,31 +12,32 @@ import RichTextRenderer from '../ui/RichTextRenderer'
 import AudioPlayer from '../ui/AudioPlayer'
 import CelebrationScreen from '../ui/CelebrationScreen'
 
+import { assetUrl } from '../../hooks/useBranding';
 // Theme-based side decoration images for PC
 const themeSideImages = {
   blue: {
-    left: "https://xpclass.vn/xpclass/image/theme_question/ice_left.png",
-    right: "https://xpclass.vn/xpclass/image/theme_question/ice_right.png",
+    left: assetUrl('/image/theme_question/ice_left.png'),
+    right: assetUrl('/image/theme_question/ice_right.png'),
   },
   green: {
-    left: "https://xpclass.vn/xpclass/image/theme_question/forest_left.png",
-    right: "https://xpclass.vn/xpclass/image/theme_question/forest_right.png"
+    left: assetUrl('/image/theme_question/forest_left.png'),
+    right: assetUrl('/image/theme_question/forest_right.png')
   },
   purple: {
-    left: "https://xpclass.vn/xpclass/image/theme_question/pirate.png",
-    right: "https://xpclass.vn/xpclass/image/theme_question/pirate.png"
+    left: assetUrl('/image/theme_question/pirate.png'),
+    right: assetUrl('/image/theme_question/pirate.png')
   },
   orange: {
-    left: "https://xpclass.vn/xpclass/image/theme_question/ninja_left.png",
-    right: "https://xpclass.vn/xpclass/image/theme_question/ninja_right.png"
+    left: assetUrl('/image/theme_question/ninja_left.png'),
+    right: assetUrl('/image/theme_question/ninja_right.png')
   },
   red: {
-    left: "https://xpclass.vn/xpclass/image/theme_question/dino_left.png",
-    right: "https://xpclass.vn/xpclass/image/theme_question/dino_right.png"
+    left: assetUrl('/image/theme_question/dino_left.png'),
+    right: assetUrl('/image/theme_question/dino_right.png')
   },
   yellow: {
-    left: "https://xpclass.vn/xpclass/image/theme_question/desert_left.png",
-    right: "https://xpclass.vn/xpclass/image/theme_question/desert_right.png"
+    left: assetUrl('/image/theme_question/desert_left.png'),
+    right: assetUrl('/image/theme_question/desert_right.png')
   }
 }
 
@@ -450,7 +451,7 @@ const DragDropExercise = ({ testMode = false, exerciseData = null, onAnswersColl
 
         // Play whoosh sound
         try {
-          const audio = new Audio('https://xpclass.vn/xpclass/sound/whoosh_transition.mp3')
+          const audio = new Audio(assetUrl('/sound/whoosh_transition.mp3'))
           audio.volume = 0.5
           audio.play().catch(e => console.log('Could not play sound:', e))
         } catch (e) {

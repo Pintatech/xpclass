@@ -13,6 +13,7 @@ import DailyChallenge from './DailyChallenge'
 import AvatarWithFrame from '../ui/AvatarWithFrame'
 import PetDisplay from '../pet/PetDisplay'
 
+import { assetUrl } from '../../hooks/useBranding';
 const Dashboard = () => {
   const { profile } = useAuth()
   const [courses, setCourses] = useState([])
@@ -382,7 +383,7 @@ const Dashboard = () => {
           {/* Background Image */}
           <div
             className="absolute inset-0 bg-cover bg-center bg-no-repeat"
-            style={{ backgroundImage: "url('https://xpclass.vn/xpclass/image/dashboard/blue_dashboard_hero_section.jpeg')" }}
+            style={{ backgroundImage: "url(assetUrl('/image/dashboard/blue_dashboard_hero_section.jpeg'))" }}
           />
           {/* Dark overlay for better text readability */}
           <div className="absolute inset-0 bg-black/30" />
@@ -397,11 +398,11 @@ const Dashboard = () => {
               </div>
               <div className="flex items-center gap-2">
                 <div className="bg-white/90 backdrop-blur-sm rounded-full px-4 py-3 flex items-center space-x-2 border-3 ">
-                  <img src="https://xpclass.vn/xpclass/image/study/xp.png" alt="XP" className="w-5 h-5" />
+                  <img src={assetUrl('/image/study/xp.png')} alt="XP" className="w-5 h-5" />
                   <span className="font-bold text-gray-800">{profile?.xp || 0}</span>
                 </div>
                 <div className="bg-white/90 backdrop-blur-sm rounded-full px-4 py-3 flex items-center space-x-2 border-3 ">
-                  <img src="https://xpclass.vn/xpclass/image/study/gem.png" alt="Gems" className="w-5 h-5" />
+                  <img src={assetUrl('/image/study/gem.png')} alt="Gems" className="w-5 h-5" />
                   <span className="font-bold text-gray-800">{profile?.gems || 0}</span>
                 </div>
               </div>

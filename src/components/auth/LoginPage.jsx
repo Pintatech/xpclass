@@ -5,6 +5,7 @@ import Button from "../ui/Button";
 import { Eye, EyeOff, Mail, Lock } from "lucide-react";
 import { supabase } from "../../supabase/client";
 
+import { assetUrl } from '../../hooks/useBranding';
 // Default fallback image (same as Dashboard/Profile)
 const DEFAULT_LOGIN_IMAGE =
   "https://images.unsplash.com/photo-1557683316-973673baf926?w=1200&h=400&fit=crop";
@@ -218,7 +219,7 @@ const LoginPage = () => {
         <div className="relative z-10 flex flex-col justify-center items-center w-full p-12 text-white">
           <div>
             <img
-              src="https://xpclass.vn/xpclass/image/Logo_Pinta.png"
+              src={assetUrl('/image/Logo_Pinta.png')}
               alt="Pinta Logo"
               className="mb-8 max-w-[200px] h-auto"
             />
@@ -261,7 +262,7 @@ const LoginPage = () => {
           {/* Logo - Top Left */}
           <div className="absolute top-1 md:top-6 left-4">
             <img
-              src="https://xpclass.vn/xpclass/Asset%205.png"
+              src={assetUrl('/Asset%205.png')}
               alt="Logo"
               width={64}
               height={64}

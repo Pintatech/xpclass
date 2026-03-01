@@ -8,6 +8,7 @@ import EggOpenAnimation from '../pet/EggOpenAnimation'
 import CraftingTab from './CraftingTab'
 import GiftcodeRedemption from '../giftcode/GiftcodeRedemption'
 
+import { assetUrl } from '../../hooks/useBranding';
 const rarityColors = {
   common: 'border-gray-300 bg-gray-50',
   uncommon: 'border-green-400 bg-green-50',
@@ -98,7 +99,7 @@ const Inventory = () => {
       audioPlayedRef.current = true
       setShowCraftFail(true)
       // Play failure sound
-      const audio = new Audio('https://xpclass.vn/xpclass/sound/craft_fail.mp3')
+      const audio = new Audio(assetUrl('/sound/craft_fail.mp3'))
       audio.volume = 0.5
       audio.play().catch(() => {})
       const timer = setTimeout(() => {
@@ -117,7 +118,7 @@ const Inventory = () => {
       audioPlayedRef.current = true
       setShowCraftSuccess(true)
       // Play success sound
-      const audio = new Audio('https://xpclass.vn/xpclass/sound/craft_success.mp3')
+      const audio = new Audio(assetUrl('/sound/craft_success.mp3'))
       audio.volume = 0.5
       audio.play().catch(() => {})
       const timer = setTimeout(() => {

@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { supabase } from '../../supabase/client';
 import { Save, RefreshCw, Eye, EyeOff, Play, Pause, Trophy, Settings, Package } from 'lucide-react';
 
+import { assetUrl } from '../../hooks/useBranding';
 const ALL_TABS = [
   { key: 'week', label: 'Tuần này (Weekly XP)' },
   { key: 'month', label: 'Tháng này (Monthly XP)' },
@@ -411,7 +412,7 @@ const LeaderboardSettings = () => {
               className="w-20 p-2 border border-gray-300 rounded-lg text-center text-gray-900 focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
             />
             <div className="flex items-center gap-1 text-sm text-gray-600">
-              <img src="https://xpclass.vn/xpclass/image/study/gem.png" alt="Gem" className="w-4 h-4" />
+              <img src={assetUrl('/image/study/gem.png')} alt="Gem" className="w-4 h-4" />
               Gems for Top 1 at end of week
             </div>
           </div>
