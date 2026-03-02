@@ -17,7 +17,7 @@ import PetTutorBubble from '../pet/PetTutorBubble'
 import { getPetTutorExplanation } from '../../utils/petChatService'
 
 import { assetUrl } from '../../hooks/useBranding';
-// Theme-based side decoration images for PC
+// Theme-based side decoration images for PC c
 const themeSideImages = {
   blue: {
     left: assetUrl('/image/theme_question/ice_left.png'),
