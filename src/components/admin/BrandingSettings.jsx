@@ -11,6 +11,7 @@ const SETTING_FIELDS = [
   { key: 'branding_og_image_url', label: 'Social Share Image', type: 'url', icon: Image, description: 'Image shown when sharing links on social media', preview: true },
   { key: 'branding_base_asset_url', label: 'Base Asset URL', type: 'url', icon: Globe, description: 'Base URL for all images, icons, and sounds (e.g. https://yourcdn.com/assets). Do not include trailing slash.', warning: true },
   { key: 'branding_base_site_url', label: 'Base Site URL', type: 'url', icon: Globe, description: 'Base domain URL for legacy assets. Do not include trailing slash.' },
+  { key: 'branding_hero_image_url', label: 'Dashboard Hero Image', type: 'url', icon: Image, description: 'Background image for the dashboard header section', preview: true },
 ];
 
 const BrandingSettings = () => {

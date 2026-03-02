@@ -15,9 +15,10 @@ import { useInventory } from '../../hooks/useInventory'
 import { useNotifications } from '../../hooks/useNotifications'
 import NotificationPanel from '../notifications/NotificationPanel'
 
-import { assetUrl } from '../../hooks/useBranding';
+import { assetUrl, useBranding } from '../../hooks/useBranding';
 const LeftSidebar = () => {
   const { profile, signOut, isAdmin, isTeacher } = useAuth()
+  const { branding } = useBranding()
   const { currentBadge } = useStudentLevels()
   const { newItemCount } = useInventory()
   const { notifications, unreadCount, markAsRead, markAllAsRead } = useNotifications()
@@ -56,8 +57,8 @@ const LeftSidebar = () => {
           {/* Logo */}
           <div className="flex items-center p-4">
             <Link to="/" className="flex items-center space-x-2">
-              <img src={assetUrl('/Asset%205.png')} alt="Logo" className="h-10 w-auto" />
-              <span className="text-lg font-bold text-gray-900">Pinta English</span>
+              <img src={branding.logoUrl} alt="Logo" className="h-10 w-auto" />
+              <span className="text-lg font-bold text-gray-900">{branding.appName}</span>
             </Link>
           </div>
 

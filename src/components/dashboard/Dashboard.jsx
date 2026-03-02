@@ -13,9 +13,10 @@ import DailyChallenge from './DailyChallenge'
 import AvatarWithFrame from '../ui/AvatarWithFrame'
 import PetDisplay from '../pet/PetDisplay'
 
-import { assetUrl } from '../../hooks/useBranding';
+import { assetUrl, useBranding } from '../../hooks/useBranding';
 const Dashboard = () => {
   const { profile } = useAuth()
+  const { branding } = useBranding()
   const [courses, setCourses] = useState([])
   const [loading, setLoading] = useState(true)
   const [recent, setRecent] = useState(null)
@@ -383,7 +384,7 @@ const Dashboard = () => {
           {/* Background Image */}
           <div
             className="absolute inset-0 bg-cover bg-center bg-no-repeat"
-            style={{ backgroundImage: "url(assetUrl('/image/dashboard/blue_dashboard_hero_section.jpeg'))" }}
+            style={{ backgroundImage: `url(${branding.heroImageUrl})` }}
           />
           {/* Dark overlay for better text readability */}
           <div className="absolute inset-0 bg-black/30" />

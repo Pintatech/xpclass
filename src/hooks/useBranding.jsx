@@ -9,6 +9,7 @@ const BRANDING_DEFAULTS = {
   branding_og_image_url: "https://xpclass.vn/xpclass/Asset%205.png",
   branding_base_asset_url: "https://xpclass.vn/xpclass",
   branding_base_site_url: "https://xpclass.vn",
+  branding_hero_image_url: "https://xpclass.vn/xpclass/image/dashboard/blue_dashboard_hero_section.jpeg",
 }
 
 // Module-level state so assetUrl/siteUrl work outside React components
@@ -89,6 +90,7 @@ export const BrandingProvider = ({ children }) => {
     ogImageUrl: settings.branding_og_image_url,
     baseAssetUrl: settings.branding_base_asset_url,
     baseSiteUrl: settings.branding_base_site_url,
+    heroImageUrl: settings.branding_hero_image_url,
   }
 
   const value = {
