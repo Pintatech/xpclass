@@ -2,9 +2,6 @@ import { useAuth } from '../../hooks/useAuth'
 import { supabase } from '../../supabase/client'
 import { useState, useEffect } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
-import {
-  Flame,
-} from 'lucide-react'
 import Card from '../ui/Card'
 import Button from '../ui/Button'
 import { getRecentExercise } from '../../utils/recentExercise'
@@ -393,7 +390,7 @@ const Dashboard = () => {
             {/* XP and Streak stats */}
             <div className="flex justify-between">
               <div className="bg-white/90 backdrop-blur-sm rounded-full px-4 flex items-center space-x-2">
-                <Flame className="w-5 h-5 text-red-500 fill-red-500" />
+                <img src="https://xpclass.vn/xpclass/icon/profile/streak.svg" alt="Streak" className="w-5 h-5" />
                 <span className="font-bold text-red-500">{profile?.streak_count || 0}</span>
               </div>
               <div className="flex items-center gap-2">

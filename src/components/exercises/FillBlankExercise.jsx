@@ -2,6 +2,7 @@ import React, { useState, useEffect, useRef, useCallback } from 'react'
 import { useLocation, useNavigate } from 'react-router-dom'
 import { supabase } from '../../supabase/client'
 import { useAuth } from '../../hooks/useAuth'
+import { usePermissions } from '../../hooks/usePermissions'
 import { useProgress } from '../../hooks/useProgress'
 import { useFeedback } from '../../hooks/useFeedback'
 import { usePet } from '../../hooks/usePet'
@@ -52,7 +53,9 @@ const FillBlankExercise = ({ testMode = false, exerciseData = null, onAnswersCol
   const location = useLocation()
   const navigate = useNavigate()
   const { user } = useAuth()
+  const { canCreateContent } = usePermissions()
   const { startExercise, completeExerciseWithXP } = useProgress()
+  const isTeacherView = canCreateContent()
   const urlParams = new URLSearchParams(location.search)
   const exerciseId = urlParams.get('exerciseId')
   const challengeId = urlParams.get('challengeId') || null
@@ -992,6 +995,84 @@ const FillBlankExercise = ({ testMode = false, exerciseData = null, onAnswersCol
     // Preserve line breaks
     html = html.replace(/\n/g, '<br/>')
     return html
+  }
+
+  // Teacher view: read-only preview showing all questions with correct answers filled in
+  if (isTeacherView) {
+    return (
+      <div className="max-w-4xl mx-auto py-8 px-4">
+        <div className="flex items-center justify-between mb-6">
+          <h2 className="text-2xl font-bold text-gray-900">{exercise?.title || 'Fill in the Blank'}</h2>
+          <button onClick={() => navigate(-1)} className="flex items-center gap-2 px-4 py-2 text-gray-600 hover:text-gray-800 border rounded-lg">
+            <ArrowLeft className="w-4 h-4" /> Back
+          </button>
+        </div>
+        {exercise?.content?.intro && String(exercise.content.intro).trim() && (
+          <div className="mb-6 bg-blue-50 rounded-lg p-4 border border-blue-200">
+            <RichTextRenderer content={stripAudioTags(exercise.content.intro)} allowImages={true} allowLinks={false} />
+            {extractAudioUrls(exercise.content.intro).map((audio, i) => (
+              <AudioPlayer key={i} audioUrl={audio.url} maxPlays={audio.maxPlays} />
+            ))}
+          </div>
+        )}
+        <div className="space-y-6">
+          {questions.map((question, qIndex) => {
+            let blankIdx = 0
+            const text = question.question || ''
+            const questionAudio = extractAudioUrls(text)
+            const strippedText = stripAudioTags(text)
+            const introAudio = question.intro ? extractAudioUrls(question.intro) : []
+            return (
+              <div key={qIndex} className="bg-white rounded-lg shadow-md p-6 border border-gray-200">
+                {question.intro && String(question.intro).trim() && (
+                  <div className="mb-3 ml-11">
+                    <RichTextRenderer content={stripAudioTags(question.intro)} allowImages={true} allowLinks={false} />
+                    {introAudio.map((audio, i) => (
+                      <AudioPlayer key={i} audioUrl={audio.url} maxPlays={audio.maxPlays} />
+                    ))}
+                  </div>
+                )}
+                <div className="flex items-start gap-3">
+                  <span className="flex-shrink-0 w-8 h-8 bg-blue-100 text-blue-700 rounded-full flex items-center justify-center font-bold text-sm">{qIndex + 1}</span>
+                  <div className="text-lg leading-relaxed flex-1">
+                    {strippedText.split(/(_{3,}|\[blank\])/gi).map((part, index) => {
+                      if (part.match(/^_{3,}$/) || part.toLowerCase() === '[blank]') {
+                        const currentBlankIdx = blankIdx++
+                        const blank = question.blanks?.[currentBlankIdx]
+                        if (!blank) return <span key={index}>_____</span>
+                        const answer = blank.answer?.split(',')[0]?.trim() || '_____'
+                        return (
+                          <span key={index} className="inline-block mx-1 px-2 py-0.5 rounded font-bold bg-green-100 text-green-800 border border-green-300">
+                            {answer}
+                          </span>
+                        )
+                      }
+                      return (
+                        <span key={index} className="inline">
+                          <RichTextRenderer content={part} allowImages allowLinks className="prose inline max-w-none" />
+                        </span>
+                      )
+                    })}
+                    {questionAudio.length > 0 && (
+                      <div className="mt-2 flex gap-2">
+                        {questionAudio.map((audio, i) => (
+                          <AudioPlayer key={i} audioUrl={audio.url} maxPlays={audio.maxPlays} />
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                </div>
+                {question.explanation && (
+                  <div className="ml-11 mt-3 p-3 bg-blue-50 border border-blue-200 rounded-lg text-sm text-blue-800">
+                    <strong>Explanation:</strong> {question.explanation}
+                  </div>
+                )}
+              </div>
+            )
+          })}
+        </div>
+      </div>
+    )
   }
 
   // testMode: render all questions without gamification

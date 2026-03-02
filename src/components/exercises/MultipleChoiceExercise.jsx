@@ -2,6 +2,7 @@ import { useState, useEffect, useRef } from 'react'
 import { Link, useLocation, useNavigate } from 'react-router-dom'
 import { saveRecentExercise } from '../../utils/recentExercise'
 import { useAuth } from '../../hooks/useAuth'
+import { usePermissions } from '../../hooks/usePermissions'
 import { useProgress } from '../../hooks/useProgress'
 import { useFeedback } from '../../hooks/useFeedback'
 import { usePet } from '../../hooks/usePet'
@@ -9,7 +10,7 @@ import { supabase } from '../../supabase/client'
 import Button from '../ui/Button'
 import LoadingSpinner from '../ui/LoadingSpinner'
 import RichTextRenderer, { RichTextWithAudio } from '../ui/RichTextRenderer'
-import { CheckCircle, XCircle, ArrowRight, Star, MessageCircle } from 'lucide-react'
+import { CheckCircle, XCircle, ArrowRight, ArrowLeft, Star, MessageCircle } from 'lucide-react'
 import Button3D from '../ui/Button3D'
 import ExerciseHeader from '../ui/ExerciseHeader'
 import CelebrationScreen from '../ui/CelebrationScreen'
@@ -53,6 +54,7 @@ const MultipleChoiceExercise = ({ testMode = false, exerciseData = null, onAnswe
   const location = useLocation()
   const navigate = useNavigate()
   const { user } = useAuth()
+  const { canCreateContent } = usePermissions()
   const { startExercise, completeExerciseWithXP } = useProgress()
   const { currentMeme, showMeme, playFeedback, playCelebration, passGif } = useFeedback()
   const { activePet, drainPetEnergy } = usePet()
@@ -90,6 +92,7 @@ const MultipleChoiceExercise = ({ testMode = false, exerciseData = null, onAnswe
   const [isBatmanMoving, setIsBatmanMoving] = useState(false)
 
   // View mode state - read from exercise settings (force all-at-once in testMode)
+  const isTeacherView = canCreateContent()
   const [viewMode, setViewMode] = useState(testMode ? 'all-at-once' : 'one-by-one')
   const [allAnswers, setAllAnswers] = useState(() => (testMode && initialAnswers) ? initialAnswers : {}) // Object to store all answers: {questionIndex: selectedAnswerIndex}
   const [showAllResults, setShowAllResults] = useState(false)
@@ -674,6 +677,72 @@ const MultipleChoiceExercise = ({ testMode = false, exerciseData = null, onAnswe
             <Button variant="outline">Quay lại</Button>
           </Link>
         )}
+      </div>
+    )
+  }
+
+  // Teacher view: read-only preview showing all questions with correct answers
+  if (isTeacherView) {
+    return (
+      <div className="max-w-4xl mx-auto py-8 px-4">
+        <div className="flex items-center justify-between mb-6">
+          <h2 className="text-2xl font-bold text-gray-900">{exercise?.title || 'Multiple Choice'}</h2>
+          <button onClick={() => navigate(-1)} className="flex items-center gap-2 px-4 py-2 text-gray-600 hover:text-gray-800 border rounded-lg">
+            <ArrowLeft className="w-4 h-4" /> Back
+          </button>
+        </div>
+        {exercise?.content?.intro && String(exercise.content.intro).trim() && (
+          <div className="mb-6 bg-blue-50 rounded-lg p-4 border border-blue-200">
+            <RichTextWithAudio content={exercise.content.intro} allowImages={true} allowLinks={false} />
+          </div>
+        )}
+        <div className="space-y-6">
+          {questions.map((question, qIndex) => (
+            <div key={qIndex} className="bg-white rounded-lg shadow-md p-6 border border-gray-200">
+              <div className="flex items-start gap-3 mb-4">
+                <span className="flex-shrink-0 w-8 h-8 bg-blue-100 text-blue-700 rounded-full flex items-center justify-center font-bold text-sm">{qIndex + 1}</span>
+                <div className="flex-1">
+                  <RichTextWithAudio
+                    content={
+                      question.audio_url
+                        ? `${question.question}<audio src="${question.audio_url}" data-max-plays="${question.max_audio_plays || 0}"></audio>`
+                        : question.question
+                    }
+                    allowImages={true}
+                    allowLinks={true}
+                  />
+                </div>
+              </div>
+              <div className="ml-11 space-y-2">
+                {question.options.map((option, oIndex) => {
+                  const isCorrect = oIndex === question.correct_answer
+                  return (
+                    <div
+                      key={oIndex}
+                      className={`flex items-center gap-3 p-3 rounded-lg border ${
+                        isCorrect
+                          ? 'bg-green-50 border-green-300'
+                          : 'bg-gray-50 border-gray-200'
+                      }`}
+                    >
+                      {isCorrect ? (
+                        <CheckCircle className="w-5 h-5 text-green-600 flex-shrink-0" />
+                      ) : (
+                        <div className="w-5 h-5 rounded-full border-2 border-gray-300 flex-shrink-0" />
+                      )}
+                      <span className={isCorrect ? 'font-medium text-green-800' : 'text-gray-700'}>{option}</span>
+                    </div>
+                  )
+                })}
+              </div>
+              {question.explanation && (
+                <div className="ml-11 mt-3 p-3 bg-blue-50 border border-blue-200 rounded-lg text-sm text-blue-800">
+                  <strong>Explanation:</strong> {question.explanation}
+                </div>
+              )}
+            </div>
+          ))}
+        </div>
       </div>
     )
   }

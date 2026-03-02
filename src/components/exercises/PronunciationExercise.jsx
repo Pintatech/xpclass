@@ -1,13 +1,14 @@
 import { useState, useEffect, useRef } from 'react'
 import { Link, useLocation, useNavigate } from 'react-router-dom'
 import { useAuth } from '../../hooks/useAuth'
+import { usePermissions } from '../../hooks/usePermissions'
 import { useProgress } from '../../hooks/useProgress'
 import { supabase } from '../../supabase/client'
 import { saveRecentExercise } from '../../utils/recentExercise'
 import Button from '../ui/Button'
 import LoadingSpinner from '../ui/LoadingSpinner'
 import RichTextRenderer from '../ui/RichTextRenderer'
-import { Mic, Square, CheckCircle, XCircle, ArrowRight, Star } from 'lucide-react'
+import { Mic, Square, CheckCircle, XCircle, ArrowRight, ArrowLeft, Star } from 'lucide-react'
 import AudioPlayer from '../ui/AudioPlayer'
 import * as sdk from 'microsoft-cognitiveservices-speech-sdk'
 
@@ -48,7 +49,9 @@ const PronunciationExercise = () => {
   const location = useLocation()
   const navigate = useNavigate()
   const { user } = useAuth()
+  const { canCreateContent } = usePermissions()
   const { startExercise, completeExerciseWithXP } = useProgress()
+  const isTeacherView = canCreateContent()
 
   // URL params
   const searchParams = new URLSearchParams(location.search)
@@ -482,13 +485,49 @@ const PronunciationExercise = () => {
     )
   }
 
-  if (!currentQuestion) {
+  if (!currentQuestion && !isTeacherView) {
     return (
       <div className="text-center py-12">
         <div className="text-gray-600 mb-4">No questions available</div>
         <Link to="/study">
           <Button variant="outline">Back to Study</Button>
         </Link>
+      </div>
+    )
+  }
+
+  // Teacher view: show all pronunciation questions at once
+  if (isTeacherView) {
+    return (
+      <div className="max-w-4xl mx-auto py-8 px-4">
+        <div className="flex items-center justify-between mb-6">
+          <h2 className="text-2xl font-bold text-gray-900">{exercise?.title || 'Pronunciation'}</h2>
+          <button onClick={() => navigate(-1)} className="flex items-center gap-2 px-4 py-2 text-gray-600 hover:text-gray-800 border rounded-lg">
+            <ArrowLeft className="w-4 h-4" /> Back
+          </button>
+        </div>
+        <div className="space-y-4">
+          {questions.map((q, idx) => (
+            <div key={idx} className="bg-white rounded-lg shadow-md p-6 border border-gray-200">
+              <div className="flex items-start gap-3">
+                <span className="flex-shrink-0 w-8 h-8 bg-blue-100 text-blue-700 rounded-full flex items-center justify-center font-bold text-sm">{idx + 1}</span>
+                <div className="flex-1">
+                  <div className="text-lg font-medium text-gray-900">
+                    <RichTextRenderer content={q.text} allowImages={true} />
+                  </div>
+                  {q.phonetic && (
+                    <p className="text-gray-500 mt-1">/{q.phonetic}/</p>
+                  )}
+                  {q.audio_url && (
+                    <div className="mt-2">
+                      <AudioPlayer audioUrl={q.audio_url} maxPlays={q.max_audio_plays || 0} />
+                    </div>
+                  )}
+                </div>
+              </div>
+            </div>
+          ))}
+        </div>
       </div>
     )
   }
