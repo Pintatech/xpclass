@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react'
 import { useLocation, useNavigate } from 'react-router-dom'
 import { supabase } from '../../supabase/client'
-import { CheckCircle, XCircle, RotateCcw } from 'lucide-react'
+import { CheckCircle, XCircle, RotateCcw, ArrowLeft } from 'lucide-react'
 import LoadingSpinner from '../ui/LoadingSpinner'
 import Button3D from '../ui/Button3D'
 import AudioPlayer from '../ui/AudioPlayer'
@@ -10,6 +10,7 @@ import { useAuth } from '../../hooks/useAuth'
 import { useProgress } from '../../hooks/useProgress'
 import { useFeedback } from '../../hooks/useFeedback'
 import ExerciseHeader from '../ui/ExerciseHeader'
+import { usePermissions } from '../../hooks/usePermissions'
 
 import { assetUrl, useBranding } from '../../hooks/useBranding';
 // Theme-based side decoration images for PC
@@ -58,6 +59,8 @@ const ImageHotspotExercise = ({ testMode = false, exerciseData = null, onAnswers
   const { user } = useAuth()
   const { startExercise, completeExerciseWithXP } = useProgress()
   const { playFeedback, showMeme, currentMeme, playCelebration, passGif } = useFeedback()
+  const { canCreateContent } = usePermissions()
+  const isTeacherView = canCreateContent()
 
   const [exercise, setExercise] = useState(null)
   const [loading, setLoading] = useState(true)
@@ -569,6 +572,115 @@ const ImageHotspotExercise = ({ testMode = false, exerciseData = null, onAnswers
   const progress = isSubmitted
     ? (totalHotspots > 0 ? (completedHotspots / totalHotspots) * 100 : 0)
     : (totalHotspots > 0 ? (filledHotspots / totalHotspots) * 100 : 0)
+
+  // Teacher view: read-only preview showing image with all hotspots and correct labels
+  if (isTeacherView) {
+    const hotspots = exercise.content.hotspots || []
+    const labels = exercise.content.labels || []
+    const distractors = labels.filter(l => l.type === 'distractor')
+
+    return (
+      <div className="max-w-4xl mx-auto py-8 px-4">
+        <div className="flex items-center justify-between mb-6">
+          <h2 className="text-2xl font-bold text-gray-900">{exercise.title || 'Image Hotspot'}</h2>
+          <button onClick={() => navigate(-1)} className="flex items-center gap-2 px-4 py-2 text-gray-600 hover:text-gray-800 border rounded-lg">
+            <ArrowLeft className="w-4 h-4" /> Back
+          </button>
+        </div>
+
+        {/* Question */}
+        {questionText && (
+          <div className="mb-4 bg-blue-50 rounded-lg p-4 border border-blue-200">
+            <div className="text-sm text-gray-700 prose prose-sm max-w-none" dangerouslySetInnerHTML={{ __html: questionText }} />
+          </div>
+        )}
+        {questionAudio && questionAudio.length > 0 && (
+          <div className="mb-4 space-y-2">
+            {questionAudio.map((audioUrl, index) => (
+              <AudioPlayer key={index} audioUrl={audioUrl} variant="outline" className="w-full" />
+            ))}
+          </div>
+        )}
+
+        {/* Image with hotspots showing correct labels */}
+        <div className="bg-white rounded-lg shadow-md p-4 border border-gray-200 mb-6">
+          <div ref={containerRef} className="relative">
+            <img
+              ref={imageRef}
+              src={exercise.content.image_url}
+              alt="Exercise"
+              className="w-full h-auto rounded"
+            />
+            <svg className="absolute top-0 left-0 w-full h-full" style={{ pointerEvents: 'none' }}>
+              {hotspots.map(hotspot => {
+                const { x, y, width, height } = hotspot.coordinates
+                const scaledX = x * imageScale
+                const scaledY = y * imageScale
+                const scaledWidth = width * imageScale
+                const scaledHeight = height * imageScale
+                const correctLabel = labels.find(l => l.hotspot_id === hotspot.id && l.type !== 'distractor')
+
+                return (
+                  <g key={hotspot.id}>
+                    <rect
+                      x={scaledX}
+                      y={scaledY}
+                      width={scaledWidth}
+                      height={scaledHeight}
+                      fill="rgba(34, 197, 94, 0.2)"
+                      stroke="#22c55e"
+                      strokeWidth={3}
+                    />
+                    {correctLabel && (
+                      <text
+                        x={scaledX + scaledWidth / 2}
+                        y={scaledY + scaledHeight / 2}
+                        textAnchor="middle"
+                        dominantBaseline="middle"
+                        fill="white"
+                        fontSize="14"
+                        fontWeight="bold"
+                        className="select-none"
+                        style={{ textShadow: '0 0 4px rgba(0,0,0,0.9)' }}
+                      >
+                        {correctLabel.text}
+                      </text>
+                    )}
+                  </g>
+                )
+              })}
+            </svg>
+          </div>
+        </div>
+
+        {/* Answer key */}
+        <div className="bg-white rounded-lg shadow-md p-4 border border-gray-200">
+          <h3 className="font-semibold text-gray-800 mb-3">Answer Key</h3>
+          <div className="space-y-2">
+            {hotspots.map((hotspot, index) => {
+              const correctLabel = labels.find(l => l.hotspot_id === hotspot.id && l.type !== 'distractor')
+              return (
+                <div key={hotspot.id} className="flex items-center gap-2">
+                  <span className="flex-shrink-0 w-6 h-6 bg-green-100 text-green-700 rounded-full flex items-center justify-center font-bold text-xs">{index + 1}</span>
+                  <span className="font-medium text-green-800 bg-green-50 px-2 py-1 rounded">{correctLabel?.text || 'N/A'}</span>
+                </div>
+              )
+            })}
+          </div>
+          {distractors.length > 0 && (
+            <div className="mt-4 pt-3 border-t border-gray-200">
+              <h4 className="text-sm font-medium text-gray-500 mb-2">Distractors</h4>
+              <div className="flex flex-wrap gap-2">
+                {distractors.map(d => (
+                  <span key={d.id} className="px-2 py-1 bg-red-50 text-red-600 rounded text-sm border border-red-200">{d.text}</span>
+                ))}
+              </div>
+            </div>
+          )}
+        </div>
+      </div>
+    )
+  }
 
   // testMode: render image with hotspots and labels, no gamification
   if (testMode) {

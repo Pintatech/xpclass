@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react'
 import { useLocation, useNavigate } from 'react-router-dom'
 import { supabase } from '../../supabase/client'
 import { useAuth } from '../../hooks/useAuth'
+import { usePermissions } from '../../hooks/usePermissions'
 import { useProgress } from '../../hooks/useProgress'
 import { useFeedback } from '../../hooks/useFeedback'
 import { ArrowLeft, CheckCircle, XCircle, Clock, RefreshCw } from 'lucide-react'
@@ -48,7 +49,9 @@ const AIFillBlankExercise = () => {
   const location = useLocation()
   const navigate = useNavigate()
   const { user } = useAuth()
+  const { canCreateContent } = usePermissions()
   const { completeExerciseWithXP } = useProgress()
+  const isTeacherView = canCreateContent()
   const { playCelebration, passGif } = useFeedback()
 
   const [exercise, setExercise] = useState(null)
@@ -389,6 +392,42 @@ const AIFillBlankExercise = () => {
   const userAnswer = userAnswers[currentQuestionIndex] || ''
   const aiScore = aiScores[currentQuestionIndex]
   const showResult = showResults[currentQuestionIndex]
+
+  // Teacher view: show all questions at once
+  if (isTeacherView) {
+    return (
+      <div className="max-w-4xl mx-auto py-8 px-4">
+        <div className="flex items-center justify-between mb-6">
+          <h2 className="text-2xl font-bold text-gray-900">{exercise?.title || 'AI Fill Blank'}</h2>
+          <button onClick={() => navigate(-1)} className="flex items-center gap-2 px-4 py-2 text-gray-600 hover:text-gray-800 border rounded-lg">
+            <ArrowLeft className="w-4 h-4" /> Back
+          </button>
+        </div>
+        {exercise?.content?.intro && String(exercise.content.intro).trim() && (
+          <div className="mb-6 bg-blue-50 rounded-lg p-4 border border-blue-200">
+            <RichTextRenderer content={exercise.content.intro} allowImages={true} allowLinks={false} />
+          </div>
+        )}
+        <div className="space-y-6">
+          {exercise.content.questions.map((q, idx) => (
+            <div key={idx} className="bg-white rounded-lg shadow-md p-6 border border-gray-200">
+              <div className="flex items-start gap-3 mb-3">
+                <span className="flex-shrink-0 w-8 h-8 bg-blue-100 text-blue-700 rounded-full flex items-center justify-center font-bold text-sm">{idx + 1}</span>
+                <div className="flex-1">
+                  <RichTextRenderer content={q.question} allowImages={true} allowLinks={true} />
+                </div>
+              </div>
+              {q.expected_answers && q.expected_answers.length > 0 && (
+                <div className="ml-11 mt-2 text-sm text-gray-500">
+                  <span className="font-medium">Expected answers:</span> {q.expected_answers.join(', ')}
+                </div>
+              )}
+            </div>
+          ))}
+        </div>
+      </div>
+    )
+  }
 
   const sideImages = getThemeSideImages(colorTheme)
 

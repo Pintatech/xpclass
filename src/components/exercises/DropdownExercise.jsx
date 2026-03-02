@@ -2,6 +2,7 @@ import React, { useState, useEffect, useRef } from 'react'
 import { useLocation, useNavigate } from 'react-router-dom'
 import { supabase } from '../../supabase/client'
 import { useAuth } from '../../hooks/useAuth'
+import { usePermissions } from '../../hooks/usePermissions'
 import { useProgress } from '../../hooks/useProgress'
 import { useFeedback } from '../../hooks/useFeedback'
 import { saveRecentExercise } from '../../utils/recentExercise'
@@ -48,7 +49,9 @@ const DropdownExercise = ({ testMode = false, exerciseData = null, onAnswersColl
   const location = useLocation()
   const navigate = useNavigate()
   const { user } = useAuth()
+  const { canCreateContent } = usePermissions()
   const { startExercise, completeExerciseWithXP } = useProgress()
+  const isTeacherView = canCreateContent()
   const exerciseId = new URLSearchParams(location.search).get('exerciseId')
   const challengeId = new URLSearchParams(location.search).get('challengeId') || null
   const isChallenge = new URLSearchParams(location.search).get('isChallenge') === 'true'
@@ -439,6 +442,53 @@ const DropdownExercise = ({ testMode = false, exerciseData = null, onAnswersColl
     // Preserve line breaks
     html = html.replace(/\n/g, '<br/>')
     return html
+  }
+
+  // Teacher view: show all questions with correct answers highlighted
+  if (isTeacherView) {
+    return (
+      <div className="max-w-4xl mx-auto py-8 px-4">
+        <div className="flex items-center justify-between mb-6">
+          <h2 className="text-2xl font-bold text-gray-900">{exercise?.title || 'Dropdown'}</h2>
+          <button onClick={() => navigate(-1)} className="flex items-center gap-2 px-4 py-2 text-gray-600 hover:text-gray-800 border rounded-lg">
+            <ArrowLeft className="w-4 h-4" /> Back
+          </button>
+        </div>
+        <div className="space-y-6">
+          {questions.map((question, qIndex) => {
+            let dropdownIdx = 0
+            const text = question.question || ''
+            return (
+              <div key={qIndex} className="bg-white rounded-lg shadow-md p-6 border border-gray-200">
+                <div className="flex items-start gap-3">
+                  <span className="flex-shrink-0 w-8 h-8 bg-blue-100 text-blue-700 rounded-full flex items-center justify-center font-bold text-sm">{qIndex + 1}</span>
+                  <div className="text-lg leading-relaxed">
+                    {text.split(/(\[[^\]]+\])/g).map((part, index) => {
+                      if (part.match(/^\[.+\]$/)) {
+                        const currentDropdownIdx = dropdownIdx++
+                        const dropdown = question.dropdowns?.[currentDropdownIdx]
+                        if (!dropdown) return null
+                        return (
+                          <span key={index} className="inline-block mx-1 px-2 py-0.5 rounded font-bold bg-green-100 text-green-800 border border-green-300">
+                            {dropdown.correct_answer}
+                          </span>
+                        )
+                      }
+                      const html = markdownToHtml(part)
+                      return (
+                        <span key={index} className="inline">
+                          <RichTextRenderer content={html} allowImages allowLinks className="prose inline max-w-none" />
+                        </span>
+                      )
+                    })}
+                  </div>
+                </div>
+              </div>
+            )
+          })}
+        </div>
+      </div>
+    )
   }
 
   // testMode: render all questions without gamification

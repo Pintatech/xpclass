@@ -2627,7 +2627,7 @@ DECLARE
 BEGIN
   -- Last month boundaries (Vietnam time)
   month_end := (date_trunc('month', NOW() AT TIME ZONE 'Asia/Ho_Chi_Minh') AT TIME ZONE 'Asia/Ho_Chi_Minh');
-  month_start := (date_trunc('month', (NOW() AT TIME ZONE 'Asia/Ho_Chi_Minh') - INTERVAL '1 day') AT TIME ZONE 'Asia/Ho_Chi_Minh');
+  month_start := (date_trunc('month', NOW() AT TIME ZONE 'Asia/Ho_Chi_Minh') - INTERVAL '1 month') AT TIME ZONE 'Asia/Ho_Chi_Minh';
 
   -- Get achievement rewards
   SELECT id, COALESCE(xp_reward, 0), COALESCE(gem_reward, 0)
