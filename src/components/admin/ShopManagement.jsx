@@ -84,7 +84,7 @@ const ShopManagement = () => {
       })
     } else {
       setEditingItem(null)
-      setFormData(defaultForm)
+      setFormData({ ...defaultForm, category: filterCategory !== 'all' ? filterCategory : defaultForm.category })
     }
     setShowModal(true)
   }
@@ -237,7 +237,7 @@ const ShopManagement = () => {
               {/* Image */}
               <div className="aspect-square bg-gray-50 rounded-lg flex items-center justify-center overflow-hidden">
                 {item.image_url ? (
-                  <img src={item.image_url} alt={item.name} className="w-full h-full object-contain" />
+                  <img src={item.image_url} alt={item.name} className={`w-full h-full object-contain ${item.category === 'hammer' ? 'rotate-90' : ''}`} />
                 ) : (
                   <ShoppingBag className="w-12 h-12 text-gray-300" />
                 )}

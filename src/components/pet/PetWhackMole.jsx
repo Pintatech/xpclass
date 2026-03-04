@@ -435,7 +435,7 @@ const PetWhackMole = ({ petImageUrl, petName, onGameEnd, onClose, hammerSkinUrl 
           <div className="absolute inset-0 flex flex-col">
             {/* Top HUD */}
             <div className="p-4 z-10">
-              <div className="flex items-center justify-between mb-3">
+              <div className="flex items-center justify-between mb-3 pl-12">
                 {/* Score */}
                 <div className="bg-white/20 backdrop-blur rounded-2xl px-4 py-2">
                   <span className="text-xl font-black text-white">{score}</span>
@@ -658,7 +658,7 @@ const PetWhackMole = ({ petImageUrl, petName, onGameEnd, onClose, hammerSkinUrl 
                 alt="hammer"
                 className="absolute pointer-events-none z-30"
                 style={{
-                  height: 32,
+                  height: 48,
                   left: hammerPos.x,
                   top: hammerPos.y,
                   transformOrigin: '50% 50%',
