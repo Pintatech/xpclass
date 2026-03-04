@@ -421,9 +421,9 @@ const ImageHotspotEditor = ({ content, onContentChange }) => {
 
       {/* Canvas Area and Hotspots Side by Side */}
       {imageUrl && (
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+        <div className="grid grid-cols-1 lg:grid-cols-5 gap-4">
           {/* Left: Image Canvas */}
-          <div className="space-y-2">
+          <div className="lg:col-span-3 space-y-2">
             <div className="flex items-center justify-between">
               <label className="block text-sm font-medium text-gray-700">
                 Draw Hotspots (Click and drag on the image)
@@ -523,7 +523,7 @@ const ImageHotspotEditor = ({ content, onContentChange }) => {
 
           {/* Right: Hotspots List */}
           {hotspots.length > 0 && (
-            <div className="space-y-2">
+            <div className="lg:col-span-2 space-y-2">
               <label className="block text-sm font-medium text-gray-700">
                 Hotspots ({hotspots.length})
               </label>
