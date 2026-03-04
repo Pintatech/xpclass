@@ -313,8 +313,8 @@ const Shop = () => {
       {/* Header */}
       <div className="flex items-center justify-between mb-6">
         <div className="flex items-center gap-3">
-          <ShoppingBag className="w-8 h-8 text-blue-600" />
-          <h1 className="text-2xl font-bold text-gray-900">Cửa hàng</h1>
+          <img src={assetUrl('/icon/navigation/shop.svg')} alt="Shop" className="w-8 h-8" />
+          <h1 className="text-2xl font-bold text-gray-900">Shop</h1>
         </div>
         <div className="flex items-center gap-2">
           <div className="bg-yellow-400 text-white rounded-full px-4 py-2 flex items-center gap-2 font-bold shadow-md">
@@ -475,6 +475,7 @@ const Shop = () => {
                           src={item.image_url}
                           alt={item.name}
                           className="w-full h-full object-contain rounded-lg"
+                          style={item.category === 'hammer' ? { transform: 'rotate(90deg)' } : undefined}
                         />
                       )
                     ) : (
