@@ -36,6 +36,8 @@ const LeaderboardSettings = () => {
   const [competitionGameType, setCompetitionGameType] = useState('scramble');
   const [competitionItemId, setCompetitionItemId] = useState('');
   const [rewardGems, setRewardGems] = useState(1);
+  const [rewardThreshold, setRewardThreshold] = useState(0); // minimum score to qualify for XP reward
+  const [rewardXP, setRewardXP] = useState(5); // XP given to all qualifiers
   const [maxAttempts, setMaxAttempts] = useState(0); // 0 = unlimited
   const [competitionEndDate, setCompetitionEndDate] = useState(''); // ISO date string e.g. '2026-03-10'
   const [enabledTrainingGames, setEnabledTrainingGames] = useState(['scramble', 'whackmole', 'astroblast']);
@@ -80,6 +82,8 @@ const LeaderboardSettings = () => {
           'leaderboard_competition_game_type',
           'leaderboard_competition_item_id',
           'leaderboard_competition_reward_gems',
+          'leaderboard_competition_reward_threshold',
+          'leaderboard_competition_reward_xp',
           'leaderboard_competition_max_attempts',
           'leaderboard_competition_end_date',
           'pet_training_enabled_games',
@@ -109,6 +113,12 @@ const LeaderboardSettings = () => {
             break;
           case 'leaderboard_competition_reward_gems':
             setRewardGems(parseInt(row.setting_value) || 1);
+            break;
+          case 'leaderboard_competition_reward_threshold':
+            setRewardThreshold(parseInt(row.setting_value) || 0);
+            break;
+          case 'leaderboard_competition_reward_xp':
+            setRewardXP(parseInt(row.setting_value) || 5);
             break;
           case 'leaderboard_competition_max_attempts':
             setMaxAttempts(parseInt(row.setting_value) || 0);
@@ -158,6 +168,8 @@ const LeaderboardSettings = () => {
         { setting_key: 'leaderboard_competition_game_type', setting_value: competitionGameType, description: 'Which game type for competition' },
         { setting_key: 'leaderboard_competition_item_id', setting_value: competitionItemId, description: 'Item ID for collection competition' },
         { setting_key: 'leaderboard_competition_reward_gems', setting_value: String(rewardGems), description: 'Gem reward for weekly champion' },
+        { setting_key: 'leaderboard_competition_reward_threshold', setting_value: String(rewardThreshold), description: 'Minimum score to qualify for XP reward' },
+        { setting_key: 'leaderboard_competition_reward_xp', setting_value: String(rewardXP), description: 'XP reward for all qualifiers' },
         { setting_key: 'leaderboard_competition_max_attempts', setting_value: String(maxAttempts), description: 'Max attempts per week (0 = unlimited)' },
         { setting_key: 'leaderboard_competition_end_date', setting_value: competitionEndDate, description: 'Competition end date (ISO)' },
         { setting_key: 'pet_training_enabled_games', setting_value: JSON.stringify(enabledTrainingGames), description: 'Which training games are available to students' },
@@ -213,7 +225,16 @@ const LeaderboardSettings = () => {
         const sorted = Object.entries(bestScores).sort((a, b) => b[1] - a[1]);
         const [championId, championScore] = sorted[0];
 
-        // Award gems to winner
+        // Award XP to all qualifiers who passed the threshold
+        const qualifiers = sorted.filter(([, score]) => rewardThreshold > 0 ? score >= rewardThreshold : false);
+        if (rewardXP > 0 && qualifiers.length > 0) {
+          for (const [userId] of qualifiers) {
+            const { data: userData } = await supabase.from('users').select('xp').eq('id', userId).single();
+            await supabase.from('users').update({ xp: (userData?.xp || 0) + rewardXP }).eq('id', userId);
+          }
+        }
+
+        // Award gems to champion (#1)
         if (rewardGems > 0) {
           const { data: userData } = await supabase.from('users').select('gems').eq('id', championId).single();
           await supabase.from('users').update({ gems: (userData?.gems || 0) + rewardGems }).eq('id', championId);
@@ -233,7 +254,8 @@ const LeaderboardSettings = () => {
           description: 'Whether competition is active',
         }, { onConflict: 'setting_key' });
 
-        showNotification(`Competition ended! ${winner?.full_name || 'Winner'} won with ${championScore} points and received ${rewardGems} gems!`);
+        const qualifierMsg = qualifiers.length > 0 ? ` ${qualifiers.length} player${qualifiers.length > 1 ? 's' : ''} earned ${rewardXP} XP.` : '';
+        showNotification(`Competition ended! ${winner?.full_name || 'Winner'} won with ${championScore} points and received ${rewardGems} gems!${qualifierMsg}`);
       } else {
         // Item competition — just pause, no score cleanup needed
         setCompetitionActive(false);
@@ -598,6 +620,38 @@ const LeaderboardSettings = () => {
             <div className="flex items-center gap-1 text-sm text-gray-600">
               <img src={assetUrl('/image/study/gem.png')} alt="Gem" className="w-4 h-4" />
               Gems for Top 1 at end of week
+            </div>
+          </div>
+        </div>
+
+        {/* Threshold Reward Config */}
+        <div className="border-t border-gray-100 pt-4">
+          <div className="flex items-center gap-3 mb-2">
+            <Trophy className="w-4 h-4 text-blue-500" />
+            <p className="text-sm font-medium text-gray-900">Qualifier Reward</p>
+          </div>
+          <div className="flex flex-col gap-3">
+            <div className="flex items-center gap-3">
+              <input
+                type="number"
+                min="0"
+                max="10000"
+                value={rewardThreshold}
+                onChange={(e) => setRewardThreshold(Math.max(0, parseInt(e.target.value) || 0))}
+                className="w-20 p-2 border border-gray-300 rounded-lg text-center text-gray-900 focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+              />
+              <span className="text-sm text-gray-600">Minimum score to qualify (0 = disabled)</span>
+            </div>
+            <div className="flex items-center gap-3">
+              <input
+                type="number"
+                min="0"
+                max="1000"
+                value={rewardXP}
+                onChange={(e) => setRewardXP(Math.max(0, parseInt(e.target.value) || 0))}
+                className="w-20 p-2 border border-gray-300 rounded-lg text-center text-gray-900 focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+              />
+              <span className="text-sm text-gray-600">XP awarded to all who pass threshold</span>
             </div>
           </div>
         </div>

@@ -38,6 +38,8 @@ const Leaderboard = () => {
   const [competitionItemId, setCompetitionItemId] = useState('')
   const [competitionItemInfo, setCompetitionItemInfo] = useState(null)
   const [scrambleRewardGems, setScrambleRewardGems] = useState(1)
+  const [rewardThreshold, setRewardThreshold] = useState(0)
+  const [rewardXP, setRewardXP] = useState(5)
   const [maxAttempts, setMaxAttempts] = useState(0)
   const [usedAttempts, setUsedAttempts] = useState(0)
   const [competitionEndDate, setCompetitionEndDate] = useState('')
@@ -66,6 +68,8 @@ const Leaderboard = () => {
             'leaderboard_competition_game_type',
             'leaderboard_competition_item_id',
             'leaderboard_competition_reward_gems',
+            'leaderboard_competition_reward_threshold',
+            'leaderboard_competition_reward_xp',
             'leaderboard_competition_max_attempts',
             'leaderboard_competition_end_date',
           ])
@@ -77,6 +81,8 @@ const Leaderboard = () => {
         let gameType = 'scramble'
         let itemId = ''
         let gems = 1
+        let threshold = 0
+        let xpReward = 5
         let attempts = 0
         let endDate = ''
 
@@ -103,6 +109,12 @@ const Leaderboard = () => {
             case 'leaderboard_competition_reward_gems':
               gems = parseInt(row.setting_value) || 1
               break
+            case 'leaderboard_competition_reward_threshold':
+              threshold = parseInt(row.setting_value) || 0
+              break
+            case 'leaderboard_competition_reward_xp':
+              xpReward = parseInt(row.setting_value) || 5
+              break
             case 'leaderboard_competition_max_attempts':
               attempts = parseInt(row.setting_value) || 0
               break
@@ -123,6 +135,8 @@ const Leaderboard = () => {
         setCompetitionGameType(gameType)
         setCompetitionItemId(itemId)
         setScrambleRewardGems(gems)
+        setRewardThreshold(threshold)
+        setRewardXP(xpReward)
         setMaxAttempts(attempts)
         setCompetitionEndDate(endDate)
         setTimeframe(tabs.includes(defaultTab) ? defaultTab : tabs[0] || 'week')
@@ -808,7 +822,7 @@ const Leaderboard = () => {
               <div className="inline-flex items-center gap-2 bg-gradient-to-r from-purple-50 to-indigo-50 border border-purple-200 rounded-lg px-4 py-3 text-sm">
                 <Trophy className="w-5 h-5 text-purple-500 flex-shrink-0" />
                 <span className="text-gray-700">
-                  Top 1 cuối tuần nhận{' '}
+                  Top 1 cuối event nhận{' '}
                   <strong className="text-blue-600 inline-flex items-center gap-1">{scrambleRewardGems} <img src={assetUrl('/image/study/gem.png')} alt="Gem" className="w-4 h-4" /></strong>
                 </span>
                 {countdownText && (
@@ -816,6 +830,19 @@ const Leaderboard = () => {
                 )}
               </div>
             </div>
+
+            {rewardThreshold > 0 && rewardXP > 0 && (
+              <div className="flex justify-center">
+                <div className="inline-flex items-center gap-2 bg-gradient-to-r from-blue-50 to-cyan-50 border border-blue-200 rounded-lg px-4 py-3 text-sm">
+                  <Star className="w-5 h-5 text-blue-500 flex-shrink-0" />
+                  <span className="text-gray-700">
+                    Đạt {rewardThreshold}+ điểm nhận{' '}
+                    <strong className="text-yellow-600 inline-flex items-center gap-1">{rewardXP } <img src={assetUrl('/image/study/xp.png')} alt="XP" className="w-4 h-4" /></strong>
+                     cuối event
+                  </span>
+                </div>
+              </div>
+            )}
 
             {maxAttempts > 0 && (
               <div className="flex justify-center">
