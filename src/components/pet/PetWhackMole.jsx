@@ -4,7 +4,7 @@ import { Trophy } from 'lucide-react'
 import WORD_BANK from './wordBank'
 
 import { assetUrl } from '../../hooks/useBranding';
-const GAME_DURATION = 62
+const GAME_DURATION = 61
 const MOLE_SHOW_MIN = 1500
 const MOLE_SHOW_MAX = 2500
 const GRID_COLS = 3
@@ -563,32 +563,20 @@ const PetWhackMole = ({ petImageUrl, petName, onGameEnd, onClose, hammerSkinUrl 
             {/* Mole Grid */}
             <div className="flex-1 flex items-center justify-center px-4 pb-6">
               <div
-                className="grid gap-3 w-full max-w-[340px]"
+                className="grid gap-x-2 gap-y-0 w-full max-w-[380px]"
                 style={{ gridTemplateColumns: `repeat(${GRID_COLS}, 1fr)` }}
               >
                 {holes.map((hole, i) => (
                   <button
                     key={i}
-                    onClick={() => handleWhack(i)}
-                    disabled={!hole.visible || hole.hit || hole.hiding}
-                    className="relative aspect-square rounded-2xl overflow-hidden transition-transform active:scale-95 cursor-none"
-                    style={{
-                      background: 'radial-gradient(ellipse at center, #5b3a1a 0%, #3d2610 60%, #2a1a0a 100%)',
-                      boxShadow: 'inset 0 4px 12px rgba(0,0,0,0.5), 0 2px 4px rgba(0,0,0,0.3)',
-                    }}
+                    onPointerDown={() => handleWhack(i)}
+                    className="relative flex flex-col items-center justify-center cursor-none touch-none"
+                    style={{ height: 140, overflow: 'visible' }}
                   >
-                    {/* Hole rim */}
-                    <div className="absolute inset-0 rounded-2xl pointer-events-none"
-                      style={{
-                        border: '3px solid #8B6914',
-                        boxShadow: 'inset 0 0 15px rgba(0,0,0,0.4)',
-                      }}
-                    />
-
-                    {/* Mole content */}
+                    {/* Mole popping out */}
                     {hole.visible && !hole.hit && (
                       <div
-                        className="absolute inset-0 flex items-center justify-center"
+                        className="flex flex-col items-center"
                         style={{
                           animation: hole.hiding
                             ? 'moleHide 0.3s ease-in forwards'
@@ -597,36 +585,37 @@ const PetWhackMole = ({ petImageUrl, petName, onGameEnd, onClose, hammerSkinUrl 
                               : 'molePopUp 0.3s ease-out forwards',
                         }}
                       >
-                        <div className={`w-full h-full flex flex-col items-center justify-center rounded-2xl px-1 ${
-                          hole.wrong
-                            ? 'bg-red-400/90'
-                            : 'bg-gradient-to-b from-amber-300 to-amber-500'
+                        {/* Word label above mole */}
+                        <div className={`rounded-lg px-2 py-0.5 mb-1 ${
+                          hole.wrong ? 'bg-red-500' : 'bg-white/90 border border-amber-300'
                         }`}
                           style={{
                             boxShadow: hole.wrong
-                              ? '0 0 15px rgba(239,68,68,0.5)'
-                              : '0 4px 12px rgba(0,0,0,0.3), inset 0 2px 0 rgba(255,255,255,0.3)',
+                              ? '0 0 10px rgba(239,68,68,0.5)'
+                              : '0 2px 8px rgba(0,0,0,0.2)',
                           }}
                         >
-                          <img src={assetUrl('/pet-game/mole-normal.png')} alt="mole" className="w-10 h-10 object-contain mb-0.5" />
-                          <span className="text-xs font-black text-gray-800 uppercase tracking-wide leading-tight text-center break-all">
+                          <span className={`text-xs font-black uppercase tracking-wide ${
+                            hole.wrong ? 'text-white' : 'text-gray-800'
+                          }`}>
                             {hole.word}
                           </span>
                         </div>
+                        {/* Mole image */}
+                        <img src={assetUrl('/pet-game/mole-normal.png')} alt="mole" className="w-16 h-16 object-contain drop-shadow-lg" />
                       </div>
                     )}
 
                     {/* Whacked animation */}
                     {hole.hit && (
                       <div
-                        className="absolute inset-0 flex items-center justify-center"
+                        className="flex flex-col items-center"
                         style={{ animation: 'moleWhacked 0.4s ease-out forwards' }}
                       >
-                        <div className="w-full h-full flex flex-col items-center justify-center rounded-2xl bg-green-400/90">
-                          <img src={assetUrl('/pet-game/mole-whacked.png')} alt="whacked" className="w-12 h-12 object-contain" />
-                        </div>
+                        <img src={assetUrl('/pet-game/mole-whacked.png')} alt="whacked" className="w-16 h-16 object-contain drop-shadow-lg" />
                       </div>
                     )}
+
                   </button>
                 ))}
               </div>
