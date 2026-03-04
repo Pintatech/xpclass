@@ -4,7 +4,7 @@ import { X, Trophy, Volume2, VolumeX } from 'lucide-react'
 import WORD_BANK from './wordBank'
 
 import { assetUrl } from '../../hooks/useBranding';
-const GAME_DURATION = 60
+const GAME_DURATION = 76
 const POINTS_PER_WORD = 10
 const STREAK_BONUS = 5
 
@@ -86,8 +86,8 @@ const PetWordScramble = ({ petImageUrl, petName, onGameEnd, onClose }) => {
         letter,
         x: safeLeft + col * cellW + cellW / 2 + (Math.random() - 0.5) * 30,
         y: safeTop + row * cellH + cellH / 2 + (Math.random() - 0.5) * 20,
-        vx: (Math.random() - 0.5) * 2.5,
-        vy: (Math.random() - 0.5) * 2.5,
+        vx: (Math.random() - 0.5) * 1.5,
+        vy: (Math.random() - 0.5) * 1.5,
         popping: false,
         captured: false,
       }
@@ -246,7 +246,7 @@ const PetWordScramble = ({ petImageUrl, petName, onGameEnd, onClose }) => {
       try {
         const sound = new Audio(assetUrl('/sound/pop2.mp3'))
         sound.volume = 0.3
-        sound.playbackRate = 1 + (combo * 0.1)
+        sound.playbackRate = 1
         sound.play().catch(() => {})
       } catch {
         // Ignore audio errors
@@ -305,14 +305,14 @@ const PetWordScramble = ({ petImageUrl, petName, onGameEnd, onClose }) => {
                 popping: false,
                 x: Math.random() * (w - 60) + 30,
                 y: Math.random() * (h - 400) + 140,
-                vx: (Math.random() - 0.5) * 2.5,
-                vy: (Math.random() - 0.5) * 2.5,
+                vx: (Math.random() - 0.5) * 1.5,
+                vy: (Math.random() - 0.5) * 1.5,
               }
             : b
         ))
       }, 300)
     }
-  }, [phase, feedback, placedLetters, combo])
+  }, [phase, feedback, placedLetters])
 
   // Skip current word
   const handleSkip = useCallback(() => {
@@ -541,12 +541,15 @@ const PetWordScramble = ({ petImageUrl, petName, onGameEnd, onClose }) => {
           }}
         >
           {/* Floating Bubbles */}
-          {bubbles.map(bubble => (
+          {bubbles.map(bubble => {
+            const nextLetter = currentWord?.word?.[placedLetters.length]
+            const isNext = !bubble.captured && !bubble.popping && bubble.letter === nextLetter
+            return (
             <button
               key={bubble.id}
-              onClick={() => handleBubblePop(bubble, currentWord)}
+              onPointerDown={(e) => { e.preventDefault(); handleBubblePop(bubble, currentWord) }}
               disabled={bubble.captured || bubble.popping}
-              className={`absolute w-[72px] h-[72px] rounded-full font-bold text-3xl uppercase flex items-center justify-center cursor-pointer ${
+              className={`absolute rounded-full font-bold text-3xl uppercase flex items-center justify-center cursor-pointer touch-none ${
                 bubble.captured
                   ? 'opacity-0 scale-0'
                   : bubble.popping
@@ -554,9 +557,11 @@ const PetWordScramble = ({ petImageUrl, petName, onGameEnd, onClose }) => {
                     : 'bg-gradient-to-br from-yellow-300 to-orange-400 text-white shadow-2xl border-4 border-white/50 hover:scale-110 active:scale-90'
               }`}
               style={{
-                left: `${bubble.x}px`,
-                top: `${bubble.y}px`,
-                transform: 'translate(-50%, -50%)',
+                left: `${bubble.x - 44}px`,
+                top: `${bubble.y - 44}px`,
+                width: '88px',
+                height: '88px',
+                zIndex: isNext ? 5 : 1,
                 transition: bubble.popping ? 'all 0.3s ease-out' : 'transform 0.15s ease-out',
                 boxShadow: bubble.captured || bubble.popping ? 'none' : '0 8px 20px rgba(0,0,0,0.3), inset 0 -4px 8px rgba(0,0,0,0.2)',
                 textShadow: '0 2px 4px rgba(0,0,0,0.3)',
@@ -564,7 +569,8 @@ const PetWordScramble = ({ petImageUrl, petName, onGameEnd, onClose }) => {
             >
               {!bubble.popping && bubble.letter}
             </button>
-          ))}
+            )
+          })}
 
           {/* Particles */}
           {particles.map(particle => (

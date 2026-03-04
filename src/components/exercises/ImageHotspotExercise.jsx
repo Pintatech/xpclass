@@ -65,6 +65,7 @@ const ImageHotspotExercise = ({ testMode = false, exerciseData = null, onAnswers
   const [exercise, setExercise] = useState(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState(null)
+  const [teacherMode, setTeacherMode] = useState('review') // 'review' or 'do'
   const [selectedLabel, setSelectedLabel] = useState(null)
   const [userAnswers, setUserAnswers] = useState(() => (testMode && initialAnswers) ? initialAnswers : {}) // { hotspot_id: label_id }
   const [hotspotFeedback, setHotspotFeedback] = useState({}) // { hotspot_id: { correct, attempts, showFeedback } }
@@ -245,15 +246,15 @@ const ImageHotspotExercise = ({ testMode = false, exerciseData = null, onAnswers
 
   // Trigger Batman movement when progress increases
   useEffect(() => {
-    const totalHotspots = exercise?.content?.hotspots?.length || 0
-    const filledHotspots = Object.keys(userAnswers).length
+    const totalCorrectHotspots = (exercise?.content?.hotspots || []).filter(hs => hs.type !== 'distractor').length
+    const filledHotspots = (exercise?.content?.hotspots || []).filter(hs => hs.type !== 'distractor' && userAnswers[hs.id]).length
     const completedHotspots = Object.keys(userAnswers).filter(
       hsId => hotspotFeedback[hsId]?.correct
     ).length
 
     const currentProgress = isSubmitted
-      ? (totalHotspots > 0 ? (completedHotspots / totalHotspots) * 100 : 0)
-      : (totalHotspots > 0 ? (filledHotspots / totalHotspots) * 100 : 0)
+      ? (totalCorrectHotspots > 0 ? (completedHotspots / totalCorrectHotspots) * 100 : 0)
+      : (totalCorrectHotspots > 0 ? (filledHotspots / totalCorrectHotspots) * 100 : 0)
 
     if (currentProgress > prevProgress) {
       setIsBatmanMoving(true)
@@ -345,10 +346,12 @@ const ImageHotspotExercise = ({ testMode = false, exerciseData = null, onAnswers
     if (isSubmitted || exerciseComplete) return
 
     const hotspots = exercise.content.hotspots
+    const correctHotspots = hotspots.filter(hs => hs.type !== 'distractor')
+    const distractorHotspots = hotspots.filter(hs => hs.type === 'distractor')
 
-    // Check if all hotspots are filled
-    const allFilled = hotspots.every(hs => userAnswers[hs.id])
-    if (!allFilled) {
+    // Check if all correct hotspots are filled (distractor hotspots are optional)
+    const allCorrectFilled = correctHotspots.every(hs => userAnswers[hs.id])
+    if (!allCorrectFilled) {
       alert('Please fill all hotspots before submitting!')
       return
     }
@@ -358,16 +361,15 @@ const ImageHotspotExercise = ({ testMode = false, exerciseData = null, onAnswers
     // Grade all answers
     const newFeedback = {}
     let correctCount = 0
-    let totalAttempts = 0
 
-    hotspots.forEach(hotspot => {
+    // Grade correct hotspots
+    correctHotspots.forEach(hotspot => {
       const selectedLabelId = userAnswers[hotspot.id]
       const selectedLabel = exercise.content.labels.find(l => l.id === selectedLabelId)
       const isDistractor = selectedLabel?.type === 'distractor'
       const isCorrect = !isDistractor && selectedLabel?.hotspot_id === hotspot.id
 
       if (isCorrect) correctCount++
-      totalAttempts++
 
       newFeedback[hotspot.id] = {
         correct: isCorrect,
@@ -376,10 +378,22 @@ const ImageHotspotExercise = ({ testMode = false, exerciseData = null, onAnswers
       }
     })
 
+    // Grade distractor hotspots — any label placed on them is wrong
+    distractorHotspots.forEach(hotspot => {
+      if (userAnswers[hotspot.id]) {
+        newFeedback[hotspot.id] = {
+          correct: false,
+          attempts: 1,
+          showFeedback: true
+        }
+      }
+    })
+
     setHotspotFeedback(newFeedback)
 
-    // Play feedback
-    const allCorrect = correctCount === hotspots.length
+    // Play feedback — also check that no distractor hotspots were filled
+    const noDistractorsFilled = distractorHotspots.every(hs => !userAnswers[hs.id])
+    const allCorrect = correctCount === correctHotspots.length && noDistractorsFilled
     playFeedback(allCorrect)
 
     if (allCorrect) {
@@ -392,11 +406,11 @@ const ImageHotspotExercise = ({ testMode = false, exerciseData = null, onAnswers
       // Complete exercise and award XP only once
       const timeSpent = startTime ? Math.floor((Date.now() - startTime) / 1000) : 0
 
-      if (user && !hasEarnedXP) {
+      if (user && !hasEarnedXP && !isTeacherView) {
         const result = await completeExerciseWithXP(exerciseId, earnedXP, {
           score: 100,
           max_score: 100,
-          attempts: totalAttempts,
+          attempts: correctHotspots.length,
           time_spent: timeSpent,
           challengeId: challengeId,  // Pass for daily challenge tracking
           challengeStartedAt: challengeStartTime  // Pass challenge start time for accurate timing
@@ -564,17 +578,18 @@ const ImageHotspotExercise = ({ testMode = false, exerciseData = null, onAnswers
     )
   }
 
-  const totalHotspots = exercise.content.hotspots?.length || 0
-  const filledHotspots = Object.keys(userAnswers).length
+  const allHotspots = exercise.content.hotspots || []
+  const totalCorrectHotspots = allHotspots.filter(hs => hs.type !== 'distractor').length
+  const filledCorrectHotspots = allHotspots.filter(hs => hs.type !== 'distractor' && userAnswers[hs.id]).length
   const completedHotspots = Object.keys(userAnswers).filter(
     hsId => hotspotFeedback[hsId]?.correct
   ).length
   const progress = isSubmitted
-    ? (totalHotspots > 0 ? (completedHotspots / totalHotspots) * 100 : 0)
-    : (totalHotspots > 0 ? (filledHotspots / totalHotspots) * 100 : 0)
+    ? (totalCorrectHotspots > 0 ? (completedHotspots / totalCorrectHotspots) * 100 : 0)
+    : (totalCorrectHotspots > 0 ? (filledCorrectHotspots / totalCorrectHotspots) * 100 : 0)
 
-  // Teacher view: read-only preview showing image with all hotspots and correct labels
-  if (isTeacherView) {
+  // Teacher view: toggle between review (answer key) and do (try exercise)
+  if (isTeacherView && teacherMode === 'review') {
     const hotspots = exercise.content.hotspots || []
     const labels = exercise.content.labels || []
     const distractors = labels.filter(l => l.type === 'distractor')
@@ -583,9 +598,26 @@ const ImageHotspotExercise = ({ testMode = false, exerciseData = null, onAnswers
       <div className="max-w-4xl mx-auto py-8 px-4">
         <div className="flex items-center justify-between mb-6">
           <h2 className="text-2xl font-bold text-gray-900">{exercise.title || 'Image Hotspot'}</h2>
-          <button onClick={() => navigate(-1)} className="flex items-center gap-2 px-4 py-2 text-gray-600 hover:text-gray-800 border rounded-lg">
-            <ArrowLeft className="w-4 h-4" /> Back
-          </button>
+          <div className="flex items-center gap-2">
+            {/* Mode toggle */}
+            <div className="flex bg-gray-100 rounded-lg p-1">
+              <button
+                onClick={() => setTeacherMode('review')}
+                className="px-3 py-1.5 text-sm font-medium rounded-md bg-white shadow text-blue-700"
+              >
+                Review
+              </button>
+              <button
+                onClick={() => { setTeacherMode('do'); resetExercise() }}
+                className="px-3 py-1.5 text-sm font-medium rounded-md text-gray-600 hover:text-gray-800"
+              >
+                Do
+              </button>
+            </div>
+            <button onClick={() => navigate(-1)} className="flex items-center gap-2 px-4 py-2 text-gray-600 hover:text-gray-800 border rounded-lg">
+              <ArrowLeft className="w-4 h-4" /> Back
+            </button>
+          </div>
         </div>
 
         {/* Question */}
@@ -618,7 +650,10 @@ const ImageHotspotExercise = ({ testMode = false, exerciseData = null, onAnswers
                 const scaledY = y * imageScale
                 const scaledWidth = width * imageScale
                 const scaledHeight = height * imageScale
-                const correctLabel = labels.find(l => l.hotspot_id === hotspot.id && l.type !== 'distractor')
+                const isDistractorHotspot = hotspot.type === 'distractor'
+                const correctLabel = !isDistractorHotspot
+                  ? labels.find(l => l.hotspot_id === hotspot.id && l.type !== 'distractor')
+                  : null
 
                 return (
                   <g key={hotspot.id}>
@@ -627,9 +662,10 @@ const ImageHotspotExercise = ({ testMode = false, exerciseData = null, onAnswers
                       y={scaledY}
                       width={scaledWidth}
                       height={scaledHeight}
-                      fill="rgba(34, 197, 94, 0.2)"
-                      stroke="#22c55e"
+                      fill={isDistractorHotspot ? 'rgba(239, 68, 68, 0.15)' : 'rgba(34, 197, 94, 0.2)'}
+                      stroke={isDistractorHotspot ? '#ef4444' : '#22c55e'}
                       strokeWidth={3}
+                      strokeDasharray={isDistractorHotspot ? '6,4' : 'none'}
                     />
                     {correctLabel && (
                       <text
@@ -646,6 +682,21 @@ const ImageHotspotExercise = ({ testMode = false, exerciseData = null, onAnswers
                         {correctLabel.text}
                       </text>
                     )}
+                    {isDistractorHotspot && (
+                      <text
+                        x={scaledX + scaledWidth / 2}
+                        y={scaledY + scaledHeight / 2}
+                        textAnchor="middle"
+                        dominantBaseline="middle"
+                        fill="#ef4444"
+                        fontSize="12"
+                        fontWeight="bold"
+                        className="select-none"
+                        style={{ textShadow: '0 0 3px rgba(255,255,255,0.9)' }}
+                      >
+                        Distractor
+                      </text>
+                    )}
                   </g>
                 )
               })}
@@ -657,7 +708,7 @@ const ImageHotspotExercise = ({ testMode = false, exerciseData = null, onAnswers
         <div className="bg-white rounded-lg shadow-md p-4 border border-gray-200">
           <h3 className="font-semibold text-gray-800 mb-3">Answer Key</h3>
           <div className="space-y-2">
-            {hotspots.map((hotspot, index) => {
+            {hotspots.filter(hs => hs.type !== 'distractor').map((hotspot, index) => {
               const correctLabel = labels.find(l => l.hotspot_id === hotspot.id && l.type !== 'distractor')
               return (
                 <div key={hotspot.id} className="flex items-center gap-2">
@@ -667,6 +718,12 @@ const ImageHotspotExercise = ({ testMode = false, exerciseData = null, onAnswers
               )
             })}
           </div>
+          {hotspots.filter(hs => hs.type === 'distractor').length > 0 && (
+            <div className="mt-4 pt-3 border-t border-gray-200">
+              <h4 className="text-sm font-medium text-gray-500 mb-2">Distractor Hotspots</h4>
+              <p className="text-xs text-gray-400">These areas on the image are traps — no label should be placed here.</p>
+            </div>
+          )}
           {distractors.length > 0 && (
             <div className="mt-4 pt-3 border-t border-gray-200">
               <h4 className="text-sm font-medium text-gray-500 mb-2">Distractors</h4>
@@ -786,6 +843,27 @@ const ImageHotspotExercise = ({ testMode = false, exerciseData = null, onAnswers
 
       <div className="relative px-2 md:pt-2 pb-12">
         <div className="max-w-6xl mx-auto space-y-6 relative z-20">
+
+        {/* Teacher Do Mode Banner */}
+        {isTeacherView && teacherMode === 'do' && (
+          <div className="flex items-center justify-between bg-amber-50 border border-amber-200 rounded-lg px-4 py-2">
+            <span className="text-sm text-amber-800 font-medium">Teacher Preview — No XP will be awarded</span>
+            <div className="flex bg-gray-100 rounded-lg p-1">
+              <button
+                onClick={() => setTeacherMode('review')}
+                className="px-3 py-1.5 text-sm font-medium rounded-md text-gray-600 hover:text-gray-800"
+              >
+                Review
+              </button>
+              <button
+                className="px-3 py-1.5 text-sm font-medium rounded-md bg-white shadow text-blue-700"
+              >
+                Do
+              </button>
+            </div>
+          </div>
+        )}
+
         {/* Header */}
         <ExerciseHeader
           title={exercise.title}
@@ -917,7 +995,7 @@ const ImageHotspotExercise = ({ testMode = false, exerciseData = null, onAnswers
                     color="blue"
                     size="sm"
                     className="flex-1 flex items-center justify-center gap-2"
-                    disabled={Object.keys(userAnswers).length !== (exercise.content.hotspots?.length || 0)}
+                    disabled={filledCorrectHotspots !== totalCorrectHotspots}
                   >
                     <CheckCircle className="w-4 h-4" />
                     Submit
@@ -945,8 +1023,8 @@ const ImageHotspotExercise = ({ testMode = false, exerciseData = null, onAnswers
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
           <CelebrationScreen
             score={100}
-            correctAnswers={totalHotspots}
-            totalQuestions={totalHotspots}
+            correctAnswers={totalCorrectHotspots}
+            totalQuestions={totalCorrectHotspots}
             passThreshold={100}
             xpAwarded={xpEarned}
             passGif={passGif}

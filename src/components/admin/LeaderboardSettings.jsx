@@ -14,6 +14,13 @@ const GAME_TYPES = [
   { key: 'whackmole', label: 'Whack-a-Mole', icon: '🔨' },
   { key: 'catch', label: 'Catch Game', icon: '🎯' },
   { key: 'flappy', label: 'Flappy Pet', icon: '🐦' },
+  { key: 'astroblast', label: 'Astro Blast', icon: '🚀' },
+];
+
+const TRAINING_GAMES = [
+  { key: 'scramble', label: 'Word Scramble', icon: '🔤' },
+  { key: 'whackmole', label: 'Whack-a-Mole', icon: '🔨' },
+  { key: 'astroblast', label: 'Astro Blast', icon: '🚀' },
 ];
 
 const LeaderboardSettings = () => {
@@ -29,6 +36,9 @@ const LeaderboardSettings = () => {
   const [competitionGameType, setCompetitionGameType] = useState('scramble');
   const [competitionItemId, setCompetitionItemId] = useState('');
   const [rewardGems, setRewardGems] = useState(1);
+  const [maxAttempts, setMaxAttempts] = useState(0); // 0 = unlimited
+  const [competitionEndDate, setCompetitionEndDate] = useState(''); // ISO date string e.g. '2026-03-10'
+  const [enabledTrainingGames, setEnabledTrainingGames] = useState(['scramble', 'whackmole', 'astroblast']);
 
   // Collectible items for "most items" competition
   const [collectibleItems, setCollectibleItems] = useState([]);
@@ -70,6 +80,9 @@ const LeaderboardSettings = () => {
           'leaderboard_competition_game_type',
           'leaderboard_competition_item_id',
           'leaderboard_competition_reward_gems',
+          'leaderboard_competition_max_attempts',
+          'leaderboard_competition_end_date',
+          'pet_training_enabled_games',
         ]);
 
       if (error) throw error;
@@ -96,6 +109,15 @@ const LeaderboardSettings = () => {
             break;
           case 'leaderboard_competition_reward_gems':
             setRewardGems(parseInt(row.setting_value) || 1);
+            break;
+          case 'leaderboard_competition_max_attempts':
+            setMaxAttempts(parseInt(row.setting_value) || 0);
+            break;
+          case 'leaderboard_competition_end_date':
+            setCompetitionEndDate(row.setting_value || '');
+            break;
+          case 'pet_training_enabled_games':
+            try { setEnabledTrainingGames(JSON.parse(row.setting_value)); } catch {}
             break;
         }
       });
@@ -136,6 +158,9 @@ const LeaderboardSettings = () => {
         { setting_key: 'leaderboard_competition_game_type', setting_value: competitionGameType, description: 'Which game type for competition' },
         { setting_key: 'leaderboard_competition_item_id', setting_value: competitionItemId, description: 'Item ID for collection competition' },
         { setting_key: 'leaderboard_competition_reward_gems', setting_value: String(rewardGems), description: 'Gem reward for weekly champion' },
+        { setting_key: 'leaderboard_competition_max_attempts', setting_value: String(maxAttempts), description: 'Max attempts per week (0 = unlimited)' },
+        { setting_key: 'leaderboard_competition_end_date', setting_value: competitionEndDate, description: 'Competition end date (ISO)' },
+        { setting_key: 'pet_training_enabled_games', setting_value: JSON.stringify(enabledTrainingGames), description: 'Which training games are available to students' },
       ];
 
       for (const s of settings) {
@@ -152,6 +177,79 @@ const LeaderboardSettings = () => {
       showNotification('Error saving settings: ' + err.message, 'error');
     } finally {
       setSaving(false);
+    }
+  };
+
+  const [ending, setEnding] = useState(false);
+
+  const handleEndCompetition = async () => {
+    if (!window.confirm('End competition and award the winner? This will give the top player their gem reward and pause the competition.')) return;
+
+    try {
+      setEnding(true);
+
+      if (competitionType === 'game') {
+        // Find top scorer across all training_scores for this game type
+        const { data: scores } = await supabase
+          .from('training_scores')
+          .select('user_id, score')
+          .eq('game_type', competitionGameType)
+          .order('score', { ascending: false })
+          .limit(100);
+
+        if (!scores || scores.length === 0) {
+          showNotification('No players found — nobody played this competition.', 'error');
+          return;
+        }
+
+        // Get best score per user
+        const bestScores = {};
+        scores.forEach(s => {
+          if (!bestScores[s.user_id] || s.score > bestScores[s.user_id]) {
+            bestScores[s.user_id] = s.score;
+          }
+        });
+
+        const sorted = Object.entries(bestScores).sort((a, b) => b[1] - a[1]);
+        const [championId, championScore] = sorted[0];
+
+        // Award gems to winner
+        if (rewardGems > 0) {
+          const { data: userData } = await supabase.from('users').select('gems').eq('id', championId).single();
+          await supabase.from('users').update({ gems: (userData?.gems || 0) + rewardGems }).eq('id', championId);
+        }
+
+        // Get winner name
+        const { data: winner } = await supabase.from('users').select('full_name').eq('id', championId).single();
+
+        // Clear training scores for this game type
+        await supabase.from('training_scores').delete().eq('game_type', competitionGameType);
+
+        // Pause competition
+        setCompetitionActive(false);
+        await supabase.from('site_settings').upsert({
+          setting_key: 'leaderboard_competition_active',
+          setting_value: 'false',
+          description: 'Whether competition is active',
+        }, { onConflict: 'setting_key' });
+
+        showNotification(`Competition ended! ${winner?.full_name || 'Winner'} won with ${championScore} points and received ${rewardGems} gems!`);
+      } else {
+        // Item competition — just pause, no score cleanup needed
+        setCompetitionActive(false);
+        await supabase.from('site_settings').upsert({
+          setting_key: 'leaderboard_competition_active',
+          setting_value: 'false',
+          description: 'Whether competition is active',
+        }, { onConflict: 'setting_key' });
+
+        showNotification('Item competition ended.');
+      }
+    } catch (err) {
+      console.error('Error ending competition:', err);
+      showNotification('Error ending competition: ' + err.message, 'error');
+    } finally {
+      setEnding(false);
     }
   };
 
@@ -254,6 +352,50 @@ const LeaderboardSettings = () => {
             </option>
           ))}
         </select>
+      </div>
+
+      {/* Pet Training Games */}
+      <div className="bg-white rounded-xl border border-gray-200 p-5">
+        <h3 className="text-sm font-semibold text-gray-700 uppercase tracking-wide mb-4">
+          Pet Training Games
+        </h3>
+        <p className="text-sm text-gray-500 mb-4">
+          Choose which mini-games students can play in pet training.
+        </p>
+        <div className="space-y-3">
+          {TRAINING_GAMES.map((game) => {
+            const isEnabled = enabledTrainingGames.includes(game.key);
+            return (
+              <label
+                key={game.key}
+                className={`flex items-center justify-between p-3 rounded-lg border cursor-pointer transition-all ${
+                  isEnabled
+                    ? 'border-blue-200 bg-blue-50'
+                    : 'border-gray-200 bg-gray-50'
+                }`}
+              >
+                <div className="flex items-center gap-3">
+                  <span className="text-xl">{game.icon}</span>
+                  <span className={`font-medium ${isEnabled ? 'text-gray-900' : 'text-gray-500'}`}>
+                    {game.label}
+                  </span>
+                </div>
+                <input
+                  type="checkbox"
+                  checked={isEnabled}
+                  onChange={() => {
+                    setEnabledTrainingGames(prev =>
+                      prev.includes(game.key)
+                        ? prev.filter(k => k !== game.key)
+                        : [...prev, game.key]
+                    );
+                  }}
+                  className="w-4 h-4 text-blue-600 rounded focus:ring-blue-500"
+                />
+              </label>
+            );
+          })}
+        </div>
       </div>
 
       {/* Competition Control */}
@@ -396,11 +538,53 @@ const LeaderboardSettings = () => {
           </div>
         )}
 
+        {/* Attempt Limit */}
+        <div className="border-t border-gray-100 pt-4">
+          <p className="text-sm font-medium text-gray-900 mb-2">Attempts per Week</p>
+          <div className="flex items-center gap-3">
+            <input
+              type="number"
+              min="0"
+              max="50"
+              value={maxAttempts}
+              onChange={(e) => setMaxAttempts(Math.max(0, parseInt(e.target.value) || 0))}
+              className="w-20 p-2 border border-gray-300 rounded-lg text-center text-gray-900 focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+            />
+            <span className="text-sm text-gray-500">
+              {maxAttempts === 0 ? 'Unlimited attempts' : `${maxAttempts} attempt${maxAttempts > 1 ? 's' : ''} per student per week`}
+            </span>
+          </div>
+        </div>
+
+        {/* Competition End Date */}
+        <div className="border-t border-gray-100 pt-4">
+          <p className="text-sm font-medium text-gray-900 mb-2">Competition End Date</p>
+          <div className="flex items-center gap-3">
+            <input
+              type="date"
+              value={competitionEndDate}
+              onChange={(e) => setCompetitionEndDate(e.target.value)}
+              className="p-2 border border-gray-300 rounded-lg text-gray-900 focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+            />
+            {competitionEndDate && (
+              <button
+                onClick={() => setCompetitionEndDate('')}
+                className="text-sm text-red-500 hover:text-red-700"
+              >
+                Clear
+              </button>
+            )}
+          </div>
+          <p className="text-xs text-gray-400 mt-1">
+            {competitionEndDate ? `Countdown shown to students until ${competitionEndDate}` : 'No end date — no countdown shown'}
+          </p>
+        </div>
+
         {/* Reward Config */}
         <div className="border-t border-gray-100 pt-4">
           <div className="flex items-center gap-3 mb-2">
             <Trophy className="w-4 h-4 text-yellow-500" />
-            <p className="text-sm font-medium text-gray-900">Weekly Champion Reward</p>
+            <p className="text-sm font-medium text-gray-900">Champion Reward</p>
           </div>
           <div className="flex items-center gap-3">
             <input
@@ -434,6 +618,21 @@ const LeaderboardSettings = () => {
           {saving ? 'Saving...' : 'Save Settings'}
         </button>
       </div>
+
+      {/* End Competition & Award */}
+      {competitionActive && (
+        <div className="p-4 bg-red-50 border border-red-200 rounded-xl">
+          <p className="text-sm text-red-700 mb-3">End the current competition, award gems to the winner, and clear scores.</p>
+          <button
+            onClick={handleEndCompetition}
+            disabled={ending}
+            className="flex items-center gap-2 px-4 py-2 bg-red-600 text-white rounded-lg font-medium text-sm hover:bg-red-700 disabled:opacity-50 transition-all"
+          >
+            {ending ? <RefreshCw className="w-4 h-4 animate-spin" /> : <Trophy className="w-4 h-4" />}
+            {ending ? 'Ending...' : 'End Competition & Award Winner'}
+          </button>
+        </div>
+      )}
     </div>
   );
 };

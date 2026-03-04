@@ -171,6 +171,7 @@ const DragDropExercise = ({ testMode = false, exerciseData = null, onAnswersColl
   const { canCreateContent } = usePermissions()
   const { startExercise, completeExerciseWithXP } = useProgress()
   const isTeacherView = canCreateContent()
+  const [teacherMode, setTeacherMode] = useState('review') // 'review' or 'do'
   const { currentMeme, showMeme, playFeedback, playCelebration, passGif } = useFeedback()
   const [showResultScreen, setShowResultScreen] = useState(false)
   const [questionResults, setQuestionResults] = useState([]) // Track results for each question
@@ -694,7 +695,7 @@ const DragDropExercise = ({ testMode = false, exerciseData = null, onAnswersColl
       const score = allQuestionsCompleted ? scorePercentage : 0
 
       // If exercise is completed, use proper XP awarding system
-      if (allQuestionsCompleted) {
+      if (allQuestionsCompleted && !isTeacherView) {
         const result = await completeExerciseWithXP(
           exercise.id,
           xpReward,
@@ -962,15 +963,31 @@ const DragDropExercise = ({ testMode = false, exerciseData = null, onAnswersColl
   }
 
   // Teacher view: show all questions with correct answers filled in
-  if (isTeacherView) {
+  if (isTeacherView && teacherMode === 'review') {
     const allQuestions = exercise.content.questions || []
     return (
       <div className="max-w-4xl mx-auto py-8 px-4">
         <div className="flex items-center justify-between mb-6">
           <h2 className="text-2xl font-bold text-gray-900">{exercise?.title || 'Drag & Drop'}</h2>
-          <button onClick={() => navigate(-1)} className="flex items-center gap-2 px-4 py-2 text-gray-600 hover:text-gray-800 border rounded-lg">
-            <ArrowLeft className="w-4 h-4" /> Back
-          </button>
+          <div className="flex items-center gap-2">
+            <button onClick={() => navigate(-1)} className="flex items-center gap-2 px-4 py-2 text-gray-600 hover:text-gray-800 border rounded-lg">
+              <ArrowLeft className="w-4 h-4" /> Back
+            </button>
+            <div className="flex bg-gray-100 rounded-lg p-1">
+              <button
+                onClick={() => setTeacherMode('review')}
+                className="px-3 py-1.5 text-sm font-medium rounded-md bg-white shadow text-blue-700"
+              >
+                Review
+              </button>
+              <button
+                onClick={() => setTeacherMode('do')}
+                className="px-3 py-1.5 text-sm font-medium rounded-md text-gray-600 hover:text-gray-800"
+              >
+                Do
+              </button>
+            </div>
+          </div>
         </div>
         <div className="space-y-6">
           {allQuestions.map((question, qIndex) => {
@@ -1043,6 +1060,24 @@ const DragDropExercise = ({ testMode = false, exerciseData = null, onAnswersColl
 
       <div className="relative px-2 md:pt-2 pb-12">
         <div className="max-w-4xl mx-auto space-y-6 relative z-20">
+        {isTeacherView && teacherMode === 'do' && (
+          <div className="flex items-center justify-between bg-amber-50 border border-amber-200 rounded-lg px-4 py-2">
+            <span className="text-sm text-amber-800 font-medium">Teacher Preview — No XP will be awarded</span>
+            <div className="flex bg-gray-100 rounded-lg p-1">
+              <button
+                onClick={() => setTeacherMode('review')}
+                className="px-3 py-1.5 text-sm font-medium rounded-md text-gray-600 hover:text-gray-800"
+              >
+                Review
+              </button>
+              <button
+                className="px-3 py-1.5 text-sm font-medium rounded-md bg-white shadow text-blue-700"
+              >
+                Do
+              </button>
+            </div>
+          </div>
+        )}
         {/* Header - hidden when celebration screen is shown */}
         {!showResultScreen && (
           <ExerciseHeader

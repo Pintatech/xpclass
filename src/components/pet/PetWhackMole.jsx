@@ -4,7 +4,7 @@ import { Trophy } from 'lucide-react'
 import WORD_BANK from './wordBank'
 
 import { assetUrl } from '../../hooks/useBranding';
-const GAME_DURATION = 60
+const GAME_DURATION = 62
 const MOLE_SHOW_MIN = 1500
 const MOLE_SHOW_MAX = 2500
 const GRID_COLS = 3
@@ -21,7 +21,7 @@ const shuffle = (arr) => {
   return a
 }
 
-const PetWhackMole = ({ petImageUrl, petName, onGameEnd, onClose }) => {
+const PetWhackMole = ({ petImageUrl, petName, onGameEnd, onClose, hammerSkinUrl }) => {
   const [phase, setPhase] = useState('ready')
   const [displayTime, setDisplayTime] = useState(GAME_DURATION)
   const [score, setScore] = useState(0)
@@ -37,6 +37,8 @@ const PetWhackMole = ({ petImageUrl, petName, onGameEnd, onClose }) => {
   const [hammerSwing, setHammerSwing] = useState(false)
   const [wordHistory, setWordHistory] = useState([])
   const [impacts, setImpacts] = useState([])
+  const [roundsCompleted, setRoundsCompleted] = useState(0)
+  const [wordPopup, setWordPopup] = useState(null)
 
   const timerRef = useRef(null)
   const moleTimersRef = useRef([])
@@ -102,6 +104,8 @@ const PetWhackMole = ({ petImageUrl, petName, onGameEnd, onClose }) => {
     setDisplayTime(GAME_DURATION)
     setFloatingTexts([])
     setWordHistory([])
+    setRoundsCompleted(0)
+    setWordPopup(null)
     setPhase('playing')
 
     // Start background music
@@ -224,6 +228,10 @@ const PetWhackMole = ({ petImageUrl, petName, onGameEnd, onClose }) => {
         setHoles(prev => prev.map(h => h.hiding ? { ...h, visible: false, hiding: false, word: null } : h))
       }, 300)
 
+      setRoundsCompleted(prev => prev + 1)
+      setWordPopup({ points, streak: newStreak })
+      setTimeout(() => setWordPopup(null), 1200)
+
       // Floating +points text
       setFloatingTexts(prev => [...prev, {
         id: Date.now(),
@@ -325,6 +333,17 @@ const PetWhackMole = ({ petImageUrl, petName, onGameEnd, onClose }) => {
           50% { transform: scale(1.03); }
           100% { transform: scale(1); }
         }
+        @keyframes wordPopupAnimMole {
+          0% { transform: scale(0.5) translateY(0); opacity: 0; }
+          15% { transform: scale(1.1) translateY(0); opacity: 1; }
+          30% { transform: scale(1) translateY(0); opacity: 1; }
+          100% { transform: scale(1) translateY(-60px); opacity: 0; }
+        }
+        @keyframes moleStreakPulse {
+          0% { transform: scale(1); }
+          50% { transform: scale(1.15); }
+          100% { transform: scale(1); }
+        }
         .whack-game-playing, .whack-game-playing * {
           cursor: none !important;
         }
@@ -357,16 +376,13 @@ const PetWhackMole = ({ petImageUrl, petName, onGameEnd, onClose }) => {
           }
         }}
         style={{
-          background: 'linear-gradient(to bottom, #86efac, #22c55e 40%, #65a30d 80%, #4d7c0f)',
+          backgroundImage: 'url(https://xpclass.vn/xpclass/image/pet/whack.png)',
+          backgroundSize: 'cover',
+          backgroundPosition: 'center',
           transform: screenShake > 0 ? `translate(${Math.sin(screenShake) * 4}px, ${Math.cos(screenShake) * 4}px)` : 'none',
           cursor: phase === 'playing' ? 'none' : 'default',
         }}
       >
-        {/* Decorative elements */}
-        <div className="absolute top-[5%] left-[10%] text-4xl opacity-20 pointer-events-none">🌿</div>
-        <div className="absolute top-[8%] right-[12%] text-3xl opacity-15 pointer-events-none">🌱</div>
-        <div className="absolute bottom-[15%] left-[5%] text-3xl opacity-15 pointer-events-none">🍃</div>
-
         {/* Close Button */}
         {phase !== 'results' && (
           <button
@@ -488,7 +504,61 @@ const PetWhackMole = ({ petImageUrl, petName, onGameEnd, onClose }) => {
                   <p className="text-2xl font-black text-gray-800">{targetWord.hint}</p>
                 </div>
               )}
+
+              {/* Progress dots */}
+              <div className="flex items-center justify-center gap-1 mt-2">
+                {Array.from({ length: 15 }, (_, i) => (
+                  <div
+                    key={i}
+                    className="relative"
+                    style={{
+                      width: 20,
+                      height: 20,
+                      transition: 'transform 0.3s ease',
+                      transform: i === roundsCompleted ? 'scale(1.3)' : 'scale(1)',
+                    }}
+                  >
+                    {i < roundsCompleted ? (
+                      <div className="w-full h-full rounded-full flex items-center justify-center text-xs"
+                        style={{
+                          background: 'linear-gradient(135deg, #86efac, #22c55e)',
+                          boxShadow: '0 0 8px rgba(34,197,94,0.5)',
+                          animation: 'moleStreakPulse 0.4s ease-out',
+                        }}
+                      >
+                        <span className="text-white font-bold">✓</span>
+                      </div>
+                    ) : i === roundsCompleted ? (
+                      <div className="w-full h-full rounded-full border-2 border-white/60 flex items-center justify-center"
+                        style={{ background: 'rgba(255,255,255,0.25)', animation: 'hintPulse 1.5s ease-in-out infinite' }}
+                      >
+                        <span className="text-white/80 font-bold text-[10px]">{i + 1}</span>
+                      </div>
+                    ) : (
+                      <div className="w-full h-full rounded-full border border-white/20 flex items-center justify-center"
+                        style={{ background: 'rgba(255,255,255,0.1)' }}
+                      >
+                        <span className="text-white/30 text-[10px]">{i + 1}</span>
+                      </div>
+                    )}
+                  </div>
+                ))}
+              </div>
             </div>
+
+            {/* Word popup animation */}
+            {wordPopup && (
+              <div className="absolute inset-0 z-20 flex items-center justify-center pointer-events-none">
+                <div className="flex flex-col items-center gap-1" style={{ animation: 'wordPopupAnimMole 1.2s ease-out forwards' }}>
+                  <div className="text-3xl font-black text-white drop-shadow-lg">+{wordPopup.points}</div>
+                  {wordPopup.streak > 1 && (
+                    <div className="flex items-center gap-1 bg-yellow-400 text-yellow-900 rounded-full px-3 py-1 text-sm font-bold">
+                      {wordPopup.streak}x streak
+                    </div>
+                  )}
+                </div>
+              </div>
+            )}
 
             {/* Mole Grid */}
             <div className="flex-1 flex items-center justify-center px-4 pb-6">
@@ -595,7 +665,7 @@ const PetWhackMole = ({ petImageUrl, petName, onGameEnd, onClose }) => {
             {/* Hammer cursor */}
             {hammerPos.x > 0 && (
               <img
-                src={assetUrl('/pet-game/mole-hammer.png')}
+                src={hammerSkinUrl || assetUrl('/pet-game/mole-hammer.png')}
                 alt="hammer"
                 className="absolute pointer-events-none z-30"
                 style={{
@@ -645,20 +715,20 @@ const PetWhackMole = ({ petImageUrl, petName, onGameEnd, onClose }) => {
               </div>
 
               <h2 className="text-2xl font-bold text-gray-800 mb-1">
-                {score >= 20 ? 'Training Complete!' : 'Not Enough Score!'}
+                {roundsCompleted >= 15 ? 'Training Complete!' : 'Not Enough Hits!'}
               </h2>
               <p className="text-gray-500 mb-5">
-                {score >= 20
-                  ? `${petName} scored ${score} points!`
-                  : `${petName} only scored ${score}/20 points`}
+                {roundsCompleted >= 15
+                  ? `${petName} got ${roundsCompleted} correct hits!`
+                  : `${petName} only got ${roundsCompleted}/15 correct hits`}
               </p>
 
               <div
-                className={`rounded-2xl p-5 mb-5 border ${score >= 20 ? 'bg-gradient-to-br from-green-50 to-emerald-50 border-green-100' : 'bg-gradient-to-br from-gray-50 to-gray-100 border-gray-200'}`}
+                className={`rounded-2xl p-5 mb-5 border ${roundsCompleted >= 15 ? 'bg-gradient-to-br from-green-50 to-emerald-50 border-green-100' : 'bg-gradient-to-br from-gray-50 to-gray-100 border-gray-200'}`}
                 style={{ animation: 'moleScorePopIn 0.6s ease-out 0.5s both' }}
               >
-                <p className={`text-5xl font-black ${score >= 20 ? 'text-green-600' : 'text-gray-400'}`}>{score}</p>
-                <p className={`text-sm font-semibold mt-1 ${score >= 20 ? 'text-green-400' : 'text-gray-400'}`}>score</p>
+                <p className={`text-5xl font-black ${roundsCompleted >= 15 ? 'text-green-600' : 'text-gray-400'}`}>{roundsCompleted}</p>
+                <p className={`text-sm font-semibold mt-1 ${roundsCompleted >= 15 ? 'text-green-400' : 'text-gray-400'}`}>correct hits</p>
               </div>
 
               {/* Missed Words */}
@@ -677,14 +747,12 @@ const PetWhackMole = ({ petImageUrl, petName, onGameEnd, onClose }) => {
               )}
 
               <p className="text-sm text-gray-600 mb-6">
-                {score >= 20
+                {roundsCompleted >= 15
                   ? 'Whack master! 🏆'
-                  : score >= 20
-                    ? 'Amazing reflexes! 🌟'
-                    : 'Need at least 20 score to earn XP. Try again! 💪'}
+                  : 'Need at least 15 correct hits to earn XP. Try again! 💪'}
               </p>
 
-              {score >= 20 ? (
+              {roundsCompleted >= 15 ? (
                 <button
                   onClick={() => onGameEnd(score)}
                   className="w-full py-3.5 bg-gradient-to-b from-green-500 to-green-600 hover:from-green-600 hover:to-green-700 text-white rounded-full font-bold text-lg shadow-lg border-b-4 border-green-700 active:border-b-0 active:mt-1 transition-all"

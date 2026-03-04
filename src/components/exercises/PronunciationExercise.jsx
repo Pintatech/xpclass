@@ -52,6 +52,7 @@ const PronunciationExercise = () => {
   const { canCreateContent } = usePermissions()
   const { startExercise, completeExerciseWithXP } = useProgress()
   const isTeacherView = canCreateContent()
+  const [teacherMode, setTeacherMode] = useState('review') // 'review' or 'do'
 
   // URL params
   const searchParams = new URLSearchParams(location.search)
@@ -417,7 +418,7 @@ const PronunciationExercise = () => {
   }
 
   const markExerciseCompleted = async () => {
-    if (!user || !exerciseId) return
+    if (!user || !exerciseId || isTeacherView) return
 
     // Calculate average pronunciation score
     const avgScore = questionResults.reduce((sum, r) => sum + (r.pronunciationScore || 0), 0) / questionResults.length
@@ -497,14 +498,30 @@ const PronunciationExercise = () => {
   }
 
   // Teacher view: show all pronunciation questions at once
-  if (isTeacherView) {
+  if (isTeacherView && teacherMode === 'review') {
     return (
       <div className="max-w-4xl mx-auto py-8 px-4">
         <div className="flex items-center justify-between mb-6">
           <h2 className="text-2xl font-bold text-gray-900">{exercise?.title || 'Pronunciation'}</h2>
-          <button onClick={() => navigate(-1)} className="flex items-center gap-2 px-4 py-2 text-gray-600 hover:text-gray-800 border rounded-lg">
-            <ArrowLeft className="w-4 h-4" /> Back
-          </button>
+          <div className="flex items-center gap-2">
+            <div className="flex bg-gray-100 rounded-lg p-1">
+              <button
+                onClick={() => setTeacherMode('review')}
+                className="px-3 py-1.5 text-sm font-medium rounded-md bg-white shadow text-blue-700"
+              >
+                Review
+              </button>
+              <button
+                onClick={() => setTeacherMode('do')}
+                className="px-3 py-1.5 text-sm font-medium rounded-md text-gray-600 hover:text-gray-800"
+              >
+                Do
+              </button>
+            </div>
+            <button onClick={() => navigate(-1)} className="flex items-center gap-2 px-4 py-2 text-gray-600 hover:text-gray-800 border rounded-lg">
+              <ArrowLeft className="w-4 h-4" /> Back
+            </button>
+          </div>
         </div>
         <div className="space-y-4">
           {questions.map((q, idx) => (
@@ -558,6 +575,25 @@ const PronunciationExercise = () => {
 
       <div className="relative px-4">
         <div className="max-w-4xl mx-auto space-y-6 relative z-20">
+
+        {isTeacherView && teacherMode === 'do' && (
+          <div className="flex items-center justify-between bg-amber-50 border border-amber-200 rounded-lg px-4 py-2">
+            <span className="text-sm text-amber-800 font-medium">Teacher Preview — No XP will be awarded</span>
+            <div className="flex bg-gray-100 rounded-lg p-1">
+              <button
+                onClick={() => setTeacherMode('review')}
+                className="px-3 py-1.5 text-sm font-medium rounded-md text-gray-600 hover:text-gray-800"
+              >
+                Review
+              </button>
+              <button
+                className="px-3 py-1.5 text-sm font-medium rounded-md bg-white shadow text-blue-700"
+              >
+                Do
+              </button>
+            </div>
+          </div>
+        )}
 
         {/* Header */}
         <div className="bg-white rounded-lg shadow-sm p-4 md:p-5 border border-gray-200">

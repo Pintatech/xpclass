@@ -38,6 +38,9 @@ const Leaderboard = () => {
   const [competitionItemId, setCompetitionItemId] = useState('')
   const [competitionItemInfo, setCompetitionItemInfo] = useState(null)
   const [scrambleRewardGems, setScrambleRewardGems] = useState(1)
+  const [maxAttempts, setMaxAttempts] = useState(0)
+  const [usedAttempts, setUsedAttempts] = useState(0)
+  const [competitionEndDate, setCompetitionEndDate] = useState('')
   const [settingsLoaded, setSettingsLoaded] = useState(false)
 
   const GAME_LABELS = {
@@ -45,6 +48,7 @@ const Leaderboard = () => {
     whackmole: 'Whack-a-Mole',
     catch: 'Catch Game',
     flappy: 'Flappy Pet',
+    astroblast: 'Astro Blast',
   }
 
   // Fetch leaderboard settings on mount
@@ -62,6 +66,8 @@ const Leaderboard = () => {
             'leaderboard_competition_game_type',
             'leaderboard_competition_item_id',
             'leaderboard_competition_reward_gems',
+            'leaderboard_competition_max_attempts',
+            'leaderboard_competition_end_date',
           ])
 
         let tabs = ['week', 'month', 'training']
@@ -71,6 +77,8 @@ const Leaderboard = () => {
         let gameType = 'scramble'
         let itemId = ''
         let gems = 1
+        let attempts = 0
+        let endDate = ''
 
         data?.forEach((row) => {
           switch (row.setting_key) {
@@ -95,6 +103,12 @@ const Leaderboard = () => {
             case 'leaderboard_competition_reward_gems':
               gems = parseInt(row.setting_value) || 1
               break
+            case 'leaderboard_competition_max_attempts':
+              attempts = parseInt(row.setting_value) || 0
+              break
+            case 'leaderboard_competition_end_date':
+              endDate = row.setting_value || ''
+              break
           }
         })
 
@@ -109,7 +123,28 @@ const Leaderboard = () => {
         setCompetitionGameType(gameType)
         setCompetitionItemId(itemId)
         setScrambleRewardGems(gems)
+        setMaxAttempts(attempts)
+        setCompetitionEndDate(endDate)
         setTimeframe(tabs.includes(defaultTab) ? defaultTab : tabs[0] || 'week')
+
+        // Fetch used attempts this week
+        if (attempts > 0 && user?.id && compType === 'game') {
+          const now = new Date()
+          const day = now.getDay()
+          const daysFromMonday = day === 0 ? 6 : day - 1
+          const weekStart = new Date(now)
+          weekStart.setDate(weekStart.getDate() - daysFromMonday)
+          const weekStartISO = weekStart.toISOString().split('T')[0] + 'T00:00:00+07:00'
+
+          const { count } = await supabase
+            .from('training_scores')
+            .select('*', { count: 'exact', head: true })
+            .eq('user_id', user.id)
+            .eq('game_type', gameType)
+            .gte('played_at', weekStartISO)
+
+          setUsedAttempts(count || 0)
+        }
 
         // Fetch item info if item competition
         if (compType === 'items' && itemId) {
@@ -222,8 +257,22 @@ const Leaderboard = () => {
       }
       const tick = () => {
         const now = getVietnamNow()
-        const end = (timeframe === 'week' || timeframe === 'training') ? getEndOfWeekVN(now) : getEndOfMonthVN(now)
+        let end
+        if (timeframe === 'training' && competitionEndDate) {
+          // Use admin-set end date (end of that day in VN time)
+          end = new Date(competitionEndDate + 'T23:59:59')
+        } else if (timeframe === 'training') {
+          // No end date set — no countdown
+          setCountdownText('')
+          return
+        } else {
+          end = timeframe === 'week' ? getEndOfWeekVN(now) : getEndOfMonthVN(now)
+        }
         const diff = end - now
+        if (diff <= 0) {
+          setCountdownText('Đã kết thúc')
+          return
+        }
         setCountdownText(formatCountdown(diff))
       }
       tick()
@@ -232,7 +281,7 @@ const Leaderboard = () => {
 
     start()
     return () => timer && clearInterval(timer)
-  }, [timeframe])
+  }, [timeframe, competitionEndDate])
 
   // Function to get level and badge info based on XP
   const getUserLevelInfo = (userXp) => {
@@ -767,6 +816,21 @@ const Leaderboard = () => {
                 )}
               </div>
             </div>
+
+            {maxAttempts > 0 && (
+              <div className="flex justify-center">
+                <div className={`inline-flex items-center gap-2 rounded-lg px-4 py-2 text-sm ${
+                  usedAttempts >= maxAttempts
+                    ? 'bg-red-50 border border-red-200 text-red-700'
+                    : 'bg-blue-50 border border-blue-200 text-blue-700'
+                }`}>
+                  {usedAttempts >= maxAttempts
+                    ? `Đã hết lượt chơi tuần này (${maxAttempts}/${maxAttempts})`
+                    : `Còn ${maxAttempts - usedAttempts} lượt chơi (${usedAttempts}/${maxAttempts})`
+                  }
+                </div>
+              </div>
+            )}
 
             {trainingData.length === 0 ? (
               <div className="text-center py-8 text-gray-500">

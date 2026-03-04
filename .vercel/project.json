@@ -1,1 +1,16 @@
-{"projectId":"prj_9RwfHy3wjtb68WsMcFj1LGiItg53","orgId":"team_KF3Wix2Zc4iBYyDPcd9fj59J","projectName":"momtek"}
+{
+  "projectId": "prj_MORCIJmNkBLkEiiUxaN8M6owOdYF",
+  "orgId": "team_o2p8rDHD4Eh2iECyjgWwDCNV",
+  "projectName": "xpclass",
+  "settings": {
+    "createdAt": 1758356873432,
+    "framework": "vite",
+    "devCommand": null,
+    "installCommand": "npm install",
+    "buildCommand": "node node_modules/vite/bin/vite.js build",
+    "outputDirectory": "dist",
+    "rootDirectory": null,
+    "directoryListing": false,
+    "nodeVersion": "22.x"
+  }
+}

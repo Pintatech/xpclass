@@ -70,6 +70,7 @@ const AIFillBlankExercise = () => {
   const [session, setSession] = useState(null)
   const [xpAwarded, setXpAwarded] = useState(0)
   const [questionStartTimes, setQuestionStartTimes] = useState({})
+  const [teacherMode, setTeacherMode] = useState('review') // 'review' or 'do'
 
   // Keep language in sync with exercise settings (must be before any early returns)
   const exerciseLanguage = exercise?.content?.settings?.language
@@ -285,7 +286,7 @@ const AIFillBlankExercise = () => {
           const searchParams = new URLSearchParams(location.search)
           const exerciseId = searchParams.get('exerciseId')
 
-          if (exerciseId && user) {
+          if (exerciseId && user && !isTeacherView) {
             const result = await completeExerciseWithXP(exerciseId, totalXP, {
               score: roundedScore,
               max_score: 100,
@@ -394,14 +395,30 @@ const AIFillBlankExercise = () => {
   const showResult = showResults[currentQuestionIndex]
 
   // Teacher view: show all questions at once
-  if (isTeacherView) {
+  if (isTeacherView && teacherMode === 'review') {
     return (
       <div className="max-w-4xl mx-auto py-8 px-4">
         <div className="flex items-center justify-between mb-6">
           <h2 className="text-2xl font-bold text-gray-900">{exercise?.title || 'AI Fill Blank'}</h2>
-          <button onClick={() => navigate(-1)} className="flex items-center gap-2 px-4 py-2 text-gray-600 hover:text-gray-800 border rounded-lg">
-            <ArrowLeft className="w-4 h-4" /> Back
-          </button>
+          <div className="flex items-center gap-2">
+            <button onClick={() => navigate(-1)} className="flex items-center gap-2 px-4 py-2 text-gray-600 hover:text-gray-800 border rounded-lg">
+              <ArrowLeft className="w-4 h-4" /> Back
+            </button>
+            <div className="flex bg-gray-100 rounded-lg p-1">
+              <button
+                onClick={() => setTeacherMode('review')}
+                className="px-3 py-1.5 text-sm font-medium rounded-md bg-white shadow text-blue-700"
+              >
+                Review
+              </button>
+              <button
+                onClick={() => setTeacherMode('do')}
+                className="px-3 py-1.5 text-sm font-medium rounded-md text-gray-600 hover:text-gray-800"
+              >
+                Do
+              </button>
+            </div>
+          </div>
         </div>
         {exercise?.content?.intro && String(exercise.content.intro).trim() && (
           <div className="mb-6 bg-blue-50 rounded-lg p-4 border border-blue-200">
@@ -455,6 +472,28 @@ const AIFillBlankExercise = () => {
 
       <div className="relative min-h-screen bg-white">
         <div className="relative z-20">
+
+      {/* Teacher Do Mode Banner */}
+      {isTeacherView && teacherMode === 'do' && (
+        <div className="max-w-4xl mx-auto mt-4 px-4">
+          <div className="flex items-center justify-between bg-amber-50 border border-amber-200 rounded-lg px-4 py-2">
+            <span className="text-sm text-amber-800 font-medium">Teacher Preview — No XP will be awarded</span>
+            <div className="flex bg-gray-100 rounded-lg p-1">
+              <button
+                onClick={() => setTeacherMode('review')}
+                className="px-3 py-1.5 text-sm font-medium rounded-md text-gray-600 hover:text-gray-800"
+              >
+                Review
+              </button>
+              <button
+                className="px-3 py-1.5 text-sm font-medium rounded-md bg-white shadow text-blue-700"
+              >
+                Do
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Main Content */}
       <div className="max-w-4xl mx-auto py-8 px-4">

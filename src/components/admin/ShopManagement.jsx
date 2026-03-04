@@ -16,6 +16,8 @@ const categoryOptions = [
   { value: 'frame', label: 'Frame' },
   { value: 'background', label: 'Background' },
   { value: 'pet', label: 'Pet' },
+  { value: 'spaceship', label: 'Spaceship' },
+  { value: 'hammer', label: 'Hammer' },
   { value: 'school', label: 'School Things' },
 ]
 

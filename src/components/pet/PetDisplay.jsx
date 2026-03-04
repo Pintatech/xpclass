@@ -17,6 +17,7 @@ import PetCatchGame from "./PetCatchGame";
 import PetFlappyGame from "./PetFlappyGame";
 import PetWordScramble from "./PetWordScramble";
 import PetWhackMole from "./PetWhackMole";
+import PetAstroBlast from "./PetAstroBlast";
 
 import { assetUrl } from '../../hooks/useBranding';
 // Pet chat messages - replace with your own!
@@ -74,6 +75,7 @@ const PetDisplay = () => {
   // Feed animation state
   const [feedAnimation, setFeedAnimation] = useState(null); // { food: '🍖', particles: [] }
   const petContainerRef = useRef(null);
+  const pendingAttemptId = useRef(null);
 
   // Play animation state
   const [playAnimation, setPlayAnimation] = useState(null); // { xpGained: 10, phase: 'active' }
@@ -82,7 +84,8 @@ const PetDisplay = () => {
   // Chat state
   const [playDisabled, setPlayDisabled] = useState(false);
   const [playCooldown, setPlayCooldown] = useState(0);
-  const [showGame, setShowGame] = useState(null); // null | 'picker' | 'catch' | 'flappy'
+  const [showGame, setShowGame] = useState(null); // null | 'picker' | 'catch' | 'flappy' | 'scramble' | 'whackmole' | 'astroblast'
+  const [enabledGames, setEnabledGames] = useState(['scramble', 'whackmole', 'astroblast']);
   const [showChat, setShowChat] = useState(false);
   const [chatInput, setChatInput] = useState("");
   const [chatMessages, setChatMessages] = useState([]);
@@ -97,6 +100,21 @@ const PetDisplay = () => {
     }
     fetchItemBonuses()
   }, [profile?.active_title, profile?.active_background_url, profile?.active_bowl_url])
+
+  // Fetch enabled training games
+  useEffect(() => {
+    const fetchEnabledGames = async () => {
+      const { data } = await supabase
+        .from('site_settings')
+        .select('setting_value')
+        .eq('setting_key', 'pet_training_enabled_games')
+        .single()
+      if (data?.setting_value) {
+        try { setEnabledGames(JSON.parse(data.setting_value)) } catch {}
+      }
+    }
+    fetchEnabledGames()
+  }, [])
 
   // Scroll chat to bottom when new messages arrive (only inside chat container)
   useEffect(() => {
@@ -316,35 +334,82 @@ const PetDisplay = () => {
     setShowGame('picker');
   };
 
+  // Record attempt at game START (score 0), update with real score on end.
+  // This way refresh/quit still counts as an attempt.
+  const recordAttemptStart = async (gameType) => {
+    if (!gameType || !user?.id) return;
+    const { data: settings } = await supabase
+      .from('site_settings')
+      .select('setting_key, setting_value')
+      .in('setting_key', [
+        'leaderboard_competition_active',
+        'leaderboard_competition_type',
+        'leaderboard_competition_game_type',
+        'leaderboard_competition_max_attempts',
+        'leaderboard_competition_end_date',
+      ]);
+
+    const settingsMap = {};
+    settings?.forEach(s => { settingsMap[s.setting_key] = s.setting_value; });
+
+    const isActive = settingsMap['leaderboard_competition_active'] !== 'false';
+    const compType = settingsMap['leaderboard_competition_type'] || 'game';
+    const activeGameType = settingsMap['leaderboard_competition_game_type'] || 'scramble';
+    const maxAttempts = parseInt(settingsMap['leaderboard_competition_max_attempts']) || 0;
+    const endDate = settingsMap['leaderboard_competition_end_date'] || '';
+
+    // Don't record if competition end date has passed
+    if (endDate && new Date() > new Date(endDate + 'T23:59:59+07:00')) {
+      pendingAttemptId.current = null;
+      return;
+    }
+
+    if (isActive && compType === 'game' && gameType === activeGameType) {
+      // Check attempt limit
+      if (maxAttempts > 0) {
+        const now = new Date();
+        const day = now.getDay();
+        const daysFromMonday = day === 0 ? 6 : day - 1;
+        const weekStart = new Date(now);
+        weekStart.setDate(weekStart.getDate() - daysFromMonday);
+        const weekStartISO = weekStart.toISOString().split('T')[0] + 'T00:00:00+07:00';
+
+        const { count } = await supabase
+          .from('training_scores')
+          .select('*', { count: 'exact', head: true })
+          .eq('user_id', user.id)
+          .eq('game_type', gameType)
+          .gte('played_at', weekStartISO);
+
+        if (count >= maxAttempts) {
+          pendingAttemptId.current = null;
+          return;
+        }
+      }
+
+      // Insert score 0 now — will update on game end
+      const { data } = await supabase.from('training_scores').insert({
+        user_id: user.id,
+        game_type: gameType,
+        score: 0
+      }).select('id').single();
+
+      pendingAttemptId.current = data?.id || null;
+    } else {
+      pendingAttemptId.current = null;
+    }
+  };
+
   const handleGameEnd = async (score, gameType) => {
     setShowGame(null);
 
-    // Save training score for leaderboard (only if game competition is active for this game type)
-    if (gameType && user?.id) {
-      const { data: settings } = await supabase
-        .from('site_settings')
-        .select('setting_key, setting_value')
-        .in('setting_key', [
-          'leaderboard_competition_active',
-          'leaderboard_competition_type',
-          'leaderboard_competition_game_type',
-        ]);
-
-      const settingsMap = {};
-      settings?.forEach(s => { settingsMap[s.setting_key] = s.setting_value; });
-
-      const isActive = settingsMap['leaderboard_competition_active'] !== 'false';
-      const compType = settingsMap['leaderboard_competition_type'] || 'game';
-      const activeGameType = settingsMap['leaderboard_competition_game_type'] || 'scramble';
-
-      if (isActive && compType === 'game' && gameType === activeGameType) {
-        supabase.from('training_scores').insert({
-          user_id: user.id,
-          game_type: gameType,
-          score
-        }).then(() => {});
-      }
+    // Update the pending attempt row with the real score
+    if (pendingAttemptId.current && score > 0) {
+      await supabase.from('training_scores')
+        .update({ score })
+        .eq('id', pendingAttemptId.current);
     }
+    pendingAttemptId.current = null;
 
     setPlayDisabled(true);
     setPlayCooldown(10);
@@ -1519,22 +1584,33 @@ const PetDisplay = () => {
             <h3 className="text-xl font-bold text-gray-800 mb-1">Choose Training Game</h3>
             <p className="text-sm text-gray-500 mb-5">Pick a mini-game to train {activePet.nickname || activePet.name}!</p>
             <div className="grid grid-cols-2 gap-3">
+              {enabledGames.includes('scramble') && (
               <button
-                onClick={() => setShowGame('scramble')}
+                onClick={() => { recordAttemptStart('scramble'); setShowGame('scramble'); }}
                 className="flex flex-col items-center gap-2 p-4 rounded-xl border-2 border-purple-200 hover:border-purple-400 hover:bg-purple-50 transition-all group"
               >
                 <img src={assetUrl('/image/dashboard/pet-scramble.jpg')} alt="Word Scramble" className="w-20 h-20 object-cover rounded-lg group-hover:scale-110 transition-transform" />
                 <span className="font-bold text-gray-800 text-xs">Word Scramble</span>
-                
               </button>
+              )}
+              {enabledGames.includes('whackmole') && (
               <button
-                onClick={() => setShowGame('whackmole')}
+                onClick={() => { recordAttemptStart('whackmole'); setShowGame('whackmole'); }}
                 className="flex flex-col items-center gap-2 p-4 rounded-xl border-2 border-green-200 hover:border-green-400 hover:bg-green-50 transition-all group"
               >
                 <img src={assetUrl('/pet-game/mole-normal.png')} alt="Whack-a-Mole" className="w-20 h-20 object-contain group-hover:scale-110 transition-transform" />
                 <span className="font-bold text-gray-800 text-xs">Whack-a-Mole</span>
-               
               </button>
+              )}
+              {enabledGames.includes('astroblast') && (
+              <button
+                onClick={() => { recordAttemptStart('astroblast'); setShowGame('astroblast'); }}
+                className="flex flex-col items-center gap-2 p-4 rounded-xl border-2 border-red-200 hover:border-red-400 hover:bg-red-50 transition-all group"
+              >
+                <img src="https://xpclass.vn/xpclass/image/inventory/spaceship/phantom-voyager.png" alt="Astro Blast" className="w-20 h-20 object-contain group-hover:scale-110 transition-transform" />
+                <span className="font-bold text-gray-800 text-xs">Astro Blast</span>
+              </button>
+              )}
             </div>
             <button
               onClick={() => setShowGame(null)}
@@ -1552,7 +1628,7 @@ const PetDisplay = () => {
           bowlImageUrl={profile?.active_bowl_url || "https://png.pngtree.com/png-clipart/20220111/original/pngtree-dog-food-bowl-png-image_7072429.png"}
           petName={activePet.nickname || activePet.name}
           onGameEnd={(score) => handleGameEnd(score, 'catch')}
-          onClose={() => { drainPetEnergy(5); setShowGame(null); }}
+          onClose={() => { drainPetEnergy(5); drainPetEnergy(5); setShowGame(null);; }}
         />
       )}
 
@@ -1570,7 +1646,7 @@ const PetDisplay = () => {
           })()}
           petName={activePet.nickname || activePet.name}
           onGameEnd={(score) => handleGameEnd(score, 'flappy')}
-          onClose={() => { drainPetEnergy(5); setShowGame(null); }}
+          onClose={() => { drainPetEnergy(5); drainPetEnergy(5); setShowGame(null);; }}
         />
       )}
 
@@ -1588,7 +1664,7 @@ const PetDisplay = () => {
           })()}
           petName={activePet.nickname || activePet.name}
           onGameEnd={(score) => handleGameEnd(score, 'scramble')}
-          onClose={() => { drainPetEnergy(5); setShowGame(null); }}
+          onClose={() => { drainPetEnergy(5); drainPetEnergy(5); setShowGame(null);; }}
         />
       )}
 
@@ -1604,8 +1680,28 @@ const PetDisplay = () => {
             return baseImage;
           })()}
           petName={activePet.nickname || activePet.name}
+          hammerSkinUrl={profile?.active_hammer_url}
           onGameEnd={(score) => handleGameEnd(score, 'whackmole')}
-          onClose={() => { drainPetEnergy(5); setShowGame(null); }}
+          onClose={() => { drainPetEnergy(5); drainPetEnergy(5); setShowGame(null);; }}
+        />
+      )}
+
+      {/* Astro Blast Mini-Game */}
+      {showGame === 'astroblast' && (
+        <PetAstroBlast
+          petImageUrl={(() => {
+            let baseImage = activePet.image_url;
+            if (activePet.evolution_stages && activePet.evolution_stage > 0) {
+              const stage = activePet.evolution_stages.find(s => s.stage === activePet.evolution_stage);
+              if (stage?.image_url) baseImage = stage.image_url;
+            }
+            return baseImage;
+          })()}
+          petName={activePet.nickname || activePet.name}
+          shipSkinUrl={profile?.active_spaceship_url}
+          shipLaserColor={profile?.active_spaceship_laser}
+          onGameEnd={(score) => handleGameEnd(score, 'astroblast')}
+          onClose={() => { drainPetEnergy(5); drainPetEnergy(5); setShowGame(null);; }}
         />
       )}
     </div>

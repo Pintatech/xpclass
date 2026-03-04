@@ -161,14 +161,16 @@ const ImageHotspotEditor = ({ content, onContentChange }) => {
       const updatedHotspots = [...hotspots, newHotspot]
       setHotspots(updatedHotspots)
 
-      // Auto-create matching label
-      const newLabel = {
-        id: `label_${Date.now()}`,
-        text: newHotspot.label,
-        type: 'correct',
-        hotspot_id: newHotspot.id
+      // Auto-create matching label (only for non-distractor hotspots)
+      if (!newHotspot.type || newHotspot.type === 'correct') {
+        const newLabel = {
+          id: `label_${Date.now()}`,
+          text: newHotspot.label,
+          type: 'correct',
+          hotspot_id: newHotspot.id
+        }
+        setLabels([...labels, newLabel])
       }
-      setLabels([...labels, newLabel])
     }
 
     setIsDrawing(false)
@@ -202,6 +204,31 @@ const ImageHotspotEditor = ({ content, onContentChange }) => {
       setLabels(labels.map(l =>
         l.hotspot_id === hotspotId ? { ...l, text: value } : l
       ))
+    }
+  }
+
+  const toggleHotspotType = (hotspotId) => {
+    const hotspot = hotspots.find(h => h.id === hotspotId)
+    if (!hotspot) return
+
+    const newType = hotspot.type === 'distractor' ? 'correct' : 'distractor'
+
+    setHotspots(hotspots.map(h =>
+      h.id === hotspotId ? { ...h, type: newType } : h
+    ))
+
+    if (newType === 'distractor') {
+      // Remove the correct label linked to this hotspot
+      setLabels(labels.filter(l => l.hotspot_id !== hotspotId))
+    } else {
+      // Re-create a correct label for this hotspot
+      const newLabel = {
+        id: `label_${Date.now()}`,
+        text: hotspot.label,
+        type: 'correct',
+        hotspot_id: hotspotId
+      }
+      setLabels([...labels, newLabel])
     }
   }
 
@@ -443,6 +470,7 @@ const ImageHotspotEditor = ({ content, onContentChange }) => {
                     const scaledWidth = width * imageScale
                     const scaledHeight = height * imageScale
                     const isSelected = selectedHotspot?.id === hotspot.id
+                    const isDistractorHotspot = hotspot.type === 'distractor'
 
                     return (
                       <g key={hotspot.id}>
@@ -451,8 +479,8 @@ const ImageHotspotEditor = ({ content, onContentChange }) => {
                           y={scaledY}
                           width={scaledWidth}
                           height={scaledHeight}
-                          fill={isSelected ? 'rgba(59, 130, 246, 0.3)' : 'rgba(255, 255, 255, 0.2)'}
-                          stroke={isSelected ? '#3b82f6' : '#10b981'}
+                          fill={isSelected ? 'rgba(59, 130, 246, 0.3)' : isDistractorHotspot ? 'rgba(239, 68, 68, 0.15)' : 'rgba(255, 255, 255, 0.2)'}
+                          stroke={isSelected ? '#3b82f6' : isDistractorHotspot ? '#ef4444' : '#10b981'}
                           strokeWidth={isSelected ? 3 : 2}
                           strokeDasharray="5,5"
                           onClick={() => setSelectedHotspot(hotspot)}
@@ -523,6 +551,19 @@ const ImageHotspotEditor = ({ content, onContentChange }) => {
                         <Trash2 className="w-4 h-4" />
                       </button>
                     </div>
+
+                    {/* Distractor toggle */}
+                    <label className="flex items-center gap-2 mb-2">
+                      <input
+                        type="checkbox"
+                        checked={hotspot.type === 'distractor'}
+                        onChange={() => toggleHotspotType(hotspot.id)}
+                        className="rounded text-red-600"
+                      />
+                      <span className={`text-xs font-medium ${hotspot.type === 'distractor' ? 'text-red-600' : 'text-gray-500'}`}>
+                        Distractor hotspot
+                      </span>
+                    </label>
 
                     {/* Position and Size Controls */}
                     <div className="grid grid-cols-2 gap-2 mb-2">

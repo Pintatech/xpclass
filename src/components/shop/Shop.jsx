@@ -223,6 +223,12 @@ const Shop = () => {
         const bowlUrl = item.item_data?.bowl_url || item.image_url
         await updateProfile({ active_bowl_url: bowlUrl })
         alert('Đã trang bị bowl!')
+      } else if (item.category === 'spaceship') {
+        await updateProfile({ active_spaceship_url: item.image_url, active_spaceship_laser: item.item_data?.laser_color || null })
+        alert('Đã trang bị spaceship!')
+      } else if (item.category === 'hammer') {
+        await updateProfile({ active_hammer_url: item.image_url })
+        alert('Đã trang bị hammer!')
       }
     } catch (err) {
       console.error('Error equipping item:', err)
@@ -235,13 +241,15 @@ const Shop = () => {
     { key: 'frame', label: 'Frame' },
     { key: 'background', label: 'Background' },
     { key: 'pet', label: 'Pet bowl' },
+    { key: 'spaceship', label: 'Spaceship' },
+    { key: 'hammer', label: 'Hammer' },
     { key: 'egg', label: 'Egg' },
     { key: 'school', label: 'School things' },
   ]
 
 
 //Item nào hiện nút trang bị
-  const equippableCategories = ['avatar', 'frame', 'background', 'pet']
+  const equippableCategories = ['avatar', 'frame', 'background', 'pet', 'spaceship', 'hammer']
 
   const isEquipped = (item) => {
     if (item.category === 'avatar') {
@@ -258,6 +266,12 @@ const Shop = () => {
     if (item.category === 'pet') {
       const bowlUrl = item.item_data?.bowl_url || item.image_url
       return profile?.active_bowl_url === bowlUrl
+    }
+    if (item.category === 'spaceship') {
+      return profile?.active_spaceship_url === item.image_url
+    }
+    if (item.category === 'hammer') {
+      return profile?.active_hammer_url === item.image_url
     }
     return false
   }

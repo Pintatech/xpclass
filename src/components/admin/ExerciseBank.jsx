@@ -54,6 +54,13 @@ const ExerciseBank = ({ readOnly = false }) => {
 
       if (error) throw error
       setFolders(data || [])
+      // Default to the first root folder instead of "All Exercises"
+      if (data?.length > 0 && !selectedFolder) {
+        const rootFolders = data.filter(f => !f.parent_folder_id).sort((a, b) => a.sort_order - b.sort_order)
+        if (rootFolders.length > 0) {
+          setSelectedFolder(rootFolders[0])
+        }
+      }
     } catch (error) {
       console.error('Error fetching folders:', error)
     }

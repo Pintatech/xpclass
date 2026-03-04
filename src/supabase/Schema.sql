@@ -116,6 +116,9 @@ CREATE TABLE public.users (
   active_frame_ratio text,
   active_background_url text,
   active_bowl_url text,
+  active_spaceship_url text,
+  active_spaceship_laser text,
+  active_hammer_url text,
   name_changed_at timestamp with time zone,
   CONSTRAINT users_pkey PRIMARY KEY (id),
   CONSTRAINT users_id_fkey FOREIGN KEY (id) REFERENCES auth.users(id)

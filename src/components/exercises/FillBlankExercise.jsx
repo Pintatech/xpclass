@@ -86,6 +86,7 @@ const FillBlankExercise = ({ testMode = false, exerciseData = null, onAnswersCol
   const [xpAwarded, setXpAwarded] = useState(0)
   const [wrongQuestionIndices, setWrongQuestionIndices] = useState([])
   const [startTime, setStartTime] = useState(Date.now())
+  const [teacherMode, setTeacherMode] = useState('review') // 'review' or 'do'
 
   // Pet tutor state
   const [showPetTutor, setShowPetTutor] = useState(false)
@@ -555,7 +556,7 @@ const FillBlankExercise = ({ testMode = false, exerciseData = null, onAnswersCol
       const bonusXP = roundedScore >= 95 ? Math.round(baseXP * 0.5) : roundedScore >= 90 ? Math.round(baseXP * 0.3) : 0
       const totalXP = baseXP + bonusXP
 
-      if (exerciseId && user) {
+      if (exerciseId && user && !isTeacherView) {
         await completeExerciseWithXP(exerciseId, totalXP, {
           score: roundedScore,
           max_score: 100,
@@ -998,11 +999,25 @@ const FillBlankExercise = ({ testMode = false, exerciseData = null, onAnswersCol
   }
 
   // Teacher view: read-only preview showing all questions with correct answers filled in
-  if (isTeacherView) {
+  if (isTeacherView && teacherMode === 'review') {
     return (
       <div className="max-w-4xl mx-auto py-8 px-4">
         <div className="flex items-center justify-between mb-6">
           <h2 className="text-2xl font-bold text-gray-900">{exercise?.title || 'Fill in the Blank'}</h2>
+          <div className="flex bg-gray-100 rounded-lg p-1">
+            <button
+              onClick={() => setTeacherMode('review')}
+              className="px-3 py-1.5 text-sm font-medium rounded-md bg-white shadow text-blue-700"
+            >
+              Review
+            </button>
+            <button
+              onClick={() => setTeacherMode('do')}
+              className="px-3 py-1.5 text-sm font-medium rounded-md text-gray-600 hover:text-gray-800"
+            >
+              Do
+            </button>
+          </div>
           <button onClick={() => navigate(-1)} className="flex items-center gap-2 px-4 py-2 text-gray-600 hover:text-gray-800 border rounded-lg">
             <ArrowLeft className="w-4 h-4" /> Back
           </button>
@@ -1178,6 +1193,25 @@ const FillBlankExercise = ({ testMode = false, exerciseData = null, onAnswersCol
           </div>
         )}
         <div className="max-w-4xl mx-auto space-y-6">
+          {/* Teacher Do Mode Banner */}
+          {isTeacherView && teacherMode === 'do' && (
+            <div className="flex items-center justify-between bg-amber-50 border border-amber-200 rounded-lg px-4 py-2">
+              <span className="text-sm text-amber-800 font-medium">Teacher Preview — No XP will be awarded</span>
+              <div className="flex bg-gray-100 rounded-lg p-1">
+                <button
+                  onClick={() => setTeacherMode('review')}
+                  className="px-3 py-1.5 text-sm font-medium rounded-md text-gray-600 hover:text-gray-800"
+                >
+                  Review
+                </button>
+                <button
+                  className="px-3 py-1.5 text-sm font-medium rounded-md bg-white shadow text-blue-700"
+                >
+                  Do
+                </button>
+              </div>
+            </div>
+          )}
           {/* Header */}
           <div className="bg-white rounded-lg shadow-sm p-4 md:p-5 border border-gray-200 mb-6">
             <div className="flex items-center justify-between gap-4">
@@ -1450,6 +1484,25 @@ const FillBlankExercise = ({ testMode = false, exerciseData = null, onAnswersCol
         </div>
       )}
       <div className="max-w-4xl mx-auto space-y-6">
+      {/* Teacher Do Mode Banner */}
+      {isTeacherView && teacherMode === 'do' && (
+        <div className="flex items-center justify-between bg-amber-50 border border-amber-200 rounded-lg px-4 py-2">
+          <span className="text-sm text-amber-800 font-medium">Teacher Preview — No XP will be awarded</span>
+          <div className="flex bg-gray-100 rounded-lg p-1">
+            <button
+              onClick={() => setTeacherMode('review')}
+              className="px-3 py-1.5 text-sm font-medium rounded-md text-gray-600 hover:text-gray-800"
+            >
+              Review
+            </button>
+            <button
+              className="px-3 py-1.5 text-sm font-medium rounded-md bg-white shadow text-blue-700"
+            >
+              Do
+            </button>
+          </div>
+        </div>
+      )}
       {/* Header */}
       <ExerciseHeader
         title={exercise?.title}

@@ -93,6 +93,7 @@ const MultipleChoiceExercise = ({ testMode = false, exerciseData = null, onAnswe
 
   // View mode state - read from exercise settings (force all-at-once in testMode)
   const isTeacherView = canCreateContent()
+  const [teacherMode, setTeacherMode] = useState('review') // 'review' or 'do'
   const [viewMode, setViewMode] = useState(testMode ? 'all-at-once' : 'one-by-one')
   const [allAnswers, setAllAnswers] = useState(() => (testMode && initialAnswers) ? initialAnswers : {}) // Object to store all answers: {questionIndex: selectedAnswerIndex}
   const [showAllResults, setShowAllResults] = useState(false)
@@ -551,7 +552,7 @@ const MultipleChoiceExercise = ({ testMode = false, exerciseData = null, onAnswe
 
 
   const markExerciseCompleted = async () => {
-    if (!user || !exerciseId) return
+    if (!user || !exerciseId || isTeacherView) return
 
     console.log(`🔍 markExerciseCompleted called - isRetryMode: ${isRetryMode}, questionResults.length: ${questionResults.length}`)
 
@@ -682,14 +683,30 @@ const MultipleChoiceExercise = ({ testMode = false, exerciseData = null, onAnswe
   }
 
   // Teacher view: read-only preview showing all questions with correct answers
-  if (isTeacherView) {
+  if (isTeacherView && teacherMode === 'review') {
     return (
       <div className="max-w-4xl mx-auto py-8 px-4">
         <div className="flex items-center justify-between mb-6">
           <h2 className="text-2xl font-bold text-gray-900">{exercise?.title || 'Multiple Choice'}</h2>
-          <button onClick={() => navigate(-1)} className="flex items-center gap-2 px-4 py-2 text-gray-600 hover:text-gray-800 border rounded-lg">
-            <ArrowLeft className="w-4 h-4" /> Back
-          </button>
+          <div className="flex items-center gap-3">
+            <div className="flex bg-gray-100 rounded-lg p-1">
+              <button
+                onClick={() => setTeacherMode('review')}
+                className="px-3 py-1.5 text-sm font-medium rounded-md bg-white shadow text-blue-700"
+              >
+                Review
+              </button>
+              <button
+                onClick={() => setTeacherMode('do')}
+                className="px-3 py-1.5 text-sm font-medium rounded-md text-gray-600 hover:text-gray-800"
+              >
+                Do
+              </button>
+            </div>
+            <button onClick={() => navigate(-1)} className="flex items-center gap-2 px-4 py-2 text-gray-600 hover:text-gray-800 border rounded-lg">
+              <ArrowLeft className="w-4 h-4" /> Back
+            </button>
+          </div>
         </div>
         {exercise?.content?.intro && String(exercise.content.intro).trim() && (
           <div className="mb-6 bg-blue-50 rounded-lg p-4 border border-blue-200">
@@ -849,6 +866,26 @@ const MultipleChoiceExercise = ({ testMode = false, exerciseData = null, onAnswe
 
       <div className="relative px-2 md:pt-2 pb-12">
         <div className="max-w-4xl mx-auto space-y-6 relative z-20">
+
+      {/* Teacher Do mode banner */}
+      {isTeacherView && teacherMode === 'do' && (
+        <div className="flex items-center justify-between bg-amber-50 border border-amber-200 rounded-lg px-4 py-2">
+          <span className="text-sm text-amber-800 font-medium">Teacher Preview — No XP will be awarded</span>
+          <div className="flex bg-gray-100 rounded-lg p-1">
+            <button
+              onClick={() => setTeacherMode('review')}
+              className="px-3 py-1.5 text-sm font-medium rounded-md text-gray-600 hover:text-gray-800"
+            >
+              Review
+            </button>
+            <button
+              className="px-3 py-1.5 text-sm font-medium rounded-md bg-white shadow text-blue-700"
+            >
+              Do
+            </button>
+          </div>
+        </div>
+      )}
 
       {/* Header - hide on celebration screen */}
       {!isQuizComplete && (
