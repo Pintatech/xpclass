@@ -175,6 +175,21 @@ const ExerciseList = () => {
     await fetchData();
   };
 
+  const handleEditExercise = async (exercise) => {
+    try {
+      const { data, error } = await supabase
+        .from('exercises')
+        .select('*')
+        .eq('id', exercise.id)
+        .single()
+      if (error) throw error
+      setEditingExercise(data)
+    } catch (err) {
+      console.error('Error fetching exercise for edit:', err)
+      setEditingExercise(exercise)
+    }
+  }
+
   const handleDeleteExercise = async (exercise) => {
     const confirmDelete = window.confirm(
       `Are you sure you want to remove the exercise "${exercise.title}" from this session?\n\nThis will only remove it from the session, not delete the exercise from the bank.`,
@@ -666,6 +681,12 @@ const ExerciseList = () => {
           {...props}
         />
       ),
+      speaking_assessment: (props) => (
+        <IconImg
+          src={assetUrl('/icon/exercise_type/pronunciation.svg')}
+          {...props}
+        />
+      ),
     };
     return icons[exerciseType] || ((props) => <BookOpen {...props} />);
   };
@@ -678,6 +699,7 @@ const ExerciseList = () => {
       dropdown: "text-indigo-600 bg-indigo-100",
       image_hotspot: "text-cyan-600 bg-cyan-100",
       pdf_worksheet: "text-rose-600 bg-rose-100",
+      speaking_assessment: "text-violet-600 bg-violet-100",
     };
     return colors[exerciseType] || "text-gray-600 bg-gray-100";
   };
@@ -776,6 +798,7 @@ const ExerciseList = () => {
       pronunciation: "/study/pronunciation",
       image_hotspot: "/study/image-hotspot",
       pdf_worksheet: "/study/pdf-worksheet",
+      speaking_assessment: "/study/speaking-assessment",
     };
 
     const basePath = paths[exercise.exercise_type] || "/study/flashcard";
@@ -1120,7 +1143,7 @@ const ExerciseList = () => {
                   <button
                     onClick={(e) => {
                       e.stopPropagation();
-                      setEditingExercise(exercise);
+                      handleEditExercise(exercise);
                     }}
                     className="p-1 text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded transition-colors"
                     title="Edit exercise"
@@ -1474,7 +1497,7 @@ const ExerciseList = () => {
             <button
               onClick={(e) => {
                 e.stopPropagation();
-                setEditingExercise(exercise);
+                handleEditExercise(exercise);
               }}
               className="p-1 bg-white rounded-full shadow-lg hover:bg-gray-100 transition-colors"
               title="Edit exercise"

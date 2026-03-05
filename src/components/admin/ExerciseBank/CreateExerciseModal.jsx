@@ -10,6 +10,7 @@ import SimpleDropdownEditor from '../editors/SimpleDropdownEditor'
 import PronunciationEditor from '../editors/PronunciationEditor'
 import ImageHotspotEditor from '../editors/ImageHotspotEditor'
 import PDFWorksheetEditor from '../editors/PDFWorksheetEditor'
+import SpeakingAssessmentEditor from '../editors/SpeakingAssessmentEditor'
 
 const CreateExerciseModal = ({ folders, selectedFolder, onClose, onCreated, allowedTypes = null }) => {
   const [formData, setFormData] = useState({
@@ -36,7 +37,8 @@ const CreateExerciseModal = ({ folders, selectedFolder, onClose, onCreated, allo
     { value: 'dropdown', label: 'Dropdown', icon: ChevronDown },
     { value: 'ai_fill_blank', label: 'Fill in AI Score', icon: Brain },
     { value: 'image_hotspot', label: 'Image Hotspot', icon: Image },
-    { value: 'pdf_worksheet', label: 'PDF Worksheet', icon: FileText }
+    { value: 'pdf_worksheet', label: 'PDF Worksheet', icon: FileText },
+    { value: 'speaking_assessment', label: 'Speaking Assessment', icon: Mic },
   ]
   const exerciseTypes = allowedTypes
     ? allExerciseTypes.filter(t => allowedTypes.includes(t.value))
@@ -339,6 +341,15 @@ const CreateExerciseModal = ({ folders, selectedFolder, onClose, onCreated, allo
               <PDFWorksheetEditor
                 content={formData.content}
                 onContentChange={(content) => setFormData(prev => ({ ...prev, content }))}
+              />
+            )}
+
+            {formData.exercise_type === 'speaking_assessment' && (
+              <SpeakingAssessmentEditor
+                questions={formData.content.questions || []}
+                level={formData.content.level || 'middle'}
+                onQuestionsChange={(questions) => handleContentChange('questions', questions)}
+                onLevelChange={(level) => handleContentChange('level', level)}
               />
             )}
           </div>

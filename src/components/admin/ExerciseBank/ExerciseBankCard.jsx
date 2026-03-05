@@ -87,9 +87,40 @@ const ExerciseBankCard = ({ exercise, viewMode, onUpdate, onEdit, readOnly = fal
         return 'AI Fill Blank'
       case 'pdf_worksheet':
         return 'PDF Worksheet'
+      case 'speaking_assessment':
+        return 'Speaking Assessment'
       default:
         return 'Exercise'
     }
+  }
+
+  const getContentPreview = (exercise) => {
+    const c = exercise.content
+    if (!c) return 'No content yet'
+    const qs = c.questions || c.cards || c.flashcards || []
+    const count = qs.length
+    if (count === 0) return 'No questions yet'
+    const first = qs[0]
+    let firstText = ''
+    switch (exercise.exercise_type) {
+      case 'flashcard':
+        firstText = first.front || first.term || ''
+        break
+      case 'pronunciation':
+        firstText = first.text || ''
+        break
+      case 'speaking_assessment':
+        firstText = first.prompt || ''
+        break
+      case 'pdf_worksheet':
+        return c.pdf_url ? `PDF: ${count} question${count !== 1 ? 's' : ''}` : 'PDF worksheet'
+      default:
+        firstText = first.question || first.prompt || first.text || first.sentence || ''
+    }
+    // Strip HTML tags
+    const clean = firstText.replace(/<[^>]*>/g, '').trim()
+    const preview = clean.length > 80 ? clean.substring(0, 80) + '…' : clean
+    return `${count} question${count !== 1 ? 's' : ''}${preview ? ` · ${preview}` : ''}`
   }
 
   const getDifficultyColor = (level) => {
@@ -131,6 +162,8 @@ const ExerciseBankCard = ({ exercise, viewMode, onUpdate, onEdit, readOnly = fal
           return `/study/image-hotspot?exerciseId=${exercise.id}`
         case 'pdf_worksheet':
           return `/study/pdf-worksheet?exerciseId=${exercise.id}`
+        case 'speaking_assessment':
+          return `/study/speaking-assessment?exerciseId=${exercise.id}`
         default:
           return null
       }
@@ -543,11 +576,7 @@ const ExerciseBankCard = ({ exercise, viewMode, onUpdate, onEdit, readOnly = fal
         {/* Content Preview */}
         <div className="bg-gray-50 rounded-lg p-3 mb-3 min-h-[60px]">
           <p className="text-xs text-gray-600 line-clamp-3">
-            {/* Simple content preview */}
-            {exercise.content && typeof exercise.content === 'object'
-              ? JSON.stringify(exercise.content).substring(0, 100) + '...'
-              : 'Exercise content'
-            }
+            {getContentPreview(exercise)}
           </p>
         </div>
 
