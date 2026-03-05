@@ -1,6 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react'
-import { Plus, Trash2, Wand2, Eye, EyeOff, HelpCircle, Upload, Copy, Image as ImageIcon, Link as LinkIcon, Music } from 'lucide-react'
-import RichTextRenderer from '../../ui/RichTextRenderer'
+import { Plus, Trash2, Eye, EyeOff, HelpCircle, Upload, Copy, Image as ImageIcon, Link as LinkIcon, Music } from 'lucide-react'
 
 // Convert simple markdown/HTML to safe HTML for preview
 const markdownToHtml = (text) => {
@@ -40,8 +39,6 @@ const renderQuestionWithDropZones = (questionText, dropZones, renderDropZone) =>
 
 const SmartDragDropEditor = ({ questions, onQuestionsChange }) => {
   const [localQuestions, setLocalQuestions] = useState([])
-  const [phraseInput, setPhraseInput] = useState('')
-  const [distractors, setDistractors] = useState('')
   const [previewMode, setPreviewMode] = useState(false)
   const [bulkImportMode, setBulkImportMode] = useState(false)
   const [bulkText, setBulkText] = useState('')
@@ -144,25 +141,24 @@ const SmartDragDropEditor = ({ questions, onQuestionsChange }) => {
     }
   }
 
-  const addQuestionFromPhrase = () => {
-    if (!phraseInput.trim()) return
-
-    const distractorWords = distractors
-      .split(',')
-      .map(word => word.trim())
-      .filter(word => word.length > 0)
-
-    const newQuestion = generateQuestion(phraseInput, distractorWords)
-    
-    if (newQuestion) {
-      const updatedQuestions = [...localQuestions, newQuestion]
-      setLocalQuestions(updatedQuestions)
-      onQuestionsChange(updatedQuestions)
-      
-      // Clear inputs
-      setPhraseInput('')
-      setDistractors('')
+  const addQuestion = () => {
+    const newQuestion = {
+      id: `q${Date.now()}`,
+      question: '',
+      items: [],
+      drop_zones: [],
+      correct_order: [],
+      explanation: '',
+      settings: {
+        allow_undo: true,
+        show_hints: true,
+        max_attempts: 3,
+        time_limit: 300
+      }
     }
+    const updatedQuestions = [...localQuestions, newQuestion]
+    setLocalQuestions(updatedQuestions)
+    onQuestionsChange(updatedQuestions)
   }
 
   const removeQuestion = (questionId) => {
@@ -171,31 +167,102 @@ const SmartDragDropEditor = ({ questions, onQuestionsChange }) => {
     onQuestionsChange(updatedQuestions)
   }
 
+  // Convert internal [DROP_ZONE_xxx] format back to [word] for editing
+  const toEditableText = (question) => {
+    if (!question.question) return ''
+    let text = question.question
+    question.drop_zones?.forEach(zone => {
+      text = text.replace(`[DROP_ZONE_${zone.id}]`, `[${zone.word}]`)
+    })
+    return text
+  }
+
+  // When user edits the raw text, auto-detect [brackets] and rebuild drop zones + correct items
+  const updateQuestionText = (questionId, rawText) => {
+    const question = localQuestions.find(q => q.id === questionId)
+    if (!question) return
+
+    // Parse [bracket] words from raw text
+    const bracketRegex = /\[([^\]]+)\]/g
+    const bracketWords = []
+    let match
+    while ((match = bracketRegex.exec(rawText)) !== null) {
+      // Skip existing DROP_ZONE references and media tags
+      if (!match[1].startsWith('DROP_ZONE_')) {
+        bracketWords.push(match[1])
+      }
+    }
+
+    // Build drop zones and internal question text
+    let questionText = rawText
+    const dropZones = []
+    let zoneIndex = 1
+
+    bracketWords.forEach(word => {
+      const zoneId = `zone_${zoneIndex}`
+      // Replace first occurrence of [word] with [DROP_ZONE_xxx]
+      questionText = questionText.replace(`[${word}]`, `[DROP_ZONE_${zoneId}]`)
+      dropZones.push({
+        id: zoneId,
+        label: `Drop ${word} here`,
+        word: word,
+        position: zoneIndex - 1
+      })
+      zoneIndex++
+    })
+
+    // Build correct items from bracket words, reuse existing IDs where possible
+    const existingCorrectItems = question.items.filter(i => i.type === 'correct')
+    const correctItems = bracketWords.map((word, idx) => {
+      const existing = existingCorrectItems.find(i => i.text === word)
+      return existing || {
+        id: `item_${idx + 1}`,
+        text: word,
+        type: 'correct'
+      }
+    })
+
+    // Keep distractors
+    const distractors = question.items.filter(i => i.type === 'distractor')
+    const allItems = [...correctItems, ...distractors]
+
+    // Build correct order
+    const correctOrder = dropZones.map(zone =>
+      allItems.find(item => item.text === zone.word)?.id
+    ).filter(Boolean)
+
+    const updatedQuestions = localQuestions.map(q =>
+      q.id === questionId
+        ? { ...q, question: questionText, drop_zones: dropZones, items: allItems, correct_order: correctOrder }
+        : q
+    )
+    setLocalQuestions(updatedQuestions)
+    onQuestionsChange(updatedQuestions)
+  }
+
   const updateQuestion = (questionId, field, value) => {
-    const updatedQuestions = localQuestions.map(q => 
+    const updatedQuestions = localQuestions.map(q =>
       q.id === questionId ? { ...q, [field]: value } : q
     )
     setLocalQuestions(updatedQuestions)
     onQuestionsChange(updatedQuestions)
   }
 
-  const addDistractor = (questionId) => {
+  const addItem = (questionId, type = 'distractor') => {
     const question = localQuestions.find(q => q.id === questionId)
     if (!question) return
 
-    const newDistractor = {
-      id: `distractor_${Date.now()}`,
-      text: 'New distractor',
-      type: 'distractor'
+    const newItem = {
+      id: `${type}_${Date.now()}`,
+      text: type === 'correct' ? 'New item' : 'New distractor',
+      type
     }
 
-    const updatedQuestion = {
-      ...question,
-      items: [...question.items, newDistractor]
-    }
-
-    updateQuestion(questionId, 'items', updatedQuestion.items)
+    const updatedItems = [...question.items, newItem]
+    updateQuestion(questionId, 'items', updatedItems)
   }
+
+  const addDistractor = (questionId) => addItem(questionId, 'distractor')
 
   const removeItem = (questionId, itemId) => {
     const question = localQuestions.find(q => q.id === questionId)
@@ -523,8 +590,16 @@ const SmartDragDropEditor = ({ questions, onQuestionsChange }) => {
         <div className="flex gap-2">
           <button
             type="button"
-            onClick={() => setBulkImportMode(!bulkImportMode)}
+            onClick={addQuestion}
             className="flex items-center gap-2 px-3 py-2 text-sm bg-blue-600 text-white hover:bg-blue-700 rounded-lg"
+          >
+            <Plus className="w-4 h-4" />
+            Add Question
+          </button>
+          <button
+            type="button"
+            onClick={() => setBulkImportMode(!bulkImportMode)}
+            className="flex items-center gap-2 px-3 py-2 text-sm bg-gray-100 hover:bg-gray-200 rounded-lg"
           >
             <Upload className="w-4 h-4" />
             Bulk Import
@@ -550,54 +625,6 @@ const SmartDragDropEditor = ({ questions, onQuestionsChange }) => {
         </div>
       </div>
 
-      {/* Quick Add Section */}
-      <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
-        <h4 className="font-medium text-blue-800 mb-3">Quick Add Question</h4>
-        
-        <div className="space-y-3">
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">
-              Phrase with dragable words
-            </label>
-            <input
-              type="text"
-              value={phraseInput}
-              onChange={(e) => setPhraseInput(e.target.value)}
-              placeholder="Hello [my] [name] [is] John"
-              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-            />
-            <p className="text-xs text-gray-500 mt-1">
-              Put words you want to be dragable in [brackets]
-            </p>
-          </div>
-
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">
-              Distractors (optional)
-            </label>
-            <input
-              type="text"
-              value={distractors}
-              onChange={(e) => setDistractors(e.target.value)}
-              placeholder="wrong, incorrect, false"
-              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-            />
-            <p className="text-xs text-gray-500 mt-1">
-              Separate multiple distractors with commas
-            </p>
-          </div>
-
-          <button
-            type="button"
-            onClick={addQuestionFromPhrase}
-            disabled={!phraseInput.trim()}
-            className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:bg-gray-400 disabled:cursor-not-allowed"
-          >
-            <Wand2 className="w-4 h-4" />
-            Generate Question
-          </button>
-        </div>
-      </div>
 
       {/* Bulk Import Mode */}
       {bulkImportMode && (
@@ -717,12 +744,12 @@ She [has] [been] [studying] English for 3 years`}
                           </button>
                         </div>
                         <textarea
-                          value={question.question}
-                          onChange={(e) => updateQuestion(question.id, 'question', e.target.value)}
+                          value={toEditableText(question)}
+                          onChange={(e) => updateQuestionText(question.id, e.target.value)}
                           ref={(el) => { questionTextareasRef.current[index] = el }}
                           className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                           rows={3}
-                          placeholder="Enter question text with [words] in brackets for dragable items..."
+                          placeholder="My [name] is [Kevin] — words in [brackets] become drop zones"
                         />
                       </div>
 
@@ -772,7 +799,7 @@ She [has] [been] [studying] English for 3 years`}
                           <button
                             type="button"
                             onClick={() => addDistractor(question.id)}
-                            className="flex items-center gap-1 text-sm text-blue-600 hover:text-blue-800"
+                            className="flex items-center gap-1 text-sm text-red-500 hover:text-red-700"
                           >
                             <Plus className="w-4 h-4" />
                             Add Distractor

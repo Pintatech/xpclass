@@ -4,6 +4,7 @@ import LeftSidebar from './navigation/LeftSidebar'
 import BottomNavigation from './navigation/BottomNavigation'
 import ItemDropNotification from './inventory/ItemDropNotification'
 import ChestDropNotification from './inventory/ChestDropNotification'
+import NotificationModal from './notifications/NotificationModal'
 import LoadingSpinner from './ui/LoadingSpinner'
 
 const Layout = () => {
@@ -42,6 +43,7 @@ const Layout = () => {
       {/* Item Drop Notification (global) */}
       <ItemDropNotification />
       <ChestDropNotification />
+      <NotificationModal />
 
       {/* Left Sidebar - Desktop and Mobile */}
       {!hideSidebar && <LeftSidebar />}

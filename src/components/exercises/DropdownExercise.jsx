@@ -13,6 +13,16 @@ import ExerciseHeader from '../ui/ExerciseHeader'
 import CelebrationScreen from '../ui/CelebrationScreen'
 
 import { assetUrl } from '../../hooks/useBranding';
+
+// Shuffle array (Fisher-Yates)
+const shuffleArray = (arr) => {
+  const a = [...arr]
+  for (let i = a.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [a[i], a[j]] = [a[j], a[i]]
+  }
+  return a
+}
 // Theme-based side decoration images for PC
 const themeSideImages = {
   blue: {
@@ -77,6 +87,7 @@ const DropdownExercise = ({ testMode = false, exerciseData = null, onAnswersColl
   const [hasPlayedPassAudio, setHasPlayedPassAudio] = useState(false)
   const [xpAwarded, setXpAwarded] = useState(0)
   const [challengeStartTime, setChallengeStartTime] = useState(null)
+  const shuffledOptionsRef = useRef({})
   const [teacherMode, setTeacherMode] = useState('review') // 'review' or 'do'
 
   const questions = exercise?.content?.questions || []
@@ -178,7 +189,18 @@ const DropdownExercise = ({ testMode = false, exerciseData = null, onAnswersColl
       })
       setUserAnswers(initialAnswers)
     }
+    // Reset shuffled options cache when questions change
+    shuffledOptionsRef.current = {}
   }, [questions])
+
+  // Get shuffled options for a dropdown, cached so order stays stable
+  const getShuffledOptions = (qIndex, dIndex, options) => {
+    const key = `${qIndex}-${dIndex}`
+    if (!shuffledOptionsRef.current[key]) {
+      shuffledOptionsRef.current[key] = shuffleArray(options)
+    }
+    return shuffledOptionsRef.current[key]
+  }
 
   const loadExercise = async () => {
     try {
@@ -522,7 +544,8 @@ const DropdownExercise = ({ testMode = false, exerciseData = null, onAnswersColl
           if (!dropdown) return null
 
           const selectedValue = userAnswers[questionIndex]?.[currentDropdownIndex] || ''
-          const allOptions = [...new Set([...(dropdown.options || []), dropdown.correct_answer])].filter(opt => opt && opt.trim())
+          const uniqueOptions = [...new Set([...(dropdown.options || []), dropdown.correct_answer])].filter(opt => opt && opt.trim())
+          const allOptions = getShuffledOptions(questionIndex, currentDropdownIndex, uniqueOptions)
 
           return (
             <span key={index} className="inline-block mx-1">
@@ -656,7 +679,8 @@ const DropdownExercise = ({ testMode = false, exerciseData = null, onAnswersColl
         const selectedValue = userAnswers[currentQuestionIndex]?.[currentDropdownIndex] || ''
 
         // Ensure correct answer is in options, and create combined unique list
-        const allOptions = [...new Set([...(dropdown.options || []), dropdown.correct_answer])].filter(opt => opt && opt.trim())
+        const uniqueOptions = [...new Set([...(dropdown.options || []), dropdown.correct_answer])].filter(opt => opt && opt.trim())
+        const allOptions = getShuffledOptions(currentQuestionIndex, currentDropdownIndex, uniqueOptions)
 
         return (
           <span key={index} className="inline-block mx-1">

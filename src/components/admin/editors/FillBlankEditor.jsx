@@ -66,6 +66,66 @@ const FillBlankEditor = ({ questions, onQuestionsChange, settings, onSettingsCha
   }
 
   const updateQuestion = (index, field, value) => {
+    if (field === 'question') {
+      const existingBlanks = localQuestions[index]?.blanks || []
+
+      // Walk through the text left-to-right, building blanks in order
+      // Existing _____ keep their blank entry; new [brackets] create new entries
+      const resultBlanks = []
+      let displayText = ''
+      let existingBlankIdx = 0
+      let pos = 0
+      const text = value
+
+      while (pos < text.length) {
+        // Check for existing _____ (5+ underscores)
+        const underscoreMatch = text.slice(pos).match(/^_{5,}/)
+        if (underscoreMatch) {
+          displayText += '_____'
+          // Preserve existing blank data at this position
+          resultBlanks.push(existingBlanks[existingBlankIdx] || { text: '', answer: '', case_sensitive: false })
+          existingBlankIdx++
+          pos += underscoreMatch[0].length
+          continue
+        }
+
+        // Check for [bracket] with hint: [answer] (hint) — space required before ( to distinguish from markdown links
+        const hintMatch = text.slice(pos).match(/^(?<!!)\[([^\]]+)\]\s+\(([^)]+)\)/)
+        if (hintMatch && (pos === 0 || text[pos - 1] !== '!')) {
+          const answers = hintMatch[1].split(/[|]/).map(a => a.trim()).filter(a => a)
+          resultBlanks.push({ text: hintMatch[2], answer: answers.join(', '), case_sensitive: false })
+          displayText += `_____ (${hintMatch[2]})`
+          pos += hintMatch[0].length
+          continue
+        }
+
+        // Check for [bracket] without hint — not followed by (
+        const bracketMatch = text.slice(pos).match(/^(?<!!)\[([^\]]+)\]/)
+        if (bracketMatch && (pos === 0 || text[pos - 1] !== '!')) {
+          // Make sure it's not a markdown link [text](url)
+          const afterBracket = text.slice(pos + bracketMatch[0].length)
+          if (!afterBracket.match(/^\s*\(/)) {
+            const answers = bracketMatch[1].split(/[|]/).map(a => a.trim()).filter(a => a)
+            resultBlanks.push({ text: '', answer: answers.join(', '), case_sensitive: false })
+            displayText += '_____'
+            pos += bracketMatch[0].length
+            continue
+          }
+        }
+
+        // Regular character
+        displayText += text[pos]
+        pos++
+      }
+
+      const updatedQuestions = localQuestions.map((q, i) =>
+        i === index ? { ...q, question: displayText, blanks: resultBlanks } : q
+      )
+      setLocalQuestions(updatedQuestions)
+      onQuestionsChange(updatedQuestions)
+      return
+    }
+
     const updatedQuestions = localQuestions.map((q, i) =>
       i === index ? { ...q, [field]: value } : q
     )
@@ -825,7 +885,7 @@ B. Fill in the blanks with the correct form.
                 ref={(el) => { questionTextareasRef.current[index] = el }}
                      className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
                      rows={3}
-                     placeholder="Enter your question with blanks (use exactly 5 underscores _____ for blanks)... Example: By the time I arrived, everyone _____ (leave)! Steve _____ (already / see) the film, so he _____ (not / come) with us."
+                     placeholder="Type [answer] for blanks, e.g.: By the time I arrived, everyone [had left] (leave)! Use | for multiple answers: [I'm|I am]. You can also use _____ manually."
               />
               {/* Preview */}
               {question.question && (
