@@ -273,28 +273,6 @@ const FillBlankEditor = ({ questions, onQuestionsChange, settings, onSettingsCha
     setAudioLoop(false)
   }
 
-  const addBlank = (questionIndex) => {
-    const updatedQuestions = localQuestions.map((q, i) =>
-      i === questionIndex
-        ? { ...q, blanks: [...q.blanks, { text: '', answer: '', case_sensitive: false }] }
-        : q
-    )
-    setLocalQuestions(updatedQuestions)
-    onQuestionsChange(updatedQuestions)
-  }
-
-  const removeBlank = (questionIndex, blankIndex) => {
-    const question = localQuestions[questionIndex]
-    if (question.blanks.length <= 1) return // Keep at least 1 blank
-
-    const updatedQuestions = localQuestions.map((q, i) =>
-      i === questionIndex
-        ? { ...q, blanks: q.blanks.filter((_, bi) => bi !== blankIndex) }
-        : q
-    )
-    setLocalQuestions(updatedQuestions)
-    onQuestionsChange(updatedQuestions)
-  }
 
   const updateBlank = (questionIndex, blankIndex, field, value) => {
     const updatedQuestions = localQuestions.map((q, i) =>
@@ -891,75 +869,66 @@ B. Fill in the blanks with the correct form.
               {question.question && (
                 <div className="mt-2 p-3 bg-gray-50 border border-gray-200 rounded-lg">
                   <p className="text-sm text-gray-600 mb-1">Preview:</p>
-                  <div className="prose max-w-none">
-                    <RichTextRenderer content={markdownToHtml(question.question)} allowImages allowLinks />
+                  <div className="prose max-w-none leading-relaxed">
+                    {(() => {
+                      let blankIdx = 0
+                      return question.question.split(/(_{5})/).map((part, i) => {
+                        if (part === '_____') {
+                          const currentBlank = question.blanks[blankIdx]
+                          const answer = currentBlank?.answer?.split(',')[0]?.trim() || ''
+                          const width = Math.max(60, answer.length * 10 + 24)
+                          blankIdx++
+                          return (
+                            <span key={i} className="inline-block mx-1 align-baseline">
+                              <span
+                                className="inline-block border-b-2 border-blue-400 bg-blue-50 rounded-t px-2 py-0.5 text-blue-400 text-sm text-center"
+                                style={{ minWidth: `${width}px` }}
+                              >
+                                {blankIdx}
+                              </span>
+                            </span>
+                          )
+                        }
+                        return <RichTextRenderer key={i} content={markdownToHtml(part)} allowImages allowLinks className="inline" />
+                      })
+                    })()}
                   </div>
                 </div>
               )}
             </div>
 
             {/* Blanks */}
-            <div className="mb-4">
-              <div className="flex justify-between items-center mb-2">
-                <label className="block text-sm font-medium text-gray-700">
-                  Blanks
+            {question.blanks.length > 0 && (
+              <div className="mb-4">
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Blanks ({question.blanks.length})
                 </label>
-                <button
-                  type="button"
-                  onClick={() => addBlank(index)}
-                  className="text-blue-600 hover:text-blue-800 text-sm"
-                >
-                  <Plus className="w-4 h-4 inline mr-1" />
-                  Add Blank
-                </button>
-              </div>
-              <div className="space-y-3">
-                {question.blanks.map((blank, blankIndex) => (
-                  <div key={blankIndex} className="border border-gray-300 rounded-lg p-3 bg-white">
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-                      {/* Hint input removed per request */}
-                      <div className="hidden">
-                        <input type="hidden" value={blank.text} readOnly />
-                      </div>
-                       <div className="md:col-span-2">
-                         <label className="block text-sm font-medium text-gray-700 mb-1">
-                           Correct Answers
-                         </label>
-                         <input
-                           type="text"
-                           value={blank.answer}
-                           onChange={(e) => updateBlank(index, blankIndex, 'answer', e.target.value)}
-                           className="w-full p-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
-                           placeholder="I'm, I am, I have been"
-                         />
-                         <p className="text-xs text-gray-500 mt-1">Separate multiple correct answers with commas</p>
-                       </div>
-                    </div>
-                    <div className="mt-2 flex items-center justify-between">
-                      <label className="flex items-center">
+                <div className="space-y-1.5">
+                  {question.blanks.map((blank, blankIndex) => (
+                    <div key={blankIndex} className="flex items-center gap-2">
+                      <span className="text-xs font-medium text-blue-600 bg-blue-50 px-1.5 py-0.5 rounded w-8 text-center flex-shrink-0">{blankIndex + 1}</span>
+                      <input
+                        type="text"
+                        value={blank.answer}
+                        onChange={(e) => updateBlank(index, blankIndex, 'answer', e.target.value)}
+                        className="flex-1 px-2 py-1.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 text-sm"
+                        placeholder="correct answer(s), comma separated"
+                      />
+                      {blank.text && <span className="text-xs text-gray-400 flex-shrink-0">({blank.text})</span>}
+                      <label className="flex items-center gap-1 flex-shrink-0">
                         <input
                           type="checkbox"
                           checked={blank.case_sensitive}
                           onChange={(e) => updateBlank(index, blankIndex, 'case_sensitive', e.target.checked)}
-                          className="mr-2"
+                          className="w-3.5 h-3.5"
                         />
-                        <span className="text-sm text-gray-700">Case sensitive</span>
+                        <span className="text-xs text-gray-500">Aa</span>
                       </label>
-                      {question.blanks.length > 1 && (
-                        <button
-                          type="button"
-                          onClick={() => removeBlank(index, blankIndex)}
-                          className="text-red-600 hover:text-red-800 text-sm"
-                        >
-                          <Trash2 className="w-4 h-4 inline mr-1" />
-                          Remove
-                        </button>
-                      )}
                     </div>
-                  </div>
-                ))}
+                  ))}
+                </div>
               </div>
-            </div>
+            )}
 
             {/* Explanation */}
             <div>
