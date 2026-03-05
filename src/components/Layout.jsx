@@ -23,7 +23,8 @@ const Layout = () => {
     '/study/drag-drop',
     '/study/image-hotspot',
     '/study/dropdown',
-    '/study/ai-fill-blank'
+    '/study/ai-fill-blank',
+    '/study/pdf-worksheet'
   ]
 
   // Check if on session/exercise list page (e.g., /study/course/123/unit/456/session/789)
@@ -50,7 +51,7 @@ const Layout = () => {
 
       {/* Main Content */}
       <main className={`${hideSidebar ? 'lg:pl-0' : 'lg:pl-64'} min-h-screen ${hideBottomNav ? 'pb-0' : 'pb-16 lg:pb-0'}`}>
-        <div className={isSessionPage ? '' : 'container mx-auto px-4 py-6 max-w-7xl'}>
+        <div className={isSessionPage ? '' : hideSidebar ? 'container mx-auto px-1 sm:px-4 py-2 sm:py-6 max-w-7xl' : 'container mx-auto px-4 py-6 max-w-7xl'}>
           <Outlet />
         </div>
       </main>

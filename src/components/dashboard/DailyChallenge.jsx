@@ -207,6 +207,9 @@ const DailyChallenge = () => {
       case 'image_hotspot':
         exerciseUrl = `/study/image-hotspot`
         break
+      case 'pdf_worksheet':
+        exerciseUrl = `/study/pdf-worksheet`
+        break
       default:
         console.error('Unknown exercise type:', exerciseType)
         alert('Loại bài tập không được hỗ trợ: ' + exerciseType)

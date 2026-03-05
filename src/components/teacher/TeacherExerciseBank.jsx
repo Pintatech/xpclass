@@ -13,7 +13,7 @@ const TeacherExerciseBank = () => {
         <div className="flex items-center justify-between">
           <div>
             <h1 className="text-lg font-semibold text-blue-900">Exercise Bank</h1>
-            <p className="text-sm text-blue-700">Browse and preview all exercises (Read-only)</p>
+            <p className="text-sm text-blue-700">Browse exercises and create PDF Worksheets</p>
           </div>
           <div className="bg-blue-100 text-blue-800 px-3 py-1 rounded-full text-sm font-medium">
             Teacher View
@@ -21,8 +21,8 @@ const TeacherExerciseBank = () => {
         </div>
       </div>
 
-      {/* Render the ExerciseBank component */}
-      <ExerciseBank readOnly={true} />
+      {/* Render the ExerciseBank component - teachers can only create/edit pdf_worksheet */}
+      <ExerciseBank allowedTypes={['pdf_worksheet']} />
     </div>
   );
 };

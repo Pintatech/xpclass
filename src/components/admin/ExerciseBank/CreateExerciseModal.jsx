@@ -1,6 +1,6 @@
 import React, { useState } from 'react'
 import { supabase } from '../../../supabase/client'
-import { X, BookOpen, Edit3, Mic, HelpCircle, Tag, Copy, Brain, ChevronDown, Image } from 'lucide-react'
+import { X, BookOpen, Edit3, Mic, HelpCircle, Tag, Copy, Brain, ChevronDown, Image, FileText } from 'lucide-react'
 import FlashcardEditor from '../editors/FlashcardEditor'
 import MultipleChoiceEditor from '../editors/MultipleChoiceEditor'
 import FillBlankEditor from '../editors/FillBlankEditor'
@@ -9,11 +9,12 @@ import AIFillBlankEditor from '../editors/AIFillBlankEditor'
 import SimpleDropdownEditor from '../editors/SimpleDropdownEditor'
 import PronunciationEditor from '../editors/PronunciationEditor'
 import ImageHotspotEditor from '../editors/ImageHotspotEditor'
+import PDFWorksheetEditor from '../editors/PDFWorksheetEditor'
 
-const CreateExerciseModal = ({ folders, selectedFolder, onClose, onCreated }) => {
+const CreateExerciseModal = ({ folders, selectedFolder, onClose, onCreated, allowedTypes = null }) => {
   const [formData, setFormData] = useState({
     title: '',
-    exercise_type: 'flashcard',
+    exercise_type: allowedTypes?.length === 1 ? allowedTypes[0] : 'flashcard',
     folder_id: selectedFolder?.id || '',
     difficulty_level: 1,
     xp_reward: 10,
@@ -26,7 +27,7 @@ const CreateExerciseModal = ({ folders, selectedFolder, onClose, onCreated }) =>
   const [error, setError] = useState('')
   const [tagInput, setTagInput] = useState('')
 
-  const exerciseTypes = [
+  const allExerciseTypes = [
     { value: 'flashcard', label: 'Flashcard', icon: BookOpen },
     { value: 'pronunciation', label: 'Pronunciation', icon: Mic },
     { value: 'fill_blank', label: 'Fill in the Blank', icon: Edit3 },
@@ -34,8 +35,12 @@ const CreateExerciseModal = ({ folders, selectedFolder, onClose, onCreated }) =>
     { value: 'drag_drop', label: 'Drag & Drop', icon: Copy },
     { value: 'dropdown', label: 'Dropdown', icon: ChevronDown },
     { value: 'ai_fill_blank', label: 'Fill in AI Score', icon: Brain },
-    { value: 'image_hotspot', label: 'Image Hotspot', icon: Image }
+    { value: 'image_hotspot', label: 'Image Hotspot', icon: Image },
+    { value: 'pdf_worksheet', label: 'PDF Worksheet', icon: FileText }
   ]
+  const exerciseTypes = allowedTypes
+    ? allExerciseTypes.filter(t => allowedTypes.includes(t.value))
+    : allExerciseTypes
 
   const handleSubmit = async (e) => {
     e.preventDefault()
@@ -124,7 +129,7 @@ const CreateExerciseModal = ({ folders, selectedFolder, onClose, onCreated }) =>
 
   return (
     <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-      <div className="bg-white rounded-lg shadow-xl w-full max-w-2xl mx-4 max-h-[90vh] overflow-y-auto">
+      <div className={`bg-white rounded-lg shadow-xl w-full mx-4 max-h-[90vh] overflow-y-auto ${formData.exercise_type === 'pdf_worksheet' || formData.exercise_type === 'image_hotspot' ? 'max-w-6xl' : 'max-w-2xl'}`}>
         {/* Header */}
         <div className="flex items-center justify-between p-6 border-b border-gray-200">
           <h2 className="text-lg font-semibold text-gray-900">
@@ -327,6 +332,13 @@ const CreateExerciseModal = ({ folders, selectedFolder, onClose, onCreated }) =>
               <ImageHotspotEditor
                 content={formData.content}
                 onContentChange={(content) => setFormData({ ...formData, content })}
+              />
+            )}
+
+            {formData.exercise_type === 'pdf_worksheet' && (
+              <PDFWorksheetEditor
+                content={formData.content}
+                onContentChange={(content) => setFormData(prev => ({ ...prev, content }))}
               />
             )}
           </div>

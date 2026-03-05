@@ -14,10 +14,12 @@ import {
   Clock,
   Tag,
   FolderOpen,
-  Image
+  Image,
+  FileText
 } from 'lucide-react'
 
-const ExerciseBankCard = ({ exercise, viewMode, onUpdate, onEdit, readOnly = false }) => {
+const ExerciseBankCard = ({ exercise, viewMode, onUpdate, onEdit, readOnly = false, allowedTypes = null }) => {
+  const canEdit = allowedTypes ? allowedTypes.includes(exercise.exercise_type) : !readOnly
   const [showMenu, setShowMenu] = useState(false)
   const [showAssignments, setShowAssignments] = useState(false)
   const [assignments, setAssignments] = useState([])
@@ -58,6 +60,8 @@ const ExerciseBankCard = ({ exercise, viewMode, onUpdate, onEdit, readOnly = fal
         return HelpCircle
       case 'ai_fill_blank':
         return Edit3
+      case 'pdf_worksheet':
+        return FileText
       default:
         return BookOpen
     }
@@ -81,6 +85,8 @@ const ExerciseBankCard = ({ exercise, viewMode, onUpdate, onEdit, readOnly = fal
         return 'Dropdown'
       case 'ai_fill_blank':
         return 'AI Fill Blank'
+      case 'pdf_worksheet':
+        return 'PDF Worksheet'
       default:
         return 'Exercise'
     }
@@ -123,6 +129,8 @@ const ExerciseBankCard = ({ exercise, viewMode, onUpdate, onEdit, readOnly = fal
           return `/study/ai-fill-blank?exerciseId=${exercise.id}`
         case 'image_hotspot':
           return `/study/image-hotspot?exerciseId=${exercise.id}`
+        case 'pdf_worksheet':
+          return `/study/pdf-worksheet?exerciseId=${exercise.id}`
         default:
           return null
       }
@@ -361,7 +369,7 @@ const ExerciseBankCard = ({ exercise, viewMode, onUpdate, onEdit, readOnly = fal
                     <FolderOpen className="w-3 h-3" />
                     <span>Assignments</span>
                   </button>
-                  {!readOnly && (
+                  {canEdit && (
                     <>
                       <button
                         onClick={handleEdit}
@@ -370,22 +378,26 @@ const ExerciseBankCard = ({ exercise, viewMode, onUpdate, onEdit, readOnly = fal
                         <Edit className="w-3 h-3" />
                         <span>Edit</span>
                       </button>
-                      <button
-                        onClick={handleDuplicate}
-                        className="w-full text-left px-3 py-2 text-sm hover:bg-gray-50 flex items-center space-x-2"
-                      >
-                        <Copy className="w-3 h-3" />
-                        <span>Duplicate</span>
-                      </button>
+                      {!allowedTypes && (
+                        <>
+                          <button
+                            onClick={handleDuplicate}
+                            className="w-full text-left px-3 py-2 text-sm hover:bg-gray-50 flex items-center space-x-2"
+                          >
+                            <Copy className="w-3 h-3" />
+                            <span>Duplicate</span>
+                          </button>
 
-                      <hr className="my-1" />
-                      <button
-                        onClick={handleDelete}
-                        className="w-full text-left px-3 py-2 text-sm hover:bg-gray-50 text-red-600 flex items-center space-x-2"
-                      >
-                        <Trash2 className="w-3 h-3" />
-                        <span>Delete</span>
-                      </button>
+                          <hr className="my-1" />
+                          <button
+                            onClick={handleDelete}
+                            className="w-full text-left px-3 py-2 text-sm hover:bg-gray-50 text-red-600 flex items-center space-x-2"
+                          >
+                            <Trash2 className="w-3 h-3" />
+                            <span>Delete</span>
+                          </button>
+                        </>
+                      )}
                     </>
                   )}
                 </div>
@@ -482,7 +494,7 @@ const ExerciseBankCard = ({ exercise, viewMode, onUpdate, onEdit, readOnly = fal
                   <FolderOpen className="w-3 h-3" />
                   <span>Assignments</span>
                 </button>
-                {!readOnly && (
+                {canEdit && (
                   <>
                     <button
                       onClick={handleEdit}
@@ -491,22 +503,26 @@ const ExerciseBankCard = ({ exercise, viewMode, onUpdate, onEdit, readOnly = fal
                       <Edit className="w-3 h-3" />
                       <span>Edit</span>
                     </button>
-                    <button
-                      onClick={handleDuplicate}
-                      className="w-full text-left px-3 py-2 text-sm hover:bg-gray-50 flex items-center space-x-2"
-                    >
-                      <Copy className="w-3 h-3" />
-                      <span>Duplicate</span>
-                    </button>
+                    {!allowedTypes && (
+                      <>
+                        <button
+                          onClick={handleDuplicate}
+                          className="w-full text-left px-3 py-2 text-sm hover:bg-gray-50 flex items-center space-x-2"
+                        >
+                          <Copy className="w-3 h-3" />
+                          <span>Duplicate</span>
+                        </button>
 
-                    <hr className="my-1" />
-                    <button
-                      onClick={handleDelete}
-                      className="w-full text-left px-3 py-2 text-sm hover:bg-gray-50 text-red-600 flex items-center space-x-2"
-                    >
-                      <Trash2 className="w-3 h-3" />
-                      <span>Delete</span>
-                    </button>
+                        <hr className="my-1" />
+                        <button
+                          onClick={handleDelete}
+                          className="w-full text-left px-3 py-2 text-sm hover:bg-gray-50 text-red-600 flex items-center space-x-2"
+                        >
+                          <Trash2 className="w-3 h-3" />
+                          <span>Delete</span>
+                        </button>
+                      </>
+                    )}
                   </>
                 )}
               </div>

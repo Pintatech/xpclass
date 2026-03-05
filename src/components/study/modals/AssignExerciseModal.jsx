@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react'
 import { supabase } from '../../../supabase/client'
-import { X, Search, BookOpen, Mic, Edit3, HelpCircle, Plus, Check, Copy, Brain, Image } from 'lucide-react'
+import { X, Search, BookOpen, Mic, Edit3, HelpCircle, Plus, Check, Copy, Brain, Image, FileText } from 'lucide-react'
 
 const AssignExerciseModal = ({ sessionId, onClose, onAssigned }) => {
   const [exercises, setExercises] = useState([])
@@ -23,7 +23,8 @@ const AssignExerciseModal = ({ sessionId, onClose, onAssigned }) => {
     { value: 'fill_blank', label: 'Fill in the Blank', icon: Edit3 },
     { value: 'drag_drop', label: 'Drag & Drop', icon: Copy },
     { value: 'ai_fill_blank', label: 'Fill in AI Score', icon: Brain },
-    { value: 'image_hotspot', label: 'Image Hotspot', icon: Image }
+    { value: 'image_hotspot', label: 'Image Hotspot', icon: Image },
+    { value: 'pdf_worksheet', label: 'PDF Worksheet', icon: FileText }
   ]
 
   useEffect(() => {

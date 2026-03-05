@@ -19,7 +19,7 @@ import CreateExerciseModal from './ExerciseBank/CreateExerciseModal'
 import CreateFolderModal from './ExerciseBank/CreateFolderModal'
 import EditExerciseModal from './ExerciseBank/EditExerciseModal'
 
-const ExerciseBank = ({ readOnly = false }) => {
+const ExerciseBank = ({ readOnly = false, allowedTypes = null }) => {
   const [folders, setFolders] = useState([])
   const [exercises, setExercises] = useState([])
   const [folderCounts, setFolderCounts] = useState({})
@@ -256,7 +256,7 @@ const ExerciseBank = ({ readOnly = false }) => {
                 </nav>
               </div>
 
-              {!readOnly && (
+              {(!readOnly || allowedTypes) && (
                 <div className="flex items-center space-x-3">
                   <button
                     onClick={handleCreateExercise}
@@ -353,7 +353,8 @@ const ExerciseBank = ({ readOnly = false }) => {
                     viewMode={viewMode}
                     onUpdate={fetchExercises}
                     onEdit={handleEditExercise}
-                    readOnly={readOnly}
+                    readOnly={readOnly && !allowedTypes}
+                    allowedTypes={allowedTypes}
                   />
                 ))}
               </div>
@@ -369,6 +370,7 @@ const ExerciseBank = ({ readOnly = false }) => {
           selectedFolder={selectedFolder}
           onClose={() => setShowCreateExercise(false)}
           onCreated={handleExerciseCreated}
+          allowedTypes={allowedTypes}
         />
       )}
 

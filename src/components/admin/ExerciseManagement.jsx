@@ -45,6 +45,7 @@ const ExerciseManagement = () => {
     'drag_drop': { icon: Copy, label: 'Drag & Drop', color: 'green' },
     'ai_fill_blank': { icon: Brain, label: 'Fill in AI Score', color: 'purple' },
     'image_hotspot': { icon: Image, label: 'Image Hotspot', color: 'cyan' },
+    'pdf_worksheet': { icon: Edit3, label: 'PDF Worksheet', color: 'rose' },
   }
 
   useEffect(() => {

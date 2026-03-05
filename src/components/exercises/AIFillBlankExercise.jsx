@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react'
+import React, { useState, useEffect, useRef } from 'react'
 import { useLocation, useNavigate } from 'react-router-dom'
 import { supabase } from '../../supabase/client'
 import { useAuth } from '../../hooks/useAuth'
@@ -45,7 +45,7 @@ const getThemeSideImages = (theme) => {
   return themeSideImages[theme] || themeSideImages.blue
 }
 
-const AIFillBlankExercise = () => {
+const AIFillBlankExercise = ({ testMode = false, exerciseData = null, onAnswersCollected = null, initialAnswers = null }) => {
   const location = useLocation()
   const navigate = useNavigate()
   const { user } = useAuth()
@@ -58,7 +58,7 @@ const AIFillBlankExercise = () => {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
   const [currentQuestionIndex, setCurrentQuestionIndex] = useState(0)
-  const [userAnswers, setUserAnswers] = useState({})
+  const [userAnswers, setUserAnswers] = useState(() => (testMode && initialAnswers) ? initialAnswers : {})
   const [aiScores, setAiScores] = useState({})
   const [isChecking, setIsChecking] = useState(false)
   const [showResults, setShowResults] = useState({})
@@ -80,18 +80,36 @@ const AIFillBlankExercise = () => {
     }
   }, [exerciseLanguage])
 
+  // testMode: load exercise data from props
+  useEffect(() => {
+    if (!testMode || !exerciseData) return
+    setExercise(exerciseData)
+    setLoading(false)
+  }, [testMode, exerciseData])
+
+  // testMode: notify parent of answer changes
+  const onAnswersCollectedRef = useRef(onAnswersCollected)
+  onAnswersCollectedRef.current = onAnswersCollected
+  useEffect(() => {
+    if (testMode && onAnswersCollectedRef.current) {
+      onAnswersCollectedRef.current(userAnswers)
+    }
+  }, [userAnswers, testMode])
+
   // Get exerciseId and sessionId from URL params
   const searchParams = new URLSearchParams(location.search)
   const exerciseId = searchParams.get('exerciseId')
   const sessionId = searchParams.get('sessionId')
 
   useEffect(() => {
+    if (testMode) return
     if (exerciseId) {
       fetchExercise()
     }
   }, [exerciseId])
 
   useEffect(() => {
+    if (testMode) return
     if (sessionId) {
       fetchSessionInfo()
     }
@@ -393,6 +411,37 @@ const AIFillBlankExercise = () => {
   const userAnswer = userAnswers[currentQuestionIndex] || ''
   const aiScore = aiScores[currentQuestionIndex]
   const showResult = showResults[currentQuestionIndex]
+
+  // testMode: simplified render for TestRunner
+  if (testMode) {
+    const questions = exercise?.content?.questions || []
+    return (
+      <div className="space-y-6">
+        {exercise?.content?.intro && String(exercise.content.intro).trim() && (
+          <div className="bg-blue-50 rounded-lg p-4 border border-blue-200">
+            <RichTextRenderer content={exercise.content.intro} allowImages allowLinks />
+          </div>
+        )}
+        {questions.map((q, idx) => (
+          <div key={idx} className="space-y-3">
+            <div className="flex items-start gap-3">
+              <span className="flex-shrink-0 w-7 h-7 bg-blue-100 text-blue-700 rounded-full flex items-center justify-center font-bold text-xs">{idx + 1}</span>
+              <div className="flex-1">
+                <RichTextRenderer content={q.question} allowImages allowLinks />
+              </div>
+            </div>
+            <textarea
+              value={userAnswers[idx] || ''}
+              onChange={(e) => setUserAnswers(prev => ({ ...prev, [idx]: e.target.value }))}
+              className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-sm"
+              rows={4}
+              placeholder="Type your answer here..."
+            />
+          </div>
+        ))}
+      </div>
+    )
+  }
 
   // Teacher view: show all questions at once
   if (isTeacherView && teacherMode === 'review') {

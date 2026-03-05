@@ -8,6 +8,8 @@ import FillBlankExercise from '../exercises/FillBlankExercise'
 import DragDropExercise from '../exercises/DragDropExercise'
 import DropdownExercise from '../exercises/DropdownExercise'
 import ImageHotspotExercise from '../exercises/ImageHotspotExercise'
+import AIFillBlankExercise from '../exercises/AIFillBlankExercise'
+import PDFWorksheetExercise from '../exercises/PDFWorksheetExercise'
 import { Clock, AlertTriangle, Send, CheckCircle, ChevronRight, FileText, Play } from 'lucide-react'
 
 const exerciseTypeLabels = {
@@ -15,7 +17,9 @@ const exerciseTypeLabels = {
   fill_blank: 'Fill Blank',
   drag_drop: 'Drag & Drop',
   dropdown: 'Dropdown',
-  image_hotspot: 'Image Hotspot'
+  image_hotspot: 'Image Hotspot',
+  ai_fill_blank: 'AI Fill Blank',
+  pdf_worksheet: 'PDF Worksheet'
 }
 
 const TestRunner = () => {
@@ -234,6 +238,54 @@ const TestRunner = () => {
         return
       }
 
+      if (ex.exercise_type === 'pdf_worksheet') {
+        const content = ex.content || {}
+        const allPages = content.pages || []
+        const userAnswer = exerciseAnswers || {}
+
+        allPages.forEach(page => {
+          const fields = page.fields || []
+          fields.forEach((field, fi) => {
+            totalQuestions++
+            let isCorrect = false
+            const fieldAnswer = userAnswer[field.id]
+
+            switch (field.type) {
+              case 'text': {
+                const typed = (fieldAnswer || '').trim()
+                const correct = (field.correct_answer || '').trim()
+                if (field.case_sensitive) {
+                  isCorrect = typed === correct
+                } else {
+                  isCorrect = typed.toLowerCase() === correct.toLowerCase()
+                }
+                break
+              }
+              case 'dropdown': {
+                isCorrect = fieldAnswer === field.correct_option
+                break
+              }
+              case 'checkbox': {
+                const expected = field.correct_answer === 'true'
+                isCorrect = fieldAnswer === expected
+                break
+              }
+            }
+
+            if (isCorrect) totalCorrect++
+            questionAttempts.push({
+              exercise_id: ex.id,
+              question_index: page.page_number * 1000 + fi,
+              exercise_type: ex.exercise_type,
+              selected_answer: fieldAnswer ?? null,
+              correct_answer: field.type === 'dropdown' ? field.correct_option : field.correct_answer,
+              is_correct: isCorrect
+            })
+          })
+        })
+        return
+      }
+
       const questions = ex.content?.questions || []
       questions.forEach((q, qi) => {
         switch (ex.exercise_type) {
@@ -325,6 +377,26 @@ const TestRunner = () => {
             })
             break
           }
+          case 'ai_fill_blank': {
+            totalQuestions++
+            // exerciseAnswers is userAnswers: { questionIndex: textAnswer }
+            const userAnswer = (exerciseAnswers?.[qi] || '').trim().toLowerCase()
+            const expectedAnswers = q.expected_answers || []
+            // Simple match: check if user answer contains any expected answer
+            const isCorrect = expectedAnswers.length > 0 && expectedAnswers.some(ea =>
+              userAnswer.includes(ea.trim().toLowerCase())
+            )
+            if (isCorrect) totalCorrect++
+            questionAttempts.push({
+              exercise_id: ex.id,
+              question_index: qi,
+              exercise_type: ex.exercise_type,
+              selected_answer: exerciseAnswers?.[qi] || '',
+              correct_answer: expectedAnswers.join(', '),
+              is_correct: isCorrect
+            })
+            break
+          }
           default:
             break
         }
@@ -407,6 +479,10 @@ const TestRunner = () => {
         return <DropdownExercise key={ex.id} testMode={true} exerciseData={ex} onAnswersCollected={onCollect} initialAnswers={saved} />
       case 'image_hotspot':
         return <ImageHotspotExercise key={ex.id} testMode={true} exerciseData={ex} onAnswersCollected={onCollect} initialAnswers={saved} />
+      case 'ai_fill_blank':
+        return <AIFillBlankExercise key={ex.id} testMode={true} exerciseData={ex} onAnswersCollected={onCollect} initialAnswers={saved} />
+      case 'pdf_worksheet':
+        return <PDFWorksheetExercise key={ex.id} testMode={true} exerciseData={ex} onAnswersCollected={onCollect} initialAnswers={saved} />
       default:
         return <p className="text-gray-500">Unsupported exercise type: {ex.exercise_type}</p>
     }
