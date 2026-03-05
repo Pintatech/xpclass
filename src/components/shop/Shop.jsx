@@ -56,6 +56,7 @@ const Shop = () => {
   const [activeTab, setActiveTab] = useState(searchParams.get('tab') || 'avatar')
   const [purchasing, setPurchasing] = useState(null)
   const [confirmItem, setConfirmItem] = useState(null)
+  const [activeCollection, setActiveCollection] = useState('all')
 
   // Egg-specific state
   const [buyingEggId, setBuyingEggId] = useState(null)
@@ -239,12 +240,12 @@ const Shop = () => {
   const categories = [
     { key: 'avatar', label: 'Avatar' },
     { key: 'frame', label: 'Frame' },
-    { key: 'background', label: 'Background' },
+    // { key: 'background', label: 'Background' },
     { key: 'pet', label: 'Pet bowl' },
     { key: 'spaceship', label: 'Spaceship' },
     { key: 'hammer', label: 'Hammer' },
     { key: 'egg', label: 'Egg' },
-    { key: 'school', label: 'School things' },
+    // { key: 'school', label: 'School things' },
   ]
 
 
@@ -275,12 +276,24 @@ const Shop = () => {
     }
     return false
   }
+  // Reset collection when switching category tabs
+  useEffect(() => {
+    setActiveCollection('all')
+  }, [activeTab])
+
   const filteredItems = items
     .filter(item => item.category === activeTab)
     .sort((a, b) => {
       if (isXPItem(a) === isXPItem(b)) return 0
       return isXPItem(a) ? -1 : 1
     })
+
+  // Get unique collections for the active tab
+  const collections = [...new Set(filteredItems.map(item => item.item_data?.collection).filter(Boolean))]
+
+  const displayedItems = activeCollection === 'all'
+    ? filteredItems
+    : filteredItems.filter(item => item.item_data?.collection === activeCollection)
 
   const sortedEggs = eggCatalog.sort((a, b) => rarityOrder.indexOf(a.rarity) - rarityOrder.indexOf(b.rarity))
 
@@ -343,6 +356,35 @@ const Shop = () => {
           </button>
         ))}
       </div>
+
+      {/* Collection Sub-tabs */}
+      {activeTab !== 'egg' && collections.length > 0 && (
+        <div className="flex gap-1.5 mb-4 overflow-x-auto pb-1 scrollbar-hide" style={{ WebkitOverflowScrolling: 'touch' }}>
+          <button
+            onClick={() => setActiveCollection('all')}
+            className={`px-3 py-1 rounded-full text-xs font-medium transition-all flex-shrink-0 ${
+              activeCollection === 'all'
+                ? 'bg-blue-100 text-blue-700 shadow-sm'
+                : 'bg-gray-50 text-gray-500 hover:bg-gray-100'
+            }`}
+          >
+            All
+          </button>
+          {collections.map(col => (
+            <button
+              key={col}
+              onClick={() => setActiveCollection(col)}
+              className={`px-3 py-1 rounded-full text-xs font-medium transition-all flex-shrink-0 ${
+                activeCollection === col
+                  ? 'bg-blue-100 text-blue-700 shadow-sm'
+                  : 'bg-gray-50 text-gray-500 hover:bg-gray-100'
+              }`}
+            >
+              {col}
+            </button>
+          ))}
+        </div>
+      )}
 
       {/* Egg Grid */}
       {activeTab === 'egg' ? (
@@ -427,7 +469,7 @@ const Shop = () => {
         )
       ) : (
         /* Regular Items Grid */
-        filteredItems.length === 0 ? (
+        displayedItems.length === 0 ? (
           <div className="text-center py-16 text-gray-400">
             <ShoppingBag className="w-16 h-16 mx-auto mb-4 opacity-30" />
             <p className="text-lg">Chưa có vật phẩm nào</p>
@@ -435,7 +477,7 @@ const Shop = () => {
           </div>
         ) : (
           <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-4">
-            {filteredItems.map(item => {
+            {displayedItems.map(item => {
               const owned = isOwned(item.id)
               const canAfford = canAffordItem(item)
 
