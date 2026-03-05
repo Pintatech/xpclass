@@ -20,15 +20,15 @@ const shuffle = (arr) => {
 }
 
 // Pick words for a game session, ordered by difficulty
-const pickGameWords = () => {
-  const short = shuffle(WORD_BANK.filter(w => w.word.length <= 4)).slice(0, 5)
-  const medium = shuffle(WORD_BANK.filter(w => w.word.length === 5)).slice(0, 5)
-  const long = shuffle(WORD_BANK.filter(w => w.word.length === 6)).slice(0, 5)
-  const longer = shuffle(WORD_BANK.filter(w => w.word.length >= 7)).slice(0, 5)
+const pickGameWords = (source) => {
+  const short = shuffle(source.filter(w => w.word.length <= 4)).slice(0, 5)
+  const medium = shuffle(source.filter(w => w.word.length === 5)).slice(0, 5)
+  const long = shuffle(source.filter(w => w.word.length === 6)).slice(0, 5)
+  const longer = shuffle(source.filter(w => w.word.length >= 7)).slice(0, 5)
   return [...short, ...medium, ...long, ...longer]
 }
 
-const PetWordScramble = ({ petImageUrl, petName, onGameEnd, onClose }) => {
+const PetWordScramble = ({ petImageUrl, petName, onGameEnd, onClose, wordBank: wordBankProp = [] }) => {
   const [phase, setPhase] = useState('ready') // 'ready' | 'playing' | 'results'
   const [displayScore, setDisplayScore] = useState(0)
   const [displayTime, setDisplayTime] = useState(GAME_DURATION)
@@ -106,7 +106,7 @@ const PetWordScramble = ({ petImageUrl, petName, onGameEnd, onClose }) => {
 
   // Start the game
   const startGame = useCallback(() => {
-    const gameWords = pickGameWords()
+    const gameWords = pickGameWords(wordBankProp.length > 0 ? wordBankProp : WORD_BANK)
     setWords(gameWords)
     setWordIndex(0)
     setDisplayScore(0)

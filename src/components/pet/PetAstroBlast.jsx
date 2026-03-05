@@ -27,7 +27,7 @@ const shuffle = (arr) => {
   return a
 }
 
-const PetAstroBlast = ({ petImageUrl, petName, onGameEnd, onClose, shipSkinUrl, shipLaserColor }) => {
+const PetAstroBlast = ({ petImageUrl, petName, onGameEnd, onClose, shipSkinUrl, shipLaserColor, wordBank: wordBankProp = [] }) => {
   const [phase, setPhase] = useState('ready')
   const [displayScore, setDisplayScore] = useState(0)
   const [displayTime, setDisplayTime] = useState(GAME_DURATION)
@@ -62,12 +62,13 @@ const PetAstroBlast = ({ petImageUrl, petName, onGameEnd, onClose, shipSkinUrl, 
     const containerW = containerRef.current?.clientWidth || 400
 
     // Pick target
-    const target = WORD_BANK[Math.floor(Math.random() * WORD_BANK.length)]
+    const words = wordBankProp.length > 0 ? wordBankProp : WORD_BANK
+    const target = words[Math.floor(Math.random() * words.length)]
     currentTargetRef.current = target
     setCurrentHint(target.hint)
 
     // Pick distractors (different words)
-    const distractors = shuffle(WORD_BANK.filter(w => w.word !== target.word)).slice(0, WORDS_PER_ROUND - 1)
+    const distractors = shuffle(words.filter(w => w.word !== target.word)).slice(0, WORDS_PER_ROUND - 1)
     const allWords = shuffle([target, ...distractors])
 
     // Spawn words from the top — they fall downward like asteroids

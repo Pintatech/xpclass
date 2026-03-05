@@ -85,6 +85,8 @@ const PetDisplay = () => {
   const [playDisabled, setPlayDisabled] = useState(false);
   const [playCooldown, setPlayCooldown] = useState(0);
   const [showGame, setShowGame] = useState(null); // null | 'picker' | 'catch' | 'flappy' | 'scramble' | 'whackmole' | 'astroblast'
+  const [whackmoleLeaderboard, setWhackmoleLeaderboard] = useState([]);
+  const [wordBank, setWordBank] = useState([]);
   const [enabledGames, setEnabledGames] = useState(['scramble', 'whackmole', 'astroblast']);
   const [showChat, setShowChat] = useState(false);
   const [chatInput, setChatInput] = useState("");
@@ -331,6 +333,7 @@ const PetDisplay = () => {
       setTimeout(() => setMessage(null), 3000);
       return;
     }
+    fetchWordBank();
     setShowGame('picker');
   };
 
@@ -398,6 +401,64 @@ const PetDisplay = () => {
     } else {
       pendingAttemptId.current = null;
     }
+  };
+
+  const fetchWhackmoleLeaderboard = async () => {
+    if (!user?.id) return;
+    const now = new Date();
+    const day = now.getDay();
+    const daysFromMonday = day === 0 ? 6 : day - 1;
+    const weekStart = new Date(now);
+    weekStart.setDate(weekStart.getDate() - daysFromMonday);
+    const weekStartISO = weekStart.toISOString().split('T')[0] + 'T00:00:00+07:00';
+
+    const { data: scores } = await supabase
+      .from('training_scores')
+      .select('user_id, score')
+      .eq('game_type', 'whackmole')
+      .gte('played_at', weekStartISO);
+
+    if (!scores || scores.length === 0) { setWhackmoleLeaderboard([]); return; }
+
+    const bestScores = {};
+    scores.forEach(s => {
+      if (!bestScores[s.user_id] || s.score > bestScores[s.user_id]) {
+        bestScores[s.user_id] = s.score;
+      }
+    });
+
+    // Exclude current user's own score
+    delete bestScores[user.id];
+
+    const userIds = Object.keys(bestScores);
+    if (userIds.length === 0) { setWhackmoleLeaderboard([]); return; }
+
+    const { data: users } = await supabase
+      .from('users')
+      .select('id, full_name, email')
+      .in('id', userIds)
+      .eq('role', 'user');
+
+    if (!users) { setWhackmoleLeaderboard([]); return; }
+
+    const sorted = users
+      .map(u => ({ name: u.full_name || u.email?.split('@')[0] || 'Someone', score: bestScores[u.id] || 0 }))
+      .sort((a, b) => b.score - a.score);
+
+    setWhackmoleLeaderboard(sorted);
+  };
+
+  const fetchWordBank = async () => {
+    const userLevel = profile?.current_level || 1;
+
+    const { data: words } = await supabase
+      .from('pet_word_bank')
+      .select('word, hint, image_url')
+      .eq('is_active', true)
+      .lte('min_level', userLevel);
+
+    if (words && words.length >= 10) setWordBank(words);
+    // else keep empty → games fall back to static wordBank.js
   };
 
   const handleGameEnd = async (score, gameType) => {
@@ -1595,7 +1656,7 @@ const PetDisplay = () => {
               )}
               {enabledGames.includes('whackmole') && (
               <button
-                onClick={() => { recordAttemptStart('whackmole'); setShowGame('whackmole'); }}
+                onClick={() => { recordAttemptStart('whackmole'); fetchWhackmoleLeaderboard(); setShowGame('whackmole'); }}
                 className="flex flex-col items-center gap-2 p-4 rounded-xl border-2 border-green-200 hover:border-green-400 hover:bg-green-50 transition-all group"
               >
                 <img src={assetUrl('/pet-game/mole-normal.png')} alt="Whack-a-Mole" className="w-20 h-20 object-contain group-hover:scale-110 transition-transform" />
@@ -1663,6 +1724,7 @@ const PetDisplay = () => {
             return baseImage;
           })()}
           petName={activePet.nickname || activePet.name}
+          wordBank={wordBank}
           onGameEnd={(score) => handleGameEnd(score, 'scramble')}
           onClose={() => { drainPetEnergy(5); drainPetEnergy(5); setShowGame(null);; }}
         />
@@ -1681,6 +1743,8 @@ const PetDisplay = () => {
           })()}
           petName={activePet.nickname || activePet.name}
           hammerSkinUrl={profile?.active_hammer_url}
+          leaderboard={whackmoleLeaderboard}
+          wordBank={wordBank}
           onGameEnd={(score) => handleGameEnd(score, 'whackmole')}
           onClose={() => { drainPetEnergy(5); drainPetEnergy(5); setShowGame(null);; }}
         />
@@ -1700,6 +1764,7 @@ const PetDisplay = () => {
           petName={activePet.nickname || activePet.name}
           shipSkinUrl={profile?.active_spaceship_url}
           shipLaserColor={profile?.active_spaceship_laser}
+          wordBank={wordBank}
           onGameEnd={(score) => handleGameEnd(score, 'astroblast')}
           onClose={() => { drainPetEnergy(5); drainPetEnergy(5); setShowGame(null);; }}
         />

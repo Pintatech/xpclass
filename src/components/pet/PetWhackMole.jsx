@@ -21,7 +21,7 @@ const shuffle = (arr) => {
   return a
 }
 
-const PetWhackMole = ({ petImageUrl, petName, onGameEnd, onClose, hammerSkinUrl }) => {
+const PetWhackMole = ({ petImageUrl, petName, onGameEnd, onClose, hammerSkinUrl, leaderboard = [], wordBank: wordBankProp = [] }) => {
   const [phase, setPhase] = useState('ready')
   const [displayTime, setDisplayTime] = useState(GAME_DURATION)
   const [score, setScore] = useState(0)
@@ -52,7 +52,8 @@ const PetWhackMole = ({ petImageUrl, petName, onGameEnd, onClose, hammerSkinUrl 
 
   // Pick a new target word and spawn moles
   const spawnRound = useCallback(() => {
-    const pair = WORD_BANK[Math.floor(Math.random() * WORD_BANK.length)]
+    const words = wordBankProp.length > 0 ? wordBankProp : WORD_BANK
+    const pair = words[Math.floor(Math.random() * words.length)]
     setTargetWord(pair)
     targetRef.current = pair
     roundHitRef.current = false
@@ -64,7 +65,7 @@ const PetWhackMole = ({ petImageUrl, petName, onGameEnd, onClose, hammerSkinUrl 
     const correctPos = positions[Math.floor(Math.random() * positions.length)]
 
     // Pick distractor words (different from target)
-    const distractors = shuffle(WORD_BANK.filter(w => w.word !== pair.word))
+    const distractors = shuffle(words.filter(w => w.word !== pair.word))
 
     const newHoles = Array.from({ length: HOLES }, (_, i) => {
       const posIndex = positions.indexOf(i)
@@ -276,6 +277,9 @@ const PetWhackMole = ({ petImageUrl, petName, onGameEnd, onClose, hammerSkinUrl 
       }, 300)
     }
   }, [phase, holes, spawnRound])
+
+  // Find the person just ahead of current score (lowest score still above current)
+  const nextToBeat = [...leaderboard].reverse().find(e => e.score > score) || null
 
   const timerPct = displayTime / GAME_DURATION
   const timerRadius = 22
@@ -544,6 +548,35 @@ const PetWhackMole = ({ petImageUrl, petName, onGameEnd, onClose, hammerSkinUrl 
                   </div>
                 ))}
               </div>
+
+              {/* Next to beat */}
+              {nextToBeat && (() => {
+                const gap = nextToBeat.score - score
+                const isClose = gap <= 3
+                const pct = Math.min(100, Math.round((score / nextToBeat.score) * 100))
+                return (
+                  <div className="mt-1 mx-1" style={{ animation: isClose ? 'hintPulse 0.6s ease-in-out infinite' : 'none' }}>
+                    <div className="flex items-center justify-between gap-1 mb-0.5">
+                      <div className="flex items-center gap-1">
+                        <span className="text-[11px]">⚔️</span>
+                        <span className="text-white/60 text-[10px]">Beat</span>
+                        <span className="text-white font-bold text-[10px] truncate max-w-[70px]">{nextToBeat.name}</span>
+                      </div>
+                      <span className={`font-black text-[10px] ${isClose ? 'text-orange-300' : 'text-yellow-300'}`}>
+                        {isClose ? `${gap} more!` : `+${gap}pts`}
+                      </span>
+                    </div>
+                    <div className="h-1 rounded-full bg-white/10 overflow-hidden">
+                      <div className="h-full rounded-full transition-all duration-500"
+                        style={{
+                          width: `${pct}%`,
+                          background: isClose ? 'linear-gradient(90deg, #f97316, #ef4444)' : 'linear-gradient(90deg, #22c55e, #86efac)',
+                        }}
+                      />
+                    </div>
+                  </div>
+                )
+              })()}
             </div>
 
             {/* Word popup animation */}
