@@ -13,6 +13,7 @@ import {
   Music
 } from 'lucide-react'
 import RichTextRenderer from '../../ui/RichTextRenderer'
+import { handleRichTextShortcut } from '../../../hooks/useRichTextShortcuts'
 import { supabase } from '../../../supabase/client'
 
 const FillBlankEditor = ({ questions, onQuestionsChange, settings, onSettingsChange, intro, onIntroChange }) => {
@@ -547,25 +548,7 @@ const FillBlankEditor = ({ questions, onQuestionsChange, settings, onSettingsCha
           ref={introTextareaRef}
           value={intro || ''}
           onChange={(e) => onIntroChange && onIntroChange(e.target.value)}
-          onKeyDown={(e) => {
-            if ((e.ctrlKey || e.metaKey) && e.key === 'b') {
-              e.preventDefault()
-              const textarea = introTextareaRef.current
-              if (!textarea) return
-              const start = textarea.selectionStart
-              const end = textarea.selectionEnd
-              const current = intro || ''
-              const selectedText = current.slice(start, end)
-              if (selectedText) {
-                const newValue = current.slice(0, start) + `<b>${selectedText}</b>` + current.slice(end)
-                onIntroChange && onIntroChange(newValue)
-                setTimeout(() => {
-                  textarea.focus()
-                  textarea.setSelectionRange(start + 3, start + 3 + selectedText.length)
-                }, 0)
-              }
-            }
-          }}
+          onKeyDown={(e) => handleRichTextShortcut(e, introTextareaRef.current, intro || '', (v) => onIntroChange && onIntroChange(v))}
           className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
           rows={2}
           placeholder="Enter introductory text for the fill-in-the-blank exercise..."
@@ -841,25 +824,7 @@ B. Fill in the blanks with the correct form.
               <textarea
                 value={question.question || ''}
                 onChange={(e) => updateQuestion(index, 'question', e.target.value)}
-                onKeyDown={(e) => {
-                  if ((e.ctrlKey || e.metaKey) && e.key === 'b') {
-                    e.preventDefault()
-                    const textarea = questionTextareasRef.current[index]
-                    if (!textarea) return
-                    const start = textarea.selectionStart
-                    const end = textarea.selectionEnd
-                    const current = question.question || ''
-                    const selectedText = current.slice(start, end)
-                    if (selectedText) {
-                      const newValue = current.slice(0, start) + `<b>${selectedText}</b>` + current.slice(end)
-                      updateQuestion(index, 'question', newValue)
-                      setTimeout(() => {
-                        textarea.focus()
-                        textarea.setSelectionRange(start + 3, start + 3 + selectedText.length)
-                      }, 0)
-                    }
-                  }
-                }}
+                onKeyDown={(e) => handleRichTextShortcut(e, questionTextareasRef.current[index], question.question || '', (v) => updateQuestion(index, 'question', v))}
                 ref={(el) => { questionTextareasRef.current[index] = el }}
                      className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
                      rows={3}

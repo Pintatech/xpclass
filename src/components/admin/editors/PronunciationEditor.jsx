@@ -12,6 +12,7 @@ import {
   Music
 } from 'lucide-react'
 import RichTextRenderer from '../../ui/RichTextRenderer'
+import { handleRichTextShortcut } from '../../../hooks/useRichTextShortcuts'
 
 const PronunciationEditor = ({ questions, onQuestionsChange }) => {
   const normalizeQuestion = (q, idx = 0) => ({
@@ -434,6 +435,7 @@ Pronunciation | https://example.com/audio.mp3"
                     <textarea
                       value={question.text || ''}
                       onChange={(e) => updateQuestion(index, 'text', e.target.value)}
+                      onKeyDown={(e) => handleRichTextShortcut(e, questionTextareasRef.current[index], question.text || '', (v) => updateQuestion(index, 'text', v))}
                       ref={(el) => { questionTextareasRef.current[index] = el }}
                       className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
                       rows={3}

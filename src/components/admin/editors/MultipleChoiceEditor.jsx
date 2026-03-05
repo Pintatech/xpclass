@@ -17,6 +17,7 @@ import {
 } from 'lucide-react'
 import { supabase } from '../../../supabase/client'
 import RichTextRenderer from '../../ui/RichTextRenderer'
+import { handleRichTextShortcut } from '../../../hooks/useRichTextShortcuts'
 
 const MultipleChoiceEditor = ({ questions, onQuestionsChange, settings, onSettingsChange, intro, onIntroChange }) => {
   const normalizeQuestion = (q, idx = 0) => {
@@ -182,132 +183,12 @@ const MultipleChoiceEditor = ({ questions, onQuestionsChange, settings, onSettin
       : explanationInputRefs.current[index]
     if (!textarea) return
 
-    const start = textarea.selectionStart || 0
-    const end = textarea.selectionEnd || 0
     const value = localQuestions[index]?.[field] || ''
-    const selectedText = value.substring(start, end)
     const historyKey = `${index}_${field}`
 
-    // Ctrl+B - Bold
-    if (e.key === 'b' || e.key === 'B') {
-      e.preventDefault()
-      if (selectedText) {
-        // Check if text is already bold by looking at surrounding characters
-        const beforeHtml = value.slice(Math.max(0, start - 3), start)
-        const afterHtml = value.slice(end, Math.min(value.length, end + 4))
-
-        let newValue
-        let newSelectionStart, newSelectionEnd
-
-        // Check HTML bold
-        if (beforeHtml === '<b>' && afterHtml === '</b>') {
-          // Remove HTML bold
-          newValue = value.slice(0, start - 3) + selectedText + value.slice(end + 4)
-          newSelectionStart = start - 3
-          newSelectionEnd = start - 3 + selectedText.length
-        }
-        // Add bold
-        else {
-          newValue = value.slice(0, start) + `<b>${selectedText}</b>` + value.slice(end)
-          newSelectionStart = start + 3
-          newSelectionEnd = start + 3 + selectedText.length
-        }
-
-        updateQuestion(index, field, newValue)
-        setTimeout(() => {
-          textarea.focus()
-          textarea.setSelectionRange(newSelectionStart, newSelectionEnd)
-        }, 0)
-      } else {
-        const newValue = value.slice(0, start) + '<b></b>' + value.slice(end)
-        updateQuestion(index, field, newValue)
-        setTimeout(() => {
-          textarea.focus()
-          textarea.setSelectionRange(start + 3, start + 3)
-        }, 0)
-      }
-      return
-    }
-
-    // Ctrl+I - Italic
-    if (e.key === 'i' || e.key === 'I') {
-      e.preventDefault()
-      if (selectedText) {
-        // Check if text is already italic by looking at surrounding characters
-        const beforeHtml = value.slice(Math.max(0, start - 3), start)
-        const afterHtml = value.slice(end, Math.min(value.length, end + 4))
-
-        let newValue
-        let newSelectionStart, newSelectionEnd
-
-        // Check HTML italic
-        if (beforeHtml === '<i>' && afterHtml === '</i>') {
-          // Remove HTML italic
-          newValue = value.slice(0, start - 3) + selectedText + value.slice(end + 4)
-          newSelectionStart = start - 3
-          newSelectionEnd = start - 3 + selectedText.length
-        }
-        // Add italic
-        else {
-          newValue = value.slice(0, start) + `<i>${selectedText}</i>` + value.slice(end)
-          newSelectionStart = start + 3
-          newSelectionEnd = start + 3 + selectedText.length
-        }
-
-        updateQuestion(index, field, newValue)
-        setTimeout(() => {
-          textarea.focus()
-          textarea.setSelectionRange(newSelectionStart, newSelectionEnd)
-        }, 0)
-      } else {
-        const newValue = value.slice(0, start) + '<i></i>' + value.slice(end)
-        updateQuestion(index, field, newValue)
-        setTimeout(() => {
-          textarea.focus()
-          textarea.setSelectionRange(start + 3, start + 3)
-        }, 0)
-      }
-      return
-    }
-
-    // Ctrl+U - Underline
-    if (e.key === 'u' || e.key === 'U') {
-      e.preventDefault()
-      if (selectedText) {
-        // Check if text is already underlined by looking at surrounding characters
-        const beforeHtml = value.slice(Math.max(0, start - 3), start)
-        const afterHtml = value.slice(end, Math.min(value.length, end + 4))
-
-        let newValue
-        let newSelectionStart, newSelectionEnd
-
-        // Check HTML underline
-        if (beforeHtml === '<u>' && afterHtml === '</u>') {
-          // Remove underline
-          newValue = value.slice(0, start - 3) + selectedText + value.slice(end + 4)
-          newSelectionStart = start - 3
-          newSelectionEnd = start - 3 + selectedText.length
-        }
-        // Add underline
-        else {
-          newValue = value.slice(0, start) + `<u>${selectedText}</u>` + value.slice(end)
-          newSelectionStart = start + 3
-          newSelectionEnd = start + 3 + selectedText.length
-        }
-
-        updateQuestion(index, field, newValue)
-        setTimeout(() => {
-          textarea.focus()
-          textarea.setSelectionRange(newSelectionStart, newSelectionEnd)
-        }, 0)
-      } else {
-        const newValue = value.slice(0, start) + '<u></u>' + value.slice(end)
-        updateQuestion(index, field, newValue)
-        setTimeout(() => {
-          textarea.focus()
-          textarea.setSelectionRange(start + 3, start + 3)
-        }, 0)
-      }
+    // Ctrl+B/I/U - Bold/Italic/Underline
+    if (/^[biuBIU]$/.test(e.key)) {
+      handleRichTextShortcut(e, textarea, value, (v) => updateQuestion(index, field, v))
       return
     }
 
@@ -1051,6 +932,7 @@ const MultipleChoiceEditor = ({ questions, onQuestionsChange, settings, onSettin
         ref={(el) => (questionInputRefs.current[-1] = el)}
         value={intro || ''}
         onChange={(e) => onIntroChange && onIntroChange(e.target.value)}
+        onKeyDown={(e) => handleRichTextShortcut(e, questionInputRefs.current[-1], intro || '', (v) => onIntroChange && onIntroChange(v))}
         className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
         rows={2}
         placeholder="Nhập nội dung giới thiệu chung cho bài trắc nghiệm..."

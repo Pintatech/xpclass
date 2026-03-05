@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react'
+import React, { useState, useEffect, useRef } from 'react'
 import { parseFlashcardsFromCSV, generateCSVTemplate } from '../../../utils/csvParser'
 import {
   Plus,
@@ -8,6 +8,7 @@ import {
   X,
   Video,
 } from 'lucide-react'
+import { handleRichTextShortcut } from '../../../hooks/useRichTextShortcuts'
 
 const getYouTubeVideoId = (raw) => {
   if (!raw) return null;
@@ -31,6 +32,8 @@ const getTikTokVideoId = (raw) => {
 
 const FlashcardEditor = ({ cards, onCardsChange }) => {
   const [localCards, setLocalCards] = useState(cards || [])
+  const frontTextareasRef = useRef({})
+  const backTextareasRef = useRef({})
   const [showCSVImport, setShowCSVImport] = useState(false)
   const [csvText, setCsvText] = useState('')
   const [csvErrors, setCsvErrors] = useState([])
@@ -247,8 +250,10 @@ const FlashcardEditor = ({ cards, onCardsChange }) => {
                   Front
                 </label>
                 <textarea
+                  ref={(el) => { frontTextareasRef.current[index] = el }}
                   value={card.front || ''}
                   onChange={(e) => updateCard(index, 'front', e.target.value)}
+                  onKeyDown={(e) => handleRichTextShortcut(e, frontTextareasRef.current[index], card.front || '', (v) => updateCard(index, 'front', v))}
                   className="w-full p-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
                   rows={1}
                   placeholder="Front of the card"
@@ -261,8 +266,10 @@ const FlashcardEditor = ({ cards, onCardsChange }) => {
                   Back
                 </label>
                 <textarea
+                  ref={(el) => { backTextareasRef.current[index] = el }}
                   value={card.back || ''}
                   onChange={(e) => updateCard(index, 'back', e.target.value)}
+                  onKeyDown={(e) => handleRichTextShortcut(e, backTextareasRef.current[index], card.back || '', (v) => updateCard(index, 'back', v))}
                   className="w-full p-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
                   rows={1}
                   placeholder="Back of the card"

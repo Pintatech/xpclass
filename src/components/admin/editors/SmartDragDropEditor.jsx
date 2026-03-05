@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react'
 import { Plus, Trash2, Eye, EyeOff, HelpCircle, Upload, Copy, Image as ImageIcon, Link as LinkIcon, Music } from 'lucide-react'
+import { handleRichTextShortcut } from '../../../hooks/useRichTextShortcuts'
 
 // Convert simple markdown/HTML to safe HTML for preview
 const markdownToHtml = (text) => {
@@ -52,6 +53,7 @@ const SmartDragDropEditor = ({ questions, onQuestionsChange }) => {
   const [audioAutoplay, setAudioAutoplay] = useState(false)
   const [audioLoop, setAudioLoop] = useState(false)
   const questionTextareasRef = useRef({})
+  const explanationTextareasRef = useRef({})
 
   useEffect(() => {
     setLocalQuestions(questions || [])
@@ -746,6 +748,7 @@ She [has] [been] [studying] English for 3 years`}
                         <textarea
                           value={toEditableText(question)}
                           onChange={(e) => updateQuestionText(question.id, e.target.value)}
+                          onKeyDown={(e) => handleRichTextShortcut(e, questionTextareasRef.current[index], toEditableText(question), (v) => updateQuestionText(question.id, v))}
                           ref={(el) => { questionTextareasRef.current[index] = el }}
                           className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                           rows={3}
@@ -812,8 +815,10 @@ She [has] [been] [studying] English for 3 years`}
                           Explanation (optional)
                         </label>
                         <textarea
+                          ref={(el) => { explanationTextareasRef.current[index] = el }}
                           value={question.explanation}
                           onChange={(e) => updateQuestion(question.id, 'explanation', e.target.value)}
+                          onKeyDown={(e) => handleRichTextShortcut(e, explanationTextareasRef.current[index], question.explanation, (v) => updateQuestion(question.id, 'explanation', v))}
                           rows={2}
                           className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                           placeholder="Explain the correct answer..."

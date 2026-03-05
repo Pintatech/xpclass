@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react'
 import { Plus, Trash2, Eye, EyeOff, Upload, Image as ImageIcon, AlertCircle, X, Music } from 'lucide-react'
+import { handleRichTextShortcut } from '../../../hooks/useRichTextShortcuts'
 
 import { useBranding } from '../../../hooks/useBranding';
 const ImageHotspotEditor = ({ content, onContentChange }) => {
@@ -35,6 +36,9 @@ const ImageHotspotEditor = ({ content, onContentChange }) => {
   const imageRef = useRef(null)
   const containerRef = useRef(null)
   const questionTextareaRef = useRef(null)
+  const explanationTextareaRef = useRef(null)
+  const onContentChangeRef = useRef(onContentChange)
+  onContentChangeRef.current = onContentChange
 
   // Update parent when content changes
   useEffect(() => {
@@ -46,8 +50,8 @@ const ImageHotspotEditor = ({ content, onContentChange }) => {
       explanation,
       settings
     }
-    onContentChange(updatedContent)
-  }, [imageUrl, hotspots, labels, question, explanation, settings, onContentChange])
+    onContentChangeRef.current(updatedContent)
+  }, [imageUrl, hotspots, labels, question, explanation, settings])
 
   // Calculate image scale when image loads or container resizes
   useEffect(() => {
@@ -373,6 +377,7 @@ const ImageHotspotEditor = ({ content, onContentChange }) => {
           ref={questionTextareaRef}
           value={question}
           onChange={(e) => setQuestion(e.target.value)}
+          onKeyDown={(e) => handleRichTextShortcut(e, questionTextareaRef.current, question, setQuestion)}
           placeholder="Label the parts of the diagram by clicking a label then clicking the correct location."
           rows={4}
           className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent font-mono text-sm"
@@ -711,8 +716,10 @@ const ImageHotspotEditor = ({ content, onContentChange }) => {
           Explanation (Optional)
         </label>
         <textarea
+          ref={explanationTextareaRef}
           value={explanation}
           onChange={(e) => setExplanation(e.target.value)}
+          onKeyDown={(e) => handleRichTextShortcut(e, explanationTextareaRef.current, explanation, setExplanation)}
           placeholder="Additional explanation or context about this exercise..."
           rows={2}
           className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"

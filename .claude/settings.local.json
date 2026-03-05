@@ -51,7 +51,8 @@
       "Bash(grep:*)",
       "Bash(npm run build)",
       "Bash(npx vercel build --prod)",
-      "Bash(npx vercel deploy --prebuilt --prod)"
+      "Bash(npx vercel deploy --prebuilt --prod)",
+      "Bash(wc -l /c/Users/Calvin_PC/Downloads/xpclass/src/components/admin/editors/*.jsx)"
     ],
     "deny": [],
     "ask": []

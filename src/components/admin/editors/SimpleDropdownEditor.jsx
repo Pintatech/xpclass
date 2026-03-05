@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react'
+import React, { useState, useEffect, useRef } from 'react'
 import {
   Plus,
   Trash2,
@@ -8,9 +8,12 @@ import {
   Info
 } from 'lucide-react'
 import RichTextRenderer from '../../ui/RichTextRenderer'
+import { handleRichTextShortcut } from '../../../hooks/useRichTextShortcuts'
 
 const SimpleDropdownEditor = ({ questions, onQuestionsChange }) => {
   const [localQuestions, setLocalQuestions] = useState(questions || [])
+  const questionTextareasRef = useRef({})
+  const explanationTextareasRef = useRef({})
 
   useEffect(() => {
     setLocalQuestions(questions || [])
@@ -196,8 +199,10 @@ const SimpleDropdownEditor = ({ questions, onQuestionsChange }) => {
                 Question Text
               </label>
               <textarea
+                ref={(el) => { questionTextareasRef.current[qIndex] = el }}
                 value={question.question}
                 onChange={(e) => updateQuestion(qIndex, 'question', e.target.value)}
+                onKeyDown={(e) => handleRichTextShortcut(e, questionTextareasRef.current[qIndex], question.question, (v) => updateQuestion(qIndex, 'question', v))}
                 className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent font-mono text-sm"
                 rows={4}
                 placeholder="Example: The cat [sat, =sits, sitting] on the mat."
@@ -244,8 +249,10 @@ const SimpleDropdownEditor = ({ questions, onQuestionsChange }) => {
                 Explanation (Optional)
               </label>
               <textarea
+                ref={(el) => { explanationTextareasRef.current[qIndex] = el }}
                 value={question.explanation}
                 onChange={(e) => updateQuestion(qIndex, 'explanation', e.target.value)}
+                onKeyDown={(e) => handleRichTextShortcut(e, explanationTextareasRef.current[qIndex], question.explanation, (v) => updateQuestion(qIndex, 'explanation', v))}
                 className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                 rows={2}
                 placeholder="Explain the correct answer..."

@@ -1,9 +1,12 @@
-import React, { useState, useEffect } from 'react'
+import React, { useState, useEffect, useRef } from 'react'
 import { Plus, Trash2, Wand2, Eye, EyeOff, HelpCircle, Brain, Image as ImageIcon, Music, Link as LinkIcon, X } from 'lucide-react'
 import RichTextRenderer from '../../ui/RichTextRenderer'
+import { handleRichTextShortcut } from '../../../hooks/useRichTextShortcuts'
 
 const AIFillBlankEditor = ({ questions, onQuestionsChange, intro, onIntroChange }) => {
   const [localQuestions, setLocalQuestions] = useState([])
+  const introTextareaRef = useRef(null)
+  const questionTextareasRef = useRef({})
   const [previewMode, setPreviewMode] = useState({})
   const [bulkImportMode, setBulkImportMode] = useState(false)
   const [bulkText, setBulkText] = useState('')
@@ -275,7 +278,32 @@ Trả lời bằng tiếng Việt với giải thích chi tiết, khuyến khíc
       processAccumulatedQuestion()
 
       if (newQuestions.length > 0) {
-        const updatedQuestions = [...localQuestions, ...newQuestions]
+        // Auto-generate AI prompts for imported questions
+        const questionsWithPrompts = newQuestions.map(q => ({
+          ...q,
+          ai_prompt: `Đánh giá câu trả lời điền vào chỗ trống cho câu hỏi: "${q.question}"
+
+Đáp án mong đợi: ${q.expected_answers.join(', ')}
+
+Yêu cầu đánh giá:
+1. Điểm số từ 0-100 dựa trên độ chính xác và sự hiểu biết
+2. Mức độ tin cậy từ 0-100
+3. Giải thích CHI TIẾT (2-4 câu) bao gồm:
+   - Tại sao câu trả lời đúng/sai
+   - So sánh với đáp án đúng
+   - Điểm mạnh hoặc điểm cần cải thiện
+   - Gợi ý học tập (nếu câu trả lời không hoàn hảo)
+
+Tiêu chí chấm điểm:
+- Khớp chính xác: 100 điểm
+- Khớp một phần: 50-90 điểm (dựa vào mức độ tương đồng)
+- Hiểu khái niệm đúng: được khen thưởng
+- Lỗi chính tả/ngữ pháp nhỏ: không bị phạt nặng
+- Hoàn toàn sai: 0-30 điểm
+
+Trả lời bằng tiếng Việt với giải thích chi tiết, khuyến khích học sinh.`
+        }))
+        const updatedQuestions = [...localQuestions, ...questionsWithPrompts]
         setLocalQuestions(updatedQuestions)
         onQuestionsChange(updatedQuestions)
         setBulkText('')
@@ -321,8 +349,10 @@ Trả lời bằng tiếng Việt với giải thích chi tiết, khuyến khíc
           Exercise Intro (Optional)
         </label>
         <textarea
+          ref={introTextareaRef}
           value={intro || ''}
           onChange={(e) => onIntroChange && onIntroChange(e.target.value)}
+          onKeyDown={(e) => handleRichTextShortcut(e, introTextareaRef.current, intro || '', (v) => onIntroChange && onIntroChange(v))}
           className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500"
           rows={2}
           placeholder="Enter introductory text for the AI fill-in-the-blank exercise..."
@@ -457,8 +487,10 @@ B. Combine these sentences using a relative clause.
                       </button>
                     </div>
                     <textarea
+                      ref={(el) => { questionTextareasRef.current[index] = el }}
                       value={question.question}
                       onChange={(e) => updateQuestion(index, 'question', e.target.value)}
+                      onKeyDown={(e) => handleRichTextShortcut(e, questionTextareasRef.current[index], question.question, (v) => updateQuestion(index, 'question', v))}
                       placeholder="Enter your fill-in-the-blank question here..."
                       className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-purple-500"
                       rows={3}

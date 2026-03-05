@@ -572,7 +572,7 @@ const AIFillBlankExercise = ({ testMode = false, exerciseData = null, onAnswersC
         <div className="bg-white rounded-lg shadow-md p-6 border border-gray-200 mt-8">
           {/* Question */}
           <div className="mb-8">
-            <div className="text-lg font-semibold text-gray-800 mb-4 leading-relaxed">
+            <div className="text-lg text-gray-800 mb-4 leading-relaxed">
               <RichTextRenderer
                 content={currentQuestion.question}
                 allowImages={true}
