@@ -1,8 +1,9 @@
 import { useState, useRef, useEffect } from 'react'
 import { Link, useLocation } from 'react-router-dom'
-import { Bell, MoreHorizontal } from 'lucide-react'
+import { Bell, MoreHorizontal, ShieldCheck, GraduationCap } from 'lucide-react'
 import { useInventory } from '../../hooks/useInventory'
 import { useNotifications } from '../../hooks/useNotifications'
+import { useAuth } from '../../hooks/useAuth'
 import NotificationPanel from '../notifications/NotificationPanel'
 
 import { assetUrl } from '../../hooks/useBranding';
@@ -10,6 +11,7 @@ const BottomNavigation = () => {
   const location = useLocation()
   const { newItemCount } = useInventory()
   const { notifications, unreadCount, markAsRead, markAllAsRead } = useNotifications()
+  const { isAdmin, isTeacher } = useAuth()
   const [showNotifPanel, setShowNotifPanel] = useState(false)
   const [showMoreMenu, setShowMoreMenu] = useState(false)
   const notifRef = useRef(null)
@@ -40,9 +42,11 @@ const BottomNavigation = () => {
     { path: '/inventory', imageSrc: assetUrl('/icon/navigation/inventory.svg'), label: 'Kho đồ', badge: newItemCount },
     { id: 'notifications', label: 'Thông báo', isNotification: true, badge: unreadCount },
     { path: '/profile', imageSrc: assetUrl('/icon/navigation/account.svg'), label: 'Account' },
+    ...(isTeacher() ? [{ path: '/teacher', icon: 'teacher', label: 'Teacher' }] : []),
+    ...(isAdmin() ? [{ path: '/admin', icon: 'admin', label: 'Admin' }] : []),
   ]
 
-  const isMoreActive = ['/leaderboard', '/inventory', '/profile'].some(
+  const isMoreActive = ['/leaderboard', '/inventory', '/profile', '/admin', '/teacher'].some(
     p => location.pathname === p || location.pathname.startsWith(p + '/')
   )
 
@@ -131,6 +135,8 @@ const BottomNavigation = () => {
                         active ? 'text-primary-600 bg-primary-50' : 'text-gray-700 hover:bg-gray-50'
                       }`}
                     >
+                      {item.icon === 'admin' && <ShieldCheck size={20} className={active ? 'text-primary-600' : 'text-gray-400'} />}
+                      {item.icon === 'teacher' && <GraduationCap size={20} className={active ? 'text-primary-600' : 'text-gray-400'} />}
                       {item.imageSrc && (
                         <img
                           src={item.imageSrc}

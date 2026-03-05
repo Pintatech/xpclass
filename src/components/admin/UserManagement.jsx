@@ -266,7 +266,7 @@ const UserManagement = () => {
         <Card.Header>
           <div className="flex items-center gap-4">
             <h3 className="text-lg font-semibold text-gray-900 whitespace-nowrap">
-              Danh sách người dùng ({filteredUsers.length})
+              User ({filteredUsers.length})
             </h3>
 
             {/* Search */}
@@ -299,7 +299,7 @@ const UserManagement = () => {
             <div className="ml-auto">
               <Button onClick={() => setShowBulkImport(true)}>
                 <UserPlus className="w-4 h-4 mr-2" />
-                Thêm người dùng
+                Add
               </Button>
             </div>
           </div>

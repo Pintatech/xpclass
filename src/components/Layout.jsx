@@ -31,6 +31,7 @@ const Layout = () => {
   const isSessionPage = /\/study\/(course|level)\/[^/]+\/unit\/[^/]+\/session\/[^/]+/.test(location.pathname)
 
   const isTestPage = location.pathname.startsWith('/study/test-runner')
+  const isAdminPage = location.pathname.startsWith('/admin')
 
   const hideBottomNav = exercisePaths.some(p => location.pathname.startsWith(p)) || isSessionPage || isTestPage
   const hideSidebar = exercisePaths.some(p => location.pathname.startsWith(p)) || isTestPage
@@ -51,7 +52,7 @@ const Layout = () => {
 
       {/* Main Content */}
       <main className={`${hideSidebar ? 'lg:pl-0' : 'lg:pl-64'} min-h-screen ${hideBottomNav ? 'pb-0' : 'pb-16 lg:pb-0'}`}>
-        <div className={isSessionPage ? '' : hideSidebar ? 'container mx-auto px-1 sm:px-4 py-2 sm:py-6 max-w-7xl' : 'container mx-auto px-4 py-6 max-w-7xl'}>
+        <div className={isAdminPage ? '' : isSessionPage ? '' : hideSidebar ? 'container mx-auto px-1 sm:px-4 py-2 sm:py-6 max-w-7xl' : 'container mx-auto px-4 py-6 max-w-7xl'}>
           <Outlet />
         </div>
       </main>

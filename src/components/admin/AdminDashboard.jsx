@@ -19,7 +19,9 @@ import {
   Cat,
   Gift,
   Bell,
-  Palette
+  Palette,
+  Menu,
+  X
 } from 'lucide-react';
 import { supabase } from '../../supabase/client';
 import { useAuth } from '../../hooks/useAuth';
@@ -54,6 +56,7 @@ const AdminDashboard = () => {
   const [loading, setLoading] = useState(false);
   const [notification, setNotification] = useState(null);
   const [stats, setStats] = useState(null);
+  const [sidebarOpen, setSidebarOpen] = useState(false);
 
   // Get current tab from URL
   const getCurrentTab = () => {
@@ -66,6 +69,7 @@ const AdminDashboard = () => {
   // Navigation handler
   const handleTabChange = (tabId) => {
     setActiveTab(tabId);
+    setSidebarOpen(false);
     if (tabId === 'overview') {
       navigate('/admin');
     } else {
@@ -210,12 +214,25 @@ const AdminDashboard = () => {
 
   return (
     <div className="min-h-screen bg-gray-50 flex">
+      {/* Mobile overlay */}
+      {sidebarOpen && (
+        <div
+          className="fixed inset-0 bg-black bg-opacity-40 z-20 lg:hidden"
+          onClick={() => setSidebarOpen(false)}
+        />
+      )}
+
       {/* Left Sidebar */}
-      <div className="w-64 bg-white shadow-lg border-r flex flex-col">
+      <div className={`fixed lg:static inset-y-0 left-0 z-30 w-64 bg-white shadow-lg border-r flex flex-col transform transition-transform duration-200 ${sidebarOpen ? 'translate-x-0' : '-translate-x-full'} lg:translate-x-0`}>
         {/* Sidebar Header */}
-        <div className="p-6 border-b">
-          <h1 className="text-lg font-bold text-gray-900">Admin Dashboard</h1>
-          <p className="text-xs text-gray-600">Manage your MomTek platform</p>
+        <div className="p-6 border-b flex items-center justify-between">
+          <div>
+            <h1 className="text-lg font-bold text-gray-900">Admin Dashboard</h1>
+            <p className="text-xs text-gray-600">Manage your MomTek platform</p>
+          </div>
+          <button className="lg:hidden text-gray-500" onClick={() => setSidebarOpen(false)}>
+            <X className="w-5 h-5" />
+          </button>
         </div>
 
         {/* Navigation Sidebar */}
@@ -259,22 +276,26 @@ const AdminDashboard = () => {
       </div>
 
       {/* Main Content Area */}
-      <div className="flex-1 flex flex-col">
+      <div className="flex-1 flex flex-col min-w-0">
         {/* Top Header */}
         <div className="bg-white shadow-sm border-b">
-          <div className="px-6 py-4">
-            <div className="flex justify-between items-center">
+          <div className="px-4 lg:px-6 py-4">
+            <div className="flex items-center gap-3">
+              <button
+                className="lg:hidden text-gray-500 hover:text-gray-700"
+                onClick={() => setSidebarOpen(true)}
+              >
+                <Menu className="w-6 h-6" />
+              </button>
               <div>
-                <h2 className="text-xl font-semibold text-gray-900">
+                <h2 className="text-lg lg:text-xl font-semibold text-gray-900">
                   {tabs.find(tab => tab.id === activeTab)?.label || 'Dashboard'}
                 </h2>
-                <p className="text-sm text-gray-600">
+                <p className="text-sm text-gray-600 hidden sm:block">
                   {activeTab === 'overview' && 'Platform overview and statistics'}
-
                   {activeTab === 'courses' && 'Manage learning courses and assign teachers'}
                   {activeTab === 'cohorts' && 'Manage student cohorts'}
                   {activeTab === 'enrollments' && 'Assign students to courses'}
-
                   {activeTab === 'levels' && 'Manage student XP levels and badges'}
                   {activeTab === 'achievements' && 'Manage achievements and badges'}
                   {activeTab === 'shop' && 'Manage shop items and pricing'}
@@ -293,7 +314,7 @@ const AdminDashboard = () => {
 
         {/* Content Container */}
         <div className="flex-1 overflow-auto">
-          <div className="p-6">
+          <div className="px-4 lg:px-6 pb-6 pt-0">
             {/* Quick Stats */}
             {stats && activeTab === 'overview' && (
               <div className="grid grid-cols-2 md:grid-cols-6 gap-4 mb-8">

@@ -235,8 +235,6 @@ const PetManagement = () => {
 
   return (
     <div className="p-6 max-w-7xl mx-auto">
-      <h1 className="text-3xl font-bold text-gray-800 mb-6">Pet Management</h1>
-
       {/* Message Toast */}
       {message && (
         <div className={`mb-4 p-4 rounded-lg ${

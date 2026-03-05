@@ -184,12 +184,11 @@ const ShopManagement = () => {
   return (
     <div className="space-y-6">
       {/* Header */}
-      <div className="flex items-center justify-between">
+      <div className="flex items-start justify-between gap-4">
         <div>
-          <h2 className="text-2xl font-bold text-gray-900">Quản lý Shop</h2>
-          <p className="text-gray-600">Thêm và quản lý vật phẩm trong cửa hàng</p>
+          <p className="text-gray-600 hidden sm:block">Thêm và quản lý vật phẩm trong cửa hàng</p>
         </div>
-        <Button onClick={() => handleOpenModal()} className="flex items-center space-x-2">
+        <Button onClick={() => handleOpenModal()} className="flex items-center space-x-2 shrink-0">
           <Plus className="w-4 h-4" />
           <span>Thêm vật phẩm</span>
         </Button>
@@ -203,7 +202,7 @@ const ShopManagement = () => {
       )}
 
       {/* Category Filter */}
-      <div className="flex gap-2">
+      <div className="flex flex-wrap gap-2">
         <button
           onClick={() => setFilterCategory('all')}
           className={`px-4 py-1.5 rounded-full text-sm font-medium transition-colors ${
@@ -230,7 +229,7 @@ const ShopManagement = () => {
       </div>
 
       {/* Items Grid */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-6">
+      <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-4">
         {filteredItems.map(item => (
           <Card key={item.id} className={`p-4 ${!item.is_active ? 'opacity-60' : ''}`}>
             <div className="space-y-3">
