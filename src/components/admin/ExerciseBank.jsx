@@ -33,14 +33,15 @@ const ExerciseBank = ({ readOnly = false, allowedTypes = null }) => {
   const [showEditExercise, setShowEditExercise] = useState(false)
   const [editingExercise, setEditingExercise] = useState(null)
   const [selectedExercises, setSelectedExercises] = useState([])
+  const [foldersLoaded, setFoldersLoaded] = useState(false)
 
   useEffect(() => {
     fetchFolders()
-    fetchExercises()
     fetchFolderCounts()
   }, [])
 
   useEffect(() => {
+    if (!foldersLoaded) return
     fetchExercises()
     fetchFolderCounts()
   }, [selectedFolder, searchTerm, filterType])
@@ -61,6 +62,7 @@ const ExerciseBank = ({ readOnly = false, allowedTypes = null }) => {
           setSelectedFolder(rootFolders[0])
         }
       }
+      setFoldersLoaded(true)
     } catch (error) {
       console.error('Error fetching folders:', error)
     }

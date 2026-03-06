@@ -220,7 +220,7 @@ const Leaderboard = () => {
             earned_at,
             achievement_id,
             achievements (title, criteria_type),
-            users (full_name, avatar_url, active_title, active_frame_ratio)
+            users (full_name, avatar_url, active_title, active_frame_ratio, hide_frame)
           `)
           .in('achievement_id', achievementIds)
           .order('earned_at', { ascending: false })
@@ -406,7 +406,7 @@ const Leaderboard = () => {
             levelNumber: levelInfo.level
           },
           avatar: user.avatar_url,
-          frame: user.active_title,
+          frame: user.hide_frame ? null : user.active_title,
           frameRatio: user.active_frame_ratio,
           streak: user.streak_count || 0,
           completedExercises: exerciseCounts[user.id] || 0,
@@ -455,7 +455,7 @@ const Leaderboard = () => {
 
         const { data: users } = await supabase
           .from('users')
-          .select('id, full_name, email, avatar_url, xp, active_title, active_frame_ratio')
+          .select('id, full_name, email, avatar_url, xp, active_title, active_frame_ratio, hide_frame')
           .in('id', userIds)
           .eq('role', 'user')
 
@@ -474,7 +474,7 @@ const Leaderboard = () => {
             name: u.full_name || u.email?.split('@')[0] || 'Unknown',
             xp: u.bestScore,
             avatar: u.avatar_url,
-            frame: u.active_title,
+            frame: u.hide_frame ? null : u.active_title,
             frameRatio: u.active_frame_ratio,
             badge: { ...levelInfo.badge, levelNumber: levelInfo.level },
             isCurrentUser: u.id === user?.id
@@ -520,7 +520,7 @@ const Leaderboard = () => {
 
         const { data: users } = await supabase
           .from('users')
-          .select('id, full_name, email, avatar_url, xp, active_title, active_frame_ratio')
+          .select('id, full_name, email, avatar_url, xp, active_title, active_frame_ratio, hide_frame')
           .in('id', userIds)
           .eq('role', 'user')
 
@@ -539,7 +539,7 @@ const Leaderboard = () => {
             name: u.full_name || u.email?.split('@')[0] || 'Unknown',
             xp: u.bestScore,
             avatar: u.avatar_url,
-            frame: u.active_title,
+            frame: u.hide_frame ? null : u.active_title,
             frameRatio: u.active_frame_ratio,
             badge: { ...levelInfo.badge, levelNumber: levelInfo.level },
             isCurrentUser: u.id === user?.id
@@ -566,7 +566,7 @@ const Leaderboard = () => {
   const getAllTimeLeaderboard = async () => {
     const { data: users, error: usersError } = await supabase
       .from('users')
-      .select('id, email, full_name, xp, streak_count, avatar_url, active_title, active_frame_ratio')
+      .select('id, email, full_name, xp, streak_count, avatar_url, active_title, active_frame_ratio, hide_frame')
       .eq('role', 'user')
       .order('xp', { ascending: false })
       .limit(10)
@@ -600,7 +600,7 @@ const Leaderboard = () => {
     // First get all users
     const { data: users, error: usersError } = await supabase
       .from('users')
-      .select('id, email, full_name, xp, streak_count, avatar_url, active_title, active_frame_ratio')
+      .select('id, email, full_name, xp, streak_count, avatar_url, active_title, active_frame_ratio, hide_frame')
       .eq('role', 'user')
       .limit(500)
 
@@ -1335,7 +1335,7 @@ const Leaderboard = () => {
                       <div className="flex items-center gap-3">
                         <AvatarWithFrame
                           avatarUrl={champion.users?.avatar_url}
-                          frameUrl={champion.users?.active_title}
+                          frameUrl={champion.users?.hide_frame ? null : champion.users?.active_title}
                           frameRatio={champion.users?.active_frame_ratio}
                           size={40}
                           fallback={champion.users?.full_name?.charAt(0)?.toUpperCase() || '?'}

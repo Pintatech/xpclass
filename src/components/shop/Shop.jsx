@@ -5,7 +5,7 @@ import { useAuth } from '../../hooks/useAuth'
 import { useProgress } from '../../hooks/useProgress'
 import { usePet } from '../../hooks/usePet'
 import { useInventory } from '../../hooks/useInventory'
-import { ShoppingBag, Check, Lock } from 'lucide-react'
+import { ShoppingBag, Check, Lock, ChevronLeft, ChevronRight, Eye, EyeOff } from 'lucide-react'
 
 import { assetUrl } from '../../hooks/useBranding';
 const rarityOrder = ['common', 'uncommon', 'rare', 'epic', 'legendary']
@@ -57,6 +57,7 @@ const Shop = () => {
   const [purchasing, setPurchasing] = useState(null)
   const [confirmItem, setConfirmItem] = useState(null)
   const [activeCollection, setActiveCollection] = useState('all')
+  const [variantIndex, setVariantIndex] = useState({}) // { [groupKey]: index }
 
   // Egg-specific state
   const [buyingEggId, setBuyingEggId] = useState(null)
@@ -197,6 +198,14 @@ const Shop = () => {
     setTimeout(() => setMessage(null), 3000)
   }
 
+  const handleToggleHideFrame = async () => {
+    try {
+      await updateProfile({ hide_frame: !profile?.hide_frame })
+    } catch (err) {
+      console.error('Error toggling frame visibility:', err)
+    }
+  }
+
   const handleEquip = async (item) => {
     try {
       if (item.category === 'avatar') {
@@ -206,7 +215,7 @@ const Shop = () => {
       } else if (item.category === 'frame') {
         const frameUrl = item.image_url
         const frameRatio = item.item_data?.avatar_ratio || 66
-        await updateProfile({ active_title: frameUrl, active_frame_ratio: frameRatio })
+        await updateProfile({ active_title: frameUrl, active_frame_ratio: frameRatio, hide_frame: false })
         alert('Đã trang bị khung!')
       } else if (item.category === 'background') {
         const { data, error } = await supabase.rpc('equip_background', {
@@ -294,6 +303,26 @@ const Shop = () => {
   const displayedItems = activeCollection === 'all'
     ? filteredItems
     : filteredItems.filter(item => item.item_data?.collection === activeCollection)
+
+  // Group items by avatar_group (items without a group stay as single entries)
+  const groupedDisplayItems = (() => {
+    const groups = []
+    const groupMap = {}
+    displayedItems.forEach(item => {
+      const data = typeof item.item_data === 'string' ? JSON.parse(item.item_data) : item.item_data
+      const groupKey = data?.avatar_group
+      if (groupKey) {
+        if (!groupMap[groupKey]) {
+          groupMap[groupKey] = { groupKey, variants: [] }
+          groups.push(groupMap[groupKey])
+        }
+        groupMap[groupKey].variants.push(item)
+      } else {
+        groups.push({ groupKey: null, variants: [item] })
+      }
+    })
+    return groups
+  })()
 
   const sortedEggs = eggCatalog.sort((a, b) => rarityOrder.indexOf(a.rarity) - rarityOrder.indexOf(b.rarity))
 
@@ -469,7 +498,7 @@ const Shop = () => {
         )
       ) : (
         /* Regular Items Grid */
-        displayedItems.length === 0 ? (
+        groupedDisplayItems.length === 0 ? (
           <div className="text-center py-16 text-gray-400">
             <ShoppingBag className="w-16 h-16 mx-auto mb-4 opacity-30" />
             <p className="text-lg">Chưa có vật phẩm nào</p>
@@ -477,13 +506,16 @@ const Shop = () => {
           </div>
         ) : (
           <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-4">
-            {displayedItems.map(item => {
+            {groupedDisplayItems.map(group => {
+              const idx = group.groupKey ? (variantIndex[group.groupKey] || 0) : 0
+              const item = group.variants[idx]
+              const hasVariants = group.variants.length > 1
               const owned = isOwned(item.id)
               const canAfford = canAffordItem(item)
 
               return (
                 <div
-                  key={item.id}
+                  key={group.groupKey || item.id}
                   className={`relative bg-white rounded-xl border-2 overflow-hidden transition-all hover:shadow-lg ${
                     !owned && !canAfford
                       ? 'border-gray-200 opacity-75'
@@ -497,6 +529,13 @@ const Shop = () => {
                     </div>
                   )}
 
+                  {/* Owned badge for variants */}
+                  {hasVariants && owned && !isEquipped(item) && (
+                    <div className="absolute top-2 right-2 bg-green-500 text-white rounded-full p-1 z-10">
+                      <Check className="w-3 h-3" />
+                    </div>
+                  )}
+
                   {/* XP bonus badge */}
                   {item.item_data?.xp_bonus > 0 && (
                     <div className="absolute top-2 left-2 bg-yellow-400 text-yellow-900 rounded-full px-1.5 py-0.5 text-[10px] font-bold z-10 shadow">
@@ -504,8 +543,24 @@ const Shop = () => {
                     </div>
                   )}
 
-                  {/* Item image */}
-                  <div className="aspect-square bg-gray-50 flex items-center justify-center p-4">
+                  {/* Item image with variant arrows */}
+                  <div className="aspect-square bg-gray-50 flex items-center justify-center p-4 relative">
+                    {hasVariants && (
+                      <>
+                        <button
+                          onClick={(e) => { e.stopPropagation(); setVariantIndex(prev => ({ ...prev, [group.groupKey]: (idx - 1 + group.variants.length) % group.variants.length })) }}
+                          className="absolute left-1 top-1/2 -translate-y-1/2 bg-white/80 hover:bg-white rounded-full p-0.5 shadow z-10"
+                        >
+                          <ChevronLeft className="w-4 h-4 text-gray-600" />
+                        </button>
+                        <button
+                          onClick={(e) => { e.stopPropagation(); setVariantIndex(prev => ({ ...prev, [group.groupKey]: (idx + 1) % group.variants.length })) }}
+                          className="absolute right-1 top-1/2 -translate-y-1/2 bg-white/80 hover:bg-white rounded-full p-0.5 shadow z-10"
+                        >
+                          <ChevronRight className="w-4 h-4 text-gray-600" />
+                        </button>
+                      </>
+                    )}
                     {item.image_url ? (
                       item.category === 'background' ? (
                         <div
@@ -527,6 +582,23 @@ const Shop = () => {
                     )}
                   </div>
 
+                  {/* Variant dots */}
+                  {hasVariants && (
+                    <div className="flex justify-center gap-1 py-1">
+                      {group.variants.map((v, i) => (
+                        <button
+                          key={v.id}
+                          onClick={() => setVariantIndex(prev => ({ ...prev, [group.groupKey]: i }))}
+                          className={`w-2 h-2 rounded-full transition-all ${
+                            i === idx
+                              ? 'bg-blue-500 scale-125'
+                              : isOwned(v.id) ? 'bg-green-300' : 'bg-gray-300'
+                          }`}
+                        />
+                      ))}
+                    </div>
+                  )}
+
                   {/* Item info */}
                   <div className="p-3">
                     <h3 className="font-semibold text-sm text-gray-800 truncate">{item.name}</h3>
@@ -539,12 +611,30 @@ const Shop = () => {
                       {owned ? (
                         equippableCategories.includes(item.category) ? (
                           isEquipped(item) ? (
-                            <button
-                              disabled
-                              className="w-full py-1.5 bg-blue-100 text-blue-700 rounded-lg text-sm font-medium opacity-60 cursor-not-allowed"
-                            >
-                              Đã trang bị
-                            </button>
+                            <div className="space-y-1">
+                              <button
+                                disabled
+                                className="w-full py-1.5 bg-blue-100 text-blue-700 rounded-lg text-sm font-medium opacity-60 cursor-not-allowed"
+                              >
+                                Đã trang bị
+                              </button>
+                              {item.category === 'frame' && (
+                                <button
+                                  onClick={handleToggleHideFrame}
+                                  className={`w-full py-1.5 rounded-lg text-xs font-medium flex items-center justify-center gap-1 transition-colors ${
+                                    profile?.hide_frame
+                                      ? 'bg-gray-100 text-gray-500 hover:bg-gray-200'
+                                      : 'bg-yellow-50 text-yellow-700 hover:bg-yellow-100'
+                                  }`}
+                                >
+                                  {profile?.hide_frame ? (
+                                    <><Eye className="w-3 h-3" /> Hiện khung</>
+                                  ) : (
+                                    <><EyeOff className="w-3 h-3" /> Ẩn khung</>
+                                  )}
+                                </button>
+                              )}
+                            </div>
                           ) : (
                             <button
                               onClick={() => handleEquip(item)}

@@ -411,7 +411,7 @@ const Dashboard = () => {
               <div className="flex items-center space-x-4 mb-4">
                 <AvatarWithFrame
                   avatarUrl={profile?.avatar_url}
-                  frameUrl={profile?.active_title}
+                  frameUrl={profile?.hide_frame ? null : profile?.active_title}
                   frameRatio={profile?.active_frame_ratio}
                   size={86}
                   fallback={profile?.full_name?.[0]?.toUpperCase() || profile?.email?.[0]?.toUpperCase() || 'U'}

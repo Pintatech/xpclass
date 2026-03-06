@@ -376,7 +376,7 @@ const DailyChallenge = () => {
                 </span>
                 <AvatarWithFrame
                   avatarUrl={profile?.avatar_url}
-                  frameUrl={profile?.active_title}
+                  frameUrl={profile?.hide_frame ? null : profile?.active_title}
                   frameRatio={profile?.active_frame_ratio}
                   size={28}
                   className="flex-shrink-0"

@@ -36,7 +36,8 @@ const RecentActivities = () => {
             full_name,
             avatar_url,
             active_title,
-            active_frame_ratio
+            active_frame_ratio,
+            hide_frame
           ),
           achievements:achievement_id (
             id,
@@ -117,7 +118,7 @@ const RecentActivities = () => {
             {/* User Avatar with Frame */}
             <AvatarWithFrame
               avatarUrl={activity.users.avatar_url}
-              frameUrl={activity.users.active_title}
+              frameUrl={activity.users.hide_frame ? null : activity.users.active_title}
               frameRatio={activity.users.active_frame_ratio}
               size={32}
               fallback={activity.users.full_name?.charAt(0) || 'U'}

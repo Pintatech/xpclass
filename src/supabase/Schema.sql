@@ -114,6 +114,7 @@ CREATE TABLE public.users (
   gems integer DEFAULT 0,
   active_title text,
   active_frame_ratio text,
+  hide_frame boolean DEFAULT false,
   active_background_url text,
   active_bowl_url text,
   active_spaceship_url text,

@@ -71,7 +71,8 @@ const CelebrationScreen = ({
             email,
             avatar_url,
             active_title,
-            active_frame_ratio
+            active_frame_ratio,
+            hide_frame
           )
         `)
         .eq("exercise_id", exerciseId)
@@ -93,7 +94,7 @@ const CelebrationScreen = ({
             return parts.length > 2 ? parts.slice(-2).join(" ") : full;
           })(),
           avatar: d.users.avatar_url,
-          frame: d.users.active_title,
+          frame: d.users.hide_frame ? null : d.users.active_title,
           frameRatio: d.users.active_frame_ratio,
           score: d.max_score ? Math.round((d.score / d.max_score) * 100) : d.score,
           time: d.time_spent,
