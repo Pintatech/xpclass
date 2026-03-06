@@ -29,18 +29,26 @@ const AssignExerciseModal = ({ sessionId, onClose, onAssigned }) => {
 
   useEffect(() => {
     fetchFolders()
-    fetchExercises()
     fetchAssignedExercises()
   }, [sessionId])
 
   useEffect(() => {
+    if (selectedFolder !== 'all') {
+      fetchExercises()
+    } else {
+      setExercises([])
+    }
+  }, [selectedFolder])
+
+  useEffect(() => {
     filterExercises()
-  }, [exercises, searchTerm, selectedType, selectedFolder, assignedExercises])
+  }, [exercises, searchTerm, selectedType, assignedExercises])
 
 
   const fetchExercises = async () => {
     try {
-      const { data, error } = await supabase
+      setLoading(true)
+      let query = supabase
         .from('exercises')
         .select(`
           *,
@@ -48,7 +56,14 @@ const AssignExerciseModal = ({ sessionId, onClose, onAssigned }) => {
         `)
         .eq('is_in_bank', true)
         .eq('is_active', true)
-        .order('created_at', { ascending: false })
+
+      if (selectedFolder !== 'all') {
+        query = query.eq('folder_id', selectedFolder)
+      }
+
+      query = query.order('created_at', { ascending: false })
+
+      const { data, error } = await query
 
       if (error) throw error
       setExercises(data || [])
@@ -133,10 +148,6 @@ const AssignExerciseModal = ({ sessionId, onClose, onAssigned }) => {
 
     if (selectedType !== 'all') {
       filtered = filtered.filter(exercise => exercise.exercise_type === selectedType)
-    }
-
-    if (selectedFolder !== 'all') {
-      filtered = filtered.filter(exercise => exercise.folder_id === selectedFolder)
     }
 
     setFilteredExercises(filtered)
@@ -309,9 +320,11 @@ const AssignExerciseModal = ({ sessionId, onClose, onAssigned }) => {
               <BookOpen className="w-16 h-16 text-gray-400 mx-auto mb-4" />
               <h3 className="text-lg font-medium text-gray-900 mb-2">No exercises found</h3>
               <p className="text-gray-600">
-                {searchTerm || selectedType !== 'all'
-                  ? 'Try adjusting your search or filters'
-                  : 'No exercises available in the Exercise Bank'}
+                {selectedFolder === 'all'
+                  ? 'Select a folder to browse exercises'
+                  : searchTerm || selectedType !== 'all'
+                    ? 'Try adjusting your search or filters'
+                    : 'No exercises in this folder'}
               </p>
             </div>
           ) : (

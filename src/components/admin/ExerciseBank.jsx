@@ -207,7 +207,7 @@ const ExerciseBank = ({ readOnly = false, allowedTypes = null }) => {
     <div className="h-full bg-gray-50">
       <div className="flex h-full">
         {/* Sidebar - Folder Tree */}
-        <div className="w-80 bg-white border-r border-gray-200 flex flex-col">
+        <div className="w-[28rem] bg-white border-r border-gray-200 flex flex-col">
           <div className="p-4 border-b border-gray-200">
             <div className="flex items-center justify-between mb-4">
               <h2 className="text-lg font-semibold text-gray-900">Exercise Bank</h2>
