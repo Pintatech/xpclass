@@ -321,6 +321,8 @@ const Shop = () => {
         groups.push({ groupKey: null, variants: [item] })
       }
     })
+    groups.forEach(g => g.variants.sort((a, b) => a.name.localeCompare(b.name, undefined, { numeric: true })))
+    groups.sort((a, b) => a.variants[0].name.localeCompare(b.variants[0].name, undefined, { numeric: true }))
     return groups
   })()
 

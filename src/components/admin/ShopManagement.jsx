@@ -229,7 +229,7 @@ const ShopManagement = () => {
       </div>
 
       {/* Items Grid */}
-      <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-4">
+      <div className="grid grid-cols-2 sm:grid-cols-4 md:grid-cols-6 lg:grid-cols-8 gap-4">
         {filteredItems.map(item => (
           <Card key={item.id} className={`p-4 ${!item.is_active ? 'opacity-60' : ''}`}>
             <div className="space-y-3">
