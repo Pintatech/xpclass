@@ -92,7 +92,7 @@ const TeacherClassReports = () => {
   // Auto-save draft to localStorage on every change
   useEffect(() => {
     if (skipDraftSave.current || !selectedCourse || !selectedDate) return;
-    const hasData = Object.keys(records).length > 0 || lessonInfo.lesson_name || lessonInfo.lesson_mode || lessonInfo.feedback;
+    const hasData = Object.keys(records).length > 0 || lessonInfo.lesson_name || lessonInfo.lesson_mode || lessonInfo.lesson_tags || lessonInfo.feedback;
     if (hasData) {
       saveDraft(selectedCourse, selectedDate, lessonInfo, records);
     }
@@ -108,10 +108,11 @@ const TeacherClassReports = () => {
   }, [records, lessonInfo]);
 
   // Load data when course/date changes
+  // Skip if URL has a course param that hasn't been applied yet
   useEffect(() => {
-    if (selectedCourse && selectedDate) {
-      loadData();
-    }
+    if (!selectedCourse || !selectedDate) return;
+    if (initialCourse && selectedCourse !== initialCourse) return;
+    loadData();
   }, [selectedCourse, selectedDate]);
 
   const loadData = async () => {
@@ -208,8 +209,9 @@ const TeacherClassReports = () => {
   const getIncompleTabs = () => {
     const missing = [];
 
-    // Info: lesson_mode and lesson_name required
-    if (!lessonInfo.lesson_mode || !lessonInfo.lesson_name || !lessonInfo.skill) {
+    // Info: lesson_type required; for curriculum mode need level+unit+skill; for custom need name+skill
+    if (!lessonInfo.lesson_type || !lessonInfo.lesson_name || !lessonInfo.skill ||
+        (lessonInfo.lesson_type === 'Theo chương trình' && !lessonInfo.lesson_mode)) {
       missing.push('Info');
     }
 
@@ -411,6 +413,7 @@ const TeacherClassReports = () => {
           <div className="flex gap-1 mt-3 -mb-3 md:mt-4 md:-mb-4 overflow-x-auto scrollbar-hide">
             {tabs.map((tab) => {
               const Icon = tab.icon;
+              const isIncomplete = incompleteTabs.includes(tab.label);
               return (
                 <button
                   key={tab.id}
@@ -423,6 +426,7 @@ const TeacherClassReports = () => {
                 >
                   <Icon className="w-4 h-4" />
                   <span className="hidden sm:inline">{tab.label}</span>
+                  <span className={`w-2 h-2 rounded-full ${isIncomplete ? 'bg-gray-300' : 'bg-green-400'}`} />
                 </button>
               );
             })}

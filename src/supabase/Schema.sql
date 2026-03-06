@@ -2324,6 +2324,7 @@ CREATE TABLE IF NOT EXISTS public.lesson_info (
   session_date date NOT NULL,
   lesson_name text,
   lesson_mode text,
+  lesson_tags text,
   skill text,
   feedback text,
   recorded_by uuid NOT NULL,

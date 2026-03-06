@@ -101,6 +101,9 @@ const RollCallView = ({ students, records, onChange, onMarkAllPresent, onMarkAll
                     </div>
                     <div className="min-w-0 flex-1">
                       <p className="font-medium text-gray-900 truncate text-sm md:text-base">{student.full_name}</p>
+                      {student.email && (
+                        <p className="text-xs text-gray-400 truncate">{student.email.split('@')[0]}</p>
+                      )}
                     </div>
                   </div>
 

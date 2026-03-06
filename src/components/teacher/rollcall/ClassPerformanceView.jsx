@@ -103,7 +103,12 @@ const ClassPerformanceView = ({ students, records, onChange, onMarkAll, loading 
                         </span>
                       )}
                     </div>
-                    <p className="font-medium text-gray-900 truncate text-sm md:text-base">{student.full_name}</p>
+                    <div className="min-w-0">
+                      <p className="font-medium text-gray-900 truncate text-sm md:text-base">{student.full_name}</p>
+                      {student.email && (
+                        <p className="text-xs text-gray-400 truncate">{student.email.split('@')[0]}</p>
+                      )}
+                    </div>
                     <div className="flex gap-1 flex-shrink-0">
                       <button
                         onClick={() => onChange(student.id, { star_flag: starFlag === 'star' ? '' : 'star' })}

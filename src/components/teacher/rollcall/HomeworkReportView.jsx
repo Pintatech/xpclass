@@ -25,13 +25,21 @@ const HomeworkReportView = ({ students, courseId, records, onChange, onMarkAll, 
 
   useEffect(() => {
     if (selectedSession) loadExercises(selectedSession);
-    else { setExercises([]); setSelectedExercise(''); }
+    else { setExercises([]); setSelectedExercise(''); setProgress({}); }
   }, [selectedSession]);
 
+  // Load progress for all exercises when session exercises are loaded, or single exercise when selected
   useEffect(() => {
-    if (selectedExercise && students.length > 0) loadProgress(selectedExercise);
-    else setProgress({});
-  }, [selectedExercise, students]);
+    if (exercises.length > 0 && students.length > 0) {
+      if (selectedExercise) {
+        loadProgress(selectedExercise);
+      } else {
+        loadAllProgress();
+      }
+    } else {
+      setProgress({});
+    }
+  }, [exercises, selectedExercise, students]);
 
   const loadSessions = async () => {
     const { data: units } = await supabase
@@ -52,8 +60,9 @@ const HomeworkReportView = ({ students, courseId, records, onChange, onMarkAll, 
 
     const list = (sessionsData || []).map(s => {
       const unit = units.find(u => u.id === s.unit_id);
-      return { ...s, display: `Unit ${unit?.unit_number} - Session ${s.session_number}: ${s.title}` };
+      return { ...s, unitNumber: unit?.unit_number || 0, display: `${unit?.title || 'Unit ' + unit?.unit_number}: ${s.title}` };
     });
+    list.sort((a, b) => a.unitNumber - b.unitNumber || a.session_number - b.session_number);
     setSessions(list);
   };
 
@@ -90,6 +99,48 @@ const HomeworkReportView = ({ students, courseId, records, onChange, onMarkAll, 
     setProgress(map);
 
     // Auto-fill homework_status from scores
+    students.forEach(s => {
+      const grade = scoreToGrade(map[s.id]);
+      onChange(s.id, { homework_status: grade });
+    });
+
+    setLoading(false);
+  };
+
+  const loadAllProgress = async () => {
+    setLoading(true);
+    const exerciseIds = exercises.map(ex => ex.id);
+    const { data } = await supabase
+      .from('user_progress')
+      .select('user_id, status, score, max_score, attempts, completed_at, exercise_id')
+      .in('exercise_id', exerciseIds)
+      .in('user_id', students.map(s => s.id));
+
+    // Aggregate scores per student across all exercises
+    const aggregated = {};
+    students.forEach(s => {
+      aggregated[s.id] = { score: 0, max_score: 0, count: 0 };
+    });
+
+    (data || []).forEach(p => {
+      if (!aggregated[p.user_id]) aggregated[p.user_id] = { score: 0, max_score: 0, count: 0 };
+      aggregated[p.user_id].score += p.score || 0;
+      aggregated[p.user_id].max_score += p.max_score || 0;
+      aggregated[p.user_id].count += 1;
+    });
+
+    const map = {};
+    Object.entries(aggregated).forEach(([userId, agg]) => {
+      map[userId] = {
+        score: agg.score,
+        max_score: agg.max_score,
+        status: agg.count > 0 ? 'completed' : null,
+      };
+    });
+
+    setProgress(map);
+
+    // Auto-fill homework_status from aggregated scores
     students.forEach(s => {
       const grade = scoreToGrade(map[s.id]);
       onChange(s.id, { homework_status: grade });
@@ -249,7 +300,7 @@ const HomeworkReportView = ({ students, courseId, records, onChange, onMarkAll, 
                 disabled={!selectedSession}
                 className="w-full p-3 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500 disabled:bg-gray-100 disabled:cursor-not-allowed"
               >
-                <option value="">Select exercise...</option>
+                <option value="">All exercises</option>
                 {exercises.map(ex => (
                   <option key={ex.id} value={ex.id}>{ex.title}</option>
                 ))}
@@ -257,9 +308,13 @@ const HomeworkReportView = ({ students, courseId, records, onChange, onMarkAll, 
             </div>
           </div>
 
-          {!selectedExercise ? (
+          {!selectedSession ? (
             <div className="p-8 text-center text-gray-500">
-              Select a session and exercise to view student grades.
+              Select a session to view student grades.
+            </div>
+          ) : exercises.length === 0 && !loading ? (
+            <div className="p-8 text-center text-gray-500">
+              No exercises in this session.
             </div>
           ) : loading ? (
             <div className="p-8 text-center">
@@ -286,7 +341,12 @@ const HomeworkReportView = ({ students, courseId, records, onChange, onMarkAll, 
                           </span>
                         )}
                       </div>
-                      <p className="font-medium text-gray-900 truncate text-sm md:text-base">{student.full_name}</p>
+                      <div className="min-w-0">
+                        <p className="font-medium text-gray-900 truncate text-sm md:text-base">{student.full_name}</p>
+                        {student.email && (
+                          <p className="text-xs text-gray-400 truncate">{student.email.split('@')[0]}</p>
+                        )}
+                      </div>
                       {pct !== null && (
                         <span className="text-xs md:text-sm text-gray-400 flex-shrink-0">{pct}%</span>
                       )}
@@ -361,7 +421,12 @@ const HomeworkReportView = ({ students, courseId, records, onChange, onMarkAll, 
                           </span>
                         )}
                       </div>
-                      <p className="font-medium text-gray-900 truncate text-sm md:text-base">{student.full_name}</p>
+                      <div className="min-w-0">
+                        <p className="font-medium text-gray-900 truncate text-sm md:text-base">{student.full_name}</p>
+                        {student.email && (
+                          <p className="text-xs text-gray-400 truncate">{student.email.split('@')[0]}</p>
+                        )}
+                      </div>
                     </div>
 
                     <div className="flex items-center gap-2 md:gap-3 flex-shrink-0">
