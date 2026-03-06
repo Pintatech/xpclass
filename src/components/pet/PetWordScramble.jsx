@@ -25,7 +25,22 @@ const pickGameWords = (source) => {
   const medium = shuffle(source.filter(w => w.word.length === 5)).slice(0, 5)
   const long = shuffle(source.filter(w => w.word.length === 6)).slice(0, 5)
   const longer = shuffle(source.filter(w => w.word.length >= 7)).slice(0, 5)
-  return [...short, ...medium, ...long, ...longer]
+  // Interleave: one from each bucket per round
+  const buckets = [short, medium, long, longer]
+  const picked = []
+  const maxLen = Math.max(...buckets.map(b => b.length))
+  for (let i = 0; i < maxLen; i++) {
+    for (const bucket of buckets) {
+      if (i < bucket.length) picked.push(bucket[i])
+    }
+  }
+  // If not enough words, fill from remaining pool
+  if (picked.length < 20) {
+    const pickedWords = new Set(picked.map(w => w.word))
+    const remaining = shuffle(source.filter(w => !pickedWords.has(w.word)))
+    picked.push(...remaining.slice(0, 20 - picked.length))
+  }
+  return picked
 }
 
 const PetWordScramble = ({ petImageUrl, petName, onGameEnd, onClose, wordBank: wordBankProp = [] }) => {
@@ -328,9 +343,15 @@ const PetWordScramble = ({ petImageUrl, petName, onGameEnd, onClose, wordBank: w
       const height = containerRef.current?.clientHeight || 700
       setupWord(words, nextIdx, width, height)
     } else {
-      setPhase('results')
+      const source = wordBankProp.length > 0 ? wordBankProp : WORD_BANK
+      const moreWords = pickGameWords(source)
+      setWords(prev => [...prev, ...moreWords])
+      setWordIndex(nextIdx)
+      const width = containerRef.current?.clientWidth || 400
+      const height = containerRef.current?.clientHeight || 700
+      setupWord(moreWords, 0, width, height)
     }
-  }, [phase, feedback, wordIndex, words, setupWord])
+  }, [phase, feedback, wordIndex, words, setupWord, wordBankProp])
 
   // Handle tapping a placed letter to remove it
   const handlePlacedTap = useCallback((letterObj) => {
@@ -402,12 +423,18 @@ const PetWordScramble = ({ petImageUrl, petName, onGameEnd, onClose, wordBank: w
           const height = containerRef.current?.clientHeight || 700
           setupWord(words, nextIdx, width, height)
         } else {
-          // All words done
-          setPhase('results')
+          // Pick more words and continue
+          const source = wordBankProp.length > 0 ? wordBankProp : WORD_BANK
+          const moreWords = pickGameWords(source)
+          setWords(prev => [...prev, ...moreWords])
+          setWordIndex(nextIdx)
+          const width = containerRef.current?.clientWidth || 400
+          const height = containerRef.current?.clientHeight || 700
+          setupWord(moreWords, 0, width, height)
         }
       }, 800)
     }
-  }, [placedLetters, phase, words, wordIndex, setupWord, combo])
+  }, [placedLetters, phase, words, wordIndex, setupWord, combo, wordBankProp])
 
   const currentWord = words[wordIndex]
 

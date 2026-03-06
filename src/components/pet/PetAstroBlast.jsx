@@ -27,7 +27,7 @@ const shuffle = (arr) => {
   return a
 }
 
-const PetAstroBlast = ({ petImageUrl, petName, onGameEnd, onClose, shipSkinUrl, shipLaserColor, wordBank: wordBankProp = [] }) => {
+const PetAstroBlast = ({ petImageUrl, petName, onGameEnd, onClose, shipSkinUrl, shipLaserColor, asteroidSkinUrls, wordBank: wordBankProp = [] }) => {
   const [phase, setPhase] = useState('ready')
   const [displayScore, setDisplayScore] = useState(0)
   const [displayTime, setDisplayTime] = useState(GAME_DURATION)
@@ -75,6 +75,10 @@ const PetAstroBlast = ({ petImageUrl, petName, onGameEnd, onClose, shipSkinUrl, 
     const roundId = Date.now()
     roundIndexRef.current += 1
 
+    // Shuffle skin indices so no duplicates per round
+    const skinCount = asteroidSkinUrls?.length || 1
+    const skinIndices = shuffle(Array.from({ length: skinCount }, (_, idx) => idx))
+
     allWords.forEach((w, i) => {
       const delay = i * 100 // 100ms between each word drop
       setTimeout(() => {
@@ -102,6 +106,7 @@ const PetAstroBlast = ({ petImageUrl, petName, onGameEnd, onClose, shipSkinUrl, 
           rotation: (Math.random() - 0.5) * 10,
           rotationSpeed: (Math.random() - 0.5) * 0.6,
           clipIdx: Math.floor(Math.random() * ASTEROID_CLIPS.length),
+          skinIdx: skinIndices[i % skinIndices.length],
         }
         setFlyingWords(prev => [...prev, newWord])
       }, delay)
@@ -224,6 +229,36 @@ const PetAstroBlast = ({ petImageUrl, petName, onGameEnd, onClose, shipSkinUrl, 
             rotation: w.rotation + w.rotationSpeed * dt,
           }
         })
+        // Bounce asteroids off each other
+        const ASTEROID_R = 45
+        const active = updated.filter(w => !w.slashed && !w.wrong)
+        for (let i = 0; i < active.length; i++) {
+          for (let j = i + 1; j < active.length; j++) {
+            const a = active[i], b = active[j]
+            const dx = b.x - a.x
+            const dy = b.y - a.y
+            const dist = Math.sqrt(dx * dx + dy * dy)
+            const minDist = ASTEROID_R * 2
+            if (dist < minDist && dist > 0) {
+              const nx = dx / dist, ny = dy / dist
+              const overlap = (minDist - dist) / 2
+              a.x -= nx * overlap
+              a.y -= ny * overlap
+              b.x += nx * overlap
+              b.y += ny * overlap
+              // Swap velocity components along collision normal
+              const dvx = a.vx - b.vx
+              const dvy = a.vy - b.vy
+              const dot = dvx * nx + dvy * ny
+              if (dot > 0) {
+                a.vx -= dot * nx * 0.8
+                a.vy -= dot * ny * 0.8
+                b.vx += dot * nx * 0.8
+                b.vy += dot * ny * 0.8
+              }
+            }
+          }
+        }
         // Remove fully faded or fallen below screen
         return updated.filter(w => {
           if (w.opacity <= 0) return false
@@ -437,7 +472,7 @@ const PetAstroBlast = ({ petImageUrl, petName, onGameEnd, onClose, shipSkinUrl, 
           20% { transform: scale(1.2); opacity: 1; }
           100% { transform: scale(1) translateY(-40px); opacity: 0; }
         }
-        @keyframes wordPopupAnim {
+@keyframes wordPopupAnim {
           0% { transform: scale(0.5) translateY(0); opacity: 0; }
           15% { transform: scale(1.1) translateY(0); opacity: 1; }
           30% { transform: scale(1) translateY(0); opacity: 1; }
@@ -584,30 +619,104 @@ const PetAstroBlast = ({ petImageUrl, petName, onGameEnd, onClose, shipSkinUrl, 
                 zIndex: w.isCorrect ? 5 : 1,
               }}
             >
-              <div className={`px-6 py-4 font-bold text-lg uppercase tracking-wide whitespace-nowrap ${
-                w.slashed
-                  ? 'text-green-200'
-                  : w.wrong
-                    ? 'text-red-300/50 line-through'
-                    : 'text-white'
-              }`}
-                style={{
-                  clipPath: ASTEROID_CLIPS[w.clipIdx],
-                  background: w.slashed
-                    ? 'radial-gradient(ellipse at 35% 30%, #4ade80 0%, #166534 100%)'
-                    : w.wrong
-                      ? 'radial-gradient(ellipse at 35% 30%, #7f1d1d 0%, #450a0a 100%)'
-                      : 'radial-gradient(ellipse at 30% 25%, #8b8b8b 0%, #5a534e 30%, #44403c 60%, #292524 100%)',
-                  textShadow: '0 1px 3px rgba(0,0,0,0.8), 0 0 8px rgba(0,0,0,0.4)',
-                  boxShadow: w.slashed || w.wrong ? 'none'
-                    : '0 0 20px 4px rgba(251,146,60,0.3), 0 0 40px 8px rgba(251,146,60,0.1)',
-                  animation: !w.slashed && !w.wrong ? 'wordFlyUp 0.4s ease-out' : 'none',
-                  minWidth: '90px',
-                  textAlign: 'center',
-                }}
-              >
-                {w.y > 130 ? w.word : '???'}
-              </div>
+              {asteroidSkinUrls?.length > 0 ? (
+                /* Image-based asteroid skin */
+                <div className="relative flex flex-col items-center"
+                  style={{
+                    animation: !w.slashed && !w.wrong ? 'wordFlyUp 0.4s ease-out' : 'none',
+                    minWidth: '90px',
+                  }}
+                >
+                  <img
+                    src={asteroidSkinUrls[w.skinIdx % asteroidSkinUrls.length]}
+                    alt=""
+                    className="w-16 h-16 object-contain pointer-events-none"
+                    style={{
+                      filter: w.slashed
+                        ? 'brightness(1.5) hue-rotate(90deg)'
+                        : w.wrong
+                          ? 'brightness(0.5) saturate(2) hue-rotate(-30deg)'
+                          : 'drop-shadow(0 0 8px rgba(251,146,60,0.3))',
+                    }}
+                  />
+                  <div className={`px-3 py-1 font-bold text-lg uppercase tracking-wide whitespace-nowrap text-center ${
+                    w.slashed
+                      ? 'text-green-200'
+                      : w.wrong
+                        ? 'text-red-300/50 line-through'
+                        : 'text-white'
+                  }`}
+                    style={{
+                      textShadow: '0 1px 3px rgba(0,0,0,0.9), 0 0 10px rgba(0,0,0,0.5)',
+                    }}
+                  >
+                    {w.y > 130 ? w.word : '???'}
+                  </div>
+                </div>
+              ) : (
+                /* Default CSS rock asteroid */
+                <div className="relative"
+                  style={{
+                    clipPath: ASTEROID_CLIPS[w.clipIdx],
+                    animation: !w.slashed && !w.wrong ? 'wordFlyUp 0.4s ease-out' : 'none',
+                    minWidth: '90px',
+                  }}
+                >
+                  <div style={{
+                    position: 'absolute', inset: 0,
+                    background: w.slashed
+                      ? 'radial-gradient(ellipse at 35% 30%, #4ade80 0%, #166534 100%)'
+                      : w.wrong
+                        ? 'radial-gradient(ellipse at 35% 30%, #7f1d1d 0%, #450a0a 100%)'
+                        : 'radial-gradient(ellipse at 25% 20%, #a8a29e 0%, #78716c 20%, #57534e 45%, #44403c 70%, #1c1917 100%)',
+                  }} />
+                  {!w.slashed && !w.wrong && (
+                    <>
+                      <div style={{
+                        position: 'absolute', inset: 0,
+                        background: 'radial-gradient(circle at 20% 25%, rgba(255,255,255,0.15) 0%, transparent 40%), radial-gradient(circle at 70% 60%, rgba(255,255,255,0.08) 0%, transparent 30%)',
+                      }} />
+                      <div style={{
+                        position: 'absolute', inset: 0,
+                        background: 'radial-gradient(circle 8px at 30% 55%, rgba(0,0,0,0.4) 0%, transparent 100%), radial-gradient(circle 6px at 65% 35%, rgba(0,0,0,0.35) 0%, transparent 100%), radial-gradient(circle 5px at 50% 75%, rgba(0,0,0,0.3) 0%, transparent 100%)',
+                      }} />
+                      <div style={{
+                        position: 'absolute', inset: 0,
+                        background: 'radial-gradient(circle 9px at 28% 52%, rgba(255,255,255,0.1) 0%, transparent 100%), radial-gradient(circle 7px at 63% 32%, rgba(255,255,255,0.08) 0%, transparent 100%)',
+                      }} />
+                      <div style={{
+                        position: 'absolute', inset: 0,
+                        background: 'linear-gradient(135deg, rgba(255,255,255,0.12) 0%, transparent 40%)',
+                      }} />
+                      <div style={{
+                        position: 'absolute', inset: 0,
+                        background: 'linear-gradient(315deg, rgba(0,0,0,0.25) 0%, transparent 40%)',
+                      }} />
+                    </>
+                  )}
+                  {!w.slashed && !w.wrong && (
+                    <div style={{
+                      position: 'absolute', inset: -2,
+                      clipPath: ASTEROID_CLIPS[w.clipIdx],
+                      boxShadow: 'inset 0 0 12px 2px rgba(251,146,60,0.25), 0 0 20px 4px rgba(251,146,60,0.2), 0 0 40px 8px rgba(251,146,60,0.08)',
+                      pointerEvents: 'none',
+                    }} />
+                  )}
+                  <div className={`relative px-6 py-4 font-bold text-lg uppercase tracking-wide whitespace-nowrap text-center ${
+                    w.slashed
+                      ? 'text-green-200'
+                      : w.wrong
+                        ? 'text-red-300/50 line-through'
+                        : 'text-white'
+                  }`}
+                    style={{
+                      textShadow: '0 1px 3px rgba(0,0,0,0.9), 0 0 10px rgba(0,0,0,0.5)',
+                    }}
+                  >
+                    {w.y > 130 ? w.word : '???'}
+                  </div>
+                </div>
+              )}
             </button>
           ))}
 

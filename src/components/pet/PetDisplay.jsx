@@ -1369,263 +1369,186 @@ const PetDisplay = () => {
 
       {/* Pet Info Modal */}
       {showPetInfo && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-xl max-w-2xl w-full max-h-[90vh] overflow-y-auto scrollbar-hide shadow-2xl" style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }}>
-            <div className="sticky top-0 bg-blue-500 text-white p-6 rounded-t-xl flex justify-between items-center">
-              <h2 className="text-2xl font-bold">🐾 Pet System Guide</h2>
+        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 p-4" onClick={() => setShowPetInfo(false)}>
+          <div
+            className="bg-gradient-to-b from-white to-gray-50 rounded-2xl max-w-xl w-full max-h-[85vh] overflow-y-auto shadow-2xl border border-gray-100"
+            style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }}
+            onClick={(e) => e.stopPropagation()}
+          >
+            {/* Header */}
+            <div className="sticky top-0 z-10 bg-blue-500 text-white px-6 py-5 rounded-t-2xl flex justify-between items-center">
+              <div>
+                <h2 className="text-xl font-bold tracking-tight">Pet System Guide</h2>
+                <p className="text-blue-100 text-xs mt-0.5">Everything about your companion</p>
+              </div>
               <button
                 onClick={() => setShowPetInfo(false)}
-                className="text-white hover:bg-white/20 rounded-full p-2 transition-colors"
+                className="text-white/80 hover:text-white hover:bg-white/20 rounded-full p-1.5 transition-all"
               >
-                <X className="w-6 h-6" />
+                <X className="w-5 h-5" />
               </button>
             </div>
 
-            <div className="p-6 space-y-6">
+            <div className="p-5 space-y-4">
               {/* How Pets Work */}
-              <div>
-                <h3 className="text-xl font-bold text-gray-800 mb-3 flex items-center gap-2">
-                  <Sparkles className="w-5 h-5 text-purple-600" />
+              <div className="bg-white rounded-xl p-4 border border-gray-100 shadow-sm">
+                <h3 className="text-sm font-bold text-gray-800 mb-1.5 flex items-center gap-2">
+                  <Sparkles className="w-4 h-4 text-purple-500" />
                   How Pets Work
                 </h3>
-                <p className="text-gray-700 mb-2">
-                  Pets are your learning companions that grow alongside you!
-                  Take care of them and they&apos;ll boost your XP earnings.
+                <p className="text-gray-600 text-sm leading-relaxed">
+                  Pets are your learning companions that grow alongside you! Take care of them and they&apos;ll boost your XP earnings.
                 </p>
               </div>
 
-                            {/* Evolution */}
-              <div className="bg-purple-50 rounded-lg p-4">
-
-                {/* Evolution Stages for Current Pet */}
-                {activePet?.evolution_stages &&
-                activePet.evolution_stages.length > 0 ? (
-                  <div className="mb-4">
-                    <h5 className="font-bold text-purple-800 mb-4">
-                      {activePet.nickname || activePet.name}&apos;s Evolution
-                      Path:
-                    </h5>
-
-                    {/* All Stages in a Row */}
-                    <div className="flex flex-wrap gap-3 justify-center">
-                      {/* Base Stage (Stage 0) */}
-                      <div
-                        className={`bg-white rounded-lg p-3 border-2 flex flex-col items-center w-28 ${
-                          activePet.evolution_stage === 0
-                            ? "border-purple-500 shadow-md"
-                            : "border-gray-200"
-                        }`}
-                      >
+              {/* Evolution */}
+              <div className="bg-white rounded-xl p-4 border border-purple-100 shadow-sm">
+                <h3 className="text-sm font-bold text-purple-800 mb-3 flex items-center gap-2">
+                  <span className="w-6 h-6 bg-purple-100 rounded-lg flex items-center justify-center text-xs">✨</span>
+                  Evolution
+                </h3>
+                {activePet?.evolution_stages && activePet.evolution_stages.length > 0 ? (
+                  <>
+                    <p className="text-xs text-gray-500 mb-3">{activePet.nickname || activePet.name}&apos;s Evolution Path</p>
+                    <div className="flex flex-wrap gap-2.5 justify-center">
+                      {/* Base Stage */}
+                      <div className={`bg-gray-50 rounded-xl p-2.5 border-2 flex flex-col items-center w-24 transition-all ${
+                        activePet.evolution_stage === 0 ? 'border-purple-400 shadow-md shadow-purple-100' : 'border-gray-200'
+                      }`}>
                         {activePet.image_url && (
-                          <div className="relative w-16 h-16 mb-2">
-                            <img
-                              src={activePet.image_url}
-                              alt="Base form"
-                              className="w-16 h-16 object-contain rounded select-none pointer-events-none"
-                              onContextMenu={(e) => e.preventDefault()}
-                              draggable="false"
-                            />
-                            <div
-                              className="absolute inset-0 bg-transparent"
-                              onContextMenu={(e) => e.preventDefault()}
-                            />
+                          <div className="relative w-14 h-14 mb-1.5">
+                            <img src={activePet.image_url} alt="Base form" className="w-14 h-14 object-contain rounded-lg select-none pointer-events-none" onContextMenu={(e) => e.preventDefault()} draggable="false" />
+                            <div className="absolute inset-0 bg-transparent" onContextMenu={(e) => e.preventDefault()} />
                           </div>
                         )}
-                        <span className="font-semibold text-gray-800 text-xs text-center">
-                          Base
-                        </span>
+                        <span className="font-semibold text-gray-700 text-[10px]">Base</span>
                         {activePet.evolution_stage === 0 && (
-                          <span className="text-xs bg-purple-500 text-white px-2 py-0.5 rounded-full mt-1">
-                            Current
-                          </span>
+                          <span className="text-[9px] bg-purple-500 text-white px-1.5 py-0.5 rounded-full mt-1 font-medium">Current</span>
                         )}
                       </div>
 
-                      {/* Evolution Stages */}
                       {activePet.evolution_stages.map((stage) => {
-                        const isCurrent =
-                          activePet.evolution_stage === stage.stage;
-                        const isUnlocked =
-                          activePet.evolution_stage >= stage.stage;
+                        const isCurrent = activePet.evolution_stage === stage.stage;
+                        const isUnlocked = activePet.evolution_stage >= stage.stage;
                         const isLocked = !isUnlocked;
-
                         return (
-                          <div
-                            key={stage.stage}
-                            className={`bg-white rounded-lg p-3 border-2 flex flex-col items-center w-28 ${
-                              isCurrent
-                                ? "border-purple-500 shadow-md"
-                                : isUnlocked
-                                  ? "border-green-300"
-                                  : "border-gray-400"
-                            }`}
-                          >
+                          <div key={stage.stage} className={`bg-gray-50 rounded-xl p-2.5 border-2 flex flex-col items-center w-24 transition-all ${
+                            isCurrent ? 'border-purple-400 shadow-md shadow-purple-100' : isUnlocked ? 'border-green-300' : 'border-gray-200 opacity-75'
+                          }`}>
                             {stage.image_url && (
-                              <div className="relative w-16 h-16 mb-2">
-                                <img
-                                  src={stage.image_url}
-                                  alt={stage.name || `Stage ${stage.stage}`}
-                                  className={`w-16 h-16 object-contain rounded select-none pointer-events-none ${
-                                    isLocked
-                                      ? "filter brightness-[0.2] contrast-[150%]"
-                                      : ""
-                                  }`}
-                                  onContextMenu={(e) => e.preventDefault()}
-                                  draggable="false"
-                                />
-                                <div
-                                  className="absolute inset-0 bg-transparent"
-                                  onContextMenu={(e) => e.preventDefault()}
-                                />
+                              <div className="relative w-14 h-14 mb-1.5">
+                                <img src={stage.image_url} alt={stage.name || `Stage ${stage.stage}`} className={`w-14 h-14 object-contain rounded-lg select-none pointer-events-none ${isLocked ? 'filter brightness-[0.2] contrast-[150%]' : ''}`} onContextMenu={(e) => e.preventDefault()} draggable="false" />
+                                <div className="absolute inset-0 bg-transparent" onContextMenu={(e) => e.preventDefault()} />
                               </div>
                             )}
-                            <span
-                              className={`font-semibold text-xs text-center ${isLocked ? "text-gray-400" : "text-gray-800"}`}
-                            >
-                              {isLocked
-                                ? "???"
-                                : stage.name || `Stage ${stage.stage}`}
+                            <span className={`font-semibold text-[10px] text-center ${isLocked ? 'text-gray-400' : 'text-gray-700'}`}>
+                              {isLocked ? '???' : stage.name || `Stage ${stage.stage}`}
                             </span>
                             {stage.xp_required && (
-                              <p className="text-xs text-gray-500 text-center mt-1">
-                                {stage.xp_required} XP
-                              </p>
+                              <p className="text-[9px] text-gray-400 mt-0.5">{stage.xp_required} XP</p>
                             )}
                             {isCurrent && (
-                              <span className="text-xs bg-purple-500 text-white px-2 py-0.5 rounded-full mt-1">
-                                Current
-                              </span>
+                              <span className="text-[9px] bg-purple-500 text-white px-1.5 py-0.5 rounded-full mt-1 font-medium">Current</span>
                             )}
                             {isUnlocked && !isCurrent && (
-                              <span className="text-xs bg-green-500 text-white px-2 py-0.5 rounded-full mt-1">
-                                Unlocked
-                              </span>
+                              <span className="text-[9px] bg-green-500 text-white px-1.5 py-0.5 rounded-full mt-1 font-medium">Unlocked</span>
                             )}
                           </div>
                         );
                       })}
                     </div>
 
-                    {/* Progress bar for next stage (if locked) */}
+                    {/* Progress bar */}
                     {(() => {
-                      const nextStage = activePet.evolution_stages.find(
-                        (s) => s.stage === activePet.evolution_stage + 1,
-                      );
+                      const nextStage = activePet.evolution_stages.find((s) => s.stage === activePet.evolution_stage + 1);
                       if (nextStage?.xp_required) {
-                        const progress = Math.min(
-                          100,
-                          (activePet.xp / nextStage.xp_required) * 100,
-                        );
+                        const progress = Math.min(100, (activePet.xp / nextStage.xp_required) * 100);
                         return (
-                          <div className="mt-4">
-                            <div className="flex justify-between text-xs text-gray-600 mb-1">
-                              <span>Progress to Next Stage</span>
-                              <span>
-                                {activePet.xp} / {nextStage.xp_required} XP
-                              </span>
+                          <div className="mt-3 bg-gray-50 rounded-lg p-3">
+                            <div className="flex justify-between text-[10px] text-gray-500 mb-1.5 font-medium">
+                              <span>Next Evolution</span>
+                              <span>{activePet.xp} / {nextStage.xp_required} XP</span>
                             </div>
-                            <div className="w-full bg-gray-200 rounded-full h-2">
-                              <div
-                                className="bg-gradient-to-r from-purple-500 to-pink-500 h-2 rounded-full transition-all"
-                                style={{ width: `${progress}%` }}
-                              />
+                            <div className="w-full bg-gray-200 rounded-full h-2 overflow-hidden">
+                              <div className="bg-gradient-to-r from-purple-500 to-pink-500 h-2 rounded-full transition-all duration-500" style={{ width: `${progress}%` }} />
                             </div>
                           </div>
                         );
                       }
                       return null;
                     })()}
-                  </div>
+                  </>
                 ) : (
-                  <div className="bg-white rounded p-3 text-sm text-gray-700 mt-3">
-                    💡 <span className="font-semibold">Note:</span> This pet
-                    doesn&apos;t have evolution stages, but it&apos;s still a
-                    great companion!
-                  </div>
+                  <p className="text-sm text-gray-500 bg-gray-50 rounded-lg p-3">
+                    This pet doesn&apos;t have evolution stages, but it&apos;s still a great companion!
+                  </p>
                 )}
               </div>
 
               {/* Bonuses */}
-              <div className="bg-yellow-50 rounded-lg p-4">
-                <h4 className="font-bold text-gray-800 mb-3">⭐ Pet Bonuses</h4>
-                <p className="text-gray-700 mb-2">
-                  Your pet gives you XP bonuses:
-                </p>
-                <div className="space-y-2">
-                  <div className="font-semibold text-sm text-gray-800">
-                    Base Rarity Bonuses:
+              <div className="bg-white rounded-xl p-4 border border-yellow-100 shadow-sm">
+                <h3 className="text-sm font-bold text-gray-800 mb-3 flex items-center gap-2">
+                  <span className="w-6 h-6 bg-yellow-100 rounded-lg flex items-center justify-center text-xs">⭐</span>
+                  XP Bonuses
+                </h3>
+                <div className="grid grid-cols-5 gap-1.5 text-xs mb-2.5">
+                  {[
+                    { label: 'Common', bonus: '+5%', bg: 'bg-gray-50', text: 'text-gray-600', border: 'border-gray-200' },
+                    { label: 'Uncommon', bonus: '+10%', bg: 'bg-green-50', text: 'text-green-600', border: 'border-green-200' },
+                    { label: 'Rare', bonus: '+15%', bg: 'bg-blue-50', text: 'text-blue-600', border: 'border-blue-200' },
+                    { label: 'Epic', bonus: '+20%', bg: 'bg-purple-50', text: 'text-purple-600', border: 'border-purple-200' },
+                    { label: 'Legendary', bonus: '+25%', bg: 'bg-amber-50', text: 'text-amber-600', border: 'border-amber-200' },
+                  ].map(({ label, bonus, bg, text, border }) => (
+                    <div key={label} className={`${bg} border ${border} px-1.5 py-2 rounded-lg text-center`}>
+                      <div className="text-gray-500 text-[10px]">{label}</div>
+                      <div className={`font-bold ${text}`}>{bonus}</div>
+                    </div>
+                  ))}
+                </div>
+                <div className="bg-purple-50 border border-purple-100 rounded-lg px-3 py-2.5">
+                  <div className="flex items-center justify-between">
+                    <span className="font-semibold text-purple-800 text-xs">Evolution Bonus</span>
+                    <span className="font-bold text-purple-600 text-xs">+5% per stage</span>
                   </div>
-                  <div className="grid grid-cols-2 gap-2 text-sm">
-                    <div className="bg-gray-100 px-3 py-2 rounded">
-                      Common:{" "}
-                      <span className="font-bold text-gray-600">+5% XP</span>
-                    </div>
-                    <div className="bg-green-100 px-3 py-2 rounded">
-                      Uncommon:{" "}
-                      <span className="font-bold text-green-600">+10% XP</span>
-                    </div>
-                    <div className="bg-blue-100 px-3 py-2 rounded">
-                      Rare:{" "}
-                      <span className="font-bold text-blue-600">+15% XP</span>
-                    </div>
-                    <div className="bg-purple-100 px-3 py-2 rounded">
-                      Epic:{" "}
-                      <span className="font-bold text-purple-600">+20% XP</span>
-                    </div>
-                    <div className="bg-yellow-100 px-3 py-2 rounded col-span-2">
-                      Legendary:{" "}
-                      <span className="font-bold text-yellow-600">+25% XP</span>
-                    </div>
-                  </div>
-                  <div className="bg-purple-100 px-3 py-2 rounded mt-2">
-                    <span className="font-semibold text-purple-800">
-                      Evolution Bonus:
-                    </span>{" "}
-                    <span className="font-bold text-purple-700">
-                      +5% XP per stage
-                    </span>
-                    <div className="text-xs text-purple-600 mt-1">
-                      Stage 0: +0% • Stage 1: +5% • Stage 2: +10% • Stage 3:
-                      +15%
-                    </div>
+                  <div className="text-[10px] text-purple-400 mt-1">
+                    Stage 0: +0% &bull; Stage 1: +5% &bull; Stage 2: +10% &bull; Stage 3: +15%
                   </div>
                 </div>
               </div>
 
               {/* Energy */}
-              <div className="bg-orange-50 rounded-lg p-4">
-                <h4 className="font-bold text-gray-800 mb-3 flex items-center gap-1"><img src={assetUrl('/image/dashboard/energy.svg')} alt="energy" className="w-5 h-5" /> Energy System</h4>
-                <div className="space-y-2 text-sm text-gray-700">
-                  <div className="bg-white rounded p-3 space-y-1">
-                    <div className="flex justify-between">
-                      <span>Training</span>
-                      <span className="font-bold text-orange-600">-10 energy</span>
+              <div className="bg-white rounded-xl p-4 border border-orange-100 shadow-sm">
+                <h3 className="text-sm font-bold text-gray-800 mb-3 flex items-center gap-2">
+                  <img src={assetUrl('/image/dashboard/energy.svg')} alt="energy" className="w-5 h-5" />
+                  Energy System
+                </h3>
+                <div className="space-y-1.5 text-xs">
+                  {[
+                    { action: 'Training', cost: '-10 energy' },
+                    { action: 'Ask pet (in exercises)', cost: '-5 energy' },
+                    { action: 'Chat message', cost: '-5 energy' },
+                  ].map(({ action, cost }) => (
+                    <div key={action} className="flex justify-between items-center bg-gray-50 rounded-lg px-3 py-2">
+                      <span className="text-gray-600">{action}</span>
+                      <span className="font-bold text-orange-500 text-[11px]">{cost}</span>
                     </div>
-                    <div className="flex justify-between">
-                      <span>Ask pet (in exercises)</span>
-                      <span className="font-bold text-orange-600">-5 energy</span>
-                    </div>
-                    <div className="flex justify-between">
-                      <span>Chat message</span>
-                      <span className="font-bold text-orange-600">-5 energy</span>
-                    </div>
-                  </div>
-                  <div className="bg-orange-100 px-3 py-2 rounded mt-2">
-                    <span className="font-semibold text-orange-800">Auto Regeneration:</span>{" "}
-                    <span className="font-bold text-orange-700">+5 energy every 15 minutes</span>
-                  </div>
-                  <p className="text-xs text-gray-500 mt-1">
-                    You can also feed your pet to restore energy instantly!
-                  </p>
+                  ))}
                 </div>
+                <div className="bg-orange-50 border border-orange-100 rounded-lg px-3 py-2.5 mt-2.5 flex items-center justify-between">
+                  <span className="font-semibold text-orange-800 text-xs">Auto Regen</span>
+                  <span className="font-bold text-orange-600 text-xs">+5 every 15 min</span>
+                </div>
+                <p className="text-[10px] text-gray-400 mt-2 text-center">
+                  Feed your pet to restore energy instantly!
+                </p>
               </div>
-
             </div>
 
-            <div className="sticky bottom-0 bg-gray-100 p-4 rounded-b-xl">
+            {/* Footer */}
+            <div className="sticky bottom-0 bg-white/80 backdrop-blur-sm p-4 rounded-b-2xl border-t border-gray-100">
               <button
                 onClick={() => setShowPetInfo(false)}
-                className="w-full bg-blue-500 hover:from-purple-700 hover:to-pink-700 text-white font-bold py-3 rounded-lg transition-all"
+                className="w-full bg-blue-500 hover:bg-blue-600 text-white font-bold py-2.5 rounded-xl transition-all text-sm shadow-md shadow-blue-200"
               >
                 Got it!
               </button>
@@ -1764,6 +1687,14 @@ const PetDisplay = () => {
           petName={activePet.nickname || activePet.name}
           shipSkinUrl={profile?.active_spaceship_url}
           shipLaserColor={profile?.active_spaceship_laser}
+          asteroidSkinUrls={[
+            'https://xpclass.vn/xpclass/pet-game/astro/alien1.png',
+            'https://xpclass.vn/xpclass/pet-game/astro/alien2.png',
+            'https://xpclass.vn/xpclass/pet-game/astro/alien3.png',
+            'https://xpclass.vn/xpclass/pet-game/astro/alien4.png',
+            'https://xpclass.vn/xpclass/pet-game/astro/alien5.png',
+            'https://xpclass.vn/xpclass/pet-game/astro/alien6.png'
+          ]}
           wordBank={wordBank}
           onGameEnd={(score) => handleGameEnd(score, 'astroblast')}
           onClose={() => { drainPetEnergy(5); drainPetEnergy(5); setShowGame(null);; }}
