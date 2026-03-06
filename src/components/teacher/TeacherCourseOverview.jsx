@@ -416,7 +416,7 @@ const TeacherCourseOverview = () => {
                                               </span>
                                             ) : <span className="text-gray-300">-</span>}
                                           </td>
-                                          <td className="px-3 py-2 text-gray-700 max-w-[200px] truncate">{rec?.notes || <span className="text-gray-300">-</span>}</td>
+                                          <td className="px-3 py-2 text-gray-700">{rec?.notes || <span className="text-gray-300">-</span>}</td>
                                           <td className="px-3 py-2 text-center">
                                             {rec?.homework_status ? (
                                               <span className={`inline-block px-2 py-0.5 rounded text-xs font-medium ${
@@ -428,7 +428,7 @@ const TeacherCourseOverview = () => {
                                               </span>
                                             ) : <span className="text-gray-300">-</span>}
                                           </td>
-                                          <td className="px-3 py-2 text-gray-700 max-w-[200px] truncate">{rec?.homework_notes || <span className="text-gray-300">-</span>}</td>
+                                          <td className="px-3 py-2 text-gray-700">{rec?.homework_notes || <span className="text-gray-300">-</span>}</td>
                                           <td className="px-3 py-2 text-center">
                                             {rec?.star_flag === 'star' && <Star className="w-4 h-4 fill-yellow-400 text-yellow-400 inline" />}
                                             {rec?.star_flag === 'flag' && <Flag className="w-4 h-4 fill-red-500 text-red-500 inline" />}

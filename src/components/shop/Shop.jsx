@@ -10,6 +10,7 @@ import { ShoppingBag, Check, Lock, ChevronLeft, ChevronRight, Eye, EyeOff } from
 import { assetUrl } from '../../hooks/useBranding';
 const rarityOrder = ['common', 'uncommon', 'rare', 'epic', 'legendary']
 
+
 const rarityCardColors = {
   common: 'border-gray-300 bg-gray-50',
   uncommon: 'border-green-300 bg-green-50',
@@ -347,10 +348,17 @@ const Shop = () => {
     <div className="max-w-4xl mx-auto p-6">
       {/* Message Toast */}
       {message && (
-        <div className={`fixed top-4 right-4 z-50 px-4 py-3 rounded-lg shadow-lg ${
-          message.type === 'success' ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'
-        }`}>
+        <div
+          className={`fixed top-4 right-4 z-50 px-4 py-3 rounded-xl shadow-xl flex items-center gap-2 font-semibold text-sm ${
+            message.type === 'success'
+              ? 'bg-green-500 text-white'
+              : 'bg-red-500 text-white'
+          }`}
+          style={{ animation: 'slideInFromTop 0.3s ease-out' }}
+        >
+          <span>{message.type === 'success' ? '✨' : '❌'}</span>
           {message.text}
+          <style>{`@keyframes slideInFromTop { from { opacity: 0; transform: translateY(-20px); } to { opacity: 1; transform: translateY(0); } }`}</style>
         </div>
       )}
 
@@ -514,14 +522,16 @@ const Shop = () => {
               const hasVariants = group.variants.length > 1
               const owned = isOwned(item.id)
               const canAfford = canAffordItem(item)
-
               return (
                 <div
                   key={group.groupKey || item.id}
-                  className={`relative bg-white rounded-xl border-2 overflow-hidden transition-all hover:shadow-lg ${
+                  className={`relative bg-white rounded-xl border-2 overflow-hidden transition-all duration-200 ${
                     !owned && !canAfford
-                      ? 'border-gray-200 opacity-75'
-                      : 'border-gray-200 hover:border-blue-300'
+                      ? 'border-gray-200 grayscale opacity-60'
+                      : `hover:shadow-xl hover:scale-[1.03] ${
+                          owned
+                            ? 'border-green-300 hover:border-green-400 hover:shadow-green-100'
+                            : 'border-gray-200 hover:border-blue-400 hover:shadow-blue-100'}`
                     }`}
                 >
                   {/* Equipped badge */}
@@ -547,6 +557,11 @@ const Shop = () => {
 
                   {/* Item image with variant arrows */}
                   <div className="aspect-square bg-gray-50 flex items-center justify-center p-4 relative">
+                    {!owned && !canAfford && (
+                      <div className="absolute inset-0 flex items-center justify-center bg-black/20 z-20">
+                        <Lock className="w-6 h-6 text-white drop-shadow" />
+                      </div>
+                    )}
                     {hasVariants && (
                       <>
                         <button
@@ -584,22 +599,20 @@ const Shop = () => {
                     )}
                   </div>
 
-                  {/* Variant dots */}
-                  {hasVariants && (
-                    <div className="flex justify-center gap-1 py-1">
-                      {group.variants.map((v, i) => (
-                        <button
-                          key={v.id}
-                          onClick={() => setVariantIndex(prev => ({ ...prev, [group.groupKey]: i }))}
-                          className={`w-2 h-2 rounded-full transition-all ${
-                            i === idx
-                              ? 'bg-blue-500 scale-125'
-                              : isOwned(v.id) ? 'bg-green-300' : 'bg-gray-300'
-                          }`}
-                        />
-                      ))}
-                    </div>
-                  )}
+                  {/* Variant dots — always rendered to keep layout stable */}
+                  <div className="flex justify-center gap-1 py-1 min-h-[20px]">
+                    {hasVariants && group.variants.map((v, i) => (
+                      <button
+                        key={v.id}
+                        onClick={() => setVariantIndex(prev => ({ ...prev, [group.groupKey]: i }))}
+                        className={`w-2 h-2 rounded-full transition-all ${
+                          i === idx
+                            ? 'bg-blue-500 scale-125'
+                            : isOwned(v.id) ? 'bg-green-300' : 'bg-gray-300'
+                        }`}
+                      />
+                    ))}
+                  </div>
 
                   {/* Item info */}
                   <div className="p-3">
@@ -654,13 +667,13 @@ const Shop = () => {
                         <button
                           onClick={() => handlePurchase(item)}
                           disabled={!canAfford || purchasing === item.id}
-                          className={`w-full py-1.5 rounded-lg text-sm font-medium flex items-center justify-center gap-1 transition-colors ${canAfford
-                              ? 'bg-blue-500 text-white hover:bg-blue-600'
-                              : 'bg-gray-200 text-gray-400 cursor-not-allowed'
+                          className={`w-full py-2 rounded-xl text-sm font-bold flex items-center justify-center gap-1.5 transition-all duration-100 shadow-md ${canAfford
+                              ? 'bg-gradient-to-b from-blue-400 to-blue-600 text-white hover:from-blue-500 hover:to-blue-700 active:scale-95 active:shadow-inner active:translate-y-0.5'
+                              : 'bg-gray-200 text-gray-400 cursor-not-allowed shadow-none'
                             }`}
                         >
                           {purchasing === item.id ? (
-                            'Đang mua...'
+                            <span className="animate-pulse">...</span>
                           ) : (
                             <>
                               {isXPItem(item) ? (

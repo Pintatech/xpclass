@@ -154,6 +154,14 @@ const TeacherClassReports = () => {
         });
       }
 
+      // Pre-fill attendance_status: 'present' for any student not already in recordsMap
+      // so the state matches the visual default shown in RollCallView
+      studentsList.forEach(s => {
+        if (!recordsMap[s.id]) {
+          recordsMap[s.id] = { attendance_status: 'present' };
+        }
+      });
+
       // If DB has data, use it. Otherwise check for a localStorage draft.
       const dbHasData = existingInfo?.id;
       if (dbHasData) {
@@ -173,7 +181,7 @@ const TeacherClassReports = () => {
           showNotification('Draft restored from previous session');
         } else {
           setLessonInfo({ course_id: selectedCourse, session_date: selectedDate });
-          setRecords({});
+          setRecords(recordsMap);
           setHasDraft(false);
         }
         skipDraftSave.current = false;
@@ -270,7 +278,8 @@ const TeacherClassReports = () => {
       setSaving(true);
 
       // 1. Save lesson info first to get the id
-      const { xp_bonus, ...lessonInfoForDB } = lessonInfo;
+      // eslint-disable-next-line no-unused-vars
+      const { xp_bonus, lesson_type, ...lessonInfoForDB } = lessonInfo;
       const savedInfo = await saveLessonInfo({
         ...lessonInfoForDB,
         course_id: selectedCourse,
@@ -395,18 +404,6 @@ const TeacherClassReports = () => {
               </div>
             </div>
 
-            {/* Course Selector - full width on mobile */}
-            <select
-              value={selectedCourse || ''}
-              onChange={(e) => setSelectedCourse(e.target.value)}
-              className="w-full p-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-            >
-              {courses.map(course => (
-                <option key={course.id} value={course.id}>
-                  {course.level_number}: {course.title}
-                </option>
-              ))}
-            </select>
           </div>
 
           {/* Tabs - horizontally scrollable on mobile */}

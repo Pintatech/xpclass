@@ -92,22 +92,20 @@ const FolderTree = ({ folders, folderCounts = {}, selectedFolder, onSelectFolder
             ${isSelected ? 'bg-blue-50 text-blue-700' : 'hover:bg-gray-50'}
           `}
           style={{ paddingLeft: `${level * 20 + 8}px` }}
+          onClick={() => {
+            if (hasChildren) toggleFolder(folder.id)
+            onSelectFolder(folder)
+          }}
         >
           {/* Expand/Collapse Button */}
           {hasChildren ? (
-            <button
-              onClick={(e) => {
-                e.stopPropagation()
-                toggleFolder(folder.id)
-              }}
-              className="p-1 hover:bg-gray-200 rounded mr-1"
-            >
+            <span className="p-1 mr-1">
               {isExpanded ? (
                 <ChevronDown className="w-3 h-3 text-gray-500" />
               ) : (
                 <ChevronRight className="w-3 h-3 text-gray-500" />
               )}
-            </button>
+            </span>
           ) : (
             <div className="w-5 mr-1"></div>
           )}
@@ -115,7 +113,6 @@ const FolderTree = ({ folders, folderCounts = {}, selectedFolder, onSelectFolder
           {/* Folder Icon and Name */}
           <div
             className="flex items-center flex-1 min-w-0"
-            onClick={() => onSelectFolder(folder)}
           >
             <Icon className={`w-4 h-4 mr-2 flex-shrink-0 ${getFolderColor(folder.color)}`} />
             <span className="text-sm font-medium truncate">{folder.name}</span>
