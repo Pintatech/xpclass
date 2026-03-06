@@ -101,6 +101,7 @@ const PvPChallengeModal = ({ opponent, onClose }) => {
       petImageUrl: petImage,
       petName,
       onClose: () => setStep('pick-game'),
+      hideClose: true,
     }
 
     switch (selectedGame) {

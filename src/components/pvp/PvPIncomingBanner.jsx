@@ -329,14 +329,17 @@ const PvPResponseModal = ({ challenge, onClose }) => {
   const draw = myScore === opponentScore
 
   const renderGame = () => {
+    const pvpScoreToBeat = { score: opponentScore, name: opponentName.split(' ').pop() }
     const commonProps = {
       petImageUrl: petImage,
       petName,
       onClose: () => onClose(),
+      hideClose: true,
+      scoreToBeat: pvpScoreToBeat,
     }
     switch (gameType) {
       case 'whackmole':
-        return <PetWhackMole {...commonProps} onGameEnd={handleGameEnd} wordBank={wordBank} />
+        return <PetWhackMole {...commonProps} onGameEnd={handleGameEnd} wordBank={wordBank} leaderboard={[pvpScoreToBeat]} />
       case 'scramble':
         return <PetWordScramble {...commonProps} onGameEnd={handleGameEnd} wordBank={wordBank} />
       case 'astroblast':

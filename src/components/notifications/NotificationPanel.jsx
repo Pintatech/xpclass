@@ -19,7 +19,8 @@ const typeColors = {
   admin_announcement: 'bg-green-100 text-green-600',
   giftcode_redeemed: 'bg-pink-100 text-pink-600',
   chest_received: 'bg-orange-100 text-orange-600',
-  item_drop: 'bg-indigo-100 text-indigo-600'
+  item_drop: 'bg-indigo-100 text-indigo-600',
+  competition_winner: 'bg-amber-100 text-amber-600'
 }
 
 const typeIcons = {
@@ -30,7 +31,8 @@ const typeIcons = {
   admin_announcement: 'Megaphone',
   giftcode_redeemed: 'Gift',
   chest_received: 'Package',
-  item_drop: 'Star'
+  item_drop: 'Star',
+  competition_winner: 'Trophy'
 }
 
 const getRelativeTime = (dateStr) => {

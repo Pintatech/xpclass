@@ -243,6 +243,33 @@ const LeaderboardSettings = () => {
         // Get winner name
         const { data: winner } = await supabase.from('users').select('full_name').eq('id', championId).single();
 
+        // Notify the winner
+        await supabase.from('notifications').insert([{
+          user_id: championId,
+          type: 'competition_winner',
+          title: 'Vô địch Competition!',
+          message: `Chúc mừng! Bạn đạt Hạng 1 với ${championScore} điểm. +${rewardGems} gems`,
+          icon: 'Trophy',
+          data: { competition: 'game', game_type: competitionGameType, score: championScore, gems: rewardGems },
+        }]);
+
+        // Notify qualifiers who got XP (excluding the champion who already got notified)
+        if (rewardXP > 0 && qualifiers.length > 0) {
+          const qualifierNotifs = qualifiers
+            .filter(([userId]) => userId !== championId)
+            .map(([userId, score]) => ({
+              user_id: userId,
+              type: 'competition_winner',
+              title: 'Phần thưởng Competition!',
+              message: `Bạn đạt ${score} điểm và nhận ${rewardXP} XP!`,
+              icon: 'Medal',
+              data: { competition: 'game', game_type: competitionGameType, score, xp: rewardXP },
+            }));
+          if (qualifierNotifs.length > 0) {
+            await supabase.from('notifications').insert(qualifierNotifs);
+          }
+        }
+
         // Clear training scores for this game type
         await supabase.from('training_scores').delete().eq('game_type', competitionGameType);
 

@@ -21,7 +21,7 @@ const shuffle = (arr) => {
   return a
 }
 
-const PetWhackMole = ({ petImageUrl, petName, onGameEnd, onClose, hammerSkinUrl, leaderboard = [], wordBank: wordBankProp = [] }) => {
+const PetWhackMole = ({ petImageUrl, petName, onGameEnd, onClose, hammerSkinUrl, leaderboard = [], wordBank: wordBankProp = [], hideClose = false }) => {
   const [phase, setPhase] = useState('ready')
   const [displayTime, setDisplayTime] = useState(GAME_DURATION)
   const [score, setScore] = useState(0)
@@ -388,7 +388,7 @@ const PetWhackMole = ({ petImageUrl, petName, onGameEnd, onClose, hammerSkinUrl,
         }}
       >
         {/* Close Button */}
-        {phase !== 'results' && (
+        {phase !== 'results' && !hideClose && (
           <button
             onClick={onClose}
             className="absolute top-4 left-4 z-50 bg-white/80 backdrop-blur rounded-full p-2 shadow-lg hover:bg-white transition-colors"

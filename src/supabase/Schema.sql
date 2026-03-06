@@ -1035,6 +1035,12 @@ BEGIN
           gems = gems + top1_gems
       WHERE id = top1_user_id;
 
+      -- Notify top 1
+      INSERT INTO notifications (user_id, type, title, message, icon, data)
+      VALUES (top1_user_id, 'competition_winner', 'Hạng 1 Daily Challenge!',
+        'Chúc mừng! Bạn đạt Hạng 1 (' || challenge_rec.difficulty_level || '). +' || top1_xp || ' XP, +' || top1_gems || ' gems',
+        'Trophy', json_build_object('rank', 1, 'difficulty', challenge_rec.difficulty_level, 'xp', top1_xp, 'gems', top1_gems)::jsonb);
+
       results := array_append(results, json_build_object('level', challenge_rec.difficulty_level, 'rank', 1, 'user_id', top1_user_id, 'xp', top1_xp, 'gems', top1_gems));
     END IF;
 
@@ -1056,6 +1062,12 @@ BEGIN
           gems = gems + top2_gems
       WHERE id = top2_user_id;
 
+      -- Notify top 2
+      INSERT INTO notifications (user_id, type, title, message, icon, data)
+      VALUES (top2_user_id, 'competition_winner', 'Hạng 2 Daily Challenge!',
+        'Chúc mừng! Bạn đạt Hạng 2 (' || challenge_rec.difficulty_level || '). +' || top2_xp || ' XP, +' || top2_gems || ' gems',
+        'Medal', json_build_object('rank', 2, 'difficulty', challenge_rec.difficulty_level, 'xp', top2_xp, 'gems', top2_gems)::jsonb);
+
       results := array_append(results, json_build_object('level', challenge_rec.difficulty_level, 'rank', 2, 'user_id', top2_user_id, 'xp', top2_xp, 'gems', top2_gems));
     END IF;
 
@@ -1076,6 +1088,12 @@ BEGIN
       SET xp = xp + top3_xp,
           gems = gems + top3_gems
       WHERE id = top3_user_id;
+
+      -- Notify top 3
+      INSERT INTO notifications (user_id, type, title, message, icon, data)
+      VALUES (top3_user_id, 'competition_winner', 'Hạng 3 Daily Challenge!',
+        'Chúc mừng! Bạn đạt Hạng 3 (' || challenge_rec.difficulty_level || '). +' || top3_xp || ' XP, +' || top3_gems || ' gems',
+        'Medal', json_build_object('rank', 3, 'difficulty', challenge_rec.difficulty_level, 'xp', top3_xp, 'gems', top3_gems)::jsonb);
 
       results := array_append(results, json_build_object('level', challenge_rec.difficulty_level, 'rank', 3, 'user_id', top3_user_id, 'xp', top3_xp, 'gems', top3_gems));
     END IF;
@@ -1986,7 +2004,8 @@ CREATE TABLE IF NOT EXISTS public.notifications (
   type text NOT NULL CHECK (type IN (
     'achievement_earned', 'level_up', 'streak_milestone',
     'daily_challenge_result', 'admin_announcement',
-    'giftcode_redeemed', 'chest_received', 'item_drop'
+    'giftcode_redeemed', 'chest_received', 'item_drop',
+    'competition_winner'
   )),
   title text NOT NULL,
   message text NOT NULL,
@@ -2494,6 +2513,12 @@ BEGIN
       updated_at = NOW()
   WHERE id = champion_user_id;
 
+  -- Notify champion
+  INSERT INTO notifications (user_id, type, title, message, icon, data)
+  VALUES (champion_user_id, 'competition_winner', 'Vô địch Word Scramble tuần!',
+    'Chúc mừng! Bạn đạt điểm cao nhất tuần (' || champion_score || ' điểm). +' || gem_prize || ' gems',
+    'Trophy', json_build_object('competition', 'weekly_scramble', 'score', champion_score, 'gems', gem_prize)::jsonb);
+
   RETURN json_build_object(
     'status', 'awarded',
     'user_id', champion_user_id,
@@ -2596,6 +2621,12 @@ BEGIN
       updated_at = NOW()
   WHERE id = champion_id;
 
+  -- Notify champion
+  INSERT INTO notifications (user_id, type, title, message, icon, data)
+  VALUES (champion_id, 'competition_winner', 'Vô địch XP tuần!',
+    'Chúc mừng! Bạn đạt nhiều XP nhất tuần (' || champion_xp || ' XP). +' || ach_xp || ' XP, +' || ach_gems || ' gems',
+    'Trophy', json_build_object('competition', 'weekly_xp', 'weekly_xp', champion_xp, 'xp_awarded', ach_xp, 'gems_awarded', ach_gems)::jsonb);
+
   RETURN json_build_object(
     'status', 'awarded',
     'user_id', champion_id,
@@ -2697,6 +2728,12 @@ BEGIN
       gems = gems + ach_gems,
       updated_at = NOW()
   WHERE id = champion_id;
+
+  -- Notify champion
+  INSERT INTO notifications (user_id, type, title, message, icon, data)
+  VALUES (champion_id, 'competition_winner', 'Vô địch XP tháng!',
+    'Chúc mừng! Bạn đạt nhiều XP nhất tháng (' || champion_xp || ' XP). +' || ach_xp || ' XP, +' || ach_gems || ' gems',
+    'Crown', json_build_object('competition', 'monthly_xp', 'monthly_xp', champion_xp, 'xp_awarded', ach_xp, 'gems_awarded', ach_gems)::jsonb);
 
   RETURN json_build_object(
     'status', 'awarded',
