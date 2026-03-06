@@ -9,6 +9,7 @@ import RecentActivities from './RecentActivities'
 import DailyChallenge from './DailyChallenge'
 import AvatarWithFrame from '../ui/AvatarWithFrame'
 import PetDisplay from '../pet/PetDisplay'
+import PvPChallengeModal from '../pvp/PvPChallengeModal'
 
 import { assetUrl, useBranding } from '../../hooks/useBranding';
 const Dashboard = () => {
@@ -19,6 +20,8 @@ const Dashboard = () => {
   const [recent, setRecent] = useState(null)
   const [currentTime, setCurrentTime] = useState(new Date())
   const [courseProgress, setCourseProgress] = useState({})
+  const [onlineUsers, setOnlineUsers] = useState([])
+  const [challengeTarget, setChallengeTarget] = useState(null)
   const navigate = useNavigate()
 
   // Update current time every second
@@ -28,6 +31,27 @@ const Dashboard = () => {
     }, 1000)
 
     return () => clearInterval(timer)
+  }, [])
+
+  // Fetch online users
+  useEffect(() => {
+    const fetchOnlineUsers = async () => {
+      try {
+        const fiveMinutesAgo = new Date(Date.now() - 5 * 60 * 1000).toISOString()
+        const { data, error } = await supabase
+          .from('users')
+          .select('id, full_name, avatar_url')
+          .gte('last_activity_date', fiveMinutesAgo)
+          .order('last_activity_date', { ascending: false })
+          .limit(30)
+        if (!error && data) setOnlineUsers(data)
+      } catch (err) {
+        console.error('Error fetching online users:', err)
+      }
+    }
+    fetchOnlineUsers()
+    const interval = setInterval(fetchOnlineUsers, 60000)
+    return () => clearInterval(interval)
   }, [])
 
   // Fetch courses data
@@ -431,6 +455,41 @@ const Dashboard = () => {
       </div>
 
 
+
+      {/* Online Users - Messenger style */}
+      {onlineUsers.length > 0 && (
+        <div className="xl:hidden">
+          <div className="flex overflow-x-auto gap-4 pb-2 px-1 scrollbar-hide">
+            {onlineUsers.map((u) => (
+              <button
+                key={u.id}
+                onClick={() => u.id !== profile?.id ? setChallengeTarget(u) : navigate(`/profile/${u.id}`)}
+                className="flex flex-col items-center flex-shrink-0 w-16"
+              >
+                <div className="relative">
+                  {u.avatar_url ? (
+                    <img src={u.avatar_url} alt="" className="w-14 h-14 rounded-full object-cover" />
+                  ) : (
+                    <div className="w-14 h-14 rounded-full bg-gradient-to-br from-blue-400 to-purple-400 flex items-center justify-center text-white text-lg font-bold">
+                      {u.full_name?.[0]?.toUpperCase() || '?'}
+                    </div>
+                  )}
+                  <div className="absolute bottom-0 right-0 w-3.5 h-3.5 bg-green-500 rounded-full border-2 border-white" />
+                </div>
+                <span className="text-xs text-gray-600 mt-1 text-center truncate w-full">{u.full_name?.split(' ').pop() || 'N/A'}</span>
+              </button>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {/* PvP Challenge Modal */}
+      {challengeTarget && (
+        <PvPChallengeModal
+          opponent={challengeTarget}
+          onClose={() => setChallengeTarget(null)}
+        />
+      )}
 
       {/* Recent Exercise (Above Levels List) */}
       {recent && (

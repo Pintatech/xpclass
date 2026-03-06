@@ -6,6 +6,8 @@ import ItemDropNotification from './inventory/ItemDropNotification'
 import ChestDropNotification from './inventory/ChestDropNotification'
 import NotificationModal from './notifications/NotificationModal'
 import LoadingSpinner from './ui/LoadingSpinner'
+import OnlineUsers from './navigation/OnlineUsers'
+import PvPIncomingBanner from './pvp/PvPIncomingBanner'
 
 const Layout = () => {
   const { loading } = useAuth()
@@ -47,12 +49,16 @@ const Layout = () => {
       <ItemDropNotification />
       <ChestDropNotification />
       <NotificationModal />
+      <PvPIncomingBanner />
 
       {/* Left Sidebar - Desktop and Mobile */}
       {!hideSidebar && <LeftSidebar />}
 
+      {/* Right Sidebar - Online Users */}
+      {!hideSidebar && <OnlineUsers />}
+
       {/* Main Content */}
-      <main className={`${hideSidebar ? 'lg:pl-0' : 'lg:pl-64'} min-h-screen ${hideBottomNav ? 'pb-0' : 'pb-16 lg:pb-0'}`}>
+      <main className={`${hideSidebar ? 'lg:pl-0' : 'lg:pl-64'} ${hideSidebar ? '' : 'xl:pr-56'} min-h-screen ${hideBottomNav ? 'pb-0' : 'pb-16 lg:pb-0'}`}>
         <div className={isAdminPage || isFullWidthPage ? '' : isSessionPage ? '' : hideSidebar ? 'container mx-auto px-1 sm:px-4 py-2 sm:py-6 max-w-7xl' : 'container mx-auto px-4 py-6 max-w-7xl'}>
           <Outlet />
         </div>
