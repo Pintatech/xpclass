@@ -294,8 +294,8 @@ const Shop = () => {
   const filteredItems = items
     .filter(item => item.category === activeTab)
     .sort((a, b) => {
-      if (isXPItem(a) === isXPItem(b)) return 0
-      return isXPItem(a) ? -1 : 1
+      if (isXPItem(a) !== isXPItem(b)) return isXPItem(a) ? -1 : 1
+      return a.price - b.price
     })
 
   // Get unique collections for the active tab
@@ -323,7 +323,11 @@ const Shop = () => {
       }
     })
     groups.forEach(g => g.variants.sort((a, b) => a.name.localeCompare(b.name, undefined, { numeric: true })))
-    groups.sort((a, b) => a.variants[0].name.localeCompare(b.variants[0].name, undefined, { numeric: true }))
+    groups.sort((a, b) => {
+      const aItem = a.variants[0], bItem = b.variants[0]
+      if (isXPItem(aItem) !== isXPItem(bItem)) return isXPItem(aItem) ? -1 : 1
+      return aItem.price - bItem.price
+    })
     return groups
   })()
 

@@ -186,7 +186,7 @@ const TeacherCourseOverview = () => {
       const lessonIds = lessonList.map(l => l.id);
       const { data: recs } = await supabase
         .from('lesson_records')
-        .select('id, lesson_info_id, student_id, attendance_status, homework_status, homework_notes, performance_rating, notes, star_flag')
+        .select('id, lesson_info_id, student_id, attendance_status, homework_status, homework_notes, homework_score, homework_max_score, performance_rating, notes, score, max_score, star_flag')
         .in('lesson_info_id', lessonIds);
       records = recs || [];
     }
@@ -378,8 +378,10 @@ const TeacherCourseOverview = () => {
                                       <th className="px-3 py-2 text-left font-medium">Lesson</th>
                                       <th className="px-3 py-2 text-center font-medium">Attendance</th>
                                       <th className="px-3 py-2 text-center font-medium">Performance</th>
+                                      <th className="px-3 py-2 text-center font-medium">Score</th>
                                       <th className="px-3 py-2 text-left font-medium">Notes</th>
                                       <th className="px-3 py-2 text-center font-medium">Homework</th>
+                                      <th className="px-3 py-2 text-center font-medium">Score</th>
                                       <th className="px-3 py-2 text-left font-medium">HW Notes</th>
                                       <th className="px-3 py-2 text-center font-medium">Star/Flag</th>
                                     </tr>
@@ -416,6 +418,9 @@ const TeacherCourseOverview = () => {
                                               </span>
                                             ) : <span className="text-gray-300">-</span>}
                                           </td>
+                                          <td className="px-3 py-2 text-center text-gray-600">
+                                            {rec?.score != null ? `${rec.score}/${rec.max_score ?? '?'}` : <span className="text-gray-300">-</span>}
+                                          </td>
                                           <td className="px-3 py-2 text-gray-700">{rec?.notes || <span className="text-gray-300">-</span>}</td>
                                           <td className="px-3 py-2 text-center">
                                             {rec?.homework_status ? (
@@ -427,6 +432,9 @@ const TeacherCourseOverview = () => {
                                                 {homeworkLabel[rec.homework_status] || rec.homework_status}
                                               </span>
                                             ) : <span className="text-gray-300">-</span>}
+                                          </td>
+                                          <td className="px-3 py-2 text-center text-gray-600">
+                                            {rec?.homework_score != null ? `${rec.homework_score}/${rec.homework_max_score ?? '?'}` : <span className="text-gray-300">-</span>}
                                           </td>
                                           <td className="px-3 py-2 text-gray-700">{rec?.homework_notes || <span className="text-gray-300">-</span>}</td>
                                           <td className="px-3 py-2 text-center">
@@ -518,6 +526,9 @@ const TeacherCourseOverview = () => {
                       Class: {ratingLabel[popoverData.record.performance_rating] || popoverData.record.performance_rating}
                     </span>
                   )}
+                  {popoverData.record.score != null && (
+                    <span className="text-gray-500">{popoverData.record.score}/{popoverData.record.max_score ?? '?'}</span>
+                  )}
                   {popoverData.record.notes && (
                     <span className="text-gray-600 truncate">{popoverData.record.notes}</span>
                   )}
@@ -535,6 +546,9 @@ const TeacherCourseOverview = () => {
                     }`}>
                       Home: {homeworkLabel[popoverData.record.homework_status] || popoverData.record.homework_status}
                     </span>
+                  )}
+                  {popoverData.record.homework_score != null && (
+                    <span className="text-gray-500">{popoverData.record.homework_score}/{popoverData.record.homework_max_score ?? '?'}</span>
                   )}
                   {popoverData.record.homework_notes && (
                     <span className="text-gray-600 truncate">{popoverData.record.homework_notes}</span>

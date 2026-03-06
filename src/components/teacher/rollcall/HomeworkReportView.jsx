@@ -17,6 +17,9 @@ const HomeworkReportView = ({ students, courseId, records, onChange, onMarkAll, 
   const [progress, setProgress] = useState({});
   const [loading, setLoading] = useState(false);
   const fileInputRefs = useRef({});
+  const feedbackRefs = useRef({});
+  const scoreRefs = useRef({});
+  const maxScoreRefs = useRef({});
   const [uploading, setUploading] = useState({});
 
   useEffect(() => {
@@ -260,7 +263,7 @@ const HomeworkReportView = ({ students, courseId, records, onChange, onMarkAll, 
               : 'border-gray-300 text-gray-600 hover:bg-gray-50'
           }`}
         >
-          From Course
+          Online
         </button>
         <button
           type="button"
@@ -271,7 +274,7 @@ const HomeworkReportView = ({ students, courseId, records, onChange, onMarkAll, 
               : 'border-gray-300 text-gray-600 hover:bg-gray-50'
           }`}
         >
-          Hand Graded
+          Paper
         </button>
       </div>
 
@@ -432,12 +435,54 @@ const HomeworkReportView = ({ students, courseId, records, onChange, onMarkAll, 
                     <div className="flex items-center gap-2 md:gap-3 flex-shrink-0">
                       {renderPhotoButton(student.id, record)}
                       <input
+                        ref={el => feedbackRefs.current[student.id] = el}
                         type="text"
                         placeholder="Feedback..."
                         value={record.homework_notes || ''}
                         onChange={(e) => onChange(student.id, { homework_notes: e.target.value })}
+                        onKeyDown={(e) => {
+                          if (e.key === 'Enter') {
+                            e.preventDefault();
+                            scoreRefs.current[student.id]?.focus();
+                          }
+                        }}
                         className="border border-gray-300 rounded-lg px-2 md:px-3 py-1.5 md:py-2 flex-1 md:w-48 md:flex-none text-sm focus:ring-2 focus:ring-blue-500 min-w-0"
                       />
+                      <div className="flex items-center gap-0.5 flex-shrink-0">
+                        <input
+                          ref={el => scoreRefs.current[student.id] = el}
+                          type="number"
+                          min="0"
+                          placeholder="—"
+                          value={record.homework_score ?? ''}
+                          onChange={(e) => onChange(student.id, { homework_score: e.target.value === '' ? null : Number(e.target.value) })}
+                          onKeyDown={(e) => {
+                            if (e.key === 'Enter') {
+                              e.preventDefault();
+                              maxScoreRefs.current[student.id]?.focus();
+                            }
+                          }}
+                          className="w-10 md:w-12 border border-gray-300 rounded-lg px-1 py-1.5 md:py-2 text-center text-xs md:text-sm focus:ring-2 focus:ring-blue-500"
+                        />
+                        <span className="text-gray-400 text-xs">/</span>
+                        <input
+                          ref={el => maxScoreRefs.current[student.id] = el}
+                          type="number"
+                          min="1"
+                          placeholder="—"
+                          value={record.homework_max_score ?? ''}
+                          onChange={(e) => onChange(student.id, { homework_max_score: e.target.value === '' ? null : Number(e.target.value) })}
+                          onKeyDown={(e) => {
+                            if (e.key === 'Enter') {
+                              e.preventDefault();
+                              const idx = students.findIndex(s => s.id === student.id);
+                              const next = students[idx + 1];
+                              if (next) feedbackRefs.current[next.id]?.focus();
+                            }
+                          }}
+                          className="w-10 md:w-12 border border-gray-300 rounded-lg px-1 py-1.5 md:py-2 text-center text-xs md:text-sm focus:ring-2 focus:ring-blue-500"
+                        />
+                      </div>
                       <div className="flex gap-1 flex-shrink-0">
                         {gradeOptions.map(opt => (
                           <button

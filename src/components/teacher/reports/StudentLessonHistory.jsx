@@ -75,7 +75,7 @@ const StudentLessonHistory = () => {
       if (lessonList.length > 0) {
         const { data: recs } = await supabase
           .from('lesson_records')
-          .select('lesson_info_id, attendance_status, homework_status, homework_notes, performance_rating, notes, star_flag')
+          .select('lesson_info_id, attendance_status, homework_status, homework_notes, homework_score, homework_max_score, performance_rating, notes, score, max_score, star_flag')
           .eq('student_id', studentId)
           .in('lesson_info_id', lessonList.map(l => l.id));
 
@@ -259,8 +259,10 @@ const StudentLessonHistory = () => {
                   <th className="px-4 py-3 text-left font-medium">Lesson</th>
                   <th className="px-4 py-3 text-center font-medium">Attendance</th>
                   <th className="px-4 py-3 text-center font-medium">Performance</th>
+                  <th className="px-4 py-3 text-center font-medium">Score</th>
                   <th className="px-4 py-3 text-left font-medium">Notes</th>
                   <th className="px-4 py-3 text-center font-medium">Homework</th>
+                  <th className="px-4 py-3 text-center font-medium">Score</th>
                   <th className="px-4 py-3 text-left font-medium">HW Notes</th>
                   <th className="px-4 py-3 text-center font-medium">Star/Flag</th>
                   <th className="px-4 py-3 text-center font-medium">XP Rate</th>
@@ -277,8 +279,10 @@ const StudentLessonHistory = () => {
                       <td className="px-4 py-3 text-gray-900">{lesson.lesson_name || '-'}</td>
                       <td className="px-4 py-3 text-center">{rec?.attendance_status ? attendanceBadge(rec.attendance_status) : dash}</td>
                       <td className="px-4 py-3 text-center">{rec?.performance_rating ? ratingBadge(rec.performance_rating) : dash}</td>
+                      <td className="px-4 py-3 text-center text-gray-600">{rec?.score != null ? `${rec.score}/${rec.max_score ?? '?'}` : dash}</td>
                       <td className="px-4 py-3 text-gray-700">{rec?.notes || dash}</td>
                       <td className="px-4 py-3 text-center">{rec?.homework_status ? ratingBadge(rec.homework_status) : dash}</td>
+                      <td className="px-4 py-3 text-center text-gray-600">{rec?.homework_score != null ? `${rec.homework_score}/${rec.homework_max_score ?? '?'}` : dash}</td>
                       <td className="px-4 py-3 text-gray-700">{rec?.homework_notes || dash}</td>
                       <td className="px-4 py-3 text-center">
                         {rec?.star_flag === 'star' && <Star className="w-4 h-4 fill-yellow-400 text-yellow-400 inline" />}

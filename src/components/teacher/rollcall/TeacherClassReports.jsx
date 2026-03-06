@@ -313,7 +313,7 @@ const TeacherClassReports = () => {
       clearDraft(selectedCourse, selectedDate);
       setHasDraft(false);
       showNotification('Saved lesson successfully');
-      await loadData();
+      navigate('/teacher/overview');
     } catch (error) {
       console.error('Error saving:', error);
       showNotification('Error saving records', 'error');
@@ -398,6 +398,7 @@ const TeacherClassReports = () => {
                   type="date"
                   value={selectedDate}
                   onChange={(e) => setSelectedDate(e.target.value)}
+                  min={(() => { const d = new Date(); d.setDate(d.getDate() - 2); return d.toISOString().split('T')[0]; })()}
                   max={new Date().toISOString().split('T')[0]}
                   className="p-1.5 md:p-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                 />
@@ -566,7 +567,9 @@ const TeacherClassReports = () => {
                           <th className="text-left px-3 py-2 font-medium text-gray-600">Student</th>
                           <th className="text-center px-2 py-2 font-medium text-gray-600">Attend.</th>
                           <th className="text-center px-2 py-2 font-medium text-gray-600">CW</th>
+                          <th className="text-center px-2 py-2 font-medium text-gray-600">Score</th>
                           <th className="text-center px-2 py-2 font-medium text-gray-600">HW</th>
+                          <th className="text-center px-2 py-2 font-medium text-gray-600">Score</th>
                           <th className="text-right px-3 py-2 font-medium text-gray-600">XP</th>
                         </tr>
                       </thead>
@@ -597,6 +600,9 @@ const TeacherClassReports = () => {
                                   {ratingLabels[rec.performance_rating] || '—'}
                                 </span>
                               </td>
+                              <td className="px-2 py-2 text-center text-xs text-gray-600">
+                                {rec.score != null ? `${rec.score}/${rec.max_score ?? '?'}` : '—'}
+                              </td>
                               <td className="px-2 py-2 text-center text-xs">
                                 <span className={`inline-block px-1.5 py-0.5 rounded-full ${
                                   rec.homework_status === 'wow' ? 'bg-green-100 text-green-700' :
@@ -606,6 +612,9 @@ const TeacherClassReports = () => {
                                 }`}>
                                   {ratingLabels[rec.homework_status] || '—'}
                                 </span>
+                              </td>
+                              <td className="px-2 py-2 text-center text-xs text-gray-600">
+                                {rec.homework_score != null ? `${rec.homework_score}/${rec.homework_max_score ?? '?'}` : '—'}
                               </td>
                               <td className="px-3 py-2 text-right font-medium">
                                 {xpEntry ? <span className="text-blue-600">+{xpEntry.xp}</span> : <span className="text-gray-300">0</span>}
