@@ -41,8 +41,8 @@ const Dashboard = () => {
         const { data, error } = await supabase
           .from('users')
           .select('id, full_name, avatar_url')
-          .gte('last_activity_date', fiveMinutesAgo)
-          .order('last_activity_date', { ascending: false })
+          .gte('last_seen_at', fiveMinutesAgo)
+          .order('last_seen_at', { ascending: false })
           .limit(30)
         if (!error && data) setOnlineUsers(data)
       } catch (err) {

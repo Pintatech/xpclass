@@ -8,7 +8,22 @@ const PvPIncomingBanner = () => {
   const { user } = useAuth()
   const [challenges, setChallenges] = useState([])
   const [acceptedChallenge, setAcceptedChallenge] = useState(null)
-  const [dismissed, setDismissed] = useState(new Set())
+  const [dismissed, setDismissed] = useState(() => {
+    try {
+      const saved = JSON.parse(localStorage.getItem('pvp_dismissed_challenges') || '[]')
+      const now = Date.now()
+      const valid = saved.filter(e => now - e.t < 30 * 60 * 1000)
+      if (valid.length !== saved.length) localStorage.setItem('pvp_dismissed_challenges', JSON.stringify(valid))
+      return new Set(valid.map(e => e.id))
+    } catch { return new Set() }
+  })
+  const [results, setResults] = useState([])
+  const [dismissedResults, setDismissedResults] = useState(() => {
+    try {
+      const saved = JSON.parse(localStorage.getItem('pvp_dismissed_results') || '[]')
+      return new Set(saved)
+    } catch { return new Set() }
+  })
 
   useEffect(() => {
     if (!user?.id) return
@@ -28,15 +43,47 @@ const PvPIncomingBanner = () => {
         .eq('opponent_id', user.id)
         .eq('status', 'pending')
         .order('created_at', { ascending: false })
-        .limit(5)
+        .limit(2)
 
       if (!error && data) {
         setChallenges(data.filter(c => !dismissed.has(c.id)))
       }
     }
 
+    // Fetch completed challenges where this user was the challenger (last 24h)
+    const fetchResults = async () => {
+      const since = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString()
+      const { data, error } = await supabase
+        .from('pvp_challenges')
+        .select(`
+          id,
+          challenger_id,
+          opponent_id,
+          game_type,
+          challenger_score,
+          opponent_score,
+          winner_id,
+          status,
+          created_at,
+          opponent:users!pvp_challenges_opponent_id_fkey(id, full_name, avatar_url)
+        `)
+        .eq('challenger_id', user.id)
+        .eq('status', 'completed')
+        .gte('created_at', since)
+        .order('created_at', { ascending: false })
+        .limit(3)
+
+      if (!error && data) {
+        setResults(data.filter(r => !dismissedResults.has(r.id)))
+      }
+    }
+
     fetchChallenges()
-    const interval = setInterval(fetchChallenges, 30000)
+    fetchResults()
+    const interval = setInterval(() => {
+      fetchChallenges()
+      fetchResults()
+    }, 30000)
 
     // Realtime subscription for instant notifications
     const channel = supabase
@@ -49,20 +96,44 @@ const PvPIncomingBanner = () => {
       }, (payload) => {
         fetchChallenges()
       })
+      .on('postgres_changes', {
+        event: 'UPDATE',
+        schema: 'public',
+        table: 'pvp_challenges',
+        filter: `challenger_id=eq.${user.id}`,
+      }, (payload) => {
+        if (payload.new?.status === 'completed') {
+          fetchResults()
+        }
+      })
       .subscribe()
 
     return () => {
       clearInterval(interval)
       supabase.removeChannel(channel)
     }
-  }, [user?.id, dismissed])
+  }, [user?.id, dismissed, dismissedResults])
 
   const handleAccept = (challenge) => {
     setAcceptedChallenge(challenge)
   }
 
   const handleDismiss = (challengeId) => {
-    setDismissed(prev => new Set([...prev, challengeId]))
+    setDismissed(prev => {
+      const next = new Set([...prev, challengeId])
+      const saved = JSON.parse(localStorage.getItem('pvp_dismissed_challenges') || '[]')
+      saved.push({ id: challengeId, t: Date.now() })
+      localStorage.setItem('pvp_dismissed_challenges', JSON.stringify(saved))
+      return next
+    })
+  }
+
+  const handleDismissResult = (resultId) => {
+    setDismissedResults(prev => {
+      const next = new Set([...prev, resultId])
+      localStorage.setItem('pvp_dismissed_results', JSON.stringify([...next]))
+      return next
+    })
   }
 
   const handleBattleClose = async () => {
@@ -73,13 +144,56 @@ const PvPIncomingBanner = () => {
   }
 
   const visibleChallenges = challenges.filter(c => !dismissed.has(c.id))
+  const visibleResults = results.filter(r => !dismissedResults.has(r.id))
 
-  if (visibleChallenges.length === 0 && !acceptedChallenge) return null
+  if (visibleChallenges.length === 0 && visibleResults.length === 0 && !acceptedChallenge) return null
 
   return (
     <>
-      {/* Incoming challenge banners */}
+      {/* Incoming challenge banners + result banners */}
       <div className="fixed bottom-20 lg:bottom-4 left-1/2 -translate-x-1/2 z-50 space-y-2 w-full max-w-sm px-4">
+        {/* Results for challenges you sent */}
+        {visibleResults.map((result) => {
+          const won = result.winner_id === user.id
+          const draw = !result.winner_id
+          const opponentName = result.opponent?.full_name || 'Opponent'
+          return (
+            <div
+              key={result.id}
+              className={`bg-white rounded-xl shadow-lg border-2 p-3 animate-bounce-in ${won ? 'border-green-200' : draw ? 'border-yellow-200' : 'border-gray-200'}`}
+            >
+              <div className="flex items-center gap-3">
+                <div className="relative flex-shrink-0">
+                  {result.opponent?.avatar_url ? (
+                    <img src={result.opponent.avatar_url} alt="" className="w-10 h-10 rounded-full object-cover" />
+                  ) : (
+                    <div className="w-10 h-10 rounded-full bg-gradient-to-br from-red-400 to-orange-400 flex items-center justify-center text-white font-bold">
+                      {opponentName[0]?.toUpperCase() || '?'}
+                    </div>
+                  )}
+                  <Swords size={14} className="absolute -bottom-1 -right-1 text-red-500 bg-white rounded-full p-0.5" />
+                </div>
+                <div className="flex-1 min-w-0">
+                  <div className={`text-sm font-bold truncate ${won ? 'text-green-600' : draw ? 'text-yellow-600' : 'text-red-600'}`}>
+                    {won ? 'You won!' : draw ? "It's a draw!" : 'You lost!'} vs {opponentName}
+                  </div>
+                  <div className="text-xs text-gray-500">
+                    {result.game_type} - <span className="font-bold text-blue-500">{result.challenger_score}</span> vs <span className="font-bold text-red-500">{result.opponent_score}</span>
+                    {won && <span className="ml-1 text-green-500 font-bold">+10 XP</span>}
+                  </div>
+                </div>
+                <button
+                  onClick={() => handleDismissResult(result.id)}
+                  className="p-1.5 rounded-lg bg-gray-100 text-gray-400 hover:bg-gray-200 transition flex-shrink-0"
+                >
+                  <X size={14} />
+                </button>
+              </div>
+            </div>
+          )
+        })}
+
+        {/* Incoming challenges */}
         {visibleChallenges.map((challenge) => (
           <div
             key={challenge.id}
@@ -175,6 +289,9 @@ const PvPResponseModal = ({ challenge, onClose }) => {
 
     try {
       const won = score > opponentScore
+      if (won) {
+        new Audio('https://xpclass.vn/xpclass/sound/victory.mp3').play().catch(() => {})
+      }
       const draw = score === opponentScore
 
       await supabase.from('pvp_challenges')
@@ -306,14 +423,28 @@ const PvPResponseModal = ({ challenge, onClose }) => {
               {won && <p className="text-sm font-bold text-green-500 mt-1">+10 XP</p>}
             </div>
 
-            {/* Score comparison */}
+            {/* Score comparison with avatars */}
             <div className="flex items-center justify-center gap-6 mb-6">
               <div className="text-center">
+                {challenge.challenger?.avatar_url ? (
+                  <img src={challenge.challenger.avatar_url} alt="" className={`w-12 h-12 rounded-full object-cover mx-auto mb-1 ${won ? 'opacity-50 grayscale' : 'ring-2 ring-red-400'}`} />
+                ) : (
+                  <div className={`w-12 h-12 rounded-full bg-gradient-to-br from-red-400 to-red-600 flex items-center justify-center text-white font-bold mx-auto mb-1 ${won ? 'opacity-50 grayscale' : 'ring-2 ring-red-400'}`}>
+                    {opponentName[0]?.toUpperCase()}
+                  </div>
+                )}
                 <div className="text-xs text-gray-500">{opponentName.split(' ').pop()}</div>
                 <div className={`text-3xl font-black ${won ? 'text-gray-400' : 'text-red-500'}`}>{opponentScore}</div>
               </div>
               <div className="text-lg font-bold text-gray-300">vs</div>
               <div className="text-center">
+                {profile?.avatar_url ? (
+                  <img src={profile.avatar_url} alt="" className={`w-12 h-12 rounded-full object-cover mx-auto mb-1 ${!won && !draw ? 'opacity-50 grayscale' : 'ring-2 ring-green-400'}`} />
+                ) : (
+                  <div className={`w-12 h-12 rounded-full bg-gradient-to-br from-blue-400 to-blue-600 flex items-center justify-center text-white font-bold mx-auto mb-1 ${!won && !draw ? 'opacity-50 grayscale' : 'ring-2 ring-green-400'}`}>
+                    {profile?.full_name?.[0]?.toUpperCase() || '?'}
+                  </div>
+                )}
                 <div className="text-xs text-gray-500">You</div>
                 <div className={`text-3xl font-black ${won ? 'text-green-500' : draw ? 'text-yellow-500' : 'text-gray-400'}`}>{myScore}</div>
               </div>

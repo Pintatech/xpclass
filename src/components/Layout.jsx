@@ -1,5 +1,7 @@
+import { useEffect } from 'react'
 import { Outlet, useLocation } from 'react-router-dom'
 import { useAuth } from '../hooks/useAuth'
+import { supabase } from '../supabase/client'
 import LeftSidebar from './navigation/LeftSidebar'
 import BottomNavigation from './navigation/BottomNavigation'
 import ItemDropNotification from './inventory/ItemDropNotification'
@@ -10,8 +12,19 @@ import OnlineUsers from './navigation/OnlineUsers'
 import PvPIncomingBanner from './pvp/PvPIncomingBanner'
 
 const Layout = () => {
-  const { loading } = useAuth()
+  const { loading, user } = useAuth()
   const location = useLocation()
+
+  // Heartbeat: update last_seen_at every 2 minutes
+  useEffect(() => {
+    if (!user?.id) return
+    const updatePresence = () => {
+      supabase.from('users').update({ last_seen_at: new Date().toISOString() }).eq('id', user.id).then()
+    }
+    updatePresence()
+    const interval = setInterval(updatePresence, 2 * 60 * 1000)
+    return () => clearInterval(interval)
+  }, [user?.id])
 
   const exercisePaths = [
     '/study/flashcard',

@@ -25,9 +25,25 @@ const PvPChallengeModal = ({ opponent, onClose }) => {
   const [wordBank, setWordBank] = useState([])
   const [saving, setSaving] = useState(false)
   const [enabledGames, setEnabledGames] = useState(['scramble', 'whackmole', 'astroblast'])
+  const [hasPending, setHasPending] = useState(null)
+  const [checkingPending, setCheckingPending] = useState(true)
 
   useEffect(() => {
     fetchWordBank()
+    // Check if there's already a pending challenge with this opponent
+    const checkPending = async () => {
+      const { data } = await supabase
+        .from('pvp_challenges')
+        .select('id, challenger_id, challenger_score, game_type, created_at')
+        .eq('status', 'pending')
+        .or(`and(challenger_id.eq.${user.id},opponent_id.eq.${opponent.id}),and(challenger_id.eq.${opponent.id},opponent_id.eq.${user.id})`)
+        .limit(1)
+      if (data && data.length > 0) {
+        setHasPending(data[0])
+      }
+      setCheckingPending(false)
+    }
+    checkPending()
     const fetchEnabledGames = async () => {
       const { data } = await supabase
         .from('site_settings')
@@ -148,6 +164,20 @@ const PvPChallengeModal = ({ opponent, onClose }) => {
               </div>
             </div>
 
+            {checkingPending ? (
+              <p className="text-center text-sm text-gray-400 mb-4">Checking...</p>
+            ) : hasPending ? (
+              <div className="text-center py-6">
+                <p className="text-sm text-orange-600 font-medium mb-2">You already have a pending challenge with this player!</p>
+                <div className="bg-orange-50 rounded-xl p-3 mb-2">
+                  <div className="text-xs text-gray-500 capitalize">{hasPending.game_type}</div>
+                  <div className="text-2xl font-black text-orange-500">{hasPending.challenger_score}</div>
+                  <div className="text-xs text-gray-400">Your score</div>
+                </div>
+                <p className="text-xs text-gray-500">Wait for them to finish before challenging again.</p>
+              </div>
+            ) : (
+            <>
             <p className="text-center text-sm text-gray-500 mb-4">Choose a game to battle!</p>
 
             {/* Game List */}
@@ -169,6 +199,8 @@ const PvPChallengeModal = ({ opponent, onClose }) => {
                 </button>
               ))}
             </div>
+            </>
+            )}
           </div>
         )}
 
@@ -179,9 +211,34 @@ const PvPChallengeModal = ({ opponent, onClose }) => {
               <h3 className="text-2xl font-bold text-gray-800">Battle Complete!</h3>
             </div>
 
-            <div className="bg-gradient-to-r from-blue-50 to-orange-50 rounded-xl p-4 mb-4">
-              <div className="text-sm text-gray-500 mb-1">Your Score</div>
-              <div className="text-4xl font-black text-blue-600">{myScore}</div>
+            {/* VS with avatars */}
+            <div className="flex items-center justify-center gap-6 mb-4">
+              <div className="text-center">
+                {profile?.avatar_url ? (
+                  <img src={profile.avatar_url} alt="" className="w-12 h-12 rounded-full object-cover mx-auto mb-1 ring-2 ring-blue-400" />
+                ) : (
+                  <div className="w-12 h-12 rounded-full bg-gradient-to-br from-blue-400 to-blue-600 flex items-center justify-center text-white font-bold mx-auto mb-1 ring-2 ring-blue-400">
+                    {profile?.full_name?.[0]?.toUpperCase() || '?'}
+                  </div>
+                )}
+                <div className="text-xs text-gray-500">You</div>
+                <div className="text-3xl font-black text-blue-600">{myScore}</div>
+              </div>
+              <div className="text-lg font-bold text-gray-300">vs</div>
+              <div className="text-center">
+                {opponent.avatar_url ? (
+                  <img src={opponent.avatar_url} alt="" className="w-12 h-12 rounded-full object-cover mx-auto mb-1 ring-2 ring-gray-300" />
+                ) : (
+                  <div className="w-12 h-12 rounded-full bg-gradient-to-br from-red-400 to-red-600 flex items-center justify-center text-white font-bold mx-auto mb-1 ring-2 ring-gray-300">
+                    {opponent.full_name?.[0]?.toUpperCase() || '?'}
+                  </div>
+                )}
+                <div className="text-xs text-gray-500">{opponent.full_name?.split(' ').pop()}</div>
+                <div className="text-3xl font-black text-gray-400">?</div>
+              </div>
+            </div>
+
+            <div className="bg-gradient-to-r from-blue-50 to-orange-50 rounded-xl p-4 mb-4 hidden">
             </div>
 
             <div className="flex items-center gap-2 justify-center text-sm text-gray-500 mb-4">

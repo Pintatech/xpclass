@@ -29,6 +29,8 @@ export const AuthProvider = ({ children }) => {
             // TOKEN_REFRESHED: Fired after user signs in successfully
             if (event === 'INITIAL_SESSION' || event === 'TOKEN_REFRESHED') {
               await fetchUserProfile(session.user.id)
+              // Update last_seen_at for online presence
+              supabase.from('users').update({ last_seen_at: new Date().toISOString() }).eq('id', session.user.id).then()
             }
           } else {
             setUser(null)
