@@ -345,7 +345,7 @@ const PvPChallengeModal = ({ opponent, onClose }) => {
               </div>
             ) : (
             <>
-            <p className="text-center text-sm text-gray-500 mb-4">Choose a game to battle!</p>
+            <p className="text-center text-sm text-gray-500 mb-4">Choose a game to battle! Winner gets 10 <img src={assetUrl('/image/study/xp.png')} alt="XP" className="w-4 h-4 inline" /></p>
 
             {/* Game List */}
             <div className="space-y-2">
