@@ -21,7 +21,9 @@ const Dashboard = () => {
   const [currentTime, setCurrentTime] = useState(new Date())
   const [courseProgress, setCourseProgress] = useState({})
   const [onlineUsers, setOnlineUsers] = useState([])
+  const [offlineUsers, setOfflineUsers] = useState([])
   const [challengeTarget, setChallengeTarget] = useState(null)
+  const [pendingChallengeUserIds, setPendingChallengeUserIds] = useState({})
   const navigate = useNavigate()
 
   // Update current time every second
@@ -33,26 +35,67 @@ const Dashboard = () => {
     return () => clearInterval(timer)
   }, [])
 
-  // Fetch online users
+  // Fetch online + recently offline users
   useEffect(() => {
-    const fetchOnlineUsers = async () => {
+    const fetchUsers = async () => {
       try {
         const fiveMinutesAgo = new Date(Date.now() - 5 * 60 * 1000).toISOString()
+        const twentyFourHoursAgo = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString()
         const { data, error } = await supabase
           .from('users')
-          .select('id, full_name, avatar_url')
-          .gte('last_seen_at', fiveMinutesAgo)
+          .select('id, full_name, avatar_url, last_seen_at')
+          .gte('last_seen_at', twentyFourHoursAgo)
           .order('last_seen_at', { ascending: false })
-          .limit(30)
-        if (!error && data) setOnlineUsers(data)
+          .limit(40)
+        if (!error && data) {
+          const online = []
+          const offline = []
+          data.forEach(u => {
+            if (u.last_seen_at >= fiveMinutesAgo) {
+              online.push(u)
+            } else {
+              offline.push(u)
+            }
+          })
+          setOnlineUsers(online)
+          setOfflineUsers(offline)
+        }
       } catch (err) {
         console.error('Error fetching online users:', err)
       }
     }
-    fetchOnlineUsers()
-    const interval = setInterval(fetchOnlineUsers, 60000)
+    fetchUsers()
+    const interval = setInterval(fetchUsers, 60000)
     return () => clearInterval(interval)
   }, [])
+
+  // Fetch pending PvP challenges
+  useEffect(() => {
+    if (!profile?.id) return
+    const fetchPending = async () => {
+      const since = new Date(Date.now() - 48 * 60 * 60 * 1000).toISOString()
+      const { data } = await supabase
+        .from('pvp_challenges')
+        .select('challenger_id, opponent_id')
+        .eq('status', 'pending')
+        .gte('created_at', since)
+        .or(`challenger_id.eq.${profile.id},opponent_id.eq.${profile.id}`)
+      if (data) {
+        const map = {}
+        data.forEach(c => {
+          if (c.challenger_id === profile.id) {
+            map[c.opponent_id] = 'sent'
+          } else {
+            map[c.challenger_id] = 'received'
+          }
+        })
+        setPendingChallengeUserIds(map)
+      }
+    }
+    fetchPending()
+    const interval = setInterval(fetchPending, 30000)
+    return () => clearInterval(interval)
+  }, [profile?.id])
 
   // Fetch courses data
   useEffect(() => {
@@ -457,7 +500,7 @@ const Dashboard = () => {
 
 
       {/* Online Users - Messenger style */}
-      {onlineUsers.length > 0 && (
+      {(onlineUsers.length > 0 || offlineUsers.length > 0) && (
         <div className="xl:hidden">
           <div className="flex overflow-x-auto gap-4 pb-2 px-1 scrollbar-hide">
             {onlineUsers.map((u) => (
@@ -475,8 +518,52 @@ const Dashboard = () => {
                     </div>
                   )}
                   <div className="absolute bottom-0 right-0 w-3.5 h-3.5 bg-green-500 rounded-full border-2 border-white" />
+                  {pendingChallengeUserIds[u.id] === 'received' && (
+                    <div className="absolute top-0 right-0 w-3.5 h-3.5 bg-red-500 rounded-full flex items-center justify-center animate-pulse">
+                      <span className="text-white text-[6px] font-bold">⚔</span>
+                    </div>
+                  )}
+                  {pendingChallengeUserIds[u.id] === 'sent' && (
+                    <div className="absolute top-0 right-0 w-3.5 h-3.5 bg-gray-400 rounded-full flex items-center justify-center">
+                      <span className="text-white text-[6px] font-bold">⚔</span>
+                    </div>
+                  )}
                 </div>
                 <span className="text-xs text-gray-600 mt-1 text-center truncate w-full">{u.full_name?.split(' ').pop() || 'N/A'}</span>
+              </button>
+            ))}
+            {offlineUsers.length > 0 && onlineUsers.length > 0 && (
+              <div className="flex items-center flex-shrink-0 px-1">
+                <div className="w-px h-10 bg-gray-200" />
+              </div>
+            )}
+            {offlineUsers.map((u) => (
+              <button
+                key={u.id}
+                onClick={() => u.id !== profile?.id && pendingChallengeUserIds[u.id] ? setChallengeTarget(u) : navigate(`/profile/${u.id}`)}
+                className="flex flex-col items-center flex-shrink-0 w-16 opacity-50"
+              >
+                <div className="relative">
+                  {u.avatar_url ? (
+                    <img src={u.avatar_url} alt="" className="w-14 h-14 rounded-full object-cover grayscale" />
+                  ) : (
+                    <div className="w-14 h-14 rounded-full bg-gradient-to-br from-gray-300 to-gray-400 flex items-center justify-center text-white text-lg font-bold">
+                      {u.full_name?.[0]?.toUpperCase() || '?'}
+                    </div>
+                  )}
+                  <div className="absolute bottom-0 right-0 w-3.5 h-3.5 bg-gray-400 rounded-full border-2 border-white" />
+                  {pendingChallengeUserIds[u.id] === 'received' && (
+                    <div className="absolute top-0 right-0 w-3.5 h-3.5 bg-red-500 rounded-full flex items-center justify-center animate-pulse">
+                      <span className="text-white text-[6px] font-bold">⚔</span>
+                    </div>
+                  )}
+                  {pendingChallengeUserIds[u.id] === 'sent' && (
+                    <div className="absolute top-0 right-0 w-3.5 h-3.5 bg-gray-400 rounded-full flex items-center justify-center">
+                      <span className="text-white text-[6px] font-bold">⚔</span>
+                    </div>
+                  )}
+                </div>
+                <span className="text-xs text-gray-400 mt-1 text-center truncate w-full">{u.full_name?.split(' ').pop() || 'N/A'}</span>
               </button>
             ))}
           </div>

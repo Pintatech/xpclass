@@ -4,7 +4,7 @@ import { X, Trophy, Volume2, VolumeX } from 'lucide-react'
 import WORD_BANK from './wordBank'
 
 import { assetUrl } from '../../hooks/useBranding';
-const GAME_DURATION = 76
+const GAME_DURATION = 40
 const POINTS_PER_WORD = 10
 const STREAK_BONUS = 5
 

@@ -10,6 +10,132 @@ import PetAstroBlast from '../pet/PetAstroBlast'
 
 import { assetUrl } from '../../hooks/useBranding'
 
+const TAUNT_GIF_BASE = assetUrl('/gif/taunt')
+
+const PVP_TAUNTS = {
+  messages: [
+    'Better luck next time! 😏',
+    'Too easy! 💪',
+    'GG EZ 😎',
+    'Get rekt! 💀',
+    'Not even close! 🔥',
+    'You need more practice! 📚',
+    'Is that all you got? 🥱',
+    'Bow to the champion! 👑',
+  ],
+  emojis: ['😎', '💪', '🏆', '😂', '🔥', '👑', '💀', '🫡', '🥱', '😤', '🤡', '👋'],
+  gifs: [
+    { value: `${TAUNT_GIF_BASE}/1.gif`, label: 'Deal with it' },
+    { value: `${TAUNT_GIF_BASE}/2.gif`, label: 'Victory dance' },
+    { value: `${TAUNT_GIF_BASE}/3.gif`, label: 'Bye bye' },
+    { value: `${TAUNT_GIF_BASE}/4.gif`, label: 'Too easy' },
+    { value: `${TAUNT_GIF_BASE}/5.gif`, label: 'Loser' },
+    { value: `${TAUNT_GIF_BASE}/6.gif`, label: 'Cry' },
+  ],
+}
+
+const TauntPicker = ({ challengeId, onSent }) => {
+  const [tab, setTab] = useState('emojis')
+  const [sending, setSending] = useState(false)
+  const [sent, setSent] = useState(false)
+
+  const sendTaunt = async (type, value) => {
+    setSending(true)
+    try {
+      const taunt = JSON.stringify({ type, value })
+      await supabase.from('pvp_challenges')
+        .update({ winner_taunt: taunt })
+        .eq('id', challengeId)
+      setSent(true)
+      onSent?.(taunt)
+    } catch (e) {
+      console.error('Failed to send taunt:', e)
+    } finally {
+      setSending(false)
+    }
+  }
+
+  if (sent) {
+    return (
+      <div className="text-center py-2">
+        <span className="text-sm font-bold text-green-500 animate-bounce inline-block">Taunt sent! 😈</span>
+      </div>
+    )
+  }
+
+  return (
+    <div className="mt-3">
+      <p className="text-xs font-bold text-gray-500 mb-2 text-center">Send a taunt! 😈</p>
+      <div className="flex gap-1 mb-2 justify-center">
+        {[
+          { key: 'emojis', icon: '😎', label: 'Emoji' },
+          { key: 'messages', icon: '💬', label: 'Message' },
+          { key: 'gifs', icon: '🎬', label: 'Sticker' },
+        ].map(t => (
+          <button
+            key={t.key}
+            onClick={() => setTab(t.key)}
+            className={`px-3 py-1 rounded-full text-xs font-bold transition ${
+              tab === t.key ? 'bg-red-500 text-white' : 'bg-gray-100 text-gray-500 hover:bg-gray-200'
+            }`}
+          >
+            {t.icon} {t.label}
+          </button>
+        ))}
+      </div>
+      <div className="max-h-32 overflow-y-auto">
+        {tab === 'emojis' && (
+          <div className="grid grid-cols-6 gap-1">
+            {PVP_TAUNTS.emojis.map((emoji, i) => (
+              <button
+                key={i}
+                onClick={() => sendTaunt('emoji', emoji)}
+                disabled={sending}
+                className="text-2xl p-1 rounded-lg hover:bg-yellow-50 active:scale-90 transition disabled:opacity-50"
+              >
+                {emoji}
+              </button>
+            ))}
+          </div>
+        )}
+        {tab === 'messages' && (
+          <div className="space-y-1">
+            {PVP_TAUNTS.messages.map((msg, i) => (
+              <button
+                key={i}
+                onClick={() => sendTaunt('message', msg)}
+                disabled={sending}
+                className="w-full text-left px-3 py-1.5 rounded-lg text-xs font-medium text-gray-700 hover:bg-orange-50 hover:text-orange-600 transition disabled:opacity-50"
+              >
+                {msg}
+              </button>
+            ))}
+          </div>
+        )}
+        {tab === 'gifs' && (
+          <div className="grid grid-cols-3 gap-1">
+            {PVP_TAUNTS.gifs.map((gif, i) => (
+              <button
+                key={i}
+                onClick={() => sendTaunt('gif', gif.value)}
+                disabled={sending}
+                className="flex flex-col items-center p-2 rounded-lg hover:bg-purple-50 transition disabled:opacity-50"
+              >
+                {gif.value.startsWith('http') ? (
+                  <img src={gif.value} alt={gif.label} className="w-12 h-12 object-cover rounded" />
+                ) : (
+                  <span className="text-2xl">{gif.value}</span>
+                )}
+                <span className="text-[10px] text-gray-400 mt-0.5">{gif.label}</span>
+              </button>
+            ))}
+          </div>
+        )}
+      </div>
+    </div>
+  )
+}
+
 const GAMES = [
   { id: 'scramble', name: 'Word Scramble', icon: assetUrl('/image/dashboard/pet-scramble.jpg'), description: 'Pop bubbles in order!' },
   { id: 'whackmole', name: 'Whack-a-Mole', icon: assetUrl('/pet-game/mole-normal.png'), description: 'Tap the correct word!' },
@@ -18,7 +144,7 @@ const GAMES = [
 
 const PvPChallengeModal = ({ opponent, onClose }) => {
   const { user, profile } = useAuth()
-  const { activePet } = usePet()
+  const { activePet, playWithPet } = usePet()
   const [step, setStep] = useState('pick-game') // pick-game | playing | result
   const [selectedGame, setSelectedGame] = useState(null)
   const [myScore, setMyScore] = useState(null)
@@ -82,6 +208,11 @@ const PvPChallengeModal = ({ opponent, onClose }) => {
         // Accepting an existing challenge — save opponent score and determine winner
         const challengerScore = hasPending.challenger_score
         const winner = score > challengerScore ? user.id : score < challengerScore ? hasPending.challenger_id : null
+        if (score > challengerScore) {
+          new Audio('https://xpclass.vn/xpclass/sound/victory.mp3').play().catch(() => {})
+        } else if (score < challengerScore) {
+          new Audio('https://xpclass.vn/xpclass/sound/craft_fail.mp3').play().catch(() => {})
+        }
         await supabase.from('pvp_challenges').update({
           opponent_score: score,
           winner_id: winner,
@@ -96,6 +227,10 @@ const PvPChallengeModal = ({ opponent, onClose }) => {
           challenger_score: score,
           status: 'pending',
         })
+      }
+      // Award pet XP
+      if (activePet?.id) {
+        playWithPet(activePet.id).catch(() => {})
       }
     } catch (err) {
       console.error('Error saving PvP challenge:', err)
@@ -266,7 +401,12 @@ const PvPChallengeModal = ({ opponent, onClose }) => {
             {hasPending && hasPending.challenger_id !== user.id ? (
               <div className="mb-4">
                 {myScore > hasPending.challenger_score ? (
-                  <p className="text-lg font-bold text-green-600">You Win!</p>
+                  <>
+                    <p className="text-lg font-bold text-green-600">You Win!</p>
+                    {!saving && (
+                      <TauntPicker challengeId={hasPending.id} />
+                    )}
+                  </>
                 ) : myScore < hasPending.challenger_score ? (
                   <p className="text-lg font-bold text-red-500">You Lose!</p>
                 ) : (
