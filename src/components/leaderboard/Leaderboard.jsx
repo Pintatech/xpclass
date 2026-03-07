@@ -37,7 +37,11 @@ const Leaderboard = () => {
   const [competitionGameType, setCompetitionGameType] = useState('scramble')
   const [competitionItemId, setCompetitionItemId] = useState('')
   const [competitionItemInfo, setCompetitionItemInfo] = useState(null)
-  const [scrambleRewardGems, setScrambleRewardGems] = useState(1)
+  const [topRewards, setTopRewards] = useState([
+    { rank: 1, gems: 1, xp: 0, shop_items: [] },
+    { rank: 2, gems: 0, xp: 0, shop_items: [] },
+    { rank: 3, gems: 0, xp: 0, shop_items: [] },
+  ])
   const [rewardThreshold, setRewardThreshold] = useState(0)
   const [rewardXP, setRewardXP] = useState(5)
   const [maxAttempts, setMaxAttempts] = useState(0)
@@ -51,6 +55,7 @@ const Leaderboard = () => {
     catch: 'Catch Game',
     flappy: 'Flappy Pet',
     astroblast: 'Astro Blast',
+    matchgame: 'Match Up',
   }
 
   // Fetch leaderboard settings on mount
@@ -67,7 +72,7 @@ const Leaderboard = () => {
             'leaderboard_competition_type',
             'leaderboard_competition_game_type',
             'leaderboard_competition_item_id',
-            'leaderboard_competition_reward_gems',
+            'leaderboard_competition_rewards',
             'leaderboard_competition_reward_threshold',
             'leaderboard_competition_reward_xp',
             'leaderboard_competition_max_attempts',
@@ -80,7 +85,7 @@ const Leaderboard = () => {
         let compType = 'game'
         let gameType = 'scramble'
         let itemId = ''
-        let gems = 1
+        let rewards = null
         let threshold = 0
         let xpReward = 5
         let attempts = 0
@@ -106,8 +111,8 @@ const Leaderboard = () => {
             case 'leaderboard_competition_item_id':
               itemId = row.setting_value
               break
-            case 'leaderboard_competition_reward_gems':
-              gems = parseInt(row.setting_value) || 1
+            case 'leaderboard_competition_rewards':
+              try { rewards = JSON.parse(row.setting_value) } catch {}
               break
             case 'leaderboard_competition_reward_threshold':
               threshold = parseInt(row.setting_value) || 0
@@ -134,7 +139,7 @@ const Leaderboard = () => {
         setCompetitionType(compType)
         setCompetitionGameType(gameType)
         setCompetitionItemId(itemId)
-        setScrambleRewardGems(gems)
+        if (rewards) setTopRewards(rewards)
         setRewardThreshold(threshold)
         setRewardXP(xpReward)
         setMaxAttempts(attempts)
@@ -783,7 +788,7 @@ const Leaderboard = () => {
     <div className="space-y-8">
       {/* Header */}
       <div className="text-center">
-        <h1 className="text-3xl font-bold text-gray-900 mb-2">Bảng xếp hạng</h1>
+        <h1 className="text-3xl font-bold text-gray-900 mb-2">🏅 Bảng xếp hạng 🏅</h1>
       </div>
 
       {/* Timeframe Filter */}
@@ -817,47 +822,47 @@ const Leaderboard = () => {
           </div>
         ) : (
           <>
-            {/* Prize & Countdown */}
-            <div className="flex justify-center">
-              <div className="inline-flex items-center gap-2 bg-gradient-to-r from-purple-50 to-indigo-50 border border-purple-200 rounded-lg px-4 py-3 text-sm">
-                <Trophy className="w-5 h-5 text-purple-500 flex-shrink-0" />
-                <span className="text-gray-700">
-                  Top 1 cuối event nhận{' '}
-                  <strong className="text-blue-600 inline-flex items-center gap-1">{scrambleRewardGems} <img src={assetUrl('/image/study/gem.png')} alt="Gem" className="w-4 h-4" /></strong>
-                </span>
-                {countdownText && (
-                  <span className="text-gray-400 ml-1">({countdownText})</span>
-                )}
-              </div>
-            </div>
-
-            {rewardThreshold > 0 && rewardXP > 0 && (
-              <div className="flex justify-center">
-                <div className="inline-flex items-center gap-2 bg-gradient-to-r from-blue-50 to-cyan-50 border border-blue-200 rounded-lg px-4 py-3 text-sm">
-                  <Star className="w-5 h-5 text-blue-500 flex-shrink-0" />
-                  <span className="text-gray-700">
-                    Đạt {rewardThreshold}+ điểm nhận{' '}
-                    <strong className="text-yellow-600 inline-flex items-center gap-1">{rewardXP } <img src={assetUrl('/image/study/xp.png')} alt="XP" className="w-4 h-4" /></strong>
-                     cuối event
-                  </span>
+            {/* Prize, Qualifier & Attempts - compact */}
+            <div className="flex flex-wrap justify-center gap-2 text-xs">
+              {topRewards.map((reward, idx) => {
+                const qualifierBonus = (rewardThreshold > 0 && rewardXP > 0) ? rewardXP : 0;
+                const totalXp = (reward.xp || 0) + qualifierBonus;
+                const hasReward = reward.gems > 0 || totalXp > 0 || (reward.shop_items?.length > 0);
+                if (!hasReward) return null;
+                const rankIcons = ['🥇', '🥈', '🥉'];
+                return (
+                  <div key={idx} className="inline-flex items-center gap-1.5 bg-purple-50 border border-purple-200 rounded-lg px-2.5 py-1.5">
+                    <span>{rankIcons[idx]}</span>
+                    {reward.gems > 0 && (
+                      <strong className="text-blue-600 inline-flex items-center gap-0.5">{reward.gems}<img src={assetUrl('/image/study/gem.png')} alt="Gem" className="w-3.5 h-3.5" /></strong>
+                    )}
+                    {totalXp > 0 && (
+                      <strong className="text-yellow-600 inline-flex items-center gap-0.5">{totalXp}<img src={assetUrl('/image/study/xp.png')} alt="XP" className="w-3.5 h-3.5" /></strong>
+                    )}
+                    {reward.shop_items?.length > 0 && (
+                      <span className="text-purple-600 font-medium">+{reward.shop_items.length} item</span>
+                    )}
+                  </div>
+                );
+              })}
+              {rewardThreshold > 0 && rewardXP > 0 && (
+                <div className="inline-flex items-center gap-1 bg-green-50 border border-green-200 rounded-lg px-2.5 py-1.5 text-green-700">
+                  {rewardThreshold}+ điểm: <strong className="inline-flex items-center gap-0.5">+{rewardXP}<img src={assetUrl('/image/study/xp.png')} alt="XP" className="w-3.5 h-3.5" /></strong>
                 </div>
-              </div>
-            )}
-
-            {maxAttempts > 0 && (
-              <div className="flex justify-center">
-                <div className={`inline-flex items-center gap-2 rounded-lg px-4 py-2 text-sm ${
-                  usedAttempts >= maxAttempts
-                    ? 'bg-red-50 border border-red-200 text-red-700'
-                    : 'bg-blue-50 border border-blue-200 text-blue-700'
+              )}
+              {maxAttempts > 0 && (
+                <div className={`inline-flex items-center gap-1 rounded-lg px-2.5 py-1.5 ${
+                  usedAttempts >= maxAttempts ? 'bg-red-50 border border-red-200 text-red-600' : 'bg-blue-50 border border-blue-200 text-blue-600'
                 }`}>
-                  {usedAttempts >= maxAttempts
-                    ? `Đã hết lượt chơi tuần này (${maxAttempts}/${maxAttempts})`
-                    : `Còn ${maxAttempts - usedAttempts} lượt chơi (${usedAttempts}/${maxAttempts})`
-                  }
+                  {usedAttempts >= maxAttempts ? `Hết lượt (${maxAttempts}/${maxAttempts})` : `${maxAttempts - usedAttempts}/${maxAttempts} lượt`}
                 </div>
-              </div>
-            )}
+              )}
+              {countdownText && (
+                <div className="inline-flex items-center gap-1 bg-gray-50 border border-gray-200 rounded-lg px-2.5 py-1.5 text-gray-500">
+                  {countdownText}
+                </div>
+              )}
+            </div>
 
             {trainingData.length === 0 ? (
               <div className="text-center py-8 text-gray-500">

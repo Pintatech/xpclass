@@ -463,6 +463,7 @@ import { usePet as usePetHook } from '../../hooks/usePet'
 import PetWhackMole from '../pet/PetWhackMole'
 import PetWordScramble from '../pet/PetWordScramble'
 import PetAstroBlast from '../pet/PetAstroBlast'
+import PetMatchGame from '../pet/PetMatchGame'
 import { createPortal } from 'react-dom'
 import { Trophy } from 'lucide-react'
 
@@ -563,6 +564,8 @@ const PvPResponseModal = ({ challenge, onClose }) => {
           'https://xpclass.vn/xpclass/pet-game/astro/alien5.png',
           'https://xpclass.vn/xpclass/pet-game/astro/alien6.png',
         ]} />
+      case 'matchgame':
+        return <PetMatchGame {...commonProps} onGameEnd={handleGameEnd} wordBank={wordBank} />
       default:
         return null
     }

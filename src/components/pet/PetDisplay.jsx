@@ -18,6 +18,7 @@ import PetFlappyGame from "./PetFlappyGame";
 import PetWordScramble from "./PetWordScramble";
 import PetWhackMole from "./PetWhackMole";
 import PetAstroBlast from "./PetAstroBlast";
+import PetMatchGame from "./PetMatchGame";
 
 import { assetUrl } from '../../hooks/useBranding';
 // Pet chat messages - replace with your own!
@@ -84,10 +85,10 @@ const PetDisplay = () => {
   // Chat state
   const [playDisabled, setPlayDisabled] = useState(false);
   const [playCooldown, setPlayCooldown] = useState(0);
-  const [showGame, setShowGame] = useState(null); // null | 'picker' | 'catch' | 'flappy' | 'scramble' | 'whackmole' | 'astroblast'
+  const [showGame, setShowGame] = useState(null); // null | 'picker' | 'catch' | 'flappy' | 'scramble' | 'whackmole' | 'astroblast' | 'matchgame'
   const [whackmoleLeaderboard, setWhackmoleLeaderboard] = useState([]);
   const [wordBank, setWordBank] = useState([]);
-  const [enabledGames, setEnabledGames] = useState(['scramble', 'whackmole', 'astroblast']);
+  const [enabledGames, setEnabledGames] = useState(['scramble', 'whackmole', 'astroblast', 'matchgame']);
   const [showChat, setShowChat] = useState(false);
   const [chatInput, setChatInput] = useState("");
   const [chatMessages, setChatMessages] = useState([]);
@@ -473,7 +474,7 @@ const PetDisplay = () => {
     pendingAttemptId.current = null;
 
     setPlayDisabled(true);
-    setPlayCooldown(10);
+    setPlayCooldown(5);
     const cooldownInterval = setInterval(() => {
       setPlayCooldown(prev => {
         if (prev <= 1) {
@@ -1116,7 +1117,7 @@ const PetDisplay = () => {
                         stroke="#f59e0b" strokeWidth="3"
                         strokeLinecap="round"
                         strokeDasharray={`${2 * Math.PI * 24}`}
-                        strokeDashoffset={`${2 * Math.PI * 24 * (1 - playCooldown / 10)}`}
+                        strokeDashoffset={`${2 * Math.PI * 24 * (1 - playCooldown / 5)}`}
                         style={{ transition: 'stroke-dashoffset 1s linear' }}
                       />
                     </svg>
@@ -1595,6 +1596,15 @@ const PetDisplay = () => {
                 <span className="font-bold text-gray-800 text-xs">Astro Blast</span>
               </button>
               )}
+              {enabledGames.includes('matchgame') && (
+              <button
+                onClick={() => { drainPetEnergy(10); recordAttemptStart('matchgame'); setShowGame('matchgame'); }}
+                className="flex flex-col items-center gap-2 p-4 rounded-xl border-2 border-indigo-200 hover:border-indigo-400 hover:bg-indigo-50 transition-all group"
+              >
+                <span className="text-5xl group-hover:scale-110 transition-transform">🧩</span>
+                <span className="font-bold text-gray-800 text-xs">Match Up</span>
+              </button>
+              )}
             </div>
             <button
               onClick={() => setShowGame(null)}
@@ -1697,6 +1707,24 @@ const PetDisplay = () => {
           ]}
           wordBank={wordBank}
           onGameEnd={(score) => handleGameEnd(score, 'astroblast')}
+          onClose={() => setShowGame(null)}
+        />
+      )}
+
+      {/* Match Up Mini-Game */}
+      {showGame === 'matchgame' && (
+        <PetMatchGame
+          petImageUrl={(() => {
+            let baseImage = activePet.image_url;
+            if (activePet.evolution_stages && activePet.evolution_stage > 0) {
+              const stage = activePet.evolution_stages.find(s => s.stage === activePet.evolution_stage);
+              if (stage?.image_url) baseImage = stage.image_url;
+            }
+            return baseImage;
+          })()}
+          petName={activePet.nickname || activePet.name}
+          wordBank={wordBank}
+          onGameEnd={(score) => handleGameEnd(score, 'matchgame')}
           onClose={() => setShowGame(null)}
         />
       )}

@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { supabase } from '../../supabase/client';
-import { Save, RefreshCw, Eye, EyeOff, Play, Pause, Trophy, Settings, Package } from 'lucide-react';
+import { Save, RefreshCw, Eye, EyeOff, Play, Pause, Trophy, Settings, Package, Plus, X, Gift } from 'lucide-react';
 
 import { assetUrl } from '../../hooks/useBranding';
 const ALL_TABS = [
@@ -15,12 +15,14 @@ const GAME_TYPES = [
   { key: 'catch', label: 'Catch Game', icon: '🎯' },
   { key: 'flappy', label: 'Flappy Pet', icon: '🐦' },
   { key: 'astroblast', label: 'Astro Blast', icon: '🚀' },
+  { key: 'matchgame', label: 'Match Up', icon: '🧩' },
 ];
 
 const TRAINING_GAMES = [
   { key: 'scramble', label: 'Word Scramble', icon: '🔤' },
   { key: 'whackmole', label: 'Whack-a-Mole', icon: '🔨' },
   { key: 'astroblast', label: 'Astro Blast', icon: '🚀' },
+  { key: 'matchgame', label: 'Match Up', icon: '🧩' },
 ];
 
 const LeaderboardSettings = () => {
@@ -35,9 +37,15 @@ const LeaderboardSettings = () => {
   const [competitionType, setCompetitionType] = useState('game'); // 'game' or 'items'
   const [competitionGameType, setCompetitionGameType] = useState('scramble');
   const [competitionItemId, setCompetitionItemId] = useState('');
-  const [rewardGems, setRewardGems] = useState(1);
   const [rewardThreshold, setRewardThreshold] = useState(0); // minimum score to qualify for XP reward
   const [rewardXP, setRewardXP] = useState(5); // XP given to all qualifiers
+  // Top 1/2/3 special rewards
+  const DEFAULT_TOP_REWARDS = [
+    { rank: 1, gems: 1, xp: 0, shop_items: [] },
+    { rank: 2, gems: 0, xp: 0, shop_items: [] },
+    { rank: 3, gems: 0, xp: 0, shop_items: [] },
+  ];
+  const [topRewards, setTopRewards] = useState(DEFAULT_TOP_REWARDS);
   const [maxAttempts, setMaxAttempts] = useState(0); // 0 = unlimited
   const [competitionEndDate, setCompetitionEndDate] = useState(''); // ISO date string e.g. '2026-03-10'
   const [enabledTrainingGames, setEnabledTrainingGames] = useState(['scramble', 'whackmole', 'astroblast']);
@@ -46,9 +54,13 @@ const LeaderboardSettings = () => {
   const [collectibleItems, setCollectibleItems] = useState([]);
   const [itemsLoading, setItemsLoading] = useState(false);
 
+  // Shop items for reward picker
+  const [shopItems, setShopItems] = useState([]);
+
   useEffect(() => {
     fetchSettings();
     fetchCollectibleItems();
+    fetchShopItems();
   }, []);
 
   const fetchCollectibleItems = async () => {
@@ -68,6 +80,20 @@ const LeaderboardSettings = () => {
     }
   };
 
+  const fetchShopItems = async () => {
+    try {
+      const { data } = await supabase
+        .from('shop_items')
+        .select('id, name, image_url, category, price')
+        .eq('is_active', true)
+        .order('category')
+        .order('name');
+      setShopItems(data || []);
+    } catch (err) {
+      console.error('Error fetching shop items:', err);
+    }
+  };
+
   const fetchSettings = async () => {
     try {
       setLoading(true);
@@ -81,6 +107,7 @@ const LeaderboardSettings = () => {
           'leaderboard_competition_type',
           'leaderboard_competition_game_type',
           'leaderboard_competition_item_id',
+          'leaderboard_competition_rewards',
           'leaderboard_competition_reward_gems',
           'leaderboard_competition_reward_threshold',
           'leaderboard_competition_reward_xp',
@@ -111,8 +138,11 @@ const LeaderboardSettings = () => {
           case 'leaderboard_competition_item_id':
             setCompetitionItemId(row.setting_value);
             break;
+          case 'leaderboard_competition_rewards':
+            try { setTopRewards(JSON.parse(row.setting_value)); } catch {}
+            break;
           case 'leaderboard_competition_reward_gems':
-            setRewardGems(parseInt(row.setting_value) || 1);
+            // Legacy: migrate old single gem reward to top rewards if no new format exists
             break;
           case 'leaderboard_competition_reward_threshold':
             setRewardThreshold(parseInt(row.setting_value) || 0);
@@ -167,7 +197,7 @@ const LeaderboardSettings = () => {
         { setting_key: 'leaderboard_competition_type', setting_value: competitionType, description: 'Competition type: game or items' },
         { setting_key: 'leaderboard_competition_game_type', setting_value: competitionGameType, description: 'Which game type for competition' },
         { setting_key: 'leaderboard_competition_item_id', setting_value: competitionItemId, description: 'Item ID for collection competition' },
-        { setting_key: 'leaderboard_competition_reward_gems', setting_value: String(rewardGems), description: 'Gem reward for weekly champion' },
+        { setting_key: 'leaderboard_competition_rewards', setting_value: JSON.stringify(topRewards), description: 'Top 1/2/3 rewards config' },
         { setting_key: 'leaderboard_competition_reward_threshold', setting_value: String(rewardThreshold), description: 'Minimum score to qualify for XP reward' },
         { setting_key: 'leaderboard_competition_reward_xp', setting_value: String(rewardXP), description: 'XP reward for all qualifiers' },
         { setting_key: 'leaderboard_competition_max_attempts', setting_value: String(maxAttempts), description: 'Max attempts per week (0 = unlimited)' },
@@ -195,13 +225,13 @@ const LeaderboardSettings = () => {
   const [ending, setEnding] = useState(false);
 
   const handleEndCompetition = async () => {
-    if (!window.confirm('End competition and award the winner? This will give the top player their gem reward and pause the competition.')) return;
+    if (!window.confirm('End competition and award top players? This will distribute rewards and pause the competition.')) return;
 
     try {
       setEnding(true);
 
       if (competitionType === 'game') {
-        // Find top scorer across all training_scores for this game type
+        // Find top scorers across all training_scores for this game type
         const { data: scores } = await supabase
           .from('training_scores')
           .select('user_id, score')
@@ -223,7 +253,6 @@ const LeaderboardSettings = () => {
         });
 
         const sorted = Object.entries(bestScores).sort((a, b) => b[1] - a[1]);
-        const [championId, championScore] = sorted[0];
 
         // Award XP to all qualifiers who passed the threshold
         const qualifiers = sorted.filter(([, score]) => rewardThreshold > 0 ? score >= rewardThreshold : false);
@@ -234,29 +263,70 @@ const LeaderboardSettings = () => {
           }
         }
 
-        // Award gems to champion (#1)
-        if (rewardGems > 0) {
-          const { data: userData } = await supabase.from('users').select('gems').eq('id', championId).single();
-          await supabase.from('users').update({ gems: (userData?.gems || 0) + rewardGems }).eq('id', championId);
+        // Award top 1/2/3 rewards
+        const rankLabels = ['Hạng 1', 'Hạng 2', 'Hạng 3'];
+        const rankTitles = ['Vô địch Competition!', 'Hạng Nhì Competition!', 'Hạng Ba Competition!'];
+        const rankIcons = ['Trophy', 'Medal', 'Medal'];
+        const awardedNames = [];
+
+        for (let i = 0; i < Math.min(sorted.length, topRewards.length); i++) {
+          const reward = topRewards[i];
+          const [userId, userScore] = sorted[i];
+          const hasReward = reward.gems > 0 || reward.xp > 0 || reward.shop_items.length > 0;
+          if (!hasReward) continue;
+
+          // Award gems
+          if (reward.gems > 0) {
+            const { data: userData } = await supabase.from('users').select('gems').eq('id', userId).single();
+            await supabase.from('users').update({ gems: (userData?.gems || 0) + reward.gems }).eq('id', userId);
+          }
+
+          // Award XP (rank-specific, separate from qualifier XP)
+          if (reward.xp > 0) {
+            const { data: userData } = await supabase.from('users').select('xp').eq('id', userId).single();
+            await supabase.from('users').update({ xp: (userData?.xp || 0) + reward.xp }).eq('id', userId);
+          }
+
+          // Award shop items
+          if (reward.shop_items.length > 0) {
+            for (const itemId of reward.shop_items) {
+              await supabase.from('user_purchases').upsert({
+                user_id: userId,
+                item_id: itemId,
+              }, { onConflict: 'user_id,item_id', ignoreDuplicates: true });
+            }
+          }
+
+          // Build reward message
+          const parts = [];
+          if (reward.gems > 0) parts.push(`+${reward.gems} gems`);
+          if (reward.xp > 0) parts.push(`+${reward.xp} XP`);
+          if (reward.shop_items.length > 0) {
+            const itemNames = reward.shop_items
+              .map(id => shopItems.find(s => s.id === id)?.name || 'item')
+              .join(', ');
+            parts.push(itemNames);
+          }
+
+          // Notify winner
+          await supabase.from('notifications').insert([{
+            user_id: userId,
+            type: 'competition_winner',
+            title: rankTitles[i],
+            message: `Chúc mừng! Bạn đạt ${rankLabels[i]} với ${userScore} điểm. ${parts.join(', ')}`,
+            icon: rankIcons[i],
+            data: { competition: 'game', game_type: competitionGameType, score: userScore, rank: i + 1, ...reward },
+          }]);
+
+          const { data: userData } = await supabase.from('users').select('full_name').eq('id', userId).single();
+          awardedNames.push(`${rankLabels[i]}: ${userData?.full_name || 'Unknown'}`);
         }
 
-        // Get winner name
-        const { data: winner } = await supabase.from('users').select('full_name').eq('id', championId).single();
-
-        // Notify the winner
-        await supabase.from('notifications').insert([{
-          user_id: championId,
-          type: 'competition_winner',
-          title: 'Vô địch Competition!',
-          message: `Chúc mừng! Bạn đạt Hạng 1 với ${championScore} điểm. +${rewardGems} gems`,
-          icon: 'Trophy',
-          data: { competition: 'game', game_type: competitionGameType, score: championScore, gems: rewardGems },
-        }]);
-
-        // Notify qualifiers who got XP (excluding the champion who already got notified)
+        // Notify qualifiers who got XP (excluding top 3 who already got notified)
+        const topUserIds = sorted.slice(0, Math.min(sorted.length, topRewards.length)).map(([id]) => id);
         if (rewardXP > 0 && qualifiers.length > 0) {
           const qualifierNotifs = qualifiers
-            .filter(([userId]) => userId !== championId)
+            .filter(([userId]) => !topUserIds.includes(userId))
             .map(([userId, score]) => ({
               user_id: userId,
               type: 'competition_winner',
@@ -281,8 +351,8 @@ const LeaderboardSettings = () => {
           description: 'Whether competition is active',
         }, { onConflict: 'setting_key' });
 
-        const qualifierMsg = qualifiers.length > 0 ? ` ${qualifiers.length} player${qualifiers.length > 1 ? 's' : ''} earned ${rewardXP} XP.` : '';
-        showNotification(`Competition ended! ${winner?.full_name || 'Winner'} won with ${championScore} points and received ${rewardGems} gems!${qualifierMsg}`);
+        const qualifierMsg = qualifiers.length > 0 ? ` ${qualifiers.length} qualifier${qualifiers.length > 1 ? 's' : ''} earned ${rewardXP} XP.` : '';
+        showNotification(`Competition ended! ${awardedNames.join(' | ')}${qualifierMsg}`);
       } else {
         // Item competition — just pause, no score cleanup needed
         setCompetitionActive(false);
@@ -629,25 +699,93 @@ const LeaderboardSettings = () => {
           </p>
         </div>
 
-        {/* Reward Config */}
+        {/* Top 1/2/3 Rewards Config */}
         <div className="border-t border-gray-100 pt-4">
-          <div className="flex items-center gap-3 mb-2">
-            <Trophy className="w-4 h-4 text-yellow-500" />
-            <p className="text-sm font-medium text-gray-900">Champion Reward</p>
+          <div className="flex items-center gap-3 mb-3">
+            <Gift className="w-4 h-4 text-yellow-500" />
+            <p className="text-sm font-medium text-gray-900">Top Player Rewards</p>
           </div>
-          <div className="flex items-center gap-3">
-            <input
-              type="number"
-              min="0"
-              max="100"
-              value={rewardGems}
-              onChange={(e) => setRewardGems(Math.max(0, parseInt(e.target.value) || 0))}
-              className="w-20 p-2 border border-gray-300 rounded-lg text-center text-gray-900 focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-            />
-            <div className="flex items-center gap-1 text-sm text-gray-600">
-              <img src={assetUrl('/image/study/gem.png')} alt="Gem" className="w-4 h-4" />
-              Gems for Top 1 at end of week
-            </div>
+          <div className="space-y-4">
+            {topRewards.map((reward, idx) => {
+              const rankColors = ['text-yellow-500', 'text-gray-400', 'text-amber-600'];
+              const rankLabels = ['1st', '2nd', '3rd'];
+              const rankIcons = ['🥇', '🥈', '🥉'];
+              return (
+                <div key={reward.rank} className="p-3 border border-gray-200 rounded-lg bg-gray-50">
+                  <p className={`text-sm font-semibold mb-2 ${rankColors[idx]}`}>
+                    {rankIcons[idx]} {rankLabels[idx]} Place
+                  </p>
+                  <div className="flex flex-wrap items-center gap-3 mb-2">
+                    <div className="flex items-center gap-1">
+                      <input
+                        type="number"
+                        min="0"
+                        max="100"
+                        value={reward.gems}
+                        onChange={(e) => {
+                          const val = Math.max(0, parseInt(e.target.value) || 0);
+                          setTopRewards(prev => prev.map((r, i) => i === idx ? { ...r, gems: val } : r));
+                        }}
+                        className="w-16 p-1.5 border border-gray-300 rounded-lg text-center text-sm text-gray-900 focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                      />
+                      <img src={assetUrl('/image/study/gem.png')} alt="Gem" className="w-4 h-4" />
+                      <span className="text-xs text-gray-500">Gems</span>
+                    </div>
+                    <div className="flex items-center gap-1">
+                      <input
+                        type="number"
+                        min="0"
+                        max="1000"
+                        value={reward.xp}
+                        onChange={(e) => {
+                          const val = Math.max(0, parseInt(e.target.value) || 0);
+                          setTopRewards(prev => prev.map((r, i) => i === idx ? { ...r, xp: val } : r));
+                        }}
+                        className="w-16 p-1.5 border border-gray-300 rounded-lg text-center text-sm text-gray-900 focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                      />
+                      <span className="text-xs text-gray-500">XP</span>
+                    </div>
+                  </div>
+                  {/* Shop Items */}
+                  <div className="mt-2">
+                    <p className="text-xs text-gray-500 mb-1">Shop Items:</p>
+                    <div className="flex flex-wrap gap-2 mb-2">
+                      {reward.shop_items.map((itemId) => {
+                        const item = shopItems.find(s => s.id === itemId);
+                        return (
+                          <div key={itemId} className="flex items-center gap-1 bg-white border border-gray-200 rounded-lg px-2 py-1 text-xs">
+                            {item?.image_url && <img src={assetUrl(item.image_url)} alt="" className="w-4 h-4 rounded" />}
+                            <span className="text-gray-700">{item?.name || 'Unknown'}</span>
+                            <button
+                              onClick={() => setTopRewards(prev => prev.map((r, i) => i === idx ? { ...r, shop_items: r.shop_items.filter(id => id !== itemId) } : r))}
+                              className="text-red-400 hover:text-red-600 ml-1"
+                            >
+                              <X className="w-3 h-3" />
+                            </button>
+                          </div>
+                        );
+                      })}
+                    </div>
+                    <select
+                      value=""
+                      onChange={(e) => {
+                        if (!e.target.value) return;
+                        setTopRewards(prev => prev.map((r, i) => i === idx ? { ...r, shop_items: [...r.shop_items, e.target.value] } : r));
+                      }}
+                      className="w-full p-1.5 border border-gray-300 rounded-lg text-xs text-gray-700 focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                    >
+                      <option value="">+ Add shop item...</option>
+                      {shopItems
+                        .filter(s => !reward.shop_items.includes(s.id))
+                        .map(s => (
+                          <option key={s.id} value={s.id}>{s.name} ({s.category})</option>
+                        ))
+                      }
+                    </select>
+                  </div>
+                </div>
+              );
+            })}
           </div>
         </div>
 

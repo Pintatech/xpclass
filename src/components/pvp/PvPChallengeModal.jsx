@@ -7,6 +7,7 @@ import { usePet } from '../../hooks/usePet'
 import PetWhackMole from '../pet/PetWhackMole'
 import PetWordScramble from '../pet/PetWordScramble'
 import PetAstroBlast from '../pet/PetAstroBlast'
+import PetMatchGame from '../pet/PetMatchGame'
 
 import { assetUrl } from '../../hooks/useBranding'
 
@@ -140,6 +141,7 @@ const GAMES = [
   { id: 'scramble', name: 'Word Scramble', icon: assetUrl('/image/dashboard/pet-scramble.jpg'), description: 'Pop bubbles in order!' },
   { id: 'whackmole', name: 'Whack-a-Mole', icon: assetUrl('/pet-game/mole-normal.png'), description: 'Tap the correct word!' },
   { id: 'astroblast', name: 'Astro Blast', icon: 'https://xpclass.vn/xpclass/image/inventory/spaceship/phantom-voyager.png', description: 'Shoot the asteroids!' },
+  { id: 'matchgame', name: 'Match Up', icon: null, emoji: '🧩', description: 'Match words & meanings!' },
 ]
 
 const PvPChallengeModal = ({ opponent, onClose }) => {
@@ -150,7 +152,7 @@ const PvPChallengeModal = ({ opponent, onClose }) => {
   const [myScore, setMyScore] = useState(null)
   const [wordBank, setWordBank] = useState([])
   const [saving, setSaving] = useState(false)
-  const [enabledGames, setEnabledGames] = useState(['scramble', 'whackmole', 'astroblast'])
+  const [enabledGames, setEnabledGames] = useState(['scramble', 'whackmole', 'astroblast', 'matchgame'])
   const [hasPending, setHasPending] = useState(null)
   const [checkingPending, setCheckingPending] = useState(true)
 
@@ -270,6 +272,8 @@ const PvPChallengeModal = ({ opponent, onClose }) => {
           'https://xpclass.vn/xpclass/pet-game/astro/alien5.png',
           'https://xpclass.vn/xpclass/pet-game/astro/alien6.png',
         ]} />
+      case 'matchgame':
+        return <PetMatchGame {...commonProps} onGameEnd={(s) => handleGameEnd(s)} wordBank={wordBank} />
       default:
         return null
     }
@@ -366,7 +370,11 @@ const PvPChallengeModal = ({ opponent, onClose }) => {
                   className="w-full flex items-center gap-3 p-3 rounded-xl border-2 border-gray-100 hover:border-orange-300 hover:bg-orange-50 transition-all active:scale-[0.98]"
                 >
                   <div className="w-10 h-10 rounded-lg bg-gray-100 flex items-center justify-center overflow-hidden">
-                    <img src={game.icon} alt="" className="w-7 h-7" onError={(e) => { e.target.style.display = 'none' }} />
+                    {game.icon ? (
+                      <img src={game.icon} alt="" className="w-7 h-7" onError={(e) => { e.target.style.display = 'none' }} />
+                    ) : (
+                      <span className="text-2xl">{game.emoji}</span>
+                    )}
                   </div>
                   <div className="text-left flex-1">
                     <div className="font-semibold text-gray-800">{game.name}</div>
