@@ -42,6 +42,7 @@ const PvPIncomingBanner = () => {
         `)
         .eq('opponent_id', user.id)
         .eq('status', 'pending')
+        .gte('created_at', new Date(Date.now() - 48 * 60 * 60 * 1000).toISOString())
         .order('created_at', { ascending: false })
         .limit(2)
 

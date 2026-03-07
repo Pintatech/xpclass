@@ -36,6 +36,7 @@ const PvPChallengeModal = ({ opponent, onClose }) => {
         .from('pvp_challenges')
         .select('id, challenger_id, challenger_score, game_type, created_at')
         .eq('status', 'pending')
+        .gte('created_at', new Date(Date.now() - 48 * 60 * 60 * 1000).toISOString())
         .or(`and(challenger_id.eq.${user.id},opponent_id.eq.${opponent.id}),and(challenger_id.eq.${opponent.id},opponent_id.eq.${user.id})`)
         .limit(1)
       if (data && data.length > 0) {
@@ -77,14 +78,25 @@ const PvPChallengeModal = ({ opponent, onClose }) => {
     setSaving(true)
 
     try {
-      // Save challenge to database
-      await supabase.from('pvp_challenges').insert({
-        challenger_id: user.id,
-        opponent_id: opponent.id,
-        game_type: selectedGame,
-        challenger_score: score,
-        status: 'pending',
-      })
+      if (hasPending && hasPending.challenger_id !== user.id) {
+        // Accepting an existing challenge — save opponent score and determine winner
+        const challengerScore = hasPending.challenger_score
+        const winner = score > challengerScore ? user.id : score < challengerScore ? hasPending.challenger_id : null
+        await supabase.from('pvp_challenges').update({
+          opponent_score: score,
+          winner_id: winner,
+          status: 'completed',
+        }).eq('id', hasPending.id)
+      } else {
+        // Creating a new challenge
+        await supabase.from('pvp_challenges').insert({
+          challenger_id: user.id,
+          opponent_id: opponent.id,
+          game_type: selectedGame,
+          challenger_score: score,
+          status: 'pending',
+        })
+      }
     } catch (err) {
       console.error('Error saving PvP challenge:', err)
     } finally {
@@ -173,9 +185,21 @@ const PvPChallengeModal = ({ opponent, onClose }) => {
                 <div className="bg-orange-50 rounded-xl p-3 mb-2">
                   <div className="text-xs text-gray-500 capitalize">{hasPending.game_type}</div>
                   <div className="text-2xl font-black text-orange-500">{hasPending.challenger_score}</div>
-                  <div className="text-xs text-gray-400">Your score</div>
+                  <div className="text-xs text-gray-400">{hasPending.challenger_id === user.id ? 'Your score' : 'Their score'}</div>
                 </div>
-                <p className="text-xs text-gray-500">Wait for them to finish before challenging again.</p>
+                {hasPending.challenger_id !== user.id ? (
+                  <button
+                    onClick={() => {
+                      setSelectedGame(hasPending.game_type)
+                      setStep('playing')
+                    }}
+                    className="mt-2 w-full py-2 rounded-xl bg-gradient-to-r from-red-500 to-orange-500 text-white font-bold hover:from-red-600 hover:to-orange-600 transition"
+                  >
+                    Accept Challenge
+                  </button>
+                ) : (
+                  <p className="text-xs text-gray-500">Wait for them to finish before challenging again.</p>
+                )}
               </div>
             ) : (
             <>
@@ -235,21 +259,31 @@ const PvPChallengeModal = ({ opponent, onClose }) => {
                   </div>
                 )}
                 <div className="text-xs text-gray-500">{opponent.full_name?.split(' ').pop()}</div>
-                <div className="text-3xl font-black text-gray-400">?</div>
+                <div className="text-3xl font-black text-gray-400">{hasPending && hasPending.challenger_id !== user.id ? hasPending.challenger_score : '?'}</div>
               </div>
             </div>
 
-            <div className="bg-gradient-to-r from-blue-50 to-orange-50 rounded-xl p-4 mb-4 hidden">
-            </div>
-
-            <div className="flex items-center gap-2 justify-center text-sm text-gray-500 mb-4">
-              <Clock size={14} />
-              <span>Waiting for {opponent.full_name?.split(' ').pop() || 'opponent'} to play...</span>
-            </div>
-
-            <p className="text-xs text-gray-400 mb-4">
-              {opponent.full_name || 'Your opponent'} will be notified to play their round. The winner will be announced when both have played!
-            </p>
+            {hasPending && hasPending.challenger_id !== user.id ? (
+              <div className="mb-4">
+                {myScore > hasPending.challenger_score ? (
+                  <p className="text-lg font-bold text-green-600">You Win!</p>
+                ) : myScore < hasPending.challenger_score ? (
+                  <p className="text-lg font-bold text-red-500">You Lose!</p>
+                ) : (
+                  <p className="text-lg font-bold text-orange-500">It&apos;s a Tie!</p>
+                )}
+              </div>
+            ) : (
+              <>
+                <div className="flex items-center gap-2 justify-center text-sm text-gray-500 mb-4">
+                  <Clock size={14} />
+                  <span>Waiting for {opponent.full_name?.split(' ').pop() || 'opponent'} to play...</span>
+                </div>
+                <p className="text-xs text-gray-400 mb-4">
+                  {opponent.full_name || 'Your opponent'} will be notified to play their round. The winner will be announced when both have played!
+                </p>
+              </>
+            )}
 
             <button
               onClick={onClose}

@@ -1,5 +1,5 @@
 const TESTS = ['Unit Test', 'Pre Test', 'Midterm Test', 'Final Test'];
-const units = (n) => Array.from({ length: n }, (_, i) => `U${i + 1}`).concat(TESTS);
+const units = (n) => Array.from({ length: n + 1 }, (_, i) => `U${i}`).concat(TESTS);
 
 const LEVEL_UNITS = {
   'F-0': units(10),
