@@ -18,7 +18,7 @@ const PVP_TAUNTS = {
     'Is that all you got? 🥱',
     'Bow to the champ! 👑',
   ],
-  emojis: ['😎', '💪', '🏆', '😂', '🔥', '👑', '💀', '🫡', '🥱', '😤', '🤡', '👋'],
+  emojis: ['😎', '💪', '🏆', '😂', '🔥', '👑', '💀', '🥱', '😤', '🤡', '👋'],
   gifs: [
     { value: `${TAUNT_GIF_BASE}/1.gif`, label: 'Deal with it' },
     { value: `${TAUNT_GIF_BASE}/2.gif`, label: 'Victory dance' },
