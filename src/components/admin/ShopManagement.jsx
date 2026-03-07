@@ -8,7 +8,9 @@ import {
   Trash2,
   Eye,
   EyeOff,
-  ShoppingBag
+  ShoppingBag,
+  ChevronLeft,
+  ChevronRight
 } from 'lucide-react'
 
 const categoryOptions = [
@@ -46,6 +48,8 @@ const ShopManagement = () => {
   const [formData, setFormData] = useState(defaultForm)
   const [saving, setSaving] = useState(false)
   const [filterCategory, setFilterCategory] = useState('all')
+  const [activeCollection, setActiveCollection] = useState('all')
+  const [variantIndex, setVariantIndex] = useState({})
 
   useEffect(() => {
     fetchItems()
@@ -172,6 +176,38 @@ const ShopManagement = () => {
     ? items
     : items.filter(item => item.category === filterCategory)
 
+  const collections = [...new Set(filteredItems.map(item => {
+    const data = typeof item.item_data === 'string' ? JSON.parse(item.item_data) : item.item_data
+    return data?.collection
+  }).filter(Boolean))]
+
+  const displayedItems = activeCollection === 'all'
+    ? filteredItems
+    : filteredItems.filter(item => {
+        const data = typeof item.item_data === 'string' ? JSON.parse(item.item_data) : item.item_data
+        return data?.collection === activeCollection
+      })
+
+  const groupedItems = (() => {
+    const groups = []
+    const groupMap = {}
+    displayedItems.forEach(item => {
+      const data = typeof item.item_data === 'string' ? JSON.parse(item.item_data) : item.item_data
+      const groupKey = data?.avatar_group
+      if (groupKey) {
+        if (!groupMap[groupKey]) {
+          groupMap[groupKey] = { groupKey, variants: [] }
+          groups.push(groupMap[groupKey])
+        }
+        groupMap[groupKey].variants.push(item)
+      } else {
+        groups.push({ groupKey: null, variants: [item] })
+      }
+    })
+    groups.forEach(g => g.variants.sort((a, b) => a.name.localeCompare(b.name, undefined, { numeric: true })))
+    return groups
+  })()
+
   if (loading) {
     return (
       <div className="space-y-6">
@@ -204,7 +240,7 @@ const ShopManagement = () => {
       {/* Category Filter */}
       <div className="flex flex-wrap gap-2">
         <button
-          onClick={() => setFilterCategory('all')}
+          onClick={() => { setFilterCategory('all'); setActiveCollection('all') }}
           className={`px-4 py-1.5 rounded-full text-sm font-medium transition-colors ${
             filterCategory === 'all'
               ? 'bg-blue-600 text-white'
@@ -216,7 +252,7 @@ const ShopManagement = () => {
         {categoryOptions.map(cat => (
           <button
             key={cat.value}
-            onClick={() => setFilterCategory(cat.value)}
+            onClick={() => { setFilterCategory(cat.value); setActiveCollection('all') }}
             className={`px-4 py-1.5 rounded-full text-sm font-medium transition-colors ${
               filterCategory === cat.value
                 ? 'bg-blue-600 text-white'
@@ -228,70 +264,134 @@ const ShopManagement = () => {
         ))}
       </div>
 
-      {/* Items Grid */}
-      <div className="grid grid-cols-2 sm:grid-cols-4 md:grid-cols-6 lg:grid-cols-8 gap-4">
-        {filteredItems.map(item => (
-          <Card key={item.id} className={`p-4 ${!item.is_active ? 'opacity-60' : ''}`}>
-            <div className="space-y-3">
-              {/* Image */}
-              <div className="aspect-square bg-gray-50 rounded-lg flex items-center justify-center overflow-hidden">
-                {item.image_url ? (
-                  <img src={item.image_url} alt={item.name} className={`w-full h-full object-contain ${item.category === 'hammer' ? 'rotate-90' : ''}`} />
-                ) : (
-                  <ShoppingBag className="w-12 h-12 text-gray-300" />
-                )}
-              </div>
+      {/* Collection Sub-tabs */}
+      {collections.length > 0 && (
+        <div className="flex flex-wrap gap-1.5">
+          <button
+            onClick={() => setActiveCollection('all')}
+            className={`px-3 py-1 rounded-full text-xs font-medium transition-colors ${
+              activeCollection === 'all'
+                ? 'bg-blue-100 text-blue-700 shadow-sm'
+                : 'bg-gray-50 text-gray-500 hover:bg-gray-100'
+            }`}
+          >
+            All
+          </button>
+          {collections.map(col => (
+            <button
+              key={col}
+              onClick={() => setActiveCollection(col)}
+              className={`px-3 py-1 rounded-full text-xs font-medium transition-colors ${
+                activeCollection === col
+                  ? 'bg-blue-100 text-blue-700 shadow-sm'
+                  : 'bg-gray-50 text-gray-500 hover:bg-gray-100'
+              }`}
+            >
+              {col}
+            </button>
+          ))}
+        </div>
+      )}
 
-              {/* Info */}
-              <div>
-                <div className="flex items-center justify-between">
-                  <h3 className="font-semibold text-gray-900">{item.name}</h3>
-                  {!item.is_active && (
-                    <span className="text-xs bg-gray-200 text-gray-600 px-2 py-0.5 rounded-full">Ẩn</span>
+      {/* Items Grid */}
+      <div className="grid grid-cols-2 sm:grid-cols-4 md:grid-cols-6 gap-4">
+        {groupedItems.map(group => {
+          const idx = group.groupKey ? (variantIndex[group.groupKey] || 0) : 0
+          const item = group.variants[idx]
+          const hasVariants = group.variants.length > 1
+          return (
+            <Card key={group.groupKey || item.id} className={`p-4 ${!item.is_active ? 'opacity-60' : ''}`}>
+              <div className="space-y-3">
+                {/* Image */}
+                <div className="aspect-square bg-gray-50 rounded-lg flex items-center justify-center overflow-hidden">
+                  {item.image_url ? (
+                    <img src={item.image_url} alt={item.name} className={`w-full h-full object-contain ${item.category === 'hammer' ? 'rotate-90' : ''}`} />
+                  ) : (
+                    <ShoppingBag className="w-12 h-12 text-gray-300" />
                   )}
                 </div>
-                {item.description && (
-                  <p className="text-sm text-gray-500 mt-0.5">{item.description}</p>
+
+                {/* Variant arrows + dots/counter */}
+                {hasVariants && (
+                  <div className="flex items-center justify-center gap-1">
+                    <button
+                      onClick={() => setVariantIndex(prev => ({ ...prev, [group.groupKey]: (idx - 1 + group.variants.length) % group.variants.length }))}
+                      className="bg-gray-100 hover:bg-gray-200 rounded-full p-0.5"
+                    >
+                      <ChevronLeft className="w-4 h-4 text-gray-600" />
+                    </button>
+                    {group.variants.length <= 6
+                      ? group.variants.map((v, i) => (
+                          <button
+                            key={v.id}
+                            onClick={() => setVariantIndex(prev => ({ ...prev, [group.groupKey]: i }))}
+                            className={`w-2 h-2 rounded-full transition-all ${
+                              i === idx ? 'bg-blue-500 scale-125' : 'bg-gray-300'
+                            }`}
+                          />
+                        ))
+                      : <span className="text-xs text-gray-500 font-medium">{idx + 1}/{group.variants.length}</span>
+                    }
+                    <button
+                      onClick={() => setVariantIndex(prev => ({ ...prev, [group.groupKey]: (idx + 1) % group.variants.length }))}
+                      className="bg-gray-100 hover:bg-gray-200 rounded-full p-0.5"
+                    >
+                      <ChevronRight className="w-4 h-4 text-gray-600" />
+                    </button>
+                  </div>
                 )}
-                <div className="flex items-center gap-2 mt-1">
-                  <span className="text-xs bg-blue-100 text-blue-700 px-2 py-0.5 rounded-full">
-                    {categoryOptions.find(c => c.value === item.category)?.label || item.category}
-                  </span>
-                  <span className="text-sm font-medium text-gray-700">
-                    {item.price} {item.price_type === 'xp' ? 'XP' : 'Gems'}
-                  </span>
+
+                {/* Info */}
+                <div>
+                  <div className="flex items-center justify-between">
+                    <h3 className="font-semibold text-gray-900">{item.name}</h3>
+                    {!item.is_active && (
+                      <span className="text-xs bg-gray-200 text-gray-600 px-2 py-0.5 rounded-full">Ẩn</span>
+                    )}
+                  </div>
+                  {item.description && (
+                    <p className="text-sm text-gray-500 mt-0.5">{item.description}</p>
+                  )}
+                  <div className="flex items-center gap-2 mt-1">
+                    <span className="text-xs bg-blue-100 text-blue-700 px-2 py-0.5 rounded-full">
+                      {categoryOptions.find(c => c.value === item.category)?.label || item.category}
+                    </span>
+                    <span className="text-sm font-medium text-gray-700">
+                      {item.price} {item.price_type === 'xp' ? 'XP' : 'Gems'}
+                    </span>
+                  </div>
+                </div>
+
+                {/* Actions */}
+                <div className="flex items-center space-x-2 pt-2 border-t">
+                  <Button variant="ghost" size="sm" onClick={() => handleOpenModal(item)} className="flex items-center space-x-1">
+                    <Edit className="w-4 h-4" />
+                  </Button>
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => handleToggleActive(item)}
+                    className={`flex items-center space-x-1 ${item.is_active ? 'text-green-600' : 'text-gray-400'}`}
+                  >
+                    {item.is_active ? <Eye className="w-4 h-4" /> : <EyeOff className="w-4 h-4" />}
+                  </Button>
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => handleDelete(item.id)}
+                    className="flex items-center space-x-1 text-red-600 hover:text-red-700"
+                  >
+                    <Trash2 className="w-4 h-4" />
+                  </Button>
                 </div>
               </div>
-
-              {/* Actions */}
-              <div className="flex items-center space-x-2 pt-2 border-t">
-                <Button variant="ghost" size="sm" onClick={() => handleOpenModal(item)} className="flex items-center space-x-1">
-                  <Edit className="w-4 h-4" />
-                </Button>
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  onClick={() => handleToggleActive(item)}
-                  className={`flex items-center space-x-1 ${item.is_active ? 'text-green-600' : 'text-gray-400'}`}
-                >
-                  {item.is_active ? <Eye className="w-4 h-4" /> : <EyeOff className="w-4 h-4" />}
-                </Button>
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  onClick={() => handleDelete(item.id)}
-                  className="flex items-center space-x-1 text-red-600 hover:text-red-700"
-                >
-                  <Trash2 className="w-4 h-4" />
-                </Button>
-              </div>
-            </div>
-          </Card>
-        ))}
+            </Card>
+          )
+        })}
       </div>
 
       {/* Empty State */}
-      {filteredItems.length === 0 && (
+      {groupedItems.length === 0 && (
         <Card className="p-8 text-center">
           <ShoppingBag className="w-12 h-12 text-gray-400 mx-auto mb-4" />
           <h3 className="text-lg font-medium text-gray-900 mb-2">Chưa có vật phẩm nào</h3>

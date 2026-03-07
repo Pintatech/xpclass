@@ -144,7 +144,7 @@ const GAMES = [
 
 const PvPChallengeModal = ({ opponent, onClose }) => {
   const { user, profile } = useAuth()
-  const { activePet, playWithPet } = usePet()
+  const { activePet, playWithPet, drainPetEnergy } = usePet()
   const [step, setStep] = useState('pick-game') // pick-game | playing | result
   const [selectedGame, setSelectedGame] = useState(null)
   const [myScore, setMyScore] = useState(null)
@@ -193,7 +193,12 @@ const PvPChallengeModal = ({ opponent, onClose }) => {
     if (words && words.length >= 10) setWordBank(words)
   }
 
-  const startGame = (gameId) => {
+  const startGame = async (gameId) => {
+    if ((activePet?.energy ?? 100) < 10) {
+      alert('Your pet is too tired to battle! Feed your pet first.')
+      return
+    }
+    await drainPetEnergy(10)
     setSelectedGame(gameId)
     setStep('playing')
   }
@@ -331,7 +336,12 @@ const PvPChallengeModal = ({ opponent, onClose }) => {
                 </div>
                 {hasPending.challenger_id !== user.id ? (
                   <button
-                    onClick={() => {
+                    onClick={async () => {
+                      if ((activePet?.energy ?? 100) < 10) {
+                        alert('Your pet is too tired to battle! Feed your pet first.')
+                        return
+                      }
+                      await drainPetEnergy(10)
                       setSelectedGame(hasPending.game_type)
                       setStep('playing')
                     }}

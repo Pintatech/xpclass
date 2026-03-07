@@ -333,7 +333,7 @@ const PetDisplay = () => {
       setTimeout(() => setMessage(null), 3000);
       return;
     }
-    fetchWordBank();
+    await fetchWordBank();
     setShowGame('picker');
   };
 
@@ -1570,7 +1570,7 @@ const PetDisplay = () => {
             <div className="grid grid-cols-2 gap-3">
               {enabledGames.includes('scramble') && (
               <button
-                onClick={() => { recordAttemptStart('scramble'); setShowGame('scramble'); }}
+                onClick={() => { drainPetEnergy(10); recordAttemptStart('scramble'); setShowGame('scramble'); }}
                 className="flex flex-col items-center gap-2 p-4 rounded-xl border-2 border-purple-200 hover:border-purple-400 hover:bg-purple-50 transition-all group"
               >
                 <img src={assetUrl('/image/dashboard/pet-scramble.jpg')} alt="Word Scramble" className="w-20 h-20 object-cover rounded-lg group-hover:scale-110 transition-transform" />
@@ -1579,7 +1579,7 @@ const PetDisplay = () => {
               )}
               {enabledGames.includes('whackmole') && (
               <button
-                onClick={() => { recordAttemptStart('whackmole'); fetchWhackmoleLeaderboard(); setShowGame('whackmole'); }}
+                onClick={() => { drainPetEnergy(10); recordAttemptStart('whackmole'); fetchWhackmoleLeaderboard(); setShowGame('whackmole'); }}
                 className="flex flex-col items-center gap-2 p-4 rounded-xl border-2 border-green-200 hover:border-green-400 hover:bg-green-50 transition-all group"
               >
                 <img src={assetUrl('/pet-game/mole-normal.png')} alt="Whack-a-Mole" className="w-20 h-20 object-contain group-hover:scale-110 transition-transform" />
@@ -1588,7 +1588,7 @@ const PetDisplay = () => {
               )}
               {enabledGames.includes('astroblast') && (
               <button
-                onClick={() => { recordAttemptStart('astroblast'); setShowGame('astroblast'); }}
+                onClick={() => { drainPetEnergy(10); recordAttemptStart('astroblast'); setShowGame('astroblast'); }}
                 className="flex flex-col items-center gap-2 p-4 rounded-xl border-2 border-red-200 hover:border-red-400 hover:bg-red-50 transition-all group"
               >
                 <img src="https://xpclass.vn/xpclass/image/inventory/spaceship/phantom-voyager.png" alt="Astro Blast" className="w-20 h-20 object-contain group-hover:scale-110 transition-transform" />
@@ -1612,7 +1612,7 @@ const PetDisplay = () => {
           bowlImageUrl={profile?.active_bowl_url || "https://png.pngtree.com/png-clipart/20220111/original/pngtree-dog-food-bowl-png-image_7072429.png"}
           petName={activePet.nickname || activePet.name}
           onGameEnd={(score) => handleGameEnd(score, 'catch')}
-          onClose={() => { drainPetEnergy(5); drainPetEnergy(5); setShowGame(null);; }}
+          onClose={() => setShowGame(null)}
         />
       )}
 
@@ -1630,7 +1630,7 @@ const PetDisplay = () => {
           })()}
           petName={activePet.nickname || activePet.name}
           onGameEnd={(score) => handleGameEnd(score, 'flappy')}
-          onClose={() => { drainPetEnergy(5); drainPetEnergy(5); setShowGame(null);; }}
+          onClose={() => setShowGame(null)}
         />
       )}
 
@@ -1649,7 +1649,7 @@ const PetDisplay = () => {
           petName={activePet.nickname || activePet.name}
           wordBank={wordBank}
           onGameEnd={(score) => handleGameEnd(score, 'scramble')}
-          onClose={() => { drainPetEnergy(5); drainPetEnergy(5); setShowGame(null);; }}
+          onClose={() => setShowGame(null)}
         />
       )}
 
@@ -1669,7 +1669,7 @@ const PetDisplay = () => {
           leaderboard={whackmoleLeaderboard}
           wordBank={wordBank}
           onGameEnd={(score) => handleGameEnd(score, 'whackmole')}
-          onClose={() => { drainPetEnergy(5); drainPetEnergy(5); setShowGame(null);; }}
+          onClose={() => setShowGame(null)}
         />
       )}
 
@@ -1697,7 +1697,7 @@ const PetDisplay = () => {
           ]}
           wordBank={wordBank}
           onGameEnd={(score) => handleGameEnd(score, 'astroblast')}
-          onClose={() => { drainPetEnergy(5); drainPetEnergy(5); setShowGame(null);; }}
+          onClose={() => setShowGame(null)}
         />
       )}
     </div>

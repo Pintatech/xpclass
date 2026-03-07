@@ -559,28 +559,12 @@ const Shop = () => {
                     </div>
                   )}
 
-                  {/* Item image with variant arrows */}
+                  {/* Item image */}
                   <div className="aspect-square bg-gray-50 flex items-center justify-center p-4 relative">
                     {!owned && !canAfford && (
                       <div className="absolute inset-0 flex items-center justify-center bg-black/20 z-20">
                         <Lock className="w-6 h-6 text-white drop-shadow" />
                       </div>
-                    )}
-                    {hasVariants && (
-                      <>
-                        <button
-                          onClick={(e) => { e.stopPropagation(); setVariantIndex(prev => ({ ...prev, [group.groupKey]: (idx - 1 + group.variants.length) % group.variants.length })) }}
-                          className="absolute left-1 top-1/2 -translate-y-1/2 bg-white/80 hover:bg-white rounded-full p-0.5 shadow z-10"
-                        >
-                          <ChevronLeft className="w-4 h-4 text-gray-600" />
-                        </button>
-                        <button
-                          onClick={(e) => { e.stopPropagation(); setVariantIndex(prev => ({ ...prev, [group.groupKey]: (idx + 1) % group.variants.length })) }}
-                          className="absolute right-1 top-1/2 -translate-y-1/2 bg-white/80 hover:bg-white rounded-full p-0.5 shadow z-10"
-                        >
-                          <ChevronRight className="w-4 h-4 text-gray-600" />
-                        </button>
-                      </>
                     )}
                     {item.image_url ? (
                       item.category === 'background' ? (
@@ -603,19 +587,40 @@ const Shop = () => {
                     )}
                   </div>
 
-                  {/* Variant dots — always rendered to keep layout stable */}
-                  <div className="flex justify-center gap-1 py-1 min-h-[20px]">
-                    {hasVariants && group.variants.map((v, i) => (
+                  {/* Variant arrows + dots on the same line */}
+                  <div className="flex items-center justify-center gap-1 py-1 min-h-[20px]">
+                    {hasVariants && (
                       <button
-                        key={v.id}
-                        onClick={() => setVariantIndex(prev => ({ ...prev, [group.groupKey]: i }))}
-                        className={`w-2 h-2 rounded-full transition-all ${
-                          i === idx
-                            ? 'bg-blue-500 scale-125'
-                            : isOwned(v.id) ? 'bg-green-300' : 'bg-gray-300'
-                        }`}
-                      />
-                    ))}
+                        onClick={(e) => { e.stopPropagation(); setVariantIndex(prev => ({ ...prev, [group.groupKey]: (idx - 1 + group.variants.length) % group.variants.length })) }}
+                        className="bg-white/80 hover:bg-white rounded-full p-0.5 shadow"
+                      >
+                        <ChevronLeft className="w-4 h-4 text-gray-600" />
+                      </button>
+                    )}
+                    {hasVariants && group.variants.length <= 6
+                      ? group.variants.map((v, i) => (
+                          <button
+                            key={v.id}
+                            onClick={() => setVariantIndex(prev => ({ ...prev, [group.groupKey]: i }))}
+                            className={`w-2 h-2 rounded-full transition-all ${
+                              i === idx
+                                ? 'bg-blue-500 scale-125'
+                                : isOwned(v.id) ? 'bg-green-300' : 'bg-gray-300'
+                            }`}
+                          />
+                        ))
+                      : hasVariants && (
+                          <span className="text-xs text-gray-500 font-medium">{idx + 1}/{group.variants.length}</span>
+                        )
+                    }
+                    {hasVariants && (
+                      <button
+                        onClick={(e) => { e.stopPropagation(); setVariantIndex(prev => ({ ...prev, [group.groupKey]: (idx + 1) % group.variants.length })) }}
+                        className="bg-white/80 hover:bg-white rounded-full p-0.5 shadow"
+                      >
+                        <ChevronRight className="w-4 h-4 text-gray-600" />
+                      </button>
+                    )}
                   </div>
 
                   {/* Item info */}

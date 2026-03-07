@@ -111,7 +111,7 @@ const PetAstroBlast = ({ petImageUrl, petName, onGameEnd, onClose, shipSkinUrl, 
         setFlyingWords(prev => [...prev, newWord])
       }, delay)
     })
-  }, [])
+  }, [wordBankProp])
 
   // Start game
   const startGame = useCallback(() => {
