@@ -555,7 +555,14 @@ const PvPResponseModal = ({ challenge, onClose }) => {
       case 'scramble':
         return <PetWordScramble {...commonProps} onGameEnd={handleGameEnd} wordBank={wordBank} />
       case 'astroblast':
-        return <PetAstroBlast {...commonProps} onGameEnd={handleGameEnd} wordBank={wordBank} />
+        return <PetAstroBlast {...commonProps} onGameEnd={handleGameEnd} wordBank={wordBank} shipSkinUrl={profile?.active_spaceship_url} shipLaserColor={profile?.active_spaceship_laser} asteroidSkinUrls={[
+          'https://xpclass.vn/xpclass/pet-game/astro/alien1.png',
+          'https://xpclass.vn/xpclass/pet-game/astro/alien2.png',
+          'https://xpclass.vn/xpclass/pet-game/astro/alien3.png',
+          'https://xpclass.vn/xpclass/pet-game/astro/alien4.png',
+          'https://xpclass.vn/xpclass/pet-game/astro/alien5.png',
+          'https://xpclass.vn/xpclass/pet-game/astro/alien6.png',
+        ]} />
       default:
         return null
     }
