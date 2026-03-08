@@ -473,6 +473,15 @@ const PetDisplay = () => {
     }
     pendingAttemptId.current = null;
 
+    // Update mission progress for playing games (non-blocking)
+    if (user?.id) {
+      supabase.rpc('update_mission_progress', {
+        p_user_id: user.id,
+        p_goal_type: 'play_games',
+        p_increment: 1
+      }).catch(() => {})
+    }
+
     setPlayDisabled(true);
     setPlayCooldown(5);
     const cooldownInterval = setInterval(() => {

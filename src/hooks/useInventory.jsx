@@ -161,6 +161,19 @@ export const InventoryProvider = ({ children }) => {
         }))
         await fetchInventory()
         await fetchUnopenedChests()
+        // Update mission progress for opening chests & collecting items
+        supabase.rpc('update_mission_progress', {
+          p_user_id: user.id,
+          p_goal_type: 'open_chests',
+          p_increment: 1
+        }).catch(() => {})
+        if (items.length > 0) {
+          supabase.rpc('update_mission_progress', {
+            p_user_id: user.id,
+            p_goal_type: 'collect_items',
+            p_increment: items.length
+          }).catch(() => {})
+        }
       }
 
       return data

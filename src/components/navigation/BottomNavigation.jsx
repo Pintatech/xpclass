@@ -2,6 +2,7 @@ import { useState, useRef, useEffect } from 'react'
 import { Link, useLocation } from 'react-router-dom'
 import { Bell, MoreHorizontal, ShieldCheck, GraduationCap } from 'lucide-react'
 import { useInventory } from '../../hooks/useInventory'
+import { useMissions } from '../../hooks/useMissions'
 import { useNotifications } from '../../hooks/useNotifications'
 import { useAuth } from '../../hooks/useAuth'
 import NotificationPanel from '../notifications/NotificationPanel'
@@ -10,6 +11,7 @@ import { assetUrl } from '../../hooks/useBranding';
 const BottomNavigation = () => {
   const location = useLocation()
   const { newItemCount } = useInventory()
+  const { unclaimedCount: missionBadge } = useMissions()
   const { notifications, unreadCount, markAsRead, markAllAsRead } = useNotifications()
   const { isAdmin, isTeacher } = useAuth()
   const [showNotifPanel, setShowNotifPanel] = useState(false)
@@ -34,6 +36,7 @@ const BottomNavigation = () => {
   const mainItems = [
     { path: '/', imageSrc: assetUrl('/icon/navigation/home.svg'), label: 'Home' },
     { path: '/pets', imageSrc: assetUrl('/icon/navigation/pet.svg'), label: 'Pet' },
+    // { path: '/missions', emoji: '🎯', label: 'Nhiệm vụ', badge: missionBadge },
     { path: '/shop', imageSrc: assetUrl('/icon/navigation/shop.svg'), label: 'Shop' },
   ]
 
@@ -74,7 +77,7 @@ const BottomNavigation = () => {
 
       <nav className="flex items-center justify-around px-2 py-2">
         {/* Main nav items */}
-        {mainItems.map(({ path, imageSrc, label }) => {
+        {mainItems.map(({ path, imageSrc, emoji, label, badge }) => {
           const active = isActive(path)
           return (
             <Link
@@ -86,13 +89,24 @@ const BottomNavigation = () => {
                   : 'text-gray-600 hover:text-primary-600 hover:bg-gray-50'
               }`}
             >
-              <img
-                src={imageSrc}
-                alt=""
-                width={20}
-                height={20}
-                className={`mb-1 transition ${active ? '' : 'grayscale opacity-60 hover:opacity-100 hover:grayscale-0'}`}
-              />
+              <div className="relative">
+                {imageSrc ? (
+                  <img
+                    src={imageSrc}
+                    alt=""
+                    width={20}
+                    height={20}
+                    className={`mb-1 transition ${active ? '' : 'grayscale opacity-60 hover:opacity-100 hover:grayscale-0'}`}
+                  />
+                ) : emoji ? (
+                  <span className="text-lg mb-1 block">{emoji}</span>
+                ) : null}
+                {badge > 0 && (
+                  <span className="absolute -top-1.5 -right-2.5 bg-red-500 text-white text-[10px] font-bold w-4 h-4 rounded-full flex items-center justify-center">
+                    {badge}
+                  </span>
+                )}
+              </div>
               <span className="text-xs font-medium truncate w-full text-center">{label}</span>
             </Link>
           )

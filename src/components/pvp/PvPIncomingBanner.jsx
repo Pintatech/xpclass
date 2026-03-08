@@ -525,6 +525,12 @@ const PvPResponseModal = ({ challenge, onClose }) => {
             .update({ xp: (winner.xp || 0) + 10 })
             .eq('id', winnerId)
         }
+        // Update mission progress for PvP win
+        supabase.rpc('update_mission_progress', {
+          p_user_id: winnerId,
+          p_goal_type: 'win_pvp',
+          p_increment: 1
+        }).catch(() => {})
       }
       if (activePet?.id) {
         playWithPet(activePet.id).catch(() => {})

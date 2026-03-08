@@ -501,6 +501,33 @@ export const ProgressProvider = ({ children }) => {
         }
       }
 
+      // Update mission progress (non-blocking)
+      if (meetingRequirement) {
+        try {
+          await supabase.rpc('update_mission_progress', {
+            p_user_id: user.id,
+            p_goal_type: 'complete_exercises',
+            p_increment: 1
+          })
+          if (score >= 90) {
+            await supabase.rpc('update_mission_progress', {
+              p_user_id: user.id,
+              p_goal_type: 'score_high',
+              p_increment: 1
+            })
+          }
+          if (actualXpAwarded > 0) {
+            await supabase.rpc('update_mission_progress', {
+              p_user_id: user.id,
+              p_goal_type: 'earn_xp',
+              p_increment: actualXpAwarded
+            })
+          }
+        } catch (missionErr) {
+          console.warn('Mission progress update failed (non-critical):', missionErr)
+        }
+      }
+
       // Roll for inventory item drop (only on first successful completion)
       let itemDropResult = null
       if (meetingRequirement && !isAlreadyCompleted) {
@@ -515,6 +542,12 @@ export const ProgressProvider = ({ children }) => {
             console.log('🎁 Item dropped:', dropData.item?.name)
             // Dispatch event for ItemDropNotification to pick up
             window.dispatchEvent(new CustomEvent('inventory-item-drop', { detail: dropData.item }))
+            // Update mission progress for collecting items
+            supabase.rpc('update_mission_progress', {
+              p_user_id: user.id,
+              p_goal_type: 'collect_items',
+              p_increment: 1
+            }).catch(() => {})
           }
         } catch (dropErr) {
           // Silently fail - item drops are non-critical
@@ -618,6 +651,15 @@ export const ProgressProvider = ({ children }) => {
         .eq('id', user.id)
 
       if (error) throw error
+
+      // Update login_streak mission progress
+      try {
+        await supabase.rpc('update_mission_progress', {
+          p_user_id: user.id,
+          p_goal_type: 'login_streak',
+          p_increment: 1
+        })
+      } catch (e) { /* non-critical */ }
 
       return newStreakCount
     } catch (error) {
@@ -915,6 +957,14 @@ export const ProgressProvider = ({ children }) => {
       if (result.success) {
         const isPassing = result.is_passing !== false // Default to true for backwards compatibility
         console.log(`🏆 Challenge attempt recorded! ${isPassing ? 'PASSED' : 'FAILED'} - Rank: #${result.rank || 'N/A'}, XP: +${result.xp_awarded}, Gems: +${result.gems_awarded}`)
+        // Update mission progress for daily challenge
+        try {
+          await supabase.rpc('update_mission_progress', {
+            p_user_id: user.id,
+            p_goal_type: 'daily_challenge',
+            p_increment: 1
+          })
+        } catch (e) { /* non-critical */ }
         return {
           isChallenge: true,
           isPassing: isPassing,

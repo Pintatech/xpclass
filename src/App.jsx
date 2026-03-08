@@ -25,6 +25,8 @@ import TeacherCourseOverview from './components/teacher/TeacherCourseOverview'
 import StudentLessonHistory from './components/teacher/reports/StudentLessonHistory'
 import ProtectedRoute from './components/auth/ProtectedRoute'
 import { TeacherCourseProvider } from './hooks/useTeacherCourseContext'
+import { MissionsProvider } from './hooks/useMissions'
+import MissionBoard from './components/missions/MissionBoard'
 
 
 function App() {
@@ -32,6 +34,7 @@ function App() {
     <BrandingProvider>
     <AuthProvider>
       <ProgressProvider>
+        <MissionsProvider>
         <InventoryProvider>
         <PetProvider>
         <StudentLevelsProvider>
@@ -52,6 +55,7 @@ function App() {
                 <Route path="shop" element={<Shop />} />
                 <Route path="inventory" element={<Inventory />} />
                 <Route path="pets" element={<PetInventory />} />
+                <Route path="missions" element={<MissionBoard />} />
                 <Route path="profile/:userId" element={<Profile />} />
                 <Route path="admin/*" element={
                   <ProtectedRoute requireAdmin>
@@ -73,6 +77,7 @@ function App() {
         </StudentLevelsProvider>
         </PetProvider>
         </InventoryProvider>
+        </MissionsProvider>
       </ProgressProvider>
     </AuthProvider>
     </BrandingProvider>

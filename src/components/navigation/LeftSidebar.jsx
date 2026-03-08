@@ -12,6 +12,7 @@ import {
   Bell
 } from 'lucide-react'
 import { useInventory } from '../../hooks/useInventory'
+import { useMissions } from '../../hooks/useMissions'
 import { useNotifications } from '../../hooks/useNotifications'
 import NotificationPanel from '../notifications/NotificationPanel'
 
@@ -21,6 +22,7 @@ const LeftSidebar = () => {
   const { branding } = useBranding()
   const { currentBadge } = useStudentLevels()
   const { newItemCount } = useInventory()
+  const { unclaimedCount: missionBadge } = useMissions()
   const { notifications, unreadCount, markAsRead, markAllAsRead } = useNotifications()
   const [showNotifPanel, setShowNotifPanel] = useState(false)
   const notifRef = useRef(null)
@@ -41,6 +43,7 @@ const LeftSidebar = () => {
     { path: '/leaderboard', imageSrc: assetUrl('/icon/navigation/leaderboard.svg'), label: 'Xếp hạng' },
     { path: '/pets', label: 'Thú cưng',imageSrc: assetUrl('/icon/navigation/pet.svg') },
     { path: '/inventory',  imageSrc: assetUrl('/icon/navigation/inventory.svg'), label: 'Kho đồ', badge: newItemCount },
+    // { path: '/missions', emoji: '🎯', label: 'Nhiệm vụ', badge: missionBadge },
     { path: '/progress', imageSrc: assetUrl('/icon/navigation/progress.svg'), label: 'Tiến độ' },
     { path: '/shop', imageSrc: assetUrl('/icon/navigation/shop.svg'), label: 'Cửa hàng'},
   ]

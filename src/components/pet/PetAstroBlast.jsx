@@ -5,8 +5,7 @@ import WORD_BANK from './wordBank'
 import { assetUrl } from '../../hooks/useBranding'
 
 const GAME_DURATION = 76
-const POINTS_PER_WORD = 10
-const STREAK_BONUS = 5
+// Streak tier scoring (like Whack-a-Mole): streak>=5 → 3, >=3 → 2, else 1
 const WORDS_PER_ROUND = 4 // how many words fall per round
 const GRAVITY = 0 // no acceleration, constant fall speed
 
@@ -338,8 +337,8 @@ const PetAstroBlast = ({ petImageUrl, petName, onGameEnd, onClose, shipSkinUrl, 
 
       const containerH = containerRef.current?.clientHeight || 700
       const speedBonus = Math.round(Math.max(0, 1 - wordObj.y / containerH) * 15)
-      const bonus = newStreak > 1 ? STREAK_BONUS * (newStreak - 1) : 0
-      const points = POINTS_PER_WORD + speedBonus + bonus
+      const streakTier = newStreak >= 5 ? 3 : newStreak >= 3 ? 2 : 1
+      const points = speedBonus + streakTier
       scoreRef.current += points
       setDisplayScore(scoreRef.current)
       setWordsCompleted(prev => prev + 1)
