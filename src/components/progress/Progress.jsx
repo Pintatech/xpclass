@@ -17,7 +17,8 @@ import {
   BookOpen,
   Trophy,
   Calendar,
-  BarChart3
+  BarChart3,
+  Activity
 } from 'lucide-react'
 import { LevelProgressBar } from '../ui/StudentBadge'
 
@@ -32,6 +33,7 @@ const Progress = () => {
   const [monthlyData, setMonthlyData] = useState([])
   const [lessonResults, setLessonResults] = useState([])
   const [showAllLessons, setShowAllLessons] = useState(false)
+  const [recentActivity, setRecentActivity] = useState([])
   const [loading, setLoading] = useState(true)
 
   const completedExercises = getCompletedExercises()
@@ -54,6 +56,7 @@ const Progress = () => {
       fetchWeeklyData()
       fetchMonthlyData()
       fetchLessonResults()
+      fetchRecentActivity()
       // checkAndAwardAchievements() // Disabled until SQL functions are fixed
     }
   }, [user, userProgress])
@@ -268,6 +271,41 @@ const Progress = () => {
     }
   }
 
+  const fetchRecentActivity = async () => {
+    try {
+      const { data: exerciseData } = await supabase
+        .from('user_progress')
+        .select('*, exercises (title, exercise_type, xp_reward)')
+        .eq('user_id', user.id)
+        .eq('status', 'completed')
+        .order('completed_at', { ascending: false })
+        .limit(10)
+
+      const { data: achievementData } = await supabase
+        .from('user_achievements')
+        .select('*, achievements (title, xp_reward)')
+        .eq('user_id', user.id)
+        .not('claimed_at', 'is', null)
+        .order('claimed_at', { ascending: false })
+        .limit(10)
+
+      const exerciseActivities = (exerciseData || []).map(item => ({
+        ...item, type: 'exercise', activity_date: item.completed_at
+      }))
+      const achievementActivities = (achievementData || []).map(item => ({
+        ...item, type: 'achievement', activity_date: item.claimed_at, xp_earned: item.achievements?.xp_reward || 0
+      }))
+
+      setRecentActivity(
+        [...exerciseActivities, ...achievementActivities]
+          .sort((a, b) => new Date(b.activity_date) - new Date(a.activity_date))
+          .slice(0, 10)
+      )
+    } catch (err) {
+      console.error('Error fetching recent activity:', err)
+    }
+  }
+
   const fetchWeeklyData = async () => {
     try {
       const days = ['CN', 'T2', 'T3', 'T4', 'T5', 'T6', 'T7']
@@ -375,6 +413,16 @@ const Progress = () => {
     )
   }
 
+  const formatTimeAgo = (dateString) => {
+    const date = new Date(dateString)
+    const now = new Date()
+    const diffInMinutes = Math.floor((now - date) / (1000 * 60))
+    if (diffInMinutes < 1) return 'Vừa xong'
+    if (diffInMinutes < 60) return `${diffInMinutes} phút trước`
+    if (diffInMinutes < 1440) return `${Math.floor(diffInMinutes / 60)} giờ trước`
+    return `${Math.floor(diffInMinutes / 1440)} ngày trước`
+  }
+
   return (
     <div className="space-y-8">
       {/* Header */}
@@ -437,120 +485,9 @@ const Progress = () => {
         </Card>
       </div>
 
-      {/* Level Progress */}
-      <LevelProgressBar showNextBadge={true} />
+      {/* Level Progress - hidden for now */}
 
-      {/* Weekly Activity and Exercise Progress in same row */}
-      <div className="grid md:grid-cols-2 gap-6">
-        {/* Weekly Activity */}
-        <Card>
-          <Card.Header className="flex items-center justify-between">
-            <h3 className="text-lg font-semibold text-gray-900 flex items-center">
-              <BarChart3 className="w-5 h-5 mr-2 text-primary-600" />
-              Hoạt động tuần này
-            </h3>
-            <div className="flex space-x-2">
-              {['week', 'month'].map((period) => (
-                <Button
-                  key={period}
-                  variant={selectedPeriod === period ? 'primary' : 'ghost'}
-                  size="sm"
-                  onClick={() => setSelectedPeriod(period)}
-                >
-                  {period === 'week' ? 'Tuần' : 'Tháng'}
-                </Button>
-              ))}
-            </div>
-          </Card.Header>
-          <Card.Content>
-            <div className="space-y-6">
-              {/* Exercise Chart */}
-              <div>
-                <h4 className="text-sm font-medium text-gray-700 mb-3">
-                  {selectedPeriod === 'week' ? 'Bài tập hoàn thành hàng ngày' : 'Bài tập hoàn thành theo tuần'}
-                </h4>
-                <div className="flex items-end justify-between h-32 bg-gray-50 rounded-lg p-3">
-                  {currentData.map((item, index) => {
-                    const heightPercentage = item.exercises > 0 ? Math.max((item.exercises / maxExercises) * 100, 10) : 5
-                    const itemCount = currentData.length
-                    return (
-                      <div key={index} className="flex flex-col items-center justify-end h-full" style={{ width: `calc(100% / ${itemCount} - 8px)` }}>
-                        <div
-                          className={`w-full rounded-t transition-all duration-300 ${
-                            item.exercises > 0
-                              ? 'bg-blue-500 hover:bg-blue-600'
-                              : 'bg-gray-300'
-                          }`}
-                          style={{
-                            height: `${heightPercentage}%`,
-                            minHeight: item.exercises > 0 ? '12px' : '4px'
-                          }}
-                          title={`${item.exercises} bài tập - ${item.xp} 🪙`}
-                        />
-                        <div className="text-xs text-gray-600 mt-1 font-medium">
-                          {selectedPeriod === 'week' ? item.day : item.week}
-                        </div>
-                      </div>
-                    )
-                  })}
-                </div>
-              </div>
-
-              {/* Summary */}
-              <div className={`grid gap-2 ${selectedPeriod === 'week' ? 'grid-cols-7' : 'grid-cols-4'}`}>
-                {currentData.map((item, index) => (
-                  <div key={index} className="text-center p-2 bg-gray-50 rounded-lg">
-                    <div className="text-xs font-medium text-gray-600">
-                      {selectedPeriod === 'week' ? item.day : item.week}
-                    </div>
-                    <div className="text-sm font-semibold text-gray-900">{item.exercises}</div>
-                    <div className="text-xs text-gray-500">bài tập</div>
-                  </div>
-                ))}
-              </div>
-            </div>
-          </Card.Content>
-        </Card>
-
-        {/* Exercise Progress */}
-        <Card>
-          <Card.Header>
-            <h3 className="text-lg font-semibold text-gray-900 flex items-center">
-              <Target className="w-5 h-5 mr-2 text-green-600" />
-              Bài tập đã hoàn thành
-            </h3>
-          </Card.Header>
-          <Card.Content>
-            <div className="text-center space-y-4">
-              <div className="text-4xl font-bold text-gray-900">
-                {completedExercises}
-              </div>
-              <div className="text-gray-600">Tổng bài tập hoàn thành</div>
-
-              <div className="space-y-2">
-                <div className="flex justify-between text-sm">
-                  <span className="text-gray-600">Tuần này:</span>
-                  <span className="font-medium">
-                    {weeklyData.reduce((total, day) => total + day.exercises, 0)} bài
-                  </span>
-                </div>
-                <div className="flex justify-between text-sm">
-                  <span className="text-gray-600">Trung bình/ngày:</span>
-                  <span className="font-medium">
-                    {completedExercises > 0 ? Math.round(completedExercises / 30) : 0} bài
-                  </span>
-                </div>
-                <div className="flex justify-between text-sm">
-                  <span className="text-gray-600">Chuỗi ngày hiện tại:</span>
-                  <span className="font-medium text-green-600">
-                    {profile?.streak_count || 0} ngày
-                  </span>
-                </div>
-              </div>
-            </div>
-          </Card.Content>
-        </Card>
-      </div>
+      {/* Weekly Activity and Exercise Progress - hidden for now */}
 
       {/* Lesson Results */}
       {lessonResults.length > 0 && (() => {
@@ -641,48 +578,115 @@ const Progress = () => {
 
             {/* XP Rate Graph */}
             {dataPoints.length >= 2 && (() => {
-              const W = 600, H = 200, PX = 40, PY = 20
-              const plotW = W - PX * 2, plotH = H - PY * 2
+              // Use min width per point so labels never overlap; scrollable on mobile
+              const minStepX = 60
+              const PX = 36, PY = 20, H = 200
+              const plotH = H - PY * 2
+              const W = Math.max(320, PX * 2 + (dataPoints.length - 1) * minStepX)
+              const plotW = W - PX * 2
               const stepX = plotW / (dataPoints.length - 1)
               const points = dataPoints.map((d, i) => ({ x: PX + i * stepX, y: PY + plotH - (d.pct / 100) * plotH, ...d }))
               const linePath = points.map((p, i) => `${i === 0 ? 'M' : 'L'}${p.x},${p.y}`).join(' ')
               const areaPath = linePath + ` L${points[points.length - 1].x},${PY + plotH} L${points[0].x},${PY + plotH} Z`
 
               return (
-                <div className="bg-white rounded-lg border p-5">
+                <div className="bg-white rounded-lg border p-3 sm:p-5">
                   <h4 className="text-sm font-semibold text-gray-700 mb-3">XP Rate</h4>
-                  <svg viewBox={`0 0 ${W} ${H}`} className="w-full" style={{ maxHeight: 220 }}>
-                    {[0, 25, 50, 75, 100].map(pct => {
-                      const y = PY + plotH - (pct / 100) * plotH
-                      return (
-                        <g key={pct}>
-                          <line x1={PX} y1={y} x2={W - PX} y2={y} stroke="#e5e7eb" strokeWidth="1" />
-                          <text x={PX - 6} y={y + 4} textAnchor="end" className="text-[10px]" fill="#9ca3af">{pct}%</text>
+                  <div className="overflow-x-auto -mx-1">
+                    <svg viewBox={`0 0 ${W} ${H}`} className="w-full" style={{ minWidth: W > 400 ? W * 0.6 : '100%', maxHeight: 220 }}>
+                      {[0, 25, 50, 75, 100].map(pct => {
+                        const y = PY + plotH - (pct / 100) * plotH
+                        return (
+                          <g key={pct}>
+                            <line x1={PX} y1={y} x2={W - PX} y2={y} stroke="#e5e7eb" strokeWidth="1" />
+                            <text x={PX - 6} y={y + 4} textAnchor="end" fontSize="10" fill="#9ca3af">{pct}%</text>
+                          </g>
+                        )
+                      })}
+                      <path d={areaPath} fill="url(#xpGradientProgress)" opacity="0.3" />
+                      <path d={linePath} fill="none" stroke="#3b82f6" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" />
+                      {points.map((p, i) => (
+                        <g key={i}>
+                          <circle cx={p.x} cy={p.y} r="4" fill="#3b82f6" stroke="white" strokeWidth="2" />
+                          <text x={p.x} y={PY + plotH + 14} textAnchor="middle" fontSize="9" fill="#6b7280">{p.date}</text>
+                          <text x={p.x} y={p.y - 10} textAnchor="middle" fontSize="9" fill="#3b82f6" fontWeight="600">{p.pct}%</text>
                         </g>
-                      )
-                    })}
-                    <path d={areaPath} fill="url(#xpGradientProgress)" opacity="0.3" />
-                    <path d={linePath} fill="none" stroke="#3b82f6" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" />
-                    {points.map((p, i) => (
-                      <g key={i}>
-                        <circle cx={p.x} cy={p.y} r="4" fill="#3b82f6" stroke="white" strokeWidth="2" />
-                        <text x={p.x} y={PY + plotH + 14} textAnchor="middle" className="text-[9px]" fill="#6b7280">{p.date}</text>
-                        <text x={p.x} y={p.y - 10} textAnchor="middle" className="text-[9px]" fill="#3b82f6" fontWeight="600">{p.pct}%</text>
-                      </g>
-                    ))}
-                    <defs>
-                      <linearGradient id="xpGradientProgress" x1="0" y1="0" x2="0" y2="1">
-                        <stop offset="0%" stopColor="#3b82f6" />
-                        <stop offset="100%" stopColor="#3b82f6" stopOpacity="0" />
-                      </linearGradient>
-                    </defs>
-                  </svg>
+                      ))}
+                      <defs>
+                        <linearGradient id="xpGradientProgress" x1="0" y1="0" x2="0" y2="1">
+                          <stop offset="0%" stopColor="#3b82f6" />
+                          <stop offset="100%" stopColor="#3b82f6" stopOpacity="0" />
+                        </linearGradient>
+                      </defs>
+                    </svg>
+                  </div>
                 </div>
               )
             })()}
 
-            {/* Full Lesson Table */}
-            <div className="bg-white rounded-lg border overflow-x-auto">
+            {/* Lesson Cards (mobile) */}
+            <div className="md:hidden space-y-3">
+              {(showAllLessons ? lessonResults : lessonResults.slice(0, 4)).map((result, idx) => {
+                const info = result.lesson_info
+                const xp = calcXP(result)
+                const xpColor = xp === null ? 'text-gray-300' : xp >= 70 ? 'text-green-600' : xp >= 40 ? 'text-yellow-600' : 'text-red-600'
+
+                return (
+                  <div key={idx} className="bg-white rounded-lg border p-3">
+                    {/* Row 1: Date + Lesson name + XP */}
+                    <div className="flex items-start justify-between gap-2 mb-2">
+                      <div className="min-w-0">
+                        <p className="text-sm font-medium text-gray-900 truncate">{info?.lesson_name || '-'}</p>
+                        <p className="text-xs text-gray-500">
+                          {info?.session_date ? new Date(info.session_date + 'T00:00:00').toLocaleDateString('vi', { weekday: 'short', day: 'numeric', month: 'short' }) : '-'}
+                          {info?.skill && <span className="capitalize"> · {info.skill}</span>}
+                        </p>
+                      </div>
+                      <div className={`text-lg font-bold shrink-0 ${xpColor}`}>
+                        {xp !== null ? xp : '-'}
+                        {xp !== null && <span className="text-xs font-medium ml-0.5">xp</span>}
+                      </div>
+                    </div>
+                    {/* Row 2: Badges */}
+                    <div className="flex flex-wrap items-center gap-2">
+                      <div className="flex items-center gap-1">
+                        <span className="text-[10px] text-gray-400 uppercase">Điểm danh</span>
+                        {attendBadge(result.attendance_status)}
+                      </div>
+                      <div className="flex items-center gap-1">
+                        <span className="text-[10px] text-gray-400 uppercase">Lớp</span>
+                        {ratingBadge(result.performance_rating)}
+                      </div>
+                      <div className="flex items-center gap-1">
+                        <span className="text-[10px] text-gray-400 uppercase">BT</span>
+                        {ratingBadge(result.homework_status)}
+                      </div>
+                      {result.score != null && (
+                        <span className="text-xs text-gray-500">Điểm: {result.score}/{result.max_score ?? '?'}</span>
+                      )}
+                      {result.homework_score != null && (
+                        <span className="text-xs text-gray-500">BT: {result.homework_score}/{result.homework_max_score ?? '?'}</span>
+                      )}
+                      {result.star_flag === 'star' && <Star className="w-4 h-4 fill-yellow-400 text-yellow-400" />}
+                      {result.star_flag === 'flag' && <span className="text-red-500 text-xs font-medium">Flag</span>}
+                    </div>
+                  </div>
+                )
+              })}
+              {lessonResults.length > 4 && (
+                <div className="text-center py-2">
+                  <button
+                    onClick={() => setShowAllLessons(!showAllLessons)}
+                    className="text-sm text-blue-600 hover:text-blue-700 font-medium"
+                  >
+                    {showAllLessons ? 'Thu gọn' : `Xem thêm (${lessonResults.length - 4} buổi)`}
+                  </button>
+                </div>
+              )}
+            </div>
+
+            {/* Lesson Table (desktop) */}
+            <div className="hidden md:block bg-white rounded-lg border overflow-x-auto">
               <table className="w-full text-sm">
                 <thead className="bg-gray-100 text-gray-600">
                   <tr>
@@ -694,7 +698,7 @@ const Progress = () => {
                     <th className="px-4 py-3 text-center font-medium">Bài tập</th>
                     <th className="px-4 py-3 text-center font-medium">Điểm BT</th>
                     <th className="px-4 py-3 text-center font-medium">Star/Flag</th>
-                    <th className="px-4 py-3 text-center font-medium">XP Rate</th>
+                    <th className="px-4 py-3 text-center font-medium">XP</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y">
@@ -724,9 +728,8 @@ const Progress = () => {
                         <td className="px-4 py-3 text-center">
                           {(() => {
                             if (xp === null) return dash
-                            const pct = Math.round((xp / MAX_XP) * 100)
-                            const color = pct >= 75 ? 'text-green-600' : pct >= 50 ? 'text-yellow-600' : 'text-red-600'
-                            return <span className={`font-medium text-xs ${color}`}>{pct}%</span>
+                            const color = xp >= 70 ? 'text-green-600' : xp >= 40 ? 'text-yellow-600' : 'text-red-600'
+                            return <span className={`font-medium text-xs ${color}`}>{xp}</span>
                           })()}
                         </td>
                       </tr>
@@ -749,15 +752,69 @@ const Progress = () => {
         )
       })()}
 
-      {/* Achievements */}
-      <AchievementBadgeBar
-        achievements={allAchievements}
-        userStats={userStats}
-        onClaimXP={handleClaimXP}
-        userAchievements={userAchievements}
-        claimedFallbackAchievements={claimedFallbackAchievements}
-        challengeWinCounts={challengeWinCounts}
-      />
+      {/* Recent Activity */}
+      <Card>
+        <Card.Header>
+          <h2 className="text-lg font-semibold flex items-center space-x-2">
+            <Activity className="w-5 h-5 text-blue-500" />
+            <span>Hoạt động gần đây</span>
+          </h2>
+        </Card.Header>
+        <Card.Content>
+          {recentActivity.length > 0 ? (
+            <div className="space-y-3">
+              {recentActivity.map((activity) => {
+                if (activity.type === 'achievement') {
+                  return (
+                    <div key={`ach-${activity.id}`} className="flex items-center space-x-3 p-3 rounded-lg bg-yellow-50 border border-yellow-200">
+                      <div className="w-10 h-10 bg-yellow-100 rounded-full flex items-center justify-center shrink-0">
+                        <Trophy className="w-5 h-5 text-yellow-500" />
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <h4 className="font-medium text-gray-900 truncate">
+                          Nhận thành tích: {activity.achievements?.title}
+                        </h4>
+                        <p className="text-sm text-gray-600">
+                          {formatTimeAgo(activity.claimed_at)}
+                        </p>
+                      </div>
+                      <div className="text-yellow-600 font-semibold text-sm shrink-0">
+                        +{activity.xp_earned} XP
+                      </div>
+                    </div>
+                  )
+                } else {
+                  return (
+                    <div key={`ex-${activity.id}`} className="flex items-center space-x-3 p-3 rounded-lg bg-gray-50">
+                      <div className="w-10 h-10 bg-blue-100 rounded-full flex items-center justify-center shrink-0">
+                        <BookOpen className="w-5 h-5 text-blue-600" />
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <h4 className="font-medium text-gray-900 truncate">
+                          {activity.exercises?.title || 'Bài tập'}
+                        </h4>
+                        <p className="text-sm text-gray-600">
+                          Điểm: {activity.score}% • {formatTimeAgo(activity.completed_at)}
+                        </p>
+                      </div>
+                      <div className="text-blue-600 font-semibold text-sm shrink-0">
+                        +{activity.exercises?.xp_reward || 10} XP
+                      </div>
+                    </div>
+                  )
+                }
+              })}
+            </div>
+          ) : (
+            <div className="text-center py-8 text-gray-500">
+              <BookOpen className="w-12 h-12 mx-auto mb-3 opacity-50" />
+              <p>Chưa có hoạt động nào.</p>
+            </div>
+          )}
+        </Card.Content>
+      </Card>
+
+      {/* Achievements - hidden for now */}
     </div>
   )
 }

@@ -1596,6 +1596,15 @@ const PetDisplay = () => {
                 <span className="font-bold text-gray-800 text-xs">Astro Blast</span>
               </button>
               )}
+              {enabledGames.includes('flappy') && (
+              <button
+                onClick={() => { drainPetEnergy(10); recordAttemptStart('flappy'); setShowGame('flappy'); }}
+                className="flex flex-col items-center gap-2 p-4 rounded-xl border-2 border-sky-200 hover:border-sky-400 hover:bg-sky-50 transition-all group"
+              >
+                <span className="text-5xl group-hover:scale-110 transition-transform">🐦</span>
+                <span className="font-bold text-gray-800 text-xs">Flappy Pet</span>
+              </button>
+              )}
               {enabledGames.includes('matchgame') && (
               <button
                 onClick={() => { drainPetEnergy(10); recordAttemptStart('matchgame'); fetchGameLeaderboard('matchgame'); setShowGame('matchgame'); }}
@@ -1639,6 +1648,7 @@ const PetDisplay = () => {
             return baseImage;
           })()}
           petName={activePet.nickname || activePet.name}
+          wordBank={wordBank}
           onGameEnd={(score) => handleGameEnd(score, 'flappy')}
           onClose={() => setShowGame(null)}
         />

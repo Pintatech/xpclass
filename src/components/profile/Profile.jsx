@@ -1166,68 +1166,7 @@ const Profile = () => {
         </Card>
       </div>
 
-      {/* Recent Activity */}
-      <Card>
-        <Card.Header>
-          <h2 className="text-xl font-semibold flex items-center space-x-2">
-            <Activity className="w-5 h-5" />
-            <span>Hoạt động gần đây</span>
-          </h2>
-        </Card.Header>
-        <Card.Content>
-          {recentActivity.length > 0 ? (
-            <div className="space-y-3">
-              {recentActivity.map((activity, index) => {
-                if (activity.type === 'achievement') {
-                  return (
-                    <div key={`achievement-${activity.id}`} className="flex items-center space-x-3 p-3 rounded-lg bg-yellow-50 border border-yellow-200">
-                      <div className="w-10 h-10 bg-yellow-100 rounded-full flex items-center justify-center">
-                        <img src={assetUrl('/icon/profile/achievement.svg')} alt="achievement" className="w-5 h-5" />
-                      </div>
-                      <div className="flex-1">
-                        <h4 className="font-medium text-gray-900">
-                          Nhận thành tích: {activity.achievements?.title}
-                        </h4>
-                        <p className="text-sm text-gray-600">
-                          Achievement • {formatTimeAgo(activity.claimed_at)}
-                        </p>
-                      </div>
-                      <div className="text-yellow-600 font-semibold">
-                        +{activity.xp_earned} XP
-                      </div>
-                    </div>
-                  )
-                } else {
-                  const IconComponent = getExerciseTypeIcon(activity.exercises?.exercise_type)
-                  return (
-                    <div key={`exercise-${activity.id}`} className="flex items-center space-x-3 p-3 rounded-lg bg-gray-50">
-                      <div className="w-10 h-10 bg-gray-200 rounded-full flex items-center justify-center">
-                        <IconComponent className="w-5 h-5 text-blue-600" />
-                      </div>
-                      <div className="flex-1">
-                        <h4 className="font-medium text-gray-900">
-                          Hoàn thành: {activity.exercises?.title}
-                        </h4>
-                        <p className="text-sm text-gray-600">
-                          {getExerciseTypeLabel(activity.exercises?.exercise_type)} • Điểm: {activity.score}% • {formatTimeAgo(activity.completed_at)}
-                        </p>
-                      </div>
-                      <div className="text-blue-600 font-semibold">
-                        +{activity.exercises?.xp_reward || 10} XP
-                      </div>
-                    </div>
-                  )
-                }
-              })}
-            </div>
-          ) : (
-            <div className="text-center py-8 text-gray-500">
-              <BookOpen className="w-12 h-12 mx-auto mb-3 opacity-50" />
-              <p>Chưa có hoạt động nào. Hãy bắt đầu học thôi!</p>
-            </div>
-          )}
-        </Card.Content>
-      </Card>
+      {/* Recent Activity - moved to Progress page */}
 
       {/* Additional Stats */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">

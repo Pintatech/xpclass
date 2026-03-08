@@ -21,6 +21,7 @@ const GAME_TYPES = [
 const TRAINING_GAMES = [
   { key: 'scramble', label: 'Word Scramble', icon: '🔤' },
   { key: 'whackmole', label: 'Whack-a-Mole', icon: '🔨' },
+  { key: 'flappy', label: 'Flappy Pet', icon: '🐦' },
   { key: 'astroblast', label: 'Astro Blast', icon: '🚀' },
   { key: 'matchgame', label: 'Match Up', icon: '🧩' },
 ];
@@ -300,7 +301,8 @@ const LeaderboardSettings = () => {
           // Build reward message
           const parts = [];
           if (reward.gems > 0) parts.push(`+${reward.gems} gems`);
-          if (reward.xp > 0) parts.push(`+${reward.xp} XP`);
+          const totalXpAwarded = (reward.xp || 0) + (rewardThreshold > 0 && userScore >= rewardThreshold ? rewardXP : 0);
+          if (totalXpAwarded > 0) parts.push(`+${totalXpAwarded} XP`);
           if (reward.shop_items.length > 0) {
             const itemNames = reward.shop_items
               .map(id => shopItems.find(s => s.id === id)?.name || 'item')
