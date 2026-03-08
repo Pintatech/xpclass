@@ -17,7 +17,7 @@ const shuffle = (arr) => {
   return a
 }
 
-const PetMatchGame = ({ petImageUrl, petName, onGameEnd, onClose, wordBank: wordBankProp = [], hideClose = false }) => {
+const PetMatchGame = ({ petImageUrl, petName, onGameEnd, onClose, wordBank: wordBankProp = [], hideClose = false, scoreToBeat = null }) => {
   const [phase, setPhase] = useState('ready')
   const [displayTime, setDisplayTime] = useState(GAME_DURATION)
   const [score, setScore] = useState(0)
@@ -417,8 +417,34 @@ const PetMatchGame = ({ petImageUrl, petName, onGameEnd, onClose, wordBank: word
             <div className="p-4 z-10">
               <div className="flex items-center justify-between mb-3 pl-12">
                 {/* Score */}
-                <div className="bg-white/20 backdrop-blur rounded-2xl px-4 py-2">
-                  <span className="text-xl font-black text-white">{score}</span>
+                <div className="flex flex-col items-start gap-1">
+                  <div className="bg-white/20 backdrop-blur rounded-2xl px-4 py-2">
+                    <span className="text-xl font-black text-white">{score}</span>
+                  </div>
+                  {scoreToBeat && (() => {
+                    const gap = scoreToBeat.score - score
+                    const isClose = gap > 0 && gap <= 3
+                    const beaten = score >= scoreToBeat.score
+                    const pct = Math.min(100, Math.round((score / scoreToBeat.score) * 100))
+                    return (
+                      <div className="w-28 ml-1">
+                        <div className="flex items-center justify-between gap-1 mb-0.5">
+                          <span className="text-white/60 text-[10px] truncate max-w-[60px]">{beaten ? 'Ahead!' : scoreToBeat.name}</span>
+                          <span className={`font-black text-[10px] ${beaten ? 'text-green-300' : isClose ? 'text-orange-300' : 'text-yellow-300'}`}>
+                            {beaten ? `+${-gap}` : isClose ? `${gap} more!` : `+${gap}pts`}
+                          </span>
+                        </div>
+                        <div className="h-1 rounded-full bg-white/10 overflow-hidden">
+                          <div className="h-full rounded-full transition-all duration-500"
+                            style={{
+                              width: `${pct}%`,
+                              background: beaten ? 'linear-gradient(90deg, #22c55e, #86efac)' : isClose ? 'linear-gradient(90deg, #f97316, #ef4444)' : 'linear-gradient(90deg, #eab308, #fde047)',
+                            }}
+                          />
+                        </div>
+                      </div>
+                    )
+                  })()}
                 </div>
 
                 {/* Streak */}

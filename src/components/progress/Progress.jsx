@@ -30,6 +30,8 @@ const Progress = () => {
   const [selectedPeriod, setSelectedPeriod] = useState('week')
   const [weeklyData, setWeeklyData] = useState([])
   const [monthlyData, setMonthlyData] = useState([])
+  const [lessonResults, setLessonResults] = useState([])
+  const [showAllLessons, setShowAllLessons] = useState(false)
   const [loading, setLoading] = useState(true)
 
   const completedExercises = getCompletedExercises()
@@ -51,6 +53,7 @@ const Progress = () => {
     if (user && userProgress) {
       fetchWeeklyData()
       fetchMonthlyData()
+      fetchLessonResults()
       // checkAndAwardAchievements() // Disabled until SQL functions are fixed
     }
   }, [user, userProgress])
@@ -213,6 +216,58 @@ const Progress = () => {
   }
 
 
+  const fetchLessonResults = async () => {
+    try {
+      // Step 1: fetch lesson records
+      const { data: records, error: recError } = await supabase
+        .from('lesson_records')
+        .select('lesson_info_id, attendance_status, homework_status, homework_score, homework_max_score, homework_notes, performance_rating, score, max_score, notes, star_flag')
+        .eq('student_id', user.id)
+        .order('recorded_at', { ascending: false })
+        .limit(50)
+
+      if (recError) throw recError
+      if (!records || records.length === 0) return
+
+      // Step 2: fetch lesson_info separately (bypasses RLS join issue)
+      const infoIds = [...new Set(records.map(r => r.lesson_info_id).filter(Boolean))]
+      let infoMap = {}
+      if (infoIds.length > 0) {
+        const { data: infos, error: infoError } = await supabase
+          .from('lesson_info')
+          .select('id, lesson_name, skill, session_date, course_id')
+          .in('id', infoIds)
+
+        console.log('[LessonResults] lesson_info ids:', infoIds, 'fetched:', infos?.length, 'error:', infoError)
+
+        // Step 3: fetch course info
+        const courseIds = [...new Set((infos || []).map(i => i.course_id).filter(Boolean))]
+        let courseMap = {}
+        if (courseIds.length > 0) {
+          const { data: courses } = await supabase
+            .from('courses')
+            .select('id, title, level_number')
+            .in('id', courseIds)
+          ;(courses || []).forEach(c => { courseMap[c.id] = c })
+        }
+
+        ;(infos || []).forEach(i => {
+          infoMap[i.id] = { ...i, course: courseMap[i.course_id] || null }
+        })
+      }
+
+      // Merge
+      const merged = records.map(r => ({
+        ...r,
+        lesson_info: infoMap[r.lesson_info_id] || null
+      }))
+
+      setLessonResults(merged)
+    } catch (err) {
+      console.error('[LessonResults] Error:', err)
+    }
+  }
+
   const fetchWeeklyData = async () => {
     try {
       const days = ['CN', 'T2', 'T3', 'T4', 'T5', 'T6', 'T7']
@@ -247,31 +302,17 @@ const Progress = () => {
         })
       }
 
-      // If no data found, use sample data for visualization
-      if (weekData.every(day => day.exercises === 0 && day.xp === 0)) {
-        setWeeklyData([
-          { day: 'CN', xp: 0, exercises: 0, time: 0 },
-          { day: 'T2', xp: 50, exercises: 2, time: 120 },
-          { day: 'T3', xp: 100, exercises: 4, time: 240 },
-          { day: 'T4', xp: 0, exercises: 0, time: 0 },
-          { day: 'T5', xp: 75, exercises: 3, time: 180 },
-          { day: 'T6', xp: 125, exercises: 5, time: 300 },
-          { day: 'T7', xp: 25, exercises: 1, time: 60 }
-        ])
-      } else {
-        setWeeklyData(weekData)
-      }
+      setWeeklyData(weekData)
     } catch (error) {
       console.error('Error fetching weekly data:', error)
-      // Fallback to sample data for visualization
       setWeeklyData([
         { day: 'CN', xp: 0, exercises: 0, time: 0 },
-        { day: 'T2', xp: 50, exercises: 2, time: 120 },
-        { day: 'T3', xp: 100, exercises: 4, time: 240 },
+        { day: 'T2', xp: 0, exercises: 0, time: 0 },
+        { day: 'T3', xp: 0, exercises: 0, time: 0 },
         { day: 'T4', xp: 0, exercises: 0, time: 0 },
-        { day: 'T5', xp: 75, exercises: 3, time: 180 },
-        { day: 'T6', xp: 125, exercises: 5, time: 300 },
-        { day: 'T7', xp: 25, exercises: 1, time: 60 }
+        { day: 'T5', xp: 0, exercises: 0, time: 0 },
+        { day: 'T6', xp: 0, exercises: 0, time: 0 },
+        { day: 'T7', xp: 0, exercises: 0, time: 0 }
       ])
     }
   }
@@ -310,25 +351,14 @@ const Progress = () => {
         })
       }
 
-      // If no data found, use sample data for visualization
-      if (monthData.every(week => week.exercises === 0 && week.xp === 0)) {
-        setMonthlyData([
-          { week: 'T1', xp: 150, exercises: 8, time: 480 },
-          { week: 'T2', xp: 200, exercises: 12, time: 720 },
-          { week: 'T3', xp: 100, exercises: 6, time: 360 },
-          { week: 'T4', xp: 175, exercises: 10, time: 600 }
-        ])
-      } else {
-        setMonthlyData(monthData)
-      }
+      setMonthlyData(monthData)
     } catch (error) {
       console.error('Error fetching monthly data:', error)
-      // Fallback to sample data for visualization
       setMonthlyData([
-        { week: 'T1', xp: 150, exercises: 8, time: 480 },
-        { week: 'T2', xp: 200, exercises: 12, time: 720 },
-        { week: 'T3', xp: 100, exercises: 6, time: 360 },
-        { week: 'T4', xp: 175, exercises: 10, time: 600 }
+        { week: 'T1', xp: 0, exercises: 0, time: 0 },
+        { week: 'T2', xp: 0, exercises: 0, time: 0 },
+        { week: 'T3', xp: 0, exercises: 0, time: 0 },
+        { week: 'T4', xp: 0, exercises: 0, time: 0 }
       ])
     }
   }
@@ -521,6 +551,203 @@ const Progress = () => {
           </Card.Content>
         </Card>
       </div>
+
+      {/* Lesson Results */}
+      {lessonResults.length > 0 && (() => {
+        const perfXP = { ok: 30, good: 60, wow: 90 }
+        const hwXP = { ok: 15, good: 30, wow: 45 }
+        const MAX_XP = 135
+        const calcXP = (rec) => {
+          if (!rec) return null
+          const isPresent = rec.attendance_status === 'present' || rec.attendance_status === 'late'
+          if (!isPresent) return 0
+          const perf = perfXP[rec.performance_rating] || 0
+          const hw = hwXP[rec.homework_status] || 0
+          if (perf === 0 && hw === 0) return null
+          return Math.max(perf + hw - (rec.attendance_status === 'late' ? 15 : 0), 0)
+        }
+
+        const ratingBadge = (value) => {
+          if (!value) return <span className="text-gray-300">-</span>
+          const cls = value === 'wow' ? 'bg-green-100 text-green-700' : value === 'good' ? 'bg-yellow-100 text-yellow-700' : 'bg-red-100 text-red-700'
+          const labels = { wow: 'Wow', good: 'Good', ok: 'Ok' }
+          return <span className={`inline-block px-2 py-0.5 rounded text-xs font-medium ${cls}`}>{labels[value] || value}</span>
+        }
+        const attendBadge = (value) => {
+          if (!value) return <span className="text-gray-300">-</span>
+          const cls = value === 'present' ? 'bg-green-100 text-green-700' : value === 'late' ? 'bg-yellow-100 text-yellow-700' : value === 'absent' ? 'bg-red-100 text-red-700' : 'bg-gray-100 text-gray-600'
+          const labels = { present: 'Present', late: 'Late', absent: 'Absent' }
+          return <span className={`inline-block px-2 py-0.5 rounded text-xs font-medium ${cls}`}>{labels[value] || value}</span>
+        }
+        const dash = <span className="text-gray-300">-</span>
+
+        const totalLessons = lessonResults.length
+        const presentCount = lessonResults.filter(r => r.attendance_status === 'present' || r.attendance_status === 'late').length
+        const wowPerf = lessonResults.filter(r => r.performance_rating === 'wow').length
+        const goodPerf = lessonResults.filter(r => r.performance_rating === 'good').length
+        const okPerf = lessonResults.filter(r => r.performance_rating === 'ok').length
+        const starCount = lessonResults.filter(r => r.star_flag === 'star').length
+        const flagCount = lessonResults.filter(r => r.star_flag === 'flag').length
+
+        // XP rate data points (oldest first)
+        const dataPoints = [...lessonResults].reverse().map(r => {
+          const xp = calcXP(r)
+          const date = r.lesson_info?.session_date
+          return {
+            date: date ? new Date(date + 'T00:00:00').toLocaleDateString('vi', { day: 'numeric', month: 'short' }) : '',
+            pct: xp !== null ? Math.round((xp / MAX_XP) * 100) : null,
+            xp,
+          }
+        }).filter(d => d.pct !== null)
+
+        return (
+          <div className="space-y-6">
+            <h3 className="text-lg font-semibold text-gray-900 flex items-center">
+              <BookOpen className="w-5 h-5 mr-2 text-purple-600" />
+              Kết quả buổi học
+            </h3>
+
+            {/* Summary Cards */}
+            <div className="grid grid-cols-3 md:grid-cols-6 gap-3">
+              <div className="bg-white rounded-lg border p-3 text-center">
+                <p className="text-2xl font-bold text-gray-900">{totalLessons}</p>
+                <p className="text-xs text-gray-500">Tổng buổi</p>
+              </div>
+              <div className="bg-white rounded-lg border p-3 text-center">
+                <p className="text-2xl font-bold text-green-600">{presentCount}</p>
+                <p className="text-xs text-gray-500">Có mặt</p>
+              </div>
+              <div className="bg-white rounded-lg border p-3 text-center">
+                <p className="text-2xl font-bold text-green-600">{wowPerf}</p>
+                <p className="text-xs text-gray-500">Wow</p>
+              </div>
+              <div className="bg-white rounded-lg border p-3 text-center">
+                <p className="text-2xl font-bold text-yellow-500">{goodPerf}</p>
+                <p className="text-xs text-gray-500">Good</p>
+              </div>
+              <div className="bg-white rounded-lg border p-3 text-center">
+                <p className="text-2xl font-bold text-red-500">{okPerf}</p>
+                <p className="text-xs text-gray-500">Ok</p>
+              </div>
+              <div className="bg-white rounded-lg border p-3 text-center">
+                <div className="flex items-center justify-center gap-2">
+                  {starCount > 0 && <span className="flex items-center gap-1"><Star className="w-4 h-4 fill-yellow-400 text-yellow-400" />{starCount}</span>}
+                  {flagCount > 0 && <span className="flex items-center gap-1 text-red-500">{flagCount}</span>}
+                  {starCount === 0 && flagCount === 0 && <span className="text-2xl font-bold text-gray-300">-</span>}
+                </div>
+                <p className="text-xs text-gray-500">Star / Flag</p>
+              </div>
+            </div>
+
+            {/* XP Rate Graph */}
+            {dataPoints.length >= 2 && (() => {
+              const W = 600, H = 200, PX = 40, PY = 20
+              const plotW = W - PX * 2, plotH = H - PY * 2
+              const stepX = plotW / (dataPoints.length - 1)
+              const points = dataPoints.map((d, i) => ({ x: PX + i * stepX, y: PY + plotH - (d.pct / 100) * plotH, ...d }))
+              const linePath = points.map((p, i) => `${i === 0 ? 'M' : 'L'}${p.x},${p.y}`).join(' ')
+              const areaPath = linePath + ` L${points[points.length - 1].x},${PY + plotH} L${points[0].x},${PY + plotH} Z`
+
+              return (
+                <div className="bg-white rounded-lg border p-5">
+                  <h4 className="text-sm font-semibold text-gray-700 mb-3">XP Rate</h4>
+                  <svg viewBox={`0 0 ${W} ${H}`} className="w-full" style={{ maxHeight: 220 }}>
+                    {[0, 25, 50, 75, 100].map(pct => {
+                      const y = PY + plotH - (pct / 100) * plotH
+                      return (
+                        <g key={pct}>
+                          <line x1={PX} y1={y} x2={W - PX} y2={y} stroke="#e5e7eb" strokeWidth="1" />
+                          <text x={PX - 6} y={y + 4} textAnchor="end" className="text-[10px]" fill="#9ca3af">{pct}%</text>
+                        </g>
+                      )
+                    })}
+                    <path d={areaPath} fill="url(#xpGradientProgress)" opacity="0.3" />
+                    <path d={linePath} fill="none" stroke="#3b82f6" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" />
+                    {points.map((p, i) => (
+                      <g key={i}>
+                        <circle cx={p.x} cy={p.y} r="4" fill="#3b82f6" stroke="white" strokeWidth="2" />
+                        <text x={p.x} y={PY + plotH + 14} textAnchor="middle" className="text-[9px]" fill="#6b7280">{p.date}</text>
+                        <text x={p.x} y={p.y - 10} textAnchor="middle" className="text-[9px]" fill="#3b82f6" fontWeight="600">{p.pct}%</text>
+                      </g>
+                    ))}
+                    <defs>
+                      <linearGradient id="xpGradientProgress" x1="0" y1="0" x2="0" y2="1">
+                        <stop offset="0%" stopColor="#3b82f6" />
+                        <stop offset="100%" stopColor="#3b82f6" stopOpacity="0" />
+                      </linearGradient>
+                    </defs>
+                  </svg>
+                </div>
+              )
+            })()}
+
+            {/* Full Lesson Table */}
+            <div className="bg-white rounded-lg border overflow-x-auto">
+              <table className="w-full text-sm">
+                <thead className="bg-gray-100 text-gray-600">
+                  <tr>
+                    <th className="px-4 py-3 text-left font-medium">Ngày</th>
+                    <th className="px-4 py-3 text-left font-medium">Buổi học</th>
+                    <th className="px-4 py-3 text-center font-medium">Điểm danh</th>
+                    <th className="px-4 py-3 text-center font-medium">Trên lớp</th>
+                    <th className="px-4 py-3 text-center font-medium">Điểm</th>
+                    <th className="px-4 py-3 text-center font-medium">Bài tập</th>
+                    <th className="px-4 py-3 text-center font-medium">Điểm BT</th>
+                    <th className="px-4 py-3 text-center font-medium">Star/Flag</th>
+                    <th className="px-4 py-3 text-center font-medium">XP Rate</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y">
+                  {(showAllLessons ? lessonResults : lessonResults.slice(0, 10)).map((result, idx) => {
+                    const info = result.lesson_info
+                    const xp = calcXP(result)
+
+                    return (
+                      <tr key={idx} className="hover:bg-gray-50">
+                        <td className="px-4 py-3 whitespace-nowrap text-gray-600">
+                          {info?.session_date ? new Date(info.session_date + 'T00:00:00').toLocaleDateString('vi', { weekday: 'short', day: 'numeric', month: 'short' }) : dash}
+                        </td>
+                        <td className="px-4 py-3 text-gray-900">
+                          <div>{info?.lesson_name || '-'}</div>
+                          {info?.skill && <div className="text-xs text-gray-400 capitalize">{info.skill}</div>}
+                        </td>
+                        <td className="px-4 py-3 text-center">{attendBadge(result.attendance_status)}</td>
+                        <td className="px-4 py-3 text-center">{ratingBadge(result.performance_rating)}</td>
+                        <td className="px-4 py-3 text-center text-gray-600">{result.score != null ? `${result.score}/${result.max_score ?? '?'}` : dash}</td>
+                        <td className="px-4 py-3 text-center">{ratingBadge(result.homework_status)}</td>
+                        <td className="px-4 py-3 text-center text-gray-600">{result.homework_score != null ? `${result.homework_score}/${result.homework_max_score ?? '?'}` : dash}</td>
+                        <td className="px-4 py-3 text-center">
+                          {result.star_flag === 'star' && <Star className="w-4 h-4 fill-yellow-400 text-yellow-400 inline" />}
+                          {result.star_flag === 'flag' && <span className="text-red-500 text-xs font-medium">Flag</span>}
+                          {!result.star_flag && dash}
+                        </td>
+                        <td className="px-4 py-3 text-center">
+                          {(() => {
+                            if (xp === null) return dash
+                            const pct = Math.round((xp / MAX_XP) * 100)
+                            const color = pct >= 75 ? 'text-green-600' : pct >= 50 ? 'text-yellow-600' : 'text-red-600'
+                            return <span className={`font-medium text-xs ${color}`}>{pct}%</span>
+                          })()}
+                        </td>
+                      </tr>
+                    )
+                  })}
+                </tbody>
+              </table>
+              {lessonResults.length > 10 && (
+                <div className="text-center py-3 border-t">
+                  <button
+                    onClick={() => setShowAllLessons(!showAllLessons)}
+                    className="text-sm text-blue-600 hover:text-blue-700 font-medium"
+                  >
+                    {showAllLessons ? 'Thu gọn' : `Xem thêm (${lessonResults.length - 10} buổi)`}
+                  </button>
+                </div>
+              )}
+            </div>
+          </div>
+        )
+      })()}
 
       {/* Achievements */}
       <AchievementBadgeBar

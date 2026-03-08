@@ -86,7 +86,7 @@ const PetDisplay = () => {
   const [playDisabled, setPlayDisabled] = useState(false);
   const [playCooldown, setPlayCooldown] = useState(0);
   const [showGame, setShowGame] = useState(null); // null | 'picker' | 'catch' | 'flappy' | 'scramble' | 'whackmole' | 'astroblast' | 'matchgame'
-  const [whackmoleLeaderboard, setWhackmoleLeaderboard] = useState([]);
+  const [gameLeaderboards, setGameLeaderboards] = useState({ whackmole: [], scramble: [], astroblast: [], matchgame: [] });
   const [wordBank, setWordBank] = useState([]);
   const [enabledGames, setEnabledGames] = useState(['scramble', 'whackmole', 'astroblast', 'matchgame']);
   const [showChat, setShowChat] = useState(false);
@@ -404,7 +404,7 @@ const PetDisplay = () => {
     }
   };
 
-  const fetchWhackmoleLeaderboard = async () => {
+  const fetchGameLeaderboard = async (gameType) => {
     if (!user?.id) return;
     const now = new Date();
     const day = now.getDay();
@@ -416,10 +416,10 @@ const PetDisplay = () => {
     const { data: scores } = await supabase
       .from('training_scores')
       .select('user_id, score')
-      .eq('game_type', 'whackmole')
+      .eq('game_type', gameType)
       .gte('played_at', weekStartISO);
 
-    if (!scores || scores.length === 0) { setWhackmoleLeaderboard([]); return; }
+    if (!scores || scores.length === 0) { setGameLeaderboards(prev => ({ ...prev, [gameType]: [] })); return; }
 
     const bestScores = {};
     scores.forEach(s => {
@@ -432,7 +432,7 @@ const PetDisplay = () => {
     delete bestScores[user.id];
 
     const userIds = Object.keys(bestScores);
-    if (userIds.length === 0) { setWhackmoleLeaderboard([]); return; }
+    if (userIds.length === 0) { setGameLeaderboards(prev => ({ ...prev, [gameType]: [] })); return; }
 
     const { data: users } = await supabase
       .from('users')
@@ -440,13 +440,13 @@ const PetDisplay = () => {
       .in('id', userIds)
       .eq('role', 'user');
 
-    if (!users) { setWhackmoleLeaderboard([]); return; }
+    if (!users) { setGameLeaderboards(prev => ({ ...prev, [gameType]: [] })); return; }
 
     const sorted = users
       .map(u => ({ name: u.full_name || u.email?.split('@')[0] || 'Someone', score: bestScores[u.id] || 0 }))
       .sort((a, b) => b.score - a.score);
 
-    setWhackmoleLeaderboard(sorted);
+    setGameLeaderboards(prev => ({ ...prev, [gameType]: sorted }));
   };
 
   const fetchWordBank = async () => {
@@ -1137,7 +1137,7 @@ const PetDisplay = () => {
                 title="Feed pet"
               >
                 <img
-                  src={profile?.active_bowl_url || "https://png.pngtree.com/png-clipart/20220111/original/pngtree-dog-food-bowl-png-image_7072429.png"}
+                  src={profile?.active_bowl_url ? (profile.active_bowl_url.startsWith('http') ? profile.active_bowl_url : assetUrl(profile.active_bowl_url)) : "https://png.pngtree.com/png-clipart/20220111/original/pngtree-dog-food-bowl-png-image_7072429.png"}
                   alt="Food bowl"
                   className="w-full h-full object-contain drop-shadow-lg"
                 />
@@ -1571,7 +1571,7 @@ const PetDisplay = () => {
             <div className="grid grid-cols-2 gap-3">
               {enabledGames.includes('scramble') && (
               <button
-                onClick={() => { drainPetEnergy(10); recordAttemptStart('scramble'); setShowGame('scramble'); }}
+                onClick={() => { drainPetEnergy(10); recordAttemptStart('scramble'); fetchGameLeaderboard('scramble'); setShowGame('scramble'); }}
                 className="flex flex-col items-center gap-2 p-4 rounded-xl border-2 border-purple-200 hover:border-purple-400 hover:bg-purple-50 transition-all group"
               >
                 <img src={assetUrl('/image/dashboard/pet-scramble.jpg')} alt="Word Scramble" className="w-20 h-20 object-cover rounded-lg group-hover:scale-110 transition-transform" />
@@ -1580,7 +1580,7 @@ const PetDisplay = () => {
               )}
               {enabledGames.includes('whackmole') && (
               <button
-                onClick={() => { drainPetEnergy(10); recordAttemptStart('whackmole'); fetchWhackmoleLeaderboard(); setShowGame('whackmole'); }}
+                onClick={() => { drainPetEnergy(10); recordAttemptStart('whackmole'); fetchGameLeaderboard('whackmole'); setShowGame('whackmole'); }}
                 className="flex flex-col items-center gap-2 p-4 rounded-xl border-2 border-green-200 hover:border-green-400 hover:bg-green-50 transition-all group"
               >
                 <img src={assetUrl('/pet-game/mole-normal.png')} alt="Whack-a-Mole" className="w-20 h-20 object-contain group-hover:scale-110 transition-transform" />
@@ -1589,7 +1589,7 @@ const PetDisplay = () => {
               )}
               {enabledGames.includes('astroblast') && (
               <button
-                onClick={() => { drainPetEnergy(10); recordAttemptStart('astroblast'); setShowGame('astroblast'); }}
+                onClick={() => { drainPetEnergy(10); recordAttemptStart('astroblast'); fetchGameLeaderboard('astroblast'); setShowGame('astroblast'); }}
                 className="flex flex-col items-center gap-2 p-4 rounded-xl border-2 border-red-200 hover:border-red-400 hover:bg-red-50 transition-all group"
               >
                 <img src="https://xpclass.vn/xpclass/image/inventory/spaceship/phantom-voyager.png" alt="Astro Blast" className="w-20 h-20 object-contain group-hover:scale-110 transition-transform" />
@@ -1598,7 +1598,7 @@ const PetDisplay = () => {
               )}
               {enabledGames.includes('matchgame') && (
               <button
-                onClick={() => { drainPetEnergy(10); recordAttemptStart('matchgame'); setShowGame('matchgame'); }}
+                onClick={() => { drainPetEnergy(10); recordAttemptStart('matchgame'); fetchGameLeaderboard('matchgame'); setShowGame('matchgame'); }}
                 className="flex flex-col items-center gap-2 p-4 rounded-xl border-2 border-indigo-200 hover:border-indigo-400 hover:bg-indigo-50 transition-all group"
               >
                 <span className="text-5xl group-hover:scale-110 transition-transform">🧩</span>
@@ -1619,7 +1619,7 @@ const PetDisplay = () => {
       {/* Catch Mini-Game */}
       {showGame === 'catch' && (
         <PetCatchGame
-          bowlImageUrl={profile?.active_bowl_url || "https://png.pngtree.com/png-clipart/20220111/original/pngtree-dog-food-bowl-png-image_7072429.png"}
+          bowlImageUrl={profile?.active_bowl_url ? (profile.active_bowl_url.startsWith('http') ? profile.active_bowl_url : assetUrl(profile.active_bowl_url)) : "https://png.pngtree.com/png-clipart/20220111/original/pngtree-dog-food-bowl-png-image_7072429.png"}
           petName={activePet.nickname || activePet.name}
           onGameEnd={(score) => handleGameEnd(score, 'catch')}
           onClose={() => setShowGame(null)}
@@ -1658,6 +1658,7 @@ const PetDisplay = () => {
           })()}
           petName={activePet.nickname || activePet.name}
           wordBank={wordBank}
+          scoreToBeat={gameLeaderboards.scramble.length > 0 ? gameLeaderboards.scramble[gameLeaderboards.scramble.length - 1] : null}
           onGameEnd={(score) => handleGameEnd(score, 'scramble')}
           onClose={() => setShowGame(null)}
         />
@@ -1676,7 +1677,7 @@ const PetDisplay = () => {
           })()}
           petName={activePet.nickname || activePet.name}
           hammerSkinUrl={profile?.active_hammer_url}
-          leaderboard={whackmoleLeaderboard}
+          leaderboard={gameLeaderboards.whackmole}
           wordBank={wordBank}
           onGameEnd={(score) => handleGameEnd(score, 'whackmole')}
           onClose={() => setShowGame(null)}
@@ -1706,6 +1707,7 @@ const PetDisplay = () => {
             'https://xpclass.vn/xpclass/pet-game/astro/alien6.png'
           ]}
           wordBank={wordBank}
+          scoreToBeat={gameLeaderboards.astroblast.length > 0 ? gameLeaderboards.astroblast[gameLeaderboards.astroblast.length - 1] : null}
           onGameEnd={(score) => handleGameEnd(score, 'astroblast')}
           onClose={() => setShowGame(null)}
         />
@@ -1724,6 +1726,7 @@ const PetDisplay = () => {
           })()}
           petName={activePet.nickname || activePet.name}
           wordBank={wordBank}
+          scoreToBeat={gameLeaderboards.matchgame.length > 0 ? gameLeaderboards.matchgame[gameLeaderboards.matchgame.length - 1] : null}
           onGameEnd={(score) => handleGameEnd(score, 'matchgame')}
           onClose={() => setShowGame(null)}
         />

@@ -829,10 +829,15 @@ const Leaderboard = () => {
                 const totalXp = (reward.xp || 0) + qualifierBonus;
                 const hasReward = reward.gems > 0 || totalXp > 0 || (reward.shop_items?.length > 0);
                 if (!hasReward) return null;
-                const rankIcons = ['🥇', '🥈', '🥉'];
+                const rankStyles = [
+                  { icon: '🏆', gradient: 'bg-gradient-to-r from-yellow-100 to-amber-50', border: 'border-yellow-200', shadow: 'shadow-[0_0_8px_rgba(234,179,8,0.3)]', iconSize: 'text-base' },
+                  { icon: '🥈', gradient: 'bg-gradient-to-r from-slate-100 to-gray-50', border: 'border-gray-200', shadow: 'shadow-[0_0_8px_rgba(148,163,184,0.3)]', iconSize: 'text-base' },
+                  { icon: '🥉', gradient: 'bg-gradient-to-r from-orange-100 to-amber-50', border: 'border-orange-200', shadow: 'shadow-[0_0_8px_rgba(251,146,60,0.3)]', iconSize: 'text-base' },
+                ];
+                const rank = rankStyles[idx];
                 return (
-                  <div key={idx} className="inline-flex items-center gap-1.5 bg-purple-50 border border-purple-200 rounded-lg px-2.5 py-1.5">
-                    <span>{rankIcons[idx]}</span>
+                  <div key={idx} className={`inline-flex items-center gap-1.5 ${rank.gradient} border ${rank.border} ${rank.shadow} rounded-xl px-3 py-1.5 transition-transform hover:scale-105`}>
+                    <span className={rank.iconSize}>{rank.icon}</span>
                     {reward.gems > 0 && (
                       <strong className="text-blue-600 inline-flex items-center gap-0.5">{reward.gems}<img src={assetUrl('/image/study/gem.png')} alt="Gem" className="w-3.5 h-3.5" /></strong>
                     )}

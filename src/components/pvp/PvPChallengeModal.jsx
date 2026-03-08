@@ -251,16 +251,21 @@ const PvPChallengeModal = ({ opponent, onClose }) => {
 
   // Render the selected game
   const renderGame = () => {
+    const opponentName = opponent.full_name?.split(' ').pop() || 'Opponent'
+    const pvpScoreToBeat = hasPending && hasPending.challenger_id !== user.id
+      ? { score: hasPending.challenger_score, name: opponentName }
+      : null
     const commonProps = {
       petImageUrl: petImage,
       petName,
       onClose: () => setStep('pick-game'),
       hideClose: true,
+      scoreToBeat: pvpScoreToBeat,
     }
 
     switch (selectedGame) {
       case 'whackmole':
-        return <PetWhackMole {...commonProps} onGameEnd={(s) => handleGameEnd(s)} wordBank={wordBank} />
+        return <PetWhackMole {...commonProps} onGameEnd={(s) => handleGameEnd(s)} wordBank={wordBank} leaderboard={pvpScoreToBeat ? [pvpScoreToBeat] : []} />
       case 'scramble':
         return <PetWordScramble {...commonProps} onGameEnd={(s) => handleGameEnd(s)} wordBank={wordBank} />
       case 'astroblast':
