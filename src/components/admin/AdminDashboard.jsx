@@ -22,7 +22,8 @@ import {
   Palette,
   Menu,
   X,
-  ImagePlus
+  ImagePlus,
+  Target
 } from 'lucide-react';
 import { supabase } from '../../supabase/client';
 import { useAuth } from '../../hooks/useAuth';
@@ -48,6 +49,7 @@ import RecentActivities from './RecentActivities';
 import LeaderboardSettings from './LeaderboardSettings';
 import BrandingSettings from './BrandingSettings';
 import AvatarApproval from './AvatarApproval';
+import MissionManagement from './MissionManagement';
 import { useCohorts } from '../../hooks/useCohorts';
 
 const AdminDashboard = () => {
@@ -202,6 +204,7 @@ const AdminDashboard = () => {
     { id: 'levels', label: 'Student Levels', icon: BarChart3 },
     { id: 'achievements', label: 'Achievements', icon: Trophy },
     { id: 'daily-challenges', label: 'Daily Challenges', icon: Trophy },
+    { id: 'missions', label: 'Missions', icon: Target },
     { id: 'shop', label: 'Shop', icon: ShoppingBag },
     { id: 'inventory', label: 'Inventory', icon: Package },
     { id: 'pets', label: 'Pet Management', icon: Cat },
@@ -301,6 +304,7 @@ const AdminDashboard = () => {
                   {activeTab === 'enrollments' && 'Assign students to courses'}
                   {activeTab === 'levels' && 'Manage student XP levels and badges'}
                   {activeTab === 'achievements' && 'Manage achievements and badges'}
+                  {activeTab === 'missions' && 'Manage daily, weekly, and special missions'}
                   {activeTab === 'shop' && 'Manage shop items and pricing'}
                   {activeTab === 'inventory' && 'Manage collectible items, chests, and recipes'}
                   {activeTab === 'giftcodes' && 'Create and manage gift codes'}
@@ -361,6 +365,7 @@ const AdminDashboard = () => {
               <Route path="levels" element={<StudentLevelsManagement />} />
               <Route path="achievements" element={<AchievementManagement />} />
               <Route path="daily-challenges" element={<DailyChallengeManagement />} />
+              <Route path="missions" element={<MissionManagement />} />
               <Route path="shop" element={<ShopManagement />} />
               <Route path="inventory" element={<InventoryManagement />} />
               <Route path="pets" element={<PetManagement />} />
