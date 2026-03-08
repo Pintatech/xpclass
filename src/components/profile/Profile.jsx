@@ -24,7 +24,11 @@ import {
   Zap,
   Shield,
   Gem,
-  X
+  X,
+  Upload,
+  AlertCircle,
+  CheckCircle,
+  XCircle
 } from 'lucide-react'
 
 const Profile = () => {
@@ -77,6 +81,8 @@ const Profile = () => {
   const [purchasedAvatars, setPurchasedAvatars] = useState([])
   const [showAvatarSelector, setShowAvatarSelector] = useState(false)
   const [selectedAvatar, setSelectedAvatar] = useState('')
+  const [customAvatars, setCustomAvatars] = useState([])
+  const [uploadingAvatar, setUploadingAvatar] = useState(false)
 
   // Badge state
   const [earnedBadges, setEarnedBadges] = useState([])
@@ -99,6 +105,7 @@ const Profile = () => {
       fetchUserStats()
       fetchRecentActivity()
       fetchAvailableAvatars()
+      fetchCustomAvatars()
       processBadges()
     } else if (!isOwnProfile && userId) {
       fetchOtherUserProfile()
@@ -351,6 +358,140 @@ const Profile = () => {
       } catch (error) {
         console.error('Error fetching purchased avatars:', error)
       }
+    }
+  }
+
+  const fetchCustomAvatars = async () => {
+    if (!user?.id) return
+    try {
+      const { data, error } = await supabase
+        .from('avatar_uploads')
+        .select('*')
+        .eq('user_id', user.id)
+        .order('created_at', { ascending: false })
+
+      if (error) throw error
+      setCustomAvatars(data || [])
+    } catch (error) {
+      console.error('Error fetching custom avatars:', error)
+    }
+  }
+
+  const getUploadCooldownDays = () => {
+    if (customAvatars.length === 0) return 0
+    const mostRecent = customAvatars.reduce((latest, a) =>
+      new Date(a.created_at) > new Date(latest.created_at) ? a : latest
+    )
+    const uploadedAt = new Date(mostRecent.created_at)
+    const unlockAt = new Date(uploadedAt.getTime() + 30 * 24 * 60 * 60 * 1000)
+    const now = new Date()
+    if (now >= unlockAt) return 0
+    return Math.ceil((unlockAt - now) / (24 * 60 * 60 * 1000))
+  }
+
+  const uploadCooldownDays = getUploadCooldownDays()
+
+  const handleAvatarUpload = async (e) => {
+    const file = e.target.files?.[0]
+    if (!file) return
+
+    // Validate file
+    if (!file.type.startsWith('image/')) {
+      alert('Vui lòng chọn file ảnh (JPG, PNG, GIF)')
+      return
+    }
+    if (file.size > 2 * 1024 * 1024) {
+      alert('File ảnh không được vượt quá 2MB')
+      return
+    }
+    if (customAvatars.length >= 3) {
+      alert('Bạn chỉ được tải tối đa 3 avatar. Vui lòng xóa avatar cũ trước khi tải ảnh mới.')
+      return
+    }
+    if (uploadCooldownDays > 0) {
+      alert(`Bạn chỉ được tải avatar 1 lần trong 30 ngày. Vui lòng chờ thêm ${uploadCooldownDays} ngày.`)
+      return
+    }
+
+    try {
+      setUploadingAvatar(true)
+
+      // Upload to Supabase Storage
+      const ext = file.name.split('.').pop()
+      const path = `${user.id}/${Date.now()}.${ext}`
+      const { error: uploadError } = await supabase.storage
+        .from('user-avatars')
+        .upload(path, file, { cacheControl: '3600', upsert: false })
+
+      if (uploadError) throw uploadError
+
+      const { data: publicData } = supabase.storage
+        .from('user-avatars')
+        .getPublicUrl(path)
+
+      // Create avatar_uploads record
+      const { error: insertError } = await supabase
+        .from('avatar_uploads')
+        .insert({
+          user_id: user.id,
+          image_url: publicData.publicUrl,
+          status: 'pending'
+        })
+
+      if (insertError) throw insertError
+
+      await fetchCustomAvatars()
+    } catch (error) {
+      console.error('Error uploading avatar:', error)
+      alert('Lỗi tải ảnh lên. Vui lòng thử lại.')
+    } finally {
+      setUploadingAvatar(false)
+      e.target.value = ''
+    }
+  }
+
+  const handleCustomAvatarSelect = async (upload) => {
+    if (upload.status !== 'approved') return
+    try {
+      const { error } = await supabase
+        .from('users')
+        .update({ avatar_url: upload.image_url })
+        .eq('id', user.id)
+
+      if (error) throw error
+      setSelectedAvatar(upload.image_url)
+      setShowAvatarSelector(false)
+    } catch (error) {
+      console.error('Error setting custom avatar:', error)
+    }
+  }
+
+  const handleDeleteCustomAvatar = async (uploadId) => {
+    if (!window.confirm('Xóa avatar này?')) return
+    try {
+      // Find the avatar to get its image_url for storage deletion
+      const avatarToDelete = customAvatars.find(a => a.id === uploadId)
+
+      const { error } = await supabase
+        .from('avatar_uploads')
+        .delete()
+        .eq('id', uploadId)
+        .eq('user_id', user.id)
+
+      if (error) throw error
+
+      // Delete from storage bucket
+      if (avatarToDelete?.image_url) {
+        const url = avatarToDelete.image_url
+        const storagePath = url.split('/user-avatars/').pop()
+        if (storagePath) {
+          await supabase.storage.from('user-avatars').remove([decodeURIComponent(storagePath)])
+        }
+      }
+
+      await fetchCustomAvatars()
+    } catch (error) {
+      console.error('Error deleting custom avatar:', error)
     }
   }
 
@@ -1234,6 +1375,96 @@ const Profile = () => {
               </>
             )}
 
+            {/* Custom Uploaded Avatars */}
+            <div className="mt-6 mb-4 border-t pt-4">
+              <div className="flex items-center justify-between mb-3">
+                <h4 className="text-sm font-semibold text-gray-700">Avatar tự tải lên</h4>
+                <label className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-sm font-medium cursor-pointer transition-colors ${
+                  uploadingAvatar || customAvatars.length >= 3 || uploadCooldownDays > 0
+                    ? 'bg-gray-200 text-gray-400 cursor-not-allowed'
+                    : 'bg-blue-600 text-white hover:bg-blue-700'
+                }`}>
+                  <Upload className="w-4 h-4" />
+                  {uploadingAvatar ? 'Đang tải...' : customAvatars.length >= 3 ? 'Tối đa 3 avatar' : uploadCooldownDays > 0 ? `Chờ ${uploadCooldownDays} ngày` : 'Tải ảnh lên'}
+                  <input
+                    type="file"
+                    accept="image/*"
+                    onChange={handleAvatarUpload}
+                    disabled={uploadingAvatar || customAvatars.length >= 3 || uploadCooldownDays > 0}
+                    className="hidden"
+                  />
+                </label>
+              </div>
+
+              {customAvatars.length > 0 ? (
+                <div className="grid grid-cols-3 md:grid-cols-8 lg:grid-cols-10 gap-6">
+                  {customAvatars.map((upload) => {
+                    const isApproved = upload.status === 'approved'
+                    const isPending = upload.status === 'pending'
+                    const isRejected = upload.status === 'rejected'
+                    const isSelected = selectedAvatar === upload.image_url
+
+                    return (
+                      <div key={`custom-${upload.id}`} className="text-center">
+                        <div className="relative w-20 h-20">
+                          <div
+                            className={`w-full h-full rounded-full flex items-center justify-center text-2xl transition-all overflow-hidden border-2 ${
+                              isApproved
+                                ? isSelected
+                                  ? 'bg-blue-500 ring-4 ring-blue-300 border-blue-600 cursor-pointer'
+                                  : 'bg-gray-100 hover:bg-gray-200 border-gray-300 cursor-pointer'
+                                : isPending
+                                  ? 'border-yellow-400 opacity-70 cursor-not-allowed'
+                                  : 'border-red-400 opacity-50 cursor-not-allowed'
+                            }`}
+                            onClick={() => isApproved && handleCustomAvatarSelect(upload)}
+                            title={
+                              isApproved ? 'Nhấn để chọn'
+                              : isPending ? 'Đang chờ admin duyệt'
+                              : `Bị từ chối${upload.reject_reason ? ': ' + upload.reject_reason : ''}`
+                            }
+                          >
+                            <img src={upload.image_url} alt="Custom avatar" className="w-full h-full object-cover rounded-full" />
+                          </div>
+
+                          {/* Status badge */}
+                          <div className={`absolute -top-1 -right-1 w-6 h-6 rounded-full flex items-center justify-center ${
+                            isApproved ? 'bg-green-500' : isPending ? 'bg-yellow-500' : 'bg-red-500'
+                          }`}>
+                            {isApproved && <CheckCircle className="w-4 h-4 text-white" />}
+                            {isPending && <AlertCircle className="w-4 h-4 text-white" />}
+                            {isRejected && <XCircle className="w-4 h-4 text-white" />}
+                          </div>
+
+                          {/* Delete button for pending/rejected */}
+                          {(isPending || isRejected) && (
+                            <button
+                              onClick={(e) => { e.stopPropagation(); handleDeleteCustomAvatar(upload.id) }}
+                              className="absolute -bottom-1 -right-1 w-5 h-5 bg-gray-600 hover:bg-gray-700 rounded-full flex items-center justify-center"
+                              title="Xóa"
+                            >
+                              <X className="w-3 h-3 text-white" />
+                            </button>
+                          )}
+                        </div>
+                        <div className="text-xs mt-2">
+                          <div className={`font-medium ${
+                            isApproved ? 'text-green-600' : isPending ? 'text-yellow-600' : 'text-red-500'
+                          }`}>
+                            {isApproved ? 'Đã duyệt' : isPending ? 'Chờ duyệt' : 'Từ chối'}
+                          </div>
+                        </div>
+                      </div>
+                    )
+                  })}
+                </div>
+              ) : (
+                <p className="text-sm text-gray-400 text-center py-4">
+                  Tải ảnh lên để sử dụng làm avatar. Ảnh sẽ cần được admin duyệt trước khi sử dụng.
+                </p>
+              )}
+            </div>
+
             <div className="mt-6 p-4 bg-blue-50 rounded-lg">
               <div className="text-center">
                 <span className="text-lg font-bold text-blue-900">
@@ -1244,7 +1475,7 @@ const Profile = () => {
                     Cấp {currentLevel.level_number} • {currentBadge?.name}
                   </div>
                 )}
-                
+
               </div>
             </div>
           </div>

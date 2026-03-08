@@ -27,7 +27,7 @@ const shuffle = (arr) => {
   return a
 }
 
-const PetAstroBlast = ({ petImageUrl, petName, onGameEnd, onClose, shipSkinUrl, shipLaserColor, asteroidSkinUrls, wordBank: wordBankProp = [], hideClose = false, scoreToBeat = null }) => {
+const PetAstroBlast = ({ petImageUrl, petName, onGameEnd, onClose, shipSkinUrl, shipLaserColor, asteroidSkinUrls, wordBank: wordBankProp = [], hideClose = false, scoreToBeat = null, leaderboard = [] }) => {
   const [phase, setPhase] = useState('ready')
   const [displayScore, setDisplayScore] = useState(0)
   const [displayTime, setDisplayTime] = useState(GAME_DURATION)
@@ -763,24 +763,30 @@ const PetAstroBlast = ({ petImageUrl, petName, onGameEnd, onClose, shipSkinUrl, 
                   <div className="bg-white/15 backdrop-blur rounded-2xl px-4 py-2 flex items-center gap-2">
                     <span className="text-xl font-black text-white">{displayScore}</span>
                   </div>
-                  {scoreToBeat && (() => {
-                    const gap = scoreToBeat.score - displayScore
+                  {(() => {
+                    const nextToBeat = leaderboard.length > 0
+                      ? [...leaderboard].reverse().find(e => e.score > displayScore) || null
+                      : scoreToBeat
+                    if (!nextToBeat) return null
+                    const gap = nextToBeat.score - displayScore
                     const isClose = gap > 0 && gap <= 3
-                    const beaten = displayScore >= scoreToBeat.score
-                    const pct = Math.min(100, Math.round((displayScore / scoreToBeat.score) * 100))
+                    const pct = Math.min(100, Math.round((displayScore / nextToBeat.score) * 100))
                     return (
-                      <div className="w-28 ml-1">
+                      <div className="w-28 ml-1" style={{ animation: isClose ? 'hintPulse 0.6s ease-in-out infinite' : 'none' }}>
                         <div className="flex items-center justify-between gap-1 mb-0.5">
-                          <span className="text-white/60 text-[10px] truncate max-w-[60px]">{beaten ? 'Ahead!' : scoreToBeat.name}</span>
-                          <span className={`font-black text-[10px] ${beaten ? 'text-green-300' : isClose ? 'text-orange-300' : 'text-yellow-300'}`}>
-                            {beaten ? `+${-gap}` : isClose ? `${gap} more!` : `+${gap}pts`}
+                          <div className="flex items-center gap-1">
+                            <span className="text-[11px]">⚔️</span>
+                            <span className="text-white font-bold text-[10px] truncate max-w-[50px]">{nextToBeat.name}</span>
+                          </div>
+                          <span className={`font-black text-[10px] ${isClose ? 'text-orange-300' : 'text-yellow-300'}`}>
+                            {isClose ? `${gap} more!` : `+${gap}pts`}
                           </span>
                         </div>
                         <div className="h-1 rounded-full bg-white/10 overflow-hidden">
                           <div className="h-full rounded-full transition-all duration-500"
                             style={{
                               width: `${pct}%`,
-                              background: beaten ? 'linear-gradient(90deg, #22c55e, #86efac)' : isClose ? 'linear-gradient(90deg, #f97316, #ef4444)' : 'linear-gradient(90deg, #eab308, #fde047)',
+                              background: isClose ? 'linear-gradient(90deg, #f97316, #ef4444)' : 'linear-gradient(90deg, #22c55e, #86efac)',
                             }}
                           />
                         </div>

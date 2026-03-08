@@ -1567,7 +1567,7 @@ const PetDisplay = () => {
             onClick={e => e.stopPropagation()}
           >
             <h3 className="text-xl font-bold text-gray-800 mb-1">Choose Training Game</h3>
-            <p className="text-sm text-gray-500 mb-5">Pick a mini-game to train {activePet.nickname || activePet.name}!</p>
+            <p className="text-sm text-gray-500 mb-5">Earn +5 <img src={assetUrl('/image/study/xp.png')} alt="XP" className="w-4 h-4 inline" /> on success!</p>
             <div className="grid grid-cols-2 gap-3">
               {enabledGames.includes('scramble') && (
               <button
@@ -1658,7 +1658,7 @@ const PetDisplay = () => {
           })()}
           petName={activePet.nickname || activePet.name}
           wordBank={wordBank}
-          scoreToBeat={gameLeaderboards.scramble.length > 0 ? gameLeaderboards.scramble[gameLeaderboards.scramble.length - 1] : null}
+          leaderboard={gameLeaderboards.scramble}
           onGameEnd={(score) => handleGameEnd(score, 'scramble')}
           onClose={() => setShowGame(null)}
         />
@@ -1707,7 +1707,7 @@ const PetDisplay = () => {
             'https://xpclass.vn/xpclass/pet-game/astro/alien6.png'
           ]}
           wordBank={wordBank}
-          scoreToBeat={gameLeaderboards.astroblast.length > 0 ? gameLeaderboards.astroblast[gameLeaderboards.astroblast.length - 1] : null}
+          leaderboard={gameLeaderboards.astroblast}
           onGameEnd={(score) => handleGameEnd(score, 'astroblast')}
           onClose={() => setShowGame(null)}
         />
@@ -1726,7 +1726,7 @@ const PetDisplay = () => {
           })()}
           petName={activePet.nickname || activePet.name}
           wordBank={wordBank}
-          scoreToBeat={gameLeaderboards.matchgame.length > 0 ? gameLeaderboards.matchgame[gameLeaderboards.matchgame.length - 1] : null}
+          leaderboard={gameLeaderboards.matchgame}
           onGameEnd={(score) => handleGameEnd(score, 'matchgame')}
           onClose={() => setShowGame(null)}
         />
