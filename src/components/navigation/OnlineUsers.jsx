@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react'
 import { Link } from 'react-router-dom'
 import { assetUrl } from '../../hooks/useBranding'
+import AvatarWithFrame from '../ui/AvatarWithFrame'
 import { supabase } from '../../supabase/client'
 import { useAuth } from '../../hooks/useAuth'
 import PvPChallengeModal from '../pvp/PvPChallengeModal'
@@ -19,7 +20,7 @@ const OnlineUsers = () => {
         const twentyFourHoursAgo = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString()
         const { data, error } = await supabase
           .from('users')
-          .select('id, full_name, avatar_url, last_seen_at')
+          .select('id, full_name, avatar_url, last_seen_at, active_title, active_frame_ratio, hide_frame')
           .gte('last_seen_at', twentyFourHoursAgo)
           .order('last_seen_at', { ascending: false })
           .limit(40)
@@ -90,14 +91,14 @@ const OnlineUsers = () => {
               <div key={u.id} className="flex items-center hover:bg-gray-50 rounded-lg px-2 py-1.5 transition-colors group">
                 <Link to={`/profile/${u.id}`} className="flex items-center space-x-2.5 flex-1 min-w-0">
                   <div className="relative flex-shrink-0">
-                    {u.avatar_url ? (
-                      <img src={u.avatar_url} alt="" className="w-8 h-8 rounded-full object-cover" />
-                    ) : (
-                      <div className="w-8 h-8 rounded-full bg-gradient-to-br from-blue-400 to-purple-400 flex items-center justify-center text-white text-xs font-bold">
-                        {u.full_name?.[0]?.toUpperCase() || '?'}
-                      </div>
-                    )}
-                    <div className="absolute -bottom-0.5 -right-0.5 w-2.5 h-2.5 bg-green-500 rounded-full border-2 border-white" />
+                    <AvatarWithFrame
+                      avatarUrl={u.avatar_url}
+                      frameUrl={u.hide_frame ? null : u.active_title}
+                      frameRatio={u.active_frame_ratio}
+                      size={40}
+                      fallback={u.full_name?.[0]?.toUpperCase() || '?'}
+                    />
+                    <div className="absolute -bottom-0.5 -right-0.5 w-2.5 h-2.5 bg-green-500 rounded-full border-2 border-white z-10" />
                   </div>
                   <span className="text-sm text-gray-700 truncate">{u.full_name || 'An danh'}</span>
                 </Link>
@@ -126,15 +127,15 @@ const OnlineUsers = () => {
                 }).map((u) => (
                   <div key={u.id} className="flex items-center hover:bg-gray-50 rounded-lg px-2 py-1.5 transition-colors group opacity-60">
                     <Link to={`/profile/${u.id}`} className="flex items-center space-x-2.5 flex-1 min-w-0">
-                      <div className="relative flex-shrink-0">
-                        {u.avatar_url ? (
-                          <img src={u.avatar_url} alt="" className="w-8 h-8 rounded-full object-cover grayscale" />
-                        ) : (
-                          <div className="w-8 h-8 rounded-full bg-gradient-to-br from-gray-300 to-gray-400 flex items-center justify-center text-white text-xs font-bold">
-                            {u.full_name?.[0]?.toUpperCase() || '?'}
-                          </div>
-                        )}
-                        <div className="absolute -bottom-0.5 -right-0.5 w-2.5 h-2.5 bg-gray-400 rounded-full border-2 border-white" />
+                      <div className="relative flex-shrink-0 grayscale">
+                        <AvatarWithFrame
+                          avatarUrl={u.avatar_url}
+                          frameUrl={u.hide_frame ? null : u.active_title}
+                          frameRatio={u.active_frame_ratio}
+                          size={40}
+                          fallback={u.full_name?.[0]?.toUpperCase() || '?'}
+                        />
+                        <div className="absolute -bottom-0.5 -right-0.5 w-2.5 h-2.5 bg-gray-400 rounded-full border-2 border-white z-10" />
                       </div>
                       <span className="text-sm text-gray-500 truncate">{u.full_name || 'An danh'}</span>
                     </Link>

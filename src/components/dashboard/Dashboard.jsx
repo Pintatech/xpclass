@@ -43,7 +43,7 @@ const Dashboard = () => {
         const twentyFourHoursAgo = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString()
         const { data, error } = await supabase
           .from('users')
-          .select('id, full_name, avatar_url, last_seen_at')
+          .select('id, full_name, avatar_url, last_seen_at, active_title, active_frame_ratio, hide_frame')
           .gte('last_seen_at', twentyFourHoursAgo)
           .order('last_seen_at', { ascending: false })
           .limit(40)
@@ -514,14 +514,14 @@ const Dashboard = () => {
                 className="flex flex-col items-center flex-shrink-0 w-16"
               >
                 <div className="relative">
-                  {u.avatar_url ? (
-                    <img src={u.avatar_url} alt="" className="w-14 h-14 rounded-full object-cover" />
-                  ) : (
-                    <div className="w-14 h-14 rounded-full bg-gradient-to-br from-blue-400 to-purple-400 flex items-center justify-center text-white text-lg font-bold">
-                      {u.full_name?.[0]?.toUpperCase() || '?'}
-                    </div>
-                  )}
-                  <div className="absolute bottom-0 right-0 w-3.5 h-3.5 bg-green-500 rounded-full border-2 border-white" />
+                  <AvatarWithFrame
+                    avatarUrl={u.avatar_url}
+                    frameUrl={u.hide_frame ? null : u.active_title}
+                    frameRatio={u.active_frame_ratio}
+                    size={56}
+                    fallback={u.full_name?.[0]?.toUpperCase() || '?'}
+                  />
+                  <div className="absolute bottom-0 right-0 w-3.5 h-3.5 bg-green-500 rounded-full border-2 border-white z-10" />
                   {pendingChallengeUserIds[u.id] === 'received' && (
                     <img src={assetUrl('/icon/dashboard/pvp.png')} alt="PvP" className="absolute top-0 right-0 w-4 h-4 animate-pulse" />
                   )}
@@ -547,15 +547,15 @@ const Dashboard = () => {
                 onClick={() => u.id !== profile?.id && pendingChallengeUserIds[u.id] ? setChallengeTarget(u) : navigate(`/profile/${u.id}`)}
                 className="flex flex-col items-center flex-shrink-0 w-16 opacity-50"
               >
-                <div className="relative">
-                  {u.avatar_url ? (
-                    <img src={u.avatar_url} alt="" className="w-14 h-14 rounded-full object-cover grayscale" />
-                  ) : (
-                    <div className="w-14 h-14 rounded-full bg-gradient-to-br from-gray-300 to-gray-400 flex items-center justify-center text-white text-lg font-bold">
-                      {u.full_name?.[0]?.toUpperCase() || '?'}
-                    </div>
-                  )}
-                  <div className="absolute bottom-0 right-0 w-3.5 h-3.5 bg-gray-400 rounded-full border-2 border-white" />
+                <div className="relative grayscale">
+                  <AvatarWithFrame
+                    avatarUrl={u.avatar_url}
+                    frameUrl={u.hide_frame ? null : u.active_title}
+                    frameRatio={u.active_frame_ratio}
+                    size={56}
+                    fallback={u.full_name?.[0]?.toUpperCase() || '?'}
+                  />
+                  <div className="absolute bottom-0 right-0 w-3.5 h-3.5 bg-gray-400 rounded-full border-2 border-white z-10" />
                   {pendingChallengeUserIds[u.id] === 'received' && (
                     <img src={assetUrl('/icon/dashboard/pvp.png')} alt="PvP" className="absolute top-0 right-0 w-4 h-4 animate-pulse" />
                   )}

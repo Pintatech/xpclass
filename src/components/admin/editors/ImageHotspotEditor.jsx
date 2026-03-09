@@ -59,7 +59,7 @@ const ImageHotspotEditor = ({ content, onContentChange }) => {
       if (imageRef.current && imageRef.current.complete) {
         const containerWidth = containerRef.current?.clientWidth || 800
         const naturalWidth = imageRef.current.naturalWidth
-        const scale = Math.min(1, containerWidth / naturalWidth)
+        const scale = containerWidth / naturalWidth
         setImageScale(scale)
       }
     }

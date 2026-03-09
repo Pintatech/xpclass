@@ -150,9 +150,9 @@ const PetInventory = () => {
               </div>
 
               {/* Pet Image */}
-              <div className={`w-full h-40 ${getRarityGradient(pet.rarity)} rounded-lg flex items-center justify-center mb-4 overflow-hidden`}>
+              <div className={`w-full h-40 ${getRarityGradient(pet.rarity)} rounded-lg flex items-center justify-center mb-4 overflow-hidden relative`} onContextMenu={(e) => e.preventDefault()}>
                 {getPetImage(userPet) ? (
-                  <img src={getPetImage(userPet)} alt={pet.name} className="w-full h-full object-contain" />
+                  <img src={getPetImage(userPet)} alt={pet.name} className="w-full h-full object-contain select-none pointer-events-none" draggable={false} />
                 ) : (
                   <span className="text-5xl">
                     {pet.rarity === 'legendary' ? '🐉' :
@@ -216,9 +216,9 @@ const PetInventory = () => {
             </h2>
 
             {/* Pet Preview */}
-            <div className="bg-gradient-to-br from-purple-100 to-pink-100 rounded-lg p-6 mb-4 text-center overflow-hidden">
+            <div className="bg-gradient-to-br from-purple-100 to-pink-100 rounded-lg p-6 mb-4 text-center overflow-hidden" onContextMenu={(e) => e.preventDefault()}>
               {getPetImage(selectedPet) ? (
-                <img src={getPetImage(selectedPet)} alt={selectedPet.pet.name} className="w-32 h-32 mx-auto object-contain rounded-lg mb-4" />
+                <img src={getPetImage(selectedPet)} alt={selectedPet.pet.name} className="w-32 h-32 mx-auto object-contain rounded-lg mb-4 select-none pointer-events-none" draggable={false} />
               ) : (
                 <div className="text-6xl mb-4">
                   {selectedPet.pet.rarity === 'legendary' ? '🐉' :

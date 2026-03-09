@@ -77,11 +77,6 @@ const PetFlappyGame = ({ petImageUrl, petName, wordBank: wordBankProp, onGameEnd
   const flap = useCallback(() => {
     if (gameOverRef.current) return
     petVelocityRef.current = JUMP_VELOCITY
-    try {
-      const sound = new Audio(assetUrl('/sound/flappy-wing.mp3'))
-      sound.volume = 0.3
-      sound.play().catch(() => {})
-    } catch {}
   }, [])
 
   // Handle tap/click

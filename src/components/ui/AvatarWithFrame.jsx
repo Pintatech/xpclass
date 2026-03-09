@@ -68,8 +68,15 @@ const AvatarWithFrame = ({
           src={frameUrl}
           alt=""
           className="absolute inset-0 w-full h-full pointer-events-none"
+          draggable={false}
         />
       )}
+      {/* Transparent overlay to prevent right-click saving */}
+      <div
+        className="absolute inset-0 z-10"
+        onContextMenu={(e) => e.preventDefault()}
+        draggable={false}
+      />
     </div>
   )
 }

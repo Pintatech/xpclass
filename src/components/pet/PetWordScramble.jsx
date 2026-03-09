@@ -190,10 +190,7 @@ const PetWordScramble = ({ petImageUrl, petName, onGameEnd, onClose, wordBank: w
     if (phase !== 'playing') return
 
     const animate = () => {
-      setBubbles(prev => prev.map(bubble => {
-        if (bubble.captured || bubble.popping) return bubble
-
-        let { x, y, vx, vy } = bubble
+      setBubbles(prev => {
         const width = containerRef.current?.clientWidth || 400
         const height = containerRef.current?.clientHeight || 700
         const safeLeft = 30
@@ -201,22 +198,59 @@ const PetWordScramble = ({ petImageUrl, petName, onGameEnd, onClose, wordBank: w
         const safeTop = 140
         const safeBottom = height - 220
 
-        // Update position
-        x += vx
-        y += vy
+        // First pass: update positions and wall bounces
+        const updated = prev.map(bubble => {
+          if (bubble.captured || bubble.popping) return bubble
 
-        // Bounce off safe zone walls
-        if (x <= safeLeft || x >= safeRight) {
-          vx = -vx
-          x = x <= safeLeft ? safeLeft : safeRight
-        }
-        if (y <= safeTop || y >= safeBottom) {
-          vy = -vy
-          y = y <= safeTop ? safeTop : safeBottom
+          let { x, y, vx, vy } = bubble
+          x += vx
+          y += vy
+
+          if (x <= safeLeft || x >= safeRight) {
+            vx = -vx
+            x = x <= safeLeft ? safeLeft : safeRight
+          }
+          if (y <= safeTop || y >= safeBottom) {
+            vy = -vy
+            y = y <= safeTop ? safeTop : safeBottom
+          }
+
+          return { ...bubble, x, y, vx, vy }
+        })
+
+        // Second pass: bubble-to-bubble collisions
+        const minDist = 88 // bubble diameter (radius 44 * 2)
+        for (let i = 0; i < updated.length; i++) {
+          if (updated[i].captured || updated[i].popping) continue
+          for (let j = i + 1; j < updated.length; j++) {
+            if (updated[j].captured || updated[j].popping) continue
+
+            const dx = updated[j].x - updated[i].x
+            const dy = updated[j].y - updated[i].y
+            const dist = Math.sqrt(dx * dx + dy * dy)
+
+            if (dist < minDist && dist > 0.01) {
+              const nx = dx / dist
+              const ny = dy / dist
+
+              // Relative velocity along collision normal
+              const dvn = (updated[i].vx - updated[j].vx) * nx + (updated[i].vy - updated[j].vy) * ny
+              if (dvn <= 0) continue // already moving apart
+
+              // Elastic collision (equal mass): swap velocity components along normal
+              updated[i] = { ...updated[i], vx: updated[i].vx - dvn * nx, vy: updated[i].vy - dvn * ny }
+              updated[j] = { ...updated[j], vx: updated[j].vx + dvn * nx, vy: updated[j].vy + dvn * ny }
+
+              // Push apart to resolve overlap
+              const overlap = (minDist - dist) / 2
+              updated[i] = { ...updated[i], x: updated[i].x - overlap * nx, y: updated[i].y - overlap * ny }
+              updated[j] = { ...updated[j], x: updated[j].x + overlap * nx, y: updated[j].y + overlap * ny }
+            }
+          }
         }
 
-        return { ...bubble, x, y, vx, vy }
-      }))
+        return updated
+      })
 
       // Update particles
       setParticles(prev => prev.map(p => ({

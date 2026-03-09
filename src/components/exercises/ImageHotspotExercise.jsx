@@ -204,32 +204,35 @@ const ImageHotspotExercise = ({ testMode = false, exerciseData = null, onAnswers
 
   // Calculate responsive scale
   useEffect(() => {
-    if (imageRef.current && containerRef.current) {
-      const updateScale = () => {
-        if (imageRef.current && imageRef.current.complete && imageRef.current.naturalWidth > 0) {
-          const containerWidth = containerRef.current?.clientWidth
-          if (!containerWidth) return // still hidden (display: none)
-          const naturalWidth = imageRef.current.naturalWidth
-          const scale = containerWidth / naturalWidth
-          setImageScale(scale)
-        }
-      }
+    const image = imageRef.current
+    const container = containerRef.current
+    if (!image || !container) return
 
-      imageRef.current.addEventListener('load', updateScale)
-      window.addEventListener('resize', updateScale)
-      updateScale()
-
-      // Use ResizeObserver to recalculate when container becomes visible
-      // (e.g. switching tabs in TestRunner changes display from none to block)
-      const observer = new ResizeObserver(updateScale)
-      observer.observe(containerRef.current)
-
-      return () => {
-        window.removeEventListener('resize', updateScale)
-        observer.disconnect()
+    const updateScale = () => {
+      if (image.complete && image.naturalWidth > 0) {
+        const containerWidth = container.clientWidth
+        if (!containerWidth) return // still hidden (display: none)
+        const naturalWidth = image.naturalWidth
+        const scale = containerWidth / naturalWidth
+        setImageScale(scale)
       }
     }
-  }, [exercise])
+
+    image.addEventListener('load', updateScale)
+    window.addEventListener('resize', updateScale)
+    updateScale()
+
+    // Use ResizeObserver to recalculate when container becomes visible
+    // (e.g. switching tabs in TestRunner changes display from none to block)
+    const observer = new ResizeObserver(updateScale)
+    observer.observe(container)
+
+    return () => {
+      image.removeEventListener('load', updateScale)
+      window.removeEventListener('resize', updateScale)
+      observer.disconnect()
+    }
+  }, [exercise, teacherMode])
 
   // Shuffle labels on load
   useEffect(() => {

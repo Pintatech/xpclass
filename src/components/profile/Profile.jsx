@@ -1076,9 +1076,9 @@ const Profile = () => {
 
                     return (
                       <div key={userPet.id} className="text-center">
-                        <div className={`w-24 h-24 mx-auto mb-2 rounded-full border-2 flex items-center justify-center overflow-hidden ${rarityColors[pet?.rarity] || rarityColors.common}}`}>
+                        <div className={`w-24 h-24 mx-auto mb-2 rounded-full border-2 flex items-center justify-center overflow-hidden relative ${rarityColors[pet?.rarity] || rarityColors.common}}`}>
                           {pet?.image_url ? (
-                            <img src={pet.image_url} alt={pet.name} className="w-full h-full object-contain" />
+                            <img src={pet.image_url} alt={pet.name} className="w-full h-full object-contain select-none pointer-events-none" draggable={false} />
                           ) : (
                             <span className="text-2xl">
                               {pet?.rarity === 'legendary' ? '🐉' :
@@ -1087,6 +1087,7 @@ const Profile = () => {
                                pet?.rarity === 'uncommon' ? '🐱' : '🐶'}
                             </span>
                           )}
+                          <div className="absolute inset-0 z-10" onContextMenu={(e) => e.preventDefault()} />
                         </div>
                         <div className="text-sm font-medium text-gray-900 truncate">
                           {userPet.nickname || pet?.name}
@@ -1239,7 +1240,7 @@ const Profile = () => {
                         }
                       >
                         {avatar.image_url.startsWith('http') ? (
-                          <img src={avatar.image_url} alt={avatar.name} className="w-full h-full object-cover rounded-full" />
+                          <img src={avatar.image_url} alt={avatar.name} className="w-full h-full object-cover rounded-full select-none pointer-events-none" draggable={false} onContextMenu={(e) => e.preventDefault()} />
                         ) : (
                           avatar.image_url
                         )}
@@ -1298,7 +1299,7 @@ const Profile = () => {
                             onClick={() => handleShopAvatarSelect(item)}
                           >
                             {avatarUrl.startsWith('http') ? (
-                              <img src={avatarUrl} alt={item.name} className="w-full h-full object-cover rounded-full" />
+                              <img src={avatarUrl} alt={item.name} className="w-full h-full object-cover rounded-full select-none pointer-events-none" draggable={false} onContextMenu={(e) => e.preventDefault()} />
                             ) : (
                               avatarUrl
                             )}
@@ -1363,7 +1364,7 @@ const Profile = () => {
                               : `Bị từ chối${upload.reject_reason ? ': ' + upload.reject_reason : ''}`
                             }
                           >
-                            <img src={upload.image_url} alt="Custom avatar" className="w-full h-full object-cover rounded-full" />
+                            <img src={upload.image_url} alt="Custom avatar" className="w-full h-full object-cover rounded-full select-none pointer-events-none" draggable={false} onContextMenu={(e) => e.preventDefault()} />
                           </div>
 
                           {/* Status badge */}
