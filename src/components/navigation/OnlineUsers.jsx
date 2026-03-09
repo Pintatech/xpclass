@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react'
 import { Link } from 'react-router-dom'
-import { Swords } from 'lucide-react'
+import { assetUrl } from '../../hooks/useBranding'
 import { supabase } from '../../supabase/client'
 import { useAuth } from '../../hooks/useAuth'
 import PvPChallengeModal from '../pvp/PvPChallengeModal'
@@ -82,7 +82,11 @@ const OnlineUsers = () => {
             <span className="text-sm font-semibold text-gray-700">Online</span>
           </div>
           <div className="space-y-1">
-            {onlineUsers.map((u) => (
+            {[...onlineUsers].sort((a, b) => {
+              const aP = pendingChallengeUserIds[a.id] === 'received' ? 0 : pendingChallengeUserIds[a.id] === 'sent' ? 1 : 2
+              const bP = pendingChallengeUserIds[b.id] === 'received' ? 0 : pendingChallengeUserIds[b.id] === 'sent' ? 1 : 2
+              return aP - bP
+            }).map((u) => (
               <div key={u.id} className="flex items-center hover:bg-gray-50 rounded-lg px-2 py-1.5 transition-colors group">
                 <Link to={`/profile/${u.id}`} className="flex items-center space-x-2.5 flex-1 min-w-0">
                   <div className="relative flex-shrink-0">
@@ -103,7 +107,7 @@ const OnlineUsers = () => {
                     className={`flex-shrink-0 p-1.5 rounded-lg transition-all ${pendingChallengeUserIds[u.id] ? (pendingChallengeUserIds[u.id] === 'received' ? 'opacity-100 animate-pulse text-red-500 hover:bg-red-50' : 'opacity-100 text-gray-400 hover:bg-gray-100') : 'opacity-0 group-hover:opacity-100 text-red-500 hover:bg-red-50'}`}
                     title={pendingChallengeUserIds[u.id] === 'received' ? 'Pending challenge!' : pendingChallengeUserIds[u.id] === 'sent' ? 'Challenge sent' : 'Challenge to PvP!'}
                   >
-                    <Swords size={14} />
+                    <img src={assetUrl('/icon/dashboard/pvp.png')} alt="PvP" className="w-3.5 h-3.5" />
                   </button>
                 )}
               </div>
@@ -115,7 +119,11 @@ const OnlineUsers = () => {
                 <span className="text-xs font-semibold text-gray-400">Recently Online</span>
               </div>
               <div className="space-y-1">
-                {offlineUsers.map((u) => (
+                {[...offlineUsers].sort((a, b) => {
+                  const aP = pendingChallengeUserIds[a.id] === 'received' ? 0 : pendingChallengeUserIds[a.id] === 'sent' ? 1 : 2
+                  const bP = pendingChallengeUserIds[b.id] === 'received' ? 0 : pendingChallengeUserIds[b.id] === 'sent' ? 1 : 2
+                  return aP - bP
+                }).map((u) => (
                   <div key={u.id} className="flex items-center hover:bg-gray-50 rounded-lg px-2 py-1.5 transition-colors group opacity-60">
                     <Link to={`/profile/${u.id}`} className="flex items-center space-x-2.5 flex-1 min-w-0">
                       <div className="relative flex-shrink-0">
@@ -136,7 +144,7 @@ const OnlineUsers = () => {
                         className={`flex-shrink-0 p-1.5 rounded-lg transition-all ${pendingChallengeUserIds[u.id] === 'received' ? 'opacity-100 animate-pulse text-red-500 hover:bg-red-50' : 'opacity-100 text-gray-400 hover:bg-gray-100'}`}
                         title={pendingChallengeUserIds[u.id] === 'received' ? 'Pending challenge!' : 'Challenge sent'}
                       >
-                        <Swords size={14} />
+                        <img src={assetUrl('/icon/dashboard/pvp.png')} alt="PvP" className="w-3.5 h-3.5" />
                       </button>
                     )}
                   </div>

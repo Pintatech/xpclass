@@ -479,7 +479,7 @@ const PetDisplay = () => {
         p_user_id: user.id,
         p_goal_type: 'play_games',
         p_increment: 1
-      }).catch(() => {})
+      }).then(() => {}, () => {})
     }
 
     setPlayDisabled(true);

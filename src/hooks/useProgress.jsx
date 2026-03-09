@@ -547,7 +547,7 @@ export const ProgressProvider = ({ children }) => {
               p_user_id: user.id,
               p_goal_type: 'collect_items',
               p_increment: 1
-            }).catch(() => {})
+            }).then(() => {}, () => {})
           }
         } catch (dropErr) {
           // Silently fail - item drops are non-critical

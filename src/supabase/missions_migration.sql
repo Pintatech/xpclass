@@ -24,6 +24,8 @@ CREATE TABLE IF NOT EXISTS public.missions (
   goal_value integer NOT NULL DEFAULT 1,
   reward_xp integer DEFAULT 0,
   reward_gems integer DEFAULT 0,
+  reward_item_id uuid REFERENCES public.collectible_items(id),
+  reward_item_quantity integer DEFAULT 1,
   is_active boolean DEFAULT true,
   start_date date,          -- for special missions (NULL = always)
   end_date date,            -- for special missions (NULL = always)

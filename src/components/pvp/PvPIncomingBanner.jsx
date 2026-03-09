@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react'
-import { Swords, X, MessageCircle } from 'lucide-react'
+import { X, MessageCircle } from 'lucide-react'
 import { supabase } from '../../supabase/client'
 import { useAuth } from '../../hooks/useAuth'
 import PvPChallengeModal from './PvPChallengeModal'
@@ -150,7 +150,7 @@ const TauntDisplay = ({ tauntJson }) => {
       )
     }
     return (
-      <span className="ml-auto text-[10px] text-red-500 font-medium italic flex-shrink-0">
+      <span className="ml-auto text-[10px] text-red-500 font-medium flex-shrink-0">
         &ldquo;{taunt.value}&rdquo;
       </span>
     )
@@ -359,7 +359,7 @@ const PvPIncomingBanner = () => {
                       {otherName[0]?.toUpperCase() || '?'}
                     </div>
                   )}
-                  <Swords size={12} className="absolute -bottom-1 -right-1 text-red-500 bg-white rounded-full p-0.5" />
+                  <img src={assetUrl('/icon/dashboard/pvp.png')} alt="PvP" className="absolute -bottom-1 -right-1 w-3 h-3 bg-white rounded-full p-0.5" />
                 </div>
                 <div className="flex-1 min-w-0">
                   <div className={`text-xs font-bold ${won ? 'text-green-600' : draw ? 'text-yellow-600' : 'text-red-600'}`}>
@@ -419,7 +419,7 @@ const PvPIncomingBanner = () => {
                     {challenge.challenger?.full_name?.[0]?.toUpperCase() || '?'}
                   </div>
                 )}
-                <Swords size={14} className="absolute -bottom-1 -right-1 text-red-500 bg-white rounded-full p-0.5" />
+                <img src={assetUrl('/icon/dashboard/pvp.png')} alt="PvP" className="absolute -bottom-1 -right-1 w-3.5 h-3.5 bg-white rounded-full p-0.5" />
               </div>
               <div className="flex-1 min-w-0">
                 <div className="text-sm font-bold text-gray-800">
@@ -530,7 +530,7 @@ const PvPResponseModal = ({ challenge, onClose }) => {
           p_user_id: winnerId,
           p_goal_type: 'win_pvp',
           p_increment: 1
-        }).catch(() => {})
+        }).then(() => {}, () => {})
       }
       if (activePet?.id) {
         playWithPet(activePet.id).catch(() => {})
@@ -588,7 +588,7 @@ const PvPResponseModal = ({ challenge, onClose }) => {
             <X size={18} />
           </button>
           <div className="flex items-center justify-center gap-3">
-            <Swords size={24} />
+            <img src={assetUrl('/icon/dashboard/pvp.png')} alt="PvP" className="w-6 h-6" />
             <h2 className="text-xl font-bold">PvP Battle</h2>
           </div>
         </div>

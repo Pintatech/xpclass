@@ -166,13 +166,13 @@ export const InventoryProvider = ({ children }) => {
           p_user_id: user.id,
           p_goal_type: 'open_chests',
           p_increment: 1
-        }).catch(() => {})
+        }).then(() => {}, () => {})
         if (items.length > 0) {
           supabase.rpc('update_mission_progress', {
             p_user_id: user.id,
             p_goal_type: 'collect_items',
             p_increment: items.length
-          }).catch(() => {})
+          }).then(() => {}, () => {})
         }
       }
 

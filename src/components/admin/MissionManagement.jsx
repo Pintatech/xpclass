@@ -51,6 +51,8 @@ const EMPTY_FORM = {
   goal_value: 1,
   reward_xp: 0,
   reward_gems: 0,
+  reward_item_id: '',
+  reward_item_quantity: 1,
   is_active: true,
   start_date: '',
   end_date: '',
@@ -65,8 +67,21 @@ const MissionManagement = () => {
   const [form, setForm] = useState(EMPTY_FORM)
   const [filter, setFilter] = useState('all')
   const [saving, setSaving] = useState(false)
+  const [items, setItems] = useState([])
 
-  useEffect(() => { fetchMissions() }, [])
+  useEffect(() => {
+    fetchMissions()
+    fetchItems()
+  }, [])
+
+  const fetchItems = async () => {
+    const { data } = await supabase
+      .from('collectible_items')
+      .select('id, name, image_url, rarity')
+      .eq('is_active', true)
+      .order('name')
+    setItems(data || [])
+  }
 
   const fetchMissions = async () => {
     setLoading(true)
@@ -96,6 +111,8 @@ const MissionManagement = () => {
       goal_value: m.goal_value,
       reward_xp: m.reward_xp || 0,
       reward_gems: m.reward_gems || 0,
+      reward_item_id: m.reward_item_id || '',
+      reward_item_quantity: m.reward_item_quantity || 1,
       is_active: m.is_active,
       start_date: m.start_date || '',
       end_date: m.end_date || '',
@@ -115,6 +132,8 @@ const MissionManagement = () => {
       goal_value: m.goal_value,
       reward_xp: m.reward_xp || 0,
       reward_gems: m.reward_gems || 0,
+      reward_item_id: m.reward_item_id || '',
+      reward_item_quantity: m.reward_item_quantity || 1,
       is_active: false,
       start_date: m.start_date || '',
       end_date: m.end_date || '',
@@ -130,6 +149,7 @@ const MissionManagement = () => {
       ...form,
       start_date: form.start_date || null,
       end_date: form.end_date || null,
+      reward_item_id: form.reward_item_id || null,
     }
 
     if (editingId) {
@@ -236,6 +256,7 @@ const MissionManagement = () => {
                     <span>{GOAL_TYPES.find(g => g.value === m.goal_type)?.label}: {m.goal_value}</span>
                     {m.reward_xp > 0 && <span>+{m.reward_xp} XP</span>}
                     {m.reward_gems > 0 && <span>+{m.reward_gems} Gems</span>}
+                    {m.reward_item_id && <span>+{m.reward_item_quantity || 1} {items.find(i => i.id === m.reward_item_id)?.name || 'Item'}</span>}
                     {m.start_date && <span>Từ: {m.start_date}</span>}
                     {m.end_date && <span>Đến: {m.end_date}</span>}
                   </div>
@@ -374,6 +395,35 @@ const MissionManagement = () => {
                     className="w-full border rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                   />
                 </div>
+              </div>
+
+              {/* Item reward */}
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Thưởng vật phẩm</label>
+                  <select
+                    value={form.reward_item_id}
+                    onChange={e => setForm({ ...form, reward_item_id: e.target.value })}
+                    className="w-full border rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                  >
+                    <option value="">Không có</option>
+                    {items.map(item => (
+                      <option key={item.id} value={item.id}>{item.name} ({item.rarity})</option>
+                    ))}
+                  </select>
+                </div>
+                {form.reward_item_id && (
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">Số lượng vật phẩm</label>
+                    <input
+                      type="number"
+                      min="1"
+                      value={form.reward_item_quantity}
+                      onChange={e => setForm({ ...form, reward_item_quantity: parseInt(e.target.value) || 1 })}
+                      className="w-full border rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                    />
+                  </div>
+                )}
               </div>
 
               {/* Sort order */}

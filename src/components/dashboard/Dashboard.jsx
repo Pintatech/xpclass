@@ -503,7 +503,11 @@ const Dashboard = () => {
       {(onlineUsers.length > 0 || offlineUsers.length > 0) && (
         <div className="xl:hidden">
           <div className="flex overflow-x-auto gap-4 pb-2 px-1 scrollbar-hide">
-            {onlineUsers.map((u) => (
+            {[...onlineUsers].sort((a, b) => {
+              const aP = pendingChallengeUserIds[a.id] === 'received' ? 0 : pendingChallengeUserIds[a.id] === 'sent' ? 1 : 2
+              const bP = pendingChallengeUserIds[b.id] === 'received' ? 0 : pendingChallengeUserIds[b.id] === 'sent' ? 1 : 2
+              return aP - bP
+            }).map((u) => (
               <button
                 key={u.id}
                 onClick={() => u.id !== profile?.id ? setChallengeTarget(u) : navigate(`/profile/${u.id}`)}
@@ -519,14 +523,10 @@ const Dashboard = () => {
                   )}
                   <div className="absolute bottom-0 right-0 w-3.5 h-3.5 bg-green-500 rounded-full border-2 border-white" />
                   {pendingChallengeUserIds[u.id] === 'received' && (
-                    <div className="absolute top-0 right-0 w-3.5 h-3.5 bg-red-500 rounded-full flex items-center justify-center animate-pulse">
-                      <span className="text-white text-[6px] font-bold">⚔</span>
-                    </div>
+                    <img src={assetUrl('/icon/dashboard/pvp.png')} alt="PvP" className="absolute top-0 right-0 w-4 h-4 animate-pulse" />
                   )}
                   {pendingChallengeUserIds[u.id] === 'sent' && (
-                    <div className="absolute top-0 right-0 w-3.5 h-3.5 bg-gray-400 rounded-full flex items-center justify-center">
-                      <span className="text-white text-[6px] font-bold">⚔</span>
-                    </div>
+                    <img src={assetUrl('/icon/dashboard/pvp.png')} alt="PvP" className="absolute top-0 right-0 w-4 h-4 opacity-50" />
                   )}
                 </div>
                 <span className="text-xs text-gray-600 mt-1 text-center truncate w-full">{u.full_name?.split(' ').pop() || 'N/A'}</span>
@@ -537,7 +537,11 @@ const Dashboard = () => {
                 <div className="w-px h-10 bg-gray-200" />
               </div>
             )}
-            {offlineUsers.map((u) => (
+            {[...offlineUsers].sort((a, b) => {
+              const aP = pendingChallengeUserIds[a.id] === 'received' ? 0 : pendingChallengeUserIds[a.id] === 'sent' ? 1 : 2
+              const bP = pendingChallengeUserIds[b.id] === 'received' ? 0 : pendingChallengeUserIds[b.id] === 'sent' ? 1 : 2
+              return aP - bP
+            }).map((u) => (
               <button
                 key={u.id}
                 onClick={() => u.id !== profile?.id && pendingChallengeUserIds[u.id] ? setChallengeTarget(u) : navigate(`/profile/${u.id}`)}
@@ -553,14 +557,10 @@ const Dashboard = () => {
                   )}
                   <div className="absolute bottom-0 right-0 w-3.5 h-3.5 bg-gray-400 rounded-full border-2 border-white" />
                   {pendingChallengeUserIds[u.id] === 'received' && (
-                    <div className="absolute top-0 right-0 w-3.5 h-3.5 bg-red-500 rounded-full flex items-center justify-center animate-pulse">
-                      <span className="text-white text-[6px] font-bold">⚔</span>
-                    </div>
+                    <img src={assetUrl('/icon/dashboard/pvp.png')} alt="PvP" className="absolute top-0 right-0 w-4 h-4 animate-pulse" />
                   )}
                   {pendingChallengeUserIds[u.id] === 'sent' && (
-                    <div className="absolute top-0 right-0 w-3.5 h-3.5 bg-gray-400 rounded-full flex items-center justify-center">
-                      <span className="text-white text-[6px] font-bold">⚔</span>
-                    </div>
+                    <img src={assetUrl('/icon/dashboard/pvp.png')} alt="PvP" className="absolute top-0 right-0 w-4 h-4 opacity-50" />
                   )}
                 </div>
                 <span className="text-xs text-gray-400 mt-1 text-center truncate w-full">{u.full_name?.split(' ').pop() || 'N/A'}</span>

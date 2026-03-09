@@ -332,7 +332,7 @@ const PetWordScramble = ({ petImageUrl, petName, onGameEnd, onClose, wordBank: w
   // Skip current word
   const handleSkip = useCallback(() => {
     if (phase !== 'playing' || feedback === 'correct') return
-    streakRef.current = 0
+    streakRef.current = Math.max(0, streakRef.current - 1)
 
     setCombo(0)
     setSkippedWords(prev => [...prev, words[wordIndex]])
@@ -381,8 +381,7 @@ const PetWordScramble = ({ petImageUrl, petName, onGameEnd, onClose, wordBank: w
 
       const lengthBonus = Math.max(0, currentWord.length - 4) * 5
       const bonus = newStreak > 1 ? STREAK_BONUS * (newStreak - 1) : 0
-      const comboBonus = combo > 5 ? combo * 2 : 0
-      const points = POINTS_PER_WORD + lengthBonus + bonus + comboBonus
+      const points = POINTS_PER_WORD + lengthBonus + bonus
       scoreRef.current += points
       setDisplayScore(scoreRef.current)
       setWordsCompleted(prev => prev + 1)

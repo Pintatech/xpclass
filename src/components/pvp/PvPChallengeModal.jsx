@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react'
 import { createPortal } from 'react-dom'
-import { X, Swords, Trophy, Clock } from 'lucide-react'
+import { X, Trophy, Clock } from 'lucide-react'
 import { supabase } from '../../supabase/client'
 import { useAuth } from '../../hooks/useAuth'
 import { usePet } from '../../hooks/usePet'
@@ -297,7 +297,7 @@ const PvPChallengeModal = ({ opponent, onClose }) => {
             <X size={18} />
           </button>
           <div className="flex items-center justify-center gap-3">
-            <Swords size={24} />
+            <img src={assetUrl('/icon/dashboard/pvp.png')} alt="PvP" className="w-6 h-6" />
             <h2 className="text-xl font-bold">PvP Battle</h2>
           </div>
         </div>
@@ -385,7 +385,7 @@ const PvPChallengeModal = ({ opponent, onClose }) => {
                     <div className="font-semibold text-gray-800">{game.name}</div>
                     <div className="text-xs text-gray-500">{game.description}</div>
                   </div>
-                  <Swords size={16} className="text-gray-400" />
+                  <img src={assetUrl('/icon/dashboard/pvp.png')} alt="PvP" className="w-4 h-4 opacity-40" />
                 </button>
               ))}
             </div>

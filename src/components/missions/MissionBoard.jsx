@@ -329,6 +329,13 @@ const MissionCard = ({ mission, tabConfig, onClaim, claiming }) => {
                     <img src={assetUrl('/image/study/gem.png')} alt="Gems" className="w-3.5 h-3.5" />
                   </span>
                 )}
+                {mission.reward_item_name && (
+                  <span className={`flex items-center gap-1 text-xs font-bold px-2 py-1 rounded-full ${
+                    isClaimed ? 'bg-gray-100 text-gray-400' : 'bg-emerald-100 text-emerald-700'
+                  }`}>
+                    {mission.reward_item_quantity || 1}x {mission.reward_item_name}
+                  </span>
+                )}
               </div>
             </div>
 
