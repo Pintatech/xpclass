@@ -50,7 +50,9 @@ const calcClassXPRate = (students, lessons, recordMap) => {
   for (const student of students) {
     let sum = 0;
     let count = 0;
+    const enrollDate = student.assigned_at ? student.assigned_at.split('T')[0] : null;
     for (const lesson of lessons) {
+      if (enrollDate && lesson.session_date < enrollDate) continue;
       const xp = calcXP(recordMap[`${lesson.id}_${student.id}`]);
       if (xp !== null) {
         sum += xp;
@@ -164,12 +166,13 @@ const TeacherCourseOverview = () => {
       .from('course_enrollments')
       .select(`
         student_id,
+        assigned_at,
         student:users!student_id(id, full_name, avatar_url)
       `)
       .eq('course_id', courseId)
       .eq('is_active', true);
 
-    const students = (enrollments || []).map(e => e.student).filter(Boolean);
+    const students = (enrollments || []).map(e => e.student ? { ...e.student, assigned_at: e.assigned_at } : null).filter(Boolean);
 
     // Fetch all lesson_info for this course
     const { data: lessons } = await supabase
@@ -218,7 +221,10 @@ const TeacherCourseOverview = () => {
     if (!data) return null;
     const lesson = data.lessons.find(l => l.id === popover.lessonId);
     const rec = data.recordMap[`${popover.lessonId}_${popover.studentId}`];
-    return { lesson, record: rec };
+    const student = data.students.find(s => s.id === popover.studentId);
+    const enrollDate = student?.assigned_at ? student.assigned_at.split('T')[0] : null;
+    const isBeforeEnrollment = enrollDate && lesson?.session_date < enrollDate;
+    return { lesson, record: rec, isBeforeEnrollment };
   };
 
   if (authLoading || loading) {
@@ -345,6 +351,21 @@ const TeacherCourseOverview = () => {
                             {/* Lesson dots */}
                             <div className="flex gap-3 flex-1 min-w-0">
                               {lessons.slice(-8).map(lesson => {
+                                const enrollDate = student.assigned_at ? student.assigned_at.split('T')[0] : null;
+                                const isBeforeEnrollment = enrollDate && lesson.session_date < enrollDate;
+
+                                if (isBeforeEnrollment) {
+                                  return (
+                                    <div
+                                      key={lesson.id}
+                                      className="w-7 h-7 rounded-full flex-shrink-0 border border-dashed border-gray-200 flex items-center justify-center"
+                                      title="Not enrolled yet"
+                                    >
+                                      <span className="text-[8px] text-gray-300">—</span>
+                                    </div>
+                                  );
+                                }
+
                                 const rec = data.recordMap[`${lesson.id}_${student.id}`];
                                 const rating = rec?.performance_rating || '';
                                 const dotColor = ratingColor[rating] || 'bg-gray-300';
@@ -389,14 +410,18 @@ const TeacherCourseOverview = () => {
                                   <tbody className="divide-y">
                                     {[...lessons].reverse().slice(0, 8).map(lesson => {
                                       const rec = data.recordMap[`${lesson.id}_${student.id}`];
+                                      const enrollDate = student.assigned_at ? student.assigned_at.split('T')[0] : null;
+                                      const isBeforeEnrollment = enrollDate && lesson.session_date < enrollDate;
                                       return (
-                                        <tr key={lesson.id} className="hover:bg-gray-50">
+                                        <tr key={lesson.id} className={`hover:bg-gray-50${isBeforeEnrollment ? ' opacity-40' : ''}`}>
                                           <td className="px-3 py-2 whitespace-nowrap text-gray-600">
                                             {new Date(lesson.session_date + 'T00:00:00').toLocaleDateString('en', { day: 'numeric', month: 'short' })}
                                           </td>
                                           <td className="px-3 py-2 text-gray-900">{lesson.lesson_name || '-'}</td>
                                           <td className="px-3 py-2 text-center">
-                                            {rec?.attendance_status ? (
+                                            {isBeforeEnrollment ? (
+                                              <span className="inline-block px-2 py-0.5 rounded text-xs font-medium bg-gray-100 text-gray-400 italic">N/E</span>
+                                            ) : rec?.attendance_status ? (
                                               <span className={`inline-block px-2 py-0.5 rounded text-xs font-medium ${
                                                 rec.attendance_status === 'present' ? 'bg-green-100 text-green-700' :
                                                 rec.attendance_status === 'late' ? 'bg-yellow-100 text-yellow-700' :
@@ -496,7 +521,9 @@ const TeacherCourseOverview = () => {
             <p className="text-xs text-gray-500 mb-3">{popoverData.lesson.lesson_name}</p>
           )}
 
-          {!popoverData.record ? (
+          {popoverData.isBeforeEnrollment ? (
+            <p className="text-sm text-gray-400 italic">Not enrolled on this date</p>
+          ) : !popoverData.record ? (
             <p className="text-sm text-gray-400">No record for this lesson</p>
           ) : (
             <div className="space-y-1 text-xs">

@@ -89,6 +89,7 @@ const StudentExerciseMatrix = ({ selectedCourse }) => {
         .from('course_enrollments')
         .select(`
           student_id,
+          assigned_at,
           student:users!student_id(
             id,
             full_name,
@@ -100,7 +101,7 @@ const StudentExerciseMatrix = ({ selectedCourse }) => {
 
       if (studentsError) throw studentsError;
 
-      const studentList = (enrollments || []).map(enrollment => enrollment.student);
+      const studentList = (enrollments || []).map(enrollment => enrollment.student ? { ...enrollment.student, assigned_at: enrollment.assigned_at } : null).filter(Boolean);
       setStudents(studentList);
 
       // Get units in this course (filter by selected unit if not 'all')
@@ -634,6 +635,11 @@ const StudentExerciseMatrix = ({ selectedCourse }) => {
                         {student.full_name || 'No name'}
                       </div>
                       <div className="text-xs text-gray-600">{student.email}</div>
+                      {student.assigned_at && (
+                        <div className="text-[10px] text-gray-400">
+                          Enrolled {new Date(student.assigned_at).toLocaleDateString('en', { day: 'numeric', month: 'short', year: 'numeric' })}
+                        </div>
+                      )}
                     </div>
                   </div>
                 </td>
