@@ -4,7 +4,7 @@ import { supabase } from '../../../supabase/client';
 import { ArrowLeft, Star, Flag, Users } from 'lucide-react';
 
 const ratingLabel = { wow: 'Wow', good: 'Good', ok: 'Ok' };
-const attendanceLabel = { present: 'Present', absent: 'Absent', late: 'Late', excused: 'Excused' };
+const attendanceLabel = { present: 'Đúng giờ', absent: 'Vắng', late: 'Muộn', excused: 'Excused' };
 const homeworkLabel = { wow: 'Wow', good: 'Good', ok: 'Ok' };
 
 const perfXP = { ok: 30, good: 60, wow: 90 };
@@ -252,18 +252,18 @@ const StudentLessonHistory = () => {
           </div>
         ) : (
           <div className="bg-white rounded-lg shadow-sm border overflow-x-auto">
-            <table className="w-full text-sm">
+            <table className="w-full text-sm min-w-[1100px]">
               <thead className="bg-gray-100 text-gray-600">
                 <tr>
                   <th className="px-4 py-3 text-left font-medium">Date</th>
                   <th className="px-4 py-3 text-left font-medium">Lesson</th>
                   <th className="px-4 py-3 text-center font-medium">Attendance</th>
-                  <th className="px-4 py-3 text-center font-medium">Performance</th>
+                  <th className="px-4 py-3 text-center font-medium">Class</th>
                   <th className="px-4 py-3 text-center font-medium">Score</th>
-                  <th className="px-4 py-3 text-left font-medium">Notes</th>
-                  <th className="px-4 py-3 text-center font-medium">Homework</th>
+                  <th className="px-4 py-3 text-left font-medium min-w-[150px]">Notes</th>
+                  <th className="px-4 py-3 text-center font-medium whitespace-nowrap">Homework</th>
                   <th className="px-4 py-3 text-center font-medium">Score</th>
-                  <th className="px-4 py-3 text-left font-medium">HW Notes</th>
+                  <th className="px-4 py-3 text-left font-medium min-w-[150px] whitespace-nowrap">HW Notes</th>
                   <th className="px-4 py-3 text-center font-medium">Star/Flag</th>
                   <th className="px-4 py-3 text-center font-medium">XP Rate</th>
                 </tr>

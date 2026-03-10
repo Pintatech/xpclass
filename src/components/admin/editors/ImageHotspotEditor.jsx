@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react'
-import { Plus, Trash2, Eye, EyeOff, Upload, Image as ImageIcon, AlertCircle, X, Music } from 'lucide-react'
+import { Plus, Trash2, Eye, EyeOff, Upload, Image as ImageIcon, AlertCircle, X, Music, AlignLeft, AlignCenter, AlignRight } from 'lucide-react'
 import { handleRichTextShortcut } from '../../../hooks/useRichTextShortcuts'
 
 import { useBranding } from '../../../hooks/useBranding';
@@ -277,6 +277,28 @@ const ImageHotspotEditor = ({ content, onContentChange }) => {
     }, 0)
   }
 
+  const applyAlignment = (alignment) => {
+    const textarea = questionTextareaRef.current
+    if (!textarea) return
+
+    const start = textarea.selectionStart
+    const end = textarea.selectionEnd
+    const text = question
+    const selectedText = text.substring(start, end) || 'text'
+    const before = text.substring(0, start)
+    const after = text.substring(end)
+    const wrapped = `<div style="text-align: ${alignment}">${selectedText}</div>`
+
+    const newText = before + wrapped + after
+    setQuestion(newText)
+
+    setTimeout(() => {
+      textarea.focus()
+      const newPosition = start + wrapped.length
+      textarea.setSelectionRange(newPosition, newPosition)
+    }, 0)
+  }
+
   const handleOpenImageModal = () => {
     setUrlModal({ isOpen: true, type: 'image' })
     setUrlInput('')
@@ -403,6 +425,11 @@ const ImageHotspotEditor = ({ content, onContentChange }) => {
             <Music className="w-4 h-4" />
             Add Audio
           </button>
+          <div className="flex gap-1 ml-2 border-l pl-2 border-gray-300">
+            <button type="button" onClick={() => applyAlignment('left')} className="p-2 bg-gray-100 text-gray-700 rounded hover:bg-gray-200" title="Align left"><AlignLeft className="w-4 h-4" /></button>
+            <button type="button" onClick={() => applyAlignment('center')} className="p-2 bg-gray-100 text-gray-700 rounded hover:bg-gray-200" title="Align center"><AlignCenter className="w-4 h-4" /></button>
+            <button type="button" onClick={() => applyAlignment('right')} className="p-2 bg-gray-100 text-gray-700 rounded hover:bg-gray-200" title="Align right"><AlignRight className="w-4 h-4" /></button>
+          </div>
         </div>
       </div>
 

@@ -200,6 +200,7 @@ const DragDropExercise = ({ testMode = false, exerciseData = null, onAnswersColl
 
   // testMode: notify parent of answer changes (use ref to avoid infinite loops)
   const onAnswersCollectedRef = useRef(onAnswersCollected)
+  const testShuffledRef = useRef(null)
   onAnswersCollectedRef.current = onAnswersCollected
   useEffect(() => {
     if (testMode && onAnswersCollectedRef.current) {
@@ -855,11 +856,15 @@ const DragDropExercise = ({ testMode = false, exerciseData = null, onAnswersColl
   // testMode: render all questions without gamification
   if (testMode) {
     const allQuestions = exercise.content.questions || []
+    // Shuffle items once per render using a ref to keep stable order
+    if (!testShuffledRef.current || testShuffledRef.current.length !== allQuestions.length) {
+      testShuffledRef.current = allQuestions.map(q => [...(q.items || [])].sort(() => Math.random() - 0.5))
+    }
     return (
       <div className="space-y-8" style={{ userSelect: 'none' }}>
         {allQuestions.map((question, qIndex) => {
           const qAnswer = userAnswers[qIndex] || {}
-          const qItems = question.items || []
+          const qItems = testShuffledRef.current[qIndex] || question.items || []
           const placedItemIds = Object.values(qAnswer).filter(Boolean)
 
           return (
@@ -1116,6 +1121,18 @@ const DragDropExercise = ({ testMode = false, exerciseData = null, onAnswersColl
               wrongQuestionsCount={0}
               onBackToList={handleBackToList}
               exerciseId={exerciseId}
+            />
+          </div>
+        )}
+
+        {/* Global Intro */}
+        {exercise?.content?.intro && String(exercise.content.intro).trim() && (
+          <div className="w-full max-w-4xl min-w-0 mx-auto rounded-lg p-4 md:p-6 bg-white shadow-sm border border-gray-200 mb-4">
+            <RichTextRenderer
+              content={exercise.content.intro}
+              allowImages={true}
+              allowLinks={false}
+              style={{ whiteSpace: 'pre-wrap' }}
             />
           </div>
         )}

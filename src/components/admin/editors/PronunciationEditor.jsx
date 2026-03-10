@@ -52,7 +52,6 @@ const PronunciationEditor = ({ questions, onQuestionsChange }) => {
   const duplicateQuestion = (index) => {
     const questionToDuplicate = { ...localQuestions[index] }
     questionToDuplicate.id = `q${Date.now()}`
-    questionToDuplicate.text = `${questionToDuplicate.text} (Copy)`
     const updatedQuestions = [...localQuestions]
     updatedQuestions.splice(index + 1, 0, questionToDuplicate)
     setLocalQuestions(updatedQuestions)

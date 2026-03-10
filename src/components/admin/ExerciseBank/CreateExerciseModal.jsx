@@ -244,15 +244,11 @@ const CreateExerciseModal = ({ folders, selectedFolder, onClose, onCreated, allo
 
             {formData.exercise_type === 'drag_drop' && (
               <div className="space-y-4">
-                <div className="p-4 bg-green-50 border border-green-200 rounded-lg">
-                  <h4 className="font-medium text-green-900 mb-2">✅ Drag & Drop Exercise Editor</h4>
-                  <p className="text-sm text-green-700">
-                    Tạo câu hỏi kéo thả để sắp xếp từ, câu hoặc hình ảnh theo thứ tự đúng.
-                  </p>
-                </div>
                 <SmartDragDropEditor
                   questions={formData.content.questions || []}
                   onQuestionsChange={(questions) => handleContentChange('questions', questions)}
+                  intro={formData.content.intro || ''}
+                  onIntroChange={(intro) => handleContentChange('intro', intro)}
                 />
               </div>
             )}
@@ -272,6 +268,8 @@ const CreateExerciseModal = ({ folders, selectedFolder, onClose, onCreated, allo
               <SimpleDropdownEditor
                 questions={formData.content.questions || []}
                 onQuestionsChange={(questions) => handleContentChange('questions', questions)}
+                intro={formData.content.intro || ''}
+                onIntroChange={(intro) => handleContentChange('intro', intro)}
               />
             )}
 

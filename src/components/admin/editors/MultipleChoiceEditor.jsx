@@ -13,7 +13,10 @@ import {
   X,
   Table,
   Link,
-  Image
+  Image,
+  AlignLeft,
+  AlignCenter,
+  AlignRight
 } from 'lucide-react'
 import { supabase } from '../../../supabase/client'
 import RichTextRenderer from '../../ui/RichTextRenderer'
@@ -120,7 +123,6 @@ const MultipleChoiceEditor = ({ questions, onQuestionsChange, settings, onSettin
   const duplicateQuestion = (index) => {
     const questionToDuplicate = { ...localQuestions[index] }
     questionToDuplicate.id = `q${Date.now()}`
-    questionToDuplicate.question = `${questionToDuplicate.question} (Copy)`
     const updatedQuestions = [...localQuestions]
     updatedQuestions.splice(index + 1, 0, questionToDuplicate)
     setLocalQuestions(updatedQuestions)
@@ -170,6 +172,24 @@ const MultipleChoiceEditor = ({ questions, onQuestionsChange, settings, onSettin
     setTimeout(() => {
       textarea.focus()
       const caret = start + textToInsert.length
+      textarea.setSelectionRange(caret, caret)
+    }, 0)
+  }
+
+  const applyAlignment = (index, alignment) => {
+    const textarea = questionInputRefs.current[index]
+    const current = localQuestions[index]
+    if (!textarea) return
+    const start = textarea.selectionStart || 0
+    const end = textarea.selectionEnd || 0
+    const value = current.question || ''
+    const selected = value.slice(start, end)
+    const wrapped = `<div style="text-align: ${alignment}">${selected || 'text here'}</div>`
+    const newValue = value.slice(0, start) + wrapped + value.slice(end)
+    updateQuestion(index, 'question', newValue)
+    setTimeout(() => {
+      textarea.focus()
+      const caret = start + wrapped.length
       textarea.setSelectionRange(caret, caret)
     }, 0)
   }
@@ -1307,7 +1327,32 @@ Good morning in Vietnamese is {1:MC:=Chào buổi sáng#Correct explanation~Chà
               >
                 <Table className="w-4 h-4" /> Insert table
               </button>
-              <span className="text-xs text-gray-500 self-center">Mẹo: dùng cú pháp Markdown ![](url) hoặc [text](url)</span>
+              <div className="flex gap-1 ml-2 border-l pl-2 border-gray-300">
+                <button
+                  type="button"
+                  onClick={() => applyAlignment(index, 'left')}
+                  className="p-2 bg-gray-100 text-gray-700 rounded hover:bg-gray-200"
+                  title="Align left"
+                >
+                  <AlignLeft className="w-4 h-4" />
+                </button>
+                <button
+                  type="button"
+                  onClick={() => applyAlignment(index, 'center')}
+                  className="p-2 bg-gray-100 text-gray-700 rounded hover:bg-gray-200"
+                  title="Align center"
+                >
+                  <AlignCenter className="w-4 h-4" />
+                </button>
+                <button
+                  type="button"
+                  onClick={() => applyAlignment(index, 'right')}
+                  className="p-2 bg-gray-100 text-gray-700 rounded hover:bg-gray-200"
+                  title="Align right"
+                >
+                  <AlignRight className="w-4 h-4" />
+                </button>
+              </div>
             </div>
 
             {/* Preview toggle */}
@@ -1439,9 +1484,6 @@ Good morning in Vietnamese is {1:MC:=Chào buổi sáng#Correct explanation~Chà
                 className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
                 placeholder="https://example.com/audio.mp3"
               />
-              <p className="text-xs text-gray-500 mt-1">
-                Add audio for students to listen before answering
-              </p>
             </div>
 
             {/* Max Audio Plays */}

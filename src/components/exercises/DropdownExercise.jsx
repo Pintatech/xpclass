@@ -807,6 +807,18 @@ const DropdownExercise = ({ testMode = false, exerciseData = null, onAnswersColl
         Back
       </button>
 
+      {/* Global Intro */}
+      {exercise?.content?.intro && String(exercise.content.intro).trim() && (
+        <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-4 md:p-6 mb-4">
+          <RichTextRenderer
+            content={exercise.content.intro}
+            allowImages={true}
+            allowLinks={false}
+            style={{ whiteSpace: 'pre-wrap' }}
+          />
+        </div>
+      )}
+
       {/* Question */}
       <div className="bg-white rounded-lg shadow-md p-6 mb-6 border border-gray-200">
         <div className="text-lg leading-relaxed mb-4">

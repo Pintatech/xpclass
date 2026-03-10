@@ -7,6 +7,9 @@ import {
   Download,
   X,
   Video,
+  AlignLeft,
+  AlignCenter,
+  AlignRight,
 } from 'lucide-react'
 import { handleRichTextShortcut } from '../../../hooks/useRichTextShortcuts'
 
@@ -112,6 +115,18 @@ const FlashcardEditor = ({ cards, onCardsChange }) => {
     onCardsChange(updatedCards)
   }
 
+
+  const applyAlignment = (index, side, alignment) => {
+    const textarea = side === 'front' ? frontTextareasRef.current[index] : backTextareasRef.current[index]
+    if (!textarea) return
+    const value = side === 'front' ? (localCards[index].front || '') : (localCards[index].back || '')
+    const start = textarea.selectionStart || 0
+    const end = textarea.selectionEnd || 0
+    const selected = value.slice(start, end)
+    const wrapped = `<div style="text-align: ${alignment}">${selected || 'text here'}</div>`
+    const newValue = value.slice(0, start) + wrapped + value.slice(end)
+    updateCard(index, side, newValue)
+  }
 
   const handleCSVTextChange = (text) => {
     setCsvText(text)
@@ -258,6 +273,11 @@ const FlashcardEditor = ({ cards, onCardsChange }) => {
                   rows={1}
                   placeholder="Front of the card"
                 />
+                <div className="flex gap-1 ml-2 border-l pl-2 border-gray-300 mt-1">
+                  <button type="button" onClick={() => applyAlignment(index, 'front', 'left')} className="p-2 bg-gray-100 text-gray-700 rounded hover:bg-gray-200" title="Align left"><AlignLeft className="w-4 h-4" /></button>
+                  <button type="button" onClick={() => applyAlignment(index, 'front', 'center')} className="p-2 bg-gray-100 text-gray-700 rounded hover:bg-gray-200" title="Align center"><AlignCenter className="w-4 h-4" /></button>
+                  <button type="button" onClick={() => applyAlignment(index, 'front', 'right')} className="p-2 bg-gray-100 text-gray-700 rounded hover:bg-gray-200" title="Align right"><AlignRight className="w-4 h-4" /></button>
+                </div>
               </div>
 
               {/* Back */}
@@ -274,6 +294,11 @@ const FlashcardEditor = ({ cards, onCardsChange }) => {
                   rows={1}
                   placeholder="Back of the card"
                 />
+                <div className="flex gap-1 ml-2 border-l pl-2 border-gray-300 mt-1">
+                  <button type="button" onClick={() => applyAlignment(index, 'back', 'left')} className="p-2 bg-gray-100 text-gray-700 rounded hover:bg-gray-200" title="Align left"><AlignLeft className="w-4 h-4" /></button>
+                  <button type="button" onClick={() => applyAlignment(index, 'back', 'center')} className="p-2 bg-gray-100 text-gray-700 rounded hover:bg-gray-200" title="Align center"><AlignCenter className="w-4 h-4" /></button>
+                  <button type="button" onClick={() => applyAlignment(index, 'back', 'right')} className="p-2 bg-gray-100 text-gray-700 rounded hover:bg-gray-200" title="Align right"><AlignRight className="w-4 h-4" /></button>
+                </div>
               </div>
             </div>
 

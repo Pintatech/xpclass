@@ -1,6 +1,8 @@
 import React, { useState, useEffect, useRef } from 'react'
-import { Plus, Trash2, Eye, EyeOff, HelpCircle, Upload, Copy, Image as ImageIcon, Link as LinkIcon, Music } from 'lucide-react'
+import { Plus, Trash2, Eye, EyeOff, HelpCircle, Upload, Copy, Image as ImageIcon, Link as LinkIcon, Music, AlignLeft, AlignCenter, AlignRight } from 'lucide-react'
 import { handleRichTextShortcut } from '../../../hooks/useRichTextShortcuts'
+import { supabase } from '../../../supabase/client'
+import RichTextRenderer from '../../ui/RichTextRenderer'
 
 // Convert simple markdown/HTML to safe HTML for preview
 const markdownToHtml = (text) => {
@@ -38,11 +40,12 @@ const renderQuestionWithDropZones = (questionText, dropZones, renderDropZone) =>
   })
 }
 
-const SmartDragDropEditor = ({ questions, onQuestionsChange }) => {
+const SmartDragDropEditor = ({ questions, onQuestionsChange, intro, onIntroChange }) => {
   const [localQuestions, setLocalQuestions] = useState([])
   const [previewMode, setPreviewMode] = useState(false)
   const [bulkImportMode, setBulkImportMode] = useState(false)
   const [bulkText, setBulkText] = useState('')
+  const [lastBulkText, setLastBulkText] = useState('')
   const [urlModal, setUrlModal] = useState({ isOpen: false, type: '', questionIndex: -1 })
   const [urlInput, setUrlInput] = useState('')
   const [linkText, setLinkText] = useState('')
@@ -54,6 +57,15 @@ const SmartDragDropEditor = ({ questions, onQuestionsChange }) => {
   const [audioLoop, setAudioLoop] = useState(false)
   const questionTextareasRef = useRef({})
   const explanationTextareasRef = useRef({})
+  const introTextareaRef = useRef(null)
+  const introFileInputRef = useRef(null)
+
+  useEffect(() => {
+    try {
+      const saved = localStorage.getItem('xpclass_last_bulk_text_drag_drop')
+      if (saved) setLastBulkText(saved)
+    } catch {}
+  }, [])
 
   useEffect(() => {
     setLocalQuestions(questions || [])
@@ -372,6 +384,8 @@ const SmartDragDropEditor = ({ questions, onQuestionsChange }) => {
       }
 
       if (newQuestions.length > 0) {
+        setLastBulkText(bulkText)
+        try { localStorage.setItem('xpclass_last_bulk_text_drag_drop', bulkText) } catch {}
         const updatedQuestions = [...localQuestions, ...newQuestions]
         setLocalQuestions(updatedQuestions)
         onQuestionsChange(updatedQuestions)
@@ -435,6 +449,28 @@ const SmartDragDropEditor = ({ questions, onQuestionsChange }) => {
   }
 
   const insertAtCursor = (index, field, snippet) => {
+    // Handle intro (index === -1)
+    if (index === -1) {
+      const textarea = introTextareaRef.current
+      const current = intro || ''
+
+      if (textarea && typeof textarea.selectionStart === 'number' && typeof textarea.selectionEnd === 'number') {
+        const start = textarea.selectionStart
+        const end = textarea.selectionEnd
+        const newValue = `${current.slice(0, start)}${snippet}${current.slice(end)}`
+        onIntroChange && onIntroChange(newValue)
+        setTimeout(() => {
+          try {
+            const pos = start + snippet.length
+            if (textarea) { textarea.focus(); textarea.setSelectionRange(pos, pos) }
+          } catch {}
+        }, 0)
+      } else {
+        onIntroChange && onIntroChange(current + (current ? '\n' : '') + snippet)
+      }
+      return
+    }
+
     const textarea = questionTextareasRef.current[index]
     const current = localQuestions[index]?.[field] || ''
 
@@ -459,6 +495,32 @@ const SmartDragDropEditor = ({ questions, onQuestionsChange }) => {
     } else {
       // Fallback to append when we cannot detect caret
       appendToField(index, field, snippet)
+    }
+  }
+
+  const applyAlignment = (index, field, alignment) => {
+    const isIntro = index === -1
+    const textarea = isIntro ? introTextareaRef.current : questionTextareasRef.current[index]
+    const current = isIntro ? (intro || '') : (localQuestions[index]?.[field] || '')
+
+    if (textarea && typeof textarea.selectionStart === 'number' && typeof textarea.selectionEnd === 'number') {
+      const start = textarea.selectionStart
+      const end = textarea.selectionEnd
+      const selected = current.slice(start, end)
+      const wrapped = `<div style="text-align: ${alignment}">${selected}</div>`
+      const newValue = `${current.slice(0, start)}${wrapped}${current.slice(end)}`
+      if (isIntro) {
+        onIntroChange && onIntroChange(newValue)
+      } else {
+        updateQuestion(index, field, newValue)
+      }
+      setTimeout(() => {
+        try {
+          const pos = start + wrapped.length
+          const ta = isIntro ? introTextareaRef.current : questionTextareasRef.current[index]
+          if (ta) { ta.focus(); ta.setSelectionRange(pos, pos) }
+        } catch {}
+      }, 0)
     }
   }
 
@@ -513,12 +575,6 @@ const SmartDragDropEditor = ({ questions, onQuestionsChange }) => {
       new URL(urlInput.trim())
       const trimmedUrl = urlInput.trim()
       const questionIndex = urlModal.questionIndex
-      const questionId = localQuestions[questionIndex]?.id
-
-      if (!questionId) {
-        alert('Question not found')
-        return
-      }
 
       let snippet = ''
       if (urlModal.type === 'image') {
@@ -530,6 +586,19 @@ const SmartDragDropEditor = ({ questions, onQuestionsChange }) => {
       } else if (urlModal.type === 'audio') {
         const audioAttrs = getAudioAttributes()
         snippet = `<audio src="${trimmedUrl}" ${audioAttrs}></audio>`
+      }
+
+      // Handle intro (questionIndex === -1)
+      if (questionIndex === -1) {
+        insertAtCursor(-1, 'question', snippet)
+        handleUrlCancel()
+        return
+      }
+
+      const questionId = localQuestions[questionIndex]?.id
+      if (!questionId) {
+        alert('Question not found')
+        return
       }
 
       // Update question directly
@@ -546,7 +615,6 @@ const SmartDragDropEditor = ({ questions, onQuestionsChange }) => {
 
         updateQuestion(questionId, 'question', newValue)
 
-        // Restore cursor position
         setTimeout(() => {
           try {
             const pos = start + snippet.length
@@ -555,7 +623,6 @@ const SmartDragDropEditor = ({ questions, onQuestionsChange }) => {
           } catch {}
         }, 0)
       } else {
-        // Fallback: append to end
         const current = currentQuestion.question || ''
         const newValue = current + (current ? '\n' : '') + snippet
         updateQuestion(questionId, 'question', newValue)
@@ -596,7 +663,7 @@ const SmartDragDropEditor = ({ questions, onQuestionsChange }) => {
             className="flex items-center gap-2 px-3 py-2 text-sm bg-blue-600 text-white hover:bg-blue-700 rounded-lg"
           >
             <Plus className="w-4 h-4" />
-            Add Question
+            Add
           </button>
           <button
             type="button"
@@ -604,7 +671,7 @@ const SmartDragDropEditor = ({ questions, onQuestionsChange }) => {
             className="flex items-center gap-2 px-3 py-2 text-sm bg-gray-100 hover:bg-gray-200 rounded-lg"
           >
             <Upload className="w-4 h-4" />
-            Bulk Import
+            Bulk
           </button>
           {localQuestions.length > 0 && (
             <button
@@ -622,11 +689,121 @@ const SmartDragDropEditor = ({ questions, onQuestionsChange }) => {
             className="flex items-center gap-2 px-3 py-2 text-sm bg-gray-100 hover:bg-gray-200 rounded-lg"
           >
             {previewMode ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
-            {previewMode ? 'Edit Mode' : 'Preview Mode'}
+            {previewMode ? 'Edit' : 'Preview'}
           </button>
         </div>
       </div>
 
+
+      {/* Global Intro Section */}
+      <div className="bg-white p-4 border border-gray-200 rounded-lg">
+        <label className="block text-sm font-medium text-gray-700 mb-1">
+          Exercise Intro (Optional)
+        </label>
+        <textarea
+          ref={introTextareaRef}
+          value={intro || ''}
+          onChange={(e) => onIntroChange && onIntroChange(e.target.value)}
+          onKeyDown={(e) => handleRichTextShortcut(e, introTextareaRef.current, intro || '', (v) => onIntroChange && onIntroChange(v))}
+          className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
+          rows={2}
+          placeholder="Enter introductory text for the drag & drop exercise..."
+        />
+
+        <div className="mt-2 flex flex-wrap gap-2">
+          <input
+            ref={introFileInputRef}
+            type="file"
+            accept="image/*"
+            className="hidden"
+            onChange={async (e) => {
+              const file = e.target.files?.[0]
+              if (!file) return
+              try {
+                const path = `drag_drop/${Date.now()}_${Math.random().toString(36).slice(2)}_${file.name}`
+                const { error: uploadError } = await supabase.storage
+                  .from('exercise-images')
+                  .upload(path, file, { cacheControl: '3600', upsert: true })
+                if (uploadError) throw uploadError
+
+                const { data: publicData } = supabase.storage
+                  .from('exercise-images')
+                  .getPublicUrl(path)
+
+                const publicUrl = publicData?.publicUrl
+                if (!publicUrl) throw new Error('Cannot get public URL')
+
+                const textarea = introTextareaRef.current
+                const current = intro || ''
+                if (!textarea) {
+                  onIntroChange && onIntroChange(current + (current ? '\n\n' : '') + `![](${publicUrl})`)
+                  return
+                }
+                const start = textarea.selectionStart || 0
+                const end = textarea.selectionEnd || 0
+                const textToInsert = `\n![](${publicUrl})\n`
+                const newValue = current.slice(0, start) + textToInsert + current.slice(end)
+                onIntroChange && onIntroChange(newValue)
+                setTimeout(() => {
+                  textarea.focus()
+                  const caret = start + textToInsert.length
+                  textarea.setSelectionRange(caret, caret)
+                }, 0)
+                alert('Image uploaded and inserted into intro!')
+              } catch (err) {
+                console.error('Image upload failed:', err)
+                alert('Image upload failed. Please ensure the bucket "exercise-images" exists and RLS allows uploads.')
+              }
+            }}
+          />
+          <button
+            type="button"
+            onClick={() => { const input = introFileInputRef.current; if (input) input.click() }}
+            className="px-3 py-2 bg-gray-700 text-white rounded-lg hover:bg-gray-800 text-sm flex items-center gap-2"
+          >
+            <Upload className="w-4 h-4" /> Upload
+          </button>
+          <button
+            type="button"
+            onClick={() => { setUrlModal({ isOpen: true, type: 'image', questionIndex: -1 }); setUrlInput(''); setLinkText(''); setImageSize('medium'); setCustomWidth(''); setCustomHeight('') }}
+            className="px-3 py-2 bg-gray-100 text-gray-800 rounded-lg hover:bg-gray-200 text-sm flex items-center gap-2"
+          >
+            <ImageIcon className="w-4 h-4" /> Insert image
+          </button>
+          <button
+            type="button"
+            onClick={() => { setUrlModal({ isOpen: true, type: 'link', questionIndex: -1 }); setUrlInput(''); setLinkText('Reference') }}
+            className="px-3 py-2 bg-gray-100 text-gray-800 rounded-lg hover:bg-gray-200 text-sm flex items-center gap-2"
+          >
+            <LinkIcon className="w-4 h-4" />
+          </button>
+          <button
+            type="button"
+            onClick={() => { setUrlModal({ isOpen: true, type: 'audio', questionIndex: -1 }); setUrlInput(''); setLinkText(''); setImageSize('medium'); setCustomWidth(''); setCustomHeight(''); setAudioControls(true); setAudioAutoplay(false); setAudioLoop(false) }}
+            className="px-3 py-2 bg-purple-100 text-purple-800 rounded-lg hover:bg-purple-200 text-sm"
+          >
+            <Music className="w-4 h-4 inline mr-1" /> Insert audio
+          </button>
+          <div className="flex gap-1 ml-2 border-l pl-2 border-gray-300">
+            <button type="button" onClick={() => applyAlignment(-1, 'intro', 'left')} className="p-2 bg-gray-100 text-gray-700 rounded hover:bg-gray-200" title="Align left"><AlignLeft className="w-4 h-4" /></button>
+            <button type="button" onClick={() => applyAlignment(-1, 'intro', 'center')} className="p-2 bg-gray-100 text-gray-700 rounded hover:bg-gray-200" title="Align center"><AlignCenter className="w-4 h-4" /></button>
+            <button type="button" onClick={() => applyAlignment(-1, 'intro', 'right')} className="p-2 bg-gray-100 text-gray-700 rounded hover:bg-gray-200" title="Align right"><AlignRight className="w-4 h-4" /></button>
+          </div>
+        </div>
+
+        {intro && intro.trim() && (
+          <div className="mt-3 p-3 bg-white border rounded-lg">
+            <div className="text-xs text-gray-500 mb-2">Intro Preview</div>
+            <RichTextRenderer
+              content={markdownToHtml(intro)}
+              allowImages
+              allowLinks
+              className="prose max-w-none"
+              style={{ whiteSpace: 'pre-wrap' }}
+            />
+          </div>
+        )}
+      </div>
 
       {/* Bulk Import Mode */}
       {bulkImportMode && (
@@ -652,6 +829,18 @@ Distractors: Germany, London, Italy
 2: Put the words in the correct sequence
 She [has] [been] [studying] English for 3 years`}
           />
+          <div className="flex justify-between items-center mt-2">
+            <button
+              type="button"
+              onClick={() => setBulkText(lastBulkText)}
+              disabled={!lastBulkText}
+              className={`px-3 py-2 rounded-lg text-sm ${lastBulkText ? 'bg-gray-200 hover:bg-gray-300 text-gray-800' : 'bg-gray-100 text-gray-400 cursor-not-allowed'}`}
+              title={lastBulkText ? 'Restore last imported text' : 'No previous import yet'}
+            >
+              Restore last import
+            </button>
+            <span className="text-xs text-gray-500">Last text: {lastBulkText ? `${Math.min(lastBulkText.length, 60)} chars` : 'none'}</span>
+          </div>
           <div className="flex justify-end gap-2 mt-3">
             <button
               type="button"
@@ -744,6 +933,11 @@ She [has] [been] [studying] English for 3 years`}
                           <button type="button" onClick={() => handleInsertLink(index)} className="px-2 py-1 text-xs bg-gray-100 hover:bg-gray-200 rounded inline-flex items-center gap-1">
                             <LinkIcon className="w-3 h-3" /> Link
                           </button>
+                          <div className="flex gap-1 ml-2 border-l pl-2 border-gray-300">
+                            <button type="button" onClick={() => applyAlignment(index, 'questionText', 'left')} className="p-2 bg-gray-100 text-gray-700 rounded hover:bg-gray-200" title="Align left"><AlignLeft className="w-4 h-4" /></button>
+                            <button type="button" onClick={() => applyAlignment(index, 'questionText', 'center')} className="p-2 bg-gray-100 text-gray-700 rounded hover:bg-gray-200" title="Align center"><AlignCenter className="w-4 h-4" /></button>
+                            <button type="button" onClick={() => applyAlignment(index, 'questionText', 'right')} className="p-2 bg-gray-100 text-gray-700 rounded hover:bg-gray-200" title="Align right"><AlignRight className="w-4 h-4" /></button>
+                          </div>
                         </div>
                         <textarea
                           value={toEditableText(question)}

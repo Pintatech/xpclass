@@ -513,7 +513,7 @@ const Progress = () => {
         const attendBadge = (value) => {
           if (!value) return <span className="text-gray-300">-</span>
           const cls = value === 'present' ? 'bg-green-100 text-green-700' : value === 'late' ? 'bg-yellow-100 text-yellow-700' : value === 'absent' ? 'bg-red-100 text-red-700' : 'bg-gray-100 text-gray-600'
-          const labels = { present: 'Present', late: 'Late', absent: 'Absent' }
+          const labels = { present: 'Đúng giờ', late: 'Muộn', absent: 'Vắng' }
           return <span className={`inline-block px-2 py-0.5 rounded text-xs font-medium ${cls}`}>{labels[value] || value}</span>
         }
         const dash = <span className="text-gray-300">-</span>
@@ -650,7 +650,6 @@ const Progress = () => {
                     {/* Row 2: Badges */}
                     <div className="flex flex-wrap items-center gap-2">
                       <div className="flex items-center gap-1">
-                        <span className="text-[10px] text-gray-400 uppercase">Điểm danh</span>
                         {attendBadge(result.attendance_status)}
                       </div>
                       <div className="flex items-center gap-1">

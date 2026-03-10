@@ -1,11 +1,13 @@
 import React, { useState, useEffect, useRef } from 'react'
-import { Plus, Trash2, Wand2, Eye, EyeOff, HelpCircle, Brain, Image as ImageIcon, Music, Link as LinkIcon, X } from 'lucide-react'
+import { Plus, Trash2, Wand2, Eye, EyeOff, HelpCircle, Brain, Image as ImageIcon, Music, Link as LinkIcon, X, Upload, AlignLeft, AlignCenter, AlignRight } from 'lucide-react'
 import RichTextRenderer from '../../ui/RichTextRenderer'
 import { handleRichTextShortcut } from '../../../hooks/useRichTextShortcuts'
+import { supabase } from '../../../supabase/client'
 
 const AIFillBlankEditor = ({ questions, onQuestionsChange, intro, onIntroChange }) => {
   const [localQuestions, setLocalQuestions] = useState([])
   const introTextareaRef = useRef(null)
+  const introFileInputRef = useRef(null)
   const questionTextareasRef = useRef({})
   const [previewMode, setPreviewMode] = useState({})
   const [bulkImportMode, setBulkImportMode] = useState(false)
@@ -68,6 +70,26 @@ const AIFillBlankEditor = ({ questions, onQuestionsChange, intro, onIntroChange 
   }
 
   const appendToField = (index, field, snippet) => {
+    // Handle intro (index === -1)
+    if (index === -1) {
+      const textarea = introTextareaRef.current
+      const current = intro || ''
+      if (textarea && typeof textarea.selectionStart === 'number' && typeof textarea.selectionEnd === 'number') {
+        const start = textarea.selectionStart
+        const end = textarea.selectionEnd
+        const newValue = `${current.slice(0, start)}${snippet}${current.slice(end)}`
+        onIntroChange && onIntroChange(newValue)
+        setTimeout(() => {
+          try {
+            const pos = start + snippet.length
+            if (textarea) { textarea.focus(); textarea.setSelectionRange(pos, pos) }
+          } catch {}
+        }, 0)
+      } else {
+        onIntroChange && onIntroChange(current + (current ? '\n' : '') + snippet)
+      }
+      return
+    }
     const current = (localQuestions[index]?.[field]) || ''
     updateQuestion(index, field, (current + (current ? '\n' : '') + snippet).trim())
   }
@@ -82,6 +104,28 @@ const AIFillBlankEditor = ({ questions, onQuestionsChange, intro, onIntroChange 
     setAudioControls(true)
     setAudioAutoplay(false)
     setAudioLoop(false)
+  }
+
+  const applyAlignment = (index, field, alignment) => {
+    const isIntro = index === -1
+    const textarea = isIntro ? introTextareaRef.current : questionTextareasRef.current[index]
+    const current = isIntro ? (intro || '') : (localQuestions[index]?.[field] || '')
+    if (!textarea) return
+    const start = textarea.selectionStart
+    const end = textarea.selectionEnd
+    const selected = current.slice(start, end)
+    const wrapped = `<div style="text-align: ${alignment}">${selected}</div>`
+    const newValue = current.slice(0, start) + wrapped + current.slice(end)
+    if (isIntro) {
+      onIntroChange && onIntroChange(newValue)
+    } else {
+      updateQuestion(index, field, newValue)
+    }
+    setTimeout(() => {
+      textarea.focus()
+      const pos = start + wrapped.length
+      textarea.setSelectionRange(pos, pos)
+    }, 0)
   }
 
   const handleInsertImage = (index) => openUrlModal(index, 'image')
@@ -358,6 +402,88 @@ Trả lời bằng tiếng Việt với giải thích chi tiết, khuyến khíc
           placeholder="Enter introductory text for the AI fill-in-the-blank exercise..."
         />
 
+        {/* Insert Media Buttons for Intro */}
+        <div className="mt-2 flex flex-wrap gap-2">
+          <input
+            ref={introFileInputRef}
+            type="file"
+            accept="image/*"
+            className="hidden"
+            onChange={async (e) => {
+              const file = e.target.files?.[0]
+              if (!file) return
+              try {
+                const path = `ai_fill_blank/${Date.now()}_${Math.random().toString(36).slice(2)}_${file.name}`
+                const { error: uploadError } = await supabase.storage
+                  .from('exercise-images')
+                  .upload(path, file, { cacheControl: '3600', upsert: true })
+                if (uploadError) throw uploadError
+
+                const { data: publicData } = supabase.storage
+                  .from('exercise-images')
+                  .getPublicUrl(path)
+
+                const publicUrl = publicData?.publicUrl
+                if (!publicUrl) throw new Error('Cannot get public URL')
+
+                const textarea = introTextareaRef.current
+                const current = intro || ''
+                if (!textarea) {
+                  onIntroChange && onIntroChange(current + (current ? '\n\n' : '') + `![](${publicUrl})`)
+                  return
+                }
+                const start = textarea.selectionStart || 0
+                const end = textarea.selectionEnd || 0
+                const textToInsert = `\n![](${publicUrl})\n`
+                const newValue = current.slice(0, start) + textToInsert + current.slice(end)
+                onIntroChange && onIntroChange(newValue)
+                setTimeout(() => {
+                  textarea.focus()
+                  const caret = start + textToInsert.length
+                  textarea.setSelectionRange(caret, caret)
+                }, 0)
+                alert('Image uploaded and inserted into intro!')
+              } catch (err) {
+                console.error('Image upload failed:', err)
+                alert('Image upload failed. Please ensure the bucket "exercise-images" exists and RLS allows uploads.')
+              }
+            }}
+          />
+          <button
+            type="button"
+            onClick={() => { const input = introFileInputRef.current; if (input) input.click() }}
+            className="px-3 py-2 bg-gray-700 text-white rounded-lg hover:bg-gray-800 text-sm flex items-center gap-2"
+          >
+            <Upload className="w-4 h-4" /> Upload
+          </button>
+          <button
+            type="button"
+            onClick={() => openUrlModal(-1, 'image')}
+            className="px-3 py-2 bg-gray-100 text-gray-800 rounded-lg hover:bg-gray-200 text-sm flex items-center gap-2"
+          >
+            <ImageIcon className="w-4 h-4" /> Insert image
+          </button>
+          <button
+            type="button"
+            onClick={() => openUrlModal(-1, 'link')}
+            className="px-3 py-2 bg-gray-100 text-gray-800 rounded-lg hover:bg-gray-200 text-sm flex items-center gap-2"
+          >
+            <LinkIcon className="w-4 h-4" />
+          </button>
+          <button
+            type="button"
+            onClick={() => openUrlModal(-1, 'audio')}
+            className="px-3 py-2 bg-purple-100 text-purple-800 rounded-lg hover:bg-purple-200 text-sm"
+          >
+            <Music className="w-4 h-4 inline mr-1" /> Insert audio
+          </button>
+          <div className="flex gap-1 ml-2 border-l pl-2 border-gray-300">
+            <button type="button" onClick={() => applyAlignment(-1, 'question', 'left')} className="p-2 bg-gray-100 text-gray-700 rounded hover:bg-gray-200" title="Align left"><AlignLeft className="w-4 h-4" /></button>
+            <button type="button" onClick={() => applyAlignment(-1, 'question', 'center')} className="p-2 bg-gray-100 text-gray-700 rounded hover:bg-gray-200" title="Align center"><AlignCenter className="w-4 h-4" /></button>
+            <button type="button" onClick={() => applyAlignment(-1, 'question', 'right')} className="p-2 bg-gray-100 text-gray-700 rounded hover:bg-gray-200" title="Align right"><AlignRight className="w-4 h-4" /></button>
+          </div>
+        </div>
+
         {intro && intro.trim() && (
           <div className="mt-3 p-3 bg-white border rounded-lg">
             <div className="text-xs text-gray-500 mb-2">Intro Preview</div>
@@ -485,6 +611,11 @@ B. Combine these sentences using a relative clause.
                       <button type="button" onClick={() => handleInsertLink(index)} className="px-2 py-1 text-xs bg-gray-100 hover:bg-gray-200 rounded inline-flex items-center gap-1">
                         <LinkIcon className="w-3 h-3" /> Link
                       </button>
+                      <div className="flex gap-1 ml-2 border-l pl-2 border-gray-300">
+                        <button type="button" onClick={() => applyAlignment(index, 'question', 'left')} className="p-2 bg-gray-100 text-gray-700 rounded hover:bg-gray-200" title="Align left"><AlignLeft className="w-4 h-4" /></button>
+                        <button type="button" onClick={() => applyAlignment(index, 'question', 'center')} className="p-2 bg-gray-100 text-gray-700 rounded hover:bg-gray-200" title="Align center"><AlignCenter className="w-4 h-4" /></button>
+                        <button type="button" onClick={() => applyAlignment(index, 'question', 'right')} className="p-2 bg-gray-100 text-gray-700 rounded hover:bg-gray-200" title="Align right"><AlignRight className="w-4 h-4" /></button>
+                      </div>
                     </div>
                     <textarea
                       ref={(el) => { questionTextareasRef.current[index] = el }}

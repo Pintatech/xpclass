@@ -17,9 +17,9 @@ const ratingLabel = {
 };
 
 const attendanceLabel = {
-  present: 'Present',
-  absent: 'Absent',
-  late: 'Late',
+  present: 'Đúng giờ',
+  absent: 'Vắng',
+  late: 'Muộn',
   excused: 'Excused',
 };
 
@@ -371,18 +371,18 @@ const TeacherCourseOverview = () => {
                           {isExpanded && (
                             <div className="bg-gray-50 px-4 pb-4">
                               <div className="overflow-x-auto rounded-lg border bg-white">
-                                <table className="w-full text-sm">
+                                <table className="w-full text-sm min-w-[800px]">
                                   <thead className="bg-gray-100 text-gray-600">
                                     <tr>
                                       <th className="px-3 py-2 text-left font-medium">Date</th>
                                       <th className="px-3 py-2 text-left font-medium">Lesson</th>
                                       <th className="px-3 py-2 text-center font-medium">Attendance</th>
-                                      <th className="px-3 py-2 text-center font-medium">Performance</th>
+                                      <th className="px-3 py-2 text-center font-medium">Class</th>
                                       <th className="px-3 py-2 text-center font-medium">Score</th>
-                                      <th className="px-3 py-2 text-left font-medium">Notes</th>
-                                      <th className="px-3 py-2 text-center font-medium">Homework</th>
-                                      <th className="px-3 py-2 text-center font-medium">Score</th>
-                                      <th className="px-3 py-2 text-left font-medium">HW Notes</th>
+                                      <th className="px-3 py-2 text-left font-medium whitespace-nowrap">Notes</th>
+                                      <th className="px-3 py-2 text-center font-medium whitespace-nowrap">Homework</th>
+                                      <th className="px-3 py-2 text-center font-medium whitespace-nowrap">Score</th>
+                                      <th className="px-3 py-2 text-left font-medium whitespace-nowrap">HW Notes</th>
                                       <th className="px-3 py-2 text-center font-medium">Star/Flag</th>
                                     </tr>
                                   </thead>

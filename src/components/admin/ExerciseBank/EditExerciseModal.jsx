@@ -170,6 +170,8 @@ const EditExerciseModal = ({ isOpen, onClose, exercise, onUpdate }) => {
           <SmartDragDropEditor
             questions={content.questions || []}
             onQuestionsChange={(questions) => handleContentChange({ ...content, questions })}
+            intro={content.intro || ''}
+            onIntroChange={(intro) => handleContentChange({ ...content, intro })}
           />
         )
       case 'dropdown':
@@ -177,6 +179,8 @@ const EditExerciseModal = ({ isOpen, onClose, exercise, onUpdate }) => {
           <SimpleDropdownEditor
             questions={content.questions || []}
             onQuestionsChange={(questions) => handleContentChange({ ...content, questions })}
+            intro={content.intro || ''}
+            onIntroChange={(intro) => handleContentChange({ ...content, intro })}
           />
         )
       case 'pronunciation':

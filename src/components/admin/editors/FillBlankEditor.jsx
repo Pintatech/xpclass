@@ -10,7 +10,10 @@ import {
   HelpCircle,
   Image as ImageIcon,
   Link as LinkIcon,
-  Music
+  Music,
+  AlignLeft,
+  AlignCenter,
+  AlignRight
 } from 'lucide-react'
 import RichTextRenderer from '../../ui/RichTextRenderer'
 import { handleRichTextShortcut } from '../../../hooks/useRichTextShortcuts'
@@ -20,6 +23,7 @@ const FillBlankEditor = ({ questions, onQuestionsChange, settings, onSettingsCha
   const [localQuestions, setLocalQuestions] = useState(questions || [])
   const [bulkImportMode, setBulkImportMode] = useState(false)
   const [bulkText, setBulkText] = useState('')
+  const [lastBulkText, setLastBulkText] = useState('')
   const [urlModal, setUrlModal] = useState({ isOpen: false, type: '', questionIndex: -1 })
   const [urlInput, setUrlInput] = useState('')
   const [linkText, setLinkText] = useState('')
@@ -34,13 +38,19 @@ const FillBlankEditor = ({ questions, onQuestionsChange, settings, onSettingsCha
   const introFileInputRef = useRef(null)
 
   useEffect(() => {
+    try {
+      const saved = localStorage.getItem('xpclass_last_bulk_text_fill_blank')
+      if (saved) setLastBulkText(saved)
+    } catch {}
+  }, [])
+
+  useEffect(() => {
     setLocalQuestions(questions || [])
   }, [questions])
 
   const addQuestion = () => {
     const newQuestion = {
       id: `q${Date.now()}`,
-      intro: '',
       question: '',
       blanks: [{ text: '', answer: '', case_sensitive: false }],
       explanation: ''
@@ -53,7 +63,6 @@ const FillBlankEditor = ({ questions, onQuestionsChange, settings, onSettingsCha
   const duplicateQuestion = (index) => {
     const questionToDuplicate = { ...localQuestions[index] }
     questionToDuplicate.id = `q${Date.now()}`
-    questionToDuplicate.question = `${questionToDuplicate.question} (Copy)`
     const updatedQuestions = [...localQuestions]
     updatedQuestions.splice(index + 1, 0, questionToDuplicate)
     setLocalQuestions(updatedQuestions)
@@ -193,6 +202,23 @@ const FillBlankEditor = ({ questions, onQuestionsChange, settings, onSettingsCha
       // Fallback to append when we cannot detect caret
       appendToField(index, field, snippet)
     }
+  }
+
+  const applyAlignment = (index, alignment) => {
+    const textarea = questionTextareasRef.current[index]
+    if (!textarea) return
+    const value = localQuestions[index]?.question || ''
+    const start = textarea.selectionStart || 0
+    const end = textarea.selectionEnd || 0
+    const selected = value.slice(start, end)
+    const wrapped = `<div style="text-align: ${alignment}">${selected || 'text here'}</div>`
+    const newValue = value.slice(0, start) + wrapped + value.slice(end)
+    updateQuestion(index, 'question', newValue)
+    setTimeout(() => {
+      textarea.focus()
+      const caret = start + wrapped.length
+      textarea.setSelectionRange(caret, caret)
+    }, 0)
   }
 
   const handlePasteImageUrl = (index) => {
@@ -430,6 +456,8 @@ const FillBlankEditor = ({ questions, onQuestionsChange, settings, onSettingsCha
       processAccumulatedQuestion()
 
       if (newQuestions.length > 0) {
+        setLastBulkText(bulkText)
+        try { localStorage.setItem('xpclass_last_bulk_text_fill_blank', bulkText) } catch {}
         const updatedQuestions = [...localQuestions, ...newQuestions]
         setLocalQuestions(updatedQuestions)
         onQuestionsChange(updatedQuestions)
@@ -720,6 +748,18 @@ B. Fill in the blanks with the correct form.
 
 2. Water boils at [100] degrees Celsius.`}
           />
+          <div className="flex justify-between items-center mt-2">
+            <button
+              type="button"
+              onClick={() => setBulkText(lastBulkText)}
+              disabled={!lastBulkText}
+              className={`px-3 py-2 rounded-lg text-sm ${lastBulkText ? 'bg-gray-200 hover:bg-gray-300 text-gray-800' : 'bg-gray-100 text-gray-400 cursor-not-allowed'}`}
+              title={lastBulkText ? 'Restore last imported text' : 'No previous import yet'}
+            >
+              Restore last import
+            </button>
+            <span className="text-xs text-gray-500">Last text: {lastBulkText ? `${Math.min(lastBulkText.length, 60)} chars` : 'none'}</span>
+          </div>
           <div className="flex justify-end gap-2 mt-3">
             <button
               type="button"
@@ -783,28 +823,6 @@ B. Fill in the blanks with the correct form.
               </div>
             </div>
 
-            {/* Question Intro */}
-            <div className="mb-4">
-              <label className="block text-sm font-medium text-gray-700 mb-1">
-                Question Intro (Optional)
-              </label>
-              <textarea
-                value={question.intro || ''}
-                onChange={(e) => updateQuestion(index, 'intro', e.target.value)}
-                className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
-                rows={2}
-                placeholder="Enter introductory text for this specific question..."
-              />
-              {question.intro && question.intro.trim() && (
-                <div className="mt-2 p-3 bg-gray-50 border border-gray-200 rounded-lg">
-                  <p className="text-sm text-gray-600 mb-1">Preview:</p>
-                  <div className="prose max-w-none">
-                    <RichTextRenderer content={markdownToHtml(question.intro)} allowImages allowLinks />
-                  </div>
-                </div>
-              )}
-            </div>
-
             {/* Question Text */}
             <div className="mb-4">
               <label className="block text-sm font-medium text-gray-700 mb-1">
@@ -820,6 +838,17 @@ B. Fill in the blanks with the correct form.
                 <button type="button" onClick={() => handleInsertLink(index)} className="px-2 py-1 text-xs bg-gray-100 hover:bg-gray-200 rounded inline-flex items-center gap-1">
                   <LinkIcon className="w-3 h-3" /> Link
                 </button>
+                <div className="flex gap-1 ml-2 border-l pl-2 border-gray-300">
+                  <button type="button" onClick={() => applyAlignment(index, 'left')} className="p-2 bg-gray-100 text-gray-700 rounded hover:bg-gray-200" title="Align left">
+                    <AlignLeft className="w-4 h-4" />
+                  </button>
+                  <button type="button" onClick={() => applyAlignment(index, 'center')} className="p-2 bg-gray-100 text-gray-700 rounded hover:bg-gray-200" title="Align center">
+                    <AlignCenter className="w-4 h-4" />
+                  </button>
+                  <button type="button" onClick={() => applyAlignment(index, 'right')} className="p-2 bg-gray-100 text-gray-700 rounded hover:bg-gray-200" title="Align right">
+                    <AlignRight className="w-4 h-4" />
+                  </button>
+                </div>
               </div>
               <textarea
                 value={question.question || ''}
