@@ -25,7 +25,7 @@ const PET_X_PERCENT = 0.18
 const GAME_DURATION = 61 // seconds
 const PASS_SCORE = 10
 
-const FRUIT_EMOJIS = ['🍎', '🍊', '🍋', '🍇', '🍓', '🍑', '🍒', '🍌', '🍉', '🥝', '🥭', '🫐']
+const FRUIT_EMOJIS = ['🍈', '🍉', '🍊', '🍋', '🍌', '🍍', '🥭', '🍎', '🍏', '🍐', '🍑', '🍒', '🍓', '🍅', '🍆', '🌽', '🥑', '🍕', '🍔', '🌭', '🥨', '🥐', '🍞', '🌮', '🥪', '🥠', '🥩', '🍗', '🍖', '🍘', '🍤', '🍩', '🍰', '🧁']
 
 function pickWrongWords(wordBank, correctWord, count) {
   const pool = wordBank.filter(w => w.word !== correctWord)
@@ -44,17 +44,21 @@ const PetFlappyGame = ({ petImageUrl, petName, wordBank: wordBankProp, onGameEnd
   const [displayScore, setDisplayScore] = useState(0)
   const [displayTime, setDisplayTime] = useState(GAME_DURATION)
   const [streak, setStreak] = useState(0)
-  const [renderTick, setRenderTick] = useState(0)
-  const [floatingTexts, setFloatingTexts] = useState([])
 
   const wordBank = (wordBankProp && wordBankProp.length > 0) ? wordBankProp : WORD_BANK_FALLBACK
 
   const gameAreaRef = useRef(null)
   const animFrameRef = useRef(null)
   const lastFrameTimeRef = useRef(0)
-  const frameCountRef = useRef(0)
   const timerRef = useRef(null)
   const bgMusicRef = useRef(null)
+
+  // DOM refs for direct manipulation
+  const petElRef = useRef(null)
+  const fruitsContainerRef = useRef(null)
+  const floatsContainerRef = useRef(null)
+  const hintTextRef = useRef(null)
+  const flashElRef = useRef(null)
 
   // Game state refs
   const petYRef = useRef(0)
@@ -67,11 +71,11 @@ const PetFlappyGame = ({ petImageUrl, petName, wordBank: wordBankProp, onGameEnd
   const nextWaveIdRef = useRef(0)
   const distanceSinceLastWaveRef = useRef(0)
   const gameStartTimeRef = useRef(0)
-  const flashRef = useRef(false)
   const currentWordRef = useRef(null)
   const usedWordsRef = useRef(new Set())
   const currentHintRef = useRef('')
   const nextFloatIdRef = useRef(0)
+  const floatingTextsRef = useRef([])
 
   // Flap / jump
   const flap = useCallback(() => {
@@ -121,6 +125,7 @@ const PetFlappyGame = ({ petImageUrl, petName, wordBank: wordBankProp, onGameEnd
         isCorrect: i === correctIndex,
         eaten: false,
         emoji,
+        el: null, // DOM element reference
       })
     }
 
@@ -131,12 +136,6 @@ const PetFlappyGame = ({ petImageUrl, petName, wordBank: wordBankProp, onGameEnd
       resolved: false,
     }
   }, [wordBank])
-
-  // Add floating score text
-  const addFloatingText = useCallback((text, x, y, color) => {
-    const id = nextFloatIdRef.current++
-    setFloatingTexts(prev => [...prev, { id, text, x, y, color, opacity: 1 }])
-  }, [])
 
   // Stop background music
   const stopMusic = useCallback(() => {
@@ -174,21 +173,39 @@ const PetFlappyGame = ({ petImageUrl, petName, wordBank: wordBankProp, onGameEnd
     return () => clearInterval(timerRef.current)
   }, [phase])
 
-  // Floating text animation
-  useEffect(() => {
-    if (phase !== 'playing') return
-    let raf
-    const animate = () => {
-      setFloatingTexts(prev => prev.map(ft => ({
-        ...ft,
-        y: ft.y - 1.5,
-        opacity: ft.opacity - 0.025,
-      })).filter(ft => ft.opacity > 0))
-      raf = requestAnimationFrame(animate)
-    }
-    raf = requestAnimationFrame(animate)
-    return () => cancelAnimationFrame(raf)
-  }, [phase])
+  // Create a fruit DOM element
+  const createFruitEl = useCallback((fruit) => {
+    const wrapper = document.createElement('div')
+    wrapper.className = 'absolute pointer-events-none'
+    wrapper.style.cssText = 'left:0;top:0;will-change:transform;'
+
+    const label = document.createElement('div')
+    label.className = 'text-center'
+    label.style.marginBottom = '2px'
+    const span = document.createElement('span')
+    span.className = 'inline-block bg-white text-gray-800 text-[11px] font-bold px-2 py-0.5 rounded-full shadow-md border border-gray-200 whitespace-nowrap'
+    span.style.cssText = 'max-width:120px;-webkit-font-smoothing:antialiased;-moz-osx-font-smoothing:grayscale;'
+    span.textContent = fruit.word
+    label.appendChild(span)
+    wrapper.appendChild(label)
+
+    const emojiDiv = document.createElement('div')
+    emojiDiv.className = 'text-center'
+    emojiDiv.style.cssText = `font-size:${FRUIT_SIZE - 8}px;line-height:1;`
+    emojiDiv.textContent = fruit.emoji
+    wrapper.appendChild(emojiDiv)
+
+    return wrapper
+  }, [])
+
+  // Create a floating text DOM element
+  const createFloatEl = useCallback((text, x, y, color) => {
+    const el = document.createElement('div')
+    el.className = 'absolute pointer-events-none z-50 font-black text-lg'
+    el.style.cssText = `left:${x}px;top:${y}px;color:${color};opacity:1;transform:translateX(-50%);text-shadow:0 1px 2px rgba(0,0,0,0.2);`
+    el.textContent = text
+    return el
+  }, [])
 
   // Main game loop
   useEffect(() => {
@@ -200,6 +217,10 @@ const PetFlappyGame = ({ petImageUrl, petName, wordBank: wordBankProp, onGameEnd
     const gameWidth = gameArea.clientWidth
     const gameHeight = gameArea.clientHeight
 
+    // Clear containers
+    if (fruitsContainerRef.current) fruitsContainerRef.current.innerHTML = ''
+    if (floatsContainerRef.current) floatsContainerRef.current.innerHTML = ''
+
     // Initialize
     petYRef.current = 0.45
     petVelocityRef.current = JUMP_VELOCITY * 0.6
@@ -209,22 +230,32 @@ const PetFlappyGame = ({ petImageUrl, petName, wordBank: wordBankProp, onGameEnd
     gameOverRef.current = false
     usedWordsRef.current = new Set()
     nextFloatIdRef.current = 0
+    floatingTextsRef.current = []
 
     // Pick first word
     setNewWord()
+    // Update hint immediately
+    if (hintTextRef.current) hintTextRef.current.textContent = currentHintRef.current
 
     // Pre-spawn first wave
     const firstWave = spawnWave(gameHeight)
-    fruitsRef.current = firstWave ? [firstWave] : []
+    if (firstWave) {
+      firstWave.fruits.forEach(fruit => {
+        const el = createFruitEl(fruit)
+        fruit.el = el
+        fruitsContainerRef.current?.appendChild(el)
+      })
+      fruitsRef.current = [firstWave]
+    } else {
+      fruitsRef.current = []
+    }
+
     distanceSinceLastWaveRef.current = 0
     gameStartTimeRef.current = performance.now()
-    flashRef.current = false
     setDisplayScore(0)
     setStreak(0)
-    setFloatingTexts([])
 
     lastFrameTimeRef.current = performance.now()
-    frameCountRef.current = 0
 
     // Start background music
     try {
@@ -264,6 +295,12 @@ const PetFlappyGame = ({ petImageUrl, petName, wordBank: wordBankProp, onGameEnd
         petVelocityRef.current = 0.5
       }
 
+      // --- Direct DOM update for pet ---
+      if (petElRef.current) {
+        petElRef.current.style.top = petYRef.current * 100 + '%'
+        petElRef.current.style.transform = `translate(-50%, -50%) rotate(${petRotationRef.current}deg)`
+      }
+
       // --- Move fruits & check collisions ---
       const fruitSpeedNorm = (fruitSpeed / gameWidth) * dt
       const petPixelX = PET_X_PERCENT * gameWidth
@@ -272,6 +309,14 @@ const PetFlappyGame = ({ petImageUrl, petName, wordBank: wordBankProp, onGameEnd
 
       fruitsRef.current.forEach(wave => {
         wave.x -= fruitSpeedNorm
+
+        // Direct DOM update for each fruit in wave
+        const wavePixelX = wave.x * gameWidth
+        wave.fruits.forEach(fruit => {
+          if (fruit.eaten || !fruit.el) return
+          const fruitPixelY = fruit.y * gameHeight
+          fruit.el.style.transform = `translate3d(${Math.round(wavePixelX - FRUIT_SIZE / 2)}px, ${Math.round(fruitPixelY - FRUIT_SIZE / 2 - 12)}px, 0)`
+        })
 
         if (wave.resolved) return
 
@@ -289,19 +334,25 @@ const PetFlappyGame = ({ petImageUrl, petName, wordBank: wordBankProp, onGameEnd
             fruit.eaten = true
             wave.resolved = true
 
+            // Hide fruit DOM element
+            if (fruit.el) fruit.el.style.display = 'none'
+
             if (fruit.isCorrect) {
               // Correct fruit!
               streakRef.current += 1
               setStreak(streakRef.current)
-              const bonus = streakRef.current >= 3 ? 5 : 0
-              const points = 10 + bonus
+              const rand = (min, max) => min + Math.floor(Math.random() * (max - min + 1))
+              const points = streakRef.current >= 3 ? rand(16, 18) : streakRef.current >= 2 ? rand(13, 15) : rand(10, 12)
               scoreRef.current += points
               setDisplayScore(scoreRef.current)
-              addFloatingText(
-                bonus > 0 ? `+${points} 🔥` : `+${points}`,
-                fruitPixelX, fruitPixelY,
-                bonus > 0 ? '#f59e0b' : '#22c55e'
-              )
+
+              // Add floating text via DOM
+              const floatText = streakRef.current >= 2 ? `+${points} 🔥` : `+${points}`
+              const floatColor = streakRef.current >= 2 ? '#f59e0b' : '#22c55e'
+              const floatEl = createFloatEl(floatText, fruitPixelX, fruitPixelY, floatColor)
+              floatsContainerRef.current?.appendChild(floatEl)
+              floatingTextsRef.current.push({ el: floatEl, y: fruitPixelY, opacity: 1 })
+
               try {
                 const sound = new Audio(assetUrl('/sound/flappy-point.mp3'))
                 sound.volume = 0.4
@@ -309,22 +360,32 @@ const PetFlappyGame = ({ petImageUrl, petName, wordBank: wordBankProp, onGameEnd
               } catch {}
               // Pick new word
               setNewWord()
+              if (hintTextRef.current) hintTextRef.current.textContent = currentHintRef.current
             } else {
               // Wrong fruit — streak reset, brief flash, no death
               streakRef.current = 0
               setStreak(0)
-              addFloatingText('Wrong!', fruitPixelX, fruitPixelY, '#ef4444')
-              flashRef.current = true
+
+              const floatEl = createFloatEl('Wrong!', fruitPixelX, fruitPixelY, '#ef4444')
+              floatsContainerRef.current?.appendChild(floatEl)
+              floatingTextsRef.current.push({ el: floatEl, y: fruitPixelY, opacity: 1 })
+
+              if (flashElRef.current) {
+                flashElRef.current.style.display = ''
+                flashElRef.current.style.animation = 'none'
+                // force reflow
+                flashElRef.current.offsetHeight
+                flashElRef.current.style.animation = 'flappyFlash 0.15s ease-out forwards'
+                setTimeout(() => {
+                  if (flashElRef.current) flashElRef.current.style.display = 'none'
+                }, 150)
+              }
+
               try {
                 const sound = new Audio(assetUrl('/sound/flappy-hit.mp3'))
                 sound.volume = 0.4
                 sound.play().catch(() => {})
               } catch {}
-              setTimeout(() => {
-                flashRef.current = false
-                setRenderTick(prev => prev + 1)
-              }, 150)
-              // Keep same word, new wave will come
             }
           }
         })
@@ -337,24 +398,47 @@ const PetFlappyGame = ({ petImageUrl, petName, wordBank: wordBankProp, onGameEnd
           streakRef.current = 0
           setStreak(0)
           setNewWord()
+          if (hintTextRef.current) hintTextRef.current.textContent = currentHintRef.current
         }
       }
 
-      // Remove off-screen waves
-      fruitsRef.current = fruitsRef.current.filter(w => w.x > -0.15)
+      // Remove off-screen waves and their DOM elements
+      fruitsRef.current = fruitsRef.current.filter(w => {
+        if (w.x <= -0.15) {
+          w.fruits.forEach(f => { if (f.el && f.el.parentNode) f.el.parentNode.removeChild(f.el) })
+          return false
+        }
+        return true
+      })
 
       // --- Spawn next wave only after current is resolved ---
       const allResolved = fruitsRef.current.length === 0 || fruitsRef.current.every(w => w.resolved)
       distanceSinceLastWaveRef.current += fruitSpeedNorm * gameWidth
       if (allResolved && distanceSinceLastWaveRef.current >= FRUIT_SPAWN_DISTANCE) {
         const wave = spawnWave(gameHeight)
-        if (wave) fruitsRef.current.push(wave)
+        if (wave) {
+          wave.fruits.forEach(fruit => {
+            const el = createFruitEl(fruit)
+            fruit.el = el
+            fruitsContainerRef.current?.appendChild(el)
+          })
+          fruitsRef.current.push(wave)
+        }
         distanceSinceLastWaveRef.current = 0
       }
 
-      // --- Render update (~30fps) ---
-      frameCountRef.current++
-      if (frameCountRef.current % 2 === 0) setRenderTick(prev => prev + 1)
+      // --- Animate floating texts via DOM ---
+      floatingTextsRef.current = floatingTextsRef.current.filter(ft => {
+        ft.y -= 1.5
+        ft.opacity -= 0.025
+        if (ft.opacity <= 0) {
+          if (ft.el && ft.el.parentNode) ft.el.parentNode.removeChild(ft.el)
+          return false
+        }
+        ft.el.style.top = ft.y + 'px'
+        ft.el.style.opacity = ft.opacity
+        return true
+      })
 
       animFrameRef.current = requestAnimationFrame(gameLoop)
     }
@@ -364,12 +448,7 @@ const PetFlappyGame = ({ petImageUrl, petName, wordBank: wordBankProp, onGameEnd
       gameOverRef.current = true
       cancelAnimationFrame(animFrameRef.current)
     }
-  }, [phase, spawnWave, setNewWord, addFloatingText])
-
-  // Get game dimensions for rendering
-  const gameArea = gameAreaRef.current
-  const gameWidth = gameArea?.clientWidth || 400
-  const gameHeight = gameArea?.clientHeight || 700
+  }, [phase, spawnWave, setNewWord, createFruitEl, createFloatEl])
 
   return createPortal(
     <div className="fixed inset-0 z-50 select-none overflow-hidden bg-black/70 flex items-center justify-center">
@@ -463,11 +542,11 @@ const PetFlappyGame = ({ petImageUrl, petName, wordBank: wordBankProp, onGameEnd
         )}
 
         {/* Word hint */}
-        {phase === 'playing' && currentHintRef.current && (
+        {phase === 'playing' && (
           <div className="absolute top-16 left-1/2 -translate-x-1/2 z-40 pointer-events-none">
             <div className="bg-white/90 backdrop-blur-sm rounded-xl px-4 py-2 shadow-lg border-2 border-amber-300">
               <p className="text-xs font-bold text-amber-600 text-center leading-none mb-0.5">Find the meaning:</p>
-              <p className="text-lg font-black text-gray-800 text-center leading-tight">{currentHintRef.current}</p>
+              <p ref={hintTextRef} className="text-lg font-black text-gray-800 text-center leading-tight">{currentHintRef.current}</p>
             </div>
           </div>
         )}
@@ -489,7 +568,7 @@ const PetFlappyGame = ({ petImageUrl, petName, wordBank: wordBankProp, onGameEnd
                   onError={(e) => { e.target.style.display = 'none'; e.target.nextSibling.style.display = ''; }}
                 />
               ) : null}
-              <span className="text-6xl" style={{ display: petImageUrl ? 'none' : '' }}>🐦</span>
+              <img src="https://xpclass.vn/xpclass/image/dashboard/flap.png" alt="Flappy Pet" className="w-20 h-20 object-contain drop-shadow-lg" style={{ display: petImageUrl ? 'none' : '' }} />
             </div>
             <div className="text-center">
               <h2 className="text-3xl font-black text-white mb-2"
@@ -515,74 +594,16 @@ const PetFlappyGame = ({ petImageUrl, petName, wordBank: wordBankProp, onGameEnd
           </div>
         )}
 
-        {/* Playing Phase - Fruits */}
-        {phase === 'playing' && fruitsRef.current.map(wave => {
-          const wavePixelX = wave.x * gameWidth
+        {/* Playing Phase - Fruits container (DOM-managed) */}
+        {phase === 'playing' && <div ref={fruitsContainerRef} />}
 
-          return (
-            <React.Fragment key={wave.id}>
-              {wave.fruits.map((fruit, fi) => {
-                if (fruit.eaten) return null
-                const fruitPixelY = fruit.y * gameHeight
-
-                return (
-                  <div
-                    key={fi}
-                    className="absolute pointer-events-none"
-                    style={{
-                      left: 0,
-                      top: 0,
-                      transform: `translate3d(${Math.round(wavePixelX - FRUIT_SIZE / 2)}px, ${Math.round(fruitPixelY - FRUIT_SIZE / 2 - 12)}px, 0)`,
-                      willChange: 'transform',
-                    }}
-                  >
-                    {/* Word label above fruit */}
-                    <div className="text-center mb-0.5">
-                      <span
-                        className="inline-block bg-white text-gray-800 text-[11px] font-bold px-2 py-0.5 rounded-full shadow-md border border-gray-200 whitespace-nowrap"
-                        style={{ maxWidth: 120 }}
-                      >
-                        {fruit.word}
-                      </span>
-                    </div>
-                    {/* Fruit emoji */}
-                    <div
-                      className="text-center"
-                      style={{
-                        fontSize: FRUIT_SIZE - 8,
-                        lineHeight: 1,
-                      }}
-                    >
-                      {fruit.emoji}
-                    </div>
-                  </div>
-                )
-              })}
-            </React.Fragment>
-          )
-        })}
-
-        {/* Floating score texts */}
-        {floatingTexts.map(ft => (
-          <div
-            key={ft.id}
-            className="absolute pointer-events-none z-50 font-black text-lg"
-            style={{
-              left: ft.x,
-              top: ft.y,
-              color: ft.color,
-              opacity: ft.opacity,
-              transform: 'translateX(-50%)',
-              textShadow: '0 1px 2px rgba(0,0,0,0.2)',
-            }}
-          >
-            {ft.text}
-          </div>
-        ))}
+        {/* Floating texts container (DOM-managed) */}
+        {phase === 'playing' && <div ref={floatsContainerRef} />}
 
         {/* Playing Phase - Pet */}
         {phase === 'playing' && (
           <div
+            ref={petElRef}
             className="absolute z-30 pointer-events-none"
             style={{
               left: PET_X_PERCENT * 100 + '%',
@@ -603,16 +624,16 @@ const PetFlappyGame = ({ petImageUrl, petName, wordBank: wordBankProp, onGameEnd
                 onError={(e) => { e.target.style.display = 'none'; e.target.nextSibling.style.display = ''; }}
               />
             ) : null}
-            <span className="text-4xl block text-center" style={{ display: petImageUrl ? 'none' : '' }}>🐦</span>
+            <img src="https://xpclass.vn/xpclass/image/dashboard/flap.png" alt="Flappy Pet" className="w-full h-full object-contain drop-shadow-lg" style={{ display: petImageUrl ? 'none' : '' }} />
           </div>
         )}
 
         {/* Death flash */}
-        {flashRef.current && (
-          <div className="absolute inset-0 bg-red-500 z-40 pointer-events-none"
-            style={{ animation: 'flappyFlash 0.15s ease-out forwards' }}
-          />
-        )}
+        <div
+          ref={flashElRef}
+          className="absolute inset-0 bg-red-500 z-40 pointer-events-none"
+          style={{ display: 'none' }}
+        />
       </div>
 
       {/* Results Phase */}

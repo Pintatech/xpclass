@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react'
-import { useParams, useNavigate } from 'react-router-dom'
+import { useParams, useNavigate, useSearchParams } from 'react-router-dom'
 import { useAuth } from '../../hooks/useAuth'
 import { useStudentLevels } from '../../hooks/useStudentLevels'
 import { useAchievements } from '../../hooks/useAchievements'
@@ -34,6 +34,7 @@ import {
 const Profile = () => {
   const { userId } = useParams()
   const navigate = useNavigate()
+  const [searchParams, setSearchParams] = useSearchParams()
   const { user, profile, updateProfile } = useAuth()
   const {
     currentLevel,
@@ -154,6 +155,15 @@ const Profile = () => {
       navigate('/leaderboard')
     }
   }
+
+  // Auto-open avatar selector from query param
+  useEffect(() => {
+    if (!loading && isOwnProfile && searchParams.get('avatarSelector') === 'true') {
+      setShowAvatarSelector(true)
+      searchParams.delete('avatarSelector')
+      setSearchParams(searchParams, { replace: true })
+    }
+  }, [loading, isOwnProfile, searchParams])
 
   const fetchUserPets = async (targetUserId) => {
     try {

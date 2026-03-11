@@ -8,6 +8,7 @@ import PetWhackMole from '../pet/PetWhackMole'
 import PetWordScramble from '../pet/PetWordScramble'
 import PetAstroBlast from '../pet/PetAstroBlast'
 import PetMatchGame from '../pet/PetMatchGame'
+import PetFlappyGame from '../pet/PetFlappyGame'
 
 import { assetUrl } from '../../hooks/useBranding'
 
@@ -141,7 +142,8 @@ const GAMES = [
   { id: 'scramble', name: 'Word Scramble', icon: assetUrl('/image/dashboard/pet-scramble.jpg'), description: 'Pop bubbles in order!' },
   { id: 'whackmole', name: 'Whack-a-Mole', icon: assetUrl('/pet-game/mole-normal.png'), description: 'Tap the correct word!' },
   { id: 'astroblast', name: 'Astro Blast', icon: 'https://xpclass.vn/xpclass/image/inventory/spaceship/phantom-voyager.png', description: 'Shoot the asteroids!' },
-  { id: 'matchgame', name: 'Match Up', icon: null, emoji: '🧩', description: 'Match words & meanings!' },
+  { id: 'matchgame', name: 'Match Up', icon: 'https://xpclass.vn/xpclass/image/dashboard/match.png', description: 'Match words & meanings!' },
+  { id: 'flappy', name: 'Flappy Pet', icon: 'https://xpclass.vn/xpclass/image/dashboard/flap.png', description: 'Fly and collect fruits!' },
 ]
 
 const PvPChallengeModal = ({ opponent, onClose }) => {
@@ -152,7 +154,7 @@ const PvPChallengeModal = ({ opponent, onClose }) => {
   const [myScore, setMyScore] = useState(null)
   const [wordBank, setWordBank] = useState([])
   const [saving, setSaving] = useState(false)
-  const [enabledGames, setEnabledGames] = useState(['scramble', 'whackmole', 'astroblast', 'matchgame'])
+  const [enabledGames, setEnabledGames] = useState(['scramble', 'whackmole', 'astroblast', 'matchgame', 'flappy'])
   const [hasPending, setHasPending] = useState(null)
   const [checkingPending, setCheckingPending] = useState(true)
 
@@ -279,6 +281,8 @@ const PvPChallengeModal = ({ opponent, onClose }) => {
         ]} />
       case 'matchgame':
         return <PetMatchGame {...commonProps} onGameEnd={(s) => handleGameEnd(s)} wordBank={wordBank} />
+      case 'flappy':
+        return <PetFlappyGame {...commonProps} onGameEnd={(s) => handleGameEnd(s)} wordBank={wordBank} />
       default:
         return null
     }

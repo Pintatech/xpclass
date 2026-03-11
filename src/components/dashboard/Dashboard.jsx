@@ -482,6 +482,8 @@ const Dashboard = () => {
                   frameRatio={profile?.active_frame_ratio}
                   size={86}
                   fallback={profile?.full_name?.[0]?.toUpperCase() || profile?.email?.[0]?.toUpperCase() || 'U'}
+                  onClick={() => navigate(`/profile/${profile?.id}?avatarSelector=true`)}
+                  noClip
                 />
                 <div>
                   <h5 className="text-2xl md:text-3xl font-bold drop-shadow-lg">

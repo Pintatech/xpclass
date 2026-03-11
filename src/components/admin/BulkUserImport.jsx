@@ -1,15 +1,76 @@
 import { useState } from 'react'
 import { supabase } from '../../supabase/client'
-import { Upload, X, AlertCircle, CheckCircle, Download, Users } from 'lucide-react'
+import { Upload, X, AlertCircle, CheckCircle, Download, Users, UserPlus } from 'lucide-react'
 import Button from '../ui/Button'
 import Card from '../ui/Card'
 
 const BulkUserImport = ({ onClose, onSuccess }) => {
+  const [mode, setMode] = useState('single') // 'single' or 'csv'
   const [file, setFile] = useState(null)
   const [users, setUsers] = useState([])
   const [errors, setErrors] = useState([])
   const [importing, setImporting] = useState(false)
   const [results, setResults] = useState(null)
+
+  // Single user form state
+  const [singleUser, setSingleUser] = useState({
+    email: '',
+    password: '',
+    username: '',
+    full_name: '',
+    avatar_url: '',
+    role: 'user',
+    cohort: ''
+  })
+  const [singleErrors, setSingleErrors] = useState([])
+
+  const handleSingleUserChange = (field, value) => {
+    setSingleUser(prev => ({ ...prev, [field]: value }))
+    setSingleErrors([])
+  }
+
+  const handleSingleUserSubmit = async () => {
+    const validationErrors = []
+    if (!singleUser.email || !singleUser.email.includes('@')) {
+      validationErrors.push('Valid email is required')
+    }
+    if (!singleUser.password || singleUser.password.length < 6) {
+      validationErrors.push('Password must be at least 6 characters')
+    }
+    if (!singleUser.username?.trim()) {
+      validationErrors.push('Username is required')
+    }
+    if (!singleUser.full_name?.trim()) {
+      validationErrors.push('Full name is required')
+    }
+
+    if (validationErrors.length > 0) {
+      setSingleErrors(validationErrors)
+      return
+    }
+
+    setImporting(true)
+    try {
+      const { data, error } = await supabase.functions.invoke('bulk-create-users', {
+        body: { users: [singleUser] }
+      })
+
+      if (error) throw error
+
+      setResults(data)
+      if (data.success.length > 0 && onSuccess) {
+        onSuccess()
+      }
+    } catch (error) {
+      console.error('Create user error:', error)
+      setResults({
+        success: [],
+        failed: [{ email: singleUser.email, error: error.message || 'Failed to create user', rowNumber: 1 }]
+      })
+    } finally {
+      setImporting(false)
+    }
+  }
 
   const handleFileChange = (e) => {
     const selectedFile = e.target.files[0]
@@ -164,6 +225,141 @@ const BulkUserImport = ({ onClose, onSuccess }) => {
         <Card.Content>
           {!results ? (
             <>
+              {/* Mode Tabs */}
+              <div className="flex border-b mb-6">
+                <button
+                  onClick={() => setMode('single')}
+                  className={`px-4 py-2 text-sm font-medium border-b-2 -mb-px ${
+                    mode === 'single'
+                      ? 'border-blue-600 text-blue-600'
+                      : 'border-transparent text-gray-500 hover:text-gray-700'
+                  }`}
+                >
+                  <UserPlus className="w-4 h-4 inline mr-1.5 -mt-0.5" />
+                  Single User
+                </button>
+                <button
+                  onClick={() => setMode('csv')}
+                  className={`px-4 py-2 text-sm font-medium border-b-2 -mb-px ${
+                    mode === 'csv'
+                      ? 'border-blue-600 text-blue-600'
+                      : 'border-transparent text-gray-500 hover:text-gray-700'
+                  }`}
+                >
+                  <Upload className="w-4 h-4 inline mr-1.5 -mt-0.5" />
+                  CSV Import
+                </button>
+              </div>
+
+              {mode === 'single' ? (
+                <>
+                  {/* Single User Form */}
+                  <div className="grid grid-cols-2 gap-4 mb-6">
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">Email *</label>
+                      <input
+                        type="email"
+                        value={singleUser.email}
+                        onChange={(e) => handleSingleUserChange('email', e.target.value)}
+                        className="input w-full"
+                        placeholder="student@example.com"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">Password *</label>
+                      <input
+                        type="text"
+                        value={singleUser.password}
+                        onChange={(e) => handleSingleUserChange('password', e.target.value)}
+                        className="input w-full"
+                        placeholder="Min 6 characters"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">Username *</label>
+                      <input
+                        type="text"
+                        value={singleUser.username}
+                        onChange={(e) => handleSingleUserChange('username', e.target.value)}
+                        className="input w-full"
+                        placeholder="johndoe"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">Full Name *</label>
+                      <input
+                        type="text"
+                        value={singleUser.full_name}
+                        onChange={(e) => handleSingleUserChange('full_name', e.target.value)}
+                        className="input w-full"
+                        placeholder="John Doe"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">Role</label>
+                      <select
+                        value={singleUser.role}
+                        onChange={(e) => handleSingleUserChange('role', e.target.value)}
+                        className="input w-full"
+                      >
+                        <option value="user">Học viên</option>
+                        <option value="teacher">Giáo viên</option>
+                        <option value="admin">Quản trị</option>
+                      </select>
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">Cohort</label>
+                      <input
+                        type="text"
+                        value={singleUser.cohort}
+                        onChange={(e) => handleSingleUserChange('cohort', e.target.value)}
+                        className="input w-full"
+                        placeholder="Class A (optional)"
+                      />
+                    </div>
+                    <div className="col-span-2">
+                      <label className="block text-sm font-medium text-gray-700 mb-1">Avatar URL</label>
+                      <input
+                        type="text"
+                        value={singleUser.avatar_url}
+                        onChange={(e) => handleSingleUserChange('avatar_url', e.target.value)}
+                        className="input w-full"
+                        placeholder="https://example.com/avatar.jpg (optional)"
+                      />
+                    </div>
+                  </div>
+
+                  {/* Single user errors */}
+                  {singleErrors.length > 0 && (
+                    <div className="bg-red-50 border border-red-200 rounded-lg p-4 mb-6">
+                      <div className="flex items-start gap-2">
+                        <AlertCircle className="w-5 h-5 text-red-600 mt-0.5" />
+                        <ul className="text-sm text-red-800 space-y-1">
+                          {singleErrors.map((err, i) => <li key={i}>{err}</li>)}
+                        </ul>
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Actions */}
+                  <div className="flex justify-end gap-3">
+                    <Button variant="outline" onClick={onClose} disabled={importing}>
+                      Cancel
+                    </Button>
+                    <Button onClick={handleSingleUserSubmit} disabled={importing}>
+                      {importing ? (
+                        <>
+                          <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
+                          Creating...
+                        </>
+                      ) : (
+                        'Create User'
+                      )}
+                    </Button>
+                  </div>
+                </>
+              ) : (
+              <>
               {/* Instructions */}
               <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 mb-6">
                 <h3 className="font-semibold text-blue-900 mb-2">CSV Format Requirements:</h3>
@@ -299,6 +495,8 @@ const BulkUserImport = ({ onClose, onSuccess }) => {
                   )}
                 </Button>
               </div>
+            </>
+              )}
             </>
           ) : (
             /* Results */

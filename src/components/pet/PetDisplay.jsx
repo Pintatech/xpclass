@@ -1616,7 +1616,7 @@ const PetDisplay = () => {
                 onClick={() => { drainPetEnergy(10); recordAttemptStart('flappy'); setShowGame('flappy'); }}
                 className="flex flex-col items-center gap-2 p-4 rounded-xl border-2 border-sky-200 hover:border-sky-400 hover:bg-sky-50 transition-all group"
               >
-                <span className="text-5xl group-hover:scale-110 transition-transform">🐦</span>
+                <img src="https://xpclass.vn/xpclass/image/dashboard/flap.png" alt="Flappy Pet" className="w-20 h-20 object-contain group-hover:scale-110 transition-transform" />
                 <span className="font-bold text-gray-800 text-xs">Flappy Pet</span>
               </button>
               )}
@@ -1625,7 +1625,7 @@ const PetDisplay = () => {
                 onClick={() => { drainPetEnergy(10); recordAttemptStart('matchgame'); fetchGameLeaderboard('matchgame'); setShowGame('matchgame'); }}
                 className="flex flex-col items-center gap-2 p-4 rounded-xl border-2 border-indigo-200 hover:border-indigo-400 hover:bg-indigo-50 transition-all group"
               >
-                <span className="text-5xl group-hover:scale-110 transition-transform">🧩</span>
+                <img src="https://xpclass.vn/xpclass/image/dashboard/match.png" alt="Match Up" className="w-20 h-20 object-contain group-hover:scale-110 transition-transform" />
                 <span className="font-bold text-gray-800 text-xs">Match Up</span>
               </button>
               )}

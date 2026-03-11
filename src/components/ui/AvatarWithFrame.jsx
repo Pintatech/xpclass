@@ -8,6 +8,7 @@ const AvatarWithFrame = ({
   fallback,
   onClick,
   className = '',
+  noClip = false,
 }) => {
   const hasFrame = frameUrl && frameUrl.startsWith('http')
   const avatarRatio = frameRatio || DEFAULT_AVATAR_RATIO
@@ -19,7 +20,7 @@ const AvatarWithFrame = ({
           <img
             src={avatarUrl}
             alt="Avatar"
-            className="w-full h-full object-cover rounded-full"
+            className={`w-full h-full object-cover ${noClip ? '' : 'rounded-full'}`}
             onError={(e) => {
               e.target.style.display = 'none'
               if (e.target.nextSibling) e.target.nextSibling.style.display = 'inline'
@@ -42,9 +43,9 @@ const AvatarWithFrame = ({
     >
       {/* Avatar - if frame exists, shrink to center; otherwise fill container */}
       <div
-        className={`absolute bg-white/20 rounded-full flex items-center justify-center overflow-hidden ${
-          onClick ? 'cursor-pointer hover:bg-white/30 transition-colors' : ''
-        }`}
+        className={`absolute ${noClip ? '' : 'rounded-full overflow-hidden'} flex items-center justify-center ${
+          hasFrame ? 'bg-white/50' : ''
+        } ${onClick ? 'cursor-pointer hover:bg-white/80 transition-colors' : ''}`}
         style={hasFrame ? {
           width: `${avatarRatio}%`,
           height: `${avatarRatio}%`,
@@ -74,6 +75,8 @@ const AvatarWithFrame = ({
       {/* Transparent overlay to prevent right-click saving */}
       <div
         className="absolute inset-0 z-10"
+        onClick={onClick}
+        style={onClick ? { cursor: 'pointer' } : undefined}
         onContextMenu={(e) => e.preventDefault()}
         draggable={false}
       />
