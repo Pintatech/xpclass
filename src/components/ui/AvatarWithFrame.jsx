@@ -8,7 +8,6 @@ const AvatarWithFrame = ({
   fallback,
   onClick,
   className = '',
-  noClip = false,
 }) => {
   const hasFrame = frameUrl && frameUrl.startsWith('http')
   const avatarRatio = frameRatio || DEFAULT_AVATAR_RATIO
@@ -20,7 +19,7 @@ const AvatarWithFrame = ({
           <img
             src={avatarUrl}
             alt="Avatar"
-            className={`w-full h-full object-cover ${noClip ? '' : 'rounded-full'}`}
+            className="w-full h-full object-cover rounded-full"
             onError={(e) => {
               e.target.style.display = 'none'
               if (e.target.nextSibling) e.target.nextSibling.style.display = 'inline'
@@ -43,7 +42,7 @@ const AvatarWithFrame = ({
     >
       {/* Avatar - if frame exists, shrink to center; otherwise fill container */}
       <div
-        className={`absolute ${noClip ? '' : 'rounded-full overflow-hidden'} flex items-center justify-center ${
+        className={`absolute rounded-full overflow-hidden flex items-center justify-center ${
           hasFrame ? 'bg-white/50' : ''
         } ${onClick ? 'cursor-pointer hover:bg-white/80 transition-colors' : ''}`}
         style={hasFrame ? {

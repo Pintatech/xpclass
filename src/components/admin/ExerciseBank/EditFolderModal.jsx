@@ -7,7 +7,8 @@ const EditFolderModal = ({ folder, onClose, onUpdated }) => {
     name: '',
     description: '',
     color: 'blue',
-    icon: 'folder'
+    icon: 'folder',
+    sort_order: 0
   })
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
@@ -18,7 +19,8 @@ const EditFolderModal = ({ folder, onClose, onUpdated }) => {
         name: folder.name || '',
         description: folder.description || '',
         color: folder.color || 'blue',
-        icon: folder.icon || 'folder'
+        icon: folder.icon || 'folder',
+        sort_order: folder.sort_order ?? 0
       })
     }
   }, [folder])
@@ -54,6 +56,7 @@ const EditFolderModal = ({ folder, onClose, onUpdated }) => {
           description: formData.description.trim() || null,
           color: formData.color,
           icon: formData.icon,
+          sort_order: parseInt(formData.sort_order) || 0,
           updated_at: new Date().toISOString()
         })
         .eq('id', folder.id)
@@ -124,6 +127,22 @@ const EditFolderModal = ({ folder, onClose, onUpdated }) => {
               placeholder="Brief description (optional)"
               rows={2}
             />
+          </div>
+
+          {/* Sort Order */}
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-2">
+              Sort Order
+            </label>
+            <input
+              type="number"
+              value={formData.sort_order}
+              onChange={(e) => handleChange('sort_order', e.target.value)}
+              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+              placeholder="0"
+              min="0"
+            />
+            <p className="text-xs text-gray-500 mt-1">Lower numbers appear first</p>
           </div>
 
           {/* Color */}
