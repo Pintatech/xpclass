@@ -53,7 +53,7 @@ const OnlineUsers = () => {
       const { data } = await supabase
         .from('pvp_challenges')
         .select('challenger_id, opponent_id')
-        .eq('status', 'pending')
+        .in('status', ['pending', 'in_progress'])
         .gte('created_at', since)
         .or(`challenger_id.eq.${user.id},opponent_id.eq.${user.id}`)
       if (data) {

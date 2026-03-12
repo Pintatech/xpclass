@@ -157,7 +157,6 @@ const PvPChallengeModal = ({ opponent, onClose }) => {
   const [enabledGames, setEnabledGames] = useState(['scramble', 'whackmole', 'astroblast', 'matchgame', 'flappy'])
   const [hasPending, setHasPending] = useState(null)
   const [checkingPending, setCheckingPending] = useState(true)
-  const [pendingChallengeId, setPendingChallengeId] = useState(null)
 
   useEffect(() => {
     fetchWordBank()
@@ -165,8 +164,8 @@ const PvPChallengeModal = ({ opponent, onClose }) => {
     const checkPending = async () => {
       const { data } = await supabase
         .from('pvp_challenges')
-        .select('id, challenger_id, challenger_score, game_type, created_at')
-        .eq('status', 'pending')
+        .select('id, challenger_id, challenger_score, game_type, created_at, status')
+        .in('status', ['pending', 'in_progress'])
         .gte('created_at', new Date(Date.now() - 48 * 60 * 60 * 1000).toISOString())
         .or(`and(challenger_id.eq.${user.id},opponent_id.eq.${opponent.id}),and(challenger_id.eq.${opponent.id},opponent_id.eq.${user.id})`)
         .limit(1)
@@ -205,19 +204,6 @@ const PvPChallengeModal = ({ opponent, onClose }) => {
     }
     await drainPetEnergy(10)
     setSelectedGame(gameId)
-
-    // For new challenges (not responding to existing), insert row with score 0 now
-    if (!hasPending || hasPending.challenger_id === user.id) {
-      const { data } = await supabase.from('pvp_challenges').insert({
-        challenger_id: user.id,
-        opponent_id: opponent.id,
-        game_type: gameId,
-        challenger_score: 0,
-        status: 'in_progress',
-      }).select('id').single()
-      if (data?.id) setPendingChallengeId(data.id)
-    }
-
     setStep('playing')
   }
 
@@ -241,12 +227,15 @@ const PvPChallengeModal = ({ opponent, onClose }) => {
           winner_id: winner,
           status: 'completed',
         }).eq('id', hasPending.id)
-      } else if (pendingChallengeId) {
-        // Update the in_progress challenge with real score
-        await supabase.from('pvp_challenges').update({
+      } else {
+        // Creating a new challenge
+        await supabase.from('pvp_challenges').insert({
+          challenger_id: user.id,
+          opponent_id: opponent.id,
+          game_type: selectedGame,
           challenger_score: score,
           status: 'pending',
-        }).eq('id', pendingChallengeId)
+        })
       }
       // Award pet XP
       if (activePet?.id) {
@@ -358,7 +347,7 @@ const PvPChallengeModal = ({ opponent, onClose }) => {
                   <div className="text-2xl font-black text-orange-500">{hasPending.challenger_score}</div>
                   <div className="text-xs text-gray-400">{hasPending.challenger_id === user.id ? 'Your score' : 'Their score'}</div>
                 </div>
-                {hasPending.challenger_id !== user.id ? (
+                {hasPending.challenger_id !== user.id && hasPending.status === 'pending' ? (
                   <button
                     onClick={async () => {
                       if ((activePet?.energy ?? 100) < 10) {
@@ -373,6 +362,8 @@ const PvPChallengeModal = ({ opponent, onClose }) => {
                   >
                     Accept Challenge
                   </button>
+                ) : hasPending.status === 'in_progress' ? (
+                  <p className="text-xs text-red-500 font-medium">You already accepted this challenge. It will be forfeited soon.</p>
                 ) : (
                   <p className="text-xs text-gray-500">Wait for them to finish before challenging again.</p>
                 )}

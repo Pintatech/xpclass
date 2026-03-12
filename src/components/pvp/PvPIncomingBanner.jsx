@@ -252,44 +252,23 @@ const PvPIncomingBanner = () => {
 
       // Auto-forfeit stale in_progress challenges (older than 2 minutes)
       const staleThreshold = new Date(Date.now() - 2 * 60 * 1000).toISOString();
-      const FORFEIT_SCORES = {
-        scramble: 500,
-        whackmole: 40,
-        astroblast: 120,
-        flappy: 120,
-        matchgame: 400,
-      };
-
       const { data: stale } = await supabase
         .from("pvp_challenges")
-        .select("id, challenger_id, game_type")
+        .select("id, challenger_id")
         .eq("status", "in_progress")
         .or(`challenger_id.eq.${user.id},opponent_id.eq.${user.id}`)
         .lt("created_at", staleThreshold);
 
       if (stale?.length) {
         for (const s of stale) {
-          const forfeitScore = FORFEIT_SCORES[s.game_type] || 0;
-          if (s.challenger_id === user.id) {
-            // Challenger refreshed mid-game — send challenge with forfeit score
-            await supabase
-              .from("pvp_challenges")
-              .update({
-                challenger_score: forfeitScore,
-                status: "pending",
-              })
-              .eq("id", s.id);
-          } else {
-            // Opponent refreshed mid-game — challenger wins
-            await supabase
-              .from("pvp_challenges")
-              .update({
-                opponent_score: forfeitScore,
-                status: "completed",
-                winner_id: s.challenger_id,
-              })
-              .eq("id", s.id);
-          }
+          await supabase
+            .from("pvp_challenges")
+            .update({
+              opponent_score: 0,
+              status: "completed",
+              winner_id: s.challenger_id,
+            })
+            .eq("id", s.id);
         }
       }
 
@@ -861,6 +840,23 @@ const PvPResponseModal = ({ challenge, onClose }) => {
 
             <button
               onClick={async () => {
+                // Check if challenge is still valid (not already forfeited or expired)
+                const { data: fresh } = await supabase
+                  .from("pvp_challenges")
+                  .select("id, status, created_at")
+                  .eq("id", challenge.id)
+                  .single();
+                if (!fresh || fresh.status !== "pending") {
+                  alert("This challenge is no longer available.");
+                  onClose();
+                  return;
+                }
+                const ageMs = Date.now() - new Date(fresh.created_at).getTime();
+                if (ageMs > 48 * 60 * 60 * 1000) {
+                  alert("This challenge has expired.");
+                  onClose();
+                  return;
+                }
                 await supabase
                   .from("pvp_challenges")
                   .update({ status: "in_progress" })
