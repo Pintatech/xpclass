@@ -606,6 +606,7 @@ import PetWhackMole from "../pet/PetWhackMole";
 import PetWordScramble from "../pet/PetWordScramble";
 import PetAstroBlast from "../pet/PetAstroBlast";
 import PetMatchGame from "../pet/PetMatchGame";
+import PetFlappyGame from "../pet/PetFlappyGame";
 import { createPortal } from "react-dom";
 import { Trophy } from "lucide-react";
 
@@ -616,6 +617,7 @@ const PvPResponseModal = ({ challenge, onClose }) => {
   const [myScore, setMyScore] = useState(null);
   const [wordBank, setWordBank] = useState([]);
   const [saving, setSaving] = useState(false);
+  const [wordBankLoading, setWordBankLoading] = useState(true);
 
   const opponentScore = challenge.challenger_score;
   const opponentName = challenge.challenger?.full_name || "Opponent";
@@ -623,12 +625,14 @@ const PvPResponseModal = ({ challenge, onClose }) => {
 
   useEffect(() => {
     const fetchWords = async () => {
+      setWordBankLoading(true);
       const { data } = await supabase
         .from("pet_word_bank")
         .select("word, hint, image_url")
         .eq("is_active", true)
         .lte("min_level", profile?.current_level || 1);
       if (data && data.length >= 10) setWordBank(data);
+      setWordBankLoading(false);
     };
     fetchWords();
   }, []);
@@ -756,6 +760,14 @@ const PvPResponseModal = ({ challenge, onClose }) => {
             wordBank={wordBank}
           />
         );
+      case "flappy":
+        return (
+          <PetFlappyGame
+            {...commonProps}
+            onGameEnd={handleGameEnd}
+            wordBank={wordBank}
+          />
+        );
       default:
         return null;
     }
@@ -839,6 +851,7 @@ const PvPResponseModal = ({ challenge, onClose }) => {
             </p>
 
             <button
+              disabled={wordBankLoading}
               onClick={async () => {
                 // Check if challenge is still valid (not already forfeited or expired)
                 const { data: fresh } = await supabase
@@ -863,9 +876,9 @@ const PvPResponseModal = ({ challenge, onClose }) => {
                   .eq("id", challenge.id);
                 setStep("playing");
               }}
-              className="w-full py-3 rounded-xl bg-gradient-to-r from-red-500 to-orange-500 text-white font-bold text-lg hover:from-red-600 hover:to-orange-600 transition active:scale-[0.98]"
+              className="w-full py-3 rounded-xl bg-gradient-to-r from-red-500 to-orange-500 text-white font-bold text-lg hover:from-red-600 hover:to-orange-600 transition active:scale-[0.98] disabled:opacity-50"
             >
-              Accept Challenge!
+              {wordBankLoading ? "Loading..." : "Accept Challenge!"}
             </button>
           </div>
         )}
