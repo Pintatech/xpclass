@@ -281,6 +281,21 @@ export const PetProvider = ({ children }) => {
     return bonuses
   }
 
+  const renamePet = async (newNickname) => {
+    if (!activePet) return
+    try {
+      const { error } = await supabase
+        .from('user_pets')
+        .update({ nickname: newNickname.trim() || null })
+        .eq('id', activePet.id)
+      if (error) throw error
+      await fetchActivePet()
+    } catch (error) {
+      console.error('Error renaming pet:', error)
+      throw error
+    }
+  }
+
   const value = {
     activePet,
     userPets,
@@ -291,6 +306,7 @@ export const PetProvider = ({ children }) => {
     setActivePetById,
     feedPet,
     playWithPet,
+    renamePet,
     updatePetOnActivity,
     drainPetEnergy,
     getActiveBonuses,

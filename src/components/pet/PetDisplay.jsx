@@ -89,6 +89,7 @@ const PetDisplay = () => {
   const [gameLeaderboards, setGameLeaderboards] = useState({ whackmole: [], scramble: [], astroblast: [], matchgame: [] });
   const [wordBank, setWordBank] = useState([]);
   const [enabledGames, setEnabledGames] = useState(['scramble', 'whackmole', 'astroblast', 'matchgame']);
+  const [competitionGame, setCompetitionGame] = useState(null); // game type with active competition
   const [showChat, setShowChat] = useState(false);
   const [chatInput, setChatInput] = useState("");
   const [chatMessages, setChatMessages] = useState([]);
@@ -117,6 +118,31 @@ const PetDisplay = () => {
       }
     }
     fetchEnabledGames()
+
+    // Fetch active competition game type
+    const fetchCompetition = async () => {
+      const { data } = await supabase
+        .from('site_settings')
+        .select('setting_key, setting_value')
+        .in('setting_key', [
+          'leaderboard_competition_active',
+          'leaderboard_competition_type',
+          'leaderboard_competition_game_type',
+          'leaderboard_competition_end_date',
+        ])
+      if (data) {
+        const m = {}
+        data.forEach(s => { m[s.setting_key] = s.setting_value })
+        const isActive = m['leaderboard_competition_active'] !== 'false'
+        const compType = m['leaderboard_competition_type'] || 'game'
+        const endDate = m['leaderboard_competition_end_date'] || ''
+        const notExpired = !endDate || new Date() <= new Date(endDate + 'T23:59:59+07:00')
+        if (isActive && compType === 'game' && notExpired) {
+          setCompetitionGame(m['leaderboard_competition_game_type'] || 'scramble')
+        }
+      }
+    }
+    fetchCompetition()
   }, [])
 
   // Scroll chat to bottom when new messages arrive (only inside chat container)
@@ -1587,8 +1613,9 @@ const PetDisplay = () => {
               {enabledGames.includes('scramble') && (
               <button
                 onClick={() => { drainPetEnergy(10); recordAttemptStart('scramble'); fetchGameLeaderboard('scramble'); setShowGame('scramble'); }}
-                className="flex flex-col items-center gap-2 p-4 rounded-xl border-2 border-purple-200 hover:border-purple-400 hover:bg-purple-50 transition-all group"
+                className={`relative flex flex-col items-center gap-2 p-4 rounded-xl border-2 transition-all group ${competitionGame === 'scramble' ? 'border-yellow-400 bg-yellow-50 ring-2 ring-yellow-300' : 'border-purple-200 hover:border-purple-400 hover:bg-purple-50'}`}
               >
+                {competitionGame === 'scramble' && <span className="absolute -top-2 -right-2 text-lg">🏆</span>}
                 <img src={assetUrl('/image/dashboard/pet-scramble.jpg')} alt="Word Scramble" className="w-20 h-20 object-cover rounded-lg group-hover:scale-110 transition-transform" />
                 <span className="font-bold text-gray-800 text-xs">Word Scramble</span>
               </button>
@@ -1596,8 +1623,9 @@ const PetDisplay = () => {
               {enabledGames.includes('whackmole') && (
               <button
                 onClick={() => { drainPetEnergy(10); recordAttemptStart('whackmole'); fetchGameLeaderboard('whackmole'); setShowGame('whackmole'); }}
-                className="flex flex-col items-center gap-2 p-4 rounded-xl border-2 border-green-200 hover:border-green-400 hover:bg-green-50 transition-all group"
+                className={`relative flex flex-col items-center gap-2 p-4 rounded-xl border-2 transition-all group ${competitionGame === 'whackmole' ? 'border-yellow-400 bg-yellow-50 ring-2 ring-yellow-300' : 'border-green-200 hover:border-green-400 hover:bg-green-50'}`}
               >
+                {competitionGame === 'whackmole' && <span className="absolute -top-2 -right-2 text-lg">🏆</span>}
                 <img src={assetUrl('/pet-game/mole-normal.png')} alt="Whack-a-Mole" className="w-20 h-20 object-contain group-hover:scale-110 transition-transform" />
                 <span className="font-bold text-gray-800 text-xs">Whack-a-Mole</span>
               </button>
@@ -1605,17 +1633,19 @@ const PetDisplay = () => {
               {enabledGames.includes('astroblast') && (
               <button
                 onClick={() => { drainPetEnergy(10); recordAttemptStart('astroblast'); fetchGameLeaderboard('astroblast'); setShowGame('astroblast'); }}
-                className="flex flex-col items-center gap-2 p-4 rounded-xl border-2 border-red-200 hover:border-red-400 hover:bg-red-50 transition-all group"
+                className={`relative flex flex-col items-center gap-2 p-4 rounded-xl border-2 transition-all group ${competitionGame === 'astroblast' ? 'border-yellow-400 bg-yellow-50 ring-2 ring-yellow-300' : 'border-red-200 hover:border-red-400 hover:bg-red-50'}`}
               >
+                {competitionGame === 'astroblast' && <span className="absolute -top-2 -right-2 text-lg">🏆</span>}
                 <img src="https://xpclass.vn/xpclass/image/inventory/spaceship/phantom-voyager.png" alt="Astro Blast" className="w-20 h-20 object-contain group-hover:scale-110 transition-transform" />
                 <span className="font-bold text-gray-800 text-xs">Astro Blast</span>
               </button>
               )}
               {enabledGames.includes('flappy') && (
               <button
-                onClick={() => { drainPetEnergy(10); recordAttemptStart('flappy'); setShowGame('flappy'); }}
-                className="flex flex-col items-center gap-2 p-4 rounded-xl border-2 border-sky-200 hover:border-sky-400 hover:bg-sky-50 transition-all group"
+                onClick={() => { drainPetEnergy(10); recordAttemptStart('flappy'); fetchGameLeaderboard('flappy'); setShowGame('flappy'); }}
+                className={`relative flex flex-col items-center gap-2 p-4 rounded-xl border-2 transition-all group ${competitionGame === 'flappy' ? 'border-yellow-400 bg-yellow-50 ring-2 ring-yellow-300' : 'border-sky-200 hover:border-sky-400 hover:bg-sky-50'}`}
               >
+                {competitionGame === 'flappy' && <span className="absolute -top-2 -right-2 text-lg">🏆</span>}
                 <img src="https://xpclass.vn/xpclass/image/dashboard/flap.png" alt="Flappy Pet" className="w-20 h-20 object-contain group-hover:scale-110 transition-transform" />
                 <span className="font-bold text-gray-800 text-xs">Flappy Pet</span>
               </button>
@@ -1623,8 +1653,9 @@ const PetDisplay = () => {
               {enabledGames.includes('matchgame') && (
               <button
                 onClick={() => { drainPetEnergy(10); recordAttemptStart('matchgame'); fetchGameLeaderboard('matchgame'); setShowGame('matchgame'); }}
-                className="flex flex-col items-center gap-2 p-4 rounded-xl border-2 border-indigo-200 hover:border-indigo-400 hover:bg-indigo-50 transition-all group"
+                className={`relative flex flex-col items-center gap-2 p-4 rounded-xl border-2 transition-all group ${competitionGame === 'matchgame' ? 'border-yellow-400 bg-yellow-50 ring-2 ring-yellow-300' : 'border-indigo-200 hover:border-indigo-400 hover:bg-indigo-50'}`}
               >
+                {competitionGame === 'matchgame' && <span className="absolute -top-2 -right-2 text-lg">🏆</span>}
                 <img src="https://xpclass.vn/xpclass/image/dashboard/match.png" alt="Match Up" className="w-20 h-20 object-contain group-hover:scale-110 transition-transform" />
                 <span className="font-bold text-gray-800 text-xs">Match Up</span>
               </button>
@@ -1664,6 +1695,7 @@ const PetDisplay = () => {
           })()}
           petName={activePet.nickname || activePet.name}
           wordBank={wordBank}
+          leaderboard={gameLeaderboards.flappy || []}
           onGameEnd={(score) => handleGameEnd(score, 'flappy')}
           onClose={() => setShowGame(null)}
         />

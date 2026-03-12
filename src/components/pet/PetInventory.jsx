@@ -1,14 +1,16 @@
 import React, { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { usePet } from '../../hooks/usePet'
-import { Star, Check, Heart, Calendar, ShoppingBag, Book, X } from 'lucide-react'
+import { Star, Check, Heart, Calendar, ShoppingBag, Book, X, Pencil } from 'lucide-react'
 
 const PetInventory = () => {
-  const { userPets, allPets, setActivePetById } = usePet()
+  const { userPets, allPets, setActivePetById, renamePet } = usePet()
   const navigate = useNavigate()
   const [selectedPet, setSelectedPet] = useState(null)
   const [message, setMessage] = useState(null)
   const [showPetDex, setShowPetDex] = useState(false)
+  const [isRenaming, setIsRenaming] = useState(false)
+  const [nicknameInput, setNicknameInput] = useState('')
 
   // Get list of pet IDs the user owns
   const ownedPetIds = userPets.map(up => up.pet?.id).filter(Boolean)
@@ -134,7 +136,7 @@ const PetInventory = () => {
                   pet.rarity === 'epic' ? 'ring-purple-400' : 'ring-yellow-400'
                 }` : ''
               }`}
-              onClick={() => setSelectedPet(userPet)}
+              onClick={() => { setSelectedPet(userPet); setIsRenaming(false) }}
             >
               {/* Header */}
               <div className="flex justify-between items-start mb-4">
@@ -211,9 +213,34 @@ const PetInventory = () => {
       {selectedPet && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
           <div className="bg-white rounded-xl p-8 max-w-md w-full">
-            <h2 className="text-2xl font-bold text-gray-800 mb-4">
-              {selectedPet.nickname || selectedPet.pet.name}
-            </h2>
+            <div className="flex items-center gap-2 mb-4">
+              {isRenaming ? (
+                <form className="flex items-center gap-2 flex-1" onSubmit={async (e) => {
+                  e.preventDefault()
+                  await renamePet(nicknameInput)
+                  setIsRenaming(false)
+                }}>
+                  <input
+                    autoFocus
+                    className="text-2xl font-bold text-gray-800 border-b-2 border-purple-400 outline-none flex-1 bg-transparent"
+                    value={nicknameInput}
+                    onChange={(e) => setNicknameInput(e.target.value)}
+                    placeholder={selectedPet.pet.name}
+                  />
+                  <button type="submit" className="text-green-500 hover:text-green-700 text-sm font-semibold">Save</button>
+                  <button type="button" onClick={() => setIsRenaming(false)} className="text-gray-400 hover:text-gray-600 text-sm">Cancel</button>
+                </form>
+              ) : (
+                <>
+                  <h2 className="text-2xl font-bold text-gray-800">
+                    {selectedPet.nickname || selectedPet.pet.name}
+                  </h2>
+                  <button onClick={() => { setNicknameInput(selectedPet.nickname || ''); setIsRenaming(true) }} className="text-gray-400 hover:text-purple-500 transition-colors">
+                    <Pencil className="w-4 h-4" />
+                  </button>
+                </>
+              )}
+            </div>
 
             {/* Pet Preview */}
             <div className="bg-gradient-to-br from-purple-100 to-pink-100 rounded-lg p-6 mb-4 text-center overflow-hidden" onContextMenu={(e) => e.preventDefault()}>

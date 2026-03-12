@@ -157,6 +157,7 @@ const PvPChallengeModal = ({ opponent, onClose }) => {
   const [enabledGames, setEnabledGames] = useState(['scramble', 'whackmole', 'astroblast', 'matchgame', 'flappy'])
   const [hasPending, setHasPending] = useState(null)
   const [checkingPending, setCheckingPending] = useState(true)
+  const [pendingChallengeId, setPendingChallengeId] = useState(null)
 
   useEffect(() => {
     fetchWordBank()
@@ -204,6 +205,19 @@ const PvPChallengeModal = ({ opponent, onClose }) => {
     }
     await drainPetEnergy(10)
     setSelectedGame(gameId)
+
+    // For new challenges (not responding to existing), insert row with score 0 now
+    if (!hasPending || hasPending.challenger_id === user.id) {
+      const { data } = await supabase.from('pvp_challenges').insert({
+        challenger_id: user.id,
+        opponent_id: opponent.id,
+        game_type: gameId,
+        challenger_score: 0,
+        status: 'in_progress',
+      }).select('id').single()
+      if (data?.id) setPendingChallengeId(data.id)
+    }
+
     setStep('playing')
   }
 
@@ -227,15 +241,12 @@ const PvPChallengeModal = ({ opponent, onClose }) => {
           winner_id: winner,
           status: 'completed',
         }).eq('id', hasPending.id)
-      } else {
-        // Creating a new challenge
-        await supabase.from('pvp_challenges').insert({
-          challenger_id: user.id,
-          opponent_id: opponent.id,
-          game_type: selectedGame,
+      } else if (pendingChallengeId) {
+        // Update the in_progress challenge with real score
+        await supabase.from('pvp_challenges').update({
           challenger_score: score,
           status: 'pending',
-        })
+        }).eq('id', pendingChallengeId)
       }
       // Award pet XP
       if (activePet?.id) {

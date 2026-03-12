@@ -813,20 +813,24 @@ const Profile = () => {
                       onChange={(e) => setEditData(prev => ({ ...prev, full_name: e.target.value }))}
                       className="px-3 py-1 rounded-lg text-gray-900 text-xl font-bold"
                     />
-                    <p className="text-blue-100 flex items-center space-x-2">
-                      <Mail className="w-4 h-4" />
-                      <span>{currentProfile?.email}</span>
-                    </p>
+                    {(profile?.role === 'admin' || profile?.role === 'teacher') && (
+                      <p className="text-blue-100 flex items-center space-x-2">
+                        <Mail className="w-4 h-4" />
+                        <span>{currentProfile?.email}</span>
+                      </p>
+                    )}
                   </div>
                 ) : (
                   <div>
                     <h1 className="text-3xl font-bold">
                       {currentProfile?.full_name || 'Người dùng'}
                     </h1>
-                    <p className="text-blue-100 flex items-center space-x-2 mt-1">
-                      <Mail className="w-4 h-4" />
-                      <span>{currentProfile?.email}</span>
-                    </p>
+                    {(profile?.role === 'admin' || profile?.role === 'teacher') && (
+                      <p className="text-blue-100 flex items-center space-x-2 mt-1">
+                        <Mail className="w-4 h-4" />
+                        <span>{currentProfile?.email}</span>
+                      </p>
+                    )}
                   </div>
                 )}
               </div>

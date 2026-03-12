@@ -39,7 +39,7 @@ function pickWord(wordBank, usedWords) {
   return pool[Math.floor(Math.random() * pool.length)]
 }
 
-const PetFlappyGame = ({ petImageUrl, petName, wordBank: wordBankProp, onGameEnd, onClose }) => {
+const PetFlappyGame = ({ petImageUrl, petName, wordBank: wordBankProp, onGameEnd, onClose, leaderboard = [] }) => {
   const [phase, setPhase] = useState('ready') // 'ready' | 'playing' | 'results'
   const [displayScore, setDisplayScore] = useState(0)
   const [displayTime, setDisplayTime] = useState(GAME_DURATION)
@@ -591,6 +591,17 @@ const PetFlappyGame = ({ petImageUrl, petName, wordBank: wordBankProp, onGameEnd
                 <span className="text-sm text-white/60">{GAME_DURATION} seconds</span>
               </div>
             </div>
+            {leaderboard.length > 0 && (
+              <div className="bg-white/15 backdrop-blur rounded-xl px-4 py-3 w-full max-w-xs">
+                <p className="text-xs font-bold text-yellow-300 mb-2">🏆 Top 10</p>
+                {leaderboard.slice(0, 10).map((entry, i) => (
+                  <div key={i} className="flex items-center justify-between text-xs text-white/90 py-0.5">
+                    <span>{i + 1}. {entry.name}</span>
+                    <span className="font-bold">{entry.score}</span>
+                  </div>
+                ))}
+              </div>
+            )}
           </div>
         )}
 

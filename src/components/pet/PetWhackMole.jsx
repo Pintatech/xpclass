@@ -425,6 +425,18 @@ const PetWhackMole = ({ petImageUrl, petName, onGameEnd, onClose, hammerSkinUrl,
               </p>
             </div>
 
+            {leaderboard.length > 0 && (
+              <div className="bg-white/15 backdrop-blur rounded-xl px-4 py-3 w-full max-w-xs">
+                <p className="text-xs font-bold text-yellow-300 mb-2">🏆 Top 10</p>
+                {leaderboard.slice(0, 10).map((entry, i) => (
+                  <div key={i} className="flex items-center justify-between text-xs text-white/90 py-0.5">
+                    <span>{i + 1}. {entry.name}</span>
+                    <span className="font-bold">{entry.score}</span>
+                  </div>
+                ))}
+              </div>
+            )}
+
             <button
               onClick={startGame}
               className="px-10 py-4 bg-white text-green-700 rounded-full font-bold text-xl shadow-xl hover:scale-105 active:scale-95 transition-transform border-b-4 border-green-200"
