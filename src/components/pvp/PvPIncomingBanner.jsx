@@ -766,6 +766,7 @@ const PvPResponseModal = ({ challenge, onClose }) => {
             {...commonProps}
             onGameEnd={handleGameEnd}
             wordBank={wordBank}
+            isPvP
           />
         );
       default:

@@ -39,7 +39,7 @@ function pickWord(wordBank, usedWords) {
   return pool[Math.floor(Math.random() * pool.length)]
 }
 
-const PetFlappyGame = ({ petImageUrl, petName, wordBank: wordBankProp, onGameEnd, onClose, leaderboard = [] }) => {
+const PetFlappyGame = ({ petImageUrl, petName, wordBank: wordBankProp, onGameEnd, onClose, leaderboard = [], isPvP = false }) => {
   const [phase, setPhase] = useState('ready') // 'ready' | 'playing' | 'results'
   const [displayScore, setDisplayScore] = useState(0)
   const [displayTime, setDisplayTime] = useState(GAME_DURATION)
@@ -686,12 +686,12 @@ const PetFlappyGame = ({ petImageUrl, petName, wordBank: wordBankProp, onGameEnd
                   : `Need at least ${PASS_SCORE} points to earn XP. Try again! 💪`}
             </p>
 
-            {displayScore >= PASS_SCORE ? (
+            {displayScore >= PASS_SCORE || isPvP ? (
               <button
                 onClick={() => onGameEnd(displayScore)}
                 className="w-full py-3.5 bg-gradient-to-b from-cyan-400 to-cyan-500 hover:from-cyan-500 hover:to-cyan-600 text-white rounded-full font-bold text-lg shadow-lg border-b-4 border-cyan-600 active:border-b-0 active:mt-1 transition-all"
               >
-                Collect Rewards ✨
+                {isPvP ? 'Submit Score ⚔️' : 'Collect Rewards ✨'}
               </button>
             ) : (
               <div className="flex flex-col gap-2">

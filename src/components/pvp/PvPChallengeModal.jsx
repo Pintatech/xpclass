@@ -288,7 +288,7 @@ const PvPChallengeModal = ({ opponent, onClose }) => {
       case 'matchgame':
         return <PetMatchGame {...commonProps} onGameEnd={(s) => handleGameEnd(s)} wordBank={wordBank} />
       case 'flappy':
-        return <PetFlappyGame {...commonProps} onGameEnd={(s) => handleGameEnd(s)} wordBank={wordBank} />
+        return <PetFlappyGame {...commonProps} onGameEnd={(s) => handleGameEnd(s)} wordBank={wordBank} isPvP />
       default:
         return null
     }
