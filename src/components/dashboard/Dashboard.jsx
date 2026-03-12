@@ -10,6 +10,7 @@ import DailyChallenge from './DailyChallenge'
 import AvatarWithFrame from '../ui/AvatarWithFrame'
 import PetDisplay from '../pet/PetDisplay'
 import PvPChallengeModal from '../pvp/PvPChallengeModal'
+import { fetchPvpSchedule, checkPvpAvailability } from '../../utils/pvpSchedule'
 
 import { assetUrl, useBranding } from '../../hooks/useBranding';
 const Dashboard = () => {
@@ -24,7 +25,19 @@ const Dashboard = () => {
   const [offlineUsers, setOfflineUsers] = useState([])
   const [challengeTarget, setChallengeTarget] = useState(null)
   const [pendingChallengeUserIds, setPendingChallengeUserIds] = useState({})
+  const [pvpAvailable, setPvpAvailable] = useState(true)
   const navigate = useNavigate()
+
+  // Check PvP schedule
+  useEffect(() => {
+    const checkSchedule = async () => {
+      const schedule = await fetchPvpSchedule()
+      setPvpAvailable(checkPvpAvailability(schedule).available)
+    }
+    checkSchedule()
+    const scheduleInterval = setInterval(checkSchedule, 60000)
+    return () => clearInterval(scheduleInterval)
+  }, [])
 
   // Update current time every second
   useEffect(() => {
@@ -511,7 +524,7 @@ const Dashboard = () => {
             }).map((u) => (
               <button
                 key={u.id}
-                onClick={() => u.id !== profile?.id ? setChallengeTarget(u) : navigate(`/profile/${u.id}`)}
+                onClick={() => u.id !== profile?.id && pvpAvailable ? setChallengeTarget(u) : navigate(`/profile/${u.id}`)}
                 className="flex flex-col items-center flex-shrink-0 w-16"
               >
                 <div className="relative">
@@ -523,10 +536,10 @@ const Dashboard = () => {
                     fallback={u.full_name?.[0]?.toUpperCase() || '?'}
                   />
                   <div className="absolute bottom-0 right-0 w-3.5 h-3.5 bg-green-500 rounded-full border-2 border-white z-10" />
-                  {pendingChallengeUserIds[u.id] === 'received' && (
+                  {pvpAvailable && pendingChallengeUserIds[u.id] === 'received' && (
                     <img src={assetUrl('/icon/dashboard/pvp.png')} alt="PvP" className="absolute top-0 right-0 w-4 h-4 animate-pulse" />
                   )}
-                  {pendingChallengeUserIds[u.id] === 'sent' && (
+                  {pvpAvailable && pendingChallengeUserIds[u.id] === 'sent' && (
                     <img src={assetUrl('/icon/dashboard/pvp.png')} alt="PvP" className="absolute top-0 right-0 w-4 h-4 opacity-50" />
                   )}
                 </div>
@@ -545,7 +558,7 @@ const Dashboard = () => {
             }).map((u) => (
               <button
                 key={u.id}
-                onClick={() => u.id !== profile?.id && pendingChallengeUserIds[u.id] ? setChallengeTarget(u) : navigate(`/profile/${u.id}`)}
+                onClick={() => u.id !== profile?.id && pvpAvailable && pendingChallengeUserIds[u.id] ? setChallengeTarget(u) : navigate(`/profile/${u.id}`)}
                 className="flex flex-col items-center flex-shrink-0 w-16 opacity-50"
               >
                 <div className="relative grayscale">
@@ -557,10 +570,10 @@ const Dashboard = () => {
                     fallback={u.full_name?.[0]?.toUpperCase() || '?'}
                   />
                   <div className="absolute bottom-0 right-0 w-3.5 h-3.5 bg-gray-400 rounded-full border-2 border-white z-10" />
-                  {pendingChallengeUserIds[u.id] === 'received' && (
+                  {pvpAvailable && pendingChallengeUserIds[u.id] === 'received' && (
                     <img src={assetUrl('/icon/dashboard/pvp.png')} alt="PvP" className="absolute top-0 right-0 w-4 h-4 animate-pulse" />
                   )}
-                  {pendingChallengeUserIds[u.id] === 'sent' && (
+                  {pvpAvailable && pendingChallengeUserIds[u.id] === 'sent' && (
                     <img src={assetUrl('/icon/dashboard/pvp.png')} alt="PvP" className="absolute top-0 right-0 w-4 h-4 opacity-50" />
                   )}
                 </div>

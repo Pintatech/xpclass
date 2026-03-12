@@ -4,6 +4,7 @@ import { supabase } from "../../supabase/client";
 import { useAuth } from "../../hooks/useAuth";
 import PvPChallengeModal from "./PvPChallengeModal";
 import { assetUrl } from "../../hooks/useBranding";
+import { fetchPvpSchedule, checkPvpAvailability } from "../../utils/pvpSchedule";
 
 const TAUNT_GIF_BASE = assetUrl("/gif/taunt");
 
@@ -215,6 +216,17 @@ const PvPIncomingBanner = () => {
     }
   });
   const [openTauntId, setOpenTauntId] = useState(null);
+  const [pvpAvailable, setPvpAvailable] = useState(true);
+
+  useEffect(() => {
+    const checkSchedule = async () => {
+      const schedule = await fetchPvpSchedule();
+      setPvpAvailable(checkPvpAvailability(schedule).available);
+    };
+    checkSchedule();
+    const scheduleInterval = setInterval(checkSchedule, 60000);
+    return () => clearInterval(scheduleInterval);
+  }, []);
 
   useEffect(() => {
     if (!user?.id) return;
@@ -573,10 +585,12 @@ const PvPIncomingBanner = () => {
               </div>
               <div className="flex gap-1.5 flex-shrink-0">
                 <button
-                  onClick={() => handleAccept(challenge)}
-                  className="px-3 py-1.5 rounded-lg bg-gradient-to-r from-red-500 to-orange-500 text-white text-xs font-bold hover:from-red-600 hover:to-orange-600 transition"
+                  onClick={() => pvpAvailable && handleAccept(challenge)}
+                  disabled={!pvpAvailable}
+                  className={`px-3 py-1.5 rounded-lg text-xs font-bold transition ${pvpAvailable ? 'bg-gradient-to-r from-red-500 to-orange-500 text-white hover:from-red-600 hover:to-orange-600' : 'bg-gray-200 text-gray-400 cursor-not-allowed'}`}
+                  title={!pvpAvailable ? 'PvP is not available right now' : 'Accept challenge'}
                 >
-                  Fight!
+                  {pvpAvailable ? 'Fight!' : 'Closed'}
                 </button>
                 <button
                   onClick={() => handleDismiss(challenge.id)}
@@ -607,6 +621,7 @@ import PetWordScramble from "../pet/PetWordScramble";
 import PetAstroBlast from "../pet/PetAstroBlast";
 import PetMatchGame from "../pet/PetMatchGame";
 import PetFlappyGame from "../pet/PetFlappyGame";
+import PetWordType from "../pet/PetWordType";
 import { createPortal } from "react-dom";
 import { Trophy } from "lucide-react";
 
@@ -767,6 +782,14 @@ const PvPResponseModal = ({ challenge, onClose }) => {
             onGameEnd={handleGameEnd}
             wordBank={wordBank}
             isPvP
+          />
+        );
+      case "wordtype":
+        return (
+          <PetWordType
+            {...commonProps}
+            onGameEnd={handleGameEnd}
+            wordBank={wordBank}
           />
         );
       default:

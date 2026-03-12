@@ -56,6 +56,7 @@ const Leaderboard = () => {
     flappy: 'Flappy Pet',
     astroblast: 'Astro Blast',
     matchgame: 'Match Up',
+    wordtype: 'Word Type',
   }
 
   // Fetch leaderboard settings on mount

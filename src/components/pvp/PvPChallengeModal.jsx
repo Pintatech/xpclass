@@ -9,8 +9,10 @@ import PetWordScramble from '../pet/PetWordScramble'
 import PetAstroBlast from '../pet/PetAstroBlast'
 import PetMatchGame from '../pet/PetMatchGame'
 import PetFlappyGame from '../pet/PetFlappyGame'
+import PetWordType from '../pet/PetWordType'
 
 import { assetUrl } from '../../hooks/useBranding'
+import { fetchPvpSchedule, checkPvpAvailability } from '../../utils/pvpSchedule'
 
 const TAUNT_GIF_BASE = assetUrl('/gif/taunt')
 
@@ -150,6 +152,7 @@ const GAMES = [
   { id: 'astroblast', name: 'Astro Blast', icon: 'https://xpclass.vn/xpclass/image/inventory/spaceship/phantom-voyager.png', description: 'Shoot the asteroids!' },
   { id: 'matchgame', name: 'Match Up', icon: 'https://xpclass.vn/xpclass/image/dashboard/match.png', description: 'Match words & meanings!' },
   { id: 'flappy', name: 'Flappy Pet', icon: 'https://xpclass.vn/xpclass/image/dashboard/flap.png', description: 'Fly and collect fruits!' },
+  { id: 'wordtype', name: 'Word Type', icon: 'https://xpclass.vn/xpclass/image/dashboard/wordtype.png', description: 'Type the correct word!' },
 ]
 
 const PvPChallengeModal = ({ opponent, onClose }) => {
@@ -160,12 +163,19 @@ const PvPChallengeModal = ({ opponent, onClose }) => {
   const [myScore, setMyScore] = useState(null)
   const [wordBank, setWordBank] = useState([])
   const [saving, setSaving] = useState(false)
-  const [enabledGames, setEnabledGames] = useState(['scramble', 'whackmole', 'astroblast', 'matchgame', 'flappy'])
+  const [enabledGames, setEnabledGames] = useState(['scramble', 'whackmole', 'astroblast', 'matchgame', 'flappy', 'wordtype'])
   const [hasPending, setHasPending] = useState(null)
   const [checkingPending, setCheckingPending] = useState(true)
+  const [pvpStatus, setPvpStatus] = useState({ available: true, reason: '' })
 
   useEffect(() => {
     fetchWordBank()
+    // Check PvP schedule
+    const checkSchedule = async () => {
+      const schedule = await fetchPvpSchedule()
+      setPvpStatus(checkPvpAvailability(schedule))
+    }
+    checkSchedule()
     // Check if there's already a pending challenge with this opponent
     const checkPending = async () => {
       const { data } = await supabase
@@ -289,6 +299,8 @@ const PvPChallengeModal = ({ opponent, onClose }) => {
         return <PetMatchGame {...commonProps} onGameEnd={(s) => handleGameEnd(s)} wordBank={wordBank} />
       case 'flappy':
         return <PetFlappyGame {...commonProps} onGameEnd={(s) => handleGameEnd(s)} wordBank={wordBank} isPvP />
+      case 'wordtype':
+        return <PetWordType {...commonProps} onGameEnd={(s) => handleGameEnd(s)} wordBank={wordBank} />
       default:
         return null
     }
@@ -345,6 +357,12 @@ const PvPChallengeModal = ({ opponent, onClose }) => {
 
             {checkingPending ? (
               <p className="text-center text-sm text-gray-400 mb-4">Checking...</p>
+            ) : !pvpStatus.available ? (
+              <div className="text-center py-6">
+                <div className="text-4xl mb-3">🚫</div>
+                <p className="text-sm font-medium text-gray-700 mb-1">PvP Unavailable</p>
+                <p className="text-sm text-gray-500">{pvpStatus.reason}</p>
+              </div>
             ) : hasPending ? (
               <div className="text-center py-6">
                 <p className="text-sm text-orange-600 font-medium mb-2">You already have a pending challenge with this player!</p>

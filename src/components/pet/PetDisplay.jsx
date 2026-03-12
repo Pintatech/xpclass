@@ -19,6 +19,7 @@ import PetWordScramble from "./PetWordScramble";
 import PetWhackMole from "./PetWhackMole";
 import PetAstroBlast from "./PetAstroBlast";
 import PetMatchGame from "./PetMatchGame";
+import PetWordType from "./PetWordType";
 
 import { assetUrl } from '../../hooks/useBranding';
 // Pet chat messages - replace with your own!
@@ -86,9 +87,9 @@ const PetDisplay = () => {
   const [playDisabled, setPlayDisabled] = useState(false);
   const [playCooldown, setPlayCooldown] = useState(0);
   const [showGame, setShowGame] = useState(null); // null | 'picker' | 'catch' | 'flappy' | 'scramble' | 'whackmole' | 'astroblast' | 'matchgame'
-  const [gameLeaderboards, setGameLeaderboards] = useState({ whackmole: [], scramble: [], astroblast: [], matchgame: [] });
+  const [gameLeaderboards, setGameLeaderboards] = useState({ whackmole: [], scramble: [], astroblast: [], matchgame: [], wordtype: [] });
   const [wordBank, setWordBank] = useState([]);
-  const [enabledGames, setEnabledGames] = useState(['scramble', 'whackmole', 'astroblast', 'matchgame']);
+  const [enabledGames, setEnabledGames] = useState(['scramble', 'whackmole', 'astroblast', 'matchgame', 'wordtype']);
   const [competitionGame, setCompetitionGame] = useState(null); // game type with active competition
   const [showChat, setShowChat] = useState(false);
   const [chatInput, setChatInput] = useState("");
@@ -1660,6 +1661,16 @@ const PetDisplay = () => {
                 <span className="font-bold text-gray-800 text-xs">Match Up</span>
               </button>
               )}
+              {enabledGames.includes('wordtype') && (
+              <button
+                onClick={() => { drainPetEnergy(10); recordAttemptStart('wordtype'); fetchGameLeaderboard('wordtype'); setShowGame('wordtype'); }}
+                className={`relative flex flex-col items-center gap-2 p-4 rounded-xl border-2 transition-all group ${competitionGame === 'wordtype' ? 'border-yellow-400 bg-yellow-50 ring-2 ring-yellow-300' : 'border-cyan-200 hover:border-cyan-400 hover:bg-cyan-50'}`}
+              >
+                {competitionGame === 'wordtype' && <span className="absolute -top-2 -right-2 text-lg">🏆</span>}
+                <span className="text-4xl group-hover:scale-110 transition-transform">⌨️</span>
+                <span className="font-bold text-gray-800 text-xs">Word Type</span>
+              </button>
+              )}
             </div>
             <button
               onClick={() => setShowGame(null)}
@@ -1785,6 +1796,25 @@ const PetDisplay = () => {
           wordBank={wordBank}
           leaderboard={gameLeaderboards.matchgame}
           onGameEnd={(score) => handleGameEnd(score, 'matchgame')}
+          onClose={() => setShowGame(null)}
+        />
+      )}
+
+      {/* Word Type Mini-Game */}
+      {showGame === 'wordtype' && (
+        <PetWordType
+          petImageUrl={(() => {
+            let baseImage = activePet.image_url;
+            if (activePet.evolution_stages && activePet.evolution_stage > 0) {
+              const stage = activePet.evolution_stages.find(s => s.stage === activePet.evolution_stage);
+              if (stage?.image_url) baseImage = stage.image_url;
+            }
+            return baseImage;
+          })()}
+          petName={activePet.nickname || activePet.name}
+          wordBank={wordBank}
+          leaderboard={gameLeaderboards.wordtype}
+          onGameEnd={(score) => handleGameEnd(score, 'wordtype')}
           onClose={() => setShowGame(null)}
         />
       )}

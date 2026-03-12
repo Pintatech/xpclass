@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { supabase } from '../../supabase/client';
-import { Save, RefreshCw, Eye, EyeOff, Play, Pause, Trophy, Settings, Package, Plus, X, Gift } from 'lucide-react';
+import { Save, RefreshCw, Play, Pause, Trophy, Settings, X, Gift } from 'lucide-react';
 
 import { assetUrl } from '../../hooks/useBranding';
 const ALL_TABS = [
@@ -16,6 +16,7 @@ const GAME_TYPES = [
   { key: 'flappy', label: 'Flappy Pet', icon: '🐦' },
   { key: 'astroblast', label: 'Astro Blast', icon: '🚀' },
   { key: 'matchgame', label: 'Match Up', icon: '🧩' },
+  { key: 'wordtype', label: 'Word Type', icon: '⌨️' },
 ];
 
 const TRAINING_GAMES = [
@@ -24,6 +25,7 @@ const TRAINING_GAMES = [
   { key: 'flappy', label: 'Flappy Pet', icon: '🐦' },
   { key: 'astroblast', label: 'Astro Blast', icon: '🚀' },
   { key: 'matchgame', label: 'Match Up', icon: '🧩' },
+  { key: 'wordtype', label: 'Word Type', icon: '⌨️' },
 ];
 
 const LeaderboardSettings = () => {
@@ -50,6 +52,11 @@ const LeaderboardSettings = () => {
   const [maxAttempts, setMaxAttempts] = useState(0); // 0 = unlimited
   const [competitionEndDate, setCompetitionEndDate] = useState(''); // ISO date string e.g. '2026-03-10'
   const [enabledTrainingGames, setEnabledTrainingGames] = useState(['scramble', 'whackmole', 'astroblast']);
+
+  // PvP Schedule
+  const [pvpEnabled, setPvpEnabled] = useState(true);
+  const [pvpStartTime, setPvpStartTime] = useState('');
+  const [pvpEndTime, setPvpEndTime] = useState('');
 
   // Collectible items for "most items" competition
   const [collectibleItems, setCollectibleItems] = useState([]);
@@ -115,6 +122,9 @@ const LeaderboardSettings = () => {
           'leaderboard_competition_max_attempts',
           'leaderboard_competition_end_date',
           'pet_training_enabled_games',
+          'pvp_enabled',
+          'pvp_start_time',
+          'pvp_end_time',
         ]);
 
       if (error) throw error;
@@ -160,6 +170,15 @@ const LeaderboardSettings = () => {
           case 'pet_training_enabled_games':
             try { setEnabledTrainingGames(JSON.parse(row.setting_value)); } catch {}
             break;
+          case 'pvp_enabled':
+            setPvpEnabled(row.setting_value !== 'false');
+            break;
+          case 'pvp_start_time':
+            setPvpStartTime(row.setting_value || '');
+            break;
+          case 'pvp_end_time':
+            setPvpEndTime(row.setting_value || '');
+            break;
         }
       });
     } catch (err) {
@@ -204,6 +223,9 @@ const LeaderboardSettings = () => {
         { setting_key: 'leaderboard_competition_max_attempts', setting_value: String(maxAttempts), description: 'Max attempts per week (0 = unlimited)' },
         { setting_key: 'leaderboard_competition_end_date', setting_value: competitionEndDate, description: 'Competition end date (ISO)' },
         { setting_key: 'pet_training_enabled_games', setting_value: JSON.stringify(enabledTrainingGames), description: 'Which training games are available to students' },
+        { setting_key: 'pvp_enabled', setting_value: String(pvpEnabled), description: 'Whether PvP battles are enabled' },
+        { setting_key: 'pvp_start_time', setting_value: pvpStartTime, description: 'PvP allowed start time (HH:MM)' },
+        { setting_key: 'pvp_end_time', setting_value: pvpEndTime, description: 'PvP allowed end time (HH:MM)' },
       ];
 
       for (const s of settings) {
@@ -394,10 +416,10 @@ const LeaderboardSettings = () => {
   }
 
   return (
-    <div className="max-w-2xl mx-auto space-y-6">
+    <div className=" mx-auto space-y-3 pt-4">
       {/* Notification */}
       {notification && (
-        <div className={`p-3 rounded-lg text-sm font-medium ${
+        <div className={`px-3 py-2 rounded-lg text-sm font-medium ${
           notification.type === 'error'
             ? 'bg-red-50 text-red-700 border border-red-200'
             : 'bg-green-50 text-green-700 border border-green-200'
@@ -406,48 +428,32 @@ const LeaderboardSettings = () => {
         </div>
       )}
 
-      {/* Header */}
-      <div className="flex items-center gap-3 mb-2">
-        <Settings className="w-6 h-6 text-gray-700" />
-        <h2 className="text-xl font-bold text-gray-900">Leaderboard Settings</h2>
-      </div>
-
       {/* Tab Visibility */}
-      <div className="bg-white rounded-xl border border-gray-200 p-5">
-        <h3 className="text-sm font-semibold text-gray-700 uppercase tracking-wide mb-4">
+      <div className="bg-white rounded-xl border border-gray-200 p-3">
+        <h3 className="text-sm font-semibold text-gray-700 uppercase tracking-wide mb-2">
           Tab Visibility
         </h3>
-        <p className="text-sm text-gray-500 mb-4">
-          Choose which tabs students can see on the leaderboard page.
-        </p>
-        <div className="space-y-3">
+        <div className="flex gap-2">
           {ALL_TABS.map((tab) => {
             const isVisible = visibleTabs.includes(tab.key);
             return (
               <label
                 key={tab.key}
-                className={`flex items-center justify-between p-3 rounded-lg border cursor-pointer transition-all ${
+                className={`flex items-center gap-2 px-3 py-2 rounded-lg border cursor-pointer transition-all flex-1 ${
                   isVisible
                     ? 'border-blue-200 bg-blue-50'
                     : 'border-gray-200 bg-gray-50'
                 }`}
               >
-                <div className="flex items-center gap-3">
-                  {isVisible ? (
-                    <Eye className="w-4 h-4 text-blue-500" />
-                  ) : (
-                    <EyeOff className="w-4 h-4 text-gray-400" />
-                  )}
-                  <span className={`font-medium ${isVisible ? 'text-gray-900' : 'text-gray-500'}`}>
-                    {tab.label}
-                  </span>
-                </div>
                 <input
                   type="checkbox"
                   checked={isVisible}
                   onChange={() => toggleTab(tab.key)}
                   className="w-4 h-4 text-blue-600 rounded focus:ring-blue-500"
                 />
+                <span className={`text-sm font-medium ${isVisible ? 'text-gray-900' : 'text-gray-500'}`}>
+                  {tab.label}
+                </span>
               </label>
             );
           })}
@@ -455,17 +461,14 @@ const LeaderboardSettings = () => {
       </div>
 
       {/* Default Tab */}
-      <div className="bg-white rounded-xl border border-gray-200 p-5">
-        <h3 className="text-sm font-semibold text-gray-700 uppercase tracking-wide mb-4">
+      <div className="bg-white rounded-xl border border-gray-200 p-3">
+        <h3 className="text-sm font-semibold text-gray-700 uppercase tracking-wide mb-2">
           Default Tab
         </h3>
-        <p className="text-sm text-gray-500 mb-4">
-          Which tab is selected when students open the leaderboard.
-        </p>
         <select
           value={visibleTabs.includes(defaultTab) ? defaultTab : visibleTabs[0] || ''}
           onChange={(e) => setDefaultTab(e.target.value)}
-          className="w-full p-2.5 border border-gray-300 rounded-lg text-gray-900 focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+          className="w-full p-2 border border-gray-300 rounded-lg text-sm text-gray-900 focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
         >
           {ALL_TABS.filter((t) => visibleTabs.includes(t.key)).map((tab) => (
             <option key={tab.key} value={tab.key}>
@@ -476,31 +479,22 @@ const LeaderboardSettings = () => {
       </div>
 
       {/* Pet Training Games */}
-      <div className="bg-white rounded-xl border border-gray-200 p-5">
-        <h3 className="text-sm font-semibold text-gray-700 uppercase tracking-wide mb-4">
+      <div className="bg-white rounded-xl border border-gray-200 p-3">
+        <h3 className="text-sm font-semibold text-gray-700 uppercase tracking-wide mb-2">
           Pet Training Games
         </h3>
-        <p className="text-sm text-gray-500 mb-4">
-          Choose which mini-games students can play in pet training.
-        </p>
-        <div className="space-y-3">
+        <div className="flex flex-wrap gap-2">
           {TRAINING_GAMES.map((game) => {
             const isEnabled = enabledTrainingGames.includes(game.key);
             return (
               <label
                 key={game.key}
-                className={`flex items-center justify-between p-3 rounded-lg border cursor-pointer transition-all ${
+                className={`flex items-center gap-2 px-3 py-2 rounded-lg border cursor-pointer transition-all ${
                   isEnabled
                     ? 'border-blue-200 bg-blue-50'
                     : 'border-gray-200 bg-gray-50'
                 }`}
               >
-                <div className="flex items-center gap-3">
-                  <span className="text-xl">{game.icon}</span>
-                  <span className={`font-medium ${isEnabled ? 'text-gray-900' : 'text-gray-500'}`}>
-                    {game.label}
-                  </span>
-                </div>
                 <input
                   type="checkbox"
                   checked={isEnabled}
@@ -513,26 +507,107 @@ const LeaderboardSettings = () => {
                   }}
                   className="w-4 h-4 text-blue-600 rounded focus:ring-blue-500"
                 />
+                <span className="text-base">{game.icon}</span>
+                <span className={`text-sm font-medium ${isEnabled ? 'text-gray-900' : 'text-gray-500'}`}>
+                  {game.label}
+                </span>
               </label>
             );
           })}
         </div>
       </div>
 
+      {/* PvP Schedule */}
+      <div className="bg-white rounded-xl border border-gray-200 p-3">
+        <h3 className="text-sm font-semibold text-gray-700 uppercase tracking-wide mb-2">
+          PvP Schedule
+        </h3>
+
+        {/* PvP Toggle */}
+        <div className="flex items-center justify-between mb-3">
+          <div>
+            <p className="text-sm font-medium text-gray-900">PvP Status</p>
+            <p className="text-sm text-gray-500">
+              {pvpEnabled ? 'Challenges enabled.' : 'PvP disabled.'}
+            </p>
+          </div>
+          <button
+            onClick={() => setPvpEnabled(!pvpEnabled)}
+            className={`flex items-center gap-2 px-4 py-2 rounded-lg font-medium text-sm transition-all ${
+              pvpEnabled
+                ? 'bg-green-100 text-green-700 hover:bg-green-200'
+                : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+            }`}
+          >
+            {pvpEnabled ? (
+              <>
+                <Play className="w-4 h-4" fill="currentColor" />
+                Enabled
+              </>
+            ) : (
+              <>
+                <Pause className="w-4 h-4" />
+                Disabled
+              </>
+            )}
+          </button>
+        </div>
+
+        {/* Time Window */}
+        {pvpEnabled && (
+          <div className="border-t border-gray-100 pt-2">
+            <p className="text-sm font-medium text-gray-900 mb-1.5">Allowed Hours (optional)</p>
+            <div className="flex items-center gap-3">
+              <div className="flex items-center gap-1.5">
+                <label className="text-sm text-gray-500">From</label>
+                <input
+                  type="time"
+                  value={pvpStartTime}
+                  onChange={(e) => setPvpStartTime(e.target.value)}
+                  className="p-1.5 border border-gray-300 rounded-lg text-gray-900 text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                />
+              </div>
+              <div className="flex items-center gap-1.5">
+                <label className="text-sm text-gray-500">To</label>
+                <input
+                  type="time"
+                  value={pvpEndTime}
+                  onChange={(e) => setPvpEndTime(e.target.value)}
+                  className="p-1.5 border border-gray-300 rounded-lg text-gray-900 text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                />
+              </div>
+              {(pvpStartTime || pvpEndTime) && (
+                <button
+                  onClick={() => { setPvpStartTime(''); setPvpEndTime(''); }}
+                  className="text-sm text-red-500 hover:text-red-700"
+                >
+                  Clear
+                </button>
+              )}
+            </div>
+            <p className="text-sm text-gray-400 mt-1">
+              {pvpStartTime && pvpEndTime
+                ? `PvP allowed ${pvpStartTime}–${pvpEndTime}.`
+                : (pvpStartTime || pvpEndTime)
+                  ? 'Set both times for schedule to work.'
+                  : 'No restriction — 24/7.'}
+            </p>
+          </div>
+        )}
+      </div>
+
       {/* Competition Control */}
-      <div className="bg-white rounded-xl border border-gray-200 p-5">
-        <h3 className="text-sm font-semibold text-gray-700 uppercase tracking-wide mb-4">
+      <div className="bg-white rounded-xl border border-gray-200 p-3">
+        <h3 className="text-sm font-semibold text-gray-700 uppercase tracking-wide mb-2">
           Competition Settings
         </h3>
 
         {/* Active toggle */}
-        <div className="flex items-center justify-between mb-5">
+        <div className="flex items-center justify-between mb-3">
           <div>
-            <p className="text-sm font-medium text-gray-900">Competition Status</p>
+            <p className="text-sm font-medium text-gray-900">Status</p>
             <p className="text-sm text-gray-500">
-              {competitionActive
-                ? 'Competition is running. Scores are tracked.'
-                : 'Competition is paused. Students can still play but scores are not tracked.'}
+              {competitionActive ? 'Running — scores tracked.' : 'Paused — scores not tracked.'}
             </p>
           </div>
           <button
@@ -558,52 +633,54 @@ const LeaderboardSettings = () => {
         </div>
 
         {/* Competition Type */}
-        <div className="border-t border-gray-100 pt-4 mb-4">
-          <p className="text-sm font-medium text-gray-900 mb-3">Competition Type</p>
-          <div className="grid grid-cols-2 gap-3">
+        <div className="border-t border-gray-100 pt-2 mb-3">
+          <p className="text-sm font-medium text-gray-900 mb-2">Competition Type</p>
+          <div className="grid grid-cols-2 gap-2">
             <button
               onClick={() => setCompetitionType('game')}
-              className={`p-3 rounded-lg border-2 text-left transition-all ${
+              className={`p-2 rounded-lg border-2 text-left transition-all ${
                 competitionType === 'game'
                   ? 'border-blue-500 bg-blue-50'
                   : 'border-gray-200 hover:border-gray-300'
               }`}
             >
-              <div className="text-lg mb-1">🎮</div>
-              <div className="text-sm font-semibold text-gray-900">Mini Game</div>
-              <div className="text-xs text-gray-500">Best score in a game</div>
+              <div className="flex items-center gap-2">
+                <span className="text-lg">🎮</span>
+                <span className="text-sm font-semibold text-gray-900">Mini Game</span>
+              </div>
             </button>
             <button
               onClick={() => setCompetitionType('items')}
-              className={`p-3 rounded-lg border-2 text-left transition-all ${
+              className={`p-2 rounded-lg border-2 text-left transition-all ${
                 competitionType === 'items'
                   ? 'border-blue-500 bg-blue-50'
                   : 'border-gray-200 hover:border-gray-300'
               }`}
             >
-              <div className="text-lg mb-1">📦</div>
-              <div className="text-sm font-semibold text-gray-900">Item Collection</div>
-              <div className="text-xs text-gray-500">Most of a specific item</div>
+              <div className="flex items-center gap-2">
+                <span className="text-lg">📦</span>
+                <span className="text-sm font-semibold text-gray-900">Item Collection</span>
+              </div>
             </button>
           </div>
         </div>
 
         {/* Game Type Selection */}
         {competitionType === 'game' && (
-          <div className="border-t border-gray-100 pt-4 mb-4">
-            <p className="text-sm font-medium text-gray-900 mb-3">Choose Game</p>
-            <div className="grid grid-cols-2 gap-2">
+          <div className="border-t border-gray-100 pt-2 mb-3">
+            <p className="text-sm font-medium text-gray-900 mb-2">Choose Game</p>
+            <div className="grid grid-cols-3 gap-1.5">
               {GAME_TYPES.map((game) => (
                 <button
                   key={game.key}
                   onClick={() => setCompetitionGameType(game.key)}
-                  className={`flex items-center gap-2 p-3 rounded-lg border-2 transition-all ${
+                  className={`flex items-center gap-2 px-2.5 py-2 rounded-lg border-2 transition-all ${
                     competitionGameType === game.key
                       ? 'border-purple-500 bg-purple-50'
                       : 'border-gray-200 hover:border-gray-300'
                   }`}
                 >
-                  <span className="text-xl">{game.icon}</span>
+                  <span className="text-base">{game.icon}</span>
                   <span className={`text-sm font-medium ${
                     competitionGameType === game.key ? 'text-purple-700' : 'text-gray-700'
                   }`}>
@@ -617,21 +694,21 @@ const LeaderboardSettings = () => {
 
         {/* Item Selection */}
         {competitionType === 'items' && (
-          <div className="border-t border-gray-100 pt-4 mb-4">
-            <p className="text-sm font-medium text-gray-900 mb-3">Choose Item</p>
+          <div className="border-t border-gray-100 pt-2 mb-3">
+            <p className="text-sm font-medium text-gray-900 mb-2">Choose Item</p>
             {itemsLoading ? (
               <div className="flex items-center gap-2 text-gray-500 text-sm">
                 <RefreshCw className="w-4 h-4 animate-spin" />
-                Loading items...
+                Loading...
               </div>
             ) : collectibleItems.length === 0 ? (
-              <p className="text-sm text-gray-500">No collectible items found. Create items in the Inventory management first.</p>
+              <p className="text-sm text-gray-500">No items found. Create items in Inventory first.</p>
             ) : (
               <>
                 <select
                   value={competitionItemId}
                   onChange={(e) => setCompetitionItemId(e.target.value)}
-                  className="w-full p-2.5 border border-gray-300 rounded-lg text-gray-900 focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                  className="w-full p-2 border border-gray-300 rounded-lg text-sm text-gray-900 focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                 >
                   <option value="">-- Select an item --</option>
                   {collectibleItems.map((item) => (
@@ -641,14 +718,14 @@ const LeaderboardSettings = () => {
                   ))}
                 </select>
                 {selectedItem && (
-                  <div className="mt-3 flex items-center gap-3 p-3 bg-gray-50 rounded-lg">
+                  <div className="mt-2 flex items-center gap-2 p-2 bg-gray-50 rounded-lg">
                     {selectedItem.image_url && (
-                      <img src={selectedItem.image_url} alt={selectedItem.name} className="w-10 h-10 object-contain rounded" />
+                      <img src={selectedItem.image_url} alt={selectedItem.name} className="w-8 h-8 object-contain rounded" />
                     )}
                     <div>
                       <div className="text-sm font-medium text-gray-900">{selectedItem.name}</div>
-                      <div className="text-xs text-gray-500">
-                        {selectedItem.set_name && `Set: ${selectedItem.set_name} · `}
+                      <div className="text-sm text-gray-500">
+                        {selectedItem.set_name && `${selectedItem.set_name} · `}
                         {selectedItem.rarity}
                       </div>
                     </div>
@@ -659,66 +736,59 @@ const LeaderboardSettings = () => {
           </div>
         )}
 
-        {/* Attempt Limit */}
-        <div className="border-t border-gray-100 pt-4">
-          <p className="text-sm font-medium text-gray-900 mb-2">Attempts per Week</p>
-          <div className="flex items-center gap-3">
-            <input
-              type="number"
-              min="0"
-              max="50"
-              value={maxAttempts}
-              onChange={(e) => setMaxAttempts(Math.max(0, parseInt(e.target.value) || 0))}
-              className="w-20 p-2 border border-gray-300 rounded-lg text-center text-gray-900 focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-            />
-            <span className="text-sm text-gray-500">
-              {maxAttempts === 0 ? 'Unlimited attempts' : `${maxAttempts} attempt${maxAttempts > 1 ? 's' : ''} per student per week`}
-            </span>
+        {/* Attempt Limit & End Date - inline */}
+        <div className="border-t border-gray-100 pt-2 grid grid-cols-2 gap-3">
+          <div>
+            <p className="text-sm font-medium text-gray-900 mb-1">Attempts/Week</p>
+            <div className="flex items-center gap-2">
+              <input
+                type="number"
+                min="0"
+                max="50"
+                value={maxAttempts}
+                onChange={(e) => setMaxAttempts(Math.max(0, parseInt(e.target.value) || 0))}
+                className="w-16 p-1.5 border border-gray-300 rounded-lg text-center text-sm text-gray-900 focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+              />
+              <span className="text-sm text-gray-500">
+                {maxAttempts === 0 ? '(unlimited)' : `per student`}
+              </span>
+            </div>
           </div>
-        </div>
-
-        {/* Competition End Date */}
-        <div className="border-t border-gray-100 pt-4">
-          <p className="text-sm font-medium text-gray-900 mb-2">Competition End Date</p>
-          <div className="flex items-center gap-3">
-            <input
-              type="date"
-              value={competitionEndDate}
-              onChange={(e) => setCompetitionEndDate(e.target.value)}
-              className="p-2 border border-gray-300 rounded-lg text-gray-900 focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-            />
-            {competitionEndDate && (
-              <button
-                onClick={() => setCompetitionEndDate('')}
-                className="text-sm text-red-500 hover:text-red-700"
-              >
-                Clear
-              </button>
-            )}
+          <div>
+            <p className="text-sm font-medium text-gray-900 mb-1">End Date</p>
+            <div className="flex items-center gap-2">
+              <input
+                type="date"
+                value={competitionEndDate}
+                onChange={(e) => setCompetitionEndDate(e.target.value)}
+                className="p-1.5 border border-gray-300 rounded-lg text-sm text-gray-900 focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+              />
+              {competitionEndDate && (
+                <button
+                  onClick={() => setCompetitionEndDate('')}
+                  className="text-sm text-red-500 hover:text-red-700"
+                >
+                  Clear
+                </button>
+              )}
+            </div>
           </div>
-          <p className="text-xs text-gray-400 mt-1">
-            {competitionEndDate ? `Countdown shown to students until ${competitionEndDate}` : 'No end date — no countdown shown'}
-          </p>
         </div>
 
         {/* Top 1/2/3 Rewards Config */}
-        <div className="border-t border-gray-100 pt-4">
-          <div className="flex items-center gap-3 mb-3">
+        <div className="border-t border-gray-100 pt-2 mt-3">
+          <div className="flex items-center gap-2 mb-2">
             <Gift className="w-4 h-4 text-yellow-500" />
             <p className="text-sm font-medium text-gray-900">Top Player Rewards</p>
           </div>
-          <div className="space-y-4">
+          <div className="flex gap-2">
             {topRewards.map((reward, idx) => {
-              const rankColors = ['text-yellow-500', 'text-gray-400', 'text-amber-600'];
-              const rankLabels = ['1st', '2nd', '3rd'];
               const rankIcons = ['🥇', '🥈', '🥉'];
               return (
-                <div key={reward.rank} className="p-3 border border-gray-200 rounded-lg bg-gray-50">
-                  <p className={`text-sm font-semibold mb-2 ${rankColors[idx]}`}>
-                    {rankIcons[idx]} {rankLabels[idx]} Place
-                  </p>
-                  <div className="flex flex-wrap items-center gap-3 mb-2">
-                    <div className="flex items-center gap-1">
+                <div key={reward.rank} className="flex-1 p-2 border border-gray-200 rounded-lg bg-gray-50">
+                  <div className="flex items-center gap-2 mb-1.5">
+                    <span className="text-base">{rankIcons[idx]}</span>
+                    <div className="flex items-center gap-1.5">
                       <input
                         type="number"
                         min="0"
@@ -728,12 +798,11 @@ const LeaderboardSettings = () => {
                           const val = Math.max(0, parseInt(e.target.value) || 0);
                           setTopRewards(prev => prev.map((r, i) => i === idx ? { ...r, gems: val } : r));
                         }}
-                        className="w-16 p-1.5 border border-gray-300 rounded-lg text-center text-sm text-gray-900 focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                        className="w-14 p-1 border border-gray-300 rounded text-center text-sm text-gray-900 focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                       />
                       <img src={assetUrl('/image/study/gem.png')} alt="Gem" className="w-4 h-4" />
-                      <span className="text-xs text-gray-500">Gems</span>
                     </div>
-                    <div className="flex items-center gap-1">
+                    <div className="flex items-center gap-1.5">
                       <input
                         type="number"
                         min="0"
@@ -743,40 +812,37 @@ const LeaderboardSettings = () => {
                           const val = Math.max(0, parseInt(e.target.value) || 0);
                           setTopRewards(prev => prev.map((r, i) => i === idx ? { ...r, xp: val } : r));
                         }}
-                        className="w-16 p-1.5 border border-gray-300 rounded-lg text-center text-sm text-gray-900 focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                        className="w-14 p-1 border border-gray-300 rounded text-center text-sm text-gray-900 focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                       />
-                      <span className="text-xs text-gray-500">XP</span>
+                      <span className="text-sm text-gray-500">XP</span>
                     </div>
                   </div>
                   {/* Shop Items */}
-                  <div className="mt-2">
-                    <p className="text-xs text-gray-500 mb-1">Shop Items:</p>
-                    <div className="flex flex-wrap gap-2 mb-2">
-                      {reward.shop_items.map((itemId) => {
-                        const item = shopItems.find(s => s.id === itemId);
-                        return (
-                          <div key={itemId} className="flex items-center gap-1 bg-white border border-gray-200 rounded-lg px-2 py-1 text-xs">
-                            {item?.image_url && <img src={assetUrl(item.image_url)} alt="" className="w-4 h-4 rounded" />}
-                            <span className="text-gray-700">{item?.name || 'Unknown'}</span>
-                            <button
-                              onClick={() => setTopRewards(prev => prev.map((r, i) => i === idx ? { ...r, shop_items: r.shop_items.filter(id => id !== itemId) } : r))}
-                              className="text-red-400 hover:text-red-600 ml-1"
-                            >
-                              <X className="w-3 h-3" />
-                            </button>
-                          </div>
-                        );
-                      })}
-                    </div>
+                  <div className="flex flex-wrap items-center gap-1.5">
+                    {reward.shop_items.map((itemId) => {
+                      const item = shopItems.find(s => s.id === itemId);
+                      return (
+                        <div key={itemId} className="flex items-center gap-1 bg-white border border-gray-200 rounded px-1.5 py-0.5 text-sm">
+                          {item?.image_url && <img src={assetUrl(item.image_url)} alt="" className="w-4 h-4 rounded" />}
+                          <span className="text-gray-700 truncate max-w-[70px]">{item?.name || '?'}</span>
+                          <button
+                            onClick={() => setTopRewards(prev => prev.map((r, i) => i === idx ? { ...r, shop_items: r.shop_items.filter(id => id !== itemId) } : r))}
+                            className="text-red-400 hover:text-red-600"
+                          >
+                            <X className="w-3 h-3" />
+                          </button>
+                        </div>
+                      );
+                    })}
                     <select
                       value=""
                       onChange={(e) => {
                         if (!e.target.value) return;
                         setTopRewards(prev => prev.map((r, i) => i === idx ? { ...r, shop_items: [...r.shop_items, e.target.value] } : r));
                       }}
-                      className="w-full p-1.5 border border-gray-300 rounded-lg text-xs text-gray-700 focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                      className="p-1 border border-gray-300 rounded text-sm text-gray-500 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 w-full mt-1"
                     >
-                      <option value="">+ Add shop item...</option>
+                      <option value="">+ item</option>
                       {shopItems
                         .filter(s => !reward.shop_items.includes(s.id))
                         .map(s => (
@@ -792,68 +858,63 @@ const LeaderboardSettings = () => {
         </div>
 
         {/* Threshold Reward Config */}
-        <div className="border-t border-gray-100 pt-4">
-          <div className="flex items-center gap-3 mb-2">
+        <div className="border-t border-gray-100 pt-2 mt-3">
+          <div className="flex items-center gap-2 mb-1.5">
             <Trophy className="w-4 h-4 text-blue-500" />
             <p className="text-sm font-medium text-gray-900">Qualifier Reward</p>
           </div>
-          <div className="flex flex-col gap-3">
-            <div className="flex items-center gap-3">
+          <div className="flex items-center gap-4">
+            <div className="flex items-center gap-2">
               <input
                 type="number"
                 min="0"
                 max="10000"
                 value={rewardThreshold}
                 onChange={(e) => setRewardThreshold(Math.max(0, parseInt(e.target.value) || 0))}
-                className="w-20 p-2 border border-gray-300 rounded-lg text-center text-gray-900 focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                className="w-16 p-1.5 border border-gray-300 rounded-lg text-center text-sm text-gray-900 focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
               />
-              <span className="text-sm text-gray-600">Minimum score to qualify (0 = disabled)</span>
+              <span className="text-sm text-gray-600">min score (0=off)</span>
             </div>
-            <div className="flex items-center gap-3">
+            <div className="flex items-center gap-2">
               <input
                 type="number"
                 min="0"
                 max="1000"
                 value={rewardXP}
                 onChange={(e) => setRewardXP(Math.max(0, parseInt(e.target.value) || 0))}
-                className="w-20 p-2 border border-gray-300 rounded-lg text-center text-gray-900 focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                className="w-16 p-1.5 border border-gray-300 rounded-lg text-center text-sm text-gray-900 focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
               />
-              <span className="text-sm text-gray-600">XP awarded to all who pass threshold</span>
+              <span className="text-sm text-gray-600">XP reward</span>
             </div>
           </div>
         </div>
       </div>
 
-      {/* Save Button */}
-      <div className="flex justify-end">
-        <button
-          onClick={handleSave}
-          disabled={saving}
-          className="flex items-center gap-2 px-6 py-2.5 bg-blue-600 text-white rounded-lg font-medium hover:bg-blue-700 disabled:opacity-50 transition-all"
-        >
-          {saving ? (
-            <RefreshCw className="w-4 h-4 animate-spin" />
-          ) : (
-            <Save className="w-4 h-4" />
-          )}
-          {saving ? 'Saving...' : 'Save Settings'}
-        </button>
-      </div>
-
-      {/* End Competition & Award */}
-      {competitionActive && (
-        <div className="p-4 bg-red-50 border border-red-200 rounded-xl">
-          <p className="text-sm text-red-700 mb-3">End the current competition, award gems to the winner, and clear scores.</p>
+      {/* Save + End Competition */}
+      <div className="flex items-center justify-between">
+        {competitionActive ? (
           <button
             onClick={handleEndCompetition}
             disabled={ending}
             className="flex items-center gap-2 px-4 py-2 bg-red-600 text-white rounded-lg font-medium text-sm hover:bg-red-700 disabled:opacity-50 transition-all"
           >
             {ending ? <RefreshCw className="w-4 h-4 animate-spin" /> : <Trophy className="w-4 h-4" />}
-            {ending ? 'Ending...' : 'End Competition & Award Winner'}
+            {ending ? 'Ending...' : 'End & Award'}
           </button>
-        </div>
-      )}
+        ) : <div />}
+        <button
+          onClick={handleSave}
+          disabled={saving}
+          className="flex items-center gap-2 px-5 py-2 bg-blue-600 text-white rounded-lg font-medium text-sm hover:bg-blue-700 disabled:opacity-50 transition-all"
+        >
+          {saving ? (
+            <RefreshCw className="w-4 h-4 animate-spin" />
+          ) : (
+            <Save className="w-4 h-4" />
+          )}
+          {saving ? 'Saving...' : 'Save'}
+        </button>
+      </div>
     </div>
   );
 };
