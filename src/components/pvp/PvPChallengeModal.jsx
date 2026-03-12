@@ -33,6 +33,12 @@ const PVP_TAUNTS = {
     { value: `${TAUNT_GIF_BASE}/4.gif`, label: 'Too easy' },
     { value: `${TAUNT_GIF_BASE}/5.gif`, label: 'Loser' },
     { value: `${TAUNT_GIF_BASE}/6.gif`, label: 'Cry' },
+    { value: `${TAUNT_GIF_BASE}/7.gif`, label: 'Deal with it' },
+    { value: `${TAUNT_GIF_BASE}/8.gif`, label: 'Victory dance' },
+    { value: `${TAUNT_GIF_BASE}/9.gif`, label: 'Bye bye' },
+    { value: `${TAUNT_GIF_BASE}/10.gif`, label: 'Too easy' },
+    { value: `${TAUNT_GIF_BASE}/11.gif`, label: 'Loser' },
+    { value: `${TAUNT_GIF_BASE}/12.gif`, label: 'Cry' },
   ],
 }
 
