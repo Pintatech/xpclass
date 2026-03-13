@@ -92,6 +92,9 @@ const PetSayItRight = ({ petImageUrl, petName, onGameEnd, onClose, wordBank: wor
       return
     }
 
+    // Pause background music — can interfere with speech recognition on Android
+    if (bgMusicRef.current) bgMusicRef.current.pause()
+
     cleanupRecognition()
     setIsRecording(true)
     setLastPassed(null)
@@ -157,7 +160,11 @@ const PetSayItRight = ({ petImageUrl, petName, onGameEnd, onClose, wordBank: wor
       setIsRecording(false)
     }
 
-    recognition.onend = () => setIsRecording(false)
+    recognition.onend = () => {
+      setIsRecording(false)
+      // Resume background music
+      if (bgMusicRef.current && !muted) bgMusicRef.current.play().catch(() => {})
+    }
 
     recognitionRef.current = recognition
     try {
@@ -169,7 +176,7 @@ const PetSayItRight = ({ petImageUrl, petName, onGameEnd, onClose, wordBank: wor
       setShowResult(true)
       setIsRecording(false)
     }
-  }, [currentWord, wordIndex, cleanupRecognition])
+  }, [currentWord, wordIndex, cleanupRecognition, muted])
 
   const stopRecording = useCallback(() => {
     if (recognitionRef.current) recognitionRef.current.stop()
