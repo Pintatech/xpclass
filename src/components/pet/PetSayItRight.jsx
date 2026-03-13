@@ -81,23 +81,12 @@ const PetSayItRight = ({ petImageUrl, petName, onGameEnd, onClose, wordBank: wor
     setShowResult(false)
   }, [cleanupRecognition])
 
-  const startRecording = useCallback(async () => {
+  const startRecording = useCallback(() => {
     if (!currentWord) return
 
     const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition
     if (!SpeechRecognition) {
       setTranscription('Speech recognition not supported on this browser')
-      setLastPassed(false)
-      setShowResult(true)
-      return
-    }
-
-    // Request mic permission first (needed on mobile)
-    try {
-      const stream = await navigator.mediaDevices.getUserMedia({ audio: true })
-      stream.getTracks().forEach(t => t.stop())
-    } catch {
-      setTranscription('Microphone access denied')
       setLastPassed(false)
       setShowResult(true)
       return
