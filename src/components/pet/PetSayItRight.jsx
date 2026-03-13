@@ -81,11 +81,27 @@ const PetSayItRight = ({ petImageUrl, petName, onGameEnd, onClose, wordBank: wor
     setShowResult(false)
   }, [cleanupRecognition])
 
-  const startRecording = useCallback(() => {
+  const startRecording = useCallback(async () => {
     if (!currentWord) return
 
     const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition
-    if (!SpeechRecognition) return
+    if (!SpeechRecognition) {
+      setTranscription('Speech recognition not supported on this browser')
+      setLastPassed(false)
+      setShowResult(true)
+      return
+    }
+
+    // Request mic permission first (needed on mobile)
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({ audio: true })
+      stream.getTracks().forEach(t => t.stop())
+    } catch {
+      setTranscription('Microphone access denied')
+      setLastPassed(false)
+      setShowResult(true)
+      return
+    }
 
     cleanupRecognition()
     setIsRecording(true)
@@ -110,7 +126,6 @@ const PetSayItRight = ({ petImageUrl, petName, onGameEnd, onClose, wordBank: wor
 
       const matched = isWordMatch(currentWord.word, transcribedText)
 
-      // As soon as we detect a match (even interim), mark it immediately
       if (matched && !alreadyPassed) {
         alreadyPassed = true
         setLastPassed(true)
@@ -136,8 +151,17 @@ const PetSayItRight = ({ petImageUrl, petName, onGameEnd, onClose, wordBank: wor
     }
 
     recognition.onerror = (event) => {
+      console.log('Speech recognition error:', event.error)
       if (event.error === 'no-speech') {
         setTranscription('')
+        setLastPassed(false)
+        setShowResult(true)
+      } else if (event.error === 'not-allowed') {
+        setTranscription('Microphone access denied')
+        setLastPassed(false)
+        setShowResult(true)
+      } else {
+        setTranscription(`Error: ${event.error}`)
         setLastPassed(false)
         setShowResult(true)
       }
@@ -147,7 +171,15 @@ const PetSayItRight = ({ petImageUrl, petName, onGameEnd, onClose, wordBank: wor
     recognition.onend = () => setIsRecording(false)
 
     recognitionRef.current = recognition
-    recognition.start()
+    try {
+      recognition.start()
+    } catch (err) {
+      console.log('Speech recognition start failed:', err)
+      setTranscription('Could not start speech recognition')
+      setLastPassed(false)
+      setShowResult(true)
+      setIsRecording(false)
+    }
   }, [currentWord, wordIndex, cleanupRecognition])
 
   const stopRecording = useCallback(() => {
