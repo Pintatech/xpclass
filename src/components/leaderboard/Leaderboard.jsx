@@ -57,6 +57,7 @@ const Leaderboard = () => {
     astroblast: 'Astro Blast',
     matchgame: 'Match Up',
     wordtype: 'Word Type',
+    sayitright: 'Say It Right',
   }
 
   // Fetch leaderboard settings on mount

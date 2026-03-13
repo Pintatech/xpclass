@@ -1087,14 +1087,15 @@ const Profile = () => {
                       epic: 'bg-purple-50 border-purple-300',
                       legendary: 'bg-yellow-50 border-yellow-300'
                     }
+                    const viewerOwnsPet = isOwnProfile || userPets?.some(p => p.pet?.id === pet?.id)
 
                     return (
                       <div key={userPet.id} className="text-center">
-                        <div className={`w-24 h-24 mx-auto mb-2 rounded-full border-2 flex items-center justify-center overflow-hidden relative ${rarityColors[pet?.rarity] || rarityColors.common}}`}>
+                        <div className={`w-24 h-24 mx-auto mb-2 rounded-full border-2 flex items-center justify-center overflow-hidden relative ${viewerOwnsPet ? (rarityColors[pet?.rarity] || rarityColors.common) : 'bg-gray-100 border-gray-300'}`}>
                           {pet?.image_url ? (
-                            <img src={pet.image_url} alt={pet.name} className="w-full h-full object-contain select-none pointer-events-none" draggable={false} />
+                            <img src={pet.image_url} alt={viewerOwnsPet ? pet.name : '???'} className={`w-full h-full object-contain select-none pointer-events-none ${!viewerOwnsPet ? 'filter brightness-0' : ''}`} draggable={false} />
                           ) : (
-                            <span className="text-2xl">
+                            <span className={`text-2xl ${!viewerOwnsPet ? 'filter grayscale brightness-50' : ''}`}>
                               {pet?.rarity === 'legendary' ? '🐉' :
                                pet?.rarity === 'epic' ? '🦅' :
                                pet?.rarity === 'rare' ? '🦊' :
@@ -1104,7 +1105,7 @@ const Profile = () => {
                           <div className="absolute inset-0 z-10" onContextMenu={(e) => e.preventDefault()} />
                         </div>
                         <div className="text-sm font-medium text-gray-900 truncate">
-                          {userPet.nickname || pet?.name}
+                          {viewerOwnsPet ? (userPet.nickname || pet?.name) : '???'}
                         </div>
                         <div className="text-xs text-gray-500 capitalize">{pet?.rarity}</div>
                         {userPet.is_active && (

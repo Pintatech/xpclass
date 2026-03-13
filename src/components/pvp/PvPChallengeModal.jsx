@@ -10,6 +10,7 @@ import PetAstroBlast from '../pet/PetAstroBlast'
 import PetMatchGame from '../pet/PetMatchGame'
 import PetFlappyGame from '../pet/PetFlappyGame'
 import PetWordType from '../pet/PetWordType'
+import PetSayItRight from '../pet/PetSayItRight'
 
 import { assetUrl } from '../../hooks/useBranding'
 import { fetchPvpSchedule, checkPvpAvailability } from '../../utils/pvpSchedule'
@@ -153,6 +154,7 @@ const GAMES = [
   { id: 'matchgame', name: 'Match Up', icon: 'https://xpclass.vn/xpclass/image/dashboard/match.png', description: 'Match words & meanings!' },
   { id: 'flappy', name: 'Flappy Pet', icon: 'https://xpclass.vn/xpclass/image/dashboard/flap.png', description: 'Fly and collect fruits!' },
   { id: 'wordtype', name: 'Word Type', icon: 'https://xpclass.vn/xpclass/image/dashboard/wordtype.png', description: 'Type the correct word!' },
+  { id: 'sayitright', name: 'Say It Right', icon: 'https://xpclass.vn/xpclass/image/dashboard/sayitright.png', description: 'Pronounce the word!' },
 ]
 
 const PvPChallengeModal = ({ opponent, onClose }) => {
@@ -301,6 +303,8 @@ const PvPChallengeModal = ({ opponent, onClose }) => {
         return <PetFlappyGame {...commonProps} onGameEnd={(s) => handleGameEnd(s)} wordBank={wordBank} isPvP />
       case 'wordtype':
         return <PetWordType {...commonProps} onGameEnd={(s) => handleGameEnd(s)} wordBank={wordBank} />
+      case 'sayitright':
+        return <PetSayItRight {...commonProps} onGameEnd={(s) => handleGameEnd(s)} wordBank={wordBank} />
       default:
         return null
     }

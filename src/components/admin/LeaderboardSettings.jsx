@@ -17,6 +17,7 @@ const GAME_TYPES = [
   { key: 'astroblast', label: 'Astro Blast', icon: '🚀' },
   { key: 'matchgame', label: 'Match Up', icon: '🧩' },
   { key: 'wordtype', label: 'Word Type', icon: '⌨️' },
+  { key: 'sayitright', label: 'Say It Right', icon: '🎤' },
 ];
 
 const TRAINING_GAMES = [
@@ -26,6 +27,7 @@ const TRAINING_GAMES = [
   { key: 'astroblast', label: 'Astro Blast', icon: '🚀' },
   { key: 'matchgame', label: 'Match Up', icon: '🧩' },
   { key: 'wordtype', label: 'Word Type', icon: '⌨️' },
+  { key: 'sayitright', label: 'Say It Right', icon: '🎤' },
 ];
 
 const LeaderboardSettings = () => {

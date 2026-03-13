@@ -622,6 +622,7 @@ import PetAstroBlast from "../pet/PetAstroBlast";
 import PetMatchGame from "../pet/PetMatchGame";
 import PetFlappyGame from "../pet/PetFlappyGame";
 import PetWordType from "../pet/PetWordType";
+import PetSayItRight from "../pet/PetSayItRight";
 import { createPortal } from "react-dom";
 import { Trophy } from "lucide-react";
 
@@ -787,6 +788,14 @@ const PvPResponseModal = ({ challenge, onClose }) => {
       case "wordtype":
         return (
           <PetWordType
+            {...commonProps}
+            onGameEnd={handleGameEnd}
+            wordBank={wordBank}
+          />
+        );
+      case "sayitright":
+        return (
+          <PetSayItRight
             {...commonProps}
             onGameEnd={handleGameEnd}
             wordBank={wordBank}
