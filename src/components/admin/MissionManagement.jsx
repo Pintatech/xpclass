@@ -34,6 +34,7 @@ const GOAL_TYPES = [
   { value: 'complete_session', label: 'Hoàn thành session' },
   { value: 'open_chests', label: 'Mở rương' },
   { value: 'collect_items', label: 'Thu thập vật phẩm' },
+  { value: 'all_green_lesson', label: 'Đạt all-green trong buổi học' },
 ]
 
 const MISSION_TYPES = [

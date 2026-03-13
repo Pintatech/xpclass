@@ -19,7 +19,8 @@ CREATE TABLE IF NOT EXISTS public.missions (
     'login_streak',         -- Maintain X day streak
     'complete_session',     -- Complete X sessions
     'open_chests',          -- Open X chests
-    'collect_items'         -- Collect X items
+    'collect_items',        -- Collect X items
+    'all_green_lesson'      -- Get all-green (present + wow + wow) in X lessons
   )),
   goal_value integer NOT NULL DEFAULT 1,
   reward_xp integer DEFAULT 0,

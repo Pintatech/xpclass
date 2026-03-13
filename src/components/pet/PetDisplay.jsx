@@ -1658,7 +1658,7 @@ const PetDisplay = () => {
                 className={`relative flex flex-col items-center gap-2 p-4 rounded-xl border-2 transition-all group ${competitionGame === 'matchgame' ? 'border-yellow-400 bg-yellow-50 ring-2 ring-yellow-300' : 'border-indigo-200 hover:border-indigo-400 hover:bg-indigo-50'}`}
               >
                 {competitionGame === 'matchgame' && <span className="absolute -top-2 -right-2 text-lg">🏆</span>}
-                <img src="https://xpclass.vn/xpclass/image/dashboard/match.png" alt="Match Up" className="w-20 h-20 object-contain group-hover:scale-110 transition-transform" />
+                <img src="https://xpclass.vn/xpclass/image/dashboard/match1.png" alt="Match Up" className="w-20 h-20 object-contain group-hover:scale-110 transition-transform" />
                 <span className="font-bold text-gray-800 text-xs">Match Up</span>
               </button>
               )}

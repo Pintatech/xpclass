@@ -29,8 +29,8 @@ const ICON_MAP = {
 const TAB_CONFIG = {
   daily: {
     label: 'Hàng ngày',
-    gradient: 'from-amber-500 to-orange-600',
-    bgGradient: 'from-amber-50 to-orange-50',
+    color: 'bg-amber-500',
+    bgColor: 'bg-amber-50',
     borderColor: 'border-amber-200',
     activeRing: 'ring-amber-400',
     icon: Flame,
@@ -39,8 +39,8 @@ const TAB_CONFIG = {
   },
   weekly: {
     label: 'Hàng tuần',
-    gradient: 'from-blue-500 to-indigo-600',
-    bgGradient: 'from-blue-50 to-indigo-50',
+    color: 'bg-blue-500',
+    bgColor: 'bg-blue-50',
     borderColor: 'border-blue-200',
     activeRing: 'ring-blue-400',
     icon: Star,
@@ -49,8 +49,8 @@ const TAB_CONFIG = {
   },
   special: {
     label: 'Đặc biệt',
-    gradient: 'from-purple-500 to-pink-600',
-    bgGradient: 'from-purple-50 to-pink-50',
+    color: 'bg-purple-500',
+    bgColor: 'bg-purple-50',
     borderColor: 'border-purple-200',
     activeRing: 'ring-purple-400',
     icon: Sparkles,
@@ -105,7 +105,10 @@ const MissionBoard = () => {
     }
   }
 
-  const currentMissions = missions[activeTab] || []
+  const currentMissions = [...(missions[activeTab] || [])].sort((a, b) => {
+    const order = { active: 0, completed: 1, claimed: 2 }
+    return (order[a.status] ?? 0) - (order[b.status] ?? 0)
+  })
   const tabConfig = TAB_CONFIG[activeTab]
 
   // Count stats
@@ -127,7 +130,7 @@ const MissionBoard = () => {
   return (
     <div className="max-w-2xl mx-auto pb-24 md:pb-8 md:pt-8">
       {/* Header Banner */}
-      <div className="relative overflow-hidden rounded-2xl bg-gradient-to-r from-indigo-600 via-purple-600 to-pink-500 p-6 mb-6 shadow-xl">
+      <div className="relative overflow-hidden rounded-2xl bg-indigo-600 p-6 mb-6 shadow-xl">
         <div className="absolute inset-0 opacity-20">
           <div className="absolute top-2 right-8 w-20 h-20 rounded-full bg-white/20 blur-xl" />
           <div className="absolute bottom-2 left-12 w-32 h-32 rounded-full bg-white/10 blur-2xl" />
@@ -174,7 +177,7 @@ const MissionBoard = () => {
       {/* Reward Toast */}
       {claimResult && (
         <div className="fixed top-20 left-1/2 -translate-x-1/2 z-50 animate-bounce">
-          <div className="bg-gradient-to-r from-yellow-400 to-amber-500 text-white px-6 py-3 rounded-2xl shadow-2xl flex items-center gap-3 font-medium">
+          <div className="bg-amber-500 text-white px-6 py-3 rounded-2xl shadow-2xl flex items-center gap-3 font-medium">
             <Sparkles className="w-5 h-5" />
             <span>{claimResult.title}:</span>
             {claimResult.xp > 0 && (
@@ -203,7 +206,7 @@ const MissionBoard = () => {
               onClick={() => setActiveTab(key)}
               className={`flex-1 py-2.5 px-3 rounded-xl font-medium text-sm transition-all relative ${
                 isActive
-                  ? `bg-gradient-to-r ${config.gradient} text-white shadow-lg`
+                  ? `${config.color} text-white shadow-lg`
                   : 'text-gray-500 hover:text-gray-700 hover:bg-white/50'
               }`}
             >
@@ -230,7 +233,7 @@ const MissionBoard = () => {
           </div>
           <div className="h-2.5 bg-gray-200 rounded-full overflow-hidden">
             <div
-              className={`h-full rounded-full bg-gradient-to-r ${tabConfig.gradient} transition-all duration-500`}
+              className={`h-full rounded-full ${tabConfig.color} transition-all duration-500`}
               style={{ width: `${totalMissions > 0 ? (completedMissions / totalMissions) * 100 : 0}%` }}
             />
           </div>
@@ -240,7 +243,7 @@ const MissionBoard = () => {
       {/* Mission Cards */}
       <div className="space-y-3">
         {currentMissions.length === 0 ? (
-          <div className={`text-center py-16 bg-gradient-to-br ${tabConfig.bgGradient} rounded-2xl border ${tabConfig.borderColor}`}>
+          <div className={`text-center py-16 ${tabConfig.bgColor} rounded-2xl border ${tabConfig.borderColor}`}>
             <tabConfig.icon className="w-16 h-16 text-gray-300 mx-auto mb-4" />
             <h3 className="text-lg font-semibold text-gray-500">{tabConfig.emptyText}</h3>
             <p className="text-gray-400 text-sm mt-1">{tabConfig.emptyDesc}</p>
@@ -278,13 +281,13 @@ const MissionCard = ({ mission, tabConfig, onClaim, claiming }) => {
       isClaimed
         ? 'bg-gray-50 border-gray-200 opacity-60'
         : isCompleted
-          ? `bg-gradient-to-br ${tabConfig.bgGradient} ${tabConfig.borderColor} shadow-md ring-2 ${tabConfig.activeRing} ring-opacity-50`
+          ? `${tabConfig.bgColor} ${tabConfig.borderColor} shadow-md ring-2 ${tabConfig.activeRing} ring-opacity-50`
           : 'bg-white border-gray-200 hover:border-gray-300 hover:shadow-sm'
     }`}>
       {/* Completed shimmer effect */}
       {isCompleted && (
         <div className="absolute inset-0 overflow-hidden pointer-events-none">
-          <div className="absolute -inset-full animate-[shimmer_3s_infinite] bg-gradient-to-r from-transparent via-white/30 to-transparent" />
+          <div className="absolute -inset-full animate-[shimmer_3s_infinite] bg-white/30" />
         </div>
       )}
 
@@ -295,7 +298,7 @@ const MissionCard = ({ mission, tabConfig, onClaim, claiming }) => {
             isClaimed
               ? 'bg-gray-200'
               : isCompleted
-                ? `bg-gradient-to-br ${tabConfig.gradient} shadow-lg`
+                ? `${tabConfig.color} shadow-lg`
                 : 'bg-gray-100'
           }`}>
             {isClaimed ? (
@@ -363,8 +366,8 @@ const MissionCard = ({ mission, tabConfig, onClaim, claiming }) => {
                     isClaimed
                       ? 'bg-gray-300'
                       : isCompleted
-                        ? 'bg-gradient-to-r from-green-400 to-emerald-500'
-                        : `bg-gradient-to-r ${tabConfig.gradient}`
+                        ? 'bg-green-500'
+                        : tabConfig.color
                   }`}
                   style={{ width: `${percentage}%` }}
                 />
@@ -379,7 +382,7 @@ const MissionCard = ({ mission, tabConfig, onClaim, claiming }) => {
             onClick={() => onClaim(mission.user_mission_id)}
             disabled={claiming}
             className={`mt-3 w-full py-2.5 rounded-xl font-semibold text-sm transition-all
-              bg-gradient-to-r ${tabConfig.gradient} text-white shadow-md
+              ${tabConfig.color} text-white shadow-md
               hover:shadow-lg hover:scale-[1.02] active:scale-[0.98]
               disabled:opacity-50 disabled:cursor-not-allowed
               flex items-center justify-center gap-2`}

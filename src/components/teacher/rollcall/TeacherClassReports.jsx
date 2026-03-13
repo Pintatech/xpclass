@@ -310,6 +310,20 @@ const TeacherClassReports = () => {
         if (xpError) console.error('[XP] Error awarding XP:', xpError);
       }
 
+      // 4. Update mission progress for students with all-green lesson (non-blocking)
+      const allGreenStudents = recordsArray.filter(rec =>
+        rec.attendance_status === 'present' &&
+        rec.performance_rating === 'wow' &&
+        rec.homework_status === 'wow'
+      );
+      for (const rec of allGreenStudents) {
+        supabase.rpc('update_mission_progress', {
+          p_user_id: rec.student_id,
+          p_goal_type: 'all_green_lesson',
+          p_increment: 1
+        }).then(() => {}, () => {})
+      }
+
       clearDraft(selectedCourse, selectedDate);
       setHasDraft(false);
       showNotification('Saved lesson successfully');
