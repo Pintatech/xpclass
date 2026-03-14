@@ -43,7 +43,7 @@ const pickGameWords = (source) => {
   return picked
 }
 
-const PetWordScramble = ({ petImageUrl, petName, onGameEnd, onClose, wordBank: wordBankProp = [], hideClose = false, scoreToBeat = null, leaderboard = [] }) => {
+const PetWordScramble = ({ petImageUrl, petName, onGameEnd, onClose, wordBank: wordBankProp = [], hideClose = false, scoreToBeat = null, leaderboard = [], chestEnabled = false }) => {
   const [phase, setPhase] = useState('ready') // 'ready' | 'playing' | 'results'
   const [displayScore, setDisplayScore] = useState(0)
   const [displayTime, setDisplayTime] = useState(GAME_DURATION)
@@ -59,6 +59,8 @@ const PetWordScramble = ({ petImageUrl, petName, onGameEnd, onClose, wordBank: w
   const [skippedWords, setSkippedWords] = useState([])
   const [muted, setMuted] = useState(false)
   const [wordPopup, setWordPopup] = useState(null) // { points, streak, combo }
+  const [chestCollected, setChestCollected] = useState(false)
+  const [chestPopup, setChestPopup] = useState(false)
 
   const scoreRef = useRef(0)
   const timerRef = useRef(null)
@@ -67,6 +69,8 @@ const PetWordScramble = ({ petImageUrl, petName, onGameEnd, onClose, wordBank: w
   const gameAreaRef = useRef(null)
   const containerRef = useRef(null)
   const bgMusicRef = useRef(null)
+  const chestSpawnedRef = useRef(false)
+  const chestWordRef = useRef(0)
 
   // Create floating bubbles for a word, spread out in a grid-ish layout
   const createBubbles = useCallback((word, containerWidth, containerHeight) => {
@@ -132,6 +136,10 @@ const PetWordScramble = ({ petImageUrl, petName, onGameEnd, onClose, wordBank: w
     scoreRef.current = 0
     streakRef.current = 0
     setCombo(0)
+    chestSpawnedRef.current = false
+    chestWordRef.current = 3 + Math.floor(Math.random() * 5)
+    setChestCollected(false)
+    setChestPopup(false)
 
     // Use container dimensions for initial setup
     const width = containerRef.current?.clientWidth || 400
@@ -447,6 +455,14 @@ const PetWordScramble = ({ petImageUrl, petName, onGameEnd, onClose, wordBank: w
       }))
       setParticles(prev => [...prev, ...celebrationParticles])
 
+      // Chest check
+      if (chestEnabled && !chestSpawnedRef.current && wordsCompleted === chestWordRef.current - 1) {
+        chestSpawnedRef.current = true
+        setChestCollected(true)
+        setChestPopup(true)
+        setTimeout(() => setChestPopup(false), 1500)
+      }
+
       // Advance to next word after brief delay
       setTimeout(() => {
         const nextIdx = wordIndex + 1
@@ -530,6 +546,12 @@ const PetWordScramble = ({ petImageUrl, petName, onGameEnd, onClose, wordBank: w
           0% { transform: scale(0) rotate(-10deg); }
           60% { transform: scale(1.15) rotate(3deg); }
           100% { transform: scale(1) rotate(0deg); }
+        }
+        @keyframes chestPopupAnim {
+          0% { transform: scale(0) translateY(0); opacity: 0; }
+          20% { transform: scale(1.2) translateY(0); opacity: 1; }
+          40% { transform: scale(1) translateY(0); opacity: 1; }
+          100% { transform: scale(1) translateY(-80px); opacity: 0; }
         }
       `}</style>
 
@@ -826,6 +848,18 @@ const PetWordScramble = ({ petImageUrl, petName, onGameEnd, onClose, wordBank: w
             </div>
           </div>
 
+          {/* === CHEST POPUP === */}
+          {chestPopup && (
+            <div className="absolute inset-0 z-20 flex items-center justify-center pointer-events-none">
+              <div className="flex flex-col items-center gap-2" style={{ animation: 'chestPopupAnim 1.5s ease-out forwards' }}>
+                <span className="text-5xl">📦</span>
+                <div className="bg-amber-500 text-white rounded-full px-4 py-1.5 font-bold text-sm shadow-lg">
+                  Chest Found!
+                </div>
+              </div>
+            </div>
+          )}
+
           {/* === WORD COMPLETE POPUP === */}
           {wordPopup && (
             <div className="absolute inset-0 z-20 flex items-center justify-center pointer-events-none">
@@ -950,9 +984,16 @@ const PetWordScramble = ({ petImageUrl, petName, onGameEnd, onClose, wordBank: w
                   : 'Need at least 10 words to earn XP. Try again! 💪'}
             </p>
 
+            {chestCollected && (
+              <div className="mb-4 flex items-center justify-center gap-2 bg-amber-50 border border-amber-200 rounded-xl px-4 py-2.5">
+                <span className="text-2xl">📦</span>
+                <span className="font-bold text-amber-700">Chest collected!</span>
+              </div>
+            )}
+
             {wordsCompleted >= 10 ? (
               <button
-                onClick={() => onGameEnd(displayScore, wordsCompleted)}
+                onClick={() => onGameEnd(displayScore, { chestCollected, wordsCompleted })}
                 className="w-full py-3.5 bg-gradient-to-b from-purple-500 to-purple-600 hover:from-purple-600 hover:to-purple-700 text-white rounded-full font-bold text-lg shadow-lg border-b-4 border-purple-700 active:border-b-0 active:mt-1 transition-all"
               >
                 Collect Rewards ✨

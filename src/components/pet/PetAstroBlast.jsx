@@ -26,7 +26,7 @@ const shuffle = (arr) => {
   return a
 }
 
-const PetAstroBlast = ({ petImageUrl, petName, onGameEnd, onClose, shipSkinUrl, shipLaserColor, asteroidSkinUrls, wordBank: wordBankProp = [], hideClose = false, scoreToBeat = null, leaderboard = [] }) => {
+const PetAstroBlast = ({ petImageUrl, petName, onGameEnd, onClose, shipSkinUrl, shipLaserColor, asteroidSkinUrls, wordBank: wordBankProp = [], hideClose = false, scoreToBeat = null, leaderboard = [], chestEnabled = false }) => {
   const [phase, setPhase] = useState('ready')
   const [displayScore, setDisplayScore] = useState(0)
   const [displayTime, setDisplayTime] = useState(GAME_DURATION)
@@ -45,6 +45,8 @@ const PetAstroBlast = ({ petImageUrl, petName, onGameEnd, onClose, shipSkinUrl, 
   const [shipX, setShipX] = useState(200) // spaceship horizontal position
   const [laser, setLaser] = useState(null) // { fromX, fromY, toX, toY, type: 'correct'|'wrong' }
   const [shipRecoil, setShipRecoil] = useState(false)
+  const [chestCollected, setChestCollected] = useState(false)
+  const [chestPopup, setChestPopup] = useState(false)
 
   const scoreRef = useRef(0)
   const streakRef = useRef(0)
@@ -55,6 +57,8 @@ const PetAstroBlast = ({ petImageUrl, petName, onGameEnd, onClose, shipSkinUrl, 
   const bgMusicRef = useRef(null)
   const currentTargetRef = useRef(null)
   const roundIndexRef = useRef(0)
+  const chestSpawnedRef = useRef(false)
+  const chestRoundRef = useRef(0)
 
   // Generate a round: pick a target word and distractors
   const spawnRound = useCallback(() => {
@@ -110,6 +114,38 @@ const PetAstroBlast = ({ petImageUrl, petName, onGameEnd, onClose, shipSkinUrl, 
         setFlyingWords(prev => [...prev, newWord])
       }, delay)
     })
+
+    // Spawn chest once per game at the chosen round (only if chestEnabled)
+    if (chestEnabled && !chestSpawnedRef.current && roundIndexRef.current === chestRoundRef.current) {
+      chestSpawnedRef.current = true
+      const chestDelay = allWords.length * 100 + 50
+      setTimeout(() => {
+        const zoneWidth = containerW / (allWords.length + 1)
+        const launchX = zoneWidth * allWords.length + zoneWidth / 2 + (Math.random() - 0.5) * 20
+        const vy = 2.0 + Math.random() * 0.8
+        const vx = (Math.random() - 0.5) * 1.0
+        const chestWord = {
+          id: `chest-${roundId}`,
+          word: '📦',
+          hint: '',
+          isCorrect: false,
+          isChest: true,
+          x: launchX,
+          y: -50,
+          vx,
+          vy,
+          slashed: false,
+          wrong: false,
+          opacity: 1,
+          scale: 1,
+          rotation: (Math.random() - 0.5) * 10,
+          rotationSpeed: (Math.random() - 0.5) * 0.6,
+          clipIdx: Math.floor(Math.random() * ASTEROID_CLIPS.length),
+          skinIdx: 0,
+        }
+        setFlyingWords(prev => [...prev, chestWord])
+      }, chestDelay)
+    }
   }, [wordBankProp])
 
   // Start game
@@ -127,6 +163,10 @@ const PetAstroBlast = ({ petImageUrl, petName, onGameEnd, onClose, shipSkinUrl, 
     scoreRef.current = 0
     streakRef.current = 0
     roundIndexRef.current = 0
+    chestSpawnedRef.current = false
+    chestRoundRef.current = 5 + Math.floor(Math.random() * 10)
+    setChestCollected(false)
+    setChestPopup(false)
     setPhase('playing')
 
     try {
@@ -263,6 +303,7 @@ const PetAstroBlast = ({ petImageUrl, petName, onGameEnd, onClose, shipSkinUrl, 
           if (w.opacity <= 0) return false
           // Word fell back below screen after its arc
           if (!w.slashed && !w.wrong && w.y > containerH + 80) {
+            if (w.isChest) return false // chest silently removed
             if (w.isCorrect) {
               setMissedWords(p => {
                 if (p.some(m => m.word === w.word)) return p
@@ -325,6 +366,38 @@ const PetAstroBlast = ({ petImageUrl, petName, onGameEnd, onClose, shipSkinUrl, 
   // Handle slashing a word
   const handleSlash = useCallback((wordObj) => {
     if (phase !== 'playing' || wordObj.slashed || wordObj.wrong) return
+
+    // Chest hit — collect it without affecting score or round
+    if (wordObj.isChest) {
+      fireLaser(wordObj.x, wordObj.y, 'correct')
+      setChestCollected(true)
+      setChestPopup(true)
+      setTimeout(() => setChestPopup(false), 1500)
+      setFlyingWords(prev => prev.map(w =>
+        w.id === wordObj.id ? { ...w, slashed: true } : w
+      ))
+      setFeedback({ type: 'correct', word: '+\uD83D\uDCE6 Chest!', x: wordObj.x, y: wordObj.y })
+      setTimeout(() => setFeedback(null), 600)
+      // Chest particles
+      const colors = ['#f59e0b', '#fbbf24', '#d97706', '#b45309']
+      const chestParticles = Array.from({ length: 12 }, (_, i) => ({
+        id: `chest-p-${Date.now()}-${i}`,
+        x: wordObj.x,
+        y: wordObj.y,
+        vx: Math.cos(i * Math.PI / 6) * (4 + Math.random() * 3),
+        vy: Math.sin(i * Math.PI / 6) * (4 + Math.random() * 3),
+        color: colors[Math.floor(Math.random() * colors.length)],
+        opacity: 1,
+      }))
+      setParticles(prev => [...prev, ...chestParticles])
+      try {
+        const sound = new Audio('https://xpclass.vn/xpclass/sound/laser.mp3')
+        sound.volume = 0.3
+        sound.play().catch(() => {})
+      } catch {}
+      setScreenShake(8)
+      return
+    }
 
     fireLaser(wordObj.x, wordObj.y, wordObj.isCorrect ? 'correct' : 'wrong')
 
@@ -477,6 +550,12 @@ const PetAstroBlast = ({ petImageUrl, petName, onGameEnd, onClose, shipSkinUrl, 
           30% { transform: scale(1) translateY(0); opacity: 1; }
           100% { transform: scale(1) translateY(-60px); opacity: 0; }
         }
+        @keyframes chestPopupAnim {
+          0% { transform: scale(0) translateY(0); opacity: 0; }
+          20% { transform: scale(1.2) translateY(0); opacity: 1; }
+          40% { transform: scale(1) translateY(0); opacity: 1; }
+          100% { transform: scale(1) translateY(-80px); opacity: 0; }
+        }
         @keyframes hintPulse {
           0%, 100% { transform: scale(1); }
           50% { transform: scale(1.03); }
@@ -627,10 +706,21 @@ const PetAstroBlast = ({ petImageUrl, petName, onGameEnd, onClose, shipSkinUrl, 
                 opacity: w.opacity,
                 transform: `scale(${w.scale}) rotate(${w.rotation}deg)`,
                 transition: w.slashed || w.wrong ? 'transform 0.3s ease-out' : 'none',
-                zIndex: w.isCorrect ? 5 : 1,
+                zIndex: w.isChest ? 6 : w.isCorrect ? 5 : 1,
               }}
             >
-              {asteroidSkinUrls?.length > 0 ? (
+              {w.isChest ? (
+                /* Chest asteroid */
+                <div className="relative flex flex-col items-center"
+                  style={{
+                    animation: !w.slashed ? 'wordFlyUp 0.4s ease-out' : 'none',
+                    minWidth: '90px',
+                    filter: w.slashed ? 'brightness(1.5)' : 'drop-shadow(0 0 12px rgba(245,158,11,0.6))',
+                  }}
+                >
+                  <span className="text-5xl">{'\uD83D\uDCE6'}</span>
+                </div>
+              ) : asteroidSkinUrls?.length > 0 ? (
                 /* Image-based asteroid skin */
                 <div className="relative flex flex-col items-center"
                   style={{
@@ -928,6 +1018,18 @@ const PetAstroBlast = ({ petImageUrl, petName, onGameEnd, onClose, shipSkinUrl, 
             </div>
           )}
 
+          {/* Chest collected popup */}
+          {chestPopup && (
+            <div className="absolute inset-0 z-20 flex items-center justify-center pointer-events-none">
+              <div className="flex flex-col items-center gap-2" style={{ animation: 'chestPopupAnim 1.5s ease-out forwards' }}>
+                <span className="text-5xl">{'\uD83D\uDCE6'}</span>
+                <div className="bg-amber-500 text-white rounded-full px-4 py-1.5 font-bold text-sm shadow-lg">
+                  Chest Found!
+                </div>
+              </div>
+            </div>
+          )}
+
           {/* Laser beam */}
           {laser && (() => {
             const dx = laser.toX - laser.fromX
@@ -1048,6 +1150,16 @@ const PetAstroBlast = ({ petImageUrl, petName, onGameEnd, onClose, shipSkinUrl, 
               </div>
             )}
 
+            {/* Chest result */}
+            {chestCollected && (
+              <div className="mb-4 flex items-center justify-center gap-2 bg-amber-50 border border-amber-200 rounded-xl px-4 py-2.5"
+                style={{ animation: 'slasherScorePopIn 0.6s ease-out 0.7s both' }}
+              >
+                <span className="text-2xl">{'\uD83D\uDCE6'}</span>
+                <span className="font-bold text-amber-700 text-sm">Chest collected!</span>
+              </div>
+            )}
+
             <p className="text-sm text-gray-600 mb-6">
               {wordsCompleted >= 25
                 ? 'Blast master! 🏆'
@@ -1058,7 +1170,7 @@ const PetAstroBlast = ({ petImageUrl, petName, onGameEnd, onClose, shipSkinUrl, 
 
             {wordsCompleted >= 20 ? (
               <button
-                onClick={() => onGameEnd(displayScore, wordsCompleted)}
+                onClick={() => onGameEnd(displayScore, { chestCollected, wordsCompleted })}
                 className="w-full py-3.5 bg-gradient-to-b from-red-500 to-red-600 hover:from-red-600 hover:to-red-700 text-white rounded-full font-bold text-lg shadow-lg border-b-4 border-red-700 active:border-b-0 active:mt-1 transition-all"
               >
                 Collect Rewards ✨

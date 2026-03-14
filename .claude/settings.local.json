@@ -53,7 +53,8 @@
       "Bash(npx vercel build --prod)",
       "Bash(npx vercel deploy --prebuilt --prod)",
       "Bash(wc -l /c/Users/Calvin_PC/Downloads/xpclass/src/components/admin/editors/*.jsx)",
-      "Bash(xargs wc -l)"
+      "Bash(xargs wc -l)",
+      "Bash(find /c/Users/NAME/Downloads/xpclass -type f \\\\\\(-name *init* -o -name *setup* -o -name *migrations* \\\\\\))"
     ],
     "deny": [],
     "ask": []

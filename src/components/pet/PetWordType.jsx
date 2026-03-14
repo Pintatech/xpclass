@@ -39,7 +39,7 @@ const pickGameWords = (source) => {
   return picked
 }
 
-const PetWordType = ({ petImageUrl, petName, onGameEnd, onClose, wordBank: wordBankProp = [], hideClose = false, scoreToBeat = null, leaderboard = [] }) => {
+const PetWordType = ({ petImageUrl, petName, onGameEnd, onClose, wordBank: wordBankProp = [], hideClose = false, scoreToBeat = null, leaderboard = [], chestEnabled = false }) => {
   const [phase, setPhase] = useState('ready')
   const [displayScore, setDisplayScore] = useState(0)
   const [displayTime, setDisplayTime] = useState(GAME_DURATION)
@@ -57,6 +57,8 @@ const PetWordType = ({ petImageUrl, petName, onGameEnd, onClose, wordBank: wordB
   const [screenShake, setScreenShake] = useState(0)
   const [particles, setParticles] = useState([])
   const [hintRevealed, setHintRevealed] = useState(0) // number of letters revealed
+  const [chestCollected, setChestCollected] = useState(false)
+  const [chestPopup, setChestPopup] = useState(false)
 
   const scoreRef = useRef(0)
   const timerRef = useRef(null)
@@ -67,6 +69,8 @@ const PetWordType = ({ petImageUrl, petName, onGameEnd, onClose, wordBank: wordB
   const bgMusicRef = useRef(null)
   const animFrameRef = useRef(null)
   const shakeRef = useRef(0)
+  const chestSpawnedRef = useRef(false)
+  const chestWordRef = useRef(0)
 
   const currentWord = words[wordIndex]
 
@@ -113,6 +117,14 @@ const PetWordType = ({ petImageUrl, petName, onGameEnd, onClose, wordBank: wordB
       scoreRef.current += points
       setDisplayScore(scoreRef.current)
       setWordsCompleted(prev => prev + 1)
+
+      if (chestEnabled && !chestSpawnedRef.current && wordsCompleted + 1 === chestWordRef.current) {
+        chestSpawnedRef.current = true
+        setChestCollected(true)
+        setChestPopup(true)
+        setTimeout(() => setChestPopup(false), 1500)
+      }
+
       setFeedback('correct')
 
       setWordPopup({ points, streak: newStreak, combo: newCombo })
@@ -210,6 +222,10 @@ const PetWordType = ({ petImageUrl, petName, onGameEnd, onClose, wordBank: wordB
     comboRef.current = 0
     setStreak(0)
     setCombo(0)
+    chestSpawnedRef.current = false
+    chestWordRef.current = 3 + Math.floor(Math.random() * 5)
+    setChestCollected(false)
+    setChestPopup(false)
     setPhase('playing')
 
     try {
@@ -345,6 +361,12 @@ const PetWordType = ({ petImageUrl, petName, onGameEnd, onClose, wordBank: wordB
           0% { transform: scale(0) rotateY(90deg); }
           60% { transform: scale(1.1) rotateY(-10deg); }
           100% { transform: scale(1) rotateY(0deg); }
+        }
+        @keyframes chestPopupAnim {
+          0% { transform: scale(0) translateY(0); opacity: 0; }
+          20% { transform: scale(1.2) translateY(0); opacity: 1; }
+          40% { transform: scale(1) translateY(0); opacity: 1; }
+          100% { transform: scale(1) translateY(-80px); opacity: 0; }
         }
       `}</style>
 
@@ -580,6 +602,15 @@ const PetWordType = ({ petImageUrl, petName, onGameEnd, onClose, wordBank: wordB
                       {wordPopup.combo}x combo
                     </div>
                   )}
+                </div>
+              </div>
+            )}
+
+            {chestPopup && (
+              <div className="absolute inset-0 z-20 flex items-center justify-center pointer-events-none">
+                <div className="flex flex-col items-center gap-2" style={{ animation: 'chestPopupAnim 1.5s ease-out forwards' }}>
+                  <span className="text-5xl">📦</span>
+                  <div className="bg-amber-500 text-white rounded-full px-4 py-1.5 font-bold text-sm shadow-lg">Chest Found!</div>
                 </div>
               </div>
             )}
@@ -827,9 +858,16 @@ const PetWordType = ({ petImageUrl, petName, onGameEnd, onClose, wordBank: wordB
                   : 'Need at least 10 words to earn XP. Try again!'}
             </p>
 
+            {chestCollected && (
+              <div className="mb-4 flex items-center justify-center gap-2 bg-amber-50 border border-amber-200 rounded-xl px-4 py-2.5">
+                <span className="text-2xl">📦</span>
+                <span className="font-bold text-amber-700">Chest collected!</span>
+              </div>
+            )}
+
             {wordsCompleted >= 10 ? (
               <button
-                onClick={() => onGameEnd(displayScore, wordsCompleted)}
+                onClick={() => onGameEnd(displayScore, { chestCollected, wordsCompleted })}
                 className="w-full py-3.5 bg-gradient-to-b from-indigo-500 to-indigo-600 hover:from-indigo-600 hover:to-indigo-700 text-white rounded-full font-bold text-lg shadow-lg border-b-4 border-indigo-700 active:border-b-0 active:mt-1 transition-all"
               >
                 Collect Rewards

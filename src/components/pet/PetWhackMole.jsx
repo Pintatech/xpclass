@@ -21,7 +21,7 @@ const shuffle = (arr) => {
   return a
 }
 
-const PetWhackMole = ({ petImageUrl, petName, onGameEnd, onClose, hammerSkinUrl, leaderboard = [], wordBank: wordBankProp = [], hideClose = false }) => {
+const PetWhackMole = ({ petImageUrl, petName, onGameEnd, onClose, hammerSkinUrl, leaderboard = [], wordBank: wordBankProp = [], hideClose = false, chestEnabled = false }) => {
   const [phase, setPhase] = useState('ready')
   const [displayTime, setDisplayTime] = useState(GAME_DURATION)
   const [score, setScore] = useState(0)
@@ -83,7 +83,7 @@ const PetWhackMole = ({ petImageUrl, petName, onGameEnd, onClose, hammerSkinUrl,
     })
 
     // Spawn chest once per game at the chosen round
-    if (!chestSpawnedRef.current && roundCountRef.current === chestRoundRef.current) {
+    if (chestEnabled && !chestSpawnedRef.current && roundCountRef.current === chestRoundRef.current) {
       chestSpawnedRef.current = true
       const emptyHoles = newHoles.filter(h => !h.visible).map(h => h.id)
       if (emptyHoles.length > 0) {

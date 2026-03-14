@@ -17,7 +17,7 @@ const shuffle = (arr) => {
   return a
 }
 
-const PetMatchGame = ({ petImageUrl, petName, onGameEnd, onClose, wordBank: wordBankProp = [], hideClose = false, scoreToBeat = null, leaderboard = [] }) => {
+const PetMatchGame = ({ petImageUrl, petName, onGameEnd, onClose, wordBank: wordBankProp = [], hideClose = false, scoreToBeat = null, leaderboard = [], chestEnabled = false }) => {
   const [phase, setPhase] = useState('ready')
   const [displayTime, setDisplayTime] = useState(GAME_DURATION)
   const [score, setScore] = useState(0)
@@ -34,6 +34,8 @@ const PetMatchGame = ({ petImageUrl, petName, onGameEnd, onClose, wordBank: word
   const [muted, setMuted] = useState(false)
   const [wrongPair, setWrongPair] = useState(null) // [idx1, idx2]
   const [locked, setLocked] = useState(false) // lock input during wrong animation
+  const [chestCollected, setChestCollected] = useState(false)
+  const [chestPopup, setChestPopup] = useState(false)
 
   const timerRef = useRef(null)
   const scoreRef = useRef(0)
@@ -41,6 +43,8 @@ const PetMatchGame = ({ petImageUrl, petName, onGameEnd, onClose, wordBank: word
   const animFrameRef = useRef(null)
   const bgMusicRef = useRef(null)
   const mutedRef = useRef(false)
+  const chestSpawnedRef = useRef(false)
+  const chestRoundRef = useRef(0)
 
   // Build a round of tiles
   const buildRound = useCallback(() => {
@@ -67,6 +71,10 @@ const PetMatchGame = ({ petImageUrl, petName, onGameEnd, onClose, wordBank: word
     setWordHistory([])
     setTotalMatched(0)
     setRoundNum(1)
+    chestSpawnedRef.current = false
+    chestRoundRef.current = 1 + Math.floor(Math.random() * 4)
+    setChestCollected(false)
+    setChestPopup(false)
     setPhase('playing')
 
     // Background music
@@ -216,6 +224,12 @@ const PetMatchGame = ({ petImageUrl, petName, onGameEnd, onClose, wordBank: word
 
       // Check if round complete
       if (newMatched >= PAIRS_PER_ROUND) {
+        if (chestEnabled && !chestSpawnedRef.current && roundNum === chestRoundRef.current) {
+          chestSpawnedRef.current = true
+          setChestCollected(true)
+          setChestPopup(true)
+          setTimeout(() => setChestPopup(false), 1500)
+        }
         setTimeout(() => {
           setRoundNum(prev => prev + 1)
         }, 600)
@@ -306,6 +320,12 @@ const PetMatchGame = ({ petImageUrl, petName, onGameEnd, onClose, wordBank: word
           15% { transform: scale(1.1) translateY(0); opacity: 1; }
           30% { transform: scale(1) translateY(0); opacity: 1; }
           100% { transform: scale(1) translateY(-60px); opacity: 0; }
+        }
+        @keyframes chestPopupAnim {
+          0% { transform: scale(0) translateY(0); opacity: 0; }
+          20% { transform: scale(1.2) translateY(0); opacity: 1; }
+          40% { transform: scale(1) translateY(0); opacity: 1; }
+          100% { transform: scale(1) translateY(-80px); opacity: 0; }
         }
         @keyframes matchTileSelected {
           0%, 100% { box-shadow: 0 0 0 3px rgba(59,130,246,0.5), 0 0 15px rgba(59,130,246,0.3); }
@@ -698,6 +718,17 @@ const PetMatchGame = ({ petImageUrl, petName, onGameEnd, onClose, wordBank: word
                 </div>
               </div>
             )}
+
+            {chestPopup && (
+              <div className="absolute inset-0 z-20 flex items-center justify-center pointer-events-none">
+                <div className="flex flex-col items-center gap-2" style={{ animation: 'chestPopupAnim 1.5s ease-out forwards' }}>
+                  <span className="text-5xl">📦</span>
+                  <div className="bg-amber-500 text-white rounded-full px-4 py-1.5 font-bold text-sm shadow-lg">
+                    Chest Found!
+                  </div>
+                </div>
+              </div>
+            )}
           </div>
         )}
 
@@ -751,9 +782,16 @@ const PetMatchGame = ({ petImageUrl, petName, onGameEnd, onClose, wordBank: word
                   : 'Need at least 30 matched pairs to earn XP. Try again!'}
               </p>
 
+              {chestCollected && (
+                <div className="mb-4 flex items-center justify-center gap-2 bg-amber-50 border border-amber-200 rounded-xl px-4 py-2.5">
+                  <span className="text-2xl">📦</span>
+                  <span className="font-bold text-amber-700">Chest collected!</span>
+                </div>
+              )}
+
               {totalMatched >= 30 ? (
                 <button
-                  onClick={() => onGameEnd(score)}
+                  onClick={() => onGameEnd(score, { chestCollected })}
                   className="w-full py-3.5 bg-gradient-to-b from-indigo-500 to-indigo-600 hover:from-indigo-600 hover:to-indigo-700 text-white rounded-full font-bold text-lg shadow-lg border-b-4 border-indigo-700 active:border-b-0 active:mt-1 transition-all"
                 >
                   Collect Rewards

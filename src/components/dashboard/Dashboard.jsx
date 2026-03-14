@@ -32,7 +32,8 @@ const Dashboard = () => {
   useEffect(() => {
     const checkSchedule = async () => {
       const schedule = await fetchPvpSchedule()
-      setPvpAvailable(checkPvpAvailability(schedule).available)
+      const result = checkPvpAvailability(schedule)
+      setPvpAvailable(result.available)
     }
     checkSchedule()
     const scheduleInterval = setInterval(checkSchedule, 60000)
@@ -524,7 +525,7 @@ const Dashboard = () => {
             }).map((u) => (
               <button
                 key={u.id}
-                onClick={() => u.id !== profile?.id && pvpAvailable ? setChallengeTarget(u) : navigate(`/profile/${u.id}`)}
+                onClick={() => u.id === profile?.id ? navigate(`/profile/${u.id}`) : setChallengeTarget(u)}
                 className="flex flex-col items-center flex-shrink-0 w-16"
               >
                 <div className="relative">
@@ -558,7 +559,7 @@ const Dashboard = () => {
             }).map((u) => (
               <button
                 key={u.id}
-                onClick={() => u.id !== profile?.id && pvpAvailable && pendingChallengeUserIds[u.id] ? setChallengeTarget(u) : navigate(`/profile/${u.id}`)}
+                onClick={() => u.id === profile?.id ? navigate(`/profile/${u.id}`) : setChallengeTarget(u)}
                 className="flex flex-col items-center flex-shrink-0 w-16 opacity-50"
               >
                 <div className="relative grayscale">

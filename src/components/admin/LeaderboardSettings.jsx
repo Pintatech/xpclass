@@ -60,6 +60,12 @@ const LeaderboardSettings = () => {
   const [pvpStartTime, setPvpStartTime] = useState('');
   const [pvpEndTime, setPvpEndTime] = useState('');
 
+  // Chest Settings
+  const [chestEnabled, setChestEnabled] = useState(true);
+  const [chestStartTime, setChestStartTime] = useState('');
+  const [chestEndTime, setChestEndTime] = useState('');
+  const [chestDailyLimit, setChestDailyLimit] = useState(3);
+
   // Collectible items for "most items" competition
   const [collectibleItems, setCollectibleItems] = useState([]);
   const [itemsLoading, setItemsLoading] = useState(false);
@@ -127,6 +133,10 @@ const LeaderboardSettings = () => {
           'pvp_enabled',
           'pvp_start_time',
           'pvp_end_time',
+          'chest_enabled',
+          'chest_start_time',
+          'chest_end_time',
+          'chest_daily_limit',
         ]);
 
       if (error) throw error;
@@ -181,6 +191,18 @@ const LeaderboardSettings = () => {
           case 'pvp_end_time':
             setPvpEndTime(row.setting_value || '');
             break;
+          case 'chest_enabled':
+            setChestEnabled(row.setting_value !== 'false');
+            break;
+          case 'chest_start_time':
+            setChestStartTime(row.setting_value || '');
+            break;
+          case 'chest_end_time':
+            setChestEndTime(row.setting_value || '');
+            break;
+          case 'chest_daily_limit':
+            setChestDailyLimit(parseInt(row.setting_value) || 3);
+            break;
         }
       });
     } catch (err) {
@@ -228,6 +250,10 @@ const LeaderboardSettings = () => {
         { setting_key: 'pvp_enabled', setting_value: String(pvpEnabled), description: 'Whether PvP battles are enabled' },
         { setting_key: 'pvp_start_time', setting_value: pvpStartTime, description: 'PvP allowed start time (HH:MM)' },
         { setting_key: 'pvp_end_time', setting_value: pvpEndTime, description: 'PvP allowed end time (HH:MM)' },
+        { setting_key: 'chest_enabled', setting_value: String(chestEnabled), description: 'Whether game chests are enabled' },
+        { setting_key: 'chest_start_time', setting_value: chestStartTime, description: 'Chest allowed start time (HH:MM)' },
+        { setting_key: 'chest_end_time', setting_value: chestEndTime, description: 'Chest allowed end time (HH:MM)' },
+        { setting_key: 'chest_daily_limit', setting_value: String(chestDailyLimit), description: 'Max chests per student per day' },
       ];
 
       for (const s of settings) {
@@ -519,18 +545,18 @@ const LeaderboardSettings = () => {
         </div>
       </div>
 
-      {/* PvP Schedule */}
+      {/* Activity Schedule (PvP + Training) */}
       <div className="bg-white rounded-xl border border-gray-200 p-3">
         <h3 className="text-sm font-semibold text-gray-700 uppercase tracking-wide mb-2">
-          PvP Schedule
+          Activity Schedule
         </h3>
 
-        {/* PvP Toggle */}
+        {/* Activity Toggle */}
         <div className="flex items-center justify-between mb-3">
           <div>
-            <p className="text-sm font-medium text-gray-900">PvP Status</p>
+            <p className="text-sm font-medium text-gray-900">PvP & Training Status</p>
             <p className="text-sm text-gray-500">
-              {pvpEnabled ? 'Challenges enabled.' : 'PvP disabled.'}
+              {pvpEnabled ? 'PvP & training enabled.' : 'PvP & training disabled.'}
             </p>
           </div>
           <button
@@ -589,11 +615,108 @@ const LeaderboardSettings = () => {
             </div>
             <p className="text-sm text-gray-400 mt-1">
               {pvpStartTime && pvpEndTime
-                ? `PvP allowed ${pvpStartTime}–${pvpEndTime}.`
+                ? `PvP & training allowed ${pvpStartTime}–${pvpEndTime}.`
                 : (pvpStartTime || pvpEndTime)
                   ? 'Set both times for schedule to work.'
                   : 'No restriction — 24/7.'}
             </p>
+          </div>
+        )}
+      </div>
+
+      {/* Game Chest Settings */}
+      <div className="bg-white rounded-xl border border-gray-200 p-3">
+        <h3 className="text-sm font-semibold text-gray-700 uppercase tracking-wide mb-2">
+          Game Chests
+        </h3>
+
+        {/* Chest Toggle */}
+        <div className="flex items-center justify-between mb-3">
+          <div>
+            <p className="text-sm font-medium text-gray-900">Chest Status</p>
+            <p className="text-sm text-gray-500">
+              {chestEnabled ? 'Chests appear in games.' : 'Chests disabled.'}
+            </p>
+          </div>
+          <button
+            onClick={() => setChestEnabled(!chestEnabled)}
+            className={`flex items-center gap-2 px-4 py-2 rounded-lg font-medium text-sm transition-all ${
+              chestEnabled
+                ? 'bg-amber-100 text-amber-700 hover:bg-amber-200'
+                : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+            }`}
+          >
+            {chestEnabled ? (
+              <>
+                <Gift className="w-4 h-4" />
+                Enabled
+              </>
+            ) : (
+              <>
+                <Pause className="w-4 h-4" />
+                Disabled
+              </>
+            )}
+          </button>
+        </div>
+
+        {chestEnabled && (
+          <div className="space-y-3 border-t border-gray-100 pt-2">
+            {/* Time Window */}
+            <div>
+              <p className="text-sm font-medium text-gray-900 mb-1.5">Allowed Hours (optional)</p>
+              <div className="flex items-center gap-3">
+                <div className="flex items-center gap-1.5">
+                  <label className="text-sm text-gray-500">From</label>
+                  <input
+                    type="time"
+                    value={chestStartTime}
+                    onChange={(e) => setChestStartTime(e.target.value)}
+                    className="p-1.5 border border-gray-300 rounded-lg text-gray-900 text-sm focus:ring-2 focus:ring-amber-500 focus:border-amber-500"
+                  />
+                </div>
+                <div className="flex items-center gap-1.5">
+                  <label className="text-sm text-gray-500">To</label>
+                  <input
+                    type="time"
+                    value={chestEndTime}
+                    onChange={(e) => setChestEndTime(e.target.value)}
+                    className="p-1.5 border border-gray-300 rounded-lg text-gray-900 text-sm focus:ring-2 focus:ring-amber-500 focus:border-amber-500"
+                  />
+                </div>
+                {(chestStartTime || chestEndTime) && (
+                  <button
+                    onClick={() => { setChestStartTime(''); setChestEndTime(''); }}
+                    className="text-sm text-red-500 hover:text-red-700"
+                  >
+                    Clear
+                  </button>
+                )}
+              </div>
+              <p className="text-sm text-gray-400 mt-1">
+                {chestStartTime && chestEndTime
+                  ? `Chests appear ${chestStartTime}–${chestEndTime} only.`
+                  : (chestStartTime || chestEndTime)
+                    ? 'Set both times for schedule to work.'
+                    : 'No restriction — chests appear 24/7.'}
+              </p>
+            </div>
+
+            {/* Daily Limit */}
+            <div>
+              <p className="text-sm font-medium text-gray-900 mb-1.5">Daily Limit per Student</p>
+              <div className="flex items-center gap-3">
+                <input
+                  type="number"
+                  min="1"
+                  max="50"
+                  value={chestDailyLimit}
+                  onChange={(e) => setChestDailyLimit(parseInt(e.target.value) || 1)}
+                  className="w-20 p-1.5 border border-gray-300 rounded-lg text-gray-900 text-sm focus:ring-2 focus:ring-amber-500 focus:border-amber-500"
+                />
+                <span className="text-sm text-gray-500">chests per day</span>
+              </div>
+            </div>
           </div>
         )}
       </div>

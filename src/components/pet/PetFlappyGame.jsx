@@ -39,11 +39,13 @@ function pickWord(wordBank, usedWords) {
   return pool[Math.floor(Math.random() * pool.length)]
 }
 
-const PetFlappyGame = ({ petImageUrl, petName, wordBank: wordBankProp, onGameEnd, onClose, leaderboard = [], isPvP = false }) => {
+const PetFlappyGame = ({ petImageUrl, petName, wordBank: wordBankProp, onGameEnd, onClose, leaderboard = [], isPvP = false, chestEnabled = false }) => {
   const [phase, setPhase] = useState('ready') // 'ready' | 'playing' | 'results'
   const [displayScore, setDisplayScore] = useState(0)
   const [displayTime, setDisplayTime] = useState(GAME_DURATION)
   const [streak, setStreak] = useState(0)
+  const [chestCollected, setChestCollected] = useState(false)
+  const [chestPopup, setChestPopup] = useState(false)
 
   const wordBank = (wordBankProp && wordBankProp.length > 0) ? wordBankProp : WORD_BANK_FALLBACK
 
@@ -76,6 +78,8 @@ const PetFlappyGame = ({ petImageUrl, petName, wordBank: wordBankProp, onGameEnd
   const currentHintRef = useRef('')
   const nextFloatIdRef = useRef(0)
   const floatingTextsRef = useRef([])
+  const chestSpawnedRef = useRef(false)
+  const chestWaveRef = useRef(0)
 
   // Flap / jump
   const flap = useCallback(() => {
@@ -126,6 +130,21 @@ const PetFlappyGame = ({ petImageUrl, petName, wordBank: wordBankProp, onGameEnd
         eaten: false,
         emoji,
         el: null, // DOM element reference
+      })
+    }
+
+    // Spawn chest once per game at the chosen wave (only if chestEnabled)
+    if (chestEnabled && !chestSpawnedRef.current && nextWaveIdRef.current === chestWaveRef.current) {
+      chestSpawnedRef.current = true
+      const safeY = (minY + Math.random() * usableHeight) / gameHeight
+      fruits.push({
+        y: safeY,
+        word: '📦',
+        isCorrect: false,
+        eaten: false,
+        emoji: '📦',
+        isChest: true,
+        el: null,
       })
     }
 
@@ -183,15 +202,25 @@ const PetFlappyGame = ({ petImageUrl, petName, wordBank: wordBankProp, onGameEnd
     label.className = 'text-center'
     label.style.marginBottom = '2px'
     const span = document.createElement('span')
-    span.className = 'inline-block bg-white text-gray-800 text-[11px] font-bold px-2 py-0.5 rounded-full shadow-md border border-gray-200 whitespace-nowrap'
-    span.style.cssText = 'max-width:120px;-webkit-font-smoothing:antialiased;-moz-osx-font-smoothing:grayscale;'
-    span.textContent = fruit.word
+    if (fruit.isChest) {
+      span.className = 'inline-block bg-amber-100 text-amber-700 text-[11px] font-bold px-2 py-0.5 rounded-full shadow-md border border-amber-300 whitespace-nowrap'
+      span.style.cssText = 'max-width:120px;-webkit-font-smoothing:antialiased;-moz-osx-font-smoothing:grayscale;'
+      span.textContent = '📦'
+    } else {
+      span.className = 'inline-block bg-white text-gray-800 text-[11px] font-bold px-2 py-0.5 rounded-full shadow-md border border-gray-200 whitespace-nowrap'
+      span.style.cssText = 'max-width:120px;-webkit-font-smoothing:antialiased;-moz-osx-font-smoothing:grayscale;'
+      span.textContent = fruit.word
+    }
     label.appendChild(span)
     wrapper.appendChild(label)
 
     const emojiDiv = document.createElement('div')
     emojiDiv.className = 'text-center'
-    emojiDiv.style.cssText = `font-size:${FRUIT_SIZE - 8}px;line-height:1;`
+    if (fruit.isChest) {
+      emojiDiv.style.cssText = 'font-size:48px;line-height:1;filter:drop-shadow(0 0 8px rgba(245,158,11,0.6));'
+    } else {
+      emojiDiv.style.cssText = `font-size:${FRUIT_SIZE - 8}px;line-height:1;`
+    }
     emojiDiv.textContent = fruit.emoji
     wrapper.appendChild(emojiDiv)
 
@@ -231,6 +260,10 @@ const PetFlappyGame = ({ petImageUrl, petName, wordBank: wordBankProp, onGameEnd
     usedWordsRef.current = new Set()
     nextFloatIdRef.current = 0
     floatingTextsRef.current = []
+    chestSpawnedRef.current = false
+    chestWaveRef.current = 3 + Math.floor(Math.random() * 6)
+    setChestCollected(false)
+    setChestPopup(false)
 
     // Pick first word
     setNewWord()
@@ -331,6 +364,26 @@ const PetFlappyGame = ({ petImageUrl, petName, wordBank: wordBankProp, onGameEnd
           const hitRadius = petRadius + FRUIT_SIZE / 2 - 6
 
           if (dist < hitRadius) {
+            // Chest collectible — does NOT resolve the wave
+            if (fruit.isChest) {
+              fruit.eaten = true
+              if (fruit.el) fruit.el.style.display = 'none'
+              setChestCollected(true)
+              setChestPopup(true)
+              setTimeout(() => setChestPopup(false), 1500)
+
+              const floatEl = createFloatEl('+📦 Chest!', fruitPixelX, fruitPixelY, '#f59e0b')
+              floatsContainerRef.current?.appendChild(floatEl)
+              floatingTextsRef.current.push({ el: floatEl, y: fruitPixelY, opacity: 1 })
+
+              try {
+                const sound = new Audio(assetUrl('/sound/flappy-point.mp3'))
+                sound.volume = 0.4
+                sound.play().catch(() => {})
+              } catch {}
+              return
+            }
+
             fruit.eaten = true
             wave.resolved = true
 
@@ -474,6 +527,12 @@ const PetFlappyGame = ({ petImageUrl, petName, wordBank: wordBankProp, onGameEnd
           0%, 100% { transform: translateY(-6px); }
           50% { transform: translateY(6px); }
         }
+        @keyframes chestPopupAnim {
+          0% { transform: scale(0) translateY(0); opacity: 0; }
+          20% { transform: scale(1.2) translateY(0); opacity: 1; }
+          40% { transform: scale(1) translateY(0); opacity: 1; }
+          100% { transform: scale(1) translateY(-80px); opacity: 0; }
+        }
       `}</style>
 
       {/* Narrow portrait game container */}
@@ -611,6 +670,18 @@ const PetFlappyGame = ({ petImageUrl, petName, wordBank: wordBankProp, onGameEnd
         {/* Floating texts container (DOM-managed) */}
         {phase === 'playing' && <div ref={floatsContainerRef} />}
 
+        {/* Chest collected popup */}
+        {chestPopup && (
+          <div className="absolute inset-0 z-50 flex items-center justify-center pointer-events-none">
+            <div className="flex flex-col items-center gap-2" style={{ animation: 'chestPopupAnim 1.5s ease-out forwards' }}>
+              <span className="text-5xl">📦</span>
+              <div className="bg-amber-500 text-white rounded-full px-4 py-1.5 font-bold text-sm shadow-lg">
+                Chest Found!
+              </div>
+            </div>
+          </div>
+        )}
+
         {/* Playing Phase - Pet */}
         {phase === 'playing' && (
           <div
@@ -686,9 +757,18 @@ const PetFlappyGame = ({ petImageUrl, petName, wordBank: wordBankProp, onGameEnd
                   : `Need at least ${PASS_SCORE} points to earn XP. Try again! 💪`}
             </p>
 
+            {chestCollected && (
+              <div className="mb-4 flex items-center justify-center gap-2 bg-amber-50 border border-amber-200 rounded-xl px-4 py-2.5"
+                style={{ animation: 'flappyScorePopIn 0.6s ease-out 0.7s both' }}
+              >
+                <span className="text-2xl">📦</span>
+                <span className="font-bold text-amber-700 text-sm">Chest collected!</span>
+              </div>
+            )}
+
             {displayScore >= PASS_SCORE || isPvP ? (
               <button
-                onClick={() => onGameEnd(displayScore)}
+                onClick={() => onGameEnd(displayScore, { chestCollected })}
                 className="w-full py-3.5 bg-gradient-to-b from-cyan-400 to-cyan-500 hover:from-cyan-500 hover:to-cyan-600 text-white rounded-full font-bold text-lg shadow-lg border-b-4 border-cyan-600 active:border-b-0 active:mt-1 transition-all"
               >
                 {isPvP ? 'Submit Score ⚔️' : 'Collect Rewards ✨'}

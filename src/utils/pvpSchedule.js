@@ -33,7 +33,8 @@ export function checkPvpAvailability({ pvpEnabled, pvpStartTime, pvpEndTime }) {
 
   if (pvpStartTime && pvpEndTime) {
     const now = new Date()
-    const currentMinutes = now.getHours() * 60 + now.getMinutes()
+    const vnTime = new Date(now.toLocaleString('en-US', { timeZone: 'Asia/Ho_Chi_Minh' }))
+    const currentMinutes = vnTime.getHours() * 60 + vnTime.getMinutes()
     const [startH, startM] = pvpStartTime.split(':').map(Number)
     const [endH, endM] = pvpEndTime.split(':').map(Number)
     const startMinutes = startH * 60 + startM

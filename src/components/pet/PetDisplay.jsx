@@ -23,6 +23,7 @@ import PetWordType from "./PetWordType";
 import PetSayItRight from "./PetSayItRight";
 
 import { assetUrl } from '../../hooks/useBranding';
+import { fetchPvpSchedule, checkPvpAvailability } from '../../utils/pvpSchedule';
 // Pet chat messages - replace with your own!
 const PET_MESSAGES = [
   // English Idioms
@@ -92,6 +93,9 @@ const PetDisplay = () => {
   const [wordBank, setWordBank] = useState([]);
   const [enabledGames, setEnabledGames] = useState(['scramble', 'whackmole', 'astroblast', 'matchgame', 'wordtype', 'sayitright']);
   const [competitionGame, setCompetitionGame] = useState(null); // game type with active competition
+  const [chestEnabled, setChestEnabled] = useState(false); // whether chest can appear in games
+  const [trainingBlocked, setTrainingBlocked] = useState(false); // true when outside allowed schedule
+  const [trainingBlockedReason, setTrainingBlockedReason] = useState('');
   const [showChat, setShowChat] = useState(false);
   const [chatInput, setChatInput] = useState("");
   const [chatMessages, setChatMessages] = useState([]);
@@ -106,6 +110,68 @@ const PetDisplay = () => {
     }
     fetchItemBonuses()
   }, [profile?.active_title, profile?.active_background_url, profile?.active_bowl_url])
+
+  // Fetch chest settings and determine eligibility
+  useEffect(() => {
+    const checkChestEligibility = async () => {
+      if (!user?.id) return;
+
+      // Fetch chest settings
+      const { data: settings } = await supabase
+        .from('site_settings')
+        .select('setting_key, setting_value')
+        .in('setting_key', ['chest_enabled', 'chest_start_time', 'chest_end_time', 'chest_daily_limit']);
+
+      if (!settings) return;
+
+      const map = {};
+      settings.forEach(s => { map[s.setting_key] = s.setting_value; });
+
+      // Check if chest feature is enabled
+      if (map['chest_enabled'] !== 'true') {
+        setChestEnabled(false);
+        return;
+      }
+
+      // Check time window (Vietnam timezone)
+      const now = new Date();
+      const vnTime = new Date(now.toLocaleString('en-US', { timeZone: 'Asia/Ho_Chi_Minh' }));
+      const currentHour = vnTime.getHours();
+      const startHour = parseInt(map['chest_start_time']) || 0;
+      const endHour = parseInt(map['chest_end_time']) || 24;
+
+      if (currentHour < startHour || currentHour >= endHour) {
+        setChestEnabled(false);
+        return;
+      }
+
+      // Check daily limit
+      const dailyLimit = parseInt(map['chest_daily_limit']) || 0;
+      if (dailyLimit > 0) {
+        // Get today's date in Vietnam timezone
+        const todayVN = vnTime.toISOString().split('T')[0];
+        const todayStart = todayVN + 'T00:00:00+07:00';
+        const todayEnd = todayVN + 'T23:59:59+07:00';
+
+        const { count } = await supabase
+          .from('user_chests')
+          .select('*', { count: 'exact', head: true })
+          .eq('user_id', user.id)
+          .eq('source', 'pet_game')
+          .gte('created_at', todayStart)
+          .lte('created_at', todayEnd);
+
+        if ((count || 0) >= dailyLimit) {
+          setChestEnabled(false);
+          return;
+        }
+      }
+
+      setChestEnabled(true);
+    };
+
+    checkChestEligibility();
+  }, [user?.id]);
 
   // Fetch enabled training games
   useEffect(() => {
@@ -145,6 +211,15 @@ const PetDisplay = () => {
       }
     }
     fetchCompetition()
+
+    // Fetch activity schedule (controls training + PvP)
+    const checkTrainingSchedule = async () => {
+      const schedule = await fetchPvpSchedule()
+      const { available, reason } = checkPvpAvailability(schedule)
+      setTrainingBlocked(!available)
+      if (!available) setTrainingBlockedReason(reason)
+    }
+    checkTrainingSchedule()
   }, [])
 
   // Scroll chat to bottom when new messages arrive (only inside chat container)
@@ -357,6 +432,10 @@ const PetDisplay = () => {
   };
 
   const handlePlay = async () => {
+    if (trainingBlocked) {
+      setShowGame('picker');
+      return;
+    }
     if ((activePet.energy ?? 100) < 5) {
       setMessage({ type: 'error', text: `${activePet.nickname || activePet.name} is too tired to train! Feed your pet first. 😴` });
       setTimeout(() => setMessage(null), 3000);
@@ -1623,6 +1702,20 @@ const PetDisplay = () => {
             onClick={e => e.stopPropagation()}
           >
             <h3 className="text-xl font-bold text-gray-800 mb-1">Choose Training Game</h3>
+            {trainingBlocked ? (
+              <div className="py-8">
+                <div className="text-5xl mb-3">🚫</div>
+                <p className="text-base font-semibold text-gray-700 mb-1">Training Unavailable</p>
+                <p className="text-sm text-gray-500 mb-4">{trainingBlockedReason}</p>
+                <button
+                  onClick={() => setShowGame(null)}
+                  className="px-6 py-2 rounded-xl bg-gray-100 text-gray-600 font-medium hover:bg-gray-200 transition"
+                >
+                  OK
+                </button>
+              </div>
+            ) : (
+            <>
             <p className="text-sm text-gray-500 mb-5">Earn +5 <img src={assetUrl('/image/study/xp.png')} alt="XP" className="w-4 h-4 inline" /> on success!</p>
             <div className="grid grid-cols-2 gap-3">
               {enabledGames.includes('scramble') && (
@@ -1702,6 +1795,8 @@ const PetDisplay = () => {
             >
               Cancel
             </button>
+            </>
+            )}
           </div>
         </div>
       )}
@@ -1711,7 +1806,8 @@ const PetDisplay = () => {
         <PetCatchGame
           bowlImageUrl={profile?.active_bowl_url ? (profile.active_bowl_url.startsWith('http') ? profile.active_bowl_url : assetUrl(profile.active_bowl_url)) : "https://png.pngtree.com/png-clipart/20220111/original/pngtree-dog-food-bowl-png-image_7072429.png"}
           petName={activePet.nickname || activePet.name}
-          onGameEnd={(score) => handleGameEnd(score, 'catch')}
+          chestEnabled={chestEnabled}
+          onGameEnd={(score, extra) => handleGameEnd(score, 'catch', extra)}
           onClose={() => setShowGame(null)}
         />
       )}
@@ -1731,7 +1827,8 @@ const PetDisplay = () => {
           petName={activePet.nickname || activePet.name}
           wordBank={wordBank}
           leaderboard={gameLeaderboards.flappy || []}
-          onGameEnd={(score) => handleGameEnd(score, 'flappy')}
+          chestEnabled={chestEnabled}
+          onGameEnd={(score, extra) => handleGameEnd(score, 'flappy', extra)}
           onClose={() => setShowGame(null)}
         />
       )}
@@ -1751,7 +1848,8 @@ const PetDisplay = () => {
           petName={activePet.nickname || activePet.name}
           wordBank={wordBank}
           leaderboard={gameLeaderboards.scramble}
-          onGameEnd={(score) => handleGameEnd(score, 'scramble')}
+          chestEnabled={chestEnabled}
+          onGameEnd={(score, extra) => handleGameEnd(score, 'scramble', extra)}
           onClose={() => setShowGame(null)}
         />
       )}
@@ -1771,6 +1869,7 @@ const PetDisplay = () => {
           hammerSkinUrl={profile?.active_hammer_url}
           leaderboard={gameLeaderboards.whackmole}
           wordBank={wordBank}
+          chestEnabled={chestEnabled}
           onGameEnd={(score, extra) => handleGameEnd(score, 'whackmole', extra)}
           onClose={() => setShowGame(null)}
         />
@@ -1800,7 +1899,8 @@ const PetDisplay = () => {
           ]}
           wordBank={wordBank}
           leaderboard={gameLeaderboards.astroblast}
-          onGameEnd={(score) => handleGameEnd(score, 'astroblast')}
+          chestEnabled={chestEnabled}
+          onGameEnd={(score, extra) => handleGameEnd(score, 'astroblast', extra)}
           onClose={() => setShowGame(null)}
         />
       )}
@@ -1819,7 +1919,8 @@ const PetDisplay = () => {
           petName={activePet.nickname || activePet.name}
           wordBank={wordBank}
           leaderboard={gameLeaderboards.matchgame}
-          onGameEnd={(score) => handleGameEnd(score, 'matchgame')}
+          chestEnabled={chestEnabled}
+          onGameEnd={(score, extra) => handleGameEnd(score, 'matchgame', extra)}
           onClose={() => setShowGame(null)}
         />
       )}
@@ -1838,7 +1939,8 @@ const PetDisplay = () => {
           petName={activePet.nickname || activePet.name}
           wordBank={wordBank}
           leaderboard={gameLeaderboards.wordtype}
-          onGameEnd={(score) => handleGameEnd(score, 'wordtype')}
+          chestEnabled={chestEnabled}
+          onGameEnd={(score, extra) => handleGameEnd(score, 'wordtype', extra)}
           onClose={() => setShowGame(null)}
         />
       )}
@@ -1857,7 +1959,8 @@ const PetDisplay = () => {
           petName={activePet.nickname || activePet.name}
           wordBank={wordBank}
           leaderboard={gameLeaderboards.sayitright}
-          onGameEnd={(score) => handleGameEnd(score, 'sayitright')}
+          chestEnabled={chestEnabled}
+          onGameEnd={(score, extra) => handleGameEnd(score, 'sayitright', extra)}
           onClose={() => setShowGame(null)}
         />
       )}

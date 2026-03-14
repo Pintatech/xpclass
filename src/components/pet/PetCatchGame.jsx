@@ -20,13 +20,16 @@ const BASKET_WIDTH = 80
 const ITEM_SIZE = 40
 const CATCH_ZONE_HEIGHT = 110
 
-const PetCatchGame = ({ bowlImageUrl, petName, onGameEnd, onClose }) => {
+const PetCatchGame = ({ bowlImageUrl, petName, onGameEnd, onClose, chestEnabled = false }) => {
   const [phase, setPhase] = useState('countdown')
   const [displayScore, setDisplayScore] = useState(0)
   const [displayTime, setDisplayTime] = useState(GAME_DURATION)
   const [countdownNumber, setCountdownNumber] = useState(3)
   const [catchEffects, setCatchEffects] = useState([])
   const [renderTick, setRenderTick] = useState(0)
+
+  const [chestCollected, setChestCollected] = useState(false)
+  const [chestPopup, setChestPopup] = useState(false)
 
   const gameAreaRef = useRef(null)
   const basketXRef = useRef(0.5)
@@ -41,6 +44,8 @@ const PetCatchGame = ({ bowlImageUrl, petName, onGameEnd, onClose }) => {
   const gameEndedRef = useRef(false)
   const frameCountRef = useRef(0)
   const catchSoundRef = useRef(null)
+  const chestSpawnedRef = useRef(false)
+  const chestTimeRef = useRef(0)
 
   // Pre-load catch sound
   useEffect(() => {
@@ -151,6 +156,8 @@ const PetCatchGame = ({ bowlImageUrl, petName, onGameEnd, onClose }) => {
     itemsRef.current = []
     gameEndedRef.current = false
     frameCountRef.current = 0
+    chestSpawnedRef.current = false
+    chestTimeRef.current = 8 + Math.floor(Math.random() * 15) // spawn chest between 8-22s
 
     const gameLoop = (timestamp) => {
       if (gameEndedRef.current) return
@@ -181,6 +188,18 @@ const PetCatchGame = ({ bowlImageUrl, petName, onGameEnd, onClose }) => {
         lastSpawnRef.current = timestamp
       }
 
+      // Spawn chest once per game (only if chestEnabled)
+      if (chestEnabled && !chestSpawnedRef.current && elapsed >= chestTimeRef.current) {
+        chestSpawnedRef.current = true
+        itemsRef.current.push({
+          id: nextItemIdRef.current++,
+          x: 0.2 + Math.random() * 0.6,
+          y: -ITEM_SIZE,
+          type: { emoji: '📦', points: 0, weight: 0, color: '#f59e0b', isChest: true },
+          caught: false,
+        })
+      }
+
       // Cap items
       if (itemsRef.current.length > 30) {
         itemsRef.current = itemsRef.current.slice(-25)
@@ -203,9 +222,16 @@ const PetCatchGame = ({ bowlImageUrl, petName, onGameEnd, onClose }) => {
 
           if (distance < BASKET_WIDTH * 0.65) {
             item.caught = true
-            scoreRef.current += item.type.points
-            setDisplayScore(scoreRef.current)
-            triggerCatchEffect(itemPixelX, gameHeight - CATCH_ZONE_HEIGHT, item.type)
+            if (item.type.isChest) {
+              setChestCollected(true)
+              setChestPopup(true)
+              setTimeout(() => setChestPopup(false), 1500)
+              triggerCatchEffect(itemPixelX, gameHeight - CATCH_ZONE_HEIGHT, { points: 0, color: '#f59e0b', golden: false })
+            } else {
+              scoreRef.current += item.type.points
+              setDisplayScore(scoreRef.current)
+              triggerCatchEffect(itemPixelX, gameHeight - CATCH_ZONE_HEIGHT, item.type)
+            }
             return false
           }
         }
@@ -260,6 +286,16 @@ const PetCatchGame = ({ bowlImageUrl, petName, onGameEnd, onClose }) => {
         @keyframes itemWobble {
           0%, 100% { transform: translateX(-50%) rotate(-5deg); }
           50% { transform: translateX(-50%) rotate(5deg); }
+        }
+        @keyframes chestBounce {
+          0%, 100% { transform: translateX(-50%) scale(1); }
+          50% { transform: translateX(-50%) scale(1.15); }
+        }
+        @keyframes chestPopupAnim {
+          0% { transform: scale(0) translateY(0); opacity: 0; }
+          20% { transform: scale(1.2) translateY(0); opacity: 1; }
+          40% { transform: scale(1) translateY(0); opacity: 1; }
+          100% { transform: scale(1) translateY(-80px); opacity: 0; }
         }
       `}</style>
 
@@ -326,14 +362,31 @@ const PetCatchGame = ({ bowlImageUrl, petName, onGameEnd, onClose }) => {
                 left: `${item.x * 100}%`,
                 top: item.y,
                 transform: 'translateX(-50%)',
-                fontSize: '2rem',
-                animation: item.type.golden ? 'goldenGlow 0.8s ease-in-out infinite, itemWobble 1.2s ease-in-out infinite' : 'itemWobble 1.5s ease-in-out infinite',
+                fontSize: item.type.isChest ? '2.5rem' : '2rem',
+                animation: item.type.isChest
+                  ? 'chestBounce 0.6s ease-in-out infinite'
+                  : item.type.golden
+                    ? 'goldenGlow 0.8s ease-in-out infinite, itemWobble 1.2s ease-in-out infinite'
+                    : 'itemWobble 1.5s ease-in-out infinite',
                 willChange: 'top',
+                filter: item.type.isChest ? 'drop-shadow(0 4px 8px rgba(245,158,11,0.5))' : 'none',
               }}
             >
               {item.type.emoji}
             </div>
           ))}
+
+          {/* Chest collected popup */}
+          {chestPopup && (
+            <div className="absolute inset-0 z-30 flex items-center justify-center pointer-events-none">
+              <div className="flex flex-col items-center gap-2" style={{ animation: 'chestPopupAnim 1.5s ease-out forwards' }}>
+                <span className="text-5xl">📦</span>
+                <div className="bg-amber-500 text-white rounded-full px-4 py-1.5 font-bold text-sm shadow-lg">
+                  Chest Found!
+                </div>
+              </div>
+            </div>
+          )}
 
           {/* Catch Effects */}
           {catchEffects.map(effect => (
@@ -410,8 +463,17 @@ const PetCatchGame = ({ bowlImageUrl, petName, onGameEnd, onClose }) => {
                     : 'Practice makes perfect! 🌱'}
             </p>
 
+            {chestCollected && (
+              <div className="mb-4 flex items-center justify-center gap-2 bg-amber-50 border border-amber-200 rounded-xl px-4 py-2.5"
+                style={{ animation: 'scorePopIn 0.6s ease-out 0.7s both' }}
+              >
+                <span className="text-2xl">📦</span>
+                <span className="font-bold text-amber-700">Chest collected!</span>
+              </div>
+            )}
+
             <button
-              onClick={() => onGameEnd(displayScore)}
+              onClick={() => onGameEnd(displayScore, { chestCollected })}
               className="w-full py-3.5 bg-gradient-to-b from-cyan-400 to-cyan-500 hover:from-cyan-500 hover:to-cyan-600 text-white rounded-full font-bold text-lg shadow-lg border-b-4 border-cyan-600 active:border-b-0 active:mt-1 transition-all"
             >
               Collect Rewards ✨
