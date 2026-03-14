@@ -490,7 +490,7 @@ const PetDisplay = () => {
     // else keep empty → games fall back to static wordBank.js
   };
 
-  const handleGameEnd = async (score, gameType) => {
+  const handleGameEnd = async (score, gameType, extra) => {
     setShowGame(null);
 
     // Update the pending attempt row with the real score
@@ -508,6 +508,19 @@ const PetDisplay = () => {
         p_goal_type: 'play_games',
         p_increment: 1
       }).then(() => {}, () => {})
+    }
+
+    // Grant chest if collected during the game
+    if (extra?.chestCollected && user?.id) {
+      supabase.rpc('award_milestone_chest', {
+        p_user_id: user.id,
+        p_milestone_type: 'pet_game',
+        p_source_ref: gameType
+      }).then(({ data }) => {
+        if (data?.success) {
+          window.dispatchEvent(new CustomEvent('chest-earned', { detail: data }))
+        }
+      }, () => {})
     }
 
     setPlayDisabled(true);
@@ -1758,7 +1771,7 @@ const PetDisplay = () => {
           hammerSkinUrl={profile?.active_hammer_url}
           leaderboard={gameLeaderboards.whackmole}
           wordBank={wordBank}
-          onGameEnd={(score) => handleGameEnd(score, 'whackmole')}
+          onGameEnd={(score, extra) => handleGameEnd(score, 'whackmole', extra)}
           onClose={() => setShowGame(null)}
         />
       )}

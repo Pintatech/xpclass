@@ -27,9 +27,9 @@ const PetWhackMole = ({ petImageUrl, petName, onGameEnd, onClose, hammerSkinUrl,
   const [score, setScore] = useState(0)
   const [streak, setStreak] = useState(0)
   const [targetWord, setTargetWord] = useState(null)
-  // Each hole: { id, word, visible, hit, wrong, hiding }
+  // Each hole: { id, word, visible, hit, wrong, hiding, isChest }
   const [holes, setHoles] = useState(Array.from({ length: HOLES }, (_, i) => ({
-    id: i, word: null, visible: false, hit: false, wrong: false, hiding: false,
+    id: i, word: null, visible: false, hit: false, wrong: false, hiding: false, isChest: false,
   })))
   const [screenShake, setScreenShake] = useState(0)
   const [floatingTexts, setFloatingTexts] = useState([])
@@ -39,6 +39,8 @@ const PetWhackMole = ({ petImageUrl, petName, onGameEnd, onClose, hammerSkinUrl,
   const [impacts, setImpacts] = useState([])
   const [roundsCompleted, setRoundsCompleted] = useState(0)
   const [wordPopup, setWordPopup] = useState(null)
+  const [chestCollected, setChestCollected] = useState(false)
+  const [chestPopup, setChestPopup] = useState(false)
 
   const timerRef = useRef(null)
   const moleTimersRef = useRef([])
@@ -49,9 +51,13 @@ const PetWhackMole = ({ petImageUrl, petName, onGameEnd, onClose, hammerSkinUrl,
   const gameContainerRef = useRef(null)
   const roundHitRef = useRef(false)
   const bgMusicRef = useRef(null)
+  const chestSpawnedRef = useRef(false)
+  const chestRoundRef = useRef(0)
+  const roundCountRef = useRef(0)
 
   // Pick a new target word and spawn moles
   const spawnRound = useCallback(() => {
+    roundCountRef.current += 1
     const words = wordBankProp.length > 0 ? wordBankProp : WORD_BANK
     const pair = words[Math.floor(Math.random() * words.length)]
     setTargetWord(pair)
@@ -70,11 +76,21 @@ const PetWhackMole = ({ petImageUrl, petName, onGameEnd, onClose, hammerSkinUrl,
     const newHoles = Array.from({ length: HOLES }, (_, i) => {
       const posIndex = positions.indexOf(i)
       if (posIndex === -1) {
-        return { id: i, word: null, visible: false, hit: false, wrong: false, hiding: false }
+        return { id: i, word: null, visible: false, hit: false, wrong: false, hiding: false, isChest: false }
       }
       const word = i === correctPos ? pair.word : distractors[posIndex % distractors.length].word
-      return { id: i, word, visible: true, hit: false, wrong: false, hiding: false }
+      return { id: i, word, visible: true, hit: false, wrong: false, hiding: false, isChest: false }
     })
+
+    // Spawn chest once per game at the chosen round
+    if (!chestSpawnedRef.current && roundCountRef.current === chestRoundRef.current) {
+      chestSpawnedRef.current = true
+      const emptyHoles = newHoles.filter(h => !h.visible).map(h => h.id)
+      if (emptyHoles.length > 0) {
+        const chestPos = emptyHoles[Math.floor(Math.random() * emptyHoles.length)]
+        newHoles[chestPos] = { id: chestPos, word: null, visible: true, hit: false, wrong: false, hiding: false, isChest: true }
+      }
+    }
 
     setHoles(newHoles)
 
@@ -100,6 +116,9 @@ const PetWhackMole = ({ petImageUrl, petName, onGameEnd, onClose, hammerSkinUrl,
   const startGame = useCallback(() => {
     scoreRef.current = 0
     streakRef.current = 0
+    roundCountRef.current = 0
+    chestSpawnedRef.current = false
+    chestRoundRef.current = 4 + Math.floor(Math.random() * 7) // chest appears between round 4-10
     setScore(0)
     setStreak(0)
     setDisplayTime(GAME_DURATION)
@@ -107,6 +126,8 @@ const PetWhackMole = ({ petImageUrl, petName, onGameEnd, onClose, hammerSkinUrl,
     setWordHistory([])
     setRoundsCompleted(0)
     setWordPopup(null)
+    setChestCollected(false)
+    setChestPopup(false)
     setPhase('playing')
 
     // Start background music
@@ -201,11 +222,33 @@ const PetWhackMole = ({ petImageUrl, petName, onGameEnd, onClose, hammerSkinUrl,
     return () => { if (animFrameRef.current) cancelAnimationFrame(animFrameRef.current) }
   }, [phase])
 
-  // Handle whacking a mole
+  // Handle whacking a mole or chest
   const handleWhack = useCallback((holeIndex) => {
     if (phase !== 'playing') return
     const hole = holes[holeIndex]
     if (!hole.visible || hole.hit || hole.hiding) return
+
+    // Chest whacked!
+    if (hole.isChest) {
+      setChestCollected(true)
+      setChestPopup(true)
+      setTimeout(() => setChestPopup(false), 1500)
+      setHoles(prev => prev.map((h, i) => i === holeIndex ? { ...h, hit: true } : h))
+      setFloatingTexts(prev => [...prev, {
+        id: Date.now(),
+        text: '📦 Chest!',
+        x: 50,
+        y: 40,
+        opacity: 1,
+        color: '#f59e0b',
+      }])
+      try {
+        const sound = new Audio(assetUrl('/pet-game/mole-correct.mp3'))
+        sound.volume = 0.5
+        sound.play().catch(() => {})
+      } catch {}
+      return
+    }
 
     const target = targetRef.current
     if (!target) return
@@ -360,6 +403,21 @@ const PetWhackMole = ({ petImageUrl, petName, onGameEnd, onClose, hammerSkinUrl,
           0% { transform: translate(-30%, -70%) rotate(-15deg); }
           40% { transform: translate(-30%, -70%) rotate(40deg) scale(1.1); }
           100% { transform: translate(-30%, -70%) rotate(-15deg); }
+        }
+        @keyframes chestBounce {
+          0%, 100% { transform: translateY(0) scale(1); }
+          50% { transform: translateY(-6px) scale(1.05); }
+        }
+        @keyframes chestCollected {
+          0% { transform: scale(1) rotate(0deg); opacity: 1; }
+          30% { transform: scale(1.4) rotate(-10deg); opacity: 1; }
+          100% { transform: scale(0) rotate(20deg); opacity: 0; }
+        }
+        @keyframes chestPopupAnim {
+          0% { transform: scale(0) translateY(0); opacity: 0; }
+          20% { transform: scale(1.2) translateY(0); opacity: 1; }
+          40% { transform: scale(1) translateY(0); opacity: 1; }
+          100% { transform: scale(1) translateY(-80px); opacity: 0; }
         }
       `}</style>
 
@@ -605,6 +663,18 @@ const PetWhackMole = ({ petImageUrl, petName, onGameEnd, onClose, hammerSkinUrl,
               </div>
             )}
 
+            {/* Chest collected popup */}
+            {chestPopup && (
+              <div className="absolute inset-0 z-20 flex items-center justify-center pointer-events-none">
+                <div className="flex flex-col items-center gap-2" style={{ animation: 'chestPopupAnim 1.5s ease-out forwards' }}>
+                  <span className="text-5xl">📦</span>
+                  <div className="bg-amber-500 text-white rounded-full px-4 py-1.5 font-bold text-sm shadow-lg">
+                    Chest Found!
+                  </div>
+                </div>
+              </div>
+            )}
+
             {/* Mole Grid */}
             <div className="flex-1 flex items-center justify-center px-4 pb-6">
               <div
@@ -618,8 +688,34 @@ const PetWhackMole = ({ petImageUrl, petName, onGameEnd, onClose, hammerSkinUrl,
                     className="relative flex flex-col items-center justify-center cursor-none touch-none"
                     style={{ height: 140, overflow: 'visible' }}
                   >
+                    {/* Chest popping out */}
+                    {hole.isChest && hole.visible && !hole.hit && (
+                      <div
+                        className="flex flex-col items-center"
+                        style={{
+                          animation: hole.hiding
+                            ? 'moleHide 0.3s ease-in forwards'
+                            : 'molePopUp 0.3s ease-out forwards',
+                        }}
+                      >
+                        <div style={{ animation: 'chestBounce 0.8s ease-in-out infinite', filter: 'drop-shadow(0 4px 8px rgba(245,158,11,0.5))' }}>
+                          <span className="text-5xl">📦</span>
+                        </div>
+                      </div>
+                    )}
+
+                    {/* Chest collected animation */}
+                    {hole.isChest && hole.hit && (
+                      <div
+                        className="flex flex-col items-center"
+                        style={{ animation: 'chestCollected 0.5s ease-out forwards' }}
+                      >
+                        <span className="text-5xl">📦</span>
+                      </div>
+                    )}
+
                     {/* Mole popping out */}
-                    {hole.visible && !hole.hit && (
+                    {!hole.isChest && hole.visible && !hole.hit && (
                       <div
                         className="flex flex-col items-center"
                         style={{
@@ -652,7 +748,7 @@ const PetWhackMole = ({ petImageUrl, petName, onGameEnd, onClose, hammerSkinUrl,
                     )}
 
                     {/* Whacked animation */}
-                    {hole.hit && (
+                    {!hole.isChest && hole.hit && (
                       <div
                         className="flex flex-col items-center"
                         style={{ animation: 'moleWhacked 0.4s ease-out forwards' }}
@@ -780,6 +876,16 @@ const PetWhackMole = ({ petImageUrl, petName, onGameEnd, onClose, hammerSkinUrl,
                 </div>
               )}
 
+              {/* Chest result */}
+              {chestCollected && (
+                <div className="mb-4 flex items-center justify-center gap-2 bg-amber-50 border border-amber-200 rounded-xl px-4 py-2.5"
+                  style={{ animation: 'moleScorePopIn 0.6s ease-out 0.7s both' }}
+                >
+                  <span className="text-2xl">📦</span>
+                  <span className="font-bold text-amber-700 text-sm">Chest collected!</span>
+                </div>
+              )}
+
               <p className="text-sm text-gray-600 mb-6">
                 {roundsCompleted >= 15
                   ? 'Whack master! 🏆'
@@ -788,7 +894,7 @@ const PetWhackMole = ({ petImageUrl, petName, onGameEnd, onClose, hammerSkinUrl,
 
               {roundsCompleted >= 15 ? (
                 <button
-                  onClick={() => onGameEnd(score)}
+                  onClick={() => onGameEnd(score, { chestCollected })}
                   className="w-full py-3.5 bg-gradient-to-b from-green-500 to-green-600 hover:from-green-600 hover:to-green-700 text-white rounded-full font-bold text-lg shadow-lg border-b-4 border-green-700 active:border-b-0 active:mt-1 transition-all"
                 >
                   Collect Rewards ✨
