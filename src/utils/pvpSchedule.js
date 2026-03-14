@@ -28,7 +28,7 @@ export async function fetchPvpSchedule() {
  */
 export function checkPvpAvailability({ pvpEnabled, pvpStartTime, pvpEndTime }) {
   if (!pvpEnabled) {
-    return { available: false, reason: 'PvP is currently disabled.' }
+    return { available: false, reason: 'Activities are currently disabled.' }
   }
 
   if (pvpStartTime && pvpEndTime) {
@@ -43,7 +43,7 @@ export function checkPvpAvailability({ pvpEnabled, pvpStartTime, pvpEndTime }) {
     if (currentMinutes < startMinutes || currentMinutes >= endMinutes) {
       return {
         available: false,
-        reason: `PvP is only available from ${pvpStartTime} to ${pvpEndTime}.`,
+        reason: `Only available from ${pvpStartTime} to ${pvpEndTime}.`,
       }
     }
   }

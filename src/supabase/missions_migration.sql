@@ -20,7 +20,13 @@ CREATE TABLE IF NOT EXISTS public.missions (
     'complete_session',     -- Complete X sessions
     'open_chests',          -- Open X chests
     'collect_items',        -- Collect X items
-    'all_green_lesson'      -- Get all-green (present + wow + wow) in X lessons
+    'all_green_lesson',     -- Get all-green (present + wow + wow) in X lessons
+    'blast_words',          -- Blast X words in Astro Blast
+    'whack_moles',          -- Whack X moles in Whack-a-Mole
+    'scramble_words',       -- Unscramble X words in Word Scramble
+    'type_words',           -- Type X words in Word Type
+    'match_pairs',          -- Match X pairs in Match Game
+    'pronounce_words'       -- Pronounce X words in Say It Right
   )),
   goal_value integer NOT NULL DEFAULT 1,
   reward_xp integer DEFAULT 0,

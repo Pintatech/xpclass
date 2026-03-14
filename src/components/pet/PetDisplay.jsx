@@ -587,6 +587,24 @@ const PetDisplay = () => {
         p_goal_type: 'play_games',
         p_increment: 1
       }).then(() => {}, () => {})
+
+      // Track detailed per-game stats for missions
+      const gameGoalMap = {
+        astroblast: extra?.wordsCompleted && { goal_type: 'blast_words', increment: extra.wordsCompleted },
+        whackmole: extra?.molesWhacked && { goal_type: 'whack_moles', increment: extra.molesWhacked },
+        scramble: extra?.wordsCompleted && { goal_type: 'scramble_words', increment: extra.wordsCompleted },
+        wordtype: extra?.wordsCompleted && { goal_type: 'type_words', increment: extra.wordsCompleted },
+        matchgame: extra?.pairsMatched && { goal_type: 'match_pairs', increment: extra.pairsMatched },
+        sayitright: extra?.wordsPronounced && { goal_type: 'pronounce_words', increment: extra.wordsPronounced },
+      }
+      const gameGoal = gameGoalMap[gameType]
+      if (gameGoal) {
+        supabase.rpc('update_mission_progress', {
+          p_user_id: user.id,
+          p_goal_type: gameGoal.goal_type,
+          p_increment: gameGoal.increment
+        }).then(() => {}, () => {})
+      }
     }
 
     // Grant chest if collected during the game

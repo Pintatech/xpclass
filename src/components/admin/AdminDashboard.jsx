@@ -322,7 +322,7 @@ const AdminDashboard = () => {
 
         {/* Content Container */}
         <div className="flex-1 overflow-auto">
-          <div className="px-4 lg:px-6 pb-6 pt-0">
+          <div className="px-4 lg:px-6 pb-6 pt-6">
             {/* Quick Stats */}
             {stats && activeTab === 'overview' && (
               <div className="grid grid-cols-2 md:grid-cols-6 gap-4 mb-8">

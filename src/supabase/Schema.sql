@@ -2830,7 +2830,9 @@ CREATE TABLE IF NOT EXISTS public.missions (
   goal_type text NOT NULL CHECK (goal_type IN (
     'complete_exercises', 'score_high', 'earn_xp', 'play_games',
     'win_pvp', 'daily_challenge', 'login_streak', 'complete_session',
-    'open_chests', 'collect_items'
+    'open_chests', 'collect_items', 'all_green_lesson',
+    'blast_words', 'whack_moles', 'scramble_words',
+    'type_words', 'match_pairs', 'pronounce_words'
   )),
   goal_value integer NOT NULL DEFAULT 1,
   reward_xp integer DEFAULT 0,

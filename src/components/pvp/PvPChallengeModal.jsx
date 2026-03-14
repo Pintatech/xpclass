@@ -372,8 +372,8 @@ const PvPChallengeModal = ({ opponent, onClose }) => {
                 <p className="text-sm text-orange-600 font-medium mb-2">You already have a pending challenge with this player!</p>
                 <div className="bg-orange-50 rounded-xl p-3 mb-2">
                   <div className="text-xs text-gray-500 capitalize">{hasPending.game_type}</div>
-                  <div className="text-2xl font-black text-orange-500">{hasPending.challenger_score}</div>
-                  <div className="text-xs text-gray-400">{hasPending.challenger_id === user.id ? 'Your score' : 'Their score'}</div>
+                  <div className="text-2xl font-black text-orange-500">{hasPending.challenger_id === user.id ? hasPending.challenger_score : '???'}</div>
+                  <div className="text-xs text-gray-400">{hasPending.challenger_id === user.id ? 'Your score' : 'Hidden until you play'}</div>
                 </div>
                 {hasPending.challenger_id !== user.id && hasPending.status === 'pending' ? (
                   <button

@@ -35,6 +35,12 @@ const GOAL_TYPES = [
   { value: 'open_chests', label: 'Mở rương' },
   { value: 'collect_items', label: 'Thu thập vật phẩm' },
   { value: 'all_green_lesson', label: 'Đạt all-green trong buổi học' },
+  { value: 'blast_words', label: 'Bắn từ (Astro Blast)' },
+  { value: 'whack_moles', label: 'Đập chuột (Whack-a-Mole)' },
+  { value: 'scramble_words', label: 'Giải chữ (Word Scramble)' },
+  { value: 'type_words', label: 'Gõ từ (Word Type)' },
+  { value: 'match_pairs', label: 'Ghép cặp (Match Game)' },
+  { value: 'pronounce_words', label: 'Phát âm (Say It Right)' },
 ]
 
 const MISSION_TYPES = [

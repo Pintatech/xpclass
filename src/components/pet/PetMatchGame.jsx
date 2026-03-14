@@ -791,7 +791,7 @@ const PetMatchGame = ({ petImageUrl, petName, onGameEnd, onClose, wordBank: word
 
               {totalMatched >= 30 ? (
                 <button
-                  onClick={() => onGameEnd(score, { chestCollected })}
+                  onClick={() => onGameEnd(score, { chestCollected, pairsMatched: totalMatched })}
                   className="w-full py-3.5 bg-gradient-to-b from-indigo-500 to-indigo-600 hover:from-indigo-600 hover:to-indigo-700 text-white rounded-full font-bold text-lg shadow-lg border-b-4 border-indigo-700 active:border-b-0 active:mt-1 transition-all"
                 >
                   Collect Rewards

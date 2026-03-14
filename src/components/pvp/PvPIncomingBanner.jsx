@@ -579,7 +579,7 @@ const PvPIncomingBanner = () => {
                 <div className="text-xs text-gray-500">
                   {challenge.game_type} - Score to beat:{" "}
                   <span className="font-bold text-red-500">
-                    {challenge.challenger_score}
+                    ???
                   </span>
                 </div>
               </div>
@@ -849,7 +849,7 @@ const PvPResponseModal = ({ challenge, onClose }) => {
                   {opponentName.split(" ").pop()}
                 </span>
                 <span className="text-lg font-black text-red-500">
-                  {opponentScore}
+                  ???
                 </span>
               </div>
 
@@ -875,12 +875,11 @@ const PvPResponseModal = ({ challenge, onClose }) => {
             </div>
 
             <p className="text-sm text-gray-600 mb-2">
-              <span className="font-bold">{opponentName}</span> scored{" "}
-              <span className="font-bold text-red-500">{opponentScore}</span> in{" "}
+              <span className="font-bold">{opponentName}</span> challenged you in{" "}
               <span className="font-bold capitalize">{gameType}</span>
             </p>
             <p className="text-sm text-gray-500 mb-6">
-              Can you beat their score?
+              Play your best!
             </p>
 
             <button

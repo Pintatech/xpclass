@@ -894,7 +894,7 @@ const PetWhackMole = ({ petImageUrl, petName, onGameEnd, onClose, hammerSkinUrl,
 
               {roundsCompleted >= 15 ? (
                 <button
-                  onClick={() => onGameEnd(score, { chestCollected })}
+                  onClick={() => onGameEnd(score, { chestCollected, molesWhacked: roundsCompleted })}
                   className="w-full py-3.5 bg-gradient-to-b from-green-500 to-green-600 hover:from-green-600 hover:to-green-700 text-white rounded-full font-bold text-lg shadow-lg border-b-4 border-green-700 active:border-b-0 active:mt-1 transition-all"
                 >
                   Collect Rewards ✨

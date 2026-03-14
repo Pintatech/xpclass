@@ -858,7 +858,7 @@ const PetSayItRight = ({ petImageUrl, petName, onGameEnd, onClose, wordBank: wor
 
             {wordsCorrect >= Math.ceil(WORDS_PER_GAME / 2) ? (
               <button
-                onClick={() => onGameEnd(displayScore, { chestCollected })}
+                onClick={() => onGameEnd(displayScore, { chestCollected, wordsPronounced: wordsCorrect })}
                 className="w-full py-3.5 bg-gradient-to-b from-orange-500 to-red-500 hover:from-orange-600 hover:to-red-600 text-white rounded-full font-bold text-lg shadow-lg border-b-4 border-red-700 active:border-b-0 active:mt-1 transition-all"
               >
                 Collect Rewards
