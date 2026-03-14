@@ -15,15 +15,43 @@ const Layout = () => {
   const { loading, user } = useAuth()
   const location = useLocation()
 
-  // Heartbeat: update last_seen_at every 2 minutes
+  // Heartbeat: update last_seen_at only when user is active
   useEffect(() => {
     if (!user?.id) return
+    let isActive = true
+    let idleTimer = null
+    const IDLE_TIMEOUT = 3 * 60 * 1000 // 3 minutes of no activity = idle
+
     const updatePresence = () => {
+      if (!isActive) return
       supabase.from('users').update({ last_seen_at: new Date().toISOString() }).eq('id', user.id).then()
     }
+
+    const resetIdle = () => {
+      isActive = true
+      clearTimeout(idleTimer)
+      idleTimer = setTimeout(() => { isActive = false }, IDLE_TIMEOUT)
+    }
+
+    resetIdle()
     updatePresence()
     const interval = setInterval(updatePresence, 2 * 60 * 1000)
-    return () => clearInterval(interval)
+
+    window.addEventListener('mousemove', resetIdle)
+    window.addEventListener('mousedown', resetIdle)
+    window.addEventListener('keydown', resetIdle)
+    window.addEventListener('touchstart', resetIdle)
+    window.addEventListener('scroll', resetIdle)
+
+    return () => {
+      clearInterval(interval)
+      clearTimeout(idleTimer)
+      window.removeEventListener('mousemove', resetIdle)
+      window.removeEventListener('mousedown', resetIdle)
+      window.removeEventListener('keydown', resetIdle)
+      window.removeEventListener('touchstart', resetIdle)
+      window.removeEventListener('scroll', resetIdle)
+    }
   }, [user?.id])
 
   const exercisePaths = [

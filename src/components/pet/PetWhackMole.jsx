@@ -21,7 +21,7 @@ const shuffle = (arr) => {
   return a
 }
 
-const PetWhackMole = ({ petImageUrl, petName, onGameEnd, onClose, hammerSkinUrl, leaderboard = [], wordBank: wordBankProp = [], hideClose = false, chestEnabled = false }) => {
+const PetWhackMole = ({ petImageUrl, petName, onGameEnd, onClose, hammerSkinUrl, leaderboard = [], wordBank: wordBankProp = [], hideClose = false, chestEnabled = false, pvpOpponentPetUrl = null }) => {
   const [phase, setPhase] = useState('ready')
   const [displayTime, setDisplayTime] = useState(GAME_DURATION)
   const [score, setScore] = useState(0)
@@ -460,13 +460,19 @@ const PetWhackMole = ({ petImageUrl, petName, onGameEnd, onClose, hammerSkinUrl,
         {/* Ready Phase */}
         {phase === 'ready' && (
           <div className="absolute inset-0 flex flex-col items-center justify-center gap-6 p-8 text-center">
-            <div style={{ animation: 'moleFloat 1.5s ease-in-out infinite' }}>
+            <div className="flex items-center gap-4" style={{ animation: 'moleFloat 1.5s ease-in-out infinite' }}>
               {petImageUrl ? (
                 <img src={petImageUrl} alt={petName} className="w-24 h-24 object-contain drop-shadow-lg"
                   onError={(e) => { e.target.style.display = 'none'; if (e.target.nextSibling) e.target.nextSibling.style.display = ''; }}
                 />
               ) : null}
               <span className="text-7xl" style={{ display: petImageUrl ? 'none' : '' }}>🐹</span>
+              {pvpOpponentPetUrl && (
+                <>
+                  <span className="text-2xl font-black text-red-400" style={{ textShadow: '0 2px 4px rgba(0,0,0,0.3)' }}>VS</span>
+                  <img src={pvpOpponentPetUrl} alt="Opponent" className="w-24 h-24 object-contain drop-shadow-lg" style={{ transform: 'scaleX(-1)' }} />
+                </>
+              )}
             </div>
 
             <div>

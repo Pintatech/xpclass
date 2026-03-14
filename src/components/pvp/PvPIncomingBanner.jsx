@@ -635,9 +635,18 @@ const PvPResponseModal = ({ challenge, onClose }) => {
   const [saving, setSaving] = useState(false);
   const [wordBankLoading, setWordBankLoading] = useState(true);
 
-  const opponentScore = challenge.challenger_score;
+  const [opponentScore, setOpponentScore] = useState(challenge.challenger_score);
+  const [challengerPetUrl, setChallengerPetUrl] = useState(null);
   const opponentName = challenge.challenger?.full_name || "Opponent";
   const gameType = challenge.game_type;
+
+  useEffect(() => {
+    const fetchChallengerPet = async () => {
+      const { data } = await supabase.rpc('get_active_pet', { p_user_id: challenge.challenger_id });
+      if (data?.pet?.image_url) setChallengerPetUrl(data.pet.image_url);
+    };
+    fetchChallengerPet();
+  }, [challenge.challenger_id]);
 
   useEffect(() => {
     const fetchWords = async () => {
@@ -659,8 +668,17 @@ const PvPResponseModal = ({ challenge, onClose }) => {
     setSaving(true);
 
     try {
-      const won = score > opponentScore;
-      const draw = score === opponentScore;
+      // Fetch fresh challenger score in case it was 0 when we started
+      const { data: fresh } = await supabase
+        .from("pvp_challenges")
+        .select("challenger_score")
+        .eq("id", challenge.id)
+        .single();
+      const freshScore = fresh?.challenger_score ?? opponentScore;
+      setOpponentScore(freshScore);
+
+      const won = score > freshScore;
+      const draw = score === freshScore;
       if (won) {
         new Audio("https://xpclass.vn/xpclass/sound/victory.mp3")
           .play()
@@ -721,16 +739,12 @@ const PvPResponseModal = ({ challenge, onClose }) => {
   const draw = myScore === opponentScore;
 
   const renderGame = () => {
-    const pvpScoreToBeat = {
-      score: opponentScore,
-      name: opponentName.split(" ").pop(),
-    };
     const commonProps = {
       petImageUrl: petImage,
       petName,
       onClose: () => onClose(),
       hideClose: true,
-      scoreToBeat: pvpScoreToBeat,
+      pvpOpponentPetUrl: challengerPetUrl,
     };
     switch (gameType) {
       case "whackmole":
@@ -739,7 +753,6 @@ const PvPResponseModal = ({ challenge, onClose }) => {
             {...commonProps}
             onGameEnd={handleGameEnd}
             wordBank={wordBank}
-            leaderboard={[pvpScoreToBeat]}
           />
         );
       case "scramble":

@@ -123,7 +123,7 @@ const levenshtein = (a, b) => {
   return matrix[a.length][b.length]
 }
 
-const PetSayItRight = ({ petImageUrl, petName, onGameEnd, onClose, wordBank: wordBankProp = [], hideClose = false, scoreToBeat = null, leaderboard = [], chestEnabled = false }) => {
+const PetSayItRight = ({ petImageUrl, petName, onGameEnd, onClose, wordBank: wordBankProp = [], hideClose = false, scoreToBeat = null, leaderboard = [], chestEnabled = false, pvpOpponentPetUrl = null }) => {
   const [phase, setPhase] = useState('ready') // ready | playing | results
   const [words, setWords] = useState([])
   const [wordIndex, setWordIndex] = useState(0)
@@ -496,13 +496,19 @@ const PetSayItRight = ({ petImageUrl, petName, onGameEnd, onClose, wordBank: wor
       {/* Ready Phase */}
       {phase === 'ready' && (
         <div className="flex flex-col items-center gap-6 p-8 text-center h-full justify-center">
-          <div style={{ animation: 'sayFloat 1.5s ease-in-out infinite' }}>
+          <div className="flex items-center gap-4" style={{ animation: 'sayFloat 1.5s ease-in-out infinite' }}>
             {petImageUrl ? (
               <img src={petImageUrl} alt={petName} className="w-24 h-24 object-contain drop-shadow-lg"
                 onError={(e) => { e.target.style.display = 'none'; if (e.target.nextSibling) e.target.nextSibling.style.display = '' }}
               />
             ) : null}
             <span className="text-7xl" style={{ display: petImageUrl ? 'none' : '' }}>🎤</span>
+            {pvpOpponentPetUrl && (
+              <>
+                <span className="text-2xl font-black text-red-400" style={{ textShadow: '0 2px 4px rgba(0,0,0,0.3)' }}>VS</span>
+                <img src={pvpOpponentPetUrl} alt="Opponent" className="w-24 h-24 object-contain drop-shadow-lg" style={{ transform: 'scaleX(-1)' }} />
+              </>
+            )}
           </div>
 
           <div>

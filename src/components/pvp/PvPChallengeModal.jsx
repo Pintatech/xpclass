@@ -163,6 +163,7 @@ const PvPChallengeModal = ({ opponent, onClose }) => {
   const [step, setStep] = useState('pick-game') // pick-game | playing | result
   const [selectedGame, setSelectedGame] = useState(null)
   const [myScore, setMyScore] = useState(null)
+  const [freshChallengerScore, setFreshChallengerScore] = useState(null)
   const [wordBank, setWordBank] = useState([])
   const [saving, setSaving] = useState(false)
   const [enabledGames, setEnabledGames] = useState(['scramble', 'whackmole', 'astroblast', 'matchgame', 'flappy', 'wordtype'])
@@ -221,6 +222,19 @@ const PvPChallengeModal = ({ opponent, onClose }) => {
       return
     }
     await drainPetEnergy(10)
+
+    // Create challenge row immediately so refreshing can't allow retries
+    if (!hasPending || hasPending.challenger_id === user.id) {
+      const { data: row } = await supabase.from('pvp_challenges').insert({
+        challenger_id: user.id,
+        opponent_id: opponent.id,
+        game_type: gameId,
+        challenger_score: 0,
+        status: 'pending',
+      }).select('id, challenger_id, challenger_score, game_type, created_at, status').single()
+      if (row) setHasPending(row)
+    }
+
     setSelectedGame(gameId)
     setStep('playing')
   }
@@ -232,8 +246,11 @@ const PvPChallengeModal = ({ opponent, onClose }) => {
 
     try {
       if (hasPending && hasPending.challenger_id !== user.id) {
-        // Accepting an existing challenge — save opponent score and determine winner
-        const challengerScore = hasPending.challenger_score
+        // Accepting an existing challenge — fetch fresh challenger score and determine winner
+        const { data: fresh } = await supabase.from('pvp_challenges')
+          .select('challenger_score').eq('id', hasPending.id).single()
+        const challengerScore = fresh?.challenger_score ?? hasPending.challenger_score
+        setFreshChallengerScore(challengerScore)
         const winner = score > challengerScore ? user.id : score < challengerScore ? hasPending.challenger_id : null
         if (score > challengerScore) {
           new Audio('https://xpclass.vn/xpclass/sound/victory.mp3').play().catch(() => {})
@@ -245,15 +262,11 @@ const PvPChallengeModal = ({ opponent, onClose }) => {
           winner_id: winner,
           status: 'completed',
         }).eq('id', hasPending.id)
-      } else {
-        // Creating a new challenge
-        await supabase.from('pvp_challenges').insert({
-          challenger_id: user.id,
-          opponent_id: opponent.id,
-          game_type: selectedGame,
+      } else if (hasPending && hasPending.challenger_id === user.id) {
+        // Update the challenge row created at game start with the real score
+        await supabase.from('pvp_challenges').update({
           challenger_score: score,
-          status: 'pending',
-        })
+        }).eq('id', hasPending.id)
       }
       // Award pet XP
       if (activePet?.id) {
@@ -458,20 +471,20 @@ const PvPChallengeModal = ({ opponent, onClose }) => {
                   </div>
                 )}
                 <div className="text-xs text-gray-500">{opponent.full_name?.split(' ').pop()}</div>
-                <div className="text-3xl font-black text-gray-400">{hasPending && hasPending.challenger_id !== user.id ? hasPending.challenger_score : '?'}</div>
+                <div className="text-3xl font-black text-gray-400">{hasPending && hasPending.challenger_id !== user.id ? (freshChallengerScore ?? hasPending.challenger_score) : '?'}</div>
               </div>
             </div>
 
             {hasPending && hasPending.challenger_id !== user.id ? (
               <div className="mb-4">
-                {myScore > hasPending.challenger_score ? (
+                {myScore > (freshChallengerScore ?? hasPending.challenger_score) ? (
                   <>
                     <p className="text-lg font-bold text-green-600">You Win!</p>
                     {!saving && (
                       <TauntPicker challengeId={hasPending.id} />
                     )}
                   </>
-                ) : myScore < hasPending.challenger_score ? (
+                ) : myScore < (freshChallengerScore ?? hasPending.challenger_score) ? (
                   <p className="text-lg font-bold text-red-500">You Lose!</p>
                 ) : (
                   <p className="text-lg font-bold text-orange-500">It&apos;s a Tie!</p>
