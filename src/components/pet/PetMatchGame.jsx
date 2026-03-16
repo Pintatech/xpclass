@@ -36,6 +36,9 @@ const PetMatchGame = ({ petImageUrl, petName, onGameEnd, onClose, wordBank: word
   const [locked, setLocked] = useState(false) // lock input during wrong animation
   const [chestCollected, setChestCollected] = useState(false)
   const [chestPopup, setChestPopup] = useState(false)
+  const [chestMissed, setChestMissed] = useState(false)
+  const [chestRoundIndex, setChestRoundIndex] = useState(-1)
+  const [chestTimer, setChestTimer] = useState(0)
 
   const timerRef = useRef(null)
   const scoreRef = useRef(0)
@@ -72,9 +75,12 @@ const PetMatchGame = ({ petImageUrl, petName, onGameEnd, onClose, wordBank: word
     setTotalMatched(0)
     setRoundNum(1)
     chestSpawnedRef.current = false
-    chestRoundRef.current = 1 + Math.floor(Math.random() * 4)
+    const chestRound = 2 + Math.floor(Math.random() * 3)
+    chestRoundRef.current = chestRound
+    setChestRoundIndex(chestEnabled ? chestRound : -1)
     setChestCollected(false)
     setChestPopup(false)
+    setChestMissed(false)
     setPhase('playing')
 
     // Background music
@@ -121,8 +127,31 @@ const PetMatchGame = ({ petImageUrl, petName, onGameEnd, onClose, wordBank: word
   useEffect(() => {
     if (phase === 'playing' && roundNum > 0) {
       buildRound()
+      // Start chest timer when entering chest round
+      if (chestEnabled && !chestSpawnedRef.current && roundNum === chestRoundRef.current) {
+        setChestTimer(10)
+      }
     }
-  }, [phase, roundNum, buildRound])
+  }, [phase, roundNum, buildRound, chestEnabled])
+
+  // Chest round countdown
+  useEffect(() => {
+    if (chestTimer <= 0) return
+    const interval = setInterval(() => {
+      setChestTimer(prev => {
+        if (prev <= 1) {
+          // Time's up — chest lost
+          if (!chestSpawnedRef.current) {
+            chestSpawnedRef.current = true
+            setChestMissed(true)
+          }
+          return 0
+        }
+        return prev - 1
+      })
+    }, 1000)
+    return () => clearInterval(interval)
+  }, [chestTimer])
 
   // Timer countdown
   useEffect(() => {
@@ -228,6 +257,7 @@ const PetMatchGame = ({ petImageUrl, petName, onGameEnd, onClose, wordBank: word
           chestSpawnedRef.current = true
           setChestCollected(true)
           setChestPopup(true)
+          setChestTimer(0)
           setTimeout(() => setChestPopup(false), 1500)
         }
         setTimeout(() => {
@@ -241,6 +271,13 @@ const PetMatchGame = ({ petImageUrl, petName, onGameEnd, onClose, wordBank: word
       setScreenShake(12)
       setWrongPair([selected, index])
       setLocked(true)
+
+      // Wrong match on chest round = chest lost
+      if (chestEnabled && !chestSpawnedRef.current && roundNum === chestRoundRef.current) {
+        chestSpawnedRef.current = true
+        setChestMissed(true)
+        setChestTimer(0)
+      }
 
       if (!mutedRef.current) {
         try {
@@ -594,6 +631,22 @@ const PetMatchGame = ({ petImageUrl, petName, onGameEnd, onClose, wordBank: word
                   )
                 })}
               </div>
+
+              {/* Chest indicator - only on chest round, hide when time runs out */}
+              {chestRoundIndex >= 0 && !chestCollected && !chestMissed && roundNum === chestRoundIndex && chestTimer > 0 && (
+                <div className="flex flex-col items-center mt-2 gap-1">
+                  <div className={`flex items-center gap-1.5 rounded-full px-3 py-1 ${chestTimer <= 3 ? 'bg-red-500/40' : 'bg-amber-500/30'}`} style={{ animation: chestTimer <= 3 ? 'matchHintPulse 0.5s ease-in-out infinite' : 'matchHintPulse 1s ease-in-out infinite' }}>
+                    <img src={assetUrl('/image/chest/legendary-chest.png')} alt="Chest" className="w-6 h-6 object-contain" />
+                    <span className={`text-xs font-bold ${chestTimer <= 3 ? 'text-red-300' : 'text-amber-300'}`}>{chestTimer}s</span>
+                  </div>
+                  <div className="w-24 h-1.5 rounded-full bg-white/20 overflow-hidden">
+                    <div
+                      className={`h-full rounded-full transition-all duration-1000 ${chestTimer <= 3 ? 'bg-red-400' : 'bg-amber-400'}`}
+                      style={{ width: `${(chestTimer / 10) * 100}%` }}
+                    />
+                  </div>
+                </div>
+              )}
             </div>
 
             {/* Tile Grid */}
@@ -728,7 +781,7 @@ const PetMatchGame = ({ petImageUrl, petName, onGameEnd, onClose, wordBank: word
             {chestPopup && (
               <div className="absolute inset-0 z-20 flex items-center justify-center pointer-events-none">
                 <div className="flex flex-col items-center gap-2" style={{ animation: 'chestPopupAnim 1.5s ease-out forwards' }}>
-                  <span className="text-5xl">📦</span>
+                  <img src={assetUrl('/image/chest/legendary-chest.png')} alt="Chest" className="w-16 h-16 object-contain" />
                   <div className="bg-amber-500 text-white rounded-full px-4 py-1.5 font-bold text-sm shadow-lg">
                     Chest Found!
                   </div>
@@ -790,7 +843,7 @@ const PetMatchGame = ({ petImageUrl, petName, onGameEnd, onClose, wordBank: word
 
               {chestCollected && (
                 <div className="mb-4 flex items-center justify-center gap-2 bg-amber-50 border border-amber-200 rounded-xl px-4 py-2.5">
-                  <span className="text-2xl">📦</span>
+                  <img src={assetUrl('/image/chest/legendary-chest.png')} alt="Chest" className="w-8 h-8 object-contain" />
                   <span className="font-bold text-amber-700">Chest collected!</span>
                 </div>
               )}

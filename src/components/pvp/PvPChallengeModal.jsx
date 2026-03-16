@@ -159,7 +159,7 @@ const GAMES = [
 
 const PvPChallengeModal = ({ opponent, onClose }) => {
   const { user, profile } = useAuth()
-  const { activePet, playWithPet, drainPetEnergy } = usePet()
+  const { activePet, playWithPet, drainPetEnergy, userEnergy } = usePet()
   const [step, setStep] = useState('pick-game') // pick-game | playing | result
   const [selectedGame, setSelectedGame] = useState(null)
   const [myScore, setMyScore] = useState(null)
@@ -217,7 +217,7 @@ const PvPChallengeModal = ({ opponent, onClose }) => {
   }
 
   const startGame = async (gameId) => {
-    if ((activePet?.energy ?? 100) < 10) {
+    if ((userEnergy ?? 100) < 10) {
       alert('Your pet is too tired to battle! Feed your pet first.')
       return
     }
@@ -391,7 +391,7 @@ const PvPChallengeModal = ({ opponent, onClose }) => {
                 {hasPending.challenger_id !== user.id && hasPending.status === 'pending' ? (
                   <button
                     onClick={async () => {
-                      if ((activePet?.energy ?? 100) < 10) {
+                      if ((userEnergy ?? 100) < 10) {
                         alert('Your pet is too tired to battle! Feed your pet first.')
                         return
                       }

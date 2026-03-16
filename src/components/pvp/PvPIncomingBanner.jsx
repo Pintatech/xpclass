@@ -273,12 +273,19 @@ const PvPIncomingBanner = () => {
 
       if (stale?.length) {
         for (const s of stale) {
+          // Fetch challenger score to determine fair winner
+          const { data: challenge } = await supabase
+            .from("pvp_challenges")
+            .select("challenger_score")
+            .eq("id", s.id)
+            .single();
+          const cScore = challenge?.challenger_score ?? 0;
           await supabase
             .from("pvp_challenges")
             .update({
               opponent_score: 0,
               status: "completed",
-              winner_id: s.challenger_id,
+              winner_id: cScore > 0 ? s.challenger_id : null,
             })
             .eq("id", s.id);
         }

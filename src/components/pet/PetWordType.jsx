@@ -59,6 +59,8 @@ const PetWordType = ({ petImageUrl, petName, onGameEnd, onClose, wordBank: wordB
   const [hintRevealed, setHintRevealed] = useState(0) // number of letters revealed
   const [chestCollected, setChestCollected] = useState(false)
   const [chestPopup, setChestPopup] = useState(false)
+  const [isChestWord, setIsChestWord] = useState(false)
+  const [chestTimer, setChestTimer] = useState(0)
 
   const scoreRef = useRef(0)
   const timerRef = useRef(null)
@@ -121,6 +123,8 @@ const PetWordType = ({ petImageUrl, petName, onGameEnd, onClose, wordBank: wordB
       if (chestEnabled && !chestSpawnedRef.current && wordsCompleted + 1 === chestWordRef.current) {
         chestSpawnedRef.current = true
         setChestCollected(true)
+        setIsChestWord(false)
+        setChestTimer(0)
         setChestPopup(true)
         setTimeout(() => setChestPopup(false), 1500)
       }
@@ -183,6 +187,12 @@ const PetWordType = ({ petImageUrl, petName, onGameEnd, onClose, wordBank: wordB
 
   const handleSkip = useCallback(() => {
     if (!currentWord) return
+    // Skipping chest word = chest lost
+    if (chestEnabled && !chestSpawnedRef.current && wordsCompleted === chestWordRef.current - 1) {
+      chestSpawnedRef.current = true
+      setIsChestWord(false)
+      setChestTimer(0)
+    }
     streakRef.current = 0
     setStreak(0)
     comboRef.current = 0
@@ -226,6 +236,8 @@ const PetWordType = ({ petImageUrl, petName, onGameEnd, onClose, wordBank: wordB
     chestWordRef.current = 3 + Math.floor(Math.random() * 5)
     setChestCollected(false)
     setChestPopup(false)
+    setIsChestWord(false)
+    setChestTimer(0)
     setPhase('playing')
 
     try {
@@ -254,6 +266,30 @@ const PetWordType = ({ petImageUrl, petName, onGameEnd, onClose, wordBank: wordB
     }, 1000)
     return () => clearInterval(timerRef.current)
   }, [phase])
+
+  // Start chest timer when reaching chest word
+  useEffect(() => {
+    if (phase === 'playing' && chestEnabled && !chestSpawnedRef.current && wordsCompleted === chestWordRef.current - 1) {
+      setIsChestWord(true)
+      setChestTimer(5)
+    }
+  }, [phase, wordsCompleted, chestEnabled])
+
+  // Chest timer countdown
+  useEffect(() => {
+    if (chestTimer <= 0) return
+    const interval = setInterval(() => {
+      setChestTimer(prev => {
+        if (prev <= 1) {
+          chestSpawnedRef.current = true
+          setIsChestWord(false)
+          return 0
+        }
+        return prev - 1
+      })
+    }, 1000)
+    return () => clearInterval(interval)
+  }, [chestTimer])
 
   // Stop music on results
   useEffect(() => {
@@ -615,7 +651,7 @@ const PetWordType = ({ petImageUrl, petName, onGameEnd, onClose, wordBank: wordB
             {chestPopup && (
               <div className="absolute inset-0 z-20 flex items-center justify-center pointer-events-none">
                 <div className="flex flex-col items-center gap-2" style={{ animation: 'chestPopupAnim 1.5s ease-out forwards' }}>
-                  <span className="text-5xl">📦</span>
+                  <img src={assetUrl('/image/chest/legendary-chest.png')} alt="Chest" className="w-16 h-16 object-contain" />
                   <div className="bg-amber-500 text-white rounded-full px-4 py-1.5 font-bold text-sm shadow-lg">Chest Found!</div>
                 </div>
               </div>
@@ -807,6 +843,22 @@ const PetWordType = ({ petImageUrl, petName, onGameEnd, onClose, wordBank: wordB
               </div>
             ))}
           </div>
+
+          {/* Chest indicator under progress dots */}
+          {isChestWord && !chestCollected && chestTimer > 0 && (
+            <div className="absolute top-[100px] left-0 right-0 flex flex-col items-center gap-1 z-10 pointer-events-none">
+              <div className={`flex items-center gap-1.5 rounded-full px-3 py-1 ${chestTimer <= 3 ? 'bg-red-500/40' : 'bg-amber-500/30'}`} style={{ animation: chestTimer <= 3 ? 'hintPulse 0.5s ease-in-out infinite' : 'hintPulse 1s ease-in-out infinite' }}>
+                <img src={assetUrl('/image/chest/legendary-chest.png')} alt="Chest" className="w-6 h-6 object-contain" />
+                <span className={`text-xs font-bold ${chestTimer <= 3 ? 'text-red-300' : 'text-amber-300'}`}>{chestTimer}s</span>
+              </div>
+              <div className="w-24 h-1.5 rounded-full bg-white/20 overflow-hidden">
+                <div
+                  className={`h-full rounded-full transition-all duration-1000 ${chestTimer <= 3 ? 'bg-red-400' : 'bg-amber-400'}`}
+                  style={{ width: `${(chestTimer / 5) * 100}%` }}
+                />
+              </div>
+            </div>
+          )}
         </div>
       )}
 
@@ -866,7 +918,7 @@ const PetWordType = ({ petImageUrl, petName, onGameEnd, onClose, wordBank: wordB
 
             {chestCollected && (
               <div className="mb-4 flex items-center justify-center gap-2 bg-amber-50 border border-amber-200 rounded-xl px-4 py-2.5">
-                <span className="text-2xl">📦</span>
+                <img src={assetUrl('/image/chest/legendary-chest.png')} alt="Chest" className="w-8 h-8 object-contain" />
                 <span className="font-bold text-amber-700">Chest collected!</span>
               </div>
             )}

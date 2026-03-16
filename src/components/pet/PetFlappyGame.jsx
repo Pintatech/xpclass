@@ -46,6 +46,7 @@ const PetFlappyGame = ({ petImageUrl, petName, wordBank: wordBankProp, onGameEnd
   const [streak, setStreak] = useState(0)
   const [chestCollected, setChestCollected] = useState(false)
   const [chestPopup, setChestPopup] = useState(false)
+  const [isChestRound, setIsChestRound] = useState(false)
 
   const wordBank = (wordBankProp && wordBankProp.length > 0) ? wordBankProp : WORD_BANK_FALLBACK
 
@@ -133,19 +134,13 @@ const PetFlappyGame = ({ petImageUrl, petName, wordBank: wordBankProp, onGameEnd
       })
     }
 
-    // Spawn chest once per game at the chosen wave (only if chestEnabled)
+    // Mark correct fruit as chest on the chosen wave
     if (chestEnabled && !chestSpawnedRef.current && nextWaveIdRef.current === chestWaveRef.current) {
-      chestSpawnedRef.current = true
-      const safeY = (minY + Math.random() * usableHeight) / gameHeight
-      fruits.push({
-        y: safeY,
-        word: '📦',
-        isCorrect: false,
-        eaten: false,
-        emoji: '📦',
-        isChest: true,
-        el: null,
-      })
+      const correctFruit = fruits.find(f => f.isCorrect)
+      if (correctFruit) {
+        correctFruit.isChest = true
+        setIsChestRound(true)
+      }
     }
 
     return {
@@ -202,25 +197,15 @@ const PetFlappyGame = ({ petImageUrl, petName, wordBank: wordBankProp, onGameEnd
     label.className = 'text-center'
     label.style.marginBottom = '2px'
     const span = document.createElement('span')
-    if (fruit.isChest) {
-      span.className = 'inline-block bg-amber-100 text-amber-700 text-[11px] font-bold px-2 py-0.5 rounded-full shadow-md border border-amber-300 whitespace-nowrap'
-      span.style.cssText = 'max-width:120px;-webkit-font-smoothing:antialiased;-moz-osx-font-smoothing:grayscale;'
-      span.textContent = '📦'
-    } else {
-      span.className = 'inline-block bg-white text-gray-800 text-[11px] font-bold px-2 py-0.5 rounded-full shadow-md border border-gray-200 whitespace-nowrap'
-      span.style.cssText = 'max-width:120px;-webkit-font-smoothing:antialiased;-moz-osx-font-smoothing:grayscale;'
-      span.textContent = fruit.word
-    }
+    span.className = 'inline-block bg-white text-gray-800 text-[11px] font-bold px-2 py-0.5 rounded-full shadow-md border border-gray-200 whitespace-nowrap'
+    span.style.cssText = 'max-width:120px;-webkit-font-smoothing:antialiased;-moz-osx-font-smoothing:grayscale;'
+    span.textContent = fruit.word
     label.appendChild(span)
     wrapper.appendChild(label)
 
     const emojiDiv = document.createElement('div')
     emojiDiv.className = 'text-center'
-    if (fruit.isChest) {
-      emojiDiv.style.cssText = 'font-size:48px;line-height:1;filter:drop-shadow(0 0 8px rgba(245,158,11,0.6));'
-    } else {
-      emojiDiv.style.cssText = `font-size:${FRUIT_SIZE - 8}px;line-height:1;`
-    }
+    emojiDiv.style.cssText = `font-size:${FRUIT_SIZE - 8}px;line-height:1;`
     emojiDiv.textContent = fruit.emoji
     wrapper.appendChild(emojiDiv)
 
@@ -264,6 +249,7 @@ const PetFlappyGame = ({ petImageUrl, petName, wordBank: wordBankProp, onGameEnd
     chestWaveRef.current = 3 + Math.floor(Math.random() * 6)
     setChestCollected(false)
     setChestPopup(false)
+    setIsChestRound(false)
 
     // Pick first word
     setNewWord()
@@ -364,26 +350,6 @@ const PetFlappyGame = ({ petImageUrl, petName, wordBank: wordBankProp, onGameEnd
           const hitRadius = petRadius + FRUIT_SIZE / 2 - 6
 
           if (dist < hitRadius) {
-            // Chest collectible — does NOT resolve the wave
-            if (fruit.isChest) {
-              fruit.eaten = true
-              if (fruit.el) fruit.el.style.display = 'none'
-              setChestCollected(true)
-              setChestPopup(true)
-              setTimeout(() => setChestPopup(false), 1500)
-
-              const floatEl = createFloatEl('+📦 Chest!', fruitPixelX, fruitPixelY, '#f59e0b')
-              floatsContainerRef.current?.appendChild(floatEl)
-              floatingTextsRef.current.push({ el: floatEl, y: fruitPixelY, opacity: 1 })
-
-              try {
-                const sound = new Audio(assetUrl('/sound/flappy-point.mp3'))
-                sound.volume = 0.4
-                sound.play().catch(() => {})
-              } catch {}
-              return
-            }
-
             fruit.eaten = true
             wave.resolved = true
 
@@ -391,6 +357,14 @@ const PetFlappyGame = ({ petImageUrl, petName, wordBank: wordBankProp, onGameEnd
             if (fruit.el) fruit.el.style.display = 'none'
 
             if (fruit.isCorrect) {
+              // Chest round — correct fruit grants chest
+              if (fruit.isChest && !chestSpawnedRef.current) {
+                chestSpawnedRef.current = true
+                setChestCollected(true)
+                setIsChestRound(false)
+                setChestPopup(true)
+                setTimeout(() => setChestPopup(false), 1500)
+              }
               // Correct fruit!
               streakRef.current += 1
               setStreak(streakRef.current)
@@ -448,6 +422,11 @@ const PetFlappyGame = ({ petImageUrl, petName, wordBank: wordBankProp, onGameEnd
       for (const wave of fruitsRef.current) {
         if (!wave.resolved && wave.x < -0.05) {
           wave.resolved = true
+          // Chest wave missed
+          if (wave.fruits.some(f => f.isChest && !f.eaten)) {
+            chestSpawnedRef.current = true
+            setIsChestRound(false)
+          }
           streakRef.current = 0
           setStreak(0)
           setNewWord()
@@ -607,6 +586,14 @@ const PetFlappyGame = ({ petImageUrl, petName, wordBank: wordBankProp, onGameEnd
               <p className="text-xs font-bold text-amber-600 text-center leading-none mb-0.5">Find the meaning:</p>
               <p ref={hintTextRef} className="text-lg font-black text-gray-800 text-center leading-tight">{currentHintRef.current}</p>
             </div>
+            {isChestRound && !chestCollected && (
+              <div className="flex items-center justify-center mt-2">
+                <div className="flex items-center gap-1.5 bg-amber-500/30 backdrop-blur rounded-full px-3 py-1" style={{ animation: 'flappyFloat 1s ease-in-out infinite' }}>
+                  <img src={assetUrl('/image/chest/legendary-chest.png')} alt="Chest" className="w-6 h-6 object-contain" />
+                  <span className="text-amber-700 text-xs font-bold">Chest round!</span>
+                </div>
+              </div>
+            )}
           </div>
         )}
 
@@ -674,7 +661,7 @@ const PetFlappyGame = ({ petImageUrl, petName, wordBank: wordBankProp, onGameEnd
         {chestPopup && (
           <div className="absolute inset-0 z-50 flex items-center justify-center pointer-events-none">
             <div className="flex flex-col items-center gap-2" style={{ animation: 'chestPopupAnim 1.5s ease-out forwards' }}>
-              <span className="text-5xl">📦</span>
+              <img src={assetUrl('/image/chest/legendary-chest.png')} alt="Chest" className="w-16 h-16 object-contain" />
               <div className="bg-amber-500 text-white rounded-full px-4 py-1.5 font-bold text-sm shadow-lg">
                 Chest Found!
               </div>
@@ -761,7 +748,7 @@ const PetFlappyGame = ({ petImageUrl, petName, wordBank: wordBankProp, onGameEnd
               <div className="mb-4 flex items-center justify-center gap-2 bg-amber-50 border border-amber-200 rounded-xl px-4 py-2.5"
                 style={{ animation: 'flappyScorePopIn 0.6s ease-out 0.7s both' }}
               >
-                <span className="text-2xl">📦</span>
+                <img src={assetUrl('/image/chest/legendary-chest.png')} alt="Chest" className="w-8 h-8 object-contain" />
                 <span className="font-bold text-amber-700 text-sm">Chest collected!</span>
               </div>
             )}

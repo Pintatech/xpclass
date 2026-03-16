@@ -47,6 +47,8 @@ const PetAstroBlast = ({ petImageUrl, petName, onGameEnd, onClose, shipSkinUrl, 
   const [shipRecoil, setShipRecoil] = useState(false)
   const [chestCollected, setChestCollected] = useState(false)
   const [chestPopup, setChestPopup] = useState(false)
+  const [isChestRound, setIsChestRound] = useState(false)
+  const [chestTimer, setChestTimer] = useState(0)
 
   const scoreRef = useRef(0)
   const streakRef = useRef(0)
@@ -93,11 +95,14 @@ const PetAstroBlast = ({ petImageUrl, petName, onGameEnd, onClose, shipSkinUrl, 
         // Slight horizontal drift
         const vx = (Math.random() - 0.5) * 1.2
 
+        const isCorrect = w.word === target.word
+        const isChestWord = isCorrect && chestEnabled && !chestSpawnedRef.current && roundIndexRef.current === chestRoundRef.current
         const newWord = {
           id: `${w.word}-${roundId}-${i}`,
           word: w.word,
           hint: w.hint,
-          isCorrect: w.word === target.word,
+          isCorrect,
+          isChest: isChestWord,
           x: launchX,
           y: -50,
           vx,
@@ -111,41 +116,13 @@ const PetAstroBlast = ({ petImageUrl, petName, onGameEnd, onClose, shipSkinUrl, 
           clipIdx: Math.floor(Math.random() * ASTEROID_CLIPS.length),
           skinIdx: skinIndices[i % skinIndices.length],
         }
+        if (isChestWord) {
+          setIsChestRound(true)
+          setChestTimer(3)
+        }
         setFlyingWords(prev => [...prev, newWord])
       }, delay)
     })
-
-    // Spawn chest once per game at the chosen round (only if chestEnabled)
-    if (chestEnabled && !chestSpawnedRef.current && roundIndexRef.current === chestRoundRef.current) {
-      chestSpawnedRef.current = true
-      const chestDelay = allWords.length * 100 + 50
-      setTimeout(() => {
-        const zoneWidth = containerW / (allWords.length + 1)
-        const launchX = zoneWidth * allWords.length + zoneWidth / 2 + (Math.random() - 0.5) * 20
-        const vy = 2.0 + Math.random() * 0.8
-        const vx = (Math.random() - 0.5) * 1.0
-        const chestWord = {
-          id: `chest-${roundId}`,
-          word: '📦',
-          hint: '',
-          isCorrect: false,
-          isChest: true,
-          x: launchX,
-          y: -50,
-          vx,
-          vy,
-          slashed: false,
-          wrong: false,
-          opacity: 1,
-          scale: 1,
-          rotation: (Math.random() - 0.5) * 10,
-          rotationSpeed: (Math.random() - 0.5) * 0.6,
-          clipIdx: Math.floor(Math.random() * ASTEROID_CLIPS.length),
-          skinIdx: 0,
-        }
-        setFlyingWords(prev => [...prev, chestWord])
-      }, chestDelay)
-    }
   }, [wordBankProp])
 
   // Start game
@@ -167,6 +144,8 @@ const PetAstroBlast = ({ petImageUrl, petName, onGameEnd, onClose, shipSkinUrl, 
     chestRoundRef.current = 5 + Math.floor(Math.random() * 10)
     setChestCollected(false)
     setChestPopup(false)
+    setIsChestRound(false)
+    setChestTimer(0)
     setPhase('playing')
 
     try {
@@ -187,6 +166,24 @@ const PetAstroBlast = ({ petImageUrl, petName, onGameEnd, onClose, shipSkinUrl, 
       if (spawnTimerRef.current) clearTimeout(spawnTimerRef.current)
     }
   }, [phase, spawnRound])
+
+  // Chest timer countdown
+  useEffect(() => {
+    if (chestTimer <= 0) return
+    const interval = setInterval(() => {
+      setChestTimer(prev => {
+        if (prev <= 1) {
+          chestSpawnedRef.current = true
+          setIsChestRound(false)
+          // Remove chest word from flying words
+          setFlyingWords(prev => prev.map(w => w.isChest && !w.slashed ? { ...w, isChest: false } : w))
+          return 0
+        }
+        return prev - 1
+      })
+    }, 1000)
+    return () => clearInterval(interval)
+  }, [chestTimer])
 
   // Spawn next round after correct slash
   const scheduleNextRound = useCallback(() => {
@@ -303,7 +300,11 @@ const PetAstroBlast = ({ petImageUrl, petName, onGameEnd, onClose, shipSkinUrl, 
           if (w.opacity <= 0) return false
           // Word fell back below screen after its arc
           if (!w.slashed && !w.wrong && w.y > containerH + 80) {
-            if (w.isChest) return false // chest silently removed
+            if (w.isChest) {
+              chestSpawnedRef.current = true
+              setIsChestRound(false)
+              setChestTimer(0)
+            }
             if (w.isCorrect) {
               setMissedWords(p => {
                 if (p.some(m => m.word === w.word)) return p
@@ -367,41 +368,17 @@ const PetAstroBlast = ({ petImageUrl, petName, onGameEnd, onClose, shipSkinUrl, 
   const handleSlash = useCallback((wordObj) => {
     if (phase !== 'playing' || wordObj.slashed || wordObj.wrong) return
 
-    // Chest hit — collect it without affecting score or round
-    if (wordObj.isChest) {
-      fireLaser(wordObj.x, wordObj.y, 'correct')
-      setChestCollected(true)
-      setChestPopup(true)
-      setTimeout(() => setChestPopup(false), 1500)
-      setFlyingWords(prev => prev.map(w =>
-        w.id === wordObj.id ? { ...w, slashed: true } : w
-      ))
-      setFeedback({ type: 'correct', word: '+\uD83D\uDCE6 Chest!', x: wordObj.x, y: wordObj.y })
-      setTimeout(() => setFeedback(null), 600)
-      // Chest particles
-      const colors = ['#f59e0b', '#fbbf24', '#d97706', '#b45309']
-      const chestParticles = Array.from({ length: 12 }, (_, i) => ({
-        id: `chest-p-${Date.now()}-${i}`,
-        x: wordObj.x,
-        y: wordObj.y,
-        vx: Math.cos(i * Math.PI / 6) * (4 + Math.random() * 3),
-        vy: Math.sin(i * Math.PI / 6) * (4 + Math.random() * 3),
-        color: colors[Math.floor(Math.random() * colors.length)],
-        opacity: 1,
-      }))
-      setParticles(prev => [...prev, ...chestParticles])
-      try {
-        const sound = new Audio('https://xpclass.vn/xpclass/sound/laser.mp3')
-        sound.volume = 0.3
-        sound.play().catch(() => {})
-      } catch {}
-      setScreenShake(8)
-      return
-    }
-
     fireLaser(wordObj.x, wordObj.y, wordObj.isCorrect ? 'correct' : 'wrong')
 
     if (wordObj.isCorrect) {
+      // Chest round — correct word grants chest
+      if (wordObj.isChest && !chestCollected) {
+        setChestCollected(true)
+        setIsChestRound(false)
+        setChestTimer(0)
+        setChestPopup(true)
+        setTimeout(() => setChestPopup(false), 1500)
+      }
       // CORRECT slash
       const newStreak = streakRef.current + 1
       streakRef.current = newStreak
@@ -712,21 +689,10 @@ const PetAstroBlast = ({ petImageUrl, petName, onGameEnd, onClose, shipSkinUrl, 
                 opacity: w.opacity,
                 transform: `scale(${w.scale}) rotate(${w.rotation}deg)`,
                 transition: w.slashed || w.wrong ? 'transform 0.3s ease-out' : 'none',
-                zIndex: w.isChest ? 6 : w.isCorrect ? 5 : 1,
+                zIndex: w.isCorrect ? 5 : 1,
               }}
             >
-              {w.isChest ? (
-                /* Chest asteroid */
-                <div className="relative flex flex-col items-center"
-                  style={{
-                    animation: !w.slashed ? 'wordFlyUp 0.4s ease-out' : 'none',
-                    minWidth: '90px',
-                    filter: w.slashed ? 'brightness(1.5)' : 'drop-shadow(0 0 12px rgba(245,158,11,0.6))',
-                  }}
-                >
-                  <span className="text-5xl">{'\uD83D\uDCE6'}</span>
-                </div>
-              ) : asteroidSkinUrls?.length > 0 ? (
+              {asteroidSkinUrls?.length > 0 ? (
                 /* Image-based asteroid skin */
                 <div className="relative flex flex-col items-center"
                   style={{
@@ -1007,6 +973,22 @@ const PetAstroBlast = ({ petImageUrl, petName, onGameEnd, onClose, shipSkinUrl, 
                   </div>
                 ))}
               </div>
+
+              {/* Chest indicator under progress dots */}
+              {isChestRound && !chestCollected && chestTimer > 0 && (
+                <div className="flex flex-col items-center mt-2 gap-1">
+                  <div className={`flex items-center gap-1.5 rounded-full px-3 py-1 ${chestTimer <= 1 ? 'bg-red-500/40' : 'bg-amber-500/30'}`} style={{ animation: chestTimer <= 1 ? 'hintPulse 0.5s ease-in-out infinite' : 'hintPulse 1s ease-in-out infinite' }}>
+                    <img src={assetUrl('/image/chest/legendary-chest.png')} alt="Chest" className="w-6 h-6 object-contain" />
+                    <span className={`text-xs font-bold ${chestTimer <= 1 ? 'text-red-300' : 'text-amber-300'}`}>{chestTimer}s</span>
+                  </div>
+                  <div className="w-24 h-1.5 rounded-full bg-white/20 overflow-hidden">
+                    <div
+                      className={`h-full rounded-full transition-all duration-1000 ${chestTimer <= 1 ? 'bg-red-400' : 'bg-amber-400'}`}
+                      style={{ width: `${(chestTimer / 3) * 100}%` }}
+                    />
+                  </div>
+                </div>
+              )}
             </div>
           </div>
 
@@ -1028,7 +1010,7 @@ const PetAstroBlast = ({ petImageUrl, petName, onGameEnd, onClose, shipSkinUrl, 
           {chestPopup && (
             <div className="absolute inset-0 z-20 flex items-center justify-center pointer-events-none">
               <div className="flex flex-col items-center gap-2" style={{ animation: 'chestPopupAnim 1.5s ease-out forwards' }}>
-                <span className="text-5xl">{'\uD83D\uDCE6'}</span>
+                <img src={assetUrl('/image/chest/legendary-chest.png')} alt="Chest" className="w-16 h-16 object-contain" />
                 <div className="bg-amber-500 text-white rounded-full px-4 py-1.5 font-bold text-sm shadow-lg">
                   Chest Found!
                 </div>
@@ -1161,7 +1143,7 @@ const PetAstroBlast = ({ petImageUrl, petName, onGameEnd, onClose, shipSkinUrl, 
               <div className="mb-4 flex items-center justify-center gap-2 bg-amber-50 border border-amber-200 rounded-xl px-4 py-2.5"
                 style={{ animation: 'slasherScorePopIn 0.6s ease-out 0.7s both' }}
               >
-                <span className="text-2xl">{'\uD83D\uDCE6'}</span>
+                <img src={assetUrl('/image/chest/legendary-chest.png')} alt="Chest" className="w-8 h-8 object-contain" />
                 <span className="font-bold text-amber-700 text-sm">Chest collected!</span>
               </div>
             )}

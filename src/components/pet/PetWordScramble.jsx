@@ -61,6 +61,8 @@ const PetWordScramble = ({ petImageUrl, petName, onGameEnd, onClose, wordBank: w
   const [wordPopup, setWordPopup] = useState(null) // { points, streak, combo }
   const [chestCollected, setChestCollected] = useState(false)
   const [chestPopup, setChestPopup] = useState(false)
+  const [chestMissed, setChestMissed] = useState(false)
+  const [chestTimer, setChestTimer] = useState(0)
 
   const scoreRef = useRef(0)
   const timerRef = useRef(null)
@@ -71,6 +73,7 @@ const PetWordScramble = ({ petImageUrl, petName, onGameEnd, onClose, wordBank: w
   const bgMusicRef = useRef(null)
   const chestSpawnedRef = useRef(false)
   const chestWordRef = useRef(0)
+  const [chestWordIndex, setChestWordIndex] = useState(-1)
 
   // Create floating bubbles for a word, spread out in a grid-ish layout
   const createBubbles = useCallback((word, containerWidth, containerHeight) => {
@@ -137,9 +140,18 @@ const PetWordScramble = ({ petImageUrl, petName, onGameEnd, onClose, wordBank: w
     streakRef.current = 0
     setCombo(0)
     chestSpawnedRef.current = false
-    chestWordRef.current = 3 + Math.floor(Math.random() * 5)
+    // Pick a long word (6+ letters) for chest, fallback to random 3-7
+    const longWordIndices = gameWords
+      .map((w, i) => ({ i, len: w.word.length }))
+      .filter(w => w.len >= 6 && w.i >= 3 && w.i <= 9)
+    const chestIdx = longWordIndices.length > 0
+      ? longWordIndices[Math.floor(Math.random() * longWordIndices.length)].i + 1
+      : 3 + Math.floor(Math.random() * 5)
+    chestWordRef.current = chestIdx
+    setChestWordIndex(chestEnabled ? chestIdx : -1)
     setChestCollected(false)
     setChestPopup(false)
+    setChestMissed(false)
 
     // Use container dimensions for initial setup
     const width = containerRef.current?.clientWidth || 400
@@ -174,6 +186,31 @@ const PetWordScramble = ({ petImageUrl, petName, onGameEnd, onClose, wordBank: w
 
     return () => clearInterval(timerRef.current)
   }, [phase])
+
+  // Start chest timer when reaching the chest word
+  useEffect(() => {
+    if (phase === 'playing' && chestWordIndex >= 0 && !chestSpawnedRef.current && wordsCompleted === chestWordIndex - 1) {
+      setChestTimer(10)
+    }
+  }, [phase, wordsCompleted, chestWordIndex])
+
+  // Chest word countdown
+  useEffect(() => {
+    if (chestTimer <= 0) return
+    const interval = setInterval(() => {
+      setChestTimer(prev => {
+        if (prev <= 1) {
+          if (!chestSpawnedRef.current) {
+            chestSpawnedRef.current = true
+            setChestMissed(true)
+          }
+          return 0
+        }
+        return prev - 1
+      })
+    }, 1000)
+    return () => clearInterval(interval)
+  }, [chestTimer])
 
   // Stop background music when game ends
   useEffect(() => {
@@ -330,6 +367,13 @@ const PetWordScramble = ({ petImageUrl, petName, onGameEnd, onClose, wordBank: w
       setCombo(0)
       setScreenShake(10)
 
+      // Wrong letter on chest word = chest lost
+      if (chestEnabled && !chestSpawnedRef.current && wordsCompleted === chestWordRef.current - 1) {
+        chestSpawnedRef.current = true
+        setChestMissed(true)
+        setChestTimer(0)
+      }
+
       // Wrong sound
       try {
         const sound = new Audio(assetUrl('/sound/flappy-hit.mp3'))
@@ -369,12 +413,19 @@ const PetWordScramble = ({ petImageUrl, petName, onGameEnd, onClose, wordBank: w
         ))
       }, 300)
     }
-  }, [phase, feedback, placedLetters])
+  }, [phase, feedback, placedLetters, chestEnabled, wordsCompleted])
 
   // Skip current word
   const handleSkip = useCallback(() => {
     if (phase !== 'playing' || feedback === 'correct') return
     streakRef.current = Math.max(0, streakRef.current - 1)
+
+    // If skipping the chest word, chest is lost
+    if (chestEnabled && !chestSpawnedRef.current && wordsCompleted === chestWordRef.current - 1) {
+      chestSpawnedRef.current = true
+      setChestMissed(true)
+      setChestTimer(0)
+    }
 
     setCombo(0)
     setSkippedWords(prev => [...prev, words[wordIndex]])
@@ -393,7 +444,7 @@ const PetWordScramble = ({ petImageUrl, petName, onGameEnd, onClose, wordBank: w
       const height = containerRef.current?.clientHeight || 700
       setupWord(moreWords, 0, width, height)
     }
-  }, [phase, feedback, wordIndex, words, setupWord, wordBankProp])
+  }, [phase, feedback, wordIndex, words, setupWord, wordBankProp, chestEnabled, wordsCompleted])
 
   // Handle tapping a placed letter to remove it
   const handlePlacedTap = useCallback((letterObj) => {
@@ -459,6 +510,7 @@ const PetWordScramble = ({ petImageUrl, petName, onGameEnd, onClose, wordBank: w
       if (chestEnabled && !chestSpawnedRef.current && wordsCompleted === chestWordRef.current - 1) {
         chestSpawnedRef.current = true
         setChestCollected(true)
+        setChestTimer(0)
         setChestPopup(true)
         setTimeout(() => setChestPopup(false), 1500)
       }
@@ -486,7 +538,6 @@ const PetWordScramble = ({ petImageUrl, petName, onGameEnd, onClose, wordBank: w
   }, [placedLetters, phase, words, wordIndex, setupWord, combo, wordBankProp])
 
   const currentWord = words[wordIndex]
-
   return createPortal(
     <div className="fixed inset-0 z-50 select-none overflow-hidden bg-black/70 flex items-center justify-center">
       <style>{`
@@ -852,15 +903,45 @@ const PetWordScramble = ({ petImageUrl, petName, onGameEnd, onClose, wordBank: w
                 </div>
               ))}
             </div>
+
+            {/* Chest indicator - only show on the chest word */}
+            {chestWordIndex >= 0 && !chestCollected && !chestMissed && wordsCompleted === chestWordIndex - 1 && chestTimer > 0 && (
+              <div className="flex flex-col items-center mt-2 gap-1">
+                <div className={`flex items-center gap-1.5 rounded-full px-3 py-1 ${chestTimer <= 3 ? 'bg-red-500/40' : 'bg-amber-500/30'}`} style={{ animation: chestTimer <= 3 ? 'hintPulse 0.5s ease-in-out infinite' : 'hintPulse 1s ease-in-out infinite' }}>
+                  <img src={assetUrl('/image/chest/legendary-chest.png')} alt="Chest" className="w-6 h-6 object-contain" />
+                  <span className={`text-xs font-bold ${chestTimer <= 3 ? 'text-red-300' : 'text-amber-300'}`}>{chestTimer}s</span>
+                </div>
+                <div className="w-24 h-1.5 rounded-full bg-white/20 overflow-hidden">
+                  <div
+                    className={`h-full rounded-full transition-all duration-1000 ${chestTimer <= 3 ? 'bg-red-400' : 'bg-amber-400'}`}
+                    style={{ width: `${(chestTimer / 10) * 100}%` }}
+                  />
+                </div>
+              </div>
+            )}
           </div>
 
           {/* === CHEST POPUP === */}
           {chestPopup && (
             <div className="absolute inset-0 z-20 flex items-center justify-center pointer-events-none">
               <div className="flex flex-col items-center gap-2" style={{ animation: 'chestPopupAnim 1.5s ease-out forwards' }}>
-                <span className="text-5xl">📦</span>
+                <img src={assetUrl('/image/chest/legendary-chest.png')} alt="Chest" className="w-16 h-16 object-contain" />
                 <div className="bg-amber-500 text-white rounded-full px-4 py-1.5 font-bold text-sm shadow-lg">
                   Chest Found!
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* === CHEST MISSED POPUP === */}
+          {chestMissed && (
+            <div className="absolute inset-0 z-20 flex items-center justify-center pointer-events-none">
+              <div className="flex flex-col items-center gap-2" style={{ animation: 'chestPopupAnim 1.5s ease-out forwards' }}
+                onAnimationEnd={() => setChestMissed(false)}
+              >
+                <img src={assetUrl('/image/chest/legendary-chest.png')} alt="Chest" className="w-16 h-16 object-contain opacity-50 grayscale" />
+                <div className="bg-red-500 text-white rounded-full px-4 py-1.5 font-bold text-sm shadow-lg">
+                  Chest Lost!
                 </div>
               </div>
             </div>
@@ -992,7 +1073,7 @@ const PetWordScramble = ({ petImageUrl, petName, onGameEnd, onClose, wordBank: w
 
             {chestCollected && (
               <div className="mb-4 flex items-center justify-center gap-2 bg-amber-50 border border-amber-200 rounded-xl px-4 py-2.5">
-                <span className="text-2xl">📦</span>
+                <img src={assetUrl('/image/chest/legendary-chest.png')} alt="Chest" className="w-8 h-8 object-contain" />
                 <span className="font-bold text-amber-700">Chest collected!</span>
               </div>
             )}

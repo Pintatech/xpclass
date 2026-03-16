@@ -57,7 +57,7 @@ const MultipleChoiceExercise = ({ testMode = false, exerciseData = null, onAnswe
   const { canCreateContent } = usePermissions()
   const { startExercise, completeExerciseWithXP } = useProgress()
   const { currentMeme, showMeme, playFeedback, playCelebration, passGif } = useFeedback()
-  const { activePet, drainPetEnergy } = usePet()
+  const { activePet, drainPetEnergy, userEnergy } = usePet()
 
   // URL params
   const searchParams = new URLSearchParams(location.search)
@@ -1134,9 +1134,9 @@ const MultipleChoiceExercise = ({ testMode = false, exerciseData = null, onAnswe
                           <div className="flex items-center gap-3">
                             <button
                               onClick={handleAskPet}
-                              disabled={(activePet.energy ?? 100) < 10}
+                              disabled={(userEnergy ?? 100) < 10}
                               className={`flex items-center gap-2 px-4 py-2 font-medium rounded-lg transition-all shadow-sm ${
-                                (activePet.energy ?? 100) < 10
+                                (userEnergy ?? 100) < 10
                                   ? 'bg-gray-300 text-gray-500 cursor-not-allowed'
                                   : 'bg-purple-500 hover:bg-purple-600 text-white hover:shadow-md'
                               }`}
@@ -1145,8 +1145,8 @@ const MultipleChoiceExercise = ({ testMode = false, exerciseData = null, onAnswe
                               Hỏi {activePet.nickname || activePet.name} giải thích
                             </button>
                             <span className="text-xs text-gray-500">
-                              ⚡ {activePet.energy ?? 100}/100
-                              {(activePet.energy ?? 100) < 10 && ' (Mệt rồi!)'}
+                              ⚡ {userEnergy ?? 100}/100
+                              {(userEnergy ?? 100) < 10 && ' (Mệt rồi!)'}
                             </span>
                           </div>
                         ) : (

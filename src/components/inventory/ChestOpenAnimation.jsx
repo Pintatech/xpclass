@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from 'react'
+import { useState, useEffect } from 'react'
 import { createPortal } from 'react-dom'
 import { Sparkles, Package, ShoppingBag } from 'lucide-react'
 
@@ -35,23 +35,11 @@ const rarityLightColor = {
   legendary: 'rgba(250,204,21,0.5)',
 }
 
-// Chest opening videos per chest type
-const chestVideos = {
-  common: assetUrl('/image/chest/chest-opening-common.mp4'),
-  uncommon: assetUrl('/image/chest/chest-opening-uncommon.mp4'),
-  rare: assetUrl('/image/chest/chest-opening-rare.mp4'),
-  epic: assetUrl('/image/chest/chest-opening-epic.mp4'),
-  legendary: assetUrl('/image/chest/chest-opening-legendary.mp4'),
-}
-const DEFAULT_CHEST_VIDEO = assetUrl('/image/chest/chest-opening.mp4')
-
 const ChestOpenAnimation = ({ result, chestType, onClose }) => {
-  // phases: video -> revealing -> done
-  const [phase, setPhase] = useState('video')
+  // phases: revealing -> done (video removed)
+  const [phase, setPhase] = useState('revealing')
   const [revealedCount, setRevealedCount] = useState(0)
-  const videoRef = useRef(null)
 
-  const videoSrc = chestVideos[chestType] || DEFAULT_CHEST_VIDEO
   const items = result?.items || []
   // Use the highest rarity item for the glow effect
   const rarityOrder = ['common', 'uncommon', 'rare', 'epic', 'legendary']
@@ -60,16 +48,6 @@ const ChestOpenAnimation = ({ result, chestType, onClose }) => {
     const bestIdx = rarityOrder.indexOf(best)
     return idx > bestIdx ? item.rarity : best
   }, 'common')
-
-  // When video ends, go to revealing
-  const handleVideoEnded = () => {
-    setPhase('revealing')
-  }
-
-  // Fallback: if video fails to load, skip to revealing after a delay
-  const handleVideoError = () => {
-    setTimeout(() => setPhase('revealing'), 500)
-  }
 
   // Play reveal audio when revealing starts
   useEffect(() => {
@@ -93,20 +71,7 @@ const ChestOpenAnimation = ({ result, chestType, onClose }) => {
 
   return createPortal(
     <div className="fixed inset-0 bg-black flex items-center justify-center z-50">
-      {/* Video Phase - fills entire overlay */}
-      {phase === 'video' && (
-        <video
-          ref={videoRef}
-          src={videoSrc}
-          autoPlay
-          playsInline
-          onEnded={handleVideoEnded}
-          onError={handleVideoError}
-          className="max-w-full max-h-full object-contain"
-        />
-      )}
-
-      <div className={`bg-black rounded-2xl max-w-sm w-full p-8 text-center ${phase === 'video' ? 'hidden' : ''}`}>
+      <div className="bg-black rounded-2xl max-w-sm w-full p-8 text-center">
         {/* Revealed Items */}
         {(phase === 'revealing' || phase === 'done') && (
           <div className="space-y-4 animate-fade-in">

@@ -121,6 +121,8 @@ CREATE TABLE public.users (
   active_spaceship_laser text,
   active_hammer_url text,
   name_changed_at timestamp with time zone,
+  energy integer DEFAULT 100 CHECK (energy >= 0 AND energy <= 100),
+  energy_last_reset date DEFAULT CURRENT_DATE,
   CONSTRAINT users_pkey PRIMARY KEY (id),
   CONSTRAINT users_id_fkey FOREIGN KEY (id) REFERENCES auth.users(id)
 );
@@ -1181,6 +1183,7 @@ AS $$
 DECLARE
   pet_record record;
   bonuses json;
+  user_energy integer;
 BEGIN
   SELECT
     up.*,
@@ -1199,6 +1202,13 @@ BEGIN
   IF pet_record IS NULL THEN
     RETURN json_build_object('success', false, 'error', 'No active pet');
   END IF;
+
+  -- Auto-reset energy daily: if last reset was before today, reset to 100
+  UPDATE users
+  SET energy = 100, energy_last_reset = CURRENT_DATE
+  WHERE id = p_user_id AND (energy_last_reset IS NULL OR energy_last_reset < CURRENT_DATE);
+
+  SELECT energy INTO user_energy FROM users WHERE id = p_user_id;
 
   SELECT json_agg(json_build_object(
     'bonus_type', pb.bonus_type,
@@ -1222,7 +1232,7 @@ BEGIN
       'image_url', pet_record.pet_image_url,
       'rarity', pet_record.rarity,
       'happiness', pet_record.happiness,
-      'energy', pet_record.energy,
+      'energy', COALESCE(user_energy, 100),
       'level', pet_record.level,
       'xp', pet_record.xp,
       'evolution_stage', pet_record.evolution_stage,
@@ -1392,7 +1402,7 @@ CREATE TABLE IF NOT EXISTS public.drop_config (
 -- Seed default drop config
 INSERT INTO public.drop_config (config_key, config_value, description) VALUES
 ('exercise_drop_rate', '{"base_chance": 0.30, "rarity_weights": {"common": 60, "uncommon": 25, "rare": 12, "epic": 3}}', 'Chance of item drop on exercise completion (score >= 75%). Rarity weights for which item drops.'),
-('milestone_chests', '{"session_complete": "common", "streak_7": "uncommon", "streak_30": "rare", "challenge_win_top3": "uncommon"}', 'Which chest type to award for each milestone type.')
+('milestone_chests', '{"session_complete": "common", "streak_7": "uncommon", "streak_30": "rare", "challenge_win_top3": "uncommon", "pet_game": "common"}', 'Which chest type to award for each milestone type.')
 ON CONFLICT (config_key) DO NOTHING;
 
 -- ====================================

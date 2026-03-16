@@ -18,14 +18,43 @@ export const PetProvider = ({ children }) => {
   const [userPets, setUserPets] = useState([])
   const [allPets, setAllPets] = useState([])
   const [loading, setLoading] = useState(false)
+  const [userEnergy, setUserEnergy] = useState(100)
 
   useEffect(() => {
     if (user) {
       fetchActivePet()
       fetchUserPets()
+      fetchUserEnergy()
     }
     fetchAllPets()
   }, [user])
+
+  const fetchUserEnergy = async () => {
+    if (!user) return
+    try {
+      const { data, error } = await supabase
+        .from('users')
+        .select('energy, energy_last_reset')
+        .eq('id', user.id)
+        .single()
+
+      if (error) throw error
+
+      const today = new Date().toISOString().split('T')[0]
+      if (!data.energy_last_reset || data.energy_last_reset < today) {
+        // Auto-reset energy daily
+        await supabase
+          .from('users')
+          .update({ energy: 100, energy_last_reset: today })
+          .eq('id', user.id)
+        setUserEnergy(100)
+      } else {
+        setUserEnergy(data.energy ?? 100)
+      }
+    } catch (error) {
+      console.error('Error fetching user energy:', error)
+    }
+  }
 
   const fetchAllPets = async () => {
     try {
@@ -217,11 +246,11 @@ export const PetProvider = ({ children }) => {
     }
   }
 
-  // Drain pet energy (used for tutoring help)
+  // Drain user energy (universal energy pool, not per-pet)
   const drainPetEnergy = async (amount = 5) => {
-    if (!user || !activePet) return { success: false, error: 'No active pet' }
+    if (!user) return { success: false, error: 'No user logged in' }
 
-    const currentEnergy = activePet.energy ?? 100
+    const currentEnergy = userEnergy ?? 100
     if (currentEnergy < amount) {
       return { success: false, error: 'Pet is too tired', currentEnergy }
     }
@@ -230,18 +259,40 @@ export const PetProvider = ({ children }) => {
       const newEnergy = Math.max(0, currentEnergy - amount)
 
       const { error } = await supabase
-        .from('user_pets')
+        .from('users')
         .update({ energy: newEnergy })
-        .eq('id', activePet.id)
+        .eq('id', user.id)
 
       if (error) throw error
 
       // Update local state immediately for responsive UI
-      setActivePet(prev => prev ? { ...prev, energy: newEnergy } : null)
+      setUserEnergy(newEnergy)
 
       return { success: true, newEnergy }
     } catch (error) {
-      console.error('Error draining pet energy:', error)
+      console.error('Error draining energy:', error)
+      return { success: false, error: error.message }
+    }
+  }
+
+  // Restore user energy (used when feeding pet)
+  const restoreUserEnergy = async (amount = 5) => {
+    if (!user) return
+
+    try {
+      const newEnergy = Math.min(100, (userEnergy ?? 100) + amount)
+
+      const { error } = await supabase
+        .from('users')
+        .update({ energy: newEnergy })
+        .eq('id', user.id)
+
+      if (error) throw error
+
+      setUserEnergy(newEnergy)
+      return { success: true, newEnergy }
+    } catch (error) {
+      console.error('Error restoring energy:', error)
       return { success: false, error: error.message }
     }
   }
@@ -301,6 +352,7 @@ export const PetProvider = ({ children }) => {
     userPets,
     allPets,
     loading,
+    userEnergy,
     buyEgg,
     openEgg,
     setActivePetById,
@@ -309,10 +361,12 @@ export const PetProvider = ({ children }) => {
     renamePet,
     updatePetOnActivity,
     drainPetEnergy,
+    restoreUserEnergy,
     getActiveBonuses,
     fetchActivePet,
     fetchUserPets,
-    fetchAllPets
+    fetchAllPets,
+    fetchUserEnergy
   }
 
   return (

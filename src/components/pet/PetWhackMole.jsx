@@ -41,6 +41,7 @@ const PetWhackMole = ({ petImageUrl, petName, onGameEnd, onClose, hammerSkinUrl,
   const [wordPopup, setWordPopup] = useState(null)
   const [chestCollected, setChestCollected] = useState(false)
   const [chestPopup, setChestPopup] = useState(false)
+  const [isChestRound, setIsChestRound] = useState(false)
 
   const timerRef = useRef(null)
   const moleTimersRef = useRef([])
@@ -82,13 +83,12 @@ const PetWhackMole = ({ petImageUrl, petName, onGameEnd, onClose, hammerSkinUrl,
       return { id: i, word, visible: true, hit: false, wrong: false, hiding: false, isChest: false }
     })
 
-    // Spawn chest once per game at the chosen round
+    // Mark chest on the correct mole for the chosen round
     if (chestEnabled && !chestSpawnedRef.current && roundCountRef.current === chestRoundRef.current) {
-      chestSpawnedRef.current = true
-      const emptyHoles = newHoles.filter(h => !h.visible).map(h => h.id)
-      if (emptyHoles.length > 0) {
-        const chestPos = emptyHoles[Math.floor(Math.random() * emptyHoles.length)]
-        newHoles[chestPos] = { id: chestPos, word: null, visible: true, hit: false, wrong: false, hiding: false, isChest: true }
+      const correctHole = newHoles.find(h => h.word === pair.word && h.visible)
+      if (correctHole) {
+        correctHole.isChest = true
+        setIsChestRound(true)
       }
     }
 
@@ -97,8 +97,14 @@ const PetWhackMole = ({ petImageUrl, petName, onGameEnd, onClose, hammerSkinUrl,
     // Auto-hide moles after a delay
     const showTime = MOLE_SHOW_MIN + Math.random() * (MOLE_SHOW_MAX - MOLE_SHOW_MIN)
     const hideTimer = setTimeout(() => {
-      // Start hide animation
-      setHoles(prev => prev.map(h => h.visible && !h.hit ? { ...h, hiding: true } : h))
+      // If chest mole is still visible and not hit, chest is lost
+      setHoles(prev => {
+        if (prev.some(h => h.isChest && h.visible && !h.hit)) {
+          chestSpawnedRef.current = true
+          setIsChestRound(false)
+        }
+        return prev.map(h => h.visible && !h.hit ? { ...h, hiding: true } : h)
+      })
       // If player missed the correct one, break streak
       streakRef.current = 0
       setStreak(0)
@@ -128,6 +134,7 @@ const PetWhackMole = ({ petImageUrl, petName, onGameEnd, onClose, hammerSkinUrl,
     setWordPopup(null)
     setChestCollected(false)
     setChestPopup(false)
+    setIsChestRound(false)
     setPhase('playing')
 
     // Start background music
@@ -228,33 +235,19 @@ const PetWhackMole = ({ petImageUrl, petName, onGameEnd, onClose, hammerSkinUrl,
     const hole = holes[holeIndex]
     if (!hole.visible || hole.hit || hole.hiding) return
 
-    // Chest whacked!
-    if (hole.isChest) {
-      setChestCollected(true)
-      setChestPopup(true)
-      setTimeout(() => setChestPopup(false), 1500)
-      setHoles(prev => prev.map((h, i) => i === holeIndex ? { ...h, hit: true } : h))
-      setFloatingTexts(prev => [...prev, {
-        id: Date.now(),
-        text: '📦 Chest!',
-        x: 50,
-        y: 40,
-        opacity: 1,
-        color: '#f59e0b',
-      }])
-      try {
-        const sound = new Audio(assetUrl('/pet-game/mole-correct.mp3'))
-        sound.volume = 0.5
-        sound.play().catch(() => {})
-      } catch {}
-      return
-    }
-
     const target = targetRef.current
     if (!target) return
 
     if (hole.word === target.word) {
       // CORRECT!
+      // Chest round — correct word grants chest
+      if (hole.isChest && !chestSpawnedRef.current) {
+        chestSpawnedRef.current = true
+        setChestCollected(true)
+        setIsChestRound(false)
+        setChestPopup(true)
+        setTimeout(() => setChestPopup(false), 1500)
+      }
       roundHitRef.current = true
       setWordHistory(prev => prev.map((w, i) => i === prev.length - 1 ? { ...w, correct: true } : w))
       const newStreak = streakRef.current + 1
@@ -625,6 +618,17 @@ const PetWhackMole = ({ petImageUrl, petName, onGameEnd, onClose, hammerSkinUrl,
                 ))}
               </div>
 
+              {/* Chest indicator under progress dots */}
+              {isChestRound && !chestCollected && (
+                <div className="flex items-center justify-center mt-2">
+                  <div className="flex items-center gap-1.5 bg-amber-500/30 rounded-full px-3 py-1" style={{ animation: 'hintPulse 1s ease-in-out infinite' }}>
+                    <img src={assetUrl('/image/chest/legendary-chest.png')} alt="Chest" className="w-6 h-6 object-contain" />
+                    <span className="text-amber-300 text-xs font-bold">Chest round!</span>
+                  </div>
+                </div>
+              )}
+
+
               {/* Next to beat */}
               {nextToBeat && (() => {
                 const gap = nextToBeat.score - score
@@ -673,7 +677,7 @@ const PetWhackMole = ({ petImageUrl, petName, onGameEnd, onClose, hammerSkinUrl,
             {chestPopup && (
               <div className="absolute inset-0 z-20 flex items-center justify-center pointer-events-none">
                 <div className="flex flex-col items-center gap-2" style={{ animation: 'chestPopupAnim 1.5s ease-out forwards' }}>
-                  <span className="text-5xl">📦</span>
+                  <img src={assetUrl('/image/chest/legendary-chest.png')} alt="Chest" className="w-16 h-16 object-contain" />
                   <div className="bg-amber-500 text-white rounded-full px-4 py-1.5 font-bold text-sm shadow-lg">
                     Chest Found!
                   </div>
@@ -694,34 +698,8 @@ const PetWhackMole = ({ petImageUrl, petName, onGameEnd, onClose, hammerSkinUrl,
                     className="relative flex flex-col items-center justify-center cursor-none touch-none"
                     style={{ height: 140, overflow: 'visible' }}
                   >
-                    {/* Chest popping out */}
-                    {hole.isChest && hole.visible && !hole.hit && (
-                      <div
-                        className="flex flex-col items-center"
-                        style={{
-                          animation: hole.hiding
-                            ? 'moleHide 0.3s ease-in forwards'
-                            : 'molePopUp 0.3s ease-out forwards',
-                        }}
-                      >
-                        <div style={{ animation: 'chestBounce 0.8s ease-in-out infinite', filter: 'drop-shadow(0 4px 8px rgba(245,158,11,0.5))' }}>
-                          <span className="text-5xl">📦</span>
-                        </div>
-                      </div>
-                    )}
-
-                    {/* Chest collected animation */}
-                    {hole.isChest && hole.hit && (
-                      <div
-                        className="flex flex-col items-center"
-                        style={{ animation: 'chestCollected 0.5s ease-out forwards' }}
-                      >
-                        <span className="text-5xl">📦</span>
-                      </div>
-                    )}
-
                     {/* Mole popping out */}
-                    {!hole.isChest && hole.visible && !hole.hit && (
+                    {hole.visible && !hole.hit && (
                       <div
                         className="flex flex-col items-center"
                         style={{
@@ -754,7 +732,7 @@ const PetWhackMole = ({ petImageUrl, petName, onGameEnd, onClose, hammerSkinUrl,
                     )}
 
                     {/* Whacked animation */}
-                    {!hole.isChest && hole.hit && (
+                    {hole.hit && (
                       <div
                         className="flex flex-col items-center"
                         style={{ animation: 'moleWhacked 0.4s ease-out forwards' }}
@@ -887,7 +865,7 @@ const PetWhackMole = ({ petImageUrl, petName, onGameEnd, onClose, hammerSkinUrl,
                 <div className="mb-4 flex items-center justify-center gap-2 bg-amber-50 border border-amber-200 rounded-xl px-4 py-2.5"
                   style={{ animation: 'moleScorePopIn 0.6s ease-out 0.7s both' }}
                 >
-                  <span className="text-2xl">📦</span>
+                  <img src={assetUrl('/image/chest/legendary-chest.png')} alt="Chest" className="w-8 h-8 object-contain" />
                   <span className="font-bold text-amber-700 text-sm">Chest collected!</span>
                 </div>
               )}

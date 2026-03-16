@@ -63,10 +63,12 @@ const PetDisplay = () => {
     feedPet,
     playWithPet,
     drainPetEnergy,
+    restoreUserEnergy,
     getActiveBonuses,
+    userEnergy,
   } = usePet();
   const { inventory } = useInventory();
-  const { user, profile } = useAuth();
+  const { user, profile, isAdmin } = useAuth();
   const { getEquippedItemsXPBonus, addXP } = useProgress();
   const [showFeedMenu, setShowFeedMenu] = useState(false);
   const [message, setMessage] = useState(null);
@@ -216,8 +218,9 @@ const PetDisplay = () => {
     const checkTrainingSchedule = async () => {
       const schedule = await fetchPvpSchedule()
       const { available, reason } = checkPvpAvailability(schedule)
-      setTrainingBlocked(!available)
-      if (!available) setTrainingBlockedReason(reason)
+      const blocked = !available && !isAdmin()
+      setTrainingBlocked(blocked)
+      if (blocked) setTrainingBlockedReason(reason)
     }
     checkTrainingSchedule()
   }, [])
@@ -409,6 +412,9 @@ const PetDisplay = () => {
       const energyGained = result.energy_gained || (foodItem ? getFoodStats(foodItem.item.rarity).energy : 15);
       const foodImageUrl = foodItem?.item?.image_url || null;
 
+      // Restore user-level energy
+      await restoreUserEnergy(energyGained);
+
       // Play chomp sound
       const chompSound = new Audio(assetUrl('/sound/chomp.mp3'));
       chompSound.play().catch(() => {});
@@ -436,7 +442,7 @@ const PetDisplay = () => {
       setShowGame('picker');
       return;
     }
-    if ((activePet.energy ?? 100) < 5) {
+    if ((userEnergy ?? 100) < 5) {
       setMessage({ type: 'error', text: `${activePet.nickname || activePet.name} is too tired to train! Feed your pet first. 😴` });
       setTimeout(() => setMessage(null), 3000);
       return;
@@ -569,13 +575,27 @@ const PetDisplay = () => {
     // else keep empty → games fall back to static wordBank.js
   };
 
+  // Level-based score bonus: lower levels get more bonus to keep tournaments fair
+  const getLevelBonusPercent = () => {
+    const level = profile?.current_level || 1;
+    if (level <= 1) return 20;
+    if (level <= 2) return 15;
+    if (level <= 3) return 10;
+    return 0;
+  };
+
   const handleGameEnd = async (score, gameType, extra) => {
     setShowGame(null);
 
-    // Update the pending attempt row with the real score
-    if (pendingAttemptId.current && score > 0) {
+    // Apply level bonus to score
+    const bonusPercent = getLevelBonusPercent();
+    const bonusScore = Math.round(score * bonusPercent / 100);
+    const finalScore = score + bonusScore;
+
+    // Update the pending attempt row with the boosted score
+    if (pendingAttemptId.current && finalScore > 0) {
       await supabase.from('training_scores')
-        .update({ score })
+        .update({ score: finalScore })
         .eq('id', pendingAttemptId.current);
     }
     pendingAttemptId.current = null;
@@ -647,7 +667,7 @@ const PetDisplay = () => {
       const evolved = result.evolution?.evolved;
       const levelUp = result.level_up;
 
-      let message = `${activePet.nickname || activePet.name} scored ${score} points! 💪`;
+      let message = `${activePet.nickname || activePet.name} scored ${finalScore} points! 💪`;
       if (evolved) {
         message = `🌟 ${activePet.nickname || activePet.name} evolved to Stage ${result.evolution.new_stage}! ✨`;
       } else if (levelUp) {
@@ -724,7 +744,7 @@ const PetDisplay = () => {
       return eatingImage;
     }
 
-    if ((activePet.energy ?? 100) < 30) {
+    if ((userEnergy ?? 100) < 30) {
       // Try stage-specific sleepy image
       const sleepyImage = baseImage.replace(/\.([^.]+)$/, "-sleepy.$1");
       return sleepyImage;
@@ -740,7 +760,7 @@ const PetDisplay = () => {
   };
 
   const energyStatus = activePet
-    ? getPetEnergyStatus(activePet.energy ?? 100)
+    ? getPetEnergyStatus(userEnergy ?? 100)
     : null;
 
   // Get background URL (null if none selected)
@@ -919,7 +939,7 @@ const PetDisplay = () => {
                   {/* Fill bar */}
                   <div className="absolute inset-y-0 left-0"
                     style={{
-                      width: `${activePet.energy ?? 100}%`,
+                      width: `${userEnergy ?? 100}%`,
                       background: 'linear-gradient(180deg, #fde047 0%, #f59e0b 40%, #d97706 100%)',
                       boxShadow: 'inset 0 2px 3px rgba(255,255,255,0.4)',
                       borderRadius: '1px 4px 4px 1px',
@@ -1489,19 +1509,19 @@ const PetDisplay = () => {
                     onChange={(e) => setChatInput(e.target.value)}
                     onKeyDown={(e) => e.key === "Enter" && handleSendChat()}
                     placeholder={
-                      (activePet.energy ?? 100) < 10
+                      (userEnergy ?? 100) < 10
                         ? "Pet đang mệt..."
                         : `Message ${activePet.nickname || activePet.name}...`
                     }
                     className="flex-1 px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-pink-500 text-sm"
-                    disabled={chatLoading || (activePet.energy ?? 100) < 10}
+                    disabled={chatLoading || (userEnergy ?? 100) < 10}
                   />
                   <button
                     onClick={handleSendChat}
                     disabled={
                       chatLoading ||
                       !chatInput.trim() ||
-                      (activePet.energy ?? 100) < 10
+                      (userEnergy ?? 100) < 10
                     }
                     className="px-4 py-2 bg-pink-500 text-white rounded-lg hover:bg-pink-600 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
                   >
@@ -1510,8 +1530,8 @@ const PetDisplay = () => {
                 </div>
                 <div className="flex items-center justify-between text-xs text-gray-500">
                   <span>
-                    <img src={assetUrl('/image/dashboard/energy.svg')} alt="energy" className="inline w-3.5 h-3.5 mr-0.5" />{activePet.energy ?? 100}/100{" "}
-                    {(activePet.energy ?? 100) < 10 && "(Mệt rồi!)"}
+                    <img src={assetUrl('/image/dashboard/energy.svg')} alt="energy" className="inline w-3.5 h-3.5 mr-0.5" />{userEnergy ?? 100}/100{" "}
+                    {(userEnergy ?? 100) < 10 && "(Mệt rồi!)"}
                   </span>
                   <span>-5 energy/message</span>
                 </div>
@@ -1690,7 +1710,7 @@ const PetDisplay = () => {
                 </div>
                 <div className="bg-orange-50 border border-orange-100 rounded-lg px-3 py-2.5 mt-2.5 flex items-center justify-between">
                   <span className="font-semibold text-orange-800 text-xs">Auto Regen</span>
-                  <span className="font-bold text-orange-600 text-xs">+5 every 15 min</span>
+                  <span className="font-bold text-orange-600 text-xs">+100 every day</span>
                 </div>
                 <p className="text-[10px] text-gray-400 mt-2 text-center">
                   Feed your pet to restore energy instantly!

@@ -1,27 +1,34 @@
 import { useState, useEffect } from 'react'
 import { supabase } from '../../supabase/client'
+import { assetUrl } from '../../hooks/useBranding'
 import {
-  Plus, Edit2, Trash2, Eye, EyeOff, Target, Star, Trophy,
-  Flame, Swords, Gamepad2, BookOpen, GraduationCap, Zap,
-  Gem, Medal, Gift, PackageOpen, Joystick, X, Save, Copy
+  Plus, Edit2, Trash2, Eye, EyeOff, X, Save, Copy
 } from 'lucide-react'
 
-const ICON_OPTIONS = [
-  { value: 'target', label: 'Target', Icon: Target },
-  { value: 'star', label: 'Star', Icon: Star },
-  { value: 'trophy', label: 'Trophy', Icon: Trophy },
-  { value: 'flame', label: 'Flame', Icon: Flame },
-  { value: 'swords', label: 'Swords', Icon: Swords },
-  { value: 'gamepad-2', label: 'Gamepad', Icon: Gamepad2 },
-  { value: 'book-open', label: 'Book', Icon: BookOpen },
-  { value: 'graduation-cap', label: 'Graduation', Icon: GraduationCap },
-  { value: 'zap', label: 'Zap', Icon: Zap },
-  { value: 'gem', label: 'Gem', Icon: Gem },
-  { value: 'medal', label: 'Medal', Icon: Medal },
-  { value: 'gift', label: 'Gift', Icon: Gift },
-  { value: 'package-open', label: 'Package', Icon: PackageOpen },
-  { value: 'joystick', label: 'Joystick', Icon: Joystick },
-]
+const MISSION_IMAGE_MAP = {
+  'target': '/pet-game/mole-normal.png',
+  'star': '/image/star_fill.png',
+  'trophy': '/icon/profile/paper.svg',
+  'flame': '/icon/profile/streak.svg',
+  'swords': '/icon/dashboard/pvp.png',
+  'gamepad-2': '⌨️',
+  'book-open': '🧩',
+  'graduation-cap': '/pet-game/mole-whacked.png',
+  'zap': '/image/chest/legendary-chest.png',
+  'gem': '/pet-game/astro/alien1.png',
+  'medal': '/image/dashboard/pet-train.svg',
+  'gift': '/image/dashboard/pet-scramble.jpg',
+  'package-open': '/image/inventory/spaceship/phantom-voyager.png',
+  'joystick': '/pet-game/astro/alien4.png',
+}
+
+const DEFAULT_MISSION_IMAGE = '/pet-game/mole-normal.png'
+
+const ICON_OPTIONS = Object.entries(MISSION_IMAGE_MAP).map(([value, image]) => ({
+  value,
+  label: value.replace(/-/g, ' ').replace(/\b\w/g, c => c.toUpperCase()),
+  image,
+}))
 
 const GOAL_TYPES = [
   { value: 'complete_exercises', label: 'Hoàn thành bài tập' },
@@ -181,7 +188,7 @@ const MissionManagement = () => {
   }
 
   const filtered = filter === 'all' ? missions : missions.filter(m => m.mission_type === filter)
-  const getIconComp = (iconName) => ICON_OPTIONS.find(o => o.value === iconName)?.Icon || Target
+  const getIconImage = (iconName) => MISSION_IMAGE_MAP[iconName] || DEFAULT_MISSION_IMAGE
   const getTypeColor = (type) => MISSION_TYPES.find(t => t.value === type)?.color || 'gray'
 
   if (loading) {
@@ -233,18 +240,21 @@ const MissionManagement = () => {
       <div className="space-y-3">
         {filtered.length === 0 ? (
           <div className="text-center py-12 bg-white rounded-xl border">
-            <Target className="w-12 h-12 text-gray-300 mx-auto mb-3" />
+            <img src={assetUrl(DEFAULT_MISSION_IMAGE)} alt="" className="w-12 h-12 object-contain mx-auto mb-3 opacity-30" />
             <p className="text-gray-500">Chưa có nhiệm vụ nào</p>
           </div>
         ) : (
           filtered.map(m => {
-            const IconComp = getIconComp(m.icon)
             const typeColor = getTypeColor(m.mission_type)
             return (
               <div key={m.id} className={`bg-white rounded-xl border p-4 flex items-center gap-4 ${!m.is_active ? 'opacity-50' : ''}`}>
                 {/* Icon */}
                 <div className={`w-10 h-10 rounded-lg flex items-center justify-center bg-${typeColor}-100`}>
-                  <IconComp className={`w-5 h-5 text-${typeColor}-600`} />
+                  {getIconImage(m.icon).startsWith('/') ? (
+                    <img src={assetUrl(getIconImage(m.icon))} alt="" className="w-8 h-8 object-contain" />
+                  ) : (
+                    <span className="text-xl">{getIconImage(m.icon)}</span>
+                  )}
                 </div>
 
                 {/* Info */}
@@ -342,15 +352,27 @@ const MissionManagement = () => {
                 </div>
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">Icon</label>
-                  <select
-                    value={form.icon}
-                    onChange={e => setForm({ ...form, icon: e.target.value })}
-                    className="w-full border rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                  >
+                  <div className="grid grid-cols-7 gap-1.5">
                     {ICON_OPTIONS.map(o => (
-                      <option key={o.value} value={o.value}>{o.label}</option>
+                      <button
+                        key={o.value}
+                        type="button"
+                        onClick={() => setForm({ ...form, icon: o.value })}
+                        className={`p-1.5 rounded-lg border-2 transition-all ${
+                          form.icon === o.value
+                            ? 'border-blue-500 bg-blue-50'
+                            : 'border-transparent hover:bg-gray-100'
+                        }`}
+                        title={o.label}
+                      >
+                        {o.image.startsWith('/') ? (
+                          <img src={assetUrl(o.image)} alt={o.label} className="w-8 h-8 object-contain mx-auto" />
+                        ) : (
+                          <span className="text-xl block text-center">{o.image}</span>
+                        )}
+                      </button>
                     ))}
-                  </select>
+                  </div>
                 </div>
               </div>
 

@@ -3,56 +3,56 @@ import { useMissions } from '../../hooks/useMissions'
 import { useAuth } from '../../hooks/useAuth'
 import { assetUrl } from '../../hooks/useBranding'
 import {
-  Target, Star, Trophy, Flame, Swords, Gamepad2,
-  BookOpen, GraduationCap, Zap, Gem, Medal, Gift,
-  PackageOpen, Joystick, CheckCircle, Lock, Clock,
-  ChevronRight, Sparkles
+  CheckCircle, Clock,
+  ChevronRight, Sparkles, Flame, Star
 } from 'lucide-react'
 
-const ICON_MAP = {
-  'target': Target,
-  'star': Star,
-  'trophy': Trophy,
-  'flame': Flame,
-  'swords': Swords,
-  'gamepad-2': Gamepad2,
-  'book-open': BookOpen,
-  'graduation-cap': GraduationCap,
-  'zap': Zap,
-  'gem': Gem,
-  'medal': Medal,
-  'gift': Gift,
-  'package-open': PackageOpen,
-  'joystick': Joystick,
+const MISSION_IMAGE_MAP = {
+  'target': '/pet-game/mole-normal.png',
+  'star': '/image/star_fill.png',
+  'trophy': '/icon/profile/paper.svg',
+  'flame': '/icon/profile/streak.svg',
+  'swords': '/icon/dashboard/pvp.png',
+  'gamepad-2': '⌨️',
+  'book-open': '🧩',
+  'graduation-cap': '/pet-game/mole-whacked.png',
+  'zap': '/image/chest/legendary-chest.png',
+  'gem': '/pet-game/astro/alien1.png',
+  'medal': '/image/dashboard/pet-train.svg',
+  'gift': '/image/dashboard/pet-scramble.jpg',
+  'package-open': '/image/inventory/spaceship/phantom-voyager.png',
+  'joystick': '/pet-game/astro/alien4.png',
 }
+
+const DEFAULT_MISSION_IMAGE = '/pet-game/mole-normal.png'
 
 const TAB_CONFIG = {
   daily: {
     label: 'Hàng ngày',
-    color: 'bg-amber-500',
-    bgColor: 'bg-amber-50',
-    borderColor: 'border-amber-200',
-    activeRing: 'ring-amber-400',
+    color: 'bg-blue-500',
+    bgColor: 'bg-blue-50',
+    borderColor: 'border-blue-200',
+    activeRing: 'ring-blue-400',
     icon: Flame,
     emptyText: 'Không có nhiệm vụ hàng ngày',
     emptyDesc: 'Quay lại vào ngày mai!',
   },
   weekly: {
     label: 'Hàng tuần',
-    color: 'bg-blue-500',
-    bgColor: 'bg-blue-50',
-    borderColor: 'border-blue-200',
-    activeRing: 'ring-blue-400',
+    color: 'bg-purple-500',
+    bgColor: 'bg-purple-50',
+    borderColor: 'border-purple-200',
+    activeRing: 'ring-purple-400',
     icon: Star,
     emptyText: 'Không có nhiệm vụ hàng tuần',
     emptyDesc: 'Quay lại vào tuần sau!',
   },
   special: {
     label: 'Đặc biệt',
-    color: 'bg-purple-500',
-    bgColor: 'bg-purple-50',
-    borderColor: 'border-purple-200',
-    activeRing: 'ring-purple-400',
+    color: 'bg-orange-500',
+    bgColor: 'bg-orange-50',
+    borderColor: 'border-orange-200',
+    activeRing: 'ring-orange-400',
     icon: Sparkles,
     emptyText: 'Không có nhiệm vụ đặc biệt',
     emptyDesc: 'Hãy chờ sự kiện tiếp theo!',
@@ -129,50 +129,7 @@ const MissionBoard = () => {
 
   return (
     <div className="max-w-2xl mx-auto pb-24 md:pb-8 md:pt-8">
-      {/* Header Banner */}
-      <div className="relative overflow-hidden rounded-2xl bg-indigo-600 p-6 mb-6 shadow-xl">
-        <div className="absolute inset-0 opacity-20">
-          <div className="absolute top-2 right-8 w-20 h-20 rounded-full bg-white/20 blur-xl" />
-          <div className="absolute bottom-2 left-12 w-32 h-32 rounded-full bg-white/10 blur-2xl" />
-        </div>
-        <div className="relative z-10">
-          <div className="flex items-center justify-between">
-            <div>
-              <h1 className="text-2xl font-bold text-white flex items-center gap-2">
-                <Target className="w-7 h-7" />
-                Nhiệm Vụ
-              </h1>
-              <p className="text-white/80 text-sm mt-1">Hoàn thành nhiệm vụ để nhận thưởng!</p>
-            </div>
-            {unclaimedCount > 0 && (
-              <button
-                onClick={handleClaimAll}
-                disabled={claimingAll}
-                className="bg-white/20 hover:bg-white/30 backdrop-blur-sm text-white px-4 py-2 rounded-xl font-medium text-sm transition-all flex items-center gap-2 border border-white/30"
-              >
-                <Gift className="w-4 h-4" />
-                {claimingAll ? 'Đang nhận...' : `Nhận tất cả (${unclaimedCount})`}
-              </button>
-            )}
-          </div>
 
-          {/* Progress Overview */}
-          <div className="mt-4 grid grid-cols-3 gap-3">
-            {Object.entries(TAB_CONFIG).map(([key, config]) => {
-              const missionList = missions[key] || []
-              const done = missionList.filter(m => m.status === 'completed' || m.status === 'claimed').length
-              const total = missionList.length
-              return (
-                <div key={key} className="bg-white/10 backdrop-blur-sm rounded-xl p-3 text-center">
-                  <config.icon className="w-5 h-5 text-white mx-auto mb-1" />
-                  <div className="text-white font-bold text-lg">{done}/{total}</div>
-                  <div className="text-white/60 text-xs">{config.label}</div>
-                </div>
-              )
-            })}
-          </div>
-        </div>
-      </div>
 
       {/* Reward Toast */}
       {claimResult && (
@@ -268,7 +225,7 @@ const MissionBoard = () => {
 }
 
 const MissionCard = ({ mission, tabConfig, onClaim, claiming }) => {
-  const IconComponent = ICON_MAP[mission.icon] || Target
+  const missionImage = MISSION_IMAGE_MAP[mission.icon] || DEFAULT_MISSION_IMAGE
   const progress = mission.progress || 0
   const goal = mission.goal_value || 1
   const percentage = Math.min((progress / goal) * 100, 100)
@@ -303,8 +260,10 @@ const MissionCard = ({ mission, tabConfig, onClaim, claiming }) => {
           }`}>
             {isClaimed ? (
               <CheckCircle className="w-6 h-6 text-gray-400" />
+            ) : missionImage.startsWith('/') ? (
+              <img src={assetUrl(missionImage)} alt="" className="w-10 h-10 object-contain" />
             ) : (
-              <IconComponent className={`w-6 h-6 ${isCompleted ? 'text-white' : 'text-gray-500'}`} />
+              <span className="text-2xl">{missionImage}</span>
             )}
           </div>
 
@@ -314,30 +273,19 @@ const MissionCard = ({ mission, tabConfig, onClaim, claiming }) => {
               <h3 className={`font-semibold truncate ${isClaimed ? 'text-gray-400 line-through' : 'text-gray-800'}`}>
                 {mission.title}
               </h3>
-              {/* Rewards badge */}
-              <div className="flex items-center gap-2 flex-shrink-0">
+              {/* Rewards */}
+              <div className="flex items-center gap-3 flex-shrink-0">
                 {mission.reward_xp > 0 && (
-                  <span className={`flex items-center gap-1 text-xs font-bold px-2 py-1 rounded-full ${
-                    isClaimed ? 'bg-gray-100 text-gray-400' : 'bg-amber-100 text-amber-700'
-                  }`}>
-                    {mission.reward_xp}
-                    <img src={assetUrl('/image/study/xp.png')} alt="XP" className="w-3.5 h-3.5" />
-                  </span>
+                  <div className={`flex flex-col items-center ${isClaimed ? 'opacity-40' : ''}`}>
+                    <img src={assetUrl('/image/study/xp.png')} alt="XP" className="w-6 h-6" />
+                    <span className="text-[10px] font-bold text-amber-700">{mission.reward_xp}</span>
+                  </div>
                 )}
                 {mission.reward_gems > 0 && (
-                  <span className={`flex items-center gap-1 text-xs font-bold px-2 py-1 rounded-full ${
-                    isClaimed ? 'bg-gray-100 text-gray-400' : 'bg-purple-100 text-purple-700'
-                  }`}>
-                    {mission.reward_gems}
-                    <img src={assetUrl('/image/study/gem.png')} alt="Gems" className="w-3.5 h-3.5" />
-                  </span>
-                )}
-                {mission.reward_item_name && (
-                  <span className={`flex items-center gap-1 text-xs font-bold px-2 py-1 rounded-full ${
-                    isClaimed ? 'bg-gray-100 text-gray-400' : 'bg-emerald-100 text-emerald-700'
-                  }`}>
-                    {mission.reward_item_quantity || 1}x {mission.reward_item_name}
-                  </span>
+                  <div className={`flex flex-col items-center ${isClaimed ? 'opacity-40' : ''}`}>
+                    <img src={assetUrl('/image/study/gem.png')} alt="Gems" className="w-6 h-6" />
+                    <span className="text-[10px] font-bold text-purple-700">{mission.reward_gems}</span>
+                  </div>
                 )}
               </div>
             </div>
@@ -348,19 +296,7 @@ const MissionCard = ({ mission, tabConfig, onClaim, claiming }) => {
 
             {/* Progress bar */}
             <div className="mt-3">
-              <div className="flex items-center justify-between text-xs mb-1">
-                <span className={isClaimed ? 'text-gray-300' : 'text-gray-500'}>
-                  {progress}/{goal}
-                </span>
-                <span className={`font-semibold ${
-                  isClaimed ? 'text-gray-300'
-                  : isCompleted ? 'text-green-600'
-                  : 'text-gray-600'
-                }`}>
-                  {Math.round(percentage)}%
-                </span>
-              </div>
-              <div className={`h-2 rounded-full overflow-hidden ${isClaimed ? 'bg-gray-100' : 'bg-gray-200'}`}>
+              <div className={`relative h-5 rounded-full overflow-hidden ${isClaimed ? 'bg-gray-100' : 'bg-gray-200'}`}>
                 <div
                   className={`h-full rounded-full transition-all duration-700 ${
                     isClaimed
@@ -371,6 +307,11 @@ const MissionCard = ({ mission, tabConfig, onClaim, claiming }) => {
                   }`}
                   style={{ width: `${percentage}%` }}
                 />
+                <div className="absolute inset-0 flex items-center justify-center text-xs">
+                  <span className={`font-semibold ${isClaimed ? 'text-gray-400' : 'text-gray-700'}`}>
+                    {progress}/{goal}
+                  </span>
+                </div>
               </div>
             </div>
           </div>
@@ -394,7 +335,7 @@ const MissionCard = ({ mission, tabConfig, onClaim, claiming }) => {
               </>
             ) : (
               <>
-                <Gift className="w-4 h-4" />
+                <Sparkles className="w-4 h-4" />
                 Nhận thưởng
               </>
             )}

@@ -61,7 +61,7 @@ const FillBlankExercise = ({ testMode = false, exerciseData = null, onAnswersCol
   const challengeId = urlParams.get('challengeId') || null
   const isChallenge = urlParams.get('isChallenge') === 'true'
   const { currentMeme, showMeme, playFeedback, playCelebration, passGif } = useFeedback()
-  const { activePet, drainPetEnergy } = usePet()
+  const { activePet, drainPetEnergy, userEnergy } = usePet()
   const [exercise, setExercise] = useState(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState(null)
@@ -1639,9 +1639,9 @@ const FillBlankExercise = ({ testMode = false, exerciseData = null, onAnswersCol
                   <div className="flex items-center gap-3">
                     <button
                       onClick={handleAskPet}
-                      disabled={(activePet.energy ?? 100) < 10}
+                      disabled={(userEnergy ?? 100) < 10}
                       className={`flex items-center gap-2 px-4 py-2 font-medium rounded-lg transition-all shadow-sm ${
-                        (activePet.energy ?? 100) < 10
+                        (userEnergy ?? 100) < 10
                           ? 'bg-gray-300 text-gray-500 cursor-not-allowed'
                           : 'bg-purple-500 hover:bg-purple-600 text-white hover:shadow-md'
                       }`}
@@ -1650,8 +1650,8 @@ const FillBlankExercise = ({ testMode = false, exerciseData = null, onAnswersCol
                       Hỏi {activePet.nickname || activePet.name} giải thích
                     </button>
                     <span className="text-xs text-gray-500">
-                      ⚡ {activePet.energy ?? 100}/100
-                      {(activePet.energy ?? 100) < 10 && ' (Mệt rồi!)'}
+                      ⚡ {userEnergy ?? 100}/100
+                      {(userEnergy ?? 100) < 10 && ' (Mệt rồi!)'}
                     </span>
                   </div>
                 ) : (
