@@ -839,7 +839,8 @@ const PetWordType = ({ petImageUrl, petName, onGameEnd, onClose, wordBank: wordB
             </button>
           </div>
 
-          {/* Progress dots */}
+          {/* Progress dots - hidden in PvP */}
+          {!isRealtimePvP && (
           <div className="absolute top-[76px] left-0 right-0 flex items-center justify-center gap-1.5 z-10 pointer-events-none">
             {Array.from({ length: 10 }, (_, i) => (
               <div
@@ -878,6 +879,7 @@ const PetWordType = ({ petImageUrl, petName, onGameEnd, onClose, wordBank: wordB
               </div>
             ))}
           </div>
+          )}
 
           {/* Chest indicator under progress dots */}
           {isChestWord && !chestCollected && chestTimer > 0 && (

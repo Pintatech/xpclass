@@ -12,7 +12,6 @@ import PetFlappyGame from '../pet/PetFlappyGame'
 import PetWordType from '../pet/PetWordType'
 import PetSayItRight from '../pet/PetSayItRight'
 import PvPRealtimeWordType from './PvPRealtimeWordType'
-import PvPMatchmaking from './PvPMatchmaking'
 
 import { assetUrl } from '../../hooks/useBranding'
 import { fetchPvpSchedule, checkPvpAvailability } from '../../utils/pvpSchedule'
@@ -174,7 +173,7 @@ const PvPChallengeModal = ({ opponent, onClose }) => {
   const [pvpStatus, setPvpStatus] = useState({ available: true, reason: '' })
   const [realtimeMode, setRealtimeMode] = useState(false)
   const [wordSeed, setWordSeed] = useState(null)
-  const [showMatchmaking, setShowMatchmaking] = useState(false)
+
 
   useEffect(() => {
     fetchWordBank()
@@ -352,10 +351,6 @@ const PvPChallengeModal = ({ opponent, onClose }) => {
     return renderGame()
   }
 
-  if (showMatchmaking) {
-    return <PvPMatchmaking onClose={() => setShowMatchmaking(false)} wordBank={wordBank} />
-  }
-
   return createPortal(
     <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-black/60 backdrop-blur-sm">
       <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md mx-4 overflow-hidden">
@@ -467,17 +462,6 @@ const PvPChallengeModal = ({ opponent, onClose }) => {
               ))}
             </div>
 
-            <div className="mt-3 pt-3 border-t border-gray-100">
-              <button
-                onClick={() => setShowMatchmaking(true)}
-                className="w-full flex items-center justify-center gap-2 p-3 rounded-xl border-2 border-purple-200 bg-gradient-to-r from-purple-50 to-indigo-50 hover:border-purple-400 hover:from-purple-100 hover:to-indigo-100 transition-all active:scale-[0.98]"
-              >
-                <img src={assetUrl('/icon/dashboard/pvp.png')} alt="PvP" className="w-5 h-5" />
-                <span className="font-bold text-purple-700 text-sm">Quick Match</span>
-                <span className="text-[10px] bg-purple-500 text-white px-1.5 py-0.5 rounded font-bold">LIVE</span>
-              </button>
-              <p className="text-[11px] text-gray-400 mt-1">Find a random opponent instantly</p>
-            </div>
             </>
             )}
           </div>

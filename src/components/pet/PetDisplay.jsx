@@ -21,6 +21,7 @@ import PetAstroBlast from "./PetAstroBlast";
 import PetMatchGame from "./PetMatchGame";
 import PetWordType from "./PetWordType";
 import PetSayItRight from "./PetSayItRight";
+import PvPMatchmaking from "../pvp/PvPMatchmaking";
 
 import { assetUrl } from '../../hooks/useBranding';
 import { fetchPvpSchedule, checkPvpAvailability } from '../../utils/pvpSchedule';
@@ -98,6 +99,7 @@ const PetDisplay = () => {
   const [chestEnabled, setChestEnabled] = useState(false); // whether chest can appear in games
   const [trainingBlocked, setTrainingBlocked] = useState(false); // true when outside allowed schedule
   const [trainingBlockedReason, setTrainingBlockedReason] = useState('');
+  const [pvpWaitingCount, setPvpWaitingCount] = useState(0);
   const [showChat, setShowChat] = useState(false);
   const [chatInput, setChatInput] = useState("");
   const [chatMessages, setChatMessages] = useState([]);
@@ -223,6 +225,20 @@ const PetDisplay = () => {
       if (blocked) setTrainingBlockedReason(reason)
     }
     checkTrainingSchedule()
+  }, [])
+
+  // Poll PvP matchmaking waiting count
+  useEffect(() => {
+    const fetchWaitingCount = async () => {
+      const { count } = await supabase.from('pvp_matchmaking')
+        .select('id', { count: 'exact', head: true })
+        .eq('game_type', 'wordtype')
+        .eq('status', 'waiting')
+      setPvpWaitingCount(count || 0)
+    }
+    fetchWaitingCount()
+    const interval = setInterval(fetchWaitingCount, 10000)
+    return () => clearInterval(interval)
   }, [])
 
   // Scroll chat to bottom when new messages arrive (only inside chat container)
@@ -1299,6 +1315,11 @@ const PetDisplay = () => {
                     </span>
                   </div>
                 )}
+                {pvpWaitingCount > 0 && (
+                  <span className="absolute -top-1 -right-1 bg-purple-500 text-white text-[10px] font-bold w-5 h-5 rounded-full flex items-center justify-center animate-pulse shadow-lg">
+                    {pvpWaitingCount}
+                  </span>
+                )}
               </button>
             </div>
 
@@ -1827,6 +1848,20 @@ const PetDisplay = () => {
               </button>
               )}
 
+              <button
+                onClick={() => setShowGame('quickmatch')}
+                className="relative flex flex-col items-center gap-2 p-4 rounded-xl border-2 border-purple-200 hover:border-purple-400 hover:bg-purple-50 transition-all group col-span-2"
+              >
+                <img src={assetUrl('/icon/dashboard/pvp.png')} alt="PvP" className="w-12 h-12 object-contain group-hover:scale-110 transition-transform" />
+                <div className="flex items-center gap-1">
+                  <span className="font-bold text-purple-700 text-xs">Quick Match</span>
+                  <span className="text-[10px] bg-purple-500 text-white px-1.5 py-0.5 rounded font-bold">LIVE</span>
+                </div>
+                {pvpWaitingCount > 0 && (
+                  <span className="text-[11px] text-purple-500 font-semibold animate-pulse">{pvpWaitingCount} waiting</span>
+                )}
+              </button>
+
             </div>
             <button
               onClick={() => setShowGame(null)}
@@ -1839,6 +1874,11 @@ const PetDisplay = () => {
           </div>
 
         </div>
+      )}
+
+      {/* Quick Match */}
+      {showGame === 'quickmatch' && (
+        <PvPMatchmaking onClose={() => setShowGame(null)} wordBank={wordBank} />
       )}
 
       {/* Catch Mini-Game */}

@@ -219,20 +219,21 @@ const PvPMatchmaking = ({ onClose, wordBank = [] }) => {
   // Auto-cancel after 60 seconds
   useEffect(() => {
     if (searchTime >= 60 && phase === 'searching') {
+      if (queueRowId.current) {
+        supabase.from('pvp_matchmaking').delete().eq('id', queueRowId.current)
+        queueRowId.current = null
+      }
       setError('No opponents found. Try again later.')
     }
   }, [searchTime, phase])
 
-  const handleClose = useCallback(() => {
-    if (queueRowId.current) {
-      supabase.from('pvp_matchmaking').delete().eq('id', queueRowId.current)
-    }
-    // Clean up challenge if matched but not yet playing
+  const handleClose = useCallback(async () => {
+    await supabase.from('pvp_matchmaking').delete().eq('user_id', user.id)
     if (challengeId && phase !== 'playing') {
-      supabase.from('pvp_challenges').delete().eq('id', challengeId)
+      await supabase.from('pvp_challenges').delete().eq('id', challengeId)
     }
     onClose()
-  }, [onClose, challengeId, phase])
+  }, [onClose, challengeId, phase, user.id])
 
   // Playing phase
   if (phase === 'playing' && challengeId && wordSeed) {

@@ -45,6 +45,14 @@ const PvPRealtimeWordType = ({
   const channelRef = useRef(null)
   const opponentProgressRef = useRef({ score: 0, wordsCompleted: 0, wordIndex: 0 })
   const myScoreRef = useRef(null)
+  const opponentTimeoutRef = useRef(null)
+
+  const resetOpponentTimeout = useCallback(() => {
+    if (opponentTimeoutRef.current) clearTimeout(opponentTimeoutRef.current)
+    opponentTimeoutRef.current = setTimeout(() => {
+      setOpponentLeft(true)
+    }, 15000)
+  }, [])
 
   // Fetch opponent's active pet image from DB
   useEffect(() => {
@@ -77,15 +85,18 @@ const PvPRealtimeWordType = ({
     channel
       .on('broadcast', { event: 'player_ready' }, (payload) => {
         if (payload.payload?.userId !== user.id) {
+          resetOpponentTimeout()
           setOpponentReady(true)
           if (payload.payload?.petUrl) setOpponentPetUrl(payload.payload.petUrl)
         }
       })
       .on('broadcast', { event: 'game_start' }, () => {
+        resetOpponentTimeout()
         setPhase('countdown')
       })
       .on('broadcast', { event: 'progress' }, (payload) => {
         if (payload.payload?.userId !== user.id) {
+          resetOpponentTimeout()
           const p = { score: payload.payload.score, wordsCompleted: payload.payload.wordsCompleted, wordIndex: payload.payload.wordIndex }
           opponentProgressRef.current = p
           setOpponentProgress(p)
@@ -93,6 +104,7 @@ const PvPRealtimeWordType = ({
       })
       .on('broadcast', { event: 'game_end' }, (payload) => {
         if (payload.payload?.userId !== user.id) {
+          if (opponentTimeoutRef.current) clearTimeout(opponentTimeoutRef.current)
           const p = { score: payload.payload.score, wordsCompleted: payload.payload.wordsCompleted }
           opponentProgressRef.current = p
           setOpponentProgress(p)
@@ -101,11 +113,13 @@ const PvPRealtimeWordType = ({
       })
       .on('broadcast', { event: 'player_left' }, (payload) => {
         if (payload.payload?.userId !== user.id) {
+          if (opponentTimeoutRef.current) clearTimeout(opponentTimeoutRef.current)
           setOpponentLeft(true)
         }
       })
       .on('broadcast', { event: 'taunt' }, (payload) => {
         if (payload.payload?.userId !== user.id) {
+          resetOpponentTimeout()
           setReceivedTaunt(payload.payload.taunt)
         }
       })
@@ -115,9 +129,12 @@ const PvPRealtimeWordType = ({
 
     channelRef.current = channel
     return () => {
+      if (opponentTimeoutRef.current) clearTimeout(opponentTimeoutRef.current)
       supabase.removeChannel(channel)
+      // Clean up matchmaking row on unmount
+      supabase.from('pvp_matchmaking').delete().eq('user_id', user.id)
     }
-  }, [challengeId, user.id])
+  }, [challengeId, user.id, resetOpponentTimeout])
 
   // When both players ready, challenger sends game_start
   useEffect(() => {
@@ -133,6 +150,16 @@ const PvPRealtimeWordType = ({
 
   // When opponent sends game_start (non-challenger receives it)
   // Already handled in the channel listener above
+
+  // Start opponent timeout when game begins
+  useEffect(() => {
+    if (phase === 'playing') {
+      resetOpponentTimeout()
+    }
+    return () => {
+      if (opponentTimeoutRef.current) clearTimeout(opponentTimeoutRef.current)
+    }
+  }, [phase, resetOpponentTimeout])
 
   // Countdown timer
   useEffect(() => {
