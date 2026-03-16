@@ -4,7 +4,6 @@ import { X, Wifi, WifiOff } from 'lucide-react'
 import { supabase } from '../../supabase/client'
 import { useAuth } from '../../hooks/useAuth'
 import { usePet } from '../../hooks/usePet'
-import { assetUrl } from '../../hooks/useBranding'
 import { seededPickGameWords } from '../../utils/seededRandom'
 import PetWordType from '../pet/PetWordType'
 import WORD_BANK from '../pet/wordBank'
@@ -30,8 +29,8 @@ const PvPRealtimeWordType = ({
   const [countdown, setCountdown] = useState(3)
   const [opponentProgress, setOpponentProgress] = useState({ score: 0, wordsCompleted: 0, wordIndex: 0 })
   const [opponentFinished, setOpponentFinished] = useState(false)
-  const [myScore, setMyScore] = useState(null)
   const [connectionStatus, setConnectionStatus] = useState('connecting')
+  const [opponentPetUrl, setOpponentPetUrl] = useState(pvpOpponentPetUrl)
 
   const channelRef = useRef(null)
   const opponentProgressRef = useRef({ score: 0, wordsCompleted: 0, wordIndex: 0 })
@@ -52,6 +51,7 @@ const PvPRealtimeWordType = ({
       .on('broadcast', { event: 'player_ready' }, (payload) => {
         if (payload.payload?.userId !== user.id) {
           setOpponentReady(true)
+          if (payload.payload?.petUrl) setOpponentPetUrl(payload.payload.petUrl)
         }
       })
       .on('broadcast', { event: 'game_start' }, () => {
@@ -110,12 +110,13 @@ const PvPRealtimeWordType = ({
 
   const handleReady = useCallback(() => {
     setMyReady(true)
+    const myPetUrl = activePet?.image_url || null
     channelRef.current?.send({
       type: 'broadcast',
       event: 'player_ready',
-      payload: { userId: user.id },
+      payload: { userId: user.id, petUrl: myPetUrl },
     })
-  }, [user.id])
+  }, [user.id, activePet])
 
   const handleProgressUpdate = useCallback((progress) => {
     channelRef.current?.send({
@@ -127,7 +128,6 @@ const PvPRealtimeWordType = ({
 
   const handleGameEnd = useCallback(async (score, extras) => {
     myScoreRef.current = score
-    setMyScore(score)
 
     // Broadcast final score
     channelRef.current?.send({
@@ -154,7 +154,6 @@ const PvPRealtimeWordType = ({
         const { data: fresh } = await supabase.from('pvp_challenges')
           .select('challenger_score').eq('id', challengeId).single()
         const challengerScore = fresh?.challenger_score ?? opScore
-        const winner = score > challengerScore ? user.id : score < challengerScore ? null : null
         // Need challenger_id if they lost
         const { data: challengeData } = await supabase.from('pvp_challenges')
           .select('challenger_id').eq('id', challengeId).single()
@@ -219,8 +218,8 @@ const PvPRealtimeWordType = ({
             <span className="text-3xl font-black text-white/30">VS</span>
 
             <div className="flex flex-col items-center gap-2">
-              {pvpOpponentPetUrl
-                ? <img src={pvpOpponentPetUrl} alt={opponentName} className="w-16 h-16 object-contain drop-shadow-lg" style={{ transform: 'scaleX(-1)' }} />
+              {opponentPetUrl
+                ? <img src={opponentPetUrl} alt={opponentName} className="w-16 h-16 object-contain drop-shadow-lg" style={{ transform: 'scaleX(-1)' }} />
                 : <div className="w-16 h-16 rounded-full bg-white/20 flex items-center justify-center text-2xl">?</div>
               }
               <span className="text-white font-bold text-sm">{opponentName}</span>
@@ -288,7 +287,7 @@ const PvPRealtimeWordType = ({
         onProgressUpdate={handleProgressUpdate}
         opponentProgress={opponentProgress}
         isRealtimePvP={true}
-        pvpOpponentPetUrl={pvpOpponentPetUrl}
+        pvpOpponentPetUrl={opponentPetUrl}
         chestEnabled={false}
       />
     )

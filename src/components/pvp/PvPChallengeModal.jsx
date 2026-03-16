@@ -12,6 +12,7 @@ import PetFlappyGame from '../pet/PetFlappyGame'
 import PetWordType from '../pet/PetWordType'
 import PetSayItRight from '../pet/PetSayItRight'
 import PvPRealtimeWordType from './PvPRealtimeWordType'
+import PvPMatchmaking from './PvPMatchmaking'
 
 import { assetUrl } from '../../hooks/useBranding'
 import { fetchPvpSchedule, checkPvpAvailability } from '../../utils/pvpSchedule'
@@ -173,6 +174,7 @@ const PvPChallengeModal = ({ opponent, onClose }) => {
   const [pvpStatus, setPvpStatus] = useState({ available: true, reason: '' })
   const [realtimeMode, setRealtimeMode] = useState(false)
   const [wordSeed, setWordSeed] = useState(null)
+  const [showMatchmaking, setShowMatchmaking] = useState(false)
 
   useEffect(() => {
     fetchWordBank()
@@ -350,6 +352,10 @@ const PvPChallengeModal = ({ opponent, onClose }) => {
     return renderGame()
   }
 
+  if (showMatchmaking) {
+    return <PvPMatchmaking onClose={() => setShowMatchmaking(false)} wordBank={wordBank} />
+  }
+
   return createPortal(
     <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-black/60 backdrop-blur-sm">
       <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md mx-4 overflow-hidden">
@@ -439,10 +445,10 @@ const PvPChallengeModal = ({ opponent, onClose }) => {
             {/* Game List */}
             <div className="space-y-2">
               {GAMES.filter((g) => isAdmin() || enabledGames.includes(g.id)).map((game) => (
-                <div key={game.id} className="flex items-center gap-2">
+                <div key={game.id}>
                   <button
                     onClick={() => startGame(game.id)}
-                    className="flex-1 flex items-center gap-3 p-3 rounded-xl border-2 border-gray-100 hover:border-orange-300 hover:bg-orange-50 transition-all active:scale-[0.98]"
+                    className="w-full flex items-center gap-3 p-3 rounded-xl border-2 border-gray-100 hover:border-orange-300 hover:bg-orange-50 transition-all active:scale-[0.98]"
                   >
                     <div className="w-10 h-10 rounded-lg bg-gray-100 flex items-center justify-center overflow-hidden">
                       {game.icon ? (
@@ -457,18 +463,20 @@ const PvPChallengeModal = ({ opponent, onClose }) => {
                     </div>
                     <img src={assetUrl('/icon/dashboard/pvp.png')} alt="PvP" className="w-4 h-4 opacity-40" />
                   </button>
-                  {game.id === 'wordtype' && (
-                    <button
-                      onClick={() => startGame(game.id, true)}
-                      className="flex flex-col items-center gap-0.5 px-3 py-2.5 rounded-xl border-2 border-purple-200 bg-purple-50 hover:border-purple-400 hover:bg-purple-100 transition-all active:scale-95"
-                      title="Both players play at the same time!"
-                    >
-                      <span className="text-xs font-bold text-purple-600">LIVE</span>
-                      <span className="text-[10px] text-purple-400">Battle</span>
-                    </button>
-                  )}
                 </div>
               ))}
+            </div>
+
+            <div className="mt-3 pt-3 border-t border-gray-100">
+              <button
+                onClick={() => setShowMatchmaking(true)}
+                className="w-full flex items-center justify-center gap-2 p-3 rounded-xl border-2 border-purple-200 bg-gradient-to-r from-purple-50 to-indigo-50 hover:border-purple-400 hover:from-purple-100 hover:to-indigo-100 transition-all active:scale-[0.98]"
+              >
+                <img src={assetUrl('/icon/dashboard/pvp.png')} alt="PvP" className="w-5 h-5" />
+                <span className="font-bold text-purple-700 text-sm">Quick Match</span>
+                <span className="text-[10px] bg-purple-500 text-white px-1.5 py-0.5 rounded font-bold">LIVE</span>
+              </button>
+              <p className="text-[11px] text-gray-400 mt-1">Find a random opponent instantly</p>
             </div>
             </>
             )}
