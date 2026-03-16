@@ -47,6 +47,23 @@ const PvPRealtimeWordType = ({
   const opponentProgressRef = useRef({ score: 0, wordsCompleted: 0, wordIndex: 0 })
   const myScoreRef = useRef(null)
 
+  // Fetch opponent's active pet image from DB
+  useEffect(() => {
+    if (opponentPetUrl || !opponent?.id) return
+    const fetchPet = async () => {
+      const { data } = await supabase.from('user_pets')
+        .select('pets(image_url)')
+        .eq('user_id', opponent.id)
+        .eq('is_active', true)
+        .limit(1)
+        .single()
+      if (data?.pets?.image_url) {
+        setOpponentPetUrl(data.pets.image_url.startsWith('http') ? data.pets.image_url : assetUrl(data.pets.image_url))
+      }
+    }
+    fetchPet()
+  }, [opponent?.id, opponentPetUrl])
+
   // Generate the same word list for both players using the shared seed
   const source = wordBank.length >= 10 ? wordBank : WORD_BANK
   const gameWords = useRef(seededPickGameWords(source, wordSeed)).current
