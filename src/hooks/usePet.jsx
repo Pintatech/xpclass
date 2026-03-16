@@ -13,7 +13,7 @@ export const usePet = () => {
 }
 
 export const PetProvider = ({ children }) => {
-  const { user } = useAuth()
+  const { user, isAdmin } = useAuth()
   const [activePet, setActivePet] = useState(null)
   const [userPets, setUserPets] = useState([])
   const [allPets, setAllPets] = useState([])
@@ -249,6 +249,9 @@ export const PetProvider = ({ children }) => {
   // Drain user energy (universal energy pool, not per-pet)
   const drainPetEnergy = async (amount = 5) => {
     if (!user) return { success: false, error: 'No user logged in' }
+
+    // Admin bypasses energy check
+    if (isAdmin()) return { success: true, newEnergy: userEnergy ?? 100 }
 
     const currentEnergy = userEnergy ?? 100
     if (currentEnergy < amount) {

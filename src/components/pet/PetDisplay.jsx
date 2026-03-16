@@ -1812,7 +1812,7 @@ const PetDisplay = () => {
                 className={`relative flex flex-col items-center gap-2 p-4 rounded-xl border-2 transition-all group ${competitionGame === 'wordtype' ? 'border-yellow-400 bg-yellow-50 ring-2 ring-yellow-300' : 'border-cyan-200 hover:border-cyan-400 hover:bg-cyan-50'}`}
               >
                 {competitionGame === 'wordtype' && <span className="absolute -top-2 -right-2 text-lg">🏆</span>}
-                <span className="text-4xl group-hover:scale-110 transition-transform">⌨️</span>
+                <img src="https://xpclass.vn/xpclass/image/dashboard/pet-type.webp" alt="Word Type" className="w-20 h-20 object-cover rounded-lg group-hover:scale-110 transition-transform" />
                 <span className="font-bold text-gray-800 text-xs">Word Type</span>
               </button>
               )}

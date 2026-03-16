@@ -47,9 +47,8 @@ const PetWordType = ({ petImageUrl, petName, onGameEnd, onClose, wordBank: wordB
   const [wordIndex, setWordIndex] = useState(0)
   const [typedValue, setTypedValue] = useState('')
   const [streak, setStreak] = useState(0)
-  const [combo, setCombo] = useState(0)
   const [feedback, setFeedback] = useState(null) // 'correct' | 'wrong' | null
-  const [wrongFlash, setWrongFlash] = useState(false) // briefly flash cursor box red
+
   const [wordsCompleted, setWordsCompleted] = useState(0)
   const [skippedWords, setSkippedWords] = useState([])
   const [muted, setMuted] = useState(false)
@@ -65,7 +64,7 @@ const PetWordType = ({ petImageUrl, petName, onGameEnd, onClose, wordBank: wordB
   const scoreRef = useRef(0)
   const timerRef = useRef(null)
   const streakRef = useRef(0)
-  const comboRef = useRef(0)
+
   const inputRef = useRef(null)
   const containerRef = useRef(null)
   const bgMusicRef = useRef(null)
@@ -73,6 +72,7 @@ const PetWordType = ({ petImageUrl, petName, onGameEnd, onClose, wordBank: wordB
   const shakeRef = useRef(0)
   const chestSpawnedRef = useRef(false)
   const chestWordRef = useRef(0)
+  const wordStartRef = useRef(Date.now())
 
   const currentWord = words[wordIndex]
 
@@ -80,6 +80,7 @@ const PetWordType = ({ petImageUrl, petName, onGameEnd, onClose, wordBank: wordB
     setTypedValue('')
     setFeedback(null)
     setHintRevealed(0)
+    wordStartRef.current = Date.now()
     const nextIdx = wordIndex + 1
     if (nextIdx < words.length) {
       setWordIndex(nextIdx)
@@ -104,14 +105,21 @@ const PetWordType = ({ petImageUrl, petName, onGameEnd, onClose, wordBank: wordB
       streakRef.current = newStreak
       setStreak(newStreak)
 
-      const newCombo = comboRef.current + 1
-      comboRef.current = newCombo
-      setCombo(newCombo)
-
-      // Points: base + streak bonus + combo bonus
+      // Points: base + streak + speed + length + no-hint
       let points = POINTS_PER_WORD
       if (newStreak >= 3) points += STREAK_BONUS
-      if (newCombo >= 5) points += Math.floor(newCombo / 5) * 2
+
+      // Speed bonus
+      const elapsed = (Date.now() - wordStartRef.current) / 1000
+      if (elapsed < 3) points += 5
+      else if (elapsed < 5) points += 3
+      else if (elapsed < 8) points += 1
+
+      // Word length bonus
+      const len = currentWord.word.length
+      if (len >= 7) points += 8
+      else if (len >= 6) points += 5
+      else if (len >= 5) points += 2
 
       // Bonus for no hints used
       if (hintRevealed === 0) points += 5
@@ -120,7 +128,7 @@ const PetWordType = ({ petImageUrl, petName, onGameEnd, onClose, wordBank: wordB
       setDisplayScore(scoreRef.current)
       setWordsCompleted(prev => prev + 1)
 
-      if (chestEnabled && !chestSpawnedRef.current && wordsCompleted + 1 === chestWordRef.current) {
+      if (chestEnabled && !chestSpawnedRef.current && wordsCompleted + 1 >= chestWordRef.current && currentWord.word.length >= 6) {
         chestSpawnedRef.current = true
         setChestCollected(true)
         setIsChestWord(false)
@@ -131,7 +139,7 @@ const PetWordType = ({ petImageUrl, petName, onGameEnd, onClose, wordBank: wordB
 
       setFeedback('correct')
 
-      setWordPopup({ points, streak: newStreak, combo: newCombo })
+      setWordPopup({ points, streak: newStreak })
       setTimeout(() => setWordPopup(null), 1200)
 
       // Celebration particles
@@ -195,8 +203,6 @@ const PetWordType = ({ petImageUrl, petName, onGameEnd, onClose, wordBank: wordB
     }
     streakRef.current = 0
     setStreak(0)
-    comboRef.current = 0
-    setCombo(0)
     setSkippedWords(prev => [...prev, currentWord])
     advanceWord()
   }, [currentWord, advanceWord])
@@ -229,15 +235,14 @@ const PetWordType = ({ petImageUrl, petName, onGameEnd, onClose, wordBank: wordB
 
     scoreRef.current = 0
     streakRef.current = 0
-    comboRef.current = 0
     setStreak(0)
-    setCombo(0)
     chestSpawnedRef.current = false
     chestWordRef.current = 3 + Math.floor(Math.random() * 5)
     setChestCollected(false)
     setChestPopup(false)
     setIsChestWord(false)
     setChestTimer(0)
+    wordStartRef.current = Date.now()
     setPhase('playing')
 
     try {
@@ -269,11 +274,14 @@ const PetWordType = ({ petImageUrl, petName, onGameEnd, onClose, wordBank: wordB
 
   // Start chest timer when reaching chest word
   useEffect(() => {
-    if (phase === 'playing' && chestEnabled && !chestSpawnedRef.current && wordsCompleted === chestWordRef.current - 1) {
-      setIsChestWord(true)
-      setChestTimer(5)
+    if (phase === 'playing' && chestEnabled && !chestSpawnedRef.current && wordsCompleted >= chestWordRef.current - 1) {
+      const nextWord = words[wordIndex]
+      if (nextWord && nextWord.word.length >= 6) {
+        setIsChestWord(true)
+        setChestTimer(5)
+      }
     }
-  }, [phase, wordsCompleted, chestEnabled])
+  }, [phase, wordsCompleted, chestEnabled, words, wordIndex])
 
   // Chest timer countdown
   useEffect(() => {
@@ -506,7 +514,7 @@ const PetWordType = ({ petImageUrl, petName, onGameEnd, onClose, wordBank: wordB
             <div className="w-full max-w-md mx-auto flex flex-col items-center gap-2">
               {/* Score / Pet / Timer row */}
               <div className="w-full flex items-center justify-between">
-                <div className="flex flex-col items-start gap-1">
+                <div className="flex flex-col items-start gap-1 ml-10">
                   <div className="bg-white/20 backdrop-blur rounded-2xl px-4 py-2 flex items-center gap-2">
                     <span className="text-xl font-black text-white">{displayScore}</span>
                   </div>
@@ -609,18 +617,12 @@ const PetWordType = ({ petImageUrl, petName, onGameEnd, onClose, wordBank: wordB
                 </button>
               </div>
 
-              {/* Streak + Combo */}
+              {/* Streak */}
               <div className="w-full flex items-center gap-2">
                 <div className={`rounded-full px-2.5 py-1 text-xs font-bold flex items-center gap-1 shrink-0 ${
                   streak >= 3 ? 'bg-yellow-400 text-yellow-900' : 'bg-white/20 text-white/70'
                 }`}>
                   <img src={assetUrl('/icon/profile/streak.svg')} alt="streak" className="w-3.5 h-3.5" />{streak}x
-                </div>
-                <div className="flex-1" />
-                <div className={`rounded-full px-2.5 py-1 text-xs font-bold shrink-0 ${
-                  combo > 5 ? 'bg-gradient-to-r from-purple-500 to-pink-500 text-white' : 'bg-white/20 text-white/70'
-                }`}>
-                  {combo}x combo
                 </div>
               </div>
             </div>
@@ -637,11 +639,6 @@ const PetWordType = ({ petImageUrl, petName, onGameEnd, onClose, wordBank: wordB
                   {wordPopup.streak > 1 && (
                     <div className="flex items-center gap-1 bg-yellow-400 text-yellow-900 rounded-full px-3 py-1 text-sm font-bold">
                       <img src={assetUrl('/icon/profile/streak.svg')} alt="streak" className="w-4 h-4" />{wordPopup.streak}x streak
-                    </div>
-                  )}
-                  {wordPopup.combo > 5 && (
-                    <div className="bg-gradient-to-r from-purple-500 to-pink-500 text-white rounded-full px-3 py-1 text-sm font-bold">
-                      {wordPopup.combo}x combo
                     </div>
                   )}
                 </div>
@@ -684,9 +681,7 @@ const PetWordType = ({ petImageUrl, petName, onGameEnd, onClose, wordBank: wordB
                     className={`w-10 h-12 rounded-xl flex items-center justify-center font-bold text-xl uppercase transition-all ${
                       feedback === 'correct'
                         ? 'bg-green-400 text-white border-2 border-green-500 shadow-lg'
-                        : wrongFlash && isCursor
-                          ? 'bg-red-400/80 text-white border-2 border-red-500'
-                          : isRevealed
+                        : isRevealed
                             ? 'bg-yellow-400/80 text-yellow-900 border-2 border-yellow-500'
                             : typedLetter
                               ? 'bg-white text-indigo-800 border-2 border-indigo-200 shadow-md'
@@ -725,6 +720,12 @@ const PetWordType = ({ petImageUrl, petName, onGameEnd, onClose, wordBank: wordB
                     const expected = currentWord.word[ci].toLowerCase()
                     const typed = newVal[ci].toLowerCase()
                     if (typed !== expected) {
+                      // Wrong letter kills chest
+                      if (isChestWord && !chestSpawnedRef.current) {
+                        chestSpawnedRef.current = true
+                        setIsChestWord(false)
+                        setChestTimer(0)
+                      }
                       const isMobile = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent)
                       if (isMobile) {
                         // Mobile: skip the word on wrong letter
@@ -745,18 +746,22 @@ const PetWordType = ({ petImageUrl, petName, onGameEnd, onClose, wordBank: wordB
                         }, 400)
                         return
                       }
-                      // Desktop: reject wrong letter, flash cursor box red
-                      if (inputRef.current) inputRef.current.value = accepted
-                      shakeRef.current = 6
-                      setScreenShake(6)
-                      setWrongFlash(true)
-                      setTimeout(() => setWrongFlash(false), 150)
+                      // Desktop: clear all letters on wrong input
+                      shakeRef.current = 10
+                      setScreenShake(10)
                       try {
                         const sound = new Audio(assetUrl('/sound/flappy-hit.mp3'))
-                        sound.volume = 0.3
+                        sound.volume = 0.4
                         if (!muted) sound.play().catch(() => {})
                       } catch {}
-                      if (accepted !== typedValue) setTypedValue(accepted)
+                      setFeedback('wrong')
+                      setTypedValue(newVal.slice(0, ci + 1))
+                      setTimeout(() => {
+                        setTypedValue('')
+                        setFeedback(null)
+                        setHintRevealed(0)
+                        inputRef.current?.focus()
+                      }, 400)
                       return
                     }
                     accepted += newVal[ci]
