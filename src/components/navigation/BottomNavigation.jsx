@@ -2,6 +2,7 @@ import { useState, useRef, useEffect } from 'react'
 import { Link, useLocation } from 'react-router-dom'
 import { Bell, MoreHorizontal, ShieldCheck, GraduationCap } from 'lucide-react'
 import { useInventory } from '../../hooks/useInventory'
+import { useMissions } from '../../hooks/useMissions'
 import { useNotifications } from '../../hooks/useNotifications'
 import { useAuth } from '../../hooks/useAuth'
 import NotificationPanel from '../notifications/NotificationPanel'
@@ -10,6 +11,7 @@ import { assetUrl } from '../../hooks/useBranding';
 const BottomNavigation = () => {
   const location = useLocation()
   const { newItemCount } = useInventory()
+  const { unclaimedCount: missionBadge } = useMissions()
   const { notifications, unreadCount, markAsRead, markAllAsRead } = useNotifications()
   const { isAdmin, isTeacher } = useAuth()
   const [showNotifPanel, setShowNotifPanel] = useState(false)
@@ -34,11 +36,12 @@ const BottomNavigation = () => {
   const mainItems = [
     { path: '/', imageSrc: assetUrl('/icon/navigation/home.svg'), label: 'Home' },
     { path: '/pets', imageSrc: assetUrl('/icon/navigation/pet.svg'), label: 'Pet' },
+    { path: '/missions', imageSrc: assetUrl('/icon/navigation/mission.svg'), label: 'Missions', badge: missionBadge },
     { path: '/progress', imageSrc: assetUrl('/icon/navigation/progress.svg'), label: 'Progress' },
-    { path: '/shop', imageSrc: assetUrl('/icon/navigation/shop.svg'), label: 'Shop' },
   ]
 
   const moreItems = [
+    { path: '/shop', imageSrc: assetUrl('/icon/navigation/shop.svg'), label: 'Shop' },
     { path: '/leaderboard', imageSrc: assetUrl('/icon/navigation/leaderboard.svg'), label: 'BXH' },
     { path: '/inventory', imageSrc: assetUrl('/icon/navigation/inventory.svg'), label: 'Kho đồ', badge: newItemCount },
     { id: 'notifications', label: 'Thông báo', isNotification: true, badge: unreadCount },
@@ -47,7 +50,7 @@ const BottomNavigation = () => {
     ...(isAdmin() ? [{ path: '/admin', icon: 'admin', label: 'Admin' }] : []),
   ]
 
-  const isMoreActive = ['/leaderboard', '/inventory', '/profile', '/admin', '/teacher'].some(
+  const isMoreActive = ['/shop', '/leaderboard', '/inventory', '/profile', '/admin', '/teacher'].some(
     p => location.pathname === p || location.pathname.startsWith(p + '/')
   )
 
