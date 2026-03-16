@@ -2592,7 +2592,7 @@ BEGIN
   IF EXISTS(
     SELECT 1 FROM user_achievements
     WHERE achievement_id = ach_id
-      AND earned_at >= week_start AND earned_at < week_end + INTERVAL '1 day'
+      AND earned_at >= week_end AND earned_at < week_end + INTERVAL '1 day'
   ) THEN
     RETURN json_build_object('status', 'already_awarded', 'week_start', week_start);
   END IF;
