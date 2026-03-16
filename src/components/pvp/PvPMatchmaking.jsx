@@ -143,14 +143,9 @@ const PvPMatchmaking = ({ onClose, wordBank = [] }) => {
       if (waiting && waiting.length > 0 && !matchedRef.current) {
         const match = waiting[0]
 
-        // Only the earlier queue entry creates the match to prevent race condition
-        const { data: myEntry } = await supabase.from('pvp_matchmaking')
-          .select('created_at')
-          .eq('id', queueRowId.current)
-          .single()
-
-        if (myEntry && myEntry.created_at > match.created_at) {
-          // We joined later — wait for the other player to create the match
+        // Only one player creates the match — deterministic: lower user_id wins
+        if (user.id > match.user_id) {
+          // We have the higher user_id — wait for the other player to create the match
           return
         }
 

@@ -23,7 +23,6 @@ const PvPRealtimeWordType = ({
   opponent,
   isChallenger,
   onClose,
-  onComplete,
   petImageUrl,
   petName,
   pvpOpponentPetUrl = null,
@@ -220,7 +219,7 @@ const PvPRealtimeWordType = ({
         }
         supabase.rpc('update_mission_progress', {
           p_user_id: myWinnerId,
-          p_goal_type: 'win_pvp',
+          p_goal_type: 'win_quickmatch',
           p_increment: 1,
         }).catch(() => {})
       }
