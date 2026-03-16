@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef, useCallback } from 'react'
 import { createPortal } from 'react-dom'
-import { X, Search, Wifi, WifiOff } from 'lucide-react'
+import { X, Search } from 'lucide-react'
 import { supabase } from '../../supabase/client'
 import { useAuth } from '../../hooks/useAuth'
 import { usePet } from '../../hooks/usePet'
@@ -9,7 +9,7 @@ import PvPRealtimeWordType from './PvPRealtimeWordType'
 
 const PvPMatchmaking = ({ onClose, wordBank = [] }) => {
   const { user, profile } = useAuth()
-  const { activePet, drainPetEnergy, userEnergy } = usePet()
+  const { activePet } = usePet()
 
   const [phase, setPhase] = useState('searching') // searching | matched | playing
   const [searchTime, setSearchTime] = useState(0)
@@ -18,6 +18,8 @@ const PvPMatchmaking = ({ onClose, wordBank = [] }) => {
   const [wordSeed, setWordSeed] = useState(null)
   const [isChallenger, setIsChallenger] = useState(false)
   const [error, setError] = useState(null)
+  const [queueCount, setQueueCount] = useState(0)
+  const [playingCount, setPlayingCount] = useState(0)
 
   const queueRowId = useRef(null)
   const matchedRef = useRef(false)
@@ -88,6 +90,20 @@ const PvPMatchmaking = ({ onClose, wordBank = [] }) => {
     const checkForMatch = async () => {
       if (matchedRef.current || !queueRowId.current) return
 
+      // Fetch queue count and playing count
+      const { count } = await supabase.from('pvp_matchmaking')
+        .select('id', { count: 'exact', head: true })
+        .eq('game_type', 'wordtype')
+        .in('status', ['waiting', 'matching'])
+      setQueueCount(count || 0)
+
+      const { count: playing } = await supabase.from('pvp_challenges')
+        .select('id', { count: 'exact', head: true })
+        .eq('status', 'in_progress')
+        .eq('realtime_mode', true)
+        .eq('game_type', 'wordtype')
+      setPlayingCount((playing || 0) * 2)
+
       // First check if we've been matched by someone else
       const { data: myRow } = await supabase.from('pvp_matchmaking')
         .select('status, challenge_id')
@@ -149,6 +165,11 @@ const PvPMatchmaking = ({ onClose, wordBank = [] }) => {
           // Someone else already claimed them
           return
         }
+
+        // Also mark ourselves as matching so no one else claims us
+        await supabase.from('pvp_matchmaking')
+          .update({ status: 'matching' })
+          .eq('id', queueRowId.current)
 
         matchedRef.current = true
 
@@ -294,9 +315,20 @@ const PvPMatchmaking = ({ onClose, wordBank = [] }) => {
             </h2>
             <p className="text-white/50 text-sm mb-4">Word Type - Live Battle</p>
 
-            <div className="bg-white/10 rounded-full px-4 py-2 inline-flex items-center gap-2 mb-6">
-              <div className="w-2 h-2 rounded-full bg-green-400 animate-pulse" />
-              <span className="text-white/70 text-sm font-medium">{searchTime}s</span>
+            <div className="flex items-center gap-3 mb-6">
+              <div className="bg-white/10 rounded-full px-4 py-2 inline-flex items-center gap-2">
+                <div className="w-2 h-2 rounded-full bg-green-400 animate-pulse" />
+                <span className="text-white/70 text-sm font-medium">{searchTime}s</span>
+              </div>
+              <div className="bg-white/10 rounded-full px-4 py-2 inline-flex items-center gap-2">
+                <span className="text-white/70 text-sm font-medium">{queueCount} in queue</span>
+              </div>
+              {playingCount > 0 && (
+                <div className="bg-white/10 rounded-full px-4 py-2 inline-flex items-center gap-2">
+                  <div className="w-2 h-2 rounded-full bg-red-400 animate-pulse" />
+                  <span className="text-white/70 text-sm font-medium">{playingCount} playing</span>
+                </div>
+              )}
             </div>
 
             {petImage && (
