@@ -24,6 +24,7 @@ const PvPMatchmaking = ({ onClose, wordBank = [] }) => {
   const queueRowId = useRef(null)
   const matchedRef = useRef(false)
   const pollRef = useRef(null)
+  const pollingRef = useRef(false)
 
   const petImage = activePet?.image_url || assetUrl('/image/pet/default.png')
   const petName = activePet?.nickname || activePet?.name || 'Your Pet'
@@ -88,7 +89,9 @@ const PvPMatchmaking = ({ onClose, wordBank = [] }) => {
     if (phase !== 'searching') return
 
     const checkForMatch = async () => {
-      if (matchedRef.current || !queueRowId.current) return
+      if (matchedRef.current || !queueRowId.current || pollingRef.current) return
+      pollingRef.current = true
+      try {
 
       // Fetch queue count and playing count
       const { count } = await supabase.from('pvp_matchmaking')
@@ -198,6 +201,9 @@ const PvPMatchmaking = ({ onClose, wordBank = [] }) => {
           setPhase('playing')
         }
       }
+    } finally {
+      pollingRef.current = false
+    }
     }
 
     // Poll every 2 seconds
