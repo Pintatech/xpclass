@@ -139,14 +139,21 @@ const PvPRealtimeWordType = ({
     // Save to DB
     try {
       const opScore = opponentProgressRef.current.score
+      // Fetch challenger_id and opponent_id for winner determination
+      const { data: challengeData } = await supabase.from('pvp_challenges')
+        .select('challenger_id, opponent_id').eq('id', challengeId).single()
+
       if (isChallenger) {
         // Challenger writes their score
+        const winnerId = score > opScore ? challengeData?.challenger_id
+          : score < opScore ? challengeData?.opponent_id
+          : null
         await supabase.from('pvp_challenges').update({
           challenger_score: score,
           status: opponentFinished ? 'completed' : 'in_progress',
           ...(opponentFinished ? {
             opponent_score: opScore,
-            winner_id: score > opScore ? user.id : score < opScore ? null : null,
+            winner_id: winnerId,
           } : {}),
         }).eq('id', challengeId)
       } else {
@@ -154,11 +161,8 @@ const PvPRealtimeWordType = ({
         const { data: fresh } = await supabase.from('pvp_challenges')
           .select('challenger_score').eq('id', challengeId).single()
         const challengerScore = fresh?.challenger_score ?? opScore
-        // Need challenger_id if they lost
-        const { data: challengeData } = await supabase.from('pvp_challenges')
-          .select('challenger_id').eq('id', challengeId).single()
 
-        const winnerId = score > challengerScore ? user.id
+        const winnerId = score > challengerScore ? challengeData?.opponent_id
           : score < challengerScore ? challengeData?.challenger_id
           : null
 

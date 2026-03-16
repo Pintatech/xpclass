@@ -519,49 +519,49 @@ const PetWordType = ({ petImageUrl, petName, onGameEnd, onClose, wordBank: wordB
             <div className="w-full max-w-md mx-auto flex flex-col items-center gap-2">
               {/* Score / Pet / Timer row */}
               <div className="w-full flex items-center justify-between">
-                <div className="flex flex-col items-start gap-1 ml-10">
-                  <div className="bg-white/20 backdrop-blur rounded-2xl px-4 py-2 flex items-center gap-2">
-                    <span className="text-xl font-black text-white">{displayScore}</span>
-                  </div>
-                  {/* Score-to-beat progress bar */}
-                  {(() => {
-                    const nextToBeat = leaderboard.length > 0
-                      ? [...leaderboard].reverse().find(e => e.score > displayScore) || null
-                      : scoreToBeat
-                    if (!nextToBeat) return null
-                    const gap = nextToBeat.score - displayScore
-                    const isClose = gap > 0 && gap <= 3
-                    const pct = Math.min(100, Math.round((displayScore / nextToBeat.score) * 100))
-                    return (
-                      <div className="w-28 ml-1" style={{ animation: isClose ? 'hintPulse 0.6s ease-in-out infinite' : 'none' }}>
-                        <div className="flex items-center justify-between gap-1 mb-0.5">
-                          <div className="flex items-center gap-1">
-                            <span className="text-[11px]">&#x2694;&#xFE0F;</span>
-                            <span className="text-white font-bold text-[10px] truncate max-w-[50px]">{nextToBeat.name}</span>
+                  <div className={`flex flex-col items-start gap-1 ${isRealtimePvP ? '' : 'ml-10'}`}>
+                    <div className="bg-white/20 backdrop-blur rounded-2xl px-4 py-2 flex items-center gap-2">
+                      <span className="text-xl font-black text-white">{displayScore}</span>
+                    </div>
+                    {/* Score-to-beat progress bar */}
+                    {(() => {
+                      const nextToBeat = leaderboard.length > 0
+                        ? [...leaderboard].reverse().find(e => e.score > displayScore) || null
+                        : scoreToBeat
+                      if (!nextToBeat) return null
+                      const gap = nextToBeat.score - displayScore
+                      const isClose = gap > 0 && gap <= 3
+                      const pct = Math.min(100, Math.round((displayScore / nextToBeat.score) * 100))
+                      return (
+                        <div className="w-28 ml-1" style={{ animation: isClose ? 'hintPulse 0.6s ease-in-out infinite' : 'none' }}>
+                          <div className="flex items-center justify-between gap-1 mb-0.5">
+                            <div className="flex items-center gap-1">
+                              <span className="text-[11px]">&#x2694;&#xFE0F;</span>
+                              <span className="text-white font-bold text-[10px] truncate max-w-[50px]">{nextToBeat.name}</span>
+                            </div>
+                            <span className={`font-black text-[10px] ${isClose ? 'text-orange-300' : 'text-yellow-300'}`}>
+                              {isClose ? `${gap} more!` : `+${gap}pts`}
+                            </span>
                           </div>
-                          <span className={`font-black text-[10px] ${isClose ? 'text-orange-300' : 'text-yellow-300'}`}>
-                            {isClose ? `${gap} more!` : `+${gap}pts`}
-                          </span>
+                          <div className="h-1 rounded-full bg-white/10 overflow-hidden">
+                            <div className="h-full rounded-full transition-all duration-500"
+                              style={{
+                                width: `${pct}%`,
+                                background: isClose ? 'linear-gradient(90deg, #f97316, #ef4444)' : 'linear-gradient(90deg, #22c55e, #86efac)',
+                              }}
+                            />
+                          </div>
                         </div>
-                        <div className="h-1 rounded-full bg-white/10 overflow-hidden">
-                          <div className="h-full rounded-full transition-all duration-500"
-                            style={{
-                              width: `${pct}%`,
-                              background: isClose ? 'linear-gradient(90deg, #f97316, #ef4444)' : 'linear-gradient(90deg, #22c55e, #86efac)',
-                            }}
-                          />
-                        </div>
-                      </div>
-                    )
-                  })()}
-                </div>
+                      )
+                    })()}
+                  </div>
 
-                {petImageUrl && (
-                  <img src={petImageUrl} alt={petName}
-                    className="w-10 h-10 object-contain drop-shadow-md"
-                    onError={(e) => { e.target.style.display = 'none' }}
-                  />
-                )}
+                  {!isRealtimePvP && petImageUrl && (
+                    <img src={petImageUrl} alt={petName}
+                      className="w-10 h-10 object-contain drop-shadow-md"
+                      onError={(e) => { e.target.style.display = 'none' }}
+                    />
+                  )}
 
                 {/* Timer */}
                 {(() => {
@@ -631,19 +631,6 @@ const PetWordType = ({ petImageUrl, petName, onGameEnd, onClose, wordBank: wordB
                 </div>
               </div>
 
-              {/* Opponent progress (realtime PvP) */}
-              {opponentProgress && (
-                <div className="w-full flex items-center justify-between bg-red-500/20 backdrop-blur rounded-xl px-3 py-1.5">
-                  <div className="flex items-center gap-2">
-                    {pvpOpponentPetUrl && <img src={pvpOpponentPetUrl} alt="Opponent" className="w-6 h-6 object-contain" style={{ transform: 'scaleX(-1)' }} />}
-                    <span className="text-xs font-bold text-red-200">Opponent</span>
-                  </div>
-                  <div className="flex items-center gap-3">
-                    <span className="text-xs text-white/70">{opponentProgress.wordsCompleted} words</span>
-                    <span className="text-sm font-black text-white">{opponentProgress.score}</span>
-                  </div>
-                </div>
-              )}
             </div>
           </div>
 
@@ -669,6 +656,23 @@ const PetWordType = ({ petImageUrl, petName, onGameEnd, onClose, wordBank: wordB
                 <div className="flex flex-col items-center gap-2" style={{ animation: 'chestPopupAnim 1.5s ease-out forwards' }}>
                   <img src={assetUrl('/image/chest/legendary-chest.png')} alt="Chest" className="w-16 h-16 object-contain" />
                   <div className="bg-amber-500 text-white rounded-full px-4 py-1.5 font-bold text-sm shadow-lg">Chest Found!</div>
+                </div>
+              </div>
+            )}
+
+            {/* Realtime PvP scoreboard */}
+            {isRealtimePvP && opponentProgress && (
+              <div className="flex items-center justify-center gap-3 w-full max-w-xs">
+                <div className="flex items-center gap-2 flex-1 justify-end">
+                  {petImageUrl && <img src={petImageUrl} alt={petName} className="w-10 h-10 object-contain drop-shadow-lg" />}
+                  <span className={`text-2xl font-black ${displayScore > opponentProgress.score ? 'text-green-300' : displayScore < opponentProgress.score ? 'text-white/60' : 'text-white'}`}
+                    style={{ textShadow: '0 2px 4px rgba(0,0,0,0.3)' }}>{displayScore}</span>
+                </div>
+                <span className="text-white/30 font-black text-sm">vs</span>
+                <div className="flex items-center gap-2 flex-1">
+                  <span className={`text-2xl font-black ${opponentProgress.score > displayScore ? 'text-red-300' : opponentProgress.score < displayScore ? 'text-white/60' : 'text-white'}`}
+                    style={{ textShadow: '0 2px 4px rgba(0,0,0,0.3)' }}>{opponentProgress.score}</span>
+                  {pvpOpponentPetUrl && <img src={pvpOpponentPetUrl} alt="Opponent" className="w-10 h-10 object-contain drop-shadow-lg" style={{ transform: 'scaleX(-1)' }} />}
                 </div>
               </div>
             )}

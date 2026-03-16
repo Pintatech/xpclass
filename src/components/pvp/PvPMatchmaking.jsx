@@ -100,9 +100,9 @@ const PvPMatchmaking = ({ onClose, wordBank = [] }) => {
         return
       }
 
-      // Look for another waiting player
+      // Look for another waiting player — only the earlier entry creates the match
       const { data: waiting } = await supabase.from('pvp_matchmaking')
-        .select('id, user_id, users:user_id(id, full_name, avatar_url)')
+        .select('id, user_id, created_at, users:user_id(id, full_name, avatar_url)')
         .eq('game_type', 'wordtype')
         .eq('status', 'waiting')
         .neq('user_id', user.id)
@@ -111,6 +111,30 @@ const PvPMatchmaking = ({ onClose, wordBank = [] }) => {
 
       if (waiting && waiting.length > 0 && !matchedRef.current) {
         const match = waiting[0]
+
+        // Only the earlier queue entry creates the match to prevent race condition
+        const { data: myEntry } = await supabase.from('pvp_matchmaking')
+          .select('created_at')
+          .eq('id', queueRowId.current)
+          .single()
+
+        if (myEntry && myEntry.created_at > match.created_at) {
+          // We joined later — wait for the other player to create the match
+          return
+        }
+
+        // Atomically claim the opponent by setting their status (only if still waiting)
+        const { data: claimed } = await supabase.from('pvp_matchmaking')
+          .update({ status: 'matching' })
+          .eq('id', match.id)
+          .eq('status', 'waiting')
+          .select('id')
+
+        if (!claimed || claimed.length === 0) {
+          // Someone else already claimed them
+          return
+        }
+
         matchedRef.current = true
 
         // Create challenge
@@ -172,8 +196,12 @@ const PvPMatchmaking = ({ onClose, wordBank = [] }) => {
     if (queueRowId.current) {
       supabase.from('pvp_matchmaking').delete().eq('id', queueRowId.current)
     }
+    // Clean up challenge if matched but not yet playing
+    if (challengeId && phase !== 'playing') {
+      supabase.from('pvp_challenges').delete().eq('id', challengeId)
+    }
     onClose()
-  }, [onClose])
+  }, [onClose, challengeId, phase])
 
   // Playing phase
   if (phase === 'playing' && challengeId && wordSeed) {
