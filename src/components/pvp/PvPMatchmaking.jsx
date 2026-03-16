@@ -31,10 +31,27 @@ const PvPMatchmaking = ({ onClose, wordBank = [] }) => {
     let cancelled = false
 
     const joinQueue = async () => {
-      // Clean up any stale entries from this user
+      // Clean up ALL stale entries from this user first
       await supabase.from('pvp_matchmaking')
         .delete()
         .eq('user_id', user.id)
+
+      if (cancelled) return
+
+      // Double-check no rows exist for this user before inserting
+      const { data: existing } = await supabase.from('pvp_matchmaking')
+        .select('id')
+        .eq('user_id', user.id)
+        .eq('status', 'waiting')
+        .limit(1)
+
+      if (existing && existing.length > 0) {
+        // Already have a waiting row (e.g. React strict mode double-mount)
+        queueRowId.current = existing[0].id
+        return
+      }
+
+      if (cancelled) return
 
       // Insert into queue
       const { data, error } = await supabase.from('pvp_matchmaking').insert({
@@ -59,10 +76,8 @@ const PvPMatchmaking = ({ onClose, wordBank = [] }) => {
 
     return () => {
       cancelled = true
-      // Leave queue on unmount
-      if (queueRowId.current) {
-        supabase.from('pvp_matchmaking').delete().eq('id', queueRowId.current)
-      }
+      // Leave queue on unmount — clean up ALL rows for this user
+      supabase.from('pvp_matchmaking').delete().eq('user_id', user.id)
     }
   }, [user.id])
 
@@ -95,7 +110,7 @@ const PvPMatchmaking = ({ onClose, wordBank = [] }) => {
           setIsChallenger(false)
           setOpponent(challenge.challenger)
           setPhase('matched')
-          setTimeout(() => setPhase('playing'), 1500)
+          setPhase('playing')
         }
         return
       }
@@ -164,7 +179,7 @@ const PvPMatchmaking = ({ onClose, wordBank = [] }) => {
           setIsChallenger(true)
           setOpponent(match.users)
           setPhase('matched')
-          setTimeout(() => setPhase('playing'), 1500)
+          setPhase('playing')
         }
       }
     }

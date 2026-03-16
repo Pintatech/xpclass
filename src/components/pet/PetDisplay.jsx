@@ -21,7 +21,6 @@ import PetAstroBlast from "./PetAstroBlast";
 import PetMatchGame from "./PetMatchGame";
 import PetWordType from "./PetWordType";
 import PetSayItRight from "./PetSayItRight";
-import PvPMatchmaking from "../pvp/PvPMatchmaking";
 
 import { assetUrl } from '../../hooks/useBranding';
 import { fetchPvpSchedule, checkPvpAvailability } from '../../utils/pvpSchedule';
@@ -92,7 +91,6 @@ const PetDisplay = () => {
   const [playDisabled, setPlayDisabled] = useState(false);
   const [playCooldown, setPlayCooldown] = useState(0);
   const [showGame, setShowGame] = useState(null); // null | 'picker' | 'catch' | 'flappy' | 'scramble' | 'whackmole' | 'astroblast' | 'matchgame'
-  const [showMatchmaking, setShowMatchmaking] = useState(false);
   const [gameLeaderboards, setGameLeaderboards] = useState({ whackmole: [], scramble: [], astroblast: [], matchgame: [], wordtype: [], sayitright: [] });
   const [wordBank, setWordBank] = useState([]);
   const [enabledGames, setEnabledGames] = useState(['scramble', 'whackmole', 'astroblast', 'matchgame', 'wordtype', 'sayitright']);
@@ -1829,15 +1827,6 @@ const PetDisplay = () => {
               </button>
               )}
 
-              {/* Quick Match */}
-              <button
-                onClick={() => setShowMatchmaking(true)}
-                className="col-span-2 flex items-center justify-center gap-2 p-3 rounded-xl border-2 border-purple-300 bg-gradient-to-r from-purple-50 to-indigo-50 hover:border-purple-500 hover:from-purple-100 hover:to-indigo-100 transition-all active:scale-[0.98]"
-              >
-                <img src={assetUrl('/icon/dashboard/pvp.png')} alt="PvP" className="w-5 h-5" />
-                <span className="font-bold text-purple-700 text-sm">Quick Match</span>
-                <span className="text-[10px] bg-purple-500 text-white px-1.5 py-0.5 rounded font-bold">LIVE</span>
-              </button>
             </div>
             <button
               onClick={() => setShowGame(null)}
@@ -1849,12 +1838,6 @@ const PetDisplay = () => {
             )}
           </div>
 
-          {showMatchmaking && (
-            <PvPMatchmaking
-              onClose={() => setShowMatchmaking(false)}
-              wordBank={wordBank}
-            />
-          )}
         </div>
       )}
 

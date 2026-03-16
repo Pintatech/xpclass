@@ -261,6 +261,13 @@ const PetWordType = ({ petImageUrl, petName, onGameEnd, onClose, wordBank: wordB
     setTimeout(() => inputRef.current?.focus(), 200)
   }, [wordBankProp])
 
+  // Auto-start for realtime PvP (skip the ready screen)
+  useEffect(() => {
+    if (isRealtimePvP && phase === 'ready') {
+      startGame()
+    }
+  }, [isRealtimePvP])
+
   // Timer
   useEffect(() => {
     if (phase !== 'playing') return

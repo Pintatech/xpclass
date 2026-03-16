@@ -31,6 +31,7 @@ const PvPRealtimeWordType = ({
   const [opponentFinished, setOpponentFinished] = useState(false)
   const [connectionStatus, setConnectionStatus] = useState('connecting')
   const [opponentPetUrl, setOpponentPetUrl] = useState(pvpOpponentPetUrl)
+  const [opponentLeft, setOpponentLeft] = useState(false)
 
   const channelRef = useRef(null)
   const opponentProgressRef = useRef({ score: 0, wordsCompleted: 0, wordIndex: 0 })
@@ -70,6 +71,11 @@ const PvPRealtimeWordType = ({
           opponentProgressRef.current = p
           setOpponentProgress(p)
           setOpponentFinished(true)
+        }
+      })
+      .on('broadcast', { event: 'player_left' }, (payload) => {
+        if (payload.payload?.userId !== user.id) {
+          setOpponentLeft(true)
         }
       })
       .subscribe((status) => {
@@ -192,59 +198,78 @@ const PvPRealtimeWordType = ({
     return createPortal(
       <div className="fixed inset-0 z-50 bg-black/80 flex items-center justify-center">
         <div className="bg-gradient-to-br from-indigo-600 to-purple-700 rounded-2xl shadow-2xl max-w-sm w-full mx-4 p-8 text-center relative">
-          <button onClick={onClose} className="absolute top-4 right-4 bg-white/20 rounded-full p-2 hover:bg-white/30 transition-colors">
+          <button onClick={() => {
+            channelRef.current?.send({ type: 'broadcast', event: 'player_left', payload: { userId: user.id } })
+            onClose()
+          }} className="absolute top-4 right-4 bg-white/20 rounded-full p-2 hover:bg-white/30 transition-colors">
             <X className="w-5 h-5 text-white" />
           </button>
 
-          <h2 className="text-2xl font-black text-white mb-2" style={{ textShadow: '0 2px 4px rgba(0,0,0,0.3)' }}>
-            Live Word Type Battle
-          </h2>
-          <p className="text-white/60 text-sm mb-6">Both players type the same words at the same time!</p>
-
-          {/* Connection status */}
-          <div className="flex items-center justify-center gap-2 mb-6">
-            {connectionStatus === 'connected'
-              ? <><Wifi className="w-4 h-4 text-green-400" /><span className="text-green-400 text-xs font-bold">Connected</span></>
-              : <><WifiOff className="w-4 h-4 text-yellow-400 animate-pulse" /><span className="text-yellow-400 text-xs font-bold">Connecting...</span></>
-            }
-          </div>
-
-          {/* Player avatars */}
-          <div className="flex items-center justify-center gap-6 mb-8">
-            <div className="flex flex-col items-center gap-2">
-              {petImageUrl && <img src={petImageUrl} alt={petName} className="w-16 h-16 object-contain drop-shadow-lg" />}
-              <span className="text-white font-bold text-sm">{petName}</span>
-              <div className={`rounded-full px-3 py-1 text-xs font-bold ${myReady ? 'bg-green-500 text-white' : 'bg-white/20 text-white/60'}`}>
-                {myReady ? 'Ready!' : 'Not Ready'}
-              </div>
-            </div>
-
-            <span className="text-3xl font-black text-white/30">VS</span>
-
-            <div className="flex flex-col items-center gap-2">
-              {opponentPetUrl
-                ? <img src={opponentPetUrl} alt={opponentName} className="w-16 h-16 object-contain drop-shadow-lg" style={{ transform: 'scaleX(-1)' }} />
-                : <div className="w-16 h-16 rounded-full bg-white/20 flex items-center justify-center text-2xl">?</div>
-              }
-              <span className="text-white font-bold text-sm">{opponentName}</span>
-              <div className={`rounded-full px-3 py-1 text-xs font-bold ${opponentReady ? 'bg-green-500 text-white' : 'bg-white/20 text-white/60'}`}>
-                {opponentReady ? 'Ready!' : 'Waiting...'}
-              </div>
-            </div>
-          </div>
-
-          {!myReady ? (
-            <button
-              onClick={handleReady}
-              disabled={connectionStatus !== 'connected'}
-              className="w-full py-4 bg-white text-indigo-700 rounded-full font-bold text-xl shadow-xl hover:scale-105 active:scale-95 transition-transform border-b-4 border-indigo-200 disabled:opacity-50 disabled:hover:scale-100"
-            >
-              Ready!
-            </button>
+          {opponentLeft ? (
+            <>
+              <div className="text-5xl mb-4">💨</div>
+              <h2 className="text-xl font-bold text-white mb-2">Opponent Left</h2>
+              <p className="text-white/60 text-sm mb-6">{opponentName} has left the battle.</p>
+              <button
+                onClick={onClose}
+                className="px-8 py-3 bg-white text-indigo-700 rounded-full font-bold shadow-xl hover:scale-105 active:scale-95 transition-transform"
+              >
+                Back
+              </button>
+            </>
           ) : (
-            <div className="text-white/60 text-sm animate-pulse">
-              Waiting for {opponentName} to be ready...
-            </div>
+            <>
+              <h2 className="text-2xl font-black text-white mb-2" style={{ textShadow: '0 2px 4px rgba(0,0,0,0.3)' }}>
+                Live Word Type Battle
+              </h2>
+              <p className="text-white/60 text-sm mb-6">Both players type the same words at the same time!</p>
+
+              {/* Connection status */}
+              <div className="flex items-center justify-center gap-2 mb-6">
+                {connectionStatus === 'connected'
+                  ? <><Wifi className="w-4 h-4 text-green-400" /><span className="text-green-400 text-xs font-bold">Connected</span></>
+                  : <><WifiOff className="w-4 h-4 text-yellow-400 animate-pulse" /><span className="text-yellow-400 text-xs font-bold">Connecting...</span></>
+                }
+              </div>
+
+              {/* Player avatars */}
+              <div className="flex items-center justify-center gap-6 mb-8">
+                <div className="flex flex-col items-center gap-2">
+                  {petImageUrl && <img src={petImageUrl} alt={petName} className="w-16 h-16 object-contain drop-shadow-lg" />}
+                  <span className="text-white font-bold text-sm">{petName}</span>
+                  <div className={`rounded-full px-3 py-1 text-xs font-bold ${myReady ? 'bg-green-500 text-white' : 'bg-white/20 text-white/60'}`}>
+                    {myReady ? 'Ready!' : 'Not Ready'}
+                  </div>
+                </div>
+
+                <span className="text-3xl font-black text-white/30">VS</span>
+
+                <div className="flex flex-col items-center gap-2">
+                  {opponentPetUrl
+                    ? <img src={opponentPetUrl} alt={opponentName} className="w-16 h-16 object-contain drop-shadow-lg" style={{ transform: 'scaleX(-1)' }} />
+                    : <div className="w-16 h-16 rounded-full bg-white/20 flex items-center justify-center text-2xl">?</div>
+                  }
+                  <span className="text-white font-bold text-sm">{opponentName}</span>
+                  <div className={`rounded-full px-3 py-1 text-xs font-bold ${opponentReady ? 'bg-green-500 text-white' : 'bg-white/20 text-white/60'}`}>
+                    {opponentReady ? 'Ready!' : 'Waiting...'}
+                  </div>
+                </div>
+              </div>
+
+              {!myReady ? (
+                <button
+                  onClick={handleReady}
+                  disabled={connectionStatus !== 'connected'}
+                  className="w-full py-4 bg-white text-indigo-700 rounded-full font-bold text-xl shadow-xl hover:scale-105 active:scale-95 transition-transform border-b-4 border-indigo-200 disabled:opacity-50 disabled:hover:scale-100"
+                >
+                  Ready!
+                </button>
+              ) : (
+                <div className="text-white/60 text-sm animate-pulse">
+                  Waiting for {opponentName} to be ready...
+                </div>
+              )}
+            </>
           )}
         </div>
       </div>,

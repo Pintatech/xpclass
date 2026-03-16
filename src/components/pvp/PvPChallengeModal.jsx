@@ -155,8 +155,8 @@ const GAMES = [
   { id: 'astroblast', name: 'Astro Blast', icon: 'https://xpclass.vn/xpclass/image/inventory/spaceship/phantom-voyager.png', description: 'Shoot the asteroids!' },
   { id: 'matchgame', name: 'Match Up', icon: 'https://xpclass.vn/xpclass/image/dashboard/match1.png', description: 'Match words & meanings!' },
   { id: 'flappy', name: 'Flappy Pet', icon: 'https://xpclass.vn/xpclass/image/dashboard/flap.png', description: 'Fly and collect fruits!' },
-  { id: 'wordtype', name: 'Word Type', icon: 'https://xpclass.vn/xpclass/image/dashboard/wordtype.png', description: 'Type the correct word!' },
-  { id: 'sayitright', name: 'Say It Right', icon: 'https://xpclass.vn/xpclass/image/dashboard/sayitright.png', description: 'Pronounce the word!' },
+  { id: 'wordtype', name: 'Word Type', icon: 'https://xpclass.vn/xpclass/image/dashboard/pet-type.webp', description: 'Type the correct word!' },
+  { id: 'sayitright', name: 'Say It Right', icon: null, emoji: '🎤', description: 'Pronounce the word!' },
 ]
 
 const PvPChallengeModal = ({ opponent, onClose }) => {
