@@ -251,10 +251,10 @@ const MissionManagement = () => {
               <div key={m.id} className={`bg-white rounded-xl border p-4 flex items-center gap-4 ${!m.is_active ? 'opacity-50' : ''}`}>
                 {/* Icon */}
                 <div className={`w-10 h-10 rounded-lg flex items-center justify-center bg-${typeColor}-100`}>
-                  {getIconImage(m.icon).startsWith('/') ? (
-                    <img src={assetUrl(getIconImage(m.icon))} alt="" className="w-8 h-8 object-contain" />
+                  {getIconImage(m.icon).startsWith('http') ? (
+                    <img src={getIconImage(m.icon)} alt="" className="w-8 h-8 object-contain" />
                   ) : (
-                    <span className="text-xl">{getIconImage(m.icon)}</span>
+                    <img src={assetUrl(getIconImage(m.icon))} alt="" className="w-8 h-8 object-contain" />
                   )}
                 </div>
 
@@ -366,10 +366,10 @@ const MissionManagement = () => {
                         }`}
                         title={o.label}
                       >
-                        {o.image.startsWith('/') ? (
-                          <img src={assetUrl(o.image)} alt={o.label} className="w-8 h-8 object-contain mx-auto" />
+                        {o.image.startsWith('http') ? (
+                          <img src={o.image} alt={o.label} className="w-8 h-8 object-contain mx-auto" />
                         ) : (
-                          <span className="text-xl block text-center">{o.image}</span>
+                          <img src={assetUrl(o.image)} alt={o.label} className="w-8 h-8 object-contain mx-auto" />
                         )}
                       </button>
                     ))}
