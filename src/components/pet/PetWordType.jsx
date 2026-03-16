@@ -39,7 +39,7 @@ const pickGameWords = (source) => {
   return picked
 }
 
-const PetWordType = ({ petImageUrl, petName, onGameEnd, onClose, wordBank: wordBankProp = [], hideClose = false, scoreToBeat = null, leaderboard = [], chestEnabled = false, pvpOpponentPetUrl = null }) => {
+const PetWordType = ({ petImageUrl, petName, onGameEnd, onClose, wordBank: wordBankProp = [], hideClose = false, scoreToBeat = null, leaderboard = [], chestEnabled = false, pvpOpponentPetUrl = null, initialWords = null, onProgressUpdate = null, opponentProgress = null, isRealtimePvP = false }) => {
   const [phase, setPhase] = useState('ready')
   const [displayScore, setDisplayScore] = useState(0)
   const [displayTime, setDisplayTime] = useState(GAME_DURATION)
@@ -137,6 +137,11 @@ const PetWordType = ({ petImageUrl, petName, onGameEnd, onClose, wordBank: wordB
         setTimeout(() => setChestPopup(false), 1500)
       }
 
+      // Broadcast progress for realtime PvP
+      if (onProgressUpdate) {
+        onProgressUpdate({ score: scoreRef.current, wordsCompleted: wordsCompleted + 1, wordIndex: wordIndex + 1 })
+      }
+
       setFeedback('correct')
 
       setWordPopup({ points, streak: newStreak })
@@ -222,7 +227,7 @@ const PetWordType = ({ petImageUrl, petName, onGameEnd, onClose, wordBank: wordB
   }, [currentWord, hintRevealed])
 
   const startGame = useCallback(() => {
-    const gameWords = pickGameWords(wordBankProp.length > 0 ? wordBankProp : WORD_BANK)
+    const gameWords = initialWords || pickGameWords(wordBankProp.length > 0 ? wordBankProp : WORD_BANK)
     setWords(gameWords)
     setWordIndex(0)
     setDisplayScore(0)
@@ -625,6 +630,20 @@ const PetWordType = ({ petImageUrl, petName, onGameEnd, onClose, wordBank: wordB
                   <img src={assetUrl('/icon/profile/streak.svg')} alt="streak" className="w-3.5 h-3.5" />{streak}x
                 </div>
               </div>
+
+              {/* Opponent progress (realtime PvP) */}
+              {opponentProgress && (
+                <div className="w-full flex items-center justify-between bg-red-500/20 backdrop-blur rounded-xl px-3 py-1.5">
+                  <div className="flex items-center gap-2">
+                    {pvpOpponentPetUrl && <img src={pvpOpponentPetUrl} alt="Opponent" className="w-6 h-6 object-contain" style={{ transform: 'scaleX(-1)' }} />}
+                    <span className="text-xs font-bold text-red-200">Opponent</span>
+                  </div>
+                  <div className="flex items-center gap-3">
+                    <span className="text-xs text-white/70">{opponentProgress.wordsCompleted} words</span>
+                    <span className="text-sm font-black text-white">{opponentProgress.score}</span>
+                  </div>
+                </div>
+              )}
             </div>
           </div>
 
@@ -881,22 +900,49 @@ const PetWordType = ({ petImageUrl, petName, onGameEnd, onClose, wordBank: wordB
               <Trophy className="w-10 h-10 text-indigo-500" />
             </div>
 
-            <h2 className="text-2xl font-bold text-gray-800 mb-1">
-              {wordsCompleted >= 10 ? 'Training Complete!' : 'Not Enough Words!'}
-            </h2>
-            <p className="text-gray-500 mb-5">
-              {wordsCompleted >= 10
-                ? `${petName} learned ${wordsCompleted} words!`
-                : `${petName} only learned ${wordsCompleted}/10 words`}
-            </p>
-
-            <div
-              className={`rounded-2xl p-5 mb-5 border ${wordsCompleted >= 10 ? 'bg-gradient-to-br from-indigo-50 to-purple-50 border-indigo-100' : 'bg-gradient-to-br from-gray-50 to-gray-100 border-gray-200'}`}
-              style={{ animation: 'typeScorePopIn 0.6s ease-out 0.5s both' }}
-            >
-              <p className={`text-5xl font-black ${wordsCompleted >= 10 ? 'text-indigo-600' : 'text-gray-400'}`}>{wordsCompleted}</p>
-              <p className={`text-sm font-semibold mt-1 ${wordsCompleted >= 10 ? 'text-indigo-400' : 'text-gray-400'}`}>words completed</p>
-            </div>
+            {isRealtimePvP && opponentProgress ? (
+              <>
+                <h2 className="text-2xl font-bold text-gray-800 mb-1">
+                  {displayScore > opponentProgress.score ? 'You Win!' : displayScore < opponentProgress.score ? 'You Lose!' : "It's a Tie!"}
+                </h2>
+                <p className="text-gray-500 mb-5">
+                  {displayScore > opponentProgress.score ? 'Great typing skills!' : displayScore < opponentProgress.score ? 'Better luck next time!' : 'Evenly matched!'}
+                </p>
+                <div className="flex items-center justify-center gap-4 mb-5">
+                  <div className={`rounded-2xl p-4 border flex-1 ${displayScore >= opponentProgress.score ? 'bg-gradient-to-br from-green-50 to-emerald-50 border-green-200' : 'bg-gradient-to-br from-gray-50 to-gray-100 border-gray-200'}`}
+                    style={{ animation: 'typeScorePopIn 0.6s ease-out 0.5s both' }}>
+                    <p className="text-xs font-semibold text-gray-400 mb-1">You</p>
+                    <p className={`text-3xl font-black ${displayScore >= opponentProgress.score ? 'text-green-600' : 'text-gray-400'}`}>{displayScore}</p>
+                    <p className="text-xs text-gray-400 mt-1">{wordsCompleted} words</p>
+                  </div>
+                  <span className="text-gray-300 font-bold text-lg">VS</span>
+                  <div className={`rounded-2xl p-4 border flex-1 ${opponentProgress.score >= displayScore ? 'bg-gradient-to-br from-red-50 to-pink-50 border-red-200' : 'bg-gradient-to-br from-gray-50 to-gray-100 border-gray-200'}`}
+                    style={{ animation: 'typeScorePopIn 0.6s ease-out 0.7s both' }}>
+                    <p className="text-xs font-semibold text-gray-400 mb-1">Opponent</p>
+                    <p className={`text-3xl font-black ${opponentProgress.score >= displayScore ? 'text-red-600' : 'text-gray-400'}`}>{opponentProgress.score}</p>
+                    <p className="text-xs text-gray-400 mt-1">{opponentProgress.wordsCompleted} words</p>
+                  </div>
+                </div>
+              </>
+            ) : (
+              <>
+                <h2 className="text-2xl font-bold text-gray-800 mb-1">
+                  {wordsCompleted >= 10 ? 'Training Complete!' : 'Not Enough Words!'}
+                </h2>
+                <p className="text-gray-500 mb-5">
+                  {wordsCompleted >= 10
+                    ? `${petName} learned ${wordsCompleted} words!`
+                    : `${petName} only learned ${wordsCompleted}/10 words`}
+                </p>
+                <div
+                  className={`rounded-2xl p-5 mb-5 border ${wordsCompleted >= 10 ? 'bg-gradient-to-br from-indigo-50 to-purple-50 border-indigo-100' : 'bg-gradient-to-br from-gray-50 to-gray-100 border-gray-200'}`}
+                  style={{ animation: 'typeScorePopIn 0.6s ease-out 0.5s both' }}
+                >
+                  <p className={`text-5xl font-black ${wordsCompleted >= 10 ? 'text-indigo-600' : 'text-gray-400'}`}>{wordsCompleted}</p>
+                  <p className={`text-sm font-semibold mt-1 ${wordsCompleted >= 10 ? 'text-indigo-400' : 'text-gray-400'}`}>words completed</p>
+                </div>
+              </>
+            )}
 
             {/* Skipped Words */}
             {skippedWords.length > 0 && (
@@ -928,12 +974,12 @@ const PetWordType = ({ petImageUrl, petName, onGameEnd, onClose, wordBank: wordB
               </div>
             )}
 
-            {wordsCompleted >= 10 ? (
+            {isRealtimePvP || wordsCompleted >= 10 ? (
               <button
                 onClick={() => onGameEnd(displayScore, { chestCollected, wordsCompleted })}
                 className="w-full py-3.5 bg-gradient-to-b from-indigo-500 to-indigo-600 hover:from-indigo-600 hover:to-indigo-700 text-white rounded-full font-bold text-lg shadow-lg border-b-4 border-indigo-700 active:border-b-0 active:mt-1 transition-all"
               >
-                Collect Rewards
+                {isRealtimePvP ? 'Done' : 'Collect Rewards'}
               </button>
             ) : (
               <div className="flex flex-col gap-2">

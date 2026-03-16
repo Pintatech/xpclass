@@ -242,6 +242,8 @@ const PvPIncomingBanner = () => {
           challenger_score,
           status,
           created_at,
+          realtime_mode,
+          word_seed,
           challenger:users!pvp_challenges_challenger_id_fkey(id, full_name, avatar_url)
         `,
         )
@@ -584,10 +586,8 @@ const PvPIncomingBanner = () => {
                   {challenge.challenger?.full_name || "Someone"} challenged you!
                 </div>
                 <div className="text-xs text-gray-500">
-                  {challenge.game_type} - Score to beat:{" "}
-                  <span className="font-bold text-red-500">
-                    ???
-                  </span>
+                  {challenge.realtime_mode && <span className="inline-block bg-purple-500 text-white text-[10px] font-bold px-1.5 py-0.5 rounded mr-1">LIVE</span>}
+                  {challenge.game_type}{challenge.realtime_mode ? ' - Join now!' : <> - Score to beat:{" "}<span className="font-bold text-red-500">???</span></>}
                 </div>
               </div>
               <div className="flex gap-1.5 flex-shrink-0">
@@ -630,6 +630,7 @@ import PetMatchGame from "../pet/PetMatchGame";
 import PetFlappyGame from "../pet/PetFlappyGame";
 import PetWordType from "../pet/PetWordType";
 import PetSayItRight from "../pet/PetSayItRight";
+import PvPRealtimeWordType from "./PvPRealtimeWordType";
 import { createPortal } from "react-dom";
 import { Trophy } from "lucide-react";
 
@@ -806,6 +807,22 @@ const PvPResponseModal = ({ challenge, onClose }) => {
           />
         );
       case "wordtype":
+        if (challenge.realtime_mode && challenge.word_seed) {
+          return (
+            <PvPRealtimeWordType
+              challengeId={challenge.id}
+              wordSeed={challenge.word_seed}
+              wordBank={wordBank}
+              opponent={challenge.challenger}
+              isChallenger={false}
+              onClose={onClose}
+              onComplete={(s) => { setMyScore(s); setStep('result') }}
+              petImageUrl={petImage}
+              petName={petName}
+              pvpOpponentPetUrl={challengerPetUrl}
+            />
+          );
+        }
         return (
           <PetWordType
             {...commonProps}

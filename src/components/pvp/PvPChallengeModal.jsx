@@ -11,6 +11,7 @@ import PetMatchGame from '../pet/PetMatchGame'
 import PetFlappyGame from '../pet/PetFlappyGame'
 import PetWordType from '../pet/PetWordType'
 import PetSayItRight from '../pet/PetSayItRight'
+import PvPRealtimeWordType from './PvPRealtimeWordType'
 
 import { assetUrl } from '../../hooks/useBranding'
 import { fetchPvpSchedule, checkPvpAvailability } from '../../utils/pvpSchedule'
@@ -158,7 +159,7 @@ const GAMES = [
 ]
 
 const PvPChallengeModal = ({ opponent, onClose }) => {
-  const { user, profile } = useAuth()
+  const { user, profile, isAdmin } = useAuth()
   const { activePet, playWithPet, drainPetEnergy, userEnergy } = usePet()
   const [step, setStep] = useState('pick-game') // pick-game | playing | result
   const [selectedGame, setSelectedGame] = useState(null)
@@ -170,6 +171,8 @@ const PvPChallengeModal = ({ opponent, onClose }) => {
   const [hasPending, setHasPending] = useState(null)
   const [checkingPending, setCheckingPending] = useState(true)
   const [pvpStatus, setPvpStatus] = useState({ available: true, reason: '' })
+  const [realtimeMode, setRealtimeMode] = useState(false)
+  const [wordSeed, setWordSeed] = useState(null)
 
   useEffect(() => {
     fetchWordBank()
@@ -216,12 +219,14 @@ const PvPChallengeModal = ({ opponent, onClose }) => {
     if (words && words.length >= 10) setWordBank(words)
   }
 
-  const startGame = async (gameId) => {
+  const startGame = async (gameId, live = false) => {
     if ((userEnergy ?? 100) < 10) {
       alert('Your pet is too tired to battle! Feed your pet first.')
       return
     }
     await drainPetEnergy(10)
+
+    const seed = live ? Math.floor(Math.random() * 2147483647) : null
 
     // Create challenge row immediately so refreshing can't allow retries
     if (!hasPending || hasPending.challenger_id === user.id) {
@@ -231,10 +236,15 @@ const PvPChallengeModal = ({ opponent, onClose }) => {
         game_type: gameId,
         challenger_score: 0,
         status: 'pending',
+        ...(live ? { realtime_mode: true, word_seed: seed } : {}),
       }).select('id, challenger_id, challenger_score, game_type, created_at, status').single()
       if (row) setHasPending(row)
     }
 
+    if (live) {
+      setRealtimeMode(true)
+      setWordSeed(seed)
+    }
     setSelectedGame(gameId)
     setStep('playing')
   }
@@ -315,6 +325,19 @@ const PvPChallengeModal = ({ opponent, onClose }) => {
       case 'flappy':
         return <PetFlappyGame {...commonProps} onGameEnd={(s) => handleGameEnd(s)} wordBank={wordBank} isPvP />
       case 'wordtype':
+        if (realtimeMode && hasPending?.id && wordSeed) {
+          return <PvPRealtimeWordType
+            challengeId={hasPending.id}
+            wordSeed={wordSeed}
+            wordBank={wordBank}
+            opponent={opponent}
+            isChallenger={true}
+            onClose={() => setStep('pick-game')}
+            onComplete={(s) => { setMyScore(s); setStep('result') }}
+            petImageUrl={petImage}
+            petName={petName}
+          />
+        }
         return <PetWordType {...commonProps} onGameEnd={(s) => handleGameEnd(s)} wordBank={wordBank} />
       case 'sayitright':
         return <PetSayItRight {...commonProps} onGameEnd={(s) => handleGameEnd(s)} wordBank={wordBank} />
@@ -415,25 +438,36 @@ const PvPChallengeModal = ({ opponent, onClose }) => {
 
             {/* Game List */}
             <div className="space-y-2">
-              {GAMES.filter((g) => enabledGames.includes(g.id)).map((game) => (
-                <button
-                  key={game.id}
-                  onClick={() => startGame(game.id)}
-                  className="w-full flex items-center gap-3 p-3 rounded-xl border-2 border-gray-100 hover:border-orange-300 hover:bg-orange-50 transition-all active:scale-[0.98]"
-                >
-                  <div className="w-10 h-10 rounded-lg bg-gray-100 flex items-center justify-center overflow-hidden">
-                    {game.icon ? (
-                      <img src={game.icon} alt="" className="w-7 h-7" onError={(e) => { e.target.style.display = 'none' }} />
-                    ) : (
-                      <span className="text-2xl">{game.emoji}</span>
-                    )}
-                  </div>
-                  <div className="text-left flex-1">
-                    <div className="font-semibold text-gray-800">{game.name}</div>
-                    <div className="text-xs text-gray-500">{game.description}</div>
-                  </div>
-                  <img src={assetUrl('/icon/dashboard/pvp.png')} alt="PvP" className="w-4 h-4 opacity-40" />
-                </button>
+              {GAMES.filter((g) => isAdmin() || enabledGames.includes(g.id)).map((game) => (
+                <div key={game.id} className="flex items-center gap-2">
+                  <button
+                    onClick={() => startGame(game.id)}
+                    className="flex-1 flex items-center gap-3 p-3 rounded-xl border-2 border-gray-100 hover:border-orange-300 hover:bg-orange-50 transition-all active:scale-[0.98]"
+                  >
+                    <div className="w-10 h-10 rounded-lg bg-gray-100 flex items-center justify-center overflow-hidden">
+                      {game.icon ? (
+                        <img src={game.icon} alt="" className="w-7 h-7" onError={(e) => { e.target.style.display = 'none' }} />
+                      ) : (
+                        <span className="text-2xl">{game.emoji}</span>
+                      )}
+                    </div>
+                    <div className="text-left flex-1">
+                      <div className="font-semibold text-gray-800">{game.name}</div>
+                      <div className="text-xs text-gray-500">{game.description}</div>
+                    </div>
+                    <img src={assetUrl('/icon/dashboard/pvp.png')} alt="PvP" className="w-4 h-4 opacity-40" />
+                  </button>
+                  {game.id === 'wordtype' && (
+                    <button
+                      onClick={() => startGame(game.id, true)}
+                      className="flex flex-col items-center gap-0.5 px-3 py-2.5 rounded-xl border-2 border-purple-200 bg-purple-50 hover:border-purple-400 hover:bg-purple-100 transition-all active:scale-95"
+                      title="Both players play at the same time!"
+                    >
+                      <span className="text-xs font-bold text-purple-600">LIVE</span>
+                      <span className="text-[10px] text-purple-400">Battle</span>
+                    </button>
+                  )}
+                </div>
               ))}
             </div>
             </>
