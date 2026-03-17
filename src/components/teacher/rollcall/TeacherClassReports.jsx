@@ -412,7 +412,7 @@ const TeacherClassReports = () => {
                   type="date"
                   value={selectedDate}
                   onChange={(e) => setSelectedDate(e.target.value)}
-                  min={(() => { const d = new Date(); d.setDate(d.getDate() - 2); return d.toISOString().split('T')[0]; })()}
+                  min={(() => { const d = new Date(); d.setDate(d.getDate() - 6); return d.toISOString().split('T')[0]; })()}
                   max={new Date().toISOString().split('T')[0]}
                   className="p-1.5 md:p-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                 />

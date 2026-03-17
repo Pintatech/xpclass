@@ -17,7 +17,8 @@ const shuffle = (arr) => {
   return a
 }
 
-const PetMatchGame = ({ petImageUrl, petName, onGameEnd, onClose, wordBank: wordBankProp = [], hideClose = false, scoreToBeat = null, leaderboard = [], chestEnabled = false, pvpOpponentPetUrl = null, initialRounds = null, onProgressUpdate = null, opponentProgress = null, isRealtimePvP = false }) => {
+const EMPTY_ARRAY = []
+const PetMatchGame = ({ petImageUrl, petName, onGameEnd, onClose, wordBank: wordBankProp = EMPTY_ARRAY, hideClose = false, scoreToBeat = null, leaderboard = EMPTY_ARRAY, chestEnabled = false, pvpOpponentPetUrl = null, initialRounds = null, onProgressUpdate = null, opponentProgress = null, isRealtimePvP = false }) => {
   const [phase, setPhase] = useState('ready')
   const [displayTime, setDisplayTime] = useState(GAME_DURATION)
   const [score, setScore] = useState(0)
@@ -47,6 +48,16 @@ const PetMatchGame = ({ petImageUrl, petName, onGameEnd, onClose, wordBank: word
   const bgMusicRef = useRef(null)
   const mutedRef = useRef(false)
   const audioCache = useRef({})
+  const starsRef = useRef(Array.from({ length: 20 }, () => {
+    const size = Math.random() * 3 + 1
+    return {
+      width: size,
+      height: size,
+      left: `${Math.random() * 100}%`,
+      top: `${Math.random() * 100}%`,
+      opacity: Math.random() * 0.5 + 0.2,
+    }
+  }))
 
   const playSound = useCallback((url, volume = 0.5) => {
     try {
@@ -196,14 +207,18 @@ const PetMatchGame = ({ petImageUrl, petName, onGameEnd, onClose, wordBank: word
   useEffect(() => {
     if (phase !== 'playing') return
     const animate = () => {
-      setScreenShake(prev => Math.max(0, prev - 1))
-      setParticles(prev => prev.map(p => ({
-        ...p,
-        x: p.x + p.vx,
-        y: p.y + p.vy,
-        vy: p.vy + 0.3,
-        opacity: p.opacity - 0.02,
-      })).filter(p => p.opacity > 0))
+      setScreenShake(prev => prev <= 0 ? prev : Math.max(0, prev - 1))
+      setParticles(prev => {
+        if (prev.length === 0) return prev
+        const next = prev.map(p => ({
+          ...p,
+          x: p.x + p.vx,
+          y: p.y + p.vy,
+          vy: p.vy + 0.3,
+          opacity: p.opacity - 0.02,
+        })).filter(p => p.opacity > 0)
+        return next
+      })
       animFrameRef.current = requestAnimationFrame(animate)
     }
     animFrameRef.current = requestAnimationFrame(animate)
@@ -413,17 +428,11 @@ const PetMatchGame = ({ petImageUrl, petName, onGameEnd, onClose, wordBank: word
       >
         {/* Decorative stars */}
         <div className="absolute inset-0 overflow-hidden pointer-events-none">
-          {Array.from({ length: 20 }, (_, i) => (
+          {starsRef.current.map((star, i) => (
             <div
               key={i}
               className="absolute rounded-full bg-white"
-              style={{
-                width: Math.random() * 3 + 1,
-                height: Math.random() * 3 + 1,
-                left: `${Math.random() * 100}%`,
-                top: `${Math.random() * 100}%`,
-                opacity: Math.random() * 0.5 + 0.2,
-              }}
+              style={star}
             />
           ))}
         </div>
