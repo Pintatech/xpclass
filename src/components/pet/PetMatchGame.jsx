@@ -17,7 +17,7 @@ const shuffle = (arr) => {
   return a
 }
 
-const PetMatchGame = ({ petImageUrl, petName, onGameEnd, onClose, wordBank: wordBankProp = [], hideClose = false, scoreToBeat = null, leaderboard = [], chestEnabled = false, pvpOpponentPetUrl = null }) => {
+const PetMatchGame = ({ petImageUrl, petName, onGameEnd, onClose, wordBank: wordBankProp = [], hideClose = false, scoreToBeat = null, leaderboard = [], chestEnabled = false, pvpOpponentPetUrl = null, initialRounds = null, onProgressUpdate = null, opponentProgress = null, isRealtimePvP = false }) => {
   const [phase, setPhase] = useState('ready')
   const [displayTime, setDisplayTime] = useState(GAME_DURATION)
   const [score, setScore] = useState(0)
@@ -49,10 +49,14 @@ const PetMatchGame = ({ petImageUrl, petName, onGameEnd, onClose, wordBank: word
   const chestSpawnedRef = useRef(false)
   const chestRoundRef = useRef(0)
 
+  const roundNumRef = useRef(0)
+
   // Build a round of tiles
   const buildRound = useCallback(() => {
-    const words = wordBankProp.length > 0 ? wordBankProp : WORD_BANK
-    const picked = shuffle(words).slice(0, PAIRS_PER_ROUND)
+    const roundIdx = roundNumRef.current
+    const picked = initialRounds && initialRounds[roundIdx]
+      ? initialRounds[roundIdx]
+      : shuffle(wordBankProp.length > 0 ? wordBankProp : WORD_BANK).slice(0, PAIRS_PER_ROUND)
     const wordTiles = picked.map((pair, i) => ({ id: `w-${i}`, pairId: i, text: pair.word, type: 'word', matched: false }))
     const hintTiles = picked.map((pair, i) => ({ id: `h-${i}`, pairId: i, text: pair.hint, type: 'hint', matched: false }))
     setTiles([...shuffle(wordTiles), ...shuffle(hintTiles)])
@@ -74,6 +78,7 @@ const PetMatchGame = ({ petImageUrl, petName, onGameEnd, onClose, wordBank: word
     setWordHistory([])
     setTotalMatched(0)
     setRoundNum(1)
+    roundNumRef.current = 1
     chestSpawnedRef.current = false
     const chestRound = 2 + Math.floor(Math.random() * 3)
     chestRoundRef.current = chestRound
@@ -94,6 +99,13 @@ const PetMatchGame = ({ petImageUrl, petName, onGameEnd, onClose, wordBank: word
       } catch {}
     }
   }, [])
+
+  // Auto-start for realtime PvP (skip the ready screen)
+  useEffect(() => {
+    if (isRealtimePvP && phase === 'ready') {
+      startGame()
+    }
+  }, [isRealtimePvP])
 
   // Toggle mute
   const toggleMute = useCallback(() => {
@@ -211,6 +223,11 @@ const PetMatchGame = ({ petImageUrl, petName, onGameEnd, onClose, wordBank: word
       scoreRef.current += points
       setScore(scoreRef.current)
 
+      // Broadcast progress for realtime PvP
+      if (onProgressUpdate) {
+        onProgressUpdate({ score: scoreRef.current, wordsCompleted: totalMatched + 1 })
+      }
+
       // Mark matched
       setTiles(prev => prev.map((t, i) =>
         (i === selected || i === index) ? { ...t, matched: true } : t
@@ -261,7 +278,10 @@ const PetMatchGame = ({ petImageUrl, petName, onGameEnd, onClose, wordBank: word
           setTimeout(() => setChestPopup(false), 1500)
         }
         setTimeout(() => {
-          setRoundNum(prev => prev + 1)
+          setRoundNum(prev => {
+            roundNumRef.current = prev + 1
+            return prev + 1
+          })
         }, 600)
       }
     } else {
@@ -581,6 +601,23 @@ const PetMatchGame = ({ petImageUrl, petName, onGameEnd, onClose, wordBank: word
                 </div>
               </div>
 
+              {/* Realtime PvP scoreboard */}
+              {isRealtimePvP && opponentProgress && (
+                <div className="flex items-center justify-center gap-3 w-full max-w-xs mx-auto mb-2">
+                  <div className="flex items-center gap-2 flex-1 justify-end">
+                    {petImageUrl && <img src={petImageUrl} alt={petName} className="w-10 h-10 object-contain drop-shadow-lg" />}
+                    <span className={`text-2xl font-black ${score > opponentProgress.score ? 'text-green-300' : score < opponentProgress.score ? 'text-white/60' : 'text-white'}`}
+                      style={{ textShadow: '0 2px 4px rgba(0,0,0,0.3)' }}>{score}</span>
+                  </div>
+                  <span className="text-white/30 font-black text-sm">vs</span>
+                  <div className="flex items-center gap-2 flex-1">
+                    <span className={`text-2xl font-black ${opponentProgress.score > score ? 'text-red-300' : opponentProgress.score < score ? 'text-white/60' : 'text-white'}`}
+                      style={{ textShadow: '0 2px 4px rgba(0,0,0,0.3)' }}>{opponentProgress.score}</span>
+                    {pvpOpponentPetUrl && <img src={pvpOpponentPetUrl} alt="Opponent" className="w-10 h-10 object-contain drop-shadow-lg" style={{ transform: 'scaleX(-1)' }} />}
+                  </div>
+                </div>
+              )}
+
               {/* Round indicator */}
               <div className="text-center">
                 <span className="text-white/50 text-xs font-semibold uppercase tracking-wider">
@@ -805,20 +842,48 @@ const PetMatchGame = ({ petImageUrl, petName, onGameEnd, onClose, wordBank: word
                 <Trophy className="w-10 h-10 text-indigo-500" />
               </div>
 
-              <h2 className="text-2xl font-bold text-gray-800 mb-1">
-                {totalMatched >= 30 ? 'Great Matching!' : 'Keep Practicing!'}
-              </h2>
-              <p className="text-gray-500 mb-5">
-                {petName} matched {totalMatched} pairs across {roundNum} round{roundNum > 1 ? 's' : ''}!
-              </p>
+              {isRealtimePvP && opponentProgress ? (
+                <>
+                  <h2 className="text-2xl font-bold text-gray-800 mb-1">
+                    {score > opponentProgress.score ? 'You Win!' : score < opponentProgress.score ? 'You Lose!' : "It's a Tie!"}
+                  </h2>
+                  <p className="text-gray-500 mb-5">
+                    {score > opponentProgress.score ? 'Great matching skills!' : score < opponentProgress.score ? 'Better luck next time!' : 'Evenly matched!'}
+                  </p>
+                  <div className="flex items-center justify-center gap-4 mb-5">
+                    <div className={`rounded-2xl p-4 border flex-1 ${score >= opponentProgress.score ? 'bg-gradient-to-br from-green-50 to-emerald-50 border-green-200' : 'bg-gradient-to-br from-gray-50 to-gray-100 border-gray-200'}`}
+                      style={{ animation: 'matchScorePopIn 0.6s ease-out 0.5s both' }}>
+                      <p className="text-xs font-semibold text-gray-400 mb-1">You</p>
+                      <p className={`text-3xl font-black ${score >= opponentProgress.score ? 'text-green-600' : 'text-gray-400'}`}>{score}</p>
+                      <p className="text-xs text-gray-400 mt-1">{totalMatched} pairs</p>
+                    </div>
+                    <span className="text-gray-300 font-bold text-lg">VS</span>
+                    <div className={`rounded-2xl p-4 border flex-1 ${opponentProgress.score >= score ? 'bg-gradient-to-br from-red-50 to-pink-50 border-red-200' : 'bg-gradient-to-br from-gray-50 to-gray-100 border-gray-200'}`}
+                      style={{ animation: 'matchScorePopIn 0.6s ease-out 0.7s both' }}>
+                      <p className="text-xs font-semibold text-gray-400 mb-1">Opponent</p>
+                      <p className={`text-3xl font-black ${opponentProgress.score >= score ? 'text-red-600' : 'text-gray-400'}`}>{opponentProgress.score}</p>
+                      <p className="text-xs text-gray-400 mt-1">{opponentProgress.wordsCompleted} pairs</p>
+                    </div>
+                  </div>
+                </>
+              ) : (
+                <>
+                  <h2 className="text-2xl font-bold text-gray-800 mb-1">
+                    {totalMatched >= 30 ? 'Great Matching!' : 'Keep Practicing!'}
+                  </h2>
+                  <p className="text-gray-500 mb-5">
+                    {petName} matched {totalMatched} pairs across {roundNum} round{roundNum > 1 ? 's' : ''}!
+                  </p>
 
-              <div
-                className={`rounded-2xl p-5 mb-5 border ${totalMatched >= 30 ? 'bg-gradient-to-br from-indigo-50 to-purple-50 border-indigo-100' : 'bg-gradient-to-br from-gray-50 to-gray-100 border-gray-200'}`}
-                style={{ animation: 'matchScorePopIn 0.6s ease-out 0.5s both' }}
-              >
-                <p className={`text-5xl font-black ${totalMatched >= 30 ? 'text-indigo-600' : 'text-gray-400'}`}>{score}</p>
-                <p className={`text-sm font-semibold mt-1 ${totalMatched >= 30 ? 'text-indigo-400' : 'text-gray-400'}`}>points</p>
-              </div>
+                  <div
+                    className={`rounded-2xl p-5 mb-5 border ${totalMatched >= 30 ? 'bg-gradient-to-br from-indigo-50 to-purple-50 border-indigo-100' : 'bg-gradient-to-br from-gray-50 to-gray-100 border-gray-200'}`}
+                    style={{ animation: 'matchScorePopIn 0.6s ease-out 0.5s both' }}
+                  >
+                    <p className={`text-5xl font-black ${totalMatched >= 30 ? 'text-indigo-600' : 'text-gray-400'}`}>{score}</p>
+                    <p className={`text-sm font-semibold mt-1 ${totalMatched >= 30 ? 'text-indigo-400' : 'text-gray-400'}`}>points</p>
+                  </div>
+                </>
+              )}
 
               {/* Missed Words */}
               {wordHistory.some(w => !w.correct) && (
@@ -835,11 +900,13 @@ const PetMatchGame = ({ petImageUrl, petName, onGameEnd, onClose, wordBank: word
                 </div>
               )}
 
-              <p className="text-sm text-gray-600 mb-6">
-                {totalMatched >= 30
-                  ? 'Awesome memory!'
-                  : 'Need at least 30 matched pairs to earn XP. Try again!'}
-              </p>
+              {!isRealtimePvP && (
+                <p className="text-sm text-gray-600 mb-6">
+                  {totalMatched >= 30
+                    ? 'Awesome memory!'
+                    : 'Need at least 30 matched pairs to earn XP. Try again!'}
+                </p>
+              )}
 
               {chestCollected && (
                 <div className="mb-4 flex items-center justify-center gap-2 bg-amber-50 border border-amber-200 rounded-xl px-4 py-2.5">
@@ -848,12 +915,12 @@ const PetMatchGame = ({ petImageUrl, petName, onGameEnd, onClose, wordBank: word
                 </div>
               )}
 
-              {totalMatched >= 30 ? (
+              {isRealtimePvP || totalMatched >= 30 ? (
                 <button
                   onClick={() => onGameEnd(score, { chestCollected, pairsMatched: totalMatched })}
                   className="w-full py-3.5 bg-gradient-to-b from-indigo-500 to-indigo-600 hover:from-indigo-600 hover:to-indigo-700 text-white rounded-full font-bold text-lg shadow-lg border-b-4 border-indigo-700 active:border-b-0 active:mt-1 transition-all"
                 >
-                  Collect Rewards
+                  {isRealtimePvP ? 'Done' : 'Collect Rewards'}
                 </button>
               ) : (
                 <div className="flex flex-col gap-2">

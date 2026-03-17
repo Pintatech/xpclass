@@ -12,6 +12,8 @@ import PetFlappyGame from '../pet/PetFlappyGame'
 import PetWordType from '../pet/PetWordType'
 import PetSayItRight from '../pet/PetSayItRight'
 import PvPRealtimeWordType from './PvPRealtimeWordType'
+import PvPRealtimeWordScramble from './PvPRealtimeWordScramble'
+import PvPRealtimeMatchGame from './PvPRealtimeMatchGame'
 
 import { assetUrl } from '../../hooks/useBranding'
 import { fetchPvpSchedule, checkPvpAvailability } from '../../utils/pvpSchedule'
@@ -311,6 +313,18 @@ const PvPChallengeModal = ({ opponent, onClose }) => {
       case 'whackmole':
         return <PetWhackMole {...commonProps} onGameEnd={(s) => handleGameEnd(s)} wordBank={wordBank} leaderboard={pvpScoreToBeat ? [pvpScoreToBeat] : []} />
       case 'scramble':
+        if (realtimeMode && hasPending?.id && wordSeed) {
+          return <PvPRealtimeWordScramble
+            challengeId={hasPending.id}
+            wordSeed={wordSeed}
+            wordBank={wordBank}
+            opponent={opponent}
+            isChallenger={true}
+            onClose={() => setStep('pick-game')}
+            petImageUrl={petImage}
+            petName={petName}
+          />
+        }
         return <PetWordScramble {...commonProps} onGameEnd={(s) => handleGameEnd(s)} wordBank={wordBank} />
       case 'astroblast':
         return <PetAstroBlast {...commonProps} onGameEnd={(s) => handleGameEnd(s)} wordBank={wordBank} shipSkinUrl={profile?.active_spaceship_url} shipLaserColor={profile?.active_spaceship_laser} asteroidSkinUrls={[
@@ -322,6 +336,18 @@ const PvPChallengeModal = ({ opponent, onClose }) => {
           'https://xpclass.vn/xpclass/pet-game/astro/alien6.png',
         ]} />
       case 'matchgame':
+        if (realtimeMode && hasPending?.id && wordSeed) {
+          return <PvPRealtimeMatchGame
+            challengeId={hasPending.id}
+            wordSeed={wordSeed}
+            wordBank={wordBank}
+            opponent={opponent}
+            isChallenger={true}
+            onClose={() => setStep('pick-game')}
+            petImageUrl={petImage}
+            petName={petName}
+          />
+        }
         return <PetMatchGame {...commonProps} onGameEnd={(s) => handleGameEnd(s)} wordBank={wordBank} />
       case 'flappy':
         return <PetFlappyGame {...commonProps} onGameEnd={(s) => handleGameEnd(s)} wordBank={wordBank} isPvP />

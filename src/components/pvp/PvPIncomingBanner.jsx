@@ -631,6 +631,8 @@ import PetFlappyGame from "../pet/PetFlappyGame";
 import PetWordType from "../pet/PetWordType";
 import PetSayItRight from "../pet/PetSayItRight";
 import PvPRealtimeWordType from "./PvPRealtimeWordType";
+import PvPRealtimeWordScramble from "./PvPRealtimeWordScramble";
+import PvPRealtimeMatchGame from "./PvPRealtimeMatchGame";
 import { createPortal } from "react-dom";
 import { Trophy } from "lucide-react";
 
@@ -764,6 +766,21 @@ const PvPResponseModal = ({ challenge, onClose }) => {
           />
         );
       case "scramble":
+        if (challenge.realtime_mode && challenge.word_seed) {
+          return (
+            <PvPRealtimeWordScramble
+              challengeId={challenge.id}
+              wordSeed={challenge.word_seed}
+              wordBank={wordBank}
+              opponent={challenge.challenger}
+              isChallenger={false}
+              onClose={onClose}
+              petImageUrl={petImage}
+              petName={petName}
+              pvpOpponentPetUrl={challengerPetUrl}
+            />
+          );
+        }
         return (
           <PetWordScramble
             {...commonProps}
@@ -790,6 +807,21 @@ const PvPResponseModal = ({ challenge, onClose }) => {
           />
         );
       case "matchgame":
+        if (challenge.realtime_mode && challenge.word_seed) {
+          return (
+            <PvPRealtimeMatchGame
+              challengeId={challenge.id}
+              wordSeed={challenge.word_seed}
+              wordBank={wordBank}
+              opponent={challenge.challenger}
+              isChallenger={false}
+              onClose={onClose}
+              petImageUrl={petImage}
+              petName={petName}
+              pvpOpponentPetUrl={challengerPetUrl}
+            />
+          );
+        }
         return (
           <PetMatchGame
             {...commonProps}

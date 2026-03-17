@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef, useCallback } from 'react'
 import { createPortal } from 'react-dom'
-import { X, Wifi, WifiOff } from 'lucide-react'
+import { X } from 'lucide-react'
 import { supabase } from '../../supabase/client'
 import { useAuth } from '../../hooks/useAuth'
 import { assetUrl } from '../../hooks/useBranding'
@@ -12,11 +12,11 @@ const PVP_TAUNTS = {
   gifs: Array.from({ length: 12 }, (_, i) => ({ value: `${TAUNT_GIF_BASE}/${i + 1}.gif`, label: ['Deal with it','Victory dance','Bye bye','Too easy','Loser','Cry'][i % 6] })),
 }
 import { usePet } from '../../hooks/usePet'
-import { seededPickGameWords } from '../../utils/seededRandom'
-import PetWordType from '../pet/PetWordType'
+import { seededPickMatchWords } from '../../utils/seededRandom'
+import PetMatchGame from '../pet/PetMatchGame'
 import WORD_BANK from '../pet/wordBank'
 
-const PvPRealtimeWordType = ({
+const PvPRealtimeMatchGame = ({
   challengeId,
   wordSeed,
   wordBank = [],
@@ -30,11 +30,11 @@ const PvPRealtimeWordType = ({
   const { user } = useAuth()
   const { activePet, playWithPet } = usePet()
 
-  const [phase, setPhase] = useState('lobby') // lobby | countdown | playing | done
+  const [phase, setPhase] = useState('lobby')
   const [myReady, setMyReady] = useState(false)
   const [opponentReady, setOpponentReady] = useState(false)
   const [countdown, setCountdown] = useState(3)
-  const [opponentProgress, setOpponentProgress] = useState({ score: 0, wordsCompleted: 0, wordIndex: 0 })
+  const [opponentProgress, setOpponentProgress] = useState({ score: 0, wordsCompleted: 0 })
   const [opponentFinished, setOpponentFinished] = useState(false)
   const [connectionStatus, setConnectionStatus] = useState('connecting')
   const [opponentPetUrl, setOpponentPetUrl] = useState(pvpOpponentPetUrl)
@@ -43,7 +43,7 @@ const PvPRealtimeWordType = ({
   const [receivedTaunt, setReceivedTaunt] = useState(null)
 
   const channelRef = useRef(null)
-  const opponentProgressRef = useRef({ score: 0, wordsCompleted: 0, wordIndex: 0 })
+  const opponentProgressRef = useRef({ score: 0, wordsCompleted: 0 })
   const myScoreRef = useRef(null)
   const opponentTimeoutRef = useRef(null)
 
@@ -54,7 +54,6 @@ const PvPRealtimeWordType = ({
     }, 15000)
   }, [])
 
-  // Fetch opponent's active pet image from DB
   useEffect(() => {
     if (opponentPetUrl || !opponent?.id) return
     const fetchPet = async () => {
@@ -71,11 +70,9 @@ const PvPRealtimeWordType = ({
     fetchPet()
   }, [opponent?.id, opponentPetUrl])
 
-  // Generate the same word list for both players using the shared seed
   const source = wordBank.length >= 10 ? wordBank : WORD_BANK
-  const gameWords = useRef(seededPickGameWords(source, wordSeed)).current
+  const gameRounds = useRef(seededPickMatchWords(source, wordSeed)).current
 
-  // Set up Supabase broadcast channel
   useEffect(() => {
     const channelName = `pvp-live-${challengeId}`
     const channel = supabase.channel(channelName, {
@@ -97,7 +94,7 @@ const PvPRealtimeWordType = ({
       .on('broadcast', { event: 'progress' }, (payload) => {
         if (payload.payload?.userId !== user.id) {
           resetOpponentTimeout()
-          const p = { score: payload.payload.score, wordsCompleted: payload.payload.wordsCompleted, wordIndex: payload.payload.wordIndex }
+          const p = { score: payload.payload.score, wordsCompleted: payload.payload.wordsCompleted }
           opponentProgressRef.current = p
           setOpponentProgress(p)
         }
@@ -131,12 +128,10 @@ const PvPRealtimeWordType = ({
     return () => {
       if (opponentTimeoutRef.current) clearTimeout(opponentTimeoutRef.current)
       supabase.removeChannel(channel)
-      // Clean up matchmaking row on unmount
       supabase.from('pvp_matchmaking').delete().eq('user_id', user.id)
     }
   }, [challengeId, user.id, resetOpponentTimeout])
 
-  // When both players ready, challenger sends game_start
   useEffect(() => {
     if (myReady && opponentReady && isChallenger && phase === 'lobby') {
       const timer = setTimeout(() => {
@@ -151,10 +146,6 @@ const PvPRealtimeWordType = ({
     }
   }, [myReady, opponentReady, isChallenger, phase])
 
-  // When opponent sends game_start (non-challenger receives it)
-  // Already handled in the channel listener above
-
-  // Start opponent timeout when game begins
   useEffect(() => {
     if (phase === 'playing') {
       resetOpponentTimeout()
@@ -164,7 +155,6 @@ const PvPRealtimeWordType = ({
     }
   }, [phase, resetOpponentTimeout])
 
-  // Countdown timer
   useEffect(() => {
     if (phase !== 'countdown') return
     if (countdown <= 0) {
@@ -185,7 +175,6 @@ const PvPRealtimeWordType = ({
     })
   }, [user.id, activePet])
 
-  // Auto-ready as soon as channel is connected — skip the lobby
   useEffect(() => {
     if (connectionStatus === 'connected' && !myReady) {
       handleReady()
@@ -203,22 +192,18 @@ const PvPRealtimeWordType = ({
   const handleGameEnd = useCallback(async (score, extras) => {
     myScoreRef.current = score
 
-    // Broadcast final score
     channelRef.current?.send({
       type: 'broadcast',
       event: 'game_end',
-      payload: { userId: user.id, score, wordsCompleted: extras?.wordsCompleted || 0 },
+      payload: { userId: user.id, score, wordsCompleted: extras?.pairsMatched || 0 },
     })
 
-    // Save to DB
     try {
       const opScore = opponentProgressRef.current.score
-      // Fetch challenger_id and opponent_id for winner determination
       const { data: challengeData } = await supabase.from('pvp_challenges')
         .select('challenger_id, opponent_id').eq('id', challengeId).single()
 
       if (isChallenger) {
-        // Challenger writes their score
         const winnerId = score > opScore ? challengeData?.challenger_id
           : score < opScore ? challengeData?.opponent_id
           : null
@@ -231,7 +216,6 @@ const PvPRealtimeWordType = ({
           } : {}),
         }).eq('id', challengeId)
       } else {
-        // Opponent writes their score and determines winner
         const { data: fresh } = await supabase.from('pvp_challenges')
           .select('challenger_score').eq('id', challengeId).single()
         const challengerScore = fresh?.challenger_score ?? opScore
@@ -247,7 +231,6 @@ const PvPRealtimeWordType = ({
         }).eq('id', challengeId)
       }
 
-      // Award XP to winner
       const myWinnerId = score > opponentProgressRef.current.score ? user.id : null
       if (myWinnerId) {
         const { data: winnerData } = await supabase.from('users').select('xp').eq('id', myWinnerId).single()
@@ -261,7 +244,6 @@ const PvPRealtimeWordType = ({
         }).catch(() => {})
       }
 
-      // Award pet XP
       if (activePet?.id) {
         playWithPet(activePet.id).catch(() => {})
       }
@@ -281,7 +263,6 @@ const PvPRealtimeWordType = ({
 
   const opponentName = opponent?.full_name?.split(' ').pop() || 'Opponent'
 
-  // Lobby phase — auto-ready, just show a brief connecting/waiting state
   if (phase === 'lobby') {
     return createPortal(
       <div className="fixed inset-0 z-50 bg-black/80 flex items-center justify-center">
@@ -298,12 +279,7 @@ const PvPRealtimeWordType = ({
               <div className="text-5xl mb-4">💨</div>
               <h2 className="text-xl font-bold text-white mb-2">Opponent Left</h2>
               <p className="text-white/60 text-sm mb-6">{opponentName} has left the battle.</p>
-              <button
-                onClick={onClose}
-                className="px-8 py-3 bg-white text-indigo-700 rounded-full font-bold shadow-xl hover:scale-105 active:scale-95 transition-transform"
-              >
-                Back
-              </button>
+              <button onClick={onClose} className="px-8 py-3 bg-white text-indigo-700 rounded-full font-bold shadow-xl hover:scale-105 active:scale-95 transition-transform">Back</button>
             </>
           ) : (
             <>
@@ -315,9 +291,7 @@ const PvPRealtimeWordType = ({
                   }
                   <span className="text-white font-bold text-sm">{petName}</span>
                 </div>
-
                 <img src="https://xpclass.vn/xpclass/icon/dashboard/pvp.png" alt="VS" className="w-16 h-16 object-contain drop-shadow-lg" style={{ animation: 'pvpVsPulse 1s ease-in-out infinite' }} />
-
                 <div className="flex flex-col items-center gap-2" style={{ animation: 'pvpSlideInRight 0.5s ease-out' }}>
                   {opponentPetUrl
                     ? <img src={opponentPetUrl} alt={opponentName} className="w-20 h-20 object-contain drop-shadow-lg" style={{ transform: 'scaleX(-1)' }} />
@@ -326,22 +300,11 @@ const PvPRealtimeWordType = ({
                   <span className="text-white font-bold text-sm">{opponentName}</span>
                 </div>
               </div>
-
               <p className="text-white/70 text-sm animate-pulse">Starting battle...</p>
-
               <style>{`
-                @keyframes pvpSlideInLeft {
-                  from { transform: translateX(-40px); opacity: 0; }
-                  to { transform: translateX(0); opacity: 1; }
-                }
-                @keyframes pvpSlideInRight {
-                  from { transform: translateX(40px); opacity: 0; }
-                  to { transform: translateX(0); opacity: 1; }
-                }
-                @keyframes pvpVsPulse {
-                  0%, 100% { transform: scale(1); }
-                  50% { transform: scale(1.2); }
-                }
+                @keyframes pvpSlideInLeft { from { transform: translateX(-40px); opacity: 0; } to { transform: translateX(0); opacity: 1; } }
+                @keyframes pvpSlideInRight { from { transform: translateX(40px); opacity: 0; } to { transform: translateX(0); opacity: 1; } }
+                @keyframes pvpVsPulse { 0%, 100% { transform: scale(1); } 50% { transform: scale(1.2); } }
               `}</style>
             </>
           )}
@@ -351,17 +314,13 @@ const PvPRealtimeWordType = ({
     )
   }
 
-  // Countdown phase
   if (phase === 'countdown') {
     return createPortal(
       <div className="fixed inset-0 z-50 bg-black/80 flex items-center justify-center">
         <div className="text-center">
           <p className="text-white/60 text-lg mb-4">Battle starts in...</p>
-          <div
-            className="text-9xl font-black text-white drop-shadow-2xl"
-            key={countdown}
-            style={{ animation: 'typeScorePopIn 0.8s ease-out' }}
-          >
+          <div className="text-9xl font-black text-white drop-shadow-2xl" key={countdown}
+            style={{ animation: 'typeScorePopIn 0.8s ease-out' }}>
             {countdown > 0 ? countdown : 'GO!'}
           </div>
           <style>{`
@@ -377,16 +336,15 @@ const PvPRealtimeWordType = ({
     )
   }
 
-  // Playing phase - render PetWordType with realtime props
   if (phase === 'playing') {
     return (
-      <PetWordType
+      <PetMatchGame
         petImageUrl={petImageUrl}
         petName={petName}
         onGameEnd={handleGameEnd}
         onClose={onClose}
         hideClose={true}
-        initialWords={gameWords}
+        initialRounds={gameRounds}
         onProgressUpdate={handleProgressUpdate}
         opponentProgress={opponentProgress}
         isRealtimePvP={true}
@@ -396,7 +354,6 @@ const PvPRealtimeWordType = ({
     )
   }
 
-  // Done phase - show result with taunt
   if (phase === 'done') {
     const myScore = myScoreRef.current || 0
     const opScore = opponentProgressRef.current.score || 0
@@ -416,7 +373,6 @@ const PvPRealtimeWordType = ({
           </h2>
           {won && <p className="text-green-300 font-bold text-sm mb-3">+10 XP</p>}
 
-          {/* Score display */}
           <div className="flex items-center justify-center gap-4 mb-4">
             <div className="flex flex-col items-center gap-1">
               {petImageUrl && <img src={petImageUrl} alt={petName} className="w-14 h-14 object-contain drop-shadow-lg" />}
@@ -434,7 +390,6 @@ const PvPRealtimeWordType = ({
             </div>
           </div>
 
-          {/* Received taunt */}
           {receivedTaunt && (() => {
             try {
               const t = typeof receivedTaunt === 'string' ? JSON.parse(receivedTaunt) : receivedTaunt
@@ -449,7 +404,6 @@ const PvPRealtimeWordType = ({
             } catch { return null }
           })()}
 
-          {/* Taunt picker for winner */}
           {won && !tauntSent && (
             <div className="bg-white/10 rounded-xl p-3 mb-3">
               <p className="text-xs font-bold text-yellow-300 mb-2">Send a taunt! 😈</p>
@@ -488,4 +442,4 @@ const PvPRealtimeWordType = ({
   return null
 }
 
-export default PvPRealtimeWordType
+export default PvPRealtimeMatchGame

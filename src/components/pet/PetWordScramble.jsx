@@ -43,7 +43,7 @@ const pickGameWords = (source) => {
   return picked
 }
 
-const PetWordScramble = ({ petImageUrl, petName, onGameEnd, onClose, wordBank: wordBankProp = [], hideClose = false, scoreToBeat = null, leaderboard = [], chestEnabled = false, pvpOpponentPetUrl = null }) => {
+const PetWordScramble = ({ petImageUrl, petName, onGameEnd, onClose, wordBank: wordBankProp = [], hideClose = false, scoreToBeat = null, leaderboard = [], chestEnabled = false, pvpOpponentPetUrl = null, initialWords = null, onProgressUpdate = null, opponentProgress = null, isRealtimePvP = false }) => {
   const [phase, setPhase] = useState('ready') // 'ready' | 'playing' | 'results'
   const [displayScore, setDisplayScore] = useState(0)
   const [displayTime, setDisplayTime] = useState(GAME_DURATION)
@@ -67,13 +67,28 @@ const PetWordScramble = ({ petImageUrl, petName, onGameEnd, onClose, wordBank: w
   const scoreRef = useRef(0)
   const timerRef = useRef(null)
   const streakRef = useRef(0)
+  const scoredWordIndexRef = useRef(-1)
   const animationFrameRef = useRef(null)
   const gameAreaRef = useRef(null)
   const containerRef = useRef(null)
   const bgMusicRef = useRef(null)
+  const audioCache = useRef({})
   const chestSpawnedRef = useRef(false)
   const chestWordRef = useRef(0)
   const [chestWordIndex, setChestWordIndex] = useState(-1)
+
+  const playSound = useCallback((url, volume = 0.5, rate = 1) => {
+    try {
+      if (!audioCache.current[url]) {
+        audioCache.current[url] = new Audio(url)
+      }
+      const sound = audioCache.current[url]
+      sound.volume = volume
+      sound.playbackRate = rate
+      sound.currentTime = 0
+      sound.play().catch(() => {})
+    } catch {}
+  }, [])
 
   // Create floating bubbles for a word, spread out in a grid-ish layout
   const createBubbles = useCallback((word, containerWidth, containerHeight) => {
@@ -128,7 +143,7 @@ const PetWordScramble = ({ petImageUrl, petName, onGameEnd, onClose, wordBank: w
 
   // Start the game
   const startGame = useCallback(() => {
-    const gameWords = pickGameWords(wordBankProp.length > 0 ? wordBankProp : WORD_BANK)
+    const gameWords = initialWords || pickGameWords(wordBankProp.length > 0 ? wordBankProp : WORD_BANK)
     setWords(gameWords)
     setWordIndex(0)
     setDisplayScore(0)
@@ -138,6 +153,7 @@ const PetWordScramble = ({ petImageUrl, petName, onGameEnd, onClose, wordBank: w
 
     scoreRef.current = 0
     streakRef.current = 0
+    scoredWordIndexRef.current = -1
     setCombo(0)
     chestSpawnedRef.current = false
     // Pick a long word (6+ letters) for chest, fallback to random 3-7
@@ -168,6 +184,13 @@ const PetWordScramble = ({ petImageUrl, petName, onGameEnd, onClose, wordBank: w
       music.play().catch(() => {})
     } catch {}
   }, [setupWord])
+
+  // Auto-start for realtime PvP (skip the ready screen)
+  useEffect(() => {
+    if (isRealtimePvP && phase === 'ready') {
+      startGame()
+    }
+  }, [isRealtimePvP])
 
   // Timer
   useEffect(() => {
@@ -337,14 +360,7 @@ const PetWordScramble = ({ petImageUrl, petName, onGameEnd, onClose, wordBank: w
       setCombo(prev => prev + 1)
 
       // Pop sound
-      try {
-        const sound = new Audio(assetUrl('/sound/pop2.mp3'))
-        sound.volume = 0.3
-        sound.playbackRate = 1
-        sound.play().catch(() => {})
-      } catch {
-        // Ignore audio errors
-      }
+      playSound(assetUrl('/sound/pop2.mp3'), 0.3, 1)
 
       // Create pop particles
       const colors = ['#fbbf24', '#f59e0b', '#ec4899', '#8b5cf6', '#3b82f6']
@@ -375,13 +391,7 @@ const PetWordScramble = ({ petImageUrl, petName, onGameEnd, onClose, wordBank: w
       }
 
       // Wrong sound
-      try {
-        const sound = new Audio(assetUrl('/sound/flappy-hit.mp3'))
-        sound.volume = 0.3
-        sound.play().catch(() => {})
-      } catch {
-        // Ignore audio errors
-      }
+      playSound(assetUrl('/sound/flappy-hit.mp3'), 0.3)
 
       // Red explosion particles
       const explosionParticles = Array.from({ length: 12 }, (_, i) => ({
@@ -413,7 +423,7 @@ const PetWordScramble = ({ petImageUrl, petName, onGameEnd, onClose, wordBank: w
         ))
       }, 300)
     }
-  }, [phase, feedback, placedLetters, chestEnabled, wordsCompleted])
+  }, [phase, feedback, placedLetters, chestEnabled, wordsCompleted, playSound])
 
   // Skip current word
   const handleSkip = useCallback(() => {
@@ -438,8 +448,9 @@ const PetWordScramble = ({ petImageUrl, petName, onGameEnd, onClose, wordBank: w
     } else {
       const source = wordBankProp.length > 0 ? wordBankProp : WORD_BANK
       const moreWords = pickGameWords(source)
-      setWords(prev => [...prev, ...moreWords])
-      setWordIndex(nextIdx)
+      setWords(moreWords)
+      setWordIndex(0)
+      scoredWordIndexRef.current = -1
       const width = containerRef.current?.clientWidth || 400
       const height = containerRef.current?.clientHeight || 700
       setupWord(moreWords, 0, width, height)
@@ -468,6 +479,10 @@ const PetWordScramble = ({ petImageUrl, petName, onGameEnd, onClose, wordBank: w
     const attempt = placedLetters.map(l => l.letter).join('')
 
     if (attempt === currentWord) {
+      // Guard: don't score the same word twice
+      if (scoredWordIndexRef.current === wordIndex) return
+      scoredWordIndexRef.current = wordIndex
+
       // Correct! Word complete!
       const newStreak = streakRef.current + 1
       streakRef.current = newStreak
@@ -478,20 +493,19 @@ const PetWordScramble = ({ petImageUrl, petName, onGameEnd, onClose, wordBank: w
       scoreRef.current += points
       setDisplayScore(scoreRef.current)
       setWordsCompleted(prev => prev + 1)
+
+      // Broadcast progress for realtime PvP
+      if (onProgressUpdate) {
+        onProgressUpdate({ score: scoreRef.current, wordsCompleted: wordsCompleted + 1, wordIndex: wordIndex + 1 })
+      }
+
       setFeedback('correct')
       setScreenShake(15)
       setWordPopup({ points, streak: newStreak, combo })
       setTimeout(() => setWordPopup(null), 1200)
 
       // Victory sound
-      try {
-        const sound = new Audio(assetUrl('/sound/scram-correct.mp3'))
-        sound.volume = 0.5
-        sound.playbackRate = 1.2
-        sound.play().catch(() => {})
-      } catch {
-        // Ignore audio errors
-      }
+      playSound(assetUrl('/sound/scram-correct.mp3'), 0.5, 1.2)
 
       // Big celebration particles
       const colors = ['#fbbf24', '#f59e0b', '#ec4899', '#8b5cf6', '#3b82f6', '#10b981']
@@ -524,11 +538,12 @@ const PetWordScramble = ({ petImageUrl, petName, onGameEnd, onClose, wordBank: w
           const height = containerRef.current?.clientHeight || 700
           setupWord(words, nextIdx, width, height)
         } else {
-          // Pick more words and continue
+          // Pick more words and continue — replace array to avoid unbounded growth
           const source = wordBankProp.length > 0 ? wordBankProp : WORD_BANK
           const moreWords = pickGameWords(source)
-          setWords(prev => [...prev, ...moreWords])
-          setWordIndex(nextIdx)
+          setWords(moreWords)
+          setWordIndex(0)
+          scoredWordIndexRef.current = -1
           const width = containerRef.current?.clientWidth || 400
           const height = containerRef.current?.clientHeight || 700
           setupWord(moreWords, 0, width, height)
@@ -844,6 +859,23 @@ const PetWordScramble = ({ petImageUrl, petName, onGameEnd, onClose, wordBank: w
                 </button>
               </div>
 
+              {/* Realtime PvP scoreboard */}
+              {isRealtimePvP && opponentProgress && (
+                <div className="flex items-center justify-center gap-3 w-full max-w-xs mx-auto">
+                  <div className="flex items-center gap-2 flex-1 justify-end">
+                    {petImageUrl && <img src={petImageUrl} alt={petName} className="w-10 h-10 object-contain drop-shadow-lg" />}
+                    <span className={`text-2xl font-black ${displayScore > opponentProgress.score ? 'text-green-300' : displayScore < opponentProgress.score ? 'text-white/60' : 'text-white'}`}
+                      style={{ textShadow: '0 2px 4px rgba(0,0,0,0.3)' }}>{displayScore}</span>
+                  </div>
+                  <span className="text-white/30 font-black text-sm">vs</span>
+                  <div className="flex items-center gap-2 flex-1">
+                    <span className={`text-2xl font-black ${opponentProgress.score > displayScore ? 'text-red-300' : opponentProgress.score < displayScore ? 'text-white/60' : 'text-white'}`}
+                      style={{ textShadow: '0 2px 4px rgba(0,0,0,0.3)' }}>{opponentProgress.score}</span>
+                    {pvpOpponentPetUrl && <img src={pvpOpponentPetUrl} alt="Opponent" className="w-10 h-10 object-contain drop-shadow-lg" style={{ transform: 'scaleX(-1)' }} />}
+                  </div>
+                </div>
+              )}
+
               {/* Hint + Streak/Combo */}
               <div className="w-full flex items-center gap-2">
                 <div className={`rounded-full px-2.5 py-1 text-xs font-bold flex items-center gap-1 shrink-0 ${
@@ -1031,22 +1063,50 @@ const PetWordScramble = ({ petImageUrl, petName, onGameEnd, onClose, wordBank: w
               <Trophy className="w-10 h-10 text-purple-500" />
             </div>
 
-            <h2 className="text-2xl font-bold text-gray-800 mb-1">
-              {wordsCompleted >= 10 ? 'Training Complete!' : 'Not Enough Words!'}
-            </h2>
-            <p className="text-gray-500 mb-5">
-              {wordsCompleted >= 10
-                ? `${petName} learned ${wordsCompleted} words!`
-                : `${petName} only learned ${wordsCompleted}/10 words`}
-            </p>
+            {isRealtimePvP && opponentProgress ? (
+              <>
+                <h2 className="text-2xl font-bold text-gray-800 mb-1">
+                  {displayScore > opponentProgress.score ? 'You Win!' : displayScore < opponentProgress.score ? 'You Lose!' : "It's a Tie!"}
+                </h2>
+                <p className="text-gray-500 mb-5">
+                  {displayScore > opponentProgress.score ? 'Great scrambling skills!' : displayScore < opponentProgress.score ? 'Better luck next time!' : 'Evenly matched!'}
+                </p>
+                <div className="flex items-center justify-center gap-4 mb-5">
+                  <div className={`rounded-2xl p-4 border flex-1 ${displayScore >= opponentProgress.score ? 'bg-gradient-to-br from-green-50 to-emerald-50 border-green-200' : 'bg-gradient-to-br from-gray-50 to-gray-100 border-gray-200'}`}
+                    style={{ animation: 'scrambleScorePopIn 0.6s ease-out 0.5s both' }}>
+                    <p className="text-xs font-semibold text-gray-400 mb-1">You</p>
+                    <p className={`text-3xl font-black ${displayScore >= opponentProgress.score ? 'text-green-600' : 'text-gray-400'}`}>{displayScore}</p>
+                    <p className="text-xs text-gray-400 mt-1">{wordsCompleted} words</p>
+                  </div>
+                  <span className="text-gray-300 font-bold text-lg">VS</span>
+                  <div className={`rounded-2xl p-4 border flex-1 ${opponentProgress.score >= displayScore ? 'bg-gradient-to-br from-red-50 to-pink-50 border-red-200' : 'bg-gradient-to-br from-gray-50 to-gray-100 border-gray-200'}`}
+                    style={{ animation: 'scrambleScorePopIn 0.6s ease-out 0.7s both' }}>
+                    <p className="text-xs font-semibold text-gray-400 mb-1">Opponent</p>
+                    <p className={`text-3xl font-black ${opponentProgress.score >= displayScore ? 'text-red-600' : 'text-gray-400'}`}>{opponentProgress.score}</p>
+                    <p className="text-xs text-gray-400 mt-1">{opponentProgress.wordsCompleted} words</p>
+                  </div>
+                </div>
+              </>
+            ) : (
+              <>
+                <h2 className="text-2xl font-bold text-gray-800 mb-1">
+                  {wordsCompleted >= 10 ? 'Training Complete!' : 'Not Enough Words!'}
+                </h2>
+                <p className="text-gray-500 mb-5">
+                  {wordsCompleted >= 10
+                    ? `${petName} learned ${wordsCompleted} words!`
+                    : `${petName} only learned ${wordsCompleted}/10 words`}
+                </p>
 
-            <div
-              className={`rounded-2xl p-5 mb-5 border ${wordsCompleted >= 10 ? 'bg-gradient-to-br from-purple-50 to-indigo-50 border-purple-100' : 'bg-gradient-to-br from-gray-50 to-gray-100 border-gray-200'}`}
-              style={{ animation: 'scrambleScorePopIn 0.6s ease-out 0.5s both' }}
-            >
-              <p className={`text-5xl font-black ${wordsCompleted >= 10 ? 'text-purple-600' : 'text-gray-400'}`}>{wordsCompleted}</p>
-              <p className={`text-sm font-semibold mt-1 ${wordsCompleted >= 10 ? 'text-purple-400' : 'text-gray-400'}`}>words completed</p>
-            </div>
+                <div
+                  className={`rounded-2xl p-5 mb-5 border ${wordsCompleted >= 10 ? 'bg-gradient-to-br from-purple-50 to-indigo-50 border-purple-100' : 'bg-gradient-to-br from-gray-50 to-gray-100 border-gray-200'}`}
+                  style={{ animation: 'scrambleScorePopIn 0.6s ease-out 0.5s both' }}
+                >
+                  <p className={`text-5xl font-black ${wordsCompleted >= 10 ? 'text-purple-600' : 'text-gray-400'}`}>{wordsCompleted}</p>
+                  <p className={`text-sm font-semibold mt-1 ${wordsCompleted >= 10 ? 'text-purple-400' : 'text-gray-400'}`}>words completed</p>
+                </div>
+              </>
+            )}
 
             {/* Skipped Words */}
             {skippedWords.length > 0 && (
@@ -1063,13 +1123,15 @@ const PetWordScramble = ({ petImageUrl, petName, onGameEnd, onClose, wordBank: w
               </div>
             )}
 
-            <p className="text-sm text-gray-600 mb-6">
-              {wordsCompleted >= 15
-                ? 'Vocabulary master! 🏆'
-                : wordsCompleted >= 10
-                  ? 'Amazing speller! 🌟'
-                  : 'Need at least 10 words to earn XP. Try again! 💪'}
-            </p>
+            {!isRealtimePvP && (
+              <p className="text-sm text-gray-600 mb-6">
+                {wordsCompleted >= 15
+                  ? 'Vocabulary master! 🏆'
+                  : wordsCompleted >= 10
+                    ? 'Amazing speller! 🌟'
+                    : 'Need at least 10 words to earn XP. Try again! 💪'}
+              </p>
+            )}
 
             {chestCollected && (
               <div className="mb-4 flex items-center justify-center gap-2 bg-amber-50 border border-amber-200 rounded-xl px-4 py-2.5">
@@ -1078,12 +1140,12 @@ const PetWordScramble = ({ petImageUrl, petName, onGameEnd, onClose, wordBank: w
               </div>
             )}
 
-            {wordsCompleted >= 10 ? (
+            {isRealtimePvP || wordsCompleted >= 10 ? (
               <button
                 onClick={() => onGameEnd(displayScore, { chestCollected, wordsCompleted })}
                 className="w-full py-3.5 bg-gradient-to-b from-purple-500 to-purple-600 hover:from-purple-600 hover:to-purple-700 text-white rounded-full font-bold text-lg shadow-lg border-b-4 border-purple-700 active:border-b-0 active:mt-1 transition-all"
               >
-                Collect Rewards ✨
+                {isRealtimePvP ? 'Done' : 'Collect Rewards ✨'}
               </button>
             ) : (
               <div className="flex flex-col gap-2">

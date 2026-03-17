@@ -59,6 +59,7 @@ const LeaderboardSettings = () => {
   const [pvpEnabled, setPvpEnabled] = useState(true);
   const [pvpStartTime, setPvpStartTime] = useState('');
   const [pvpEndTime, setPvpEndTime] = useState('');
+  const [quickmatchGameType, setQuickmatchGameType] = useState('wordtype');
 
   // Chest Settings
   const [chestEnabled, setChestEnabled] = useState(true);
@@ -133,6 +134,7 @@ const LeaderboardSettings = () => {
           'pvp_enabled',
           'pvp_start_time',
           'pvp_end_time',
+          'quickmatch_game_type',
           'chest_enabled',
           'chest_start_time',
           'chest_end_time',
@@ -190,6 +192,9 @@ const LeaderboardSettings = () => {
             break;
           case 'pvp_end_time':
             setPvpEndTime(row.setting_value || '');
+            break;
+          case 'quickmatch_game_type':
+            setQuickmatchGameType(row.setting_value || 'wordtype');
             break;
           case 'chest_enabled':
             setChestEnabled(row.setting_value !== 'false');
@@ -250,6 +255,7 @@ const LeaderboardSettings = () => {
         { setting_key: 'pvp_enabled', setting_value: String(pvpEnabled), description: 'Whether PvP battles are enabled' },
         { setting_key: 'pvp_start_time', setting_value: pvpStartTime, description: 'PvP allowed start time (HH:MM)' },
         { setting_key: 'pvp_end_time', setting_value: pvpEndTime, description: 'PvP allowed end time (HH:MM)' },
+        { setting_key: 'quickmatch_game_type', setting_value: quickmatchGameType, description: 'Which game type for quick match' },
         { setting_key: 'chest_enabled', setting_value: String(chestEnabled), description: 'Whether game chests are enabled' },
         { setting_key: 'chest_start_time', setting_value: chestStartTime, description: 'Chest allowed start time (HH:MM)' },
         { setting_key: 'chest_end_time', setting_value: chestEndTime, description: 'Chest allowed end time (HH:MM)' },
@@ -620,6 +626,23 @@ const LeaderboardSettings = () => {
                   ? 'Set both times for schedule to work.'
                   : 'No restriction — 24/7.'}
             </p>
+          </div>
+        )}
+
+        {/* Quick Match Game Type */}
+        {pvpEnabled && (
+          <div className="border-t border-gray-100 pt-2 mt-2">
+            <p className="text-sm font-medium text-gray-900 mb-1.5">Quick Match Game</p>
+            <select
+              value={quickmatchGameType}
+              onChange={(e) => setQuickmatchGameType(e.target.value)}
+              className="p-2 border border-gray-300 rounded-lg text-gray-900 text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500 w-full"
+            >
+              <option value="wordtype">Word Type</option>
+              <option value="scramble">Word Scramble</option>
+              <option value="matchgame">Match Up</option>
+            </select>
+            <p className="text-sm text-gray-400 mt-1">Which game students play in Quick Match.</p>
           </div>
         )}
       </div>

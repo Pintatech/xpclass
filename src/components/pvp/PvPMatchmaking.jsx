@@ -6,6 +6,8 @@ import { useAuth } from '../../hooks/useAuth'
 import { usePet } from '../../hooks/usePet'
 import { assetUrl } from '../../hooks/useBranding'
 import PvPRealtimeWordType from './PvPRealtimeWordType'
+import PvPRealtimeWordScramble from './PvPRealtimeWordScramble'
+import PvPRealtimeMatchGame from './PvPRealtimeMatchGame'
 
 const PvPMatchmaking = ({ onClose, wordBank = [] }) => {
   const { user, profile } = useAuth()
@@ -20,6 +22,7 @@ const PvPMatchmaking = ({ onClose, wordBank = [] }) => {
   const [error, setError] = useState(null)
   const [queueCount, setQueueCount] = useState(0)
   const [playingCount, setPlayingCount] = useState(0)
+  const [gameType, setGameType] = useState('wordtype')
 
   const queueRowId = useRef(null)
   const matchedRef = useRef(false)
@@ -29,11 +32,25 @@ const PvPMatchmaking = ({ onClose, wordBank = [] }) => {
   const petImage = activePet?.image_url || assetUrl('/image/pet/default.png')
   const petName = activePet?.nickname || activePet?.name || 'Your Pet'
 
-  // Join the queue
+  const gameTypeRef = useRef('wordtype')
+
+  // Fetch admin-configured quick match game type, then join the queue
   useEffect(() => {
     let cancelled = false
 
     const joinQueue = async () => {
+      // Fetch configured game type
+      const { data: setting } = await supabase.from('site_settings')
+        .select('setting_value')
+        .eq('setting_key', 'quickmatch_game_type')
+        .single()
+      if (setting?.setting_value) {
+        gameTypeRef.current = setting.setting_value
+        setGameType(setting.setting_value)
+      }
+
+      if (cancelled) return
+
       // Clean up ALL stale entries from this user first
       await supabase.from('pvp_matchmaking')
         .delete()
@@ -59,7 +76,7 @@ const PvPMatchmaking = ({ onClose, wordBank = [] }) => {
       // Insert into queue
       const { data, error } = await supabase.from('pvp_matchmaking').insert({
         user_id: user.id,
-        game_type: 'wordtype',
+        game_type: gameTypeRef.current,
         status: 'waiting',
       }).select('id').single()
 
@@ -94,9 +111,10 @@ const PvPMatchmaking = ({ onClose, wordBank = [] }) => {
       try {
 
       // Fetch queue count and playing count
+      const gt = gameTypeRef.current
       const { count } = await supabase.from('pvp_matchmaking')
         .select('id', { count: 'exact', head: true })
-        .eq('game_type', 'wordtype')
+        .eq('game_type', gt)
         .in('status', ['waiting', 'matching'])
       setQueueCount(count || 0)
 
@@ -104,7 +122,7 @@ const PvPMatchmaking = ({ onClose, wordBank = [] }) => {
         .select('id', { count: 'exact', head: true })
         .eq('status', 'in_progress')
         .eq('realtime_mode', true)
-        .eq('game_type', 'wordtype')
+        .eq('game_type', gt)
       setPlayingCount((playing || 0) * 2)
 
       // First check if we've been matched by someone else
@@ -137,7 +155,7 @@ const PvPMatchmaking = ({ onClose, wordBank = [] }) => {
       // Look for another waiting player — only the earlier entry creates the match
       const { data: waiting } = await supabase.from('pvp_matchmaking')
         .select('id, user_id, created_at, users:user_id(id, full_name, avatar_url)')
-        .eq('game_type', 'wordtype')
+        .eq('game_type', gt)
         .eq('status', 'waiting')
         .neq('user_id', user.id)
         .order('created_at', { ascending: true })
@@ -176,7 +194,7 @@ const PvPMatchmaking = ({ onClose, wordBank = [] }) => {
         const { data: challenge } = await supabase.from('pvp_challenges').insert({
           challenger_id: user.id,
           opponent_id: match.user_id,
-          game_type: 'wordtype',
+          game_type: gt,
           challenger_score: 0,
           status: 'in_progress',
           realtime_mode: true,
@@ -243,19 +261,20 @@ const PvPMatchmaking = ({ onClose, wordBank = [] }) => {
 
   // Playing phase
   if (phase === 'playing' && challengeId && wordSeed) {
-    return (
-      <PvPRealtimeWordType
-        challengeId={challengeId}
-        wordSeed={wordSeed}
-        wordBank={wordBank}
-        opponent={opponent}
-        isChallenger={isChallenger}
-        onClose={handleClose}
-        onComplete={() => handleClose()}
-        petImageUrl={petImage}
-        petName={petName}
-      />
-    )
+    const realtimeProps = {
+      challengeId,
+      wordSeed,
+      wordBank,
+      opponent,
+      isChallenger,
+      onClose: handleClose,
+      onComplete: () => handleClose(),
+      petImageUrl: petImage,
+      petName,
+    }
+    if (gameType === 'scramble') return <PvPRealtimeWordScramble {...realtimeProps} />
+    if (gameType === 'matchgame') return <PvPRealtimeMatchGame {...realtimeProps} />
+    return <PvPRealtimeWordType {...realtimeProps} />
   }
 
   // Searching / Matched / Error phases
@@ -315,7 +334,7 @@ const PvPMatchmaking = ({ onClose, wordBank = [] }) => {
             <h2 className="text-xl font-black text-white mb-1" style={{ textShadow: '0 2px 4px rgba(0,0,0,0.3)' }}>
               Finding Opponent...
             </h2>
-            <p className="text-white/50 text-sm mb-4">Word Type - Live Battle</p>
+            <p className="text-white/50 text-sm mb-4">{{ wordtype: 'Word Type', scramble: 'Word Scramble', matchgame: 'Match Up' }[gameType] || gameType} - Live Battle</p>
 
             <div className="flex items-center gap-3 mb-6">
               <div className="bg-white/10 rounded-full px-4 py-2 inline-flex items-center gap-2">

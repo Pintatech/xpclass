@@ -43,3 +43,23 @@ export function seededPickGameWords(source, seed) {
   // Return up to 60 words - enough for 76 seconds
   return picked.slice(0, 60)
 }
+
+// Pick words for match game rounds using seeded shuffle
+// Returns an array of arrays, one per round, each with PAIRS_PER_ROUND word-hint pairs
+export function seededPickMatchWords(source, seed, pairsPerRound = 6, rounds = 10) {
+  const rng = mulberry32(seed)
+  const sorted = [...source].sort((a, b) => a.word.localeCompare(b.word))
+  const all = seededShuffle(sorted, rng)
+  const result = []
+  for (let r = 0; r < rounds; r++) {
+    const start = r * pairsPerRound
+    const chunk = all.slice(start, start + pairsPerRound)
+    if (chunk.length < pairsPerRound) {
+      // Wrap around if we run out
+      const extra = all.slice(0, pairsPerRound - chunk.length)
+      chunk.push(...extra)
+    }
+    result.push(chunk)
+  }
+  return result
+}
