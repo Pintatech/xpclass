@@ -11,6 +11,7 @@ import RichTextRenderer from '../ui/RichTextRenderer'
 import { Mic, Square, CheckCircle, XCircle, ArrowRight, ArrowLeft, Star } from 'lucide-react'
 import AudioPlayer from '../ui/AudioPlayer'
 import * as sdk from 'microsoft-cognitiveservices-speech-sdk'
+import TeacherExerciseNav from '../ui/TeacherExerciseNav'
 
 import { assetUrl } from '../../hooks/useBranding';
 // Theme-based side decoration images for PC
@@ -501,6 +502,7 @@ const PronunciationExercise = () => {
   if (isTeacherView && teacherMode === 'review') {
     return (
       <div className="max-w-4xl mx-auto py-8 px-4">
+        {isTeacherView && sessionId && <TeacherExerciseNav sessionId={sessionId} currentExerciseId={exerciseId} />}
         <div className="flex items-center justify-between mb-6">
           <h2 className="text-2xl font-bold text-gray-900">{exercise?.title || 'Pronunciation'}</h2>
           <div className="flex items-center gap-2">
@@ -518,7 +520,7 @@ const PronunciationExercise = () => {
                 Do
               </button>
             </div>
-            <button onClick={() => navigate(-1)} className="flex items-center gap-2 px-4 py-2 text-gray-600 hover:text-gray-800 border rounded-lg">
+            <button onClick={() => session?.units ? navigate(`/study/course/${session.units.course_id}/unit/${session.units.id}/session/${sessionId}`) : navigate(-1)} className="flex items-center gap-2 px-4 py-2 text-gray-600 hover:text-gray-800 border rounded-lg">
               <ArrowLeft className="w-4 h-4" /> Back
             </button>
           </div>
@@ -575,6 +577,7 @@ const PronunciationExercise = () => {
 
       <div className="relative px-4">
         <div className="max-w-4xl mx-auto space-y-6 relative z-20">
+        {isTeacherView && sessionId && <TeacherExerciseNav sessionId={sessionId} currentExerciseId={exerciseId} />}
 
         {isTeacherView && teacherMode === 'do' && (
           <div className="flex items-center justify-between bg-amber-50 border border-amber-200 rounded-lg px-4 py-2">

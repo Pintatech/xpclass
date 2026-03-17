@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react'
 import { supabase } from '../../../supabase/client'
-import { X, Search, BookOpen, Mic, Edit3, HelpCircle, Plus, Check, Copy, Brain, Image, FileText } from 'lucide-react'
+import { X, Search, BookOpen, Mic, Edit3, HelpCircle, Plus, Check, Copy, Brain, Image, FileText, Eye } from 'lucide-react'
 import FolderTree from '../../admin/ExerciseBank/FolderTree'
 
 const AssignExerciseModal = ({ sessionId, onClose, onAssigned }) => {
@@ -215,6 +215,26 @@ const AssignExerciseModal = ({ sessionId, onClose, onAssigned }) => {
     return typeObj?.label || type
   }
 
+  const handlePreview = (e, exercise) => {
+    e.stopPropagation()
+    const typeToRoute = {
+      flashcard: 'flashcard',
+      pronunciation: 'pronunciation',
+      fill_blank: 'fill-blank',
+      multiple_choice: 'multiple-choice',
+      dropdown: 'dropdown',
+      drag_drop: 'drag-drop',
+      ai_fill_blank: 'ai-fill-blank',
+      image_hotspot: 'image-hotspot',
+      pdf_worksheet: 'pdf-worksheet',
+      speaking_assessment: 'speaking-assessment'
+    }
+    const route = typeToRoute[exercise.exercise_type]
+    if (route) {
+      window.open(`/study/${route}?exerciseId=${exercise.id}`, '_blank')
+    }
+  }
+
   return (
     <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
       <div className="bg-white rounded-lg shadow-xl w-full max-w-6xl mx-4 h-[85vh] flex flex-col">
@@ -361,6 +381,14 @@ const AssignExerciseModal = ({ sessionId, onClose, onAssigned }) => {
                             <span>{exercise.estimated_duration} min</span>
                           </div>
                         </div>
+
+                        <button
+                          onClick={(e) => handlePreview(e, exercise)}
+                          className="flex-shrink-0 p-2 text-gray-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"
+                          title="Preview exercise"
+                        >
+                          <Eye className="w-4 h-4" />
+                        </button>
                       </div>
                     )
                   })}

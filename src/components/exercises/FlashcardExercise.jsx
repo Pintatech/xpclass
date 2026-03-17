@@ -20,6 +20,8 @@ import {
   Play,
 } from "lucide-react";
 import { assessPronunciation } from "../../utils/azurePronunciationService";
+import { usePermissions } from '../../hooks/usePermissions'
+import TeacherExerciseNav from '../ui/TeacherExerciseNav'
 
 import { assetUrl } from '../../hooks/useBranding';
 // Theme-based side decoration images for PC
@@ -249,6 +251,7 @@ const TikTokEmbed = ({ videoId }) => {
 
 const FlashcardExercise = () => {
   const location = useLocation();
+  const { canCreateContent } = usePermissions()
   const [currentCard, setCurrentCard] = useState(0);
   const [flashcards, setFlashcards] = useState([]);
   const [displayedCards, setDisplayedCards] = useState([]);
@@ -1306,6 +1309,7 @@ const FlashcardExercise = () => {
       </div>
 
       <div className="max-w-6xl mx-auto space-y-4 sm:space-y-6 px-2 sm:px-4 py-4 sm:py-6 relative z-20">
+        {canCreateContent() && sessionId && <TeacherExerciseNav sessionId={sessionId} currentExerciseId={exerciseId} />}
         {/* Main Card Display with Right Side Thumbnails */}
         <div className="flex flex-col lg:flex-row gap-4 max-w-full mx-auto">
           {/* Main Card */}

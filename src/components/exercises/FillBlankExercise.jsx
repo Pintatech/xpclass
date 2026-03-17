@@ -15,6 +15,7 @@ import AudioPlayer from '../ui/AudioPlayer'
 import CelebrationScreen from '../ui/CelebrationScreen'
 import PetTutorBubble from '../pet/PetTutorBubble'
 import { getPetTutorExplanation } from '../../utils/petChatService'
+import TeacherExerciseNav from '../ui/TeacherExerciseNav'
 
 import { assetUrl } from '../../hooks/useBranding';
 // Theme-based side decoration images for PC c
@@ -58,6 +59,7 @@ const FillBlankExercise = ({ testMode = false, exerciseData = null, onAnswersCol
   const isTeacherView = canCreateContent()
   const urlParams = new URLSearchParams(location.search)
   const exerciseId = urlParams.get('exerciseId')
+  const sessionId = urlParams.get('sessionId')
   const challengeId = urlParams.get('challengeId') || null
   const isChallenge = urlParams.get('isChallenge') === 'true'
   const { currentMeme, showMeme, playFeedback, playCelebration, passGif } = useFeedback()
@@ -1002,6 +1004,7 @@ const FillBlankExercise = ({ testMode = false, exerciseData = null, onAnswersCol
   if (isTeacherView && teacherMode === 'review') {
     return (
       <div className="max-w-4xl mx-auto py-8 px-4">
+        {isTeacherView && sessionId && <TeacherExerciseNav sessionId={sessionId} currentExerciseId={exerciseId} />}
         <div className="flex items-center justify-between mb-6">
           <h2 className="text-2xl font-bold text-gray-900">{exercise?.title || 'Fill in the Blank'}</h2>
           <div className="flex bg-gray-100 rounded-lg p-1">
@@ -1018,7 +1021,7 @@ const FillBlankExercise = ({ testMode = false, exerciseData = null, onAnswersCol
               Do
             </button>
           </div>
-          <button onClick={() => navigate(-1)} className="flex items-center gap-2 px-4 py-2 text-gray-600 hover:text-gray-800 border rounded-lg">
+          <button onClick={() => session?.units ? navigate(`/study/course/${session.units.course_id}/unit/${session.units.id}/session/${sessionId}`) : navigate(-1)} className="flex items-center gap-2 px-4 py-2 text-gray-600 hover:text-gray-800 border rounded-lg">
             <ArrowLeft className="w-4 h-4" /> Back
           </button>
         </div>
@@ -1484,6 +1487,7 @@ const FillBlankExercise = ({ testMode = false, exerciseData = null, onAnswersCol
         </div>
       )}
       <div className="max-w-4xl mx-auto space-y-6">
+      {isTeacherView && sessionId && <TeacherExerciseNav sessionId={sessionId} currentExerciseId={exerciseId} />}
       {/* Teacher Do Mode Banner */}
       {isTeacherView && teacherMode === 'do' && (
         <div className="flex items-center justify-between bg-amber-50 border border-amber-200 rounded-lg px-4 py-2">

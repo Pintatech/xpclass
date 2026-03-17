@@ -13,6 +13,7 @@ import { useProgress } from '../../hooks/useProgress'
 import { useFeedback } from '../../hooks/useFeedback'
 import ExerciseHeader from '../ui/ExerciseHeader'
 import { usePermissions } from '../../hooks/usePermissions'
+import TeacherExerciseNav from '../ui/TeacherExerciseNav'
 import { assetUrl } from '../../hooks/useBranding'
 
 pdfjs.GlobalWorkerOptions.workerSrc = `//unpkg.com/pdfjs-dist@${pdfjs.version}/build/pdf.worker.min.mjs`
@@ -476,6 +477,7 @@ const PDFWorksheetExercise = ({ testMode = false, exerciseData = null, onAnswers
   if (!testMode && isTeacherView && teacherMode === 'review') {
     return (
       <div className="max-w-4xl mx-auto py-8 px-4">
+        {isTeacherView && sessionId && <TeacherExerciseNav sessionId={sessionId} currentExerciseId={exerciseId} />}
         <div className="flex items-center justify-between mb-6">
           <h2 className="text-2xl font-bold text-gray-900">{exercise.title || 'PDF Worksheet'}</h2>
           <div className="flex items-center gap-2">
@@ -493,7 +495,7 @@ const PDFWorksheetExercise = ({ testMode = false, exerciseData = null, onAnswers
                 Do
               </button>
             </div>
-            <button onClick={() => navigate(-1)} className="flex items-center gap-2 px-4 py-2 text-gray-600 hover:text-gray-800 border rounded-lg">
+            <button onClick={() => session?.units ? navigate(`/study/course/${session.units.course_id}/unit/${session.units.id}/session/${sessionId}`) : navigate(-1)} className="flex items-center gap-2 px-4 py-2 text-gray-600 hover:text-gray-800 border rounded-lg">
               <ArrowLeft className="w-4 h-4" /> Back
             </button>
           </div>
@@ -546,6 +548,7 @@ const PDFWorksheetExercise = ({ testMode = false, exerciseData = null, onAnswers
 
       <div className="relative px-0 sm:px-2 md:pt-2 pb-12">
         <div className="max-w-4xl mx-auto space-y-6 relative z-20">
+          {isTeacherView && sessionId && <TeacherExerciseNav sessionId={sessionId} currentExerciseId={exerciseId} />}
           {/* Teacher Do Mode Banner */}
           {isTeacherView && teacherMode === 'do' && (
             <div className="flex items-center justify-between bg-amber-50 border border-amber-200 rounded-lg px-4 py-2">
