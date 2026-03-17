@@ -2997,6 +2997,25 @@ BEGIN
   today := (NOW() AT TIME ZONE 'Asia/Ho_Chi_Minh')::date;
   week_start := today - (EXTRACT(ISODOW FROM today)::int - 1);
 
+  -- Ensure user_missions rows exist (student may not have logged in yet)
+  INSERT INTO user_missions (user_id, mission_id, progress, status, period_start)
+  SELECT p_user_id, m.id, 0, 'active', today
+  FROM missions m WHERE m.is_active = true AND m.mission_type = 'daily'
+  ON CONFLICT (user_id, mission_id, period_start) DO NOTHING;
+
+  INSERT INTO user_missions (user_id, mission_id, progress, status, period_start)
+  SELECT p_user_id, m.id, 0, 'active', week_start
+  FROM missions m WHERE m.is_active = true AND m.mission_type = 'weekly'
+  ON CONFLICT (user_id, mission_id, period_start) DO NOTHING;
+
+  INSERT INTO user_missions (user_id, mission_id, progress, status, period_start)
+  SELECT p_user_id, m.id, 0, 'active', COALESCE(m.start_date, today)
+  FROM missions m
+  WHERE m.is_active = true AND m.mission_type = 'special'
+    AND (m.start_date IS NULL OR m.start_date <= today)
+    AND (m.end_date IS NULL OR m.end_date >= today)
+  ON CONFLICT (user_id, mission_id, period_start) DO NOTHING;
+
   UPDATE user_missions um
   SET progress = LEAST(um.progress + p_increment, m.goal_value),
       status = CASE

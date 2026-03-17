@@ -302,7 +302,7 @@ const MissionCard = ({ mission, tabConfig, onClaim, claiming }) => {
                     isClaimed
                       ? 'bg-gray-300'
                       : isCompleted
-                        ? 'bg-green-500'
+                        ? tabConfig.color
                         : tabConfig.color
                   }`}
                   style={{ width: `${percentage}%` }}
