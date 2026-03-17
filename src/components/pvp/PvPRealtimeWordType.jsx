@@ -59,13 +59,18 @@ const PvPRealtimeWordType = ({
     if (opponentPetUrl || !opponent?.id) return
     const fetchPet = async () => {
       const { data } = await supabase.from('user_pets')
-        .select('pets(image_url)')
+        .select('evolution_stage, pets(image_url, evolution_stages)')
         .eq('user_id', opponent.id)
         .eq('is_active', true)
         .limit(1)
         .single()
       if (data?.pets?.image_url) {
-        setOpponentPetUrl(data.pets.image_url.startsWith('http') ? data.pets.image_url : assetUrl(data.pets.image_url))
+        let img = data.pets.image_url
+        if (data.evolution_stage > 0 && data.pets.evolution_stages) {
+          const stage = data.pets.evolution_stages.find(s => s.stage === data.evolution_stage)
+          if (stage?.image_url) img = stage.image_url
+        }
+        setOpponentPetUrl(img.startsWith('http') ? img : assetUrl(img))
       }
     }
     fetchPet()

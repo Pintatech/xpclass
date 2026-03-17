@@ -294,26 +294,22 @@ const MissionCard = ({ mission, tabConfig, onClaim, claiming }) => {
               {mission.description}
             </p>
 
-            {/* Progress bar */}
-            <div className="mt-3">
-              <div className={`relative h-5 rounded-full overflow-hidden ${isClaimed ? 'bg-gray-100' : 'bg-gray-200'}`}>
-                <div
-                  className={`h-full rounded-full transition-all duration-700 ${
-                    isClaimed
-                      ? 'bg-gray-300'
-                      : isCompleted
-                        ? tabConfig.color
-                        : tabConfig.color
-                  }`}
-                  style={{ width: `${percentage}%` }}
-                />
-                <div className="absolute inset-0 flex items-center justify-center text-xs">
-                  <span className={`font-semibold ${isClaimed ? 'text-gray-400' : 'text-gray-700'}`}>
-                    {progress}/{goal}
-                  </span>
+            {/* Progress bar - hide when ready to claim */}
+            {!isCompleted && (
+              <div className="mt-3">
+                <div className={`relative h-5 rounded-full overflow-hidden ${isClaimed ? 'bg-gray-100' : 'bg-gray-200'}`}>
+                  <div
+                    className={`h-full rounded-full transition-all duration-700 ${isClaimed ? 'bg-gray-300' : tabConfig.color}`}
+                    style={{ width: `${percentage}%` }}
+                  />
+                  <div className="absolute inset-0 flex items-center justify-center text-xs">
+                    <span className={`font-semibold ${isClaimed ? 'text-gray-400' : 'text-gray-700'}`}>
+                      {progress}/{goal}
+                    </span>
+                  </div>
                 </div>
               </div>
-            </div>
+            )}
           </div>
         </div>
 

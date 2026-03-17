@@ -1184,6 +1184,8 @@ DECLARE
   pet_record record;
   bonuses json;
   user_energy integer;
+  resolved_image text;
+  evo_stage jsonb;
 BEGIN
   SELECT
     up.*,
@@ -1220,6 +1222,18 @@ BEGIN
   WHERE pb.pet_id = pet_record.pet_id
     AND pet_record.happiness >= pb.min_happiness;
 
+  -- Resolve evolved image
+  resolved_image := pet_record.pet_image_url;
+  IF pet_record.evolution_stage > 0 AND pet_record.evolution_stages IS NOT NULL THEN
+    SELECT elem INTO evo_stage
+    FROM jsonb_array_elements(pet_record.evolution_stages) AS elem
+    WHERE (elem->>'stage')::int = pet_record.evolution_stage
+    LIMIT 1;
+    IF evo_stage IS NOT NULL AND evo_stage->>'image_url' IS NOT NULL THEN
+      resolved_image := evo_stage->>'image_url';
+    END IF;
+  END IF;
+
   RETURN json_build_object(
     'success', true,
     'pet', json_build_object(
@@ -1229,7 +1243,7 @@ BEGIN
       'name', pet_record.pet_name,
       'info', pet_record.pet_info,
       'description', pet_record.pet_description,
-      'image_url', pet_record.pet_image_url,
+      'image_url', resolved_image,
       'rarity', pet_record.rarity,
       'happiness', pet_record.happiness,
       'energy', COALESCE(user_energy, 100),
