@@ -4,12 +4,9 @@ import { useAuth } from '../../hooks/useAuth'
 import { useStudentLevels } from '../../hooks/useStudentLevels'
 import {
   LogOut,
-  User,
   Shield,
   GraduationCap,
-  ShoppingBag,
-  Package,
-  Bell
+  ShoppingBag
 } from 'lucide-react'
 import { useInventory } from '../../hooks/useInventory'
 import { useMissions } from '../../hooks/useMissions'
@@ -186,7 +183,9 @@ const LeftSidebar = () => {
                 }`}
               >
                 <div className="relative">
-                  <Bell size={22} />
+                  <img src={assetUrl('/icon/navigation/notification.svg')} alt="" width={22} height={22}
+                    className={showNotifPanel ? '' : 'grayscale opacity-70'}
+                  />
                   {unreadCount > 0 && (
                     <span className="absolute -top-1.5 -right-2 bg-red-500 text-white text-[10px] font-bold w-4 h-4 rounded-full flex items-center justify-center">
                       {unreadCount > 99 ? '99+' : unreadCount}
@@ -217,7 +216,9 @@ const LeftSidebar = () => {
                   : 'text-gray-600 hover:text-gray-900 hover:bg-gray-100'
               }`}
             >
-              <User size={22} />
+              <img src={assetUrl('/icon/navigation/account.svg')} alt="" width={22} height={22}
+                className={location.pathname.startsWith('/profile') ? '' : 'grayscale opacity-70'}
+              />
               <span className="font-medium">Hồ sơ</span>
             </Link>
             <button

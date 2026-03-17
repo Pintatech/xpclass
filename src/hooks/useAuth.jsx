@@ -58,7 +58,7 @@ export const AuthProvider = ({ children }) => {
 
       const fetchPromise = supabase
         .from('users')
-        .select('id, email, full_name, role, xp, gems, level, streak_count, last_activity_date, avatar_url, active_title, active_frame_ratio, hide_frame, active_background_url, active_bowl_url, active_spaceship_url, active_spaceship_laser, active_hammer_url, name_changed_at')
+        .select('id, email, full_name, role, xp, gems, level, current_level, streak_count, last_activity_date, avatar_url, active_title, active_frame_ratio, hide_frame, active_background_url, active_bowl_url, active_spaceship_url, active_spaceship_laser, active_hammer_url, name_changed_at')
         .eq('id', userId)
         .single()
 
@@ -145,7 +145,7 @@ export const AuthProvider = ({ children }) => {
         .from('users')
         .update(updates)
         .eq('id', user.id)
-        .select('id, email, full_name, role, xp, gems, level, streak_count, last_activity_date, avatar_url, active_title, active_frame_ratio, hide_frame, active_background_url, active_bowl_url, active_spaceship_url, active_spaceship_laser, active_hammer_url, name_changed_at')
+        .select('id, email, full_name, role, xp, gems, level, current_level, streak_count, last_activity_date, avatar_url, active_title, active_frame_ratio, hide_frame, active_background_url, active_bowl_url, active_spaceship_url, active_spaceship_laser, active_hammer_url, name_changed_at')
         .single()
 
       if (error) throw error

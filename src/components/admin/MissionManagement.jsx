@@ -6,12 +6,12 @@ import {
 } from 'lucide-react'
 
 const MISSION_IMAGE_MAP = {
-  'target': '/pet-game/mole-normal.png',
-  'star': '/image/star_fill.png',
+  'target': '/icon/dashboard/wow.svg',
+  'star': '/image/3_star.png',
   'trophy': '/icon/profile/paper.svg',
   'flame': '/icon/profile/streak.svg',
   'swords': '/icon/dashboard/pvp.png',
-  'gamepad-2': 'https://xpclass.vn/xpclass/image/dashboard/pet-type.webp',
+  'gamepad-2': '/image/dashboard/pet-type.webp',
   'book-open': '/image/dashboard/match1.png',
   'graduation-cap': '/pet-game/mole-whacked.png',
   'zap': '/image/chest/legendary-chest.png',
@@ -22,7 +22,7 @@ const MISSION_IMAGE_MAP = {
   'joystick': '/pet-game/astro/alien4.png',
 }
 
-const DEFAULT_MISSION_IMAGE = '/pet-game/mole-normal.png'
+const DEFAULT_MISSION_IMAGE = '/icon/dashboard/wow.svg'
 
 const ICON_OPTIONS = Object.entries(MISSION_IMAGE_MAP).map(([value, image]) => ({
   value,
