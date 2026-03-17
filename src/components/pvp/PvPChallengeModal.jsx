@@ -265,11 +265,14 @@ const PvPChallengeModal = ({ opponent, onClose }) => {
         const challengerScore = fresh?.challenger_score ?? hasPending.challenger_score
         setFreshChallengerScore(challengerScore)
         const winner = score > challengerScore ? user.id : score < challengerScore ? hasPending.challenger_id : null
-        if (score > challengerScore) {
-          new Audio('https://xpclass.vn/xpclass/sound/victory.mp3').play().catch(() => {})
-        } else if (score < challengerScore) {
-          new Audio('https://xpclass.vn/xpclass/sound/craft_fail.mp3').play().catch(() => {})
-        }
+        try {
+          const url = score > challengerScore
+            ? 'https://xpclass.vn/xpclass/sound/victory.mp3'
+            : score < challengerScore
+              ? 'https://xpclass.vn/xpclass/sound/craft_fail.mp3'
+              : null
+          if (url) { const s = new Audio(url); s.volume = 0.5; s.play().catch(() => {}) }
+        } catch {}
         await supabase.from('pvp_challenges').update({
           opponent_score: score,
           winner_id: winner,

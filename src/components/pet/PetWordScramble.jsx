@@ -7,6 +7,7 @@ import { assetUrl } from '../../hooks/useBranding';
 const GAME_DURATION = 76
 const POINTS_PER_WORD = 10
 const STREAK_BONUS = 5
+const EMPTY_ARRAY = []
 
 
 // Shuffle array (Fisher-Yates)
@@ -43,7 +44,7 @@ const pickGameWords = (source) => {
   return picked
 }
 
-const PetWordScramble = ({ petImageUrl, petName, onGameEnd, onClose, wordBank: wordBankProp = [], hideClose = false, scoreToBeat = null, leaderboard = [], chestEnabled = false, pvpOpponentPetUrl = null, initialWords = null, onProgressUpdate = null, opponentProgress = null, isRealtimePvP = false }) => {
+const PetWordScramble = ({ petImageUrl, petName, onGameEnd, onClose, wordBank: wordBankProp = EMPTY_ARRAY, hideClose = false, scoreToBeat = null, leaderboard = [], chestEnabled = false, pvpOpponentPetUrl = null, initialWords = null, onProgressUpdate = null, opponentProgress = null, isRealtimePvP = false }) => {
   const [phase, setPhase] = useState('ready') // 'ready' | 'playing' | 'results'
   const [displayScore, setDisplayScore] = useState(0)
   const [displayTime, setDisplayTime] = useState(GAME_DURATION)
@@ -54,8 +55,8 @@ const PetWordScramble = ({ petImageUrl, petName, onGameEnd, onClose, wordBank: w
   const [combo, setCombo] = useState(0)
   const [feedback, setFeedback] = useState(null) // 'correct' | 'wrong' | null
   const [wordsCompleted, setWordsCompleted] = useState(0)
-  const [particles, setParticles] = useState([]) // explosion particles
-  const [screenShake, setScreenShake] = useState(0)
+  // particles are DOM-managed via particlesRef for perf
+  // screenShake is handled via ref + direct DOM for perf
   const [skippedWords, setSkippedWords] = useState([])
   const [muted, setMuted] = useState(false)
   const [wordPopup, setWordPopup] = useState(null) // { points, streak, combo }
@@ -68,6 +69,7 @@ const PetWordScramble = ({ petImageUrl, petName, onGameEnd, onClose, wordBank: w
   const timerRef = useRef(null)
   const streakRef = useRef(0)
   const scoredWordIndexRef = useRef(-1)
+  const screenShakeRef = useRef(0)
   const animationFrameRef = useRef(null)
   const gameAreaRef = useRef(null)
   const containerRef = useRef(null)
@@ -88,6 +90,19 @@ const PetWordScramble = ({ petImageUrl, petName, onGameEnd, onClose, wordBank: w
       sound.currentTime = 0
       sound.play().catch(() => {})
     } catch {}
+  }, [])
+
+  // Spawn particles via DOM (no React state)
+  const spawnParticles = useCallback((items) => {
+    const container = gameAreaRef.current
+    if (!container) return
+    for (const p of items) {
+      const el = document.createElement('div')
+      el.className = 'absolute w-3 h-3 rounded-full pointer-events-none'
+      el.style.cssText = `left:${p.x}px;top:${p.y}px;background:${p.color};opacity:1;transform:translate(-50%,-50%);z-index:30;`
+      container.appendChild(el)
+      particlesRef.current.push({ ...p, el, opacity: 1 })
+    }
   }, [])
 
   // Create floating bubbles for a word, spread out in a grid-ish layout
@@ -253,84 +268,101 @@ const PetWordScramble = ({ petImageUrl, petName, onGameEnd, onClose, wordBank: w
     }
   }, [])
 
-  // Bubble physics animation loop
+  // Bubble physics animation loop — uses direct DOM updates to avoid React re-renders
+  const bubblesRef = useRef([])
+  const particlesRef = useRef([])
+  const bubbleElsRef = useRef({})
+
+  // Sync React bubbles state to ref when bubbles change (e.g. new word setup)
+  useEffect(() => {
+    bubblesRef.current = bubbles
+  }, [bubbles])
+
   useEffect(() => {
     if (phase !== 'playing') return
 
     const animate = () => {
-      setBubbles(prev => {
-        const width = containerRef.current?.clientWidth || 400
-        const height = containerRef.current?.clientHeight || 700
-        const safeLeft = 30
-        const safeRight = width - 30
-        const safeTop = 140
-        const safeBottom = height - 220
+      const bubs = bubblesRef.current
+      const width = containerRef.current?.clientWidth || 400
+      const height = containerRef.current?.clientHeight || 700
+      const safeLeft = 30
+      const safeRight = width - 30
+      const safeTop = 140
+      const safeBottom = height - 220
 
-        // First pass: update positions and wall bounces
-        const updated = prev.map(bubble => {
-          if (bubble.captured || bubble.popping) return bubble
+      // Update positions in-place (no React state)
+      for (const bubble of bubs) {
+        if (bubble.captured || bubble.popping) continue
+        bubble.x += bubble.vx
+        bubble.y += bubble.vy
+        if (bubble.x <= safeLeft || bubble.x >= safeRight) {
+          bubble.vx = -bubble.vx
+          bubble.x = bubble.x <= safeLeft ? safeLeft : safeRight
+        }
+        if (bubble.y <= safeTop || bubble.y >= safeBottom) {
+          bubble.vy = -bubble.vy
+          bubble.y = bubble.y <= safeTop ? safeTop : safeBottom
+        }
+      }
 
-          let { x, y, vx, vy } = bubble
-          x += vx
-          y += vy
-
-          if (x <= safeLeft || x >= safeRight) {
-            vx = -vx
-            x = x <= safeLeft ? safeLeft : safeRight
-          }
-          if (y <= safeTop || y >= safeBottom) {
-            vy = -vy
-            y = y <= safeTop ? safeTop : safeBottom
-          }
-
-          return { ...bubble, x, y, vx, vy }
-        })
-
-        // Second pass: bubble-to-bubble collisions
-        const minDist = 88 // bubble diameter (radius 44 * 2)
-        for (let i = 0; i < updated.length; i++) {
-          if (updated[i].captured || updated[i].popping) continue
-          for (let j = i + 1; j < updated.length; j++) {
-            if (updated[j].captured || updated[j].popping) continue
-
-            const dx = updated[j].x - updated[i].x
-            const dy = updated[j].y - updated[i].y
-            const dist = Math.sqrt(dx * dx + dy * dy)
-
-            if (dist < minDist && dist > 0.01) {
-              const nx = dx / dist
-              const ny = dy / dist
-
-              // Relative velocity along collision normal
-              const dvn = (updated[i].vx - updated[j].vx) * nx + (updated[i].vy - updated[j].vy) * ny
-              if (dvn <= 0) continue // already moving apart
-
-              // Elastic collision (equal mass): swap velocity components along normal
-              updated[i] = { ...updated[i], vx: updated[i].vx - dvn * nx, vy: updated[i].vy - dvn * ny }
-              updated[j] = { ...updated[j], vx: updated[j].vx + dvn * nx, vy: updated[j].vy + dvn * ny }
-
-              // Push apart to resolve overlap
-              const overlap = (minDist - dist) / 2
-              updated[i] = { ...updated[i], x: updated[i].x - overlap * nx, y: updated[i].y - overlap * ny }
-              updated[j] = { ...updated[j], x: updated[j].x + overlap * nx, y: updated[j].y + overlap * ny }
-            }
+      // Bubble-to-bubble collisions
+      const minDist = 88
+      const active = bubs.filter(b => !b.captured && !b.popping)
+      for (let i = 0; i < active.length; i++) {
+        for (let j = i + 1; j < active.length; j++) {
+          const a = active[i], b = active[j]
+          const dx = b.x - a.x, dy = b.y - a.y
+          const dist = Math.sqrt(dx * dx + dy * dy)
+          if (dist < minDist && dist > 0.01) {
+            const nx = dx / dist, ny = dy / dist
+            const dvn = (a.vx - b.vx) * nx + (a.vy - b.vy) * ny
+            if (dvn <= 0) continue
+            a.vx -= dvn * nx; a.vy -= dvn * ny
+            b.vx += dvn * nx; b.vy += dvn * ny
+            const overlap = (minDist - dist) / 2
+            a.x -= nx * overlap; a.y -= ny * overlap
+            b.x += nx * overlap; b.y += ny * overlap
           }
         }
+      }
 
-        return updated
-      })
+      // Direct DOM update for bubbles
+      for (const bubble of bubs) {
+        const el = bubbleElsRef.current[bubble.id]
+        if (el) {
+          el.style.left = `${bubble.x - 44}px`
+          el.style.top = `${bubble.y - 44}px`
+        }
+      }
 
-      // Update particles
-      setParticles(prev => prev.map(p => ({
-        ...p,
-        x: p.x + p.vx,
-        y: p.y + p.vy,
-        vy: p.vy + 0.3, // gravity
-        opacity: p.opacity - 0.02
-      })).filter(p => p.opacity > 0))
+      // Update particles via DOM
+      const parts = particlesRef.current
+      for (let i = parts.length - 1; i >= 0; i--) {
+        const p = parts[i]
+        p.x += p.vx
+        p.y += p.vy
+        p.vy += 0.3
+        p.opacity -= 0.02
+        if (p.opacity <= 0) {
+          if (p.el && p.el.parentNode) p.el.parentNode.removeChild(p.el)
+          parts.splice(i, 1)
+        } else if (p.el) {
+          p.el.style.left = `${p.x}px`
+          p.el.style.top = `${p.y}px`
+          p.el.style.opacity = p.opacity
+        }
+      }
 
-      // Decay screen shake
-      setScreenShake(prev => Math.max(0, prev - 1))
+      // Decay screen shake via DOM
+      if (screenShakeRef.current > 0) {
+        screenShakeRef.current = Math.max(0, screenShakeRef.current - 1)
+        if (containerRef.current) {
+          const s = screenShakeRef.current
+          containerRef.current.style.transform = s > 0
+            ? `translate(${Math.sin(s * 2) * 3}px, ${Math.cos(s * 2) * 3}px)`
+            : 'none'
+        }
+      }
 
       animationFrameRef.current = requestAnimationFrame(animate)
     }
@@ -340,6 +372,11 @@ const PetWordScramble = ({ petImageUrl, petName, onGameEnd, onClose, wordBank: w
       if (animationFrameRef.current) {
         cancelAnimationFrame(animationFrameRef.current)
       }
+      // Clean up DOM particles
+      for (const p of particlesRef.current) {
+        if (p.el && p.el.parentNode) p.el.parentNode.removeChild(p.el)
+      }
+      particlesRef.current = []
     }
   }, [phase])
 
@@ -364,16 +401,12 @@ const PetWordScramble = ({ petImageUrl, petName, onGameEnd, onClose, wordBank: w
 
       // Create pop particles
       const colors = ['#fbbf24', '#f59e0b', '#ec4899', '#8b5cf6', '#3b82f6']
-      const newParticles = Array.from({ length: 8 }, (_, i) => ({
-        id: `${bubble.id}-particle-${i}`,
-        x: bubble.x,
-        y: bubble.y,
+      spawnParticles(Array.from({ length: 8 }, (_, i) => ({
+        x: bubble.x, y: bubble.y,
         vx: Math.cos(i * Math.PI / 4) * 3,
         vy: Math.sin(i * Math.PI / 4) * 3,
         color: colors[Math.floor(Math.random() * colors.length)],
-        opacity: 1,
-      }))
-      setParticles(prev => [...prev, ...newParticles])
+      })))
 
     } else {
       // WRONG! Explode and respawn
@@ -381,7 +414,7 @@ const PetWordScramble = ({ petImageUrl, petName, onGameEnd, onClose, wordBank: w
         b.id === bubble.id ? { ...b, popping: true } : b
       ))
       setCombo(0)
-      setScreenShake(10)
+      screenShakeRef.current = 10
 
       // Wrong letter on chest word = chest lost
       if (chestEnabled && !chestSpawnedRef.current && wordsCompleted === chestWordRef.current - 1) {
@@ -394,16 +427,12 @@ const PetWordScramble = ({ petImageUrl, petName, onGameEnd, onClose, wordBank: w
       playSound(assetUrl('/sound/flappy-hit.mp3'), 0.3)
 
       // Red explosion particles
-      const explosionParticles = Array.from({ length: 12 }, (_, i) => ({
-        id: `${bubble.id}-explosion-${i}`,
-        x: bubble.x,
-        y: bubble.y,
+      spawnParticles(Array.from({ length: 12 }, (_, i) => ({
+        x: bubble.x, y: bubble.y,
         vx: Math.cos(i * Math.PI / 6) * 5,
         vy: Math.sin(i * Math.PI / 6) * 5,
         color: '#ef4444',
-        opacity: 1,
-      }))
-      setParticles(prev => [...prev, ...explosionParticles])
+      })))
 
       // Respawn bubble after delay in safe zone
       setTimeout(() => {
@@ -500,7 +529,7 @@ const PetWordScramble = ({ petImageUrl, petName, onGameEnd, onClose, wordBank: w
       }
 
       setFeedback('correct')
-      setScreenShake(15)
+      screenShakeRef.current = 15
       setWordPopup({ points, streak: newStreak, combo })
       setTimeout(() => setWordPopup(null), 1200)
 
@@ -509,16 +538,13 @@ const PetWordScramble = ({ petImageUrl, petName, onGameEnd, onClose, wordBank: w
 
       // Big celebration particles
       const colors = ['#fbbf24', '#f59e0b', '#ec4899', '#8b5cf6', '#3b82f6', '#10b981']
-      const celebrationParticles = Array.from({ length: 30 }, (_, i) => ({
-        id: `celebration-${Date.now()}-${i}`,
+      spawnParticles(Array.from({ length: 30 }, (_, i) => ({
         x: (containerRef.current?.clientWidth || 400) / 2,
         y: (containerRef.current?.clientHeight || 700) / 2,
         vx: Math.cos(i * Math.PI / 15) * (5 + Math.random() * 3),
         vy: Math.sin(i * Math.PI / 15) * (5 + Math.random() * 3),
         color: colors[Math.floor(Math.random() * colors.length)],
-        opacity: 1,
-      }))
-      setParticles(prev => [...prev, ...celebrationParticles])
+      })))
 
       // Chest check
       if (chestEnabled && !chestSpawnedRef.current && wordsCompleted === chestWordRef.current - 1) {
@@ -550,7 +576,8 @@ const PetWordScramble = ({ petImageUrl, petName, onGameEnd, onClose, wordBank: w
         }
       }, 800)
     }
-  }, [placedLetters, phase, words, wordIndex, setupWord, combo, wordBankProp])
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [placedLetters, phase, words, wordIndex, setupWord])
 
   const currentWord = words[wordIndex]
   return createPortal(
@@ -700,11 +727,8 @@ const PetWordScramble = ({ petImageUrl, petName, onGameEnd, onClose, wordBank: w
       {/* Playing Phase */}
       {phase === 'playing' && currentWord && (
         <div
-          ref={gameAreaRef}
+          ref={(el) => { gameAreaRef.current = el; containerRef.current = el }}
           className="w-full h-full relative"
-          style={{
-            transform: screenShake > 0 ? `translate(${Math.sin(screenShake) * 5}px, ${Math.cos(screenShake) * 5}px)` : 'none'
-          }}
         >
           {/* Floating Bubbles */}
           {bubbles.map(bubble => {
@@ -713,6 +737,7 @@ const PetWordScramble = ({ petImageUrl, petName, onGameEnd, onClose, wordBank: w
             return (
             <button
               key={bubble.id}
+              ref={(el) => { if (el) bubbleElsRef.current[bubble.id] = el; else delete bubbleElsRef.current[bubble.id] }}
               onPointerDown={(e) => { e.preventDefault(); handleBubblePop(bubble, currentWord) }}
               disabled={bubble.captured || bubble.popping}
               className={`absolute rounded-full font-bold text-3xl uppercase flex items-center justify-center cursor-pointer touch-none ${
@@ -738,20 +763,7 @@ const PetWordScramble = ({ petImageUrl, petName, onGameEnd, onClose, wordBank: w
             )
           })}
 
-          {/* Particles */}
-          {particles.map(particle => (
-            <div
-              key={particle.id}
-              className="absolute w-3 h-3 rounded-full pointer-events-none"
-              style={{
-                left: `${particle.x}px`,
-                top: `${particle.y}px`,
-                backgroundColor: particle.color,
-                opacity: particle.opacity,
-                transform: 'translate(-50%, -50%)',
-              }}
-            />
-          ))}
+          {/* Particles are DOM-managed via particlesRef */}
 
           {/* === TOP HUD === */}
           <div className="absolute top-0 left-0 right-0 p-4 z-10 pointer-events-none">

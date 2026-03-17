@@ -55,6 +55,17 @@ const PetFlappyGame = ({ petImageUrl, petName, wordBank: wordBankProp, onGameEnd
   const lastFrameTimeRef = useRef(0)
   const timerRef = useRef(null)
   const bgMusicRef = useRef(null)
+  const audioCache = useRef({})
+
+  const playSound = useCallback((url, volume = 0.5) => {
+    try {
+      if (!audioCache.current[url]) audioCache.current[url] = new Audio(url)
+      const sound = audioCache.current[url]
+      sound.volume = volume
+      sound.currentTime = 0
+      sound.play().catch(() => {})
+    } catch {}
+  }, [])
 
   // DOM refs for direct manipulation
   const petElRef = useRef(null)
@@ -380,11 +391,7 @@ const PetFlappyGame = ({ petImageUrl, petName, wordBank: wordBankProp, onGameEnd
               floatsContainerRef.current?.appendChild(floatEl)
               floatingTextsRef.current.push({ el: floatEl, y: fruitPixelY, opacity: 1 })
 
-              try {
-                const sound = new Audio(assetUrl('/sound/flappy-point.mp3'))
-                sound.volume = 0.4
-                sound.play().catch(() => {})
-              } catch {}
+              playSound(assetUrl('/sound/flappy-point.mp3'), 0.4)
               // Pick new word
               setNewWord()
               if (hintTextRef.current) hintTextRef.current.textContent = currentHintRef.current
@@ -408,11 +415,7 @@ const PetFlappyGame = ({ petImageUrl, petName, wordBank: wordBankProp, onGameEnd
                 }, 150)
               }
 
-              try {
-                const sound = new Audio(assetUrl('/sound/flappy-hit.mp3'))
-                sound.volume = 0.4
-                sound.play().catch(() => {})
-              } catch {}
+              playSound(assetUrl('/sound/flappy-hit.mp3'), 0.4)
             }
           }
         })

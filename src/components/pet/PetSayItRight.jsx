@@ -152,6 +152,17 @@ const PetSayItRight = ({ petImageUrl, petName, onGameEnd, onClose, wordBank: wor
   const scoreRef = useRef(0)
   const containerRef = useRef(null)
   const bgMusicRef = useRef(null)
+  const audioCache = useRef({})
+
+  const playSound = useCallback((url, volume = 0.5) => {
+    try {
+      if (!audioCache.current[url]) audioCache.current[url] = new Audio(url)
+      const sound = audioCache.current[url]
+      sound.volume = volume
+      sound.currentTime = 0
+      sound.play().catch(() => {})
+    } catch {}
+  }, [])
   const animFrameRef = useRef(null)
   const shakeRef = useRef(0)
   const chestSpawnedRef = useRef(false)
@@ -285,11 +296,7 @@ const PetSayItRight = ({ petImageUrl, petName, onGameEnd, onClose, wordBank: wor
         setTimeout(() => setChestPopup(false), 1500)
       }
 
-      try {
-        const sound = new Audio(assetUrl('/sound/scram-correct.mp3'))
-        sound.volume = 0.4
-        if (!muted) sound.play().catch(() => {})
-      } catch {}
+      if (!muted) playSound(assetUrl('/sound/scram-correct.mp3'), 0.4)
 
       advanceToNextWord()
     } else if (attempt < MAX_ATTEMPTS) {
@@ -313,11 +320,7 @@ const PetSayItRight = ({ petImageUrl, petName, onGameEnd, onClose, wordBank: wor
       shakeRef.current = 10
       setScreenShake(10)
 
-      try {
-        const sound = new Audio(assetUrl('/sound/flappy-hit.mp3'))
-        sound.volume = 0.4
-        if (!muted) sound.play().catch(() => {})
-      } catch {}
+      if (!muted) playSound(assetUrl('/sound/flappy-hit.mp3'), 0.4)
 
       advanceToNextWord()
     }

@@ -64,6 +64,7 @@ const PetWordType = ({ petImageUrl, petName, onGameEnd, onClose, wordBank: wordB
   const scoreRef = useRef(0)
   const timerRef = useRef(null)
   const streakRef = useRef(0)
+  const audioCache = useRef({})
 
   const inputRef = useRef(null)
   const containerRef = useRef(null)
@@ -73,6 +74,17 @@ const PetWordType = ({ petImageUrl, petName, onGameEnd, onClose, wordBank: wordB
   const chestSpawnedRef = useRef(false)
   const chestWordRef = useRef(0)
   const wordStartRef = useRef(Date.now())
+
+  const playSound = useCallback((url, volume = 0.5, rate = 1) => {
+    try {
+      if (!audioCache.current[url]) audioCache.current[url] = new Audio(url)
+      const sound = audioCache.current[url]
+      sound.volume = volume
+      sound.playbackRate = rate
+      sound.currentTime = 0
+      sound.play().catch(() => {})
+    } catch {}
+  }, [])
 
   const currentWord = words[wordIndex]
 
@@ -87,8 +99,8 @@ const PetWordType = ({ petImageUrl, petName, onGameEnd, onClose, wordBank: wordB
     } else {
       const source = wordBankProp.length > 0 ? wordBankProp : WORD_BANK
       const moreWords = pickGameWords(source)
-      setWords(prev => [...prev, ...moreWords])
-      setWordIndex(nextIdx)
+      setWords(moreWords)
+      setWordIndex(0)
     }
     setTimeout(() => inputRef.current?.focus(), 50)
   }, [wordIndex, wordBankProp])
@@ -160,11 +172,7 @@ const PetWordType = ({ petImageUrl, petName, onGameEnd, onClose, wordBank: wordB
       }))
       setParticles(prev => [...prev, ...celebrationParticles])
 
-      try {
-        const sound = new Audio(assetUrl('/sound/scram-correct.mp3'))
-        sound.volume = 0.4
-        if (!muted) sound.play().catch(() => {})
-      } catch {}
+      if (!muted) playSound(assetUrl('/sound/scram-correct.mp3'), 0.4)
 
       setTimeout(() => advanceWord(), 600)
     } else {
@@ -175,11 +183,7 @@ const PetWordType = ({ petImageUrl, petName, onGameEnd, onClose, wordBank: wordB
       shakeRef.current = 10
       setScreenShake(10)
 
-      try {
-        const sound = new Audio(assetUrl('/sound/flappy-hit.mp3'))
-        sound.volume = 0.4
-        if (!muted) sound.play().catch(() => {})
-      } catch {}
+      if (!muted) playSound(assetUrl('/sound/flappy-hit.mp3'), 0.4)
 
       setTimeout(() => {
         // Reset to just the revealed prefix
@@ -761,11 +765,7 @@ const PetWordType = ({ petImageUrl, petName, onGameEnd, onClose, wordBank: wordB
                         // Mobile: skip the word on wrong letter
                         shakeRef.current = 10
                         setScreenShake(10)
-                        try {
-                          const sound = new Audio(assetUrl('/sound/flappy-hit.mp3'))
-                          sound.volume = 0.4
-                          if (!muted) sound.play().catch(() => {})
-                        } catch {}
+                        if (!muted) playSound(assetUrl('/sound/flappy-hit.mp3'), 0.4)
                         setFeedback('wrong')
                         setTypedValue(newVal.slice(0, ci + 1))
                         setTimeout(() => {
@@ -779,11 +779,7 @@ const PetWordType = ({ petImageUrl, petName, onGameEnd, onClose, wordBank: wordB
                       // Desktop: clear all letters on wrong input
                       shakeRef.current = 10
                       setScreenShake(10)
-                      try {
-                        const sound = new Audio(assetUrl('/sound/flappy-hit.mp3'))
-                        sound.volume = 0.4
-                        if (!muted) sound.play().catch(() => {})
-                      } catch {}
+                      if (!muted) playSound(assetUrl('/sound/flappy-hit.mp3'), 0.4)
                       setFeedback('wrong')
                       setTypedValue(newVal.slice(0, ci + 1))
                       setTimeout(() => {

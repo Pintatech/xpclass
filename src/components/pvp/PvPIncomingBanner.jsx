@@ -689,15 +689,14 @@ const PvPResponseModal = ({ challenge, onClose }) => {
 
       const won = score > freshScore;
       const draw = score === freshScore;
-      if (won) {
-        new Audio("https://xpclass.vn/xpclass/sound/victory.mp3")
-          .play()
-          .catch(() => {});
-      } else if (!draw) {
-        new Audio("https://xpclass.vn/xpclass/sound/craft_fail.mp3")
-          .play()
-          .catch(() => {});
-      }
+      try {
+        const url = won
+          ? "https://xpclass.vn/xpclass/sound/victory.mp3"
+          : !draw
+            ? "https://xpclass.vn/xpclass/sound/craft_fail.mp3"
+            : null;
+        if (url) { const s = new Audio(url); s.volume = 0.5; s.play().catch(() => {}); }
+      } catch {}
 
       await supabase
         .from("pvp_challenges")

@@ -57,6 +57,17 @@ const PetAstroBlast = ({ petImageUrl, petName, onGameEnd, onClose, shipSkinUrl, 
   const animFrameRef = useRef(null)
   const containerRef = useRef(null)
   const bgMusicRef = useRef(null)
+  const audioCache = useRef({})
+
+  const playSound = useCallback((url, volume = 0.5) => {
+    try {
+      if (!audioCache.current[url]) audioCache.current[url] = new Audio(url)
+      const sound = audioCache.current[url]
+      sound.volume = volume
+      sound.currentTime = 0
+      sound.play().catch(() => {})
+    } catch {}
+  }, [])
   const currentTargetRef = useRef(null)
   const roundIndexRef = useRef(0)
   const chestSpawnedRef = useRef(false)
@@ -419,11 +430,7 @@ const PetAstroBlast = ({ petImageUrl, petName, onGameEnd, onClose, shipSkinUrl, 
       }))
       setParticles(prev => [...prev, ...slashParticles])
 
-      try {
-        const sound = new Audio('https://xpclass.vn/xpclass/sound/laser.mp3')
-        sound.volume = 0.3
-        sound.play().catch(() => {})
-      } catch {}
+      playSound('https://xpclass.vn/xpclass/sound/laser.mp3', 0.3)
 
       setScreenShake(12)
       setFeedback({ type: 'correct', word: wordObj.word, x: wordObj.x, y: wordObj.y })
@@ -460,11 +467,7 @@ const PetAstroBlast = ({ petImageUrl, petName, onGameEnd, onClose, shipSkinUrl, 
       }))
       setParticles(prev => [...prev, ...explosionParticles])
 
-      try {
-        const sound = new Audio(assetUrl('/sound/flappy-hit.mp3'))
-        sound.volume = 0.3
-        sound.play().catch(() => {})
-      } catch {}
+      playSound(assetUrl('/sound/flappy-hit.mp3'), 0.3)
 
       setFeedback({ type: 'wrong', word: wordObj.word, x: wordObj.x, y: wordObj.y })
       setTimeout(() => setFeedback(null), 600)

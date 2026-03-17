@@ -46,6 +46,17 @@ const PetMatchGame = ({ petImageUrl, petName, onGameEnd, onClose, wordBank: word
   const animFrameRef = useRef(null)
   const bgMusicRef = useRef(null)
   const mutedRef = useRef(false)
+  const audioCache = useRef({})
+
+  const playSound = useCallback((url, volume = 0.5) => {
+    try {
+      if (!audioCache.current[url]) audioCache.current[url] = new Audio(url)
+      const sound = audioCache.current[url]
+      sound.volume = volume
+      sound.currentTime = 0
+      sound.play().catch(() => {})
+    } catch {}
+  }, [])
   const chestSpawnedRef = useRef(false)
   const chestRoundRef = useRef(0)
 
@@ -260,13 +271,7 @@ const PetMatchGame = ({ petImageUrl, petName, onGameEnd, onClose, wordBank: word
       setParticles(prev => [...prev, ...celebrationParticles])
 
       // Sound
-      if (!mutedRef.current) {
-        try {
-          const sound = new Audio(assetUrl('/sound/scram-correct.mp3'))
-          sound.volume = 0.4
-          sound.play().catch(() => {})
-        } catch {}
-      }
+      if (!mutedRef.current) playSound(assetUrl('/sound/scram-correct.mp3'), 0.4)
 
       // Check if round complete
       if (newMatched >= PAIRS_PER_ROUND) {
@@ -300,11 +305,7 @@ const PetMatchGame = ({ petImageUrl, petName, onGameEnd, onClose, wordBank: word
       }
 
       if (!mutedRef.current) {
-        try {
-          const sound = new Audio(assetUrl('/sound/flappy-hit.mp3'))
-          sound.volume = 0.4
-          sound.play().catch(() => {})
-        } catch {}
+        playSound(assetUrl('/sound/flappy-hit.mp3'), 0.4)
       }
 
       setTimeout(() => {

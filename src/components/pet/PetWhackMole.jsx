@@ -52,6 +52,17 @@ const PetWhackMole = ({ petImageUrl, petName, onGameEnd, onClose, hammerSkinUrl,
   const gameContainerRef = useRef(null)
   const roundHitRef = useRef(false)
   const bgMusicRef = useRef(null)
+  const audioCache = useRef({})
+
+  const playSound = useCallback((url, volume = 0.5) => {
+    try {
+      if (!audioCache.current[url]) audioCache.current[url] = new Audio(url)
+      const sound = audioCache.current[url]
+      sound.volume = volume
+      sound.currentTime = 0
+      sound.play().catch(() => {})
+    } catch {}
+  }, [])
   const chestSpawnedRef = useRef(false)
   const chestRoundRef = useRef(0)
   const roundCountRef = useRef(0)
@@ -279,11 +290,7 @@ const PetWhackMole = ({ petImageUrl, petName, onGameEnd, onClose, hammerSkinUrl,
         color: newStreak >= 5 ? '#f59e0b' : newStreak >= 3 ? '#8b5cf6' : '#22c55e',
       }])
 
-      try {
-        const sound = new Audio(assetUrl('/pet-game/mole-correct.mp3'))
-        sound.volume = 0.4
-        sound.play().catch(() => {})
-      } catch {}
+      playSound(assetUrl('/pet-game/mole-correct.mp3'), 0.4)
 
       // Clear mole timers and spawn next round
       moleTimersRef.current.forEach(t => clearTimeout(t))
@@ -300,11 +307,7 @@ const PetWhackMole = ({ petImageUrl, petName, onGameEnd, onClose, hammerSkinUrl,
         i === holeIndex ? { ...h, wrong: true } : h
       ))
 
-      try {
-        const sound = new Audio(assetUrl('/pet-game/mole-incorrect.mp3'))
-        sound.volume = 0.4
-        sound.play().catch(() => {})
-      } catch {}
+      playSound(assetUrl('/pet-game/mole-incorrect.mp3'), 0.4)
 
       setTimeout(() => {
         setHoles(prev => prev.map((h, i) =>
