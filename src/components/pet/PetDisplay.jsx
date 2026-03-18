@@ -21,6 +21,7 @@ import PetAstroBlast from "./PetAstroBlast";
 import PetMatchGame from "./PetMatchGame";
 import PetWordType from "./PetWordType";
 import PetSayItRight from "./PetSayItRight";
+import PetQuizRush from "./PetQuizRush";
 import PvPMatchmaking from "../pvp/PvPMatchmaking";
 
 import { assetUrl } from '../../hooks/useBranding';
@@ -91,10 +92,11 @@ const PetDisplay = () => {
   // Chat state
   const [playDisabled, setPlayDisabled] = useState(false);
   const [playCooldown, setPlayCooldown] = useState(0);
-  const [showGame, setShowGame] = useState(null); // null | 'picker' | 'catch' | 'flappy' | 'scramble' | 'whackmole' | 'astroblast' | 'matchgame'
-  const [gameLeaderboards, setGameLeaderboards] = useState({ whackmole: [], scramble: [], astroblast: [], matchgame: [], wordtype: [], sayitright: [] });
+  const [showGame, setShowGame] = useState(null); // null | 'picker' | 'catch' | 'flappy' | 'scramble' | 'whackmole' | 'astroblast' | 'matchgame' | 'quizrush'
+  const [gameLeaderboards, setGameLeaderboards] = useState({ whackmole: [], scramble: [], astroblast: [], matchgame: [], wordtype: [], sayitright: [], quizrush: [] });
   const [wordBank, setWordBank] = useState([]);
-  const [enabledGames, setEnabledGames] = useState(['scramble', 'whackmole', 'astroblast', 'matchgame', 'wordtype', 'sayitright']);
+  const [questionBank, setQuestionBank] = useState([]);
+  const [enabledGames, setEnabledGames] = useState(['scramble', 'whackmole', 'astroblast', 'matchgame', 'wordtype', 'sayitright', 'quizrush']);
   const [competitionGame, setCompetitionGame] = useState(null); // game type with active competition
   const [chestEnabled, setChestEnabled] = useState(false); // whether chest can appear in games
   const [trainingBlocked, setTrainingBlocked] = useState(false); // true when outside allowed schedule
@@ -464,6 +466,7 @@ const PetDisplay = () => {
       return;
     }
     await fetchWordBank();
+    await fetchQuestionBank();
     setShowGame('picker');
   };
 
@@ -591,6 +594,18 @@ const PetDisplay = () => {
     // else keep empty → games fall back to static wordBank.js
   };
 
+  const fetchQuestionBank = async () => {
+    const userLevel = profile?.current_level || 1;
+
+    const { data: questions } = await supabase
+      .from('pet_question_bank')
+      .select('question, choices, answer_index, image_url')
+      .eq('is_active', true)
+      .lte('min_level', userLevel);
+
+    if (questions && questions.length >= 5) setQuestionBank(questions);
+  };
+
   // Level-based score bonus: lower levels get more bonus to keep tournaments fair
   const getLevelBonusPercent = () => {
     const level = profile?.current_level || 1;
@@ -632,6 +647,7 @@ const PetDisplay = () => {
         wordtype: extra?.wordsCompleted && { goal_type: 'type_words', increment: extra.wordsCompleted },
         matchgame: extra?.pairsMatched && { goal_type: 'match_pairs', increment: extra.pairsMatched },
         sayitright: extra?.wordsPronounced && { goal_type: 'pronounce_words', increment: extra.wordsPronounced },
+        quizrush: extra?.wordsCompleted && { goal_type: 'answer_questions', increment: extra.wordsCompleted },
       }
       const gameGoal = gameGoalMap[gameType]
       if (gameGoal) {
@@ -1610,9 +1626,9 @@ const PetDisplay = () => {
                       <div className={`bg-gray-50 rounded-xl p-2.5 border-2 flex flex-col items-center w-24 transition-all ${
                         activePet.evolution_stage === 0 ? 'border-purple-400 shadow-md shadow-purple-100' : 'border-gray-200'
                       }`}>
-                        {activePet.image_url && (
+                        {(activePet.base_image_url || activePet.image_url) && (
                           <div className="relative w-14 h-14 mb-1.5">
-                            <img src={activePet.image_url} alt="Base form" className="w-14 h-14 object-contain rounded-lg select-none pointer-events-none" onContextMenu={(e) => e.preventDefault()} draggable="false" />
+                            <img src={activePet.base_image_url || activePet.image_url} alt="Base form" className="w-14 h-14 object-contain rounded-lg select-none pointer-events-none" onContextMenu={(e) => e.preventDefault()} draggable="false" />
                             <div className="absolute inset-0 bg-transparent" onContextMenu={(e) => e.preventDefault()} />
                           </div>
                         )}
@@ -1847,6 +1863,16 @@ const PetDisplay = () => {
                 <span className="font-bold text-gray-800 text-xs">Say It Right</span>
               </button>
               )}
+              {(isAdmin() || enabledGames.includes('quizrush')) && (
+              <button
+                onClick={() => { drainPetEnergy(10); recordAttemptStart('quizrush'); fetchGameLeaderboard('quizrush'); setShowGame('quizrush'); }}
+                className={`relative flex flex-col items-center gap-2 p-4 rounded-xl border-2 transition-all group ${competitionGame === 'quizrush' ? 'border-yellow-400 bg-yellow-50 ring-2 ring-yellow-300' : 'border-violet-200 hover:border-violet-400 hover:bg-violet-50'}`}
+              >
+                {competitionGame === 'quizrush' && <span className="absolute -top-2 -right-2 text-lg">🏆</span>}
+                <span className="text-4xl group-hover:scale-110 transition-transform">🧠</span>
+                <span className="font-bold text-gray-800 text-xs">Quiz Rush</span>
+              </button>
+              )}
 
               <button
                 onClick={() => setShowGame('quickmatch')}
@@ -2041,6 +2067,26 @@ const PetDisplay = () => {
           leaderboard={gameLeaderboards.sayitright}
           chestEnabled={chestEnabled}
           onGameEnd={(score, extra) => handleGameEnd(score, 'sayitright', extra)}
+          onClose={() => setShowGame(null)}
+        />
+      )}
+
+      {/* Quiz Rush Mini-Game */}
+      {showGame === 'quizrush' && (
+        <PetQuizRush
+          petImageUrl={(() => {
+            let baseImage = activePet.image_url;
+            if (activePet.evolution_stages && activePet.evolution_stage > 0) {
+              const stage = activePet.evolution_stages.find(s => s.stage === activePet.evolution_stage);
+              if (stage?.image_url) baseImage = stage.image_url;
+            }
+            return baseImage;
+          })()}
+          petName={activePet.nickname || activePet.name}
+          questionBank={questionBank}
+          leaderboard={gameLeaderboards.quizrush}
+          chestEnabled={chestEnabled}
+          onGameEnd={(score, extra) => handleGameEnd(score, 'quizrush', extra)}
           onClose={() => setShowGame(null)}
         />
       )}

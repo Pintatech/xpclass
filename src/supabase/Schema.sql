@@ -1,6 +1,20 @@
 -- Schema for XPclass LMS
 -- Table order follows foreign key dependencies for fresh database setup.
 
+CREATE TABLE public.pet_question_bank (
+  id uuid NOT NULL DEFAULT uuid_generate_v4(),
+  question text NOT NULL,
+  choices jsonb NOT NULL,          -- e.g. ["cat","dog","bird","fish"]
+  answer_index integer NOT NULL,   -- 0-based index into choices
+  image_url text,
+  category text,
+  min_level integer DEFAULT 1,
+  is_active boolean DEFAULT true,
+  created_at timestamp with time zone DEFAULT now(),
+  updated_at timestamp with time zone DEFAULT now(),
+  CONSTRAINT pet_question_bank_pkey PRIMARY KEY (id)
+);
+
 CREATE TABLE public.achievements (
   id uuid NOT NULL DEFAULT uuid_generate_v4(),
   title text NOT NULL,
@@ -1244,6 +1258,7 @@ BEGIN
       'info', pet_record.pet_info,
       'description', pet_record.pet_description,
       'image_url', resolved_image,
+      'base_image_url', pet_record.pet_image_url,
       'rarity', pet_record.rarity,
       'happiness', pet_record.happiness,
       'energy', COALESCE(user_energy, 100),

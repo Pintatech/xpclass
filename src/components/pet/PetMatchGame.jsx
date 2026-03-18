@@ -726,7 +726,9 @@ const PetMatchGame = ({ petImageUrl, petName, onGameEnd, onClose, wordBank: word
                           boxShadow: isSelected
                             ? '0 6px 0 #92400e, 0 0 20px rgba(250,204,21,0.4), inset 0 1px 0 rgba(255,255,255,0.4)'
                             : '0 6px 0 #1e40af, 0 8px 16px rgba(0,0,0,0.25), inset 0 1px 0 rgba(255,255,255,0.3)',
-                          border: isSelected ? '2px solid #fef08a' : '2px solid rgba(255,255,255,0.15)',
+                          borderTop: isSelected ? '2px solid #fef08a' : '2px solid rgba(255,255,255,0.15)',
+                          borderLeft: isSelected ? '2px solid #fef08a' : '2px solid rgba(255,255,255,0.15)',
+                          borderRight: isSelected ? '2px solid #fef08a' : '2px solid rgba(255,255,255,0.15)',
                           borderBottom: 'none',
                           transform: 'none',
                         }}
@@ -776,7 +778,9 @@ const PetMatchGame = ({ petImageUrl, petName, onGameEnd, onClose, wordBank: word
                           boxShadow: isSelected
                             ? '0 6px 0 #92400e, 0 0 20px rgba(250,204,21,0.4), inset 0 1px 0 rgba(255,255,255,0.4)'
                             : '0 6px 0 #1e40af, 0 8px 16px rgba(0,0,0,0.25), inset 0 1px 0 rgba(255,255,255,0.3)',
-                          border: isSelected ? '2px solid #fef08a' : '2px solid rgba(255,255,255,0.15)',
+                          borderTop: isSelected ? '2px solid #fef08a' : '2px solid rgba(255,255,255,0.15)',
+                          borderLeft: isSelected ? '2px solid #fef08a' : '2px solid rgba(255,255,255,0.15)',
+                          borderRight: isSelected ? '2px solid #fef08a' : '2px solid rgba(255,255,255,0.15)',
                           borderBottom: 'none',
                           transform: 'none',
                         }}

@@ -92,6 +92,7 @@ const PetWordType = ({ petImageUrl, petName, onGameEnd, onClose, wordBank: wordB
     setTypedValue('')
     setFeedback(null)
     setHintRevealed(0)
+    setSelectedChoice(null)
     wordStartRef.current = Date.now()
     const nextIdx = wordIndex + 1
     if (nextIdx < words.length) {
@@ -481,7 +482,7 @@ const PetWordType = ({ petImageUrl, petName, onGameEnd, onClose, wordBank: wordB
               See the meaning, type the word!
             </p>
             <p className="text-sm text-white/60">
-              Train {petName}&apos;s vocabulary!
+              Train {petName}'s vocabulary!
             </p>
           </div>
 
@@ -688,139 +689,141 @@ const PetWordType = ({ petImageUrl, petName, onGameEnd, onClose, wordBank: wordB
               </div>
             )}
 
-            {/* Meaning/Hint display */}
-            <div className="bg-white/10 backdrop-blur-md rounded-2xl px-5 py-3 w-full max-w-xs text-center border border-white/20">
-              <p className="text-xs text-white/50 uppercase tracking-wider mb-1 font-semibold">Meaning</p>
-              <p className="text-2xl font-bold text-white leading-snug" style={{ textShadow: '0 2px 4px rgba(0,0,0,0.2)' }}>
-                {currentWord.hint}
-              </p>
-              {currentWord.image_url && (
-                <img src={currentWord.image_url} alt="" className="w-12 h-12 object-contain mx-auto mt-2 rounded-lg" />
-              )}
-            </div>
+              <>
+                {/* Meaning/Hint display */}
+                <div className="bg-white/10 backdrop-blur-md rounded-2xl px-5 py-3 w-full max-w-xs text-center border border-white/20">
+                  <p className="text-xs text-white/50 uppercase tracking-wider mb-1 font-semibold">Meaning</p>
+                  <p className="text-2xl font-bold text-white leading-snug" style={{ textShadow: '0 2px 4px rgba(0,0,0,0.2)' }}>
+                    {currentWord.hint}
+                  </p>
+                  {currentWord.image_url && (
+                    <img src={currentWord.image_url} alt="" className="w-12 h-12 object-contain mx-auto mt-2 rounded-lg" />
+                  )}
+                </div>
 
-            {/* Letter blanks - typed letters appear here */}
-            <div
-              className="flex items-center gap-1.5 justify-center flex-wrap cursor-text"
-              onClick={() => inputRef.current?.focus()}
-              style={feedback === 'wrong' ? { animation: 'typeShake 0.4s ease-out' } : feedback === 'correct' ? { animation: 'typeCorrect 0.4s ease-out' } : {}}
-            >
-              {currentWord.word.split('').map((letter, i) => {
-                const isRevealed = i < hintRevealed
-                const typedLetter = typedValue[i]
-                const isCursor = i === typedValue.length
-                return (
-                  <div
-                    key={i}
-                    className={`w-10 h-12 rounded-xl flex items-center justify-center font-bold text-xl uppercase transition-all ${
-                      feedback === 'correct'
-                        ? 'bg-green-400 text-white border-2 border-green-500 shadow-lg'
-                        : isRevealed
-                            ? 'bg-yellow-400/80 text-yellow-900 border-2 border-yellow-500'
-                            : typedLetter
-                              ? 'bg-white text-indigo-800 border-2 border-indigo-200 shadow-md'
-                              : isCursor
-                                ? 'bg-white/25 border-2 border-white/60'
-                                : 'bg-white/10 border-2 border-dashed border-white/30'
-                    }`}
-                    style={typedLetter && !isRevealed ? { animation: 'letterReveal 0.15s ease-out' } : {}}
-                  >
-                    {typedLetter ? typedLetter.toUpperCase() : isCursor ? <span className="w-0.5 h-5 bg-white/80 rounded-full" style={{ animation: 'hintPulse 1s ease-in-out infinite' }} /> : ''}
-                  </div>
-                )
-              })}
-            </div>
-            <span className="text-white/30 text-xs">({currentWord.word.length} letters)</span>
+                {/* Letter blanks - typed letters appear here */}
+                <div
+                  className="flex items-center gap-1.5 justify-center flex-wrap cursor-text"
+                  onClick={() => inputRef.current?.focus()}
+                  style={feedback === 'wrong' ? { animation: 'typeShake 0.4s ease-out' } : feedback === 'correct' ? { animation: 'typeCorrect 0.4s ease-out' } : {}}
+                >
+                  {currentWord.word.split('').map((letter, i) => {
+                    const isRevealed = i < hintRevealed
+                    const typedLetter = typedValue[i]
+                    const isCursor = i === typedValue.length
+                    return (
+                      <div
+                        key={i}
+                        className={`w-10 h-12 rounded-xl flex items-center justify-center font-bold text-xl uppercase transition-all ${
+                          feedback === 'correct'
+                            ? 'bg-green-400 text-white border-2 border-green-500 shadow-lg'
+                            : isRevealed
+                                ? 'bg-yellow-400/80 text-yellow-900 border-2 border-yellow-500'
+                                : typedLetter
+                                  ? 'bg-white text-indigo-800 border-2 border-indigo-200 shadow-md'
+                                  : isCursor
+                                    ? 'bg-white/25 border-2 border-white/60'
+                                    : 'bg-white/10 border-2 border-dashed border-white/30'
+                        }`}
+                        style={typedLetter && !isRevealed ? { animation: 'letterReveal 0.15s ease-out' } : {}}
+                      >
+                        {typedLetter ? typedLetter.toUpperCase() : i === 0 ? <span className="text-white/40">{letter.toUpperCase()}</span> : isCursor ? <span className="w-0.5 h-5 bg-white/80 rounded-full" style={{ animation: 'hintPulse 1s ease-in-out infinite' }} /> : ''}
+                      </div>
+                    )
+                  })}
+                </div>
+                <span className="text-white/30 text-xs">({currentWord.word.length} letters)</span>
 
-            {/* Hidden input to capture keyboard */}
-            <input
-              ref={inputRef}
-              type="text"
-              value={typedValue}
-              onChange={(e) => {
-                if (feedback) return
-                const val = e.target.value.replace(/\s/g, '')
-                // Don't allow editing revealed letters
-                if (val.length < hintRevealed) return
-                // Preserve revealed prefix
-                const prefix = currentWord.word.slice(0, hintRevealed)
-                const userPart = val.slice(hintRevealed)
-                const newVal = prefix + userPart
-                if (newVal.length > currentWord.word.length) return
-                // Validate all new characters one by one
-                if (newVal.length > typedValue.length) {
-                  let accepted = typedValue
-                  for (let ci = typedValue.length; ci < newVal.length; ci++) {
-                    const expected = currentWord.word[ci].toLowerCase()
-                    const typed = newVal[ci].toLowerCase()
-                    if (typed !== expected) {
-                      // Wrong letter kills chest
-                      if (isChestWord && !chestSpawnedRef.current) {
-                        chestSpawnedRef.current = true
-                        setIsChestWord(false)
-                        setChestTimer(0)
+                {/* Hidden input to capture keyboard */}
+                <input
+                  ref={inputRef}
+                  type="text"
+                  value={typedValue}
+                  onChange={(e) => {
+                    if (feedback) return
+                    const val = e.target.value.replace(/\s/g, '')
+                    // Don't allow editing revealed letters
+                    if (val.length < hintRevealed) return
+                    // Preserve revealed prefix
+                    const prefix = currentWord.word.slice(0, hintRevealed)
+                    const userPart = val.slice(hintRevealed)
+                    const newVal = prefix + userPart
+                    if (newVal.length > currentWord.word.length) return
+                    // Validate all new characters one by one
+                    if (newVal.length > typedValue.length) {
+                      let accepted = typedValue
+                      for (let ci = typedValue.length; ci < newVal.length; ci++) {
+                        const expected = currentWord.word[ci].toLowerCase()
+                        const typed = newVal[ci].toLowerCase()
+                        if (typed !== expected) {
+                          // Wrong letter kills chest
+                          if (isChestWord && !chestSpawnedRef.current) {
+                            chestSpawnedRef.current = true
+                            setIsChestWord(false)
+                            setChestTimer(0)
+                          }
+                          const isMobile = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent)
+                          if (isMobile) {
+                            // Mobile: skip the word on wrong letter
+                            shakeRef.current = 10
+                            setScreenShake(10)
+                            if (!muted) playSound(assetUrl('/sound/flappy-hit.mp3'), 0.4)
+                            setFeedback('wrong')
+                            setTypedValue(newVal.slice(0, ci + 1))
+                            setTimeout(() => {
+                              setTypedValue('')
+                              setFeedback(null)
+                              setHintRevealed(0)
+                              inputRef.current?.focus()
+                            }, 400)
+                            return
+                          }
+                          // Desktop: clear all letters on wrong input
+                          shakeRef.current = 10
+                          setScreenShake(10)
+                          if (!muted) playSound(assetUrl('/sound/flappy-hit.mp3'), 0.4)
+                          setFeedback('wrong')
+                          setTypedValue(newVal.slice(0, ci + 1))
+                          setTimeout(() => {
+                            setTypedValue('')
+                            setFeedback(null)
+                            setHintRevealed(0)
+                            inputRef.current?.focus()
+                          }, 400)
+                          return
+                        }
+                        accepted += newVal[ci]
                       }
-                      const isMobile = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent)
-                      if (isMobile) {
-                        // Mobile: skip the word on wrong letter
-                        shakeRef.current = 10
-                        setScreenShake(10)
-                        if (!muted) playSound(assetUrl('/sound/flappy-hit.mp3'), 0.4)
-                        setFeedback('wrong')
-                        setTypedValue(newVal.slice(0, ci + 1))
-                        setTimeout(() => {
-                          setTypedValue('')
-                          setFeedback(null)
-                          setHintRevealed(0)
-                          inputRef.current?.focus()
-                        }, 400)
-                        return
-                      }
-                      // Desktop: clear all letters on wrong input
-                      shakeRef.current = 10
-                      setScreenShake(10)
-                      if (!muted) playSound(assetUrl('/sound/flappy-hit.mp3'), 0.4)
-                      setFeedback('wrong')
-                      setTypedValue(newVal.slice(0, ci + 1))
-                      setTimeout(() => {
-                        setTypedValue('')
-                        setFeedback(null)
-                        setHintRevealed(0)
-                        inputRef.current?.focus()
-                      }, 400)
-                      return
+                      setTypedValue(accepted)
+                    } else {
+                      setTypedValue(newVal)
                     }
-                    accepted += newVal[ci]
-                  }
-                  setTypedValue(accepted)
-                } else {
-                  setTypedValue(newVal)
-                }
-              }}
-              onKeyDown={(e) => {
-                if (e.key === ' ') {
-                  e.preventDefault()
-                  handleSkip()
-                }
-                // Prevent backspacing into revealed letters
-                if (e.key === 'Backspace' && typedValue.length <= hintRevealed) e.preventDefault()
-              }}
-              autoComplete="off"
-              autoCorrect="off"
-              autoCapitalize="off"
-              spellCheck="false"
-              className="absolute opacity-0 w-0 h-0 pointer-events-none"
-              style={{ position: 'absolute', left: '-9999px' }}
-            />
+                  }}
+                  onKeyDown={(e) => {
+                    if (e.key === ' ') {
+                      e.preventDefault()
+                      handleSkip()
+                    }
+                    // Prevent backspacing into revealed letters
+                    if (e.key === 'Backspace' && typedValue.length <= hintRevealed) e.preventDefault()
+                  }}
+                  autoComplete="off"
+                  autoCorrect="off"
+                  autoCapitalize="off"
+                  spellCheck="false"
+                  className="absolute opacity-0 w-0 h-0 pointer-events-none"
+                  style={{ position: 'absolute', left: '-9999px' }}
+                />
 
-            {/* Reveal hint button */}
-            <button
-              onClick={handleRevealHint}
-              className="text-xs text-white/40 hover:text-white/70 transition-colors"
-              disabled={hintRevealed >= currentWord.word.length - 1}
-            >
-              Reveal letter ({hintRevealed}/{currentWord.word.length - 1})
-            </button>
+                {/* Reveal hint button */}
+                <button
+                  onClick={handleRevealHint}
+                  className="text-xs text-white/40 hover:text-white/70 transition-colors"
+                  disabled={hintRevealed >= currentWord.word.length - 1}
+                >
+                  Reveal letter ({hintRevealed}/{currentWord.word.length - 1})
+                </button>
+              </>
           </div>
 
           {/* === BOTTOM: Skip === */}

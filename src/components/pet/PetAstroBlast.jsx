@@ -72,6 +72,8 @@ const PetAstroBlast = ({ petImageUrl, petName, onGameEnd, onClose, shipSkinUrl, 
   const roundIndexRef = useRef(0)
   const chestSpawnedRef = useRef(false)
   const chestRoundRef = useRef(0)
+  const uidRef = useRef(0)
+  const uid = () => ++uidRef.current
 
   // Generate a round: pick a target word and distractors
   const spawnRound = useCallback(() => {
@@ -420,7 +422,7 @@ const PetAstroBlast = ({ petImageUrl, petName, onGameEnd, onClose, shipSkinUrl, 
       // Slash particles
       const colors = ['#fbbf24', '#f59e0b', '#ec4899', '#8b5cf6', '#3b82f6', '#10b981']
       const slashParticles = Array.from({ length: 15 }, (_, i) => ({
-        id: `slash-${Date.now()}-${i}`,
+        id: `slash-${uid()}`,
         x: wordObj.x,
         y: wordObj.y,
         vx: Math.cos(i * Math.PI / 7.5) * (4 + Math.random() * 3),
@@ -457,7 +459,7 @@ const PetAstroBlast = ({ petImageUrl, petName, onGameEnd, onClose, shipSkinUrl, 
 
       // Red explosion
       const explosionParticles = Array.from({ length: 10 }, (_, i) => ({
-        id: `wrong-${Date.now()}-${i}`,
+        id: `wrong-${uid()}`,
         x: wordObj.x,
         y: wordObj.y,
         vx: Math.cos(i * Math.PI / 5) * 4,
@@ -484,7 +486,7 @@ const PetAstroBlast = ({ petImageUrl, petName, onGameEnd, onClose, shipSkinUrl, 
     if (!rect) return
     const x = e.clientX - rect.left
     const y = e.clientY - rect.top
-    setSlashTrail(prev => [...prev.slice(-12), { x, y, opacity: 1, id: Date.now() }])
+    setSlashTrail(prev => [...prev.slice(-12), { x, y, opacity: 1, id: uid() }])
     setShipX(Math.max(30, Math.min(x, (containerRef.current?.clientWidth || 400) - 30)))
   }, [phase])
 

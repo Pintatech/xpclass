@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react'
 import { supabase } from '../../supabase/client'
-import { Plus, Edit2, Trash2, Save, X, Eye, EyeOff, Search, BookOpen } from 'lucide-react'
+import { Plus, Edit2, Trash2, Save, X, Eye, EyeOff, Search, BookOpen, HelpCircle } from 'lucide-react'
 
 const DIFFICULTIES = ['easy', 'medium', 'hard']
 
@@ -22,6 +22,14 @@ const PetManagement = () => {
   const [showAddWord, setShowAddWord] = useState(false)
   const [editingPet, setEditingPet] = useState(null)
   const [message, setMessage] = useState(null)
+
+  // Question bank state
+  const [questionBank, setQuestionBank] = useState([])
+  const [questionSearch, setQuestionSearch] = useState('')
+  const [questionLoading, setQuestionLoading] = useState(false)
+  const [editingQuestion, setEditingQuestion] = useState(null)
+  const [newQuestion, setNewQuestion] = useState({ question: '', choices: ['', '', '', ''], answer_index: 0, min_level: 1, image_url: '', category: '' })
+  const [showAddQuestion, setShowAddQuestion] = useState(false)
 
   // Form state for new pet
   const [newPet, setNewPet] = useState({
@@ -46,6 +54,7 @@ const PetManagement = () => {
     fetchPets()
     fetchPetFood()
     fetchWordBank()
+    fetchQuestionBank()
   }, [])
 
   const fetchPets = async () => {
@@ -305,6 +314,70 @@ const PetManagement = () => {
     return matchSearch && matchDiff
   })
 
+  // ── Question Bank ─────────────────────────────────────────────
+  const fetchQuestionBank = async () => {
+    setQuestionLoading(true)
+    const { data } = await supabase
+      .from('pet_question_bank')
+      .select('*')
+      .order('min_level', { ascending: true })
+    setQuestionBank(data || [])
+    setQuestionLoading(false)
+  }
+
+  const saveNewQuestion = async () => {
+    const q = newQuestion
+    if (!q.question.trim() || q.choices.some(c => !c.trim())) return
+    const { error } = await supabase.from('pet_question_bank').insert({
+      question: q.question.trim(),
+      choices: q.choices.map(c => c.trim()),
+      answer_index: q.answer_index,
+      min_level: q.min_level,
+      image_url: q.image_url.trim() || null,
+      category: q.category.trim() || null,
+    })
+    if (error) { showMessage(error.message, 'error'); return }
+    setNewQuestion({ question: '', choices: ['', '', '', ''], answer_index: 0, min_level: 1, image_url: '', category: '' })
+    setShowAddQuestion(false)
+    showMessage('Question added!', 'success')
+    fetchQuestionBank()
+  }
+
+  const saveEditQuestion = async () => {
+    if (!editingQuestion) return
+    const q = editingQuestion
+    const { error } = await supabase.from('pet_question_bank').update({
+      question: q.question.trim(),
+      choices: q.choices.map(c => c.trim()),
+      answer_index: q.answer_index,
+      min_level: q.min_level,
+      image_url: q.image_url?.trim() || null,
+      category: q.category?.trim() || null,
+      updated_at: new Date().toISOString(),
+    }).eq('id', q.id)
+    if (error) { showMessage(error.message, 'error'); return }
+    setEditingQuestion(null)
+    showMessage('Question updated!', 'success')
+    fetchQuestionBank()
+  }
+
+  const deleteQuestion = async (id) => {
+    if (!confirm('Delete this question?')) return
+    await supabase.from('pet_question_bank').delete().eq('id', id)
+    showMessage('Question deleted', 'success')
+    fetchQuestionBank()
+  }
+
+  const toggleQuestionActive = async (id, current) => {
+    await supabase.from('pet_question_bank').update({ is_active: !current }).eq('id', id)
+    fetchQuestionBank()
+  }
+
+  const filteredQuestions = questionBank.filter(q =>
+    q.question.toLowerCase().includes(questionSearch.toLowerCase()) ||
+    q.choices?.some(c => c.toLowerCase().includes(questionSearch.toLowerCase()))
+  )
+
   if (loading) {
     return <div className="p-6">Loading...</div>
   }
@@ -326,6 +399,7 @@ const PetManagement = () => {
           { id: 'pets', label: `Pets (${pets.length})` },
           { id: 'food', label: `Food & Items (${petFoodItems.length})` },
           { id: 'words', label: `Word Bank (${wordBank.length})`, icon: <BookOpen className="w-4 h-4" /> },
+          { id: 'questions', label: `Question Bank (${questionBank.length})`, icon: <HelpCircle className="w-4 h-4" /> },
         ].map(tab => (
           <button
             key={tab.id}
@@ -673,6 +747,169 @@ const PetManagement = () => {
                   )}
                 </tbody>
               </table>
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* ── Question Bank Tab ── */}
+      {activeTab === 'questions' && (
+        <div className="bg-white rounded-lg shadow-md p-6">
+          {/* Header */}
+          <div className="flex flex-wrap gap-3 items-center justify-between mb-4">
+            <h2 className="text-2xl font-bold text-gray-800">Question Bank</h2>
+            <div className="flex items-center gap-2 flex-wrap">
+              <div className="relative">
+                <Search className="w-4 h-4 absolute left-2.5 top-1/2 -translate-y-1/2 text-gray-400" />
+                <input
+                  type="text"
+                  placeholder="Search question or choice…"
+                  value={questionSearch}
+                  onChange={(e) => setQuestionSearch(e.target.value)}
+                  className="pl-8 pr-3 py-1.5 border rounded-lg text-sm w-52"
+                />
+              </div>
+              <button onClick={() => setShowAddQuestion(!showAddQuestion)}
+                className="bg-purple-600 hover:bg-purple-700 text-white font-bold py-1.5 px-3 rounded-lg flex items-center gap-1.5 text-sm">
+                {showAddQuestion ? <X className="w-4 h-4" /> : <Plus className="w-4 h-4" />}
+                {showAddQuestion ? 'Cancel' : 'Add Question'}
+              </button>
+            </div>
+          </div>
+
+          {/* Add Question Form */}
+          {showAddQuestion && (
+            <div className="bg-gray-50 rounded-lg p-4 mb-4 space-y-3">
+              <input type="text" placeholder="Question" value={newQuestion.question}
+                onChange={(e) => setNewQuestion({ ...newQuestion, question: e.target.value })}
+                className="w-full px-3 py-2 border rounded-lg text-sm" />
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
+                {newQuestion.choices.map((c, i) => (
+                  <div key={i} className="flex items-center gap-2">
+                    <button
+                      type="button"
+                      onClick={() => setNewQuestion({ ...newQuestion, answer_index: i })}
+                      className={`w-7 h-7 rounded-full flex items-center justify-center text-xs font-bold border-2 shrink-0 ${
+                        newQuestion.answer_index === i ? 'bg-green-500 border-green-600 text-white' : 'bg-white border-gray-300 text-gray-500'
+                      }`}
+                    >
+                      {String.fromCharCode(65 + i)}
+                    </button>
+                    <input type="text" placeholder={`Choice ${String.fromCharCode(65 + i)}`} value={c}
+                      onChange={(e) => {
+                        const choices = [...newQuestion.choices]
+                        choices[i] = e.target.value
+                        setNewQuestion({ ...newQuestion, choices })
+                      }}
+                      className="flex-1 px-3 py-2 border rounded-lg text-sm" />
+                  </div>
+                ))}
+              </div>
+              <p className="text-xs text-gray-400">Click the letter button to mark the correct answer (green = correct)</p>
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+                <div className="flex items-center gap-2">
+                  <label className="text-sm text-gray-600 whitespace-nowrap">Min Level</label>
+                  <input type="number" min={1} max={20} value={newQuestion.min_level}
+                    onChange={(e) => setNewQuestion({ ...newQuestion, min_level: parseInt(e.target.value) || 1 })}
+                    className="px-3 py-2 border rounded-lg text-sm w-20" />
+                </div>
+                <input type="text" placeholder="Category (optional)" value={newQuestion.category}
+                  onChange={(e) => setNewQuestion({ ...newQuestion, category: e.target.value })}
+                  className="px-3 py-2 border rounded-lg text-sm" />
+                <input type="text" placeholder="Image URL (optional)" value={newQuestion.image_url}
+                  onChange={(e) => setNewQuestion({ ...newQuestion, image_url: e.target.value })}
+                  className="px-3 py-2 border rounded-lg text-sm" />
+              </div>
+              <button onClick={saveNewQuestion} className="bg-green-600 hover:bg-green-700 text-white font-bold py-2 px-4 rounded-lg text-sm flex items-center gap-1.5">
+                <Save className="w-4 h-4" /> Save
+              </button>
+            </div>
+          )}
+
+          {/* Stats */}
+          <div className="flex gap-4 text-sm text-gray-500 mb-3">
+            <span>Showing <strong className="text-gray-800">{filteredQuestions.length}</strong> of {questionBank.length}</span>
+          </div>
+
+          {/* Question List */}
+          {questionLoading ? (
+            <div className="py-8 text-center text-gray-400">Loading questions…</div>
+          ) : (
+            <div className="space-y-3">
+              {filteredQuestions.map(q => (
+                <div key={q.id} className={`border rounded-lg p-4 ${q.is_active ? 'bg-white' : 'bg-gray-50 opacity-60'}`}>
+                  {editingQuestion?.id === q.id ? (
+                    <div className="space-y-3">
+                      <input type="text" value={editingQuestion.question}
+                        onChange={(e) => setEditingQuestion({ ...editingQuestion, question: e.target.value })}
+                        className="w-full px-3 py-2 border rounded-lg text-sm font-semibold" />
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
+                        {editingQuestion.choices.map((c, i) => (
+                          <div key={i} className="flex items-center gap-2">
+                            <button
+                              type="button"
+                              onClick={() => setEditingQuestion({ ...editingQuestion, answer_index: i })}
+                              className={`w-7 h-7 rounded-full flex items-center justify-center text-xs font-bold border-2 shrink-0 ${
+                                editingQuestion.answer_index === i ? 'bg-green-500 border-green-600 text-white' : 'bg-white border-gray-300 text-gray-500'
+                              }`}
+                            >
+                              {String.fromCharCode(65 + i)}
+                            </button>
+                            <input type="text" value={c}
+                              onChange={(e) => {
+                                const choices = [...editingQuestion.choices]
+                                choices[i] = e.target.value
+                                setEditingQuestion({ ...editingQuestion, choices })
+                              }}
+                              className="flex-1 px-3 py-2 border rounded-lg text-sm" />
+                          </div>
+                        ))}
+                      </div>
+                      <div className="flex items-center gap-3">
+                        <div className="flex items-center gap-2">
+                          <label className="text-sm text-gray-600">Min Level</label>
+                          <input type="number" min={1} max={20} value={editingQuestion.min_level}
+                            onChange={(e) => setEditingQuestion({ ...editingQuestion, min_level: parseInt(e.target.value) || 1 })}
+                            className="w-16 px-2 py-1 border rounded text-sm" />
+                        </div>
+                        <button onClick={saveEditQuestion} className="text-green-600 hover:text-green-800"><Save className="w-4 h-4" /></button>
+                        <button onClick={() => setEditingQuestion(null)} className="text-gray-400 hover:text-gray-600"><X className="w-4 h-4" /></button>
+                      </div>
+                    </div>
+                  ) : (
+                    <div className="flex items-start justify-between gap-3">
+                      <div className="flex-1 min-w-0">
+                        <p className="font-semibold text-gray-800 mb-2">{q.question}</p>
+                        <div className="grid grid-cols-2 gap-1.5">
+                          {q.choices?.map((c, i) => (
+                            <div key={i} className={`flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-sm ${
+                              i === q.answer_index ? 'bg-green-100 text-green-800 font-semibold' : 'bg-gray-100 text-gray-600'
+                            }`}>
+                              <span className="font-bold text-xs">{String.fromCharCode(65 + i)}.</span> {c}
+                            </div>
+                          ))}
+                        </div>
+                        <div className="flex gap-2 mt-2 text-xs text-gray-400">
+                          <span>Level {q.min_level}+</span>
+                          {q.category && <span>• {q.category}</span>}
+                        </div>
+                      </div>
+                      <div className="flex items-center gap-2 shrink-0">
+                        <button onClick={() => toggleQuestionActive(q.id, q.is_active)}
+                          className={`flex items-center gap-1 px-2 py-0.5 rounded text-xs font-semibold ${q.is_active ? 'bg-green-100 text-green-700' : 'bg-gray-100 text-gray-500'}`}>
+                          {q.is_active ? <Eye className="w-3 h-3" /> : <EyeOff className="w-3 h-3" />}
+                          {q.is_active ? 'On' : 'Off'}
+                        </button>
+                        <button onClick={() => setEditingQuestion({ ...q })} className="text-blue-600 hover:text-blue-800"><Edit2 className="w-4 h-4" /></button>
+                        <button onClick={() => deleteQuestion(q.id)} className="text-red-500 hover:text-red-700"><Trash2 className="w-4 h-4" /></button>
+                      </div>
+                    </div>
+                  )}
+                </div>
+              ))}
+              {filteredQuestions.length === 0 && (
+                <div className="py-8 text-center text-gray-400">No questions found</div>
+              )}
             </div>
           )}
         </div>
