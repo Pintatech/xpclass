@@ -178,6 +178,9 @@ const PvPChallengeModal = ({ opponent, onClose }) => {
   const [pvpStatus, setPvpStatus] = useState({ available: true, reason: '' })
   const [realtimeMode, setRealtimeMode] = useState(false)
   const [wordSeed, setWordSeed] = useState(null)
+  const [incomingChallenges, setIncomingChallenges] = useState([])
+  const [isCapped, setIsCapped] = useState(false)
+  const [decliningId, setDecliningId] = useState(null)
 
 
   useEffect(() => {
@@ -215,6 +218,22 @@ const PvPChallengeModal = ({ opponent, onClose }) => {
       }
     }
     fetchEnabledGames()
+    // Check if user has too many unanswered incoming challenges
+    const checkCap = async () => {
+      if (isAdmin()) return
+      const { data } = await supabase
+        .from('pvp_challenges')
+        .select('id, game_type, challenger_score, created_at, challenger:users!pvp_challenges_challenger_id_fkey(id, full_name, avatar_url)')
+        .eq('opponent_id', user.id)
+        .eq('status', 'pending')
+        .gte('created_at', new Date(Date.now() - 48 * 60 * 60 * 1000).toISOString())
+        .order('created_at', { ascending: true })
+      if (data) {
+        setIncomingChallenges(data)
+        setIsCapped(data.length >= 3)
+      }
+    }
+    checkCap()
   }, [])
 
   const fetchWordBank = async () => {
@@ -233,6 +252,55 @@ const PvPChallengeModal = ({ opponent, onClose }) => {
       .eq('is_active', true)
       .lte('min_level', profile?.current_level || 1)
     if (questions && questions.length >= 5) setQuestionBank(questions)
+  }
+
+  const declineChallenge = async (challengeId) => {
+    setDecliningId(challengeId)
+    try {
+      const challenge = incomingChallenges.find(c => c.id === challengeId)
+      const challengerId = challenge?.challenger?.id
+      // Mark as completed, challenger wins by surrender
+      await supabase.from('pvp_challenges').update({
+        status: 'completed',
+        opponent_score: 0,
+        winner_id: challengerId || null,
+      }).eq('id', challengeId)
+      // Subtract 10 XP from decliner
+      const { data: me } = await supabase.from('users').select('xp').eq('id', user.id).single()
+      if (me) {
+        await supabase.from('users').update({ xp: Math.max((me.xp || 0) - 10, 0) }).eq('id', user.id)
+      }
+      // Award 10 XP to challenger
+      if (challengerId) {
+        const { data: winner } = await supabase.from('users').select('xp').eq('id', challengerId).single()
+        if (winner) {
+          await supabase.from('users').update({ xp: (winner.xp || 0) + 10 }).eq('id', challengerId)
+        }
+        supabase.rpc('update_mission_progress', {
+          p_user_id: challengerId,
+          p_goal_type: 'win_pvp',
+          p_increment: 1,
+        }).then(() => {}).catch(() => {})
+      }
+      const updated = incomingChallenges.filter(c => c.id !== challengeId)
+      setIncomingChallenges(updated)
+      setIsCapped(updated.length >= 3)
+    } catch (e) {
+      console.error('Failed to decline challenge:', e)
+    } finally {
+      setDecliningId(null)
+    }
+  }
+
+  const acceptFromCapView = async (challenge) => {
+    if ((userEnergy ?? 100) < 10) {
+      alert('Your pet is too tired to battle! Feed your pet first.')
+      return
+    }
+    await drainPetEnergy(10)
+    setHasPending(challenge)
+    setSelectedGame(challenge.game_type)
+    setStep('playing')
   }
 
   const startGame = async (gameId, live = false) => {
@@ -476,6 +544,45 @@ const PvPChallengeModal = ({ opponent, onClose }) => {
                 ) : (
                   <p className="text-xs text-gray-500">Wait for them to finish before challenging again.</p>
                 )}
+              </div>
+            ) : isCapped ? (
+              <div className="py-4">
+                <div className="text-center mb-4">
+                  <p className="text-sm font-bold text-orange-600">You have {incomingChallenges.length} unanswered challenges!</p>
+                  <p className="text-xs text-gray-500 mt-1">Accept or decline some before starting new battles.</p>
+                </div>
+                <div className="space-y-2 max-h-60 overflow-y-auto">
+                  {incomingChallenges.map((c) => (
+                    <div key={c.id} className="flex items-center gap-3 p-3 rounded-xl border-2 border-orange-200 bg-orange-50">
+                      {c.challenger?.avatar_url ? (
+                        <img src={c.challenger.avatar_url} alt="" className="w-10 h-10 rounded-full object-cover border-2 border-orange-300" />
+                      ) : (
+                        <div className="w-10 h-10 rounded-full bg-gradient-to-br from-orange-400 to-red-500 flex items-center justify-center text-white text-sm font-bold">
+                          {c.challenger?.full_name?.[0]?.toUpperCase() || '?'}
+                        </div>
+                      )}
+                      <div className="flex-1 min-w-0">
+                        <div className="text-sm font-semibold text-gray-800 truncate">{c.challenger?.full_name?.split(' ').pop() || 'Someone'}</div>
+                        <div className="text-xs text-gray-500 capitalize">{c.game_type?.replace(/([a-z])([A-Z])/g, '$1 $2')}</div>
+                      </div>
+                      <div className="flex gap-1.5">
+                        <button
+                          onClick={() => acceptFromCapView(c)}
+                          className="px-3 py-1.5 rounded-lg bg-green-500 text-white text-xs font-bold hover:bg-green-600 transition"
+                        >
+                          Accept
+                        </button>
+                        <button
+                          onClick={() => declineChallenge(c.id)}
+                          disabled={decliningId === c.id}
+                          className="px-3 py-1.5 rounded-lg bg-red-500 text-white text-xs font-bold hover:bg-red-600 transition disabled:opacity-50"
+                        >
+                          {decliningId === c.id ? '...' : 'Đầu hàng (-10 XP)'}
+                        </button>
+                      </div>
+                    </div>
+                  ))}
+                </div>
               </div>
             ) : (
             <>
