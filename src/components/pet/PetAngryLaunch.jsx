@@ -3,7 +3,7 @@ import { createPortal } from 'react-dom'
 import { X, Trophy, Volume2, VolumeX } from 'lucide-react'
 import { assetUrl } from '../../hooks/useBranding'
 
-const GAME_DURATION = 90
+const GAME_DURATION = 76
 const POINTS_PER_Q = 10
 const STREAK_BONUS = 5
 
@@ -42,6 +42,10 @@ const TARGET_LAYOUTS = {
     { x: 87, y: 18 },
   ],
 }
+
+const PIG_DEFAULT = (i) => `https://xpclass.vn/xpclass/pet-game/angry/pig${i + 1}.webp`
+const PIG_CORRECT = (i) => `https://xpclass.vn/xpclass/pet-game/angry/pig${i + 1}-correct.webp`
+const PIG_WRONG = (i) => `https://xpclass.vn/xpclass/pet-game/angry/pig${i + 1}-wrong.webp`
 
 const PetAngryLaunch = ({ petImageUrl, petName, onGameEnd, onClose, questionBank: questionBankProp = [], hideClose = false, scoreToBeat = null, leaderboard = [], chestEnabled = false }) => {
   const [phase, setPhase] = useState('ready')
@@ -135,26 +139,6 @@ const PetAngryLaunch = ({ petImageUrl, petName, onGameEnd, onClose, questionBank
     }
   }, [qIndex, questionBankProp, questions])
 
-  // Find which target the pet lands closest to
-  const findClosestTarget = useCallback((launchX, launchY) => {
-    if (!shuffledChoices.length) return null
-    const layout = TARGET_LAYOUTS[shuffledChoices.length] || TARGET_LAYOUTS[4]
-    let closest = null
-    let minDist = Infinity
-    shuffledChoices.forEach((choice, i) => {
-      const pos = layout[i]
-      if (!pos) return
-      const dx = launchX - pos.x
-      const dy = launchY - pos.y
-      const dist = Math.sqrt(dx * dx + dy * dy)
-      if (dist < minDist) {
-        minDist = dist
-        closest = { index: i, choice, pos }
-      }
-    })
-    // Always snap to closest target
-    return closest
-  }, [shuffledChoices])
 
   const handleAnswer = useCallback((originalIndex, targetPos) => {
     if (phase !== 'playing' || !currentQ || feedback || selectedChoice !== null) return
@@ -219,7 +203,7 @@ const PetAngryLaunch = ({ petImageUrl, petName, onGameEnd, onClose, questionBank
       setScreenShake(10)
 
       setWrongQuestions(prev => [...prev, { word: currentQ.choices[currentQ.answer_index], hint: currentQ.question }])
-      playSound(assetUrl('/sound/flappy-hit.mp3'), 0.4)
+      playSound('https://xpclass.vn/xpclass/pet-game/angry/oink.wav', 0.4)
       setTimeout(() => advanceQuestion(), 1200)
     }
   }, [phase, currentQ, feedback, selectedChoice, advanceQuestion, questionsCorrect, chestEnabled, playSound, spawnParticles])
@@ -253,7 +237,7 @@ const PetAngryLaunch = ({ petImageUrl, petName, onGameEnd, onClose, questionBank
     if (Math.sqrt(dx * dx + dy * dy) > 20) return
     e.preventDefault()
     setIsDragging(true)
-    setDragPos({ x, y })
+    setDragPos({ x, y: SLING_Y - 8 }) // Lock Y to sling position
   }, [phase, feedback, petOnSling])
 
   const handleDragMove = useCallback((e) => {
@@ -262,49 +246,37 @@ const PetAngryLaunch = ({ petImageUrl, petName, onGameEnd, onClose, questionBank
     const rect = containerRef.current?.getBoundingClientRect()
     if (!rect) return
     const clientX = e.touches ? e.touches[0].clientX : e.clientX
-    const clientY = e.touches ? e.touches[0].clientY : e.clientY
     const x = ((clientX - rect.left) / rect.width) * 100
-    const y = ((clientY - rect.top) / rect.height) * 100
-    // Limit drag to below slingshot (pull down to shoot up)
-    setDragPos({ x: Math.max(10, Math.min(90, x)), y: Math.max(SLING_Y - 5, Math.min(98, y)) })
+    // Horizontal only - lock Y to sling position to avoid pull-to-refresh on mobile
+    setDragPos({ x: Math.max(5, Math.min(95, x)), y: SLING_Y - 8 })
   }, [isDragging])
 
   const handleDragEnd = useCallback(() => {
     if (!isDragging || !dragPos) { setIsDragging(false); return }
     setIsDragging(false)
 
-    // Calculate launch direction (opposite of drag)
-    const dx = SLING_X - dragPos.x
-    const dy = SLING_Y - dragPos.y
-    const pullDist = Math.sqrt(dx * dx + dy * dy)
-
-    if (pullDist < 5) {
+    const dragDist = Math.abs(dragPos.x - SLING_X)
+    if (dragDist < 5) {
       // Too small a drag / just a tap, reset
       setDragPos(null)
       return
     }
 
-    // Launch in the direction opposite to drag
-    const launchX = SLING_X + dx * 3
-    const launchY = SLING_Y + dy * 3
+    // Find closest target by X position (horizontal aim)
+    const aimX = dragPos.x
+    const layout = TARGET_LAYOUTS[shuffledChoices.length] || TARGET_LAYOUTS[4]
+    let closestIdx = 0
+    let minDist = Infinity
+    shuffledChoices.forEach((_, i) => {
+      const pos = layout[i]
+      if (!pos) return
+      const dist = Math.abs(aimX - pos.x)
+      if (dist < minDist) { minDist = dist; closestIdx = i }
+    })
 
-    // Find closest target
-    const target = findClosestTarget(launchX, launchY)
-    if (target) {
-      const layout = TARGET_LAYOUTS[shuffledChoices.length] || TARGET_LAYOUTS[4]
-      const pos = layout[target.index]
-      launchPet(pos.x, pos.y, target.index, target.choice)
-    } else {
-      // Missed all targets - launch pet off screen and count as wrong
-      setPetOnSling(false)
-      setPetLaunch({ targetX: Math.min(95, launchX), targetY: Math.max(5, Math.min(95, launchY)) })
-      setTimeout(() => {
-        setPetLaunch(null)
-        setPetOnSling(true)
-        setDragPos(null)
-      }, 600)
-    }
-  }, [isDragging, dragPos, findClosestTarget, shuffledChoices, launchPet])
+    const pos = layout[closestIdx]
+    launchPet(pos.x, pos.y, closestIdx, shuffledChoices[closestIdx])
+  }, [isDragging, dragPos, shuffledChoices, launchPet])
 
 
 
@@ -349,6 +321,7 @@ const PetAngryLaunch = ({ petImageUrl, petName, onGameEnd, onClose, questionBank
       setDisplayTime(prev => {
         if (prev <= 1) {
           clearInterval(timerRef.current)
+          if (bgMusicRef.current) { bgMusicRef.current.pause(); bgMusicRef.current = null }
           setPhase('results')
           return 0
         }
@@ -400,10 +373,9 @@ const PetAngryLaunch = ({ petImageUrl, petName, onGameEnd, onClose, questionBank
     }
   }, [isDragging, handleDragMove, handleDragEnd])
 
-  // Pet position during various states
+  // Pet position during various states - pet stays on slingshot while aiming
   const getPetPos = () => {
     if (petLaunch) return { x: petLaunch.targetX, y: petLaunch.targetY }
-    if (isDragging && dragPos) return { x: dragPos.x, y: dragPos.y }
     return { x: SLING_X, y: SLING_Y - 8 }
   }
 
@@ -423,23 +395,30 @@ const PetAngryLaunch = ({ petImageUrl, petName, onGameEnd, onClose, questionBank
     )
   }
 
-  // Aim trajectory line when dragging
+  // Aim indicator - dots from pet to crosshair at target row
   const renderTrajectory = () => {
     if (!isDragging || !dragPos) return null
-    const dx = SLING_X - dragPos.x
-    const dy = SLING_Y - dragPos.y
+    const aimX = dragPos.x
+    const startX = SLING_X
+    const startY = SLING_Y - 12
+    const endY = 18
+    const steps = 6
     const dots = []
-    for (let i = 1; i <= 6; i++) {
-      const dotX = SLING_X + dx * i * 0.8
-      const dotY = SLING_Y + dy * i * 0.8
-      if (dotX > 100 || dotX < 0 || dotY > 100 || dotY < 0) break
+    for (let i = 1; i <= steps; i++) {
+      const t = i / steps
+      const dotX = startX + (aimX - startX) * t
+      const dotY = startY - (startY - endY) * t
       dots.push(
-        <circle key={i} cx={`${dotX}%`} cy={`${dotY}%`} r={3 - i * 0.3} fill="white" opacity={0.6 - i * 0.08} />
+        <circle key={i} cx={`${dotX}%`} cy={`${dotY}%`} r={3 - i * 0.3} fill="white" opacity={0.5 - i * 0.06} />
       )
     }
     return (
-      <svg className="absolute inset-0 w-full h-full pointer-events-none" style={{ zIndex: 4 }}>
+      <svg className="absolute inset-0 w-full h-full pointer-events-none" style={{ zIndex: 15 }}>
         {dots}
+        {/* Crosshair at target row */}
+        <circle cx={`${aimX}%`} cy={`${endY}%`} r={8} fill="none" stroke="white" strokeWidth={2} opacity={0.7} />
+        <line x1={`${aimX - 2}%`} y1={`${endY}%`} x2={`${aimX + 2}%`} y2={`${endY}%`} stroke="white" strokeWidth={2} opacity={0.7} />
+        <line x1={`${aimX}%`} y1={`${endY - 2}%`} x2={`${aimX}%`} y2={`${endY + 2}%`} stroke="white" strokeWidth={2} opacity={0.7} />
       </svg>
     )
   }
@@ -493,7 +472,7 @@ const PetAngryLaunch = ({ petImageUrl, petName, onGameEnd, onClose, questionBank
             </div>
             <h2 className="text-3xl font-black text-white drop-shadow-lg">Angry Launch!</h2>
             <p className="text-white/80 text-sm text-center max-w-[260px]">
-              Drag {petName} on the slingshot and launch at the correct answer!
+              Swipe left or right to aim {petName}, then release to launch at the correct answer!
             </p>
 
             {leaderboard.length > 0 && (
@@ -560,12 +539,51 @@ const PetAngryLaunch = ({ petImageUrl, petName, onGameEnd, onClose, questionBank
                   <img src={currentQ.image_url} alt="" className="w-12 h-12 object-contain mx-auto mt-2 rounded-lg" />
                 )}
               </div>
+              {/* Progress dots */}
+              <div className="flex items-center justify-center gap-1.5 mt-2">
+                {Array.from({ length: 10 }, (_, i) => (
+                  <div
+                    key={i}
+                    className="relative"
+                    style={{
+                      width: 24,
+                      height: 24,
+                      transition: 'transform 0.3s ease',
+                      transform: i === questionsCorrect ? 'scale(1.3)' : 'scale(1)',
+                    }}
+                  >
+                    {i < questionsCorrect ? (
+                      <div className="w-full h-full rounded-full flex items-center justify-center text-xs"
+                        style={{
+                          background: 'linear-gradient(135deg, #fb923c, #ea580c)',
+                          boxShadow: '0 0 8px rgba(249,115,22,0.5)',
+                        }}
+                      >
+                        <span className="text-white font-bold">✓</span>
+                      </div>
+                    ) : i === questionsCorrect ? (
+                      <div className="w-full h-full rounded-full border-2 border-white/60 flex items-center justify-center"
+                        style={{ background: 'rgba(255,255,255,0.15)', animation: 'alFloat 1.5s ease-in-out infinite' }}
+                      >
+                        <span className="text-white/80 font-bold text-[10px]">{i + 1}</span>
+                      </div>
+                    ) : (
+                      <div className="w-full h-full rounded-full border border-white/20 flex items-center justify-center"
+                        style={{ background: 'rgba(255,255,255,0.08)' }}
+                      >
+                        <span className="text-white/30 text-[10px]">{i + 1}</span>
+                      </div>
+                    )}
+                  </div>
+                ))}
+              </div>
             </div>
 
             {/* Battlefield area */}
             <div className="flex-1 relative"
               onMouseDown={handleDragStart}
               onTouchStart={handleDragStart}
+              style={{ touchAction: 'none' }}
             >
               {/* Slingshot */}
               {renderSlingshot()}
@@ -618,7 +636,9 @@ const PetAngryLaunch = ({ petImageUrl, petName, onGameEnd, onClose, questionBank
                   bgClass = 'bg-red-200 border-red-500 text-red-800'
                 }
 
-                const pigImg = `https://xpclass.vn/xpclass/pet-game/angry/pig${i + 1}.png`
+                const pigImg = showResult && isSelected && isCorrectAnswer ? PIG_CORRECT(i)
+                  : showResult && isSelected && !isCorrectAnswer ? PIG_WRONG(i)
+                  : PIG_DEFAULT(i)
 
                 return (
                   <div
@@ -691,7 +711,7 @@ const PetAngryLaunch = ({ petImageUrl, petName, onGameEnd, onClose, questionBank
               {petOnSling && !feedback && !isDragging && (
                 <div className="absolute bottom-4 left-0 right-0 flex justify-center z-20 pointer-events-none">
                   <div className="bg-black/40 backdrop-blur-sm text-white/90 text-xs font-semibold rounded-full px-4 py-1.5">
-                    Drag {petName} to aim and launch!
+                    Swipe left/right to aim, release to launch!
                   </div>
                 </div>
               )}

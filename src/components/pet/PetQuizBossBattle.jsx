@@ -4,15 +4,17 @@ import { X, Volume2, VolumeX, Trophy, Heart, Swords, Shield, Zap } from 'lucide-
 import { assetUrl } from '../../hooks/useBranding'
 
 const BOSSES = [
-  { name: 'Slime King', hp: 5, img: 'https://xpclass.vn/xpclass/pet-game/boss/boss1.png', color: '#22c55e', bg: 'from-green-900 to-emerald-800', attackName: 'Slime Splash' },
-  { name: 'Shadow Wolf', hp: 7, img: 'https://xpclass.vn/xpclass/pet-game/boss/boss2.png', color: '#8b5cf6', bg: 'from-purple-900 to-indigo-900', attackName: 'Shadow Bite' },
-  { name: 'Fire Dragon', hp: 10, img: 'https://xpclass.vn/xpclass/pet-game/boss/boss3.png', color: '#ef4444', bg: 'from-red-900 to-orange-900', attackName: 'Fire Breath' },
+  { name: 'Stone Golem', hp: 4, img: 'https://xpclass.vn/xpclass/pet-game/boss/boss1.png', color: '#9ca3af', bg: 'from-gray-800 to-gray-700', attackName: 'Rock Slam', accent: 'gray' },
+  { name: 'Forest Troll', hp: 5, img: 'https://xpclass.vn/xpclass/pet-game/boss/boss2.png', color: '#22c55e', bg: 'from-green-900 to-emerald-800', attackName: 'Vine Whip', accent: 'green' },
+  { name: 'Frost Giant', hp: 7, img: 'https://xpclass.vn/xpclass/pet-game/boss/boss3.png', color: '#3b82f6', bg: 'from-blue-900 to-cyan-900', attackName: 'Ice Crush', accent: 'blue' },
+  { name: 'Shadow Demon', hp: 9, img: 'https://xpclass.vn/xpclass/pet-game/boss/boss4.png', color: '#a855f7', bg: 'from-purple-900 to-indigo-900', attackName: 'Dark Pulse', accent: 'purple' },
+  { name: 'Dragon King', hp: 12, img: 'https://xpclass.vn/xpclass/pet-game/boss/boss5.png', color: '#eab308', bg: 'from-yellow-900 to-amber-800', attackName: 'Golden Fire', accent: 'gold' },
 ]
 
 const POINTS_PER_HIT = 10
 const STREAK_BONUS = 5
 const PET_MAX_HP = 5
-const GAME_DURATION = 90
+const GAME_DURATION = 150
 const QUESTION_TIME_LIMIT = 5
 
 const shuffle = (arr) => {
@@ -506,7 +508,7 @@ const PetQuizBossBattle = ({
                 Boss Battle
               </h2>
               <p className="text-lg text-white/80 mb-1">Answer to attack!</p>
-              <p className="text-sm text-white/60">Defeat 3 bosses with {petName}!</p>
+              <p className="text-sm text-white/60">Defeat {BOSSES.length} bosses with {petName}!</p>
             </div>
 
             <div className="bg-white/10 backdrop-blur rounded-xl px-4 py-3 w-full max-w-xs text-left">
@@ -625,7 +627,7 @@ const PetQuizBossBattle = ({
                   {questionsCorrect} hits
                 </div>
                 <div className="bg-white/10 rounded-full px-2.5 py-1 text-xs font-semibold text-white/70 flex items-center gap-1">
-                  <Shield className="w-3 h-3" /> Boss {bossIndex + 1}/3
+                  <Shield className="w-3 h-3" /> Boss {bossIndex + 1}/{BOSSES.length}
                 </div>
               </div>
             </div>
@@ -840,7 +842,7 @@ const PetQuizBossBattle = ({
               </h2>
               <p className="text-gray-500 mb-4">
                 {didWin
-                  ? `${petName} defeated all 3 bosses!`
+                  ? `${petName} defeated all ${BOSSES.length} bosses!`
                   : didLose
                   ? `${petName} was defeated by ${currentBoss.name}...`
                   : `${petName} defeated ${bossesDefeated} boss${bossesDefeated !== 1 ? 'es' : ''}`}
