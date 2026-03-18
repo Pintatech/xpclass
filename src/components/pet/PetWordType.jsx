@@ -92,7 +92,6 @@ const PetWordType = ({ petImageUrl, petName, onGameEnd, onClose, wordBank: wordB
     setTypedValue('')
     setFeedback(null)
     setHintRevealed(0)
-    setSelectedChoice(null)
     wordStartRef.current = Date.now()
     const nextIdx = wordIndex + 1
     if (nextIdx < words.length) {
