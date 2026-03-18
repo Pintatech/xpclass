@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useRef } from "react";
+import { createPortal } from "react-dom";
 import { supabase } from "../../supabase/client";
 import { usePet } from "../../hooks/usePet";
 import { useInventory } from "../../hooks/useInventory";
@@ -66,6 +67,7 @@ const PetDisplay = () => {
     activePet,
     feedPet,
     playWithPet,
+    evolvePet,
     drainPetEnergy,
     restoreUserEnergy,
     getActiveBonuses,
@@ -81,6 +83,8 @@ const PetDisplay = () => {
   const [showBonuses, setShowBonuses] = useState(false);
   const [itemBonuses, setItemBonuses] = useState({ total: 0, items: [] });
   const [isEating, setIsEating] = useState(false);
+  const [evolving, setEvolving] = useState(false);
+  const [evolutionOverlay, setEvolutionOverlay] = useState(null); // { oldImage, newImage, petName, newStageName }
 
   // Feed animation state
   const [feedAnimation, setFeedAnimation] = useState(null); // { food: '🍖', particles: [] }
@@ -378,6 +382,44 @@ const PetDisplay = () => {
     const nextStage = stages.find((stage) => stage.stage === currentStage + 1);
     return nextStage;
   };
+
+  // Find evolution fruit matching pet rarity in inventory
+  const getEvolutionFruit = () => {
+    if (!activePet) return null
+    return petFoodItems.find(
+      (item) => item.item?.rarity === activePet.rarity && item.item?.name?.toLowerCase().includes('evolution')
+    ) || null
+  }
+
+  const handleEvolve = async () => {
+    const fruit = getEvolutionFruit()
+    if (!fruit) return
+    setEvolving(true)
+    try {
+      // Capture old image before evolving
+      const oldImage = getPetImage()
+      const result = await evolvePet(activePet.id, fruit.item.id)
+      if (result.success) {
+        // Find new stage image
+        const newStageData = activePet.evolution_stages?.find(s => s.stage === result.new_stage)
+        const newImage = newStageData?.image_url || oldImage
+        const newStageName = newStageData?.name || `Stage ${result.new_stage}`
+        setEvolutionOverlay({
+          oldImage,
+          newImage,
+          petName: activePet.nickname || activePet.name,
+          newStageName,
+        })
+      } else {
+        setMessage({ type: 'error', text: result.error || 'Evolution failed' })
+        setTimeout(() => setMessage(null), 3000)
+      }
+    } catch (e) {
+      console.error('Evolution failed:', e)
+    } finally {
+      setEvolving(false)
+    }
+  }
 
   // Trigger flying food animation
   const triggerFeedAnimation = (energyGained = 15, foodImageUrl = null) => {
@@ -1673,11 +1715,13 @@ const PetDisplay = () => {
                       })}
                     </div>
 
-                    {/* Progress bar */}
+                    {/* Progress bar + Evolve button */}
                     {(() => {
                       const nextStage = activePet.evolution_stages.find((s) => s.stage === activePet.evolution_stage + 1);
                       if (nextStage?.xp_required) {
                         const progress = Math.min(100, (activePet.xp / nextStage.xp_required) * 100);
+                        const xpReady = activePet.xp >= nextStage.xp_required;
+                        const fruit = getEvolutionFruit();
                         return (
                           <div className="mt-3 bg-gray-50 rounded-lg p-3">
                             <div className="flex justify-between text-[10px] text-gray-500 mb-1.5 font-medium">
@@ -1687,6 +1731,30 @@ const PetDisplay = () => {
                             <div className="w-full bg-gray-200 rounded-full h-2 overflow-hidden">
                               <div className="bg-gradient-to-r from-purple-500 to-pink-500 h-2 rounded-full transition-all duration-500" style={{ width: `${progress}%` }} />
                             </div>
+                            {xpReady && (
+                              <div className="mt-2.5">
+                                {fruit ? (
+                                  <button
+                                    onClick={handleEvolve}
+                                    disabled={evolving}
+                                    className="w-full py-2 rounded-xl bg-gradient-to-r from-purple-500 to-pink-500 text-white text-xs font-bold hover:from-purple-600 hover:to-pink-600 transition disabled:opacity-50 flex items-center justify-center gap-2"
+                                  >
+                                    {evolving ? 'Evolving...' : (
+                                      <>
+                                        <span>✨</span>
+                                        Evolve Now
+                                        {fruit.item?.image_url && <img src={fruit.item.image_url} alt="" className="w-4 h-4 object-contain" />}
+                                        <span className="opacity-70">x1</span>
+                                      </>
+                                    )}
+                                  </button>
+                                ) : (
+                                  <p className="text-[10px] text-center text-orange-500 font-medium">
+                                    XP ready! You need a {activePet.rarity} evolution fruit to evolve.
+                                  </p>
+                                )}
+                              </div>
+                            )}
                           </div>
                         );
                       }
@@ -2155,8 +2223,161 @@ const PetDisplay = () => {
           onClose={() => setShowGame(null)}
         />
       )}
+      {/* Evolution Overlay */}
+      {evolutionOverlay && (
+        <PetEvolutionOverlay
+          oldImage={evolutionOverlay.oldImage}
+          newImage={evolutionOverlay.newImage}
+          petName={evolutionOverlay.petName}
+          newStageName={evolutionOverlay.newStageName}
+          onComplete={() => setEvolutionOverlay(null)}
+        />
+      )}
     </div>
   );
 };
+
+const PetEvolutionOverlay = ({ oldImage, newImage, petName, newStageName, onComplete }) => {
+  const [phase, setPhase] = useState('start') // start | glow | flash | reveal | done
+  const audioRef = useRef(null)
+
+  useEffect(() => {
+    // Try to play evolution sound
+    try {
+      audioRef.current = new Audio(assetUrl('/sound/evolve.mp3'))
+      audioRef.current.volume = 0.6
+      audioRef.current.play().catch(() => {})
+    } catch {}
+
+    const timers = [
+      setTimeout(() => setPhase('glow'), 800),
+      setTimeout(() => setPhase('flash'), 3000),
+      setTimeout(() => setPhase('reveal'), 3500),
+      setTimeout(() => setPhase('done'), 5000),
+    ]
+    return () => timers.forEach(clearTimeout)
+  }, [])
+
+  return createPortal(
+    <div className="fixed inset-0 z-[99999] flex items-center justify-center" onClick={phase === 'done' ? onComplete : undefined}>
+      {/* Background */}
+      <div className={`absolute inset-0 transition-all duration-1000 ${
+        phase === 'flash' ? 'bg-white' :
+        phase === 'reveal' || phase === 'done' ? 'bg-black/80 backdrop-blur-sm' :
+        'bg-black/90'
+      }`} />
+
+      <div className="relative z-10 flex flex-col items-center">
+        {/* Title */}
+        {(phase === 'start' || phase === 'glow') && (
+          <p className="text-white text-lg font-bold mb-6 animate-pulse tracking-wider">
+            What&apos;s happening...?
+          </p>
+        )}
+
+        {/* Pet image container */}
+        <div className="relative w-48 h-48 flex items-center justify-center">
+          {/* Glow ring */}
+          {phase === 'glow' && (
+            <div className="absolute inset-0 rounded-full animate-ping opacity-30"
+              style={{ background: 'radial-gradient(circle, #a855f7 0%, transparent 70%)' }} />
+          )}
+          {(phase === 'glow') && (
+            <div className="absolute inset-[-20px] rounded-full animate-spin"
+              style={{
+                background: 'conic-gradient(from 0deg, transparent, #a855f7, #ec4899, #a855f7, transparent)',
+                opacity: 0.5,
+                animationDuration: '2s',
+              }} />
+          )}
+
+          {/* Old form (visible during start + glow, shaking during glow) */}
+          {(phase === 'start' || phase === 'glow') && (
+            <img
+              src={oldImage}
+              alt={petName}
+              className={`w-40 h-40 object-contain relative z-10 select-none pointer-events-none ${
+                phase === 'glow' ? 'animate-[shake_0.15s_infinite]' : ''
+              }`}
+              style={phase === 'glow' ? {
+                filter: 'brightness(1.5) drop-shadow(0 0 20px #a855f7)',
+              } : {}}
+            />
+          )}
+
+          {/* Flash (white screen covers everything) */}
+          {phase === 'flash' && (
+            <div className="w-40 h-40 rounded-full bg-white animate-pulse" />
+          )}
+
+          {/* New form reveal */}
+          {(phase === 'reveal' || phase === 'done') && (
+            <img
+              src={newImage}
+              alt={petName}
+              className="w-40 h-40 object-contain relative z-10 select-none pointer-events-none animate-[fadeScaleIn_0.8s_ease-out]"
+              style={{ filter: 'drop-shadow(0 0 30px #a855f7)' }}
+            />
+          )}
+        </div>
+
+        {/* Sparkle particles during reveal */}
+        {(phase === 'reveal' || phase === 'done') && (
+          <div className="absolute inset-0 pointer-events-none overflow-hidden">
+            {Array.from({ length: 12 }).map((_, i) => (
+              <div
+                key={i}
+                className="absolute w-2 h-2 rounded-full animate-[sparkleFloat_2s_ease-out_forwards]"
+                style={{
+                  left: `${50 + (Math.random() - 0.5) * 60}%`,
+                  top: `${50 + (Math.random() - 0.5) * 60}%`,
+                  background: ['#a855f7', '#ec4899', '#f59e0b', '#ffffff'][i % 4],
+                  animationDelay: `${i * 0.1}s`,
+                }}
+              />
+            ))}
+          </div>
+        )}
+
+        {/* New stage name */}
+        {(phase === 'reveal' || phase === 'done') && (
+          <div className="mt-6 text-center animate-[fadeScaleIn_0.5s_ease-out_0.3s_both]">
+            <p className="text-purple-300 text-sm font-medium mb-1">{petName} evolved into</p>
+            <p className="text-white text-2xl font-black tracking-wide">{newStageName}</p>
+          </div>
+        )}
+
+        {/* Tap to close */}
+        {phase === 'done' && (
+          <button
+            onClick={onComplete}
+            className="mt-8 px-6 py-2 rounded-full bg-purple-500/30 text-purple-200 text-sm font-medium border border-purple-400/30 hover:bg-purple-500/50 transition animate-pulse"
+          >
+            Tap to continue
+          </button>
+        )}
+      </div>
+
+      {/* Keyframe animations */}
+      <style>{`
+        @keyframes shake {
+          0%, 100% { transform: translateX(0); }
+          25% { transform: translateX(-4px) rotate(-2deg); }
+          75% { transform: translateX(4px) rotate(2deg); }
+        }
+        @keyframes fadeScaleIn {
+          0% { opacity: 0; transform: scale(0.5); }
+          50% { opacity: 1; transform: scale(1.1); }
+          100% { opacity: 1; transform: scale(1); }
+        }
+        @keyframes sparkleFloat {
+          0% { opacity: 1; transform: scale(1) translateY(0); }
+          100% { opacity: 0; transform: scale(0) translateY(-60px); }
+        }
+      `}</style>
+    </div>,
+    document.body
+  )
+}
 
 export default PetDisplay;

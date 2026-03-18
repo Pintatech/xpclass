@@ -228,6 +228,30 @@ export const PetProvider = ({ children }) => {
     }
   }
 
+  const evolvePet = async (userPetId, fruitItemId) => {
+    if (!user) return { success: false, error: 'No user logged in' }
+
+    try {
+      const { data, error } = await supabase.rpc('evolve_pet', {
+        p_user_id: user.id,
+        p_user_pet_id: userPetId,
+        p_fruit_item_id: fruitItemId
+      })
+
+      if (error) throw error
+
+      if (data.success) {
+        await fetchActivePet()
+        await fetchUserPets()
+      }
+
+      return data
+    } catch (error) {
+      console.error('Error evolving pet:', error)
+      return { success: false, error: error.message }
+    }
+  }
+
   const updatePetOnActivity = async () => {
     if (!user || !activePet) return
 
@@ -361,6 +385,7 @@ export const PetProvider = ({ children }) => {
     setActivePetById,
     feedPet,
     playWithPet,
+    evolvePet,
     renamePet,
     updatePetOnActivity,
     drainPetEnergy,
