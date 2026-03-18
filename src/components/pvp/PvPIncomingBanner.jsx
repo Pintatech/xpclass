@@ -630,6 +630,7 @@ import PetMatchGame from "../pet/PetMatchGame";
 import PetFlappyGame from "../pet/PetFlappyGame";
 import PetWordType from "../pet/PetWordType";
 import PetSayItRight from "../pet/PetSayItRight";
+import PetQuizRush from "../pet/PetQuizRush";
 import PvPRealtimeWordType from "./PvPRealtimeWordType";
 import PvPRealtimeWordScramble from "./PvPRealtimeWordScramble";
 import PvPRealtimeMatchGame from "./PvPRealtimeMatchGame";
@@ -642,6 +643,7 @@ const PvPResponseModal = ({ challenge, onClose }) => {
   const [step, setStep] = useState("ready"); // ready | playing | result
   const [myScore, setMyScore] = useState(null);
   const [wordBank, setWordBank] = useState([]);
+  const [questionBank, setQuestionBank] = useState([]);
   const [saving, setSaving] = useState(false);
   const [wordBankLoading, setWordBankLoading] = useState(true);
 
@@ -667,6 +669,14 @@ const PvPResponseModal = ({ challenge, onClose }) => {
         .eq("is_active", true)
         .lte("min_level", profile?.current_level || 1);
       if (data && data.length >= 10) setWordBank(data);
+
+      const { data: questions } = await supabase
+        .from("pet_question_bank")
+        .select("question, choices, answer_index, image_url")
+        .eq("is_active", true)
+        .lte("min_level", profile?.current_level || 1);
+      if (questions && questions.length >= 5) setQuestionBank(questions);
+
       setWordBankLoading(false);
     };
     fetchWords();
@@ -867,6 +877,14 @@ const PvPResponseModal = ({ challenge, onClose }) => {
             {...commonProps}
             onGameEnd={handleGameEnd}
             wordBank={wordBank}
+          />
+        );
+      case "quizrush":
+        return (
+          <PetQuizRush
+            {...commonProps}
+            onGameEnd={handleGameEnd}
+            questionBank={questionBank}
           />
         );
       default:

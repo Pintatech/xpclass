@@ -58,6 +58,7 @@ const Leaderboard = () => {
     matchgame: 'Match Up',
     wordtype: 'Word Type',
     sayitright: 'Say It Right',
+    quizrush: 'Quiz Rush',
   }
 
   // Fetch leaderboard settings on mount

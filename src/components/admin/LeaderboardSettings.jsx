@@ -18,6 +18,8 @@ const GAME_TYPES = [
   { key: 'matchgame', label: 'Match Up', icon: '🧩' },
   { key: 'wordtype', label: 'Word Type', icon: '⌨️' },
   { key: 'sayitright', label: 'Say It Right', icon: '🎤' },
+  { key: 'quizrush', label: 'Quiz Rush', icon: '❓' },
+  { key: 'bossbattle', label: 'Boss Battle', icon: '⚔️' },
 ];
 
 const TRAINING_GAMES = [
@@ -28,6 +30,8 @@ const TRAINING_GAMES = [
   { key: 'matchgame', label: 'Match Up', icon: '🧩' },
   { key: 'wordtype', label: 'Word Type', icon: '⌨️' },
   { key: 'sayitright', label: 'Say It Right', icon: '🎤' },
+  { key: 'quizrush', label: 'Quiz Rush', icon: '❓' },
+  { key: 'bossbattle', label: 'Boss Battle', icon: '⚔️' },
 ];
 
 const LeaderboardSettings = () => {

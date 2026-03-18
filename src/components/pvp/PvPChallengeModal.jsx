@@ -11,6 +11,7 @@ import PetMatchGame from '../pet/PetMatchGame'
 import PetFlappyGame from '../pet/PetFlappyGame'
 import PetWordType from '../pet/PetWordType'
 import PetSayItRight from '../pet/PetSayItRight'
+import PetQuizRush from '../pet/PetQuizRush'
 import PvPRealtimeWordType from './PvPRealtimeWordType'
 import PvPRealtimeWordScramble from './PvPRealtimeWordScramble'
 import PvPRealtimeMatchGame from './PvPRealtimeMatchGame'
@@ -158,6 +159,7 @@ const GAMES = [
   { id: 'flappy', name: 'Flappy Pet', icon: 'https://xpclass.vn/xpclass/image/dashboard/flap.png', description: 'Fly and collect fruits!' },
   { id: 'wordtype', name: 'Word Type', icon: 'https://xpclass.vn/xpclass/image/dashboard/pet-type.webp', description: 'Type the correct word!' },
   { id: 'sayitright', name: 'Say It Right', icon: null, emoji: '🎤', description: 'Pronounce the word!' },
+  { id: 'quizrush', name: 'Quiz Rush', icon: null, emoji: '❓', description: 'Answer questions fast!' },
 ]
 
 const PvPChallengeModal = ({ opponent, onClose }) => {
@@ -168,6 +170,7 @@ const PvPChallengeModal = ({ opponent, onClose }) => {
   const [myScore, setMyScore] = useState(null)
   const [freshChallengerScore, setFreshChallengerScore] = useState(null)
   const [wordBank, setWordBank] = useState([])
+  const [questionBank, setQuestionBank] = useState([])
   const [saving, setSaving] = useState(false)
   const [enabledGames, setEnabledGames] = useState(['scramble', 'whackmole', 'astroblast', 'matchgame', 'flappy', 'wordtype'])
   const [hasPending, setHasPending] = useState(null)
@@ -179,6 +182,7 @@ const PvPChallengeModal = ({ opponent, onClose }) => {
 
   useEffect(() => {
     fetchWordBank()
+    fetchQuestionBank()
     // Check PvP schedule
     const checkSchedule = async () => {
       const schedule = await fetchPvpSchedule()
@@ -220,6 +224,15 @@ const PvPChallengeModal = ({ opponent, onClose }) => {
       .eq('is_active', true)
       .lte('min_level', profile?.current_level || 1)
     if (words && words.length >= 10) setWordBank(words)
+  }
+
+  const fetchQuestionBank = async () => {
+    const { data: questions } = await supabase
+      .from('pet_question_bank')
+      .select('question, choices, answer_index, image_url')
+      .eq('is_active', true)
+      .lte('min_level', profile?.current_level || 1)
+    if (questions && questions.length >= 5) setQuestionBank(questions)
   }
 
   const startGame = async (gameId, live = false) => {
@@ -371,6 +384,8 @@ const PvPChallengeModal = ({ opponent, onClose }) => {
         return <PetWordType {...commonProps} onGameEnd={(s) => handleGameEnd(s)} wordBank={wordBank} />
       case 'sayitright':
         return <PetSayItRight {...commonProps} onGameEnd={(s) => handleGameEnd(s)} wordBank={wordBank} />
+      case 'quizrush':
+        return <PetQuizRush {...commonProps} onGameEnd={(s) => handleGameEnd(s)} questionBank={questionBank} />
       default:
         return null
     }

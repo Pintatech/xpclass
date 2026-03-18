@@ -259,11 +259,11 @@ const PvPRealtimeWordType = ({
         if (winnerData) {
           await supabase.from('users').update({ xp: (winnerData.xp || 0) + 10 }).eq('id', myWinnerId)
         }
-        supabase.rpc('update_mission_progress', {
+        await supabase.rpc('update_mission_progress', {
           p_user_id: myWinnerId,
           p_goal_type: 'win_quickmatch',
           p_increment: 1,
-        }).catch(() => {})
+        }).then(() => {}).catch(() => {})
       }
 
       // Award pet XP
@@ -463,8 +463,8 @@ const PvPRealtimeWordType = ({
                   <button key={i} onClick={() => sendTaunt('emoji', emoji)} className="text-2xl p-1 rounded-lg hover:bg-white/10 active:scale-90 transition">{emoji}</button>
                 ))}
               </div>
-              <div className="grid grid-cols-3 gap-1 mb-2">
-                {PVP_TAUNTS.gifs.slice(0, 6).map((gif, i) => (
+              <div className="grid grid-cols-4 gap-1 mb-2">
+                {PVP_TAUNTS.gifs.map((gif, i) => (
                   <button key={i} onClick={() => sendTaunt('gif', gif.value)} className="flex flex-col items-center p-1 rounded-lg hover:bg-white/10 transition">
                     <img src={gif.value} alt={gif.label} className="w-10 h-10 object-cover rounded" />
                   </button>

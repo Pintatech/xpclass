@@ -6,6 +6,7 @@ import { assetUrl } from '../../hooks/useBranding'
 const GAME_DURATION = 76
 const POINTS_PER_Q = 10
 const STREAK_BONUS = 5
+const QUESTION_TIME_LIMIT = 5
 
 const shuffle = (arr) => {
   const a = [...arr]
@@ -73,6 +74,8 @@ const PetQuizRush = ({ petImageUrl, petName, onGameEnd, onClose, questionBank: q
   const chestSpawnedRef = useRef(false)
   const chestQRef = useRef(0)
   const qStartRef = useRef(Date.now())
+  const qTimerRef = useRef(null)
+  const [qTimeLeft, setQTimeLeft] = useState(QUESTION_TIME_LIMIT)
   const uidRef = useRef(0)
   const uid = () => ++uidRef.current
 
@@ -89,10 +92,26 @@ const PetQuizRush = ({ petImageUrl, petName, onGameEnd, onClose, questionBank: q
 
   const currentQ = questions[qIndex]
 
+  const startQTimer = useCallback(() => {
+    clearInterval(qTimerRef.current)
+    setQTimeLeft(QUESTION_TIME_LIMIT)
+    const start = Date.now()
+    qTimerRef.current = setInterval(() => {
+      const remaining = QUESTION_TIME_LIMIT - (Date.now() - start) / 1000
+      if (remaining <= 0) {
+        clearInterval(qTimerRef.current)
+        setQTimeLeft(0)
+      } else {
+        setQTimeLeft(remaining)
+      }
+    }, 50)
+  }, [])
+
   const advanceQuestion = useCallback(() => {
     setFeedback(null)
     setSelectedChoice(null)
     qStartRef.current = Date.now()
+    startQTimer()
     const nextIdx = qIndex + 1
     if (nextIdx < questions.length) {
       setQIndex(nextIdx)
@@ -103,10 +122,11 @@ const PetQuizRush = ({ petImageUrl, petName, onGameEnd, onClose, questionBank: q
       setQIndex(0)
       setShuffledChoices(shuffleChoices(more[0].choices))
     }
-  }, [qIndex, questionBankProp, questions])
+  }, [qIndex, questionBankProp, questions, startQTimer])
 
   const handleChoice = useCallback((originalIndex) => {
     if (phase !== 'playing' || !currentQ || feedback || selectedChoice !== null) return
+    clearInterval(qTimerRef.current)
     setSelectedChoice(originalIndex)
 
     const isCorrect = originalIndex === currentQ.answer_index
@@ -177,6 +197,22 @@ const PetQuizRush = ({ petImageUrl, petName, onGameEnd, onClose, questionBank: q
     }
   }, [phase, currentQ, feedback, selectedChoice, advanceQuestion, questionsCorrect, chestEnabled, playSound])
 
+  // Timeout: wrong answer if player doesn't answer in time
+  useEffect(() => {
+    if (phase !== 'playing' || feedback || !currentQ || qTimeLeft > 0) return
+    clearInterval(qTimerRef.current)
+
+    streakRef.current = 0
+    setStreak(0)
+    setFeedback('timeout')
+    shakeRef.current = 10
+    setScreenShake(10)
+
+    setWrongQuestions(prev => [...prev, { word: currentQ.choices[currentQ.answer_index], hint: currentQ.question }])
+    playSound(assetUrl('/sound/flappy-hit.mp3'), 0.4)
+    setTimeout(() => advanceQuestion(), 1200)
+  }, [qTimeLeft, phase, feedback, currentQ, advanceQuestion, playSound])
+
   const startGame = useCallback(() => {
     const gameQs = pickQuestions(questionBankProp)
     setQuestions(gameQs)
@@ -200,6 +236,7 @@ const PetQuizRush = ({ petImageUrl, petName, onGameEnd, onClose, questionBank: q
     setChestTimer(0)
     qStartRef.current = Date.now()
     setPhase('playing')
+    startQTimer()
 
     try {
       const music = new Audio(assetUrl('/sound/pet-word-scamble-2-faster.mp3'))
@@ -208,7 +245,7 @@ const PetQuizRush = ({ petImageUrl, petName, onGameEnd, onClose, questionBank: q
       bgMusicRef.current = music
       music.play().catch(() => {})
     } catch {}
-  }, [questionBankProp])
+  }, [questionBankProp, startQTimer])
 
   // Timer
   useEffect(() => {
@@ -262,6 +299,7 @@ const PetQuizRush = ({ petImageUrl, petName, onGameEnd, onClose, questionBank: q
     return () => {
       if (bgMusicRef.current) { bgMusicRef.current.pause(); bgMusicRef.current = null }
       if (timerRef.current) clearInterval(timerRef.current)
+      if (qTimerRef.current) clearInterval(qTimerRef.current)
       if (animFrameRef.current) cancelAnimationFrame(animFrameRef.current)
     }
   }, [])
@@ -576,11 +614,21 @@ const PetQuizRush = ({ petImageUrl, petName, onGameEnd, onClose, questionBank: q
               {currentQ.image_url && (
                 <img src={currentQ.image_url} alt="" className="w-16 h-16 object-contain mx-auto mt-3 rounded-lg" />
               )}
+              {/* Question countdown bar */}
+              <div className="mt-3 w-full h-2 rounded-full bg-white/20 overflow-hidden">
+                <div
+                  className="h-full rounded-full transition-all duration-100"
+                  style={{
+                    width: `${(qTimeLeft / QUESTION_TIME_LIMIT) * 100}%`,
+                    background: qTimeLeft <= 1.5 ? '#ef4444' : qTimeLeft <= 3 ? '#f59e0b' : '#22c55e',
+                  }}
+                />
+              </div>
             </div>
 
             {/* Choices */}
             <div className="w-full max-w-xs flex flex-col gap-2.5"
-              style={feedback === 'wrong' ? { animation: 'qrShake 0.4s ease-out' } : {}}
+              style={feedback === 'wrong' || feedback === 'timeout' ? { animation: 'qrShake 0.4s ease-out' } : {}}
             >
               {shuffledChoices.map((choice, i) => {
                 const isSelected = selectedChoice === choice.originalIndex

@@ -22,6 +22,8 @@ import PetMatchGame from "./PetMatchGame";
 import PetWordType from "./PetWordType";
 import PetSayItRight from "./PetSayItRight";
 import PetQuizRush from "./PetQuizRush";
+import PetQuizBossBattle from "./PetQuizBossBattle";
+import PetAngryLaunch from "./PetAngryLaunch";
 import PvPMatchmaking from "../pvp/PvPMatchmaking";
 
 import { assetUrl } from '../../hooks/useBranding';
@@ -92,11 +94,11 @@ const PetDisplay = () => {
   // Chat state
   const [playDisabled, setPlayDisabled] = useState(false);
   const [playCooldown, setPlayCooldown] = useState(0);
-  const [showGame, setShowGame] = useState(null); // null | 'picker' | 'catch' | 'flappy' | 'scramble' | 'whackmole' | 'astroblast' | 'matchgame' | 'quizrush'
-  const [gameLeaderboards, setGameLeaderboards] = useState({ whackmole: [], scramble: [], astroblast: [], matchgame: [], wordtype: [], sayitright: [], quizrush: [] });
+  const [showGame, setShowGame] = useState(null); // null | 'picker' | 'catch' | 'flappy' | 'scramble' | 'whackmole' | 'astroblast' | 'matchgame' | 'quizrush' | 'bossbattle' | 'angrylaunch'
+  const [gameLeaderboards, setGameLeaderboards] = useState({ whackmole: [], scramble: [], astroblast: [], matchgame: [], wordtype: [], sayitright: [], quizrush: [], bossbattle: [], angrylaunch: [] });
   const [wordBank, setWordBank] = useState([]);
   const [questionBank, setQuestionBank] = useState([]);
-  const [enabledGames, setEnabledGames] = useState(['scramble', 'whackmole', 'astroblast', 'matchgame', 'wordtype', 'sayitright', 'quizrush']);
+  const [enabledGames, setEnabledGames] = useState(['scramble', 'whackmole', 'astroblast', 'matchgame', 'wordtype', 'sayitright', 'quizrush', 'bossbattle', 'angrylaunch']);
   const [competitionGame, setCompetitionGame] = useState(null); // game type with active competition
   const [chestEnabled, setChestEnabled] = useState(false); // whether chest can appear in games
   const [trainingBlocked, setTrainingBlocked] = useState(false); // true when outside allowed schedule
@@ -648,6 +650,8 @@ const PetDisplay = () => {
         matchgame: extra?.pairsMatched && { goal_type: 'match_pairs', increment: extra.pairsMatched },
         sayitright: extra?.wordsPronounced && { goal_type: 'pronounce_words', increment: extra.wordsPronounced },
         quizrush: extra?.wordsCompleted && { goal_type: 'answer_questions', increment: extra.wordsCompleted },
+        bossbattle: extra?.wordsCompleted && { goal_type: 'answer_questions', increment: extra.wordsCompleted },
+        angrylaunch: extra?.wordsCompleted && { goal_type: 'answer_questions', increment: extra.wordsCompleted },
       }
       const gameGoal = gameGoalMap[gameType]
       if (gameGoal) {
@@ -1873,6 +1877,27 @@ const PetDisplay = () => {
                 <span className="font-bold text-gray-800 text-xs">Quiz Rush</span>
               </button>
               )}
+              {(isAdmin() || enabledGames.includes('bossbattle')) && (
+              <button
+                onClick={() => { drainPetEnergy(10); recordAttemptStart('bossbattle'); fetchGameLeaderboard('bossbattle'); setShowGame('bossbattle'); }}
+                className={`relative flex flex-col items-center gap-2 p-4 rounded-xl border-2 transition-all group ${competitionGame === 'bossbattle' ? 'border-yellow-400 bg-yellow-50 ring-2 ring-yellow-300' : 'border-red-200 hover:border-red-400 hover:bg-red-50'}`}
+              >
+                {competitionGame === 'bossbattle' && <span className="absolute -top-2 -right-2 text-lg">🏆</span>}
+                <img src="https://xpclass.vn/xpclass/pet-game/boss/boss1.png" alt="Boss Battle" className="w-10 h-10 object-contain group-hover:scale-110 transition-transform" />
+                <span className="font-bold text-gray-800 text-xs">Boss Battle</span>
+              </button>
+              )}
+
+              {(isAdmin() || enabledGames.includes('angrylaunch')) && (
+              <button
+                onClick={() => { drainPetEnergy(10); recordAttemptStart('angrylaunch'); fetchGameLeaderboard('angrylaunch'); setShowGame('angrylaunch'); }}
+                className={`relative flex flex-col items-center gap-2 p-4 rounded-xl border-2 transition-all group ${competitionGame === 'angrylaunch' ? 'border-yellow-400 bg-yellow-50 ring-2 ring-yellow-300' : 'border-orange-200 hover:border-orange-400 hover:bg-orange-50'}`}
+              >
+                {competitionGame === 'angrylaunch' && <span className="absolute -top-2 -right-2 text-lg">🏆</span>}
+                <span className="text-4xl group-hover:scale-110 transition-transform">🏹</span>
+                <span className="font-bold text-gray-800 text-xs">Angry Launch</span>
+              </button>
+              )}
 
               <button
                 onClick={() => setShowGame('quickmatch')}
@@ -2087,6 +2112,46 @@ const PetDisplay = () => {
           leaderboard={gameLeaderboards.quizrush}
           chestEnabled={chestEnabled}
           onGameEnd={(score, extra) => handleGameEnd(score, 'quizrush', extra)}
+          onClose={() => setShowGame(null)}
+        />
+      )}
+
+      {/* Boss Battle Mini-Game */}
+      {showGame === 'bossbattle' && (
+        <PetQuizBossBattle
+          petImageUrl={(() => {
+            let baseImage = activePet.image_url;
+            if (activePet.evolution_stages && activePet.evolution_stage > 0) {
+              const stage = activePet.evolution_stages.find(s => s.stage === activePet.evolution_stage);
+              if (stage?.image_url) baseImage = stage.image_url;
+            }
+            return baseImage;
+          })()}
+          petName={activePet.nickname || activePet.name}
+          questionBank={questionBank}
+          leaderboard={gameLeaderboards.bossbattle}
+          chestEnabled={chestEnabled}
+          onGameEnd={(score, extra) => handleGameEnd(score, 'bossbattle', extra)}
+          onClose={() => setShowGame(null)}
+        />
+      )}
+
+      {/* Angry Launch Mini-Game */}
+      {showGame === 'angrylaunch' && (
+        <PetAngryLaunch
+          petImageUrl={(() => {
+            let baseImage = activePet.image_url;
+            if (activePet.evolution_stages && activePet.evolution_stage > 0) {
+              const stage = activePet.evolution_stages.find(s => s.stage === activePet.evolution_stage);
+              if (stage?.image_url) baseImage = stage.image_url;
+            }
+            return baseImage;
+          })()}
+          petName={activePet.nickname || activePet.name}
+          questionBank={questionBank}
+          leaderboard={gameLeaderboards.angrylaunch}
+          chestEnabled={chestEnabled}
+          onGameEnd={(score, extra) => handleGameEnd(score, 'angrylaunch', extra)}
           onClose={() => setShowGame(null)}
         />
       )}
