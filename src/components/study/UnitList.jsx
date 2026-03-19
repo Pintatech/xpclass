@@ -87,6 +87,36 @@ const UnitList = () => {
   const { canCreateContent } = usePermissions();
   const { sessionStats: classStats } = useClassStats(currentId);
 
+  // Compute course-level stats: how many exercises each student has done (excluding test sessions)
+  const courseStudentStats = (() => {
+    if (!classStats || sessions.length === 0) return null;
+
+    // Get non-test session IDs
+    const nonTestSessionIds = sessions.filter(s => !s.is_test).map(s => s.id);
+    const relevantSessions = nonTestSessionIds
+      .map(id => classStats[id])
+      .filter(Boolean);
+    if (relevantSessions.length === 0) return null;
+
+    const studentMap = {};
+    relevantSessions.forEach(({ students }) => {
+      (students || []).forEach(({ id, name, completedExercises = 0, totalExercises = 0 }) => {
+        if (!studentMap[id]) studentMap[id] = { id, name, completedExercises: 0, totalExercises: 0 };
+        studentMap[id].completedExercises += completedExercises;
+        studentMap[id].totalExercises += totalExercises;
+      });
+    });
+
+    const studentList = Object.values(studentMap).map(s => ({
+      ...s,
+      status: s.completedExercises === s.totalExercises && s.totalExercises > 0 ? 'completed'
+        : s.completedExercises > 0 ? 'in_progress' : 'not_started'
+    }));
+    const completed = studentList.filter(s => s.status === 'completed').length;
+
+    return { completed, total: studentList.length, students: studentList };
+  })();
+
   // Skeletons
   const SkeletonCard = () => (
     <div className="relative overflow-hidden bg-white border rounded-lg p-6 animate-pulse">
@@ -672,6 +702,9 @@ const UnitList = () => {
             </div>
             {canCreateContent() && (
               <div className="flex items-center space-x-2">
+                {courseStudentStats && (
+                  <StudentStatsPopover stats={courseStudentStats} size="md" />
+                )}
                 <Button
                   variant="outline"
                   size="sm"

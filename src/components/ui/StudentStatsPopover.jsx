@@ -144,7 +144,12 @@ const StudentStatsPopover = ({ stats, size = 'sm', children }) => {
                   {completedStudents.map(student => (
                     <div key={student.id} className="flex items-center px-3 py-1.5 hover:bg-gray-50">
                       <CheckCircle className="w-3.5 h-3.5 text-green-500 flex-shrink-0" />
-                      <span className="ml-2 text-sm text-gray-700 truncate">{student.name}</span>
+                      <span className="ml-2 text-sm text-gray-700 truncate flex-1">{student.name}</span>
+                      {student.totalExercises > 0 && (
+                        <span className="ml-1 text-[10px] text-green-600 font-medium whitespace-nowrap">
+                          {student.completedExercises}/{student.totalExercises}
+                        </span>
+                      )}
                     </div>
                   ))}
                 </div>
@@ -161,7 +166,12 @@ const StudentStatsPopover = ({ stats, size = 'sm', children }) => {
                   {inProgressStudents.map(student => (
                     <div key={student.id} className="flex items-center px-3 py-1.5 hover:bg-gray-50">
                       <Clock className="w-3.5 h-3.5 text-yellow-500 flex-shrink-0" />
-                      <span className="ml-2 text-sm text-gray-700 truncate">{student.name}</span>
+                      <span className="ml-2 text-sm text-gray-700 truncate flex-1">{student.name}</span>
+                      {student.totalExercises > 0 && (
+                        <span className="ml-1 text-[10px] text-yellow-600 font-medium whitespace-nowrap">
+                          {student.completedExercises}/{student.totalExercises}
+                        </span>
+                      )}
                     </div>
                   ))}
                 </div>
@@ -178,7 +188,12 @@ const StudentStatsPopover = ({ stats, size = 'sm', children }) => {
                   {notStartedStudents.map(student => (
                     <div key={student.id} className="flex items-center px-3 py-1.5 hover:bg-gray-50">
                       <XCircle className="w-3.5 h-3.5 text-gray-400 flex-shrink-0" />
-                      <span className="ml-2 text-sm text-gray-500 truncate">{student.name}</span>
+                      <span className="ml-2 text-sm text-gray-500 truncate flex-1">{student.name}</span>
+                      {student.totalExercises > 0 && (
+                        <span className="ml-1 text-[10px] text-gray-400 font-medium whitespace-nowrap">
+                          {student.completedExercises}/{student.totalExercises}
+                        </span>
+                      )}
                     </div>
                   ))}
                 </div>

@@ -21,7 +21,7 @@ const SKILLS = ['Mixed', 'Speaking', 'Listening', 'Writing', 'Reading', 'Phonic'
 
 const LESSON_TYPES = ['Theo chương trình', 'Bài tự chọn'];
 
-const LessonInfoView = ({ lessonInfo, onChange }) => {
+const LessonInfoView = ({ lessonInfo, onChange, selectedDate, onDateChange }) => {
   const lessonType = lessonInfo.lesson_type || '';
   const level = lessonInfo.lesson_mode || '';
   const unit = lessonInfo.lesson_name || '';
@@ -46,6 +46,21 @@ const LessonInfoView = ({ lessonInfo, onChange }) => {
     <div className="space-y-6">
       <div className="bg-white rounded-lg shadow-sm border p-6">
         <div className="space-y-5">
+          {/* Date */}
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-2">
+              Ngày học
+            </label>
+            <input
+              type="date"
+              value={selectedDate || ''}
+              onChange={(e) => onDateChange?.(e.target.value)}
+              min={(() => { const d = new Date(); d.setDate(d.getDate() - 6); return d.toISOString().split('T')[0]; })()}
+              max={new Date().toISOString().split('T')[0]}
+              className="px-4 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+            />
+          </div>
+
           {/* Lesson Type */}
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-2">

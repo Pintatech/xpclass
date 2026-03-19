@@ -154,7 +154,7 @@ const useClassStats = (courseId) => {
         const exercises = sessionExercises[sid] || [];
         const studentDetails = studentIds.map(studentId => {
           if (exercises.length === 0) {
-            return { id: studentId, name: studentMap[studentId], status: 'not_started' };
+            return { id: studentId, name: studentMap[studentId], status: 'not_started', completedExercises: 0, totalExercises: 0 };
           }
           const completedCount = exercises.filter(exId =>
             progressMap[`${studentId}-${exId}`] === 'completed'
@@ -163,7 +163,7 @@ const useClassStats = (courseId) => {
           let status = 'not_started';
           if (completedCount === exercises.length) status = 'completed';
           else if (anyProgress) status = 'in_progress';
-          return { id: studentId, name: studentMap[studentId], status };
+          return { id: studentId, name: studentMap[studentId], status, completedExercises: completedCount, totalExercises: exercises.length };
         });
         const completed = studentDetails.filter(s => s.status === 'completed').length;
         sessionStats[sid] = { completed, total: totalStudents, students: studentDetails };

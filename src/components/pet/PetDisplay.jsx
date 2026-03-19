@@ -75,6 +75,7 @@ const PetDisplay = () => {
   } = usePet();
   const { inventory } = useInventory();
   const { user, profile, isAdmin } = useAuth();
+  const isStaff = () => isAdmin() || profile?.role === 'teacher';
   const { getEquippedItemsXPBonus, addXP } = useProgress();
   const [showFeedMenu, setShowFeedMenu] = useState(false);
   const [message, setMessage] = useState(null);
@@ -228,7 +229,7 @@ const PetDisplay = () => {
     const checkTrainingSchedule = async () => {
       const schedule = await fetchPvpSchedule()
       const { available, reason } = checkPvpAvailability(schedule)
-      const blocked = !available && !isAdmin()
+      const blocked = !available && !isStaff()
       setTrainingBlocked(blocked)
       if (blocked) setTrainingBlockedReason(reason)
     }
@@ -1845,7 +1846,7 @@ const PetDisplay = () => {
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4"
           onClick={() => setShowGame(null)}
         >
-          <div className="bg-white rounded-2xl shadow-2xl max-w-sm w-full p-6 text-center"
+          <div className={`bg-white rounded-2xl shadow-2xl w-full p-6 text-center ${isStaff() ? 'max-w-2xl' : 'max-w-sm'}`}
             onClick={e => e.stopPropagation()}
           >
             <h3 className="text-xl font-bold text-gray-800 mb-1">Choose Training Game</h3>
@@ -1864,8 +1865,8 @@ const PetDisplay = () => {
             ) : (
             <>
             <p className="text-sm text-gray-500 mb-5">Earn +5 <img src={assetUrl('/image/study/xp.png')} alt="XP" className="w-4 h-4 inline" /> on success!</p>
-            <div className="grid grid-cols-2 gap-3">
-              {(isAdmin() || enabledGames.includes('scramble')) && (
+            <div className={`grid gap-3 ${isStaff() ? 'grid-cols-3 md:grid-cols-4' : 'grid-cols-2'}`}>
+              {(isStaff() || enabledGames.includes('scramble')) && (
               <button
                 onClick={() => { drainPetEnergy(10); recordAttemptStart('scramble'); fetchGameLeaderboard('scramble'); setShowGame('scramble'); }}
                 className={`relative flex flex-col items-center gap-2 p-4 rounded-xl border-2 transition-all group ${competitionGame === 'scramble' ? 'border-yellow-400 bg-yellow-50 ring-2 ring-yellow-300' : 'border-purple-200 hover:border-purple-400 hover:bg-purple-50'}`}
@@ -1875,7 +1876,7 @@ const PetDisplay = () => {
                 <span className="font-bold text-gray-800 text-xs">Word Scramble</span>
               </button>
               )}
-              {(isAdmin() || enabledGames.includes('whackmole')) && (
+              {(isStaff() || enabledGames.includes('whackmole')) && (
               <button
                 onClick={() => { drainPetEnergy(10); recordAttemptStart('whackmole'); fetchGameLeaderboard('whackmole'); setShowGame('whackmole'); }}
                 className={`relative flex flex-col items-center gap-2 p-4 rounded-xl border-2 transition-all group ${competitionGame === 'whackmole' ? 'border-yellow-400 bg-yellow-50 ring-2 ring-yellow-300' : 'border-green-200 hover:border-green-400 hover:bg-green-50'}`}
@@ -1885,7 +1886,7 @@ const PetDisplay = () => {
                 <span className="font-bold text-gray-800 text-xs">Whack-a-Mole</span>
               </button>
               )}
-              {(isAdmin() || enabledGames.includes('astroblast')) && (
+              {(isStaff() || enabledGames.includes('astroblast')) && (
               <button
                 onClick={() => { drainPetEnergy(10); recordAttemptStart('astroblast'); fetchGameLeaderboard('astroblast'); setShowGame('astroblast'); }}
                 className={`relative flex flex-col items-center gap-2 p-4 rounded-xl border-2 transition-all group ${competitionGame === 'astroblast' ? 'border-yellow-400 bg-yellow-50 ring-2 ring-yellow-300' : 'border-red-200 hover:border-red-400 hover:bg-red-50'}`}
@@ -1895,7 +1896,7 @@ const PetDisplay = () => {
                 <span className="font-bold text-gray-800 text-xs">Astro Blast</span>
               </button>
               )}
-              {(isAdmin() || enabledGames.includes('flappy')) && (
+              {(isStaff() || enabledGames.includes('flappy')) && (
               <button
                 onClick={() => { drainPetEnergy(10); recordAttemptStart('flappy'); fetchGameLeaderboard('flappy'); setShowGame('flappy'); }}
                 className={`relative flex flex-col items-center gap-2 p-4 rounded-xl border-2 transition-all group ${competitionGame === 'flappy' ? 'border-yellow-400 bg-yellow-50 ring-2 ring-yellow-300' : 'border-sky-200 hover:border-sky-400 hover:bg-sky-50'}`}
@@ -1905,7 +1906,7 @@ const PetDisplay = () => {
                 <span className="font-bold text-gray-800 text-xs">Flappy Pet</span>
               </button>
               )}
-              {(isAdmin() || enabledGames.includes('matchgame')) && (
+              {(isStaff() || enabledGames.includes('matchgame')) && (
               <button
                 onClick={() => { drainPetEnergy(10); recordAttemptStart('matchgame'); fetchGameLeaderboard('matchgame'); setShowGame('matchgame'); }}
                 className={`relative flex flex-col items-center gap-2 p-4 rounded-xl border-2 transition-all group ${competitionGame === 'matchgame' ? 'border-yellow-400 bg-yellow-50 ring-2 ring-yellow-300' : 'border-indigo-200 hover:border-indigo-400 hover:bg-indigo-50'}`}
@@ -1915,7 +1916,7 @@ const PetDisplay = () => {
                 <span className="font-bold text-gray-800 text-xs">Match Up</span>
               </button>
               )}
-              {(isAdmin() || enabledGames.includes('wordtype')) && (
+              {(isStaff() || enabledGames.includes('wordtype')) && (
               <button
                 onClick={() => { drainPetEnergy(10); recordAttemptStart('wordtype'); fetchGameLeaderboard('wordtype'); setShowGame('wordtype'); }}
                 className={`relative flex flex-col items-center gap-2 p-4 rounded-xl border-2 transition-all group ${competitionGame === 'wordtype' ? 'border-yellow-400 bg-yellow-50 ring-2 ring-yellow-300' : 'border-cyan-200 hover:border-cyan-400 hover:bg-cyan-50'}`}
@@ -1925,7 +1926,7 @@ const PetDisplay = () => {
                 <span className="font-bold text-gray-800 text-xs">Word Type</span>
               </button>
               )}
-              {(isAdmin() || enabledGames.includes('sayitright')) && (
+              {(isStaff() || enabledGames.includes('sayitright')) && (
               <button
                 onClick={() => { drainPetEnergy(10); recordAttemptStart('sayitright'); fetchGameLeaderboard('sayitright'); setShowGame('sayitright'); }}
                 className={`relative flex flex-col items-center gap-2 p-4 rounded-xl border-2 transition-all group ${competitionGame === 'sayitright' ? 'border-yellow-400 bg-yellow-50 ring-2 ring-yellow-300' : 'border-orange-200 hover:border-orange-400 hover:bg-orange-50'}`}
@@ -1935,7 +1936,7 @@ const PetDisplay = () => {
                 <span className="font-bold text-gray-800 text-xs">Say It Right</span>
               </button>
               )}
-              {(isAdmin() || enabledGames.includes('quizrush')) && (
+              {(isStaff() || enabledGames.includes('quizrush')) && (
               <button
                 onClick={() => { drainPetEnergy(10); recordAttemptStart('quizrush'); fetchGameLeaderboard('quizrush'); setShowGame('quizrush'); }}
                 className={`relative flex flex-col items-center gap-2 p-4 rounded-xl border-2 transition-all group ${competitionGame === 'quizrush' ? 'border-yellow-400 bg-yellow-50 ring-2 ring-yellow-300' : 'border-violet-200 hover:border-violet-400 hover:bg-violet-50'}`}
@@ -1945,7 +1946,7 @@ const PetDisplay = () => {
                 <span className="font-bold text-gray-800 text-xs">Quiz Rush</span>
               </button>
               )}
-              {(isAdmin() || enabledGames.includes('bossbattle')) && (
+              {(isStaff() || enabledGames.includes('bossbattle')) && (
               <button
                 onClick={() => { drainPetEnergy(10); recordAttemptStart('bossbattle'); fetchGameLeaderboard('bossbattle'); setShowGame('bossbattle'); }}
                 className={`relative flex flex-col items-center gap-2 p-4 rounded-xl border-2 transition-all group ${competitionGame === 'bossbattle' ? 'border-yellow-400 bg-yellow-50 ring-2 ring-yellow-300' : 'border-red-200 hover:border-red-400 hover:bg-red-50'}`}
@@ -1956,7 +1957,7 @@ const PetDisplay = () => {
               </button>
               )}
 
-              {(isAdmin() || enabledGames.includes('angrypet')) && (
+              {(isStaff() || enabledGames.includes('angrypet')) && (
               <button
                 onClick={() => { drainPetEnergy(10); recordAttemptStart('angrypet'); fetchGameLeaderboard('angrypet'); setShowGame('angrypet'); }}
                 className={`relative flex flex-col items-center gap-2 p-4 rounded-xl border-2 transition-all group ${competitionGame === 'angrypet' ? 'border-yellow-400 bg-yellow-50 ring-2 ring-yellow-300' : 'border-orange-200 hover:border-orange-400 hover:bg-orange-50'}`}
@@ -1967,7 +1968,7 @@ const PetDisplay = () => {
               </button>
               )}
 
-              {(isAdmin() || enabledGames.includes('catch')) && (
+              {(isStaff() || enabledGames.includes('catch')) && (
               <button
                 onClick={() => { drainPetEnergy(10); recordAttemptStart('catch'); setShowGame('catch'); }}
                 className={`relative flex flex-col items-center gap-2 p-4 rounded-xl border-2 transition-all group ${competitionGame === 'catch' ? 'border-yellow-400 bg-yellow-50 ring-2 ring-yellow-300' : 'border-teal-200 hover:border-teal-400 hover:bg-teal-50'}`}
@@ -1980,7 +1981,7 @@ const PetDisplay = () => {
 
               <button
                 onClick={() => setShowGame('quickmatch')}
-                className="relative flex flex-col items-center gap-2 p-4 rounded-xl border-2 border-purple-200 hover:border-purple-400 hover:bg-purple-50 transition-all group col-span-2"
+                className={`relative flex flex-col items-center gap-2 p-4 rounded-xl border-2 border-purple-200 hover:border-purple-400 hover:bg-purple-50 transition-all group ${isStaff() ? 'col-span-full' : 'col-span-2'}`}
               >
                 <img src={assetUrl('/icon/dashboard/pvp.png')} alt="PvP" className="w-12 h-12 object-contain group-hover:scale-110 transition-transform" />
                 <div className="flex items-center gap-1">

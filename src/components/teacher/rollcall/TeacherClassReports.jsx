@@ -218,7 +218,7 @@ const TeacherClassReports = () => {
     const missing = [];
 
     // Info: lesson_type required; for curriculum mode need level+unit+skill; for custom need name+skill
-    if (!lessonInfo.lesson_type || !lessonInfo.lesson_name || !lessonInfo.skill ||
+    if (!selectedDate || !lessonInfo.lesson_type || !lessonInfo.lesson_name || !lessonInfo.skill ||
         (lessonInfo.lesson_type === 'Theo chương trình' && !lessonInfo.lesson_mode)) {
       missing.push('Info');
     }
@@ -405,17 +405,10 @@ const TeacherClassReports = () => {
                 </div>
               </div>
 
-              {/* Date Selector */}
+              {/* Date shown as label — picker moved to Info tab */}
               <div className="flex items-center gap-1">
-                <Calendar className="w-4 h-4 text-gray-500 hidden sm:block" />
-                <input
-                  type="date"
-                  value={selectedDate}
-                  onChange={(e) => setSelectedDate(e.target.value)}
-                  min={(() => { const d = new Date(); d.setDate(d.getDate() - 6); return d.toISOString().split('T')[0]; })()}
-                  max={new Date().toISOString().split('T')[0]}
-                  className="p-1.5 md:p-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                />
+                <Calendar className="w-4 h-4 text-gray-500" />
+                <span className="text-sm font-medium text-gray-700">{selectedDate || 'Chọn ngày ở tab Info'}</span>
               </div>
             </div>
 
@@ -467,6 +460,8 @@ const TeacherClassReports = () => {
           <LessonInfoView
             lessonInfo={lessonInfo}
             onChange={handleLessonInfoChange}
+            selectedDate={selectedDate}
+            onDateChange={setSelectedDate}
           />
         </div>
         <div className={activeTab === 'roll-call' ? '' : 'hidden'}>
