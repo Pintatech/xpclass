@@ -43,9 +43,9 @@ const TARGET_LAYOUTS = {
   ],
 }
 
-const PIG_DEFAULT = (i) => `https://xpclass.vn/xpclass/pet-game/angry/pig${i + 1}.webp`
-const PIG_CORRECT = (i) => `https://xpclass.vn/xpclass/pet-game/angry/pig${i + 1}-correct.webp`
-const PIG_WRONG = (i) => `https://xpclass.vn/xpclass/pet-game/angry/pig${i + 1}-wrong.webp`
+const PIG_DEFAULT = (i) => `https://xpclass.vn/xpclass/pet-game/angry/pig${i + 1}.png`
+const PIG_CORRECT = (i) => `https://xpclass.vn/xpclass/pet-game/angry/pig${i + 1}-correct.png`
+const PIG_WRONG = (i) => `https://xpclass.vn/xpclass/pet-game/angry/pig${i + 1}-wrong.png`
 
 const PetAngryPet = ({ petImageUrl, petName, onGameEnd, onClose, questionBank: questionBankProp = [], hideClose = false, scoreToBeat = null, leaderboard = [], chestEnabled = false }) => {
   const [phase, setPhase] = useState('ready')

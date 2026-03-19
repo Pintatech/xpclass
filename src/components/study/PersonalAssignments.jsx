@@ -108,7 +108,8 @@ const PersonalAssignments = () => {
       drag_drop: '/study/drag-drop',
       dropdown: '/study/dropdown',
       ai_fill_blank: '/study/ai-fill-blank',
-      pronunciation: '/study/pronunciation'
+      pronunciation: '/study/pronunciation',
+      video_upload: '/study/video-upload'
     }
 
     const basePath = paths[assignment.exercise_type] || '/study/flashcard'

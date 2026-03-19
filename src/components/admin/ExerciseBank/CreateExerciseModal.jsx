@@ -1,6 +1,6 @@
 import React, { useState } from 'react'
 import { supabase } from '../../../supabase/client'
-import { X, BookOpen, Edit3, Mic, HelpCircle, Tag, Copy, Brain, ChevronDown, Image, FileText } from 'lucide-react'
+import { X, BookOpen, Edit3, Mic, HelpCircle, Tag, Copy, Brain, ChevronDown, Image, FileText, Video } from 'lucide-react'
 import FlashcardEditor from '../editors/FlashcardEditor'
 import MultipleChoiceEditor from '../editors/MultipleChoiceEditor'
 import FillBlankEditor from '../editors/FillBlankEditor'
@@ -11,6 +11,7 @@ import PronunciationEditor from '../editors/PronunciationEditor'
 import ImageHotspotEditor from '../editors/ImageHotspotEditor'
 import PDFWorksheetEditor from '../editors/PDFWorksheetEditor'
 import SpeakingAssessmentEditor from '../editors/SpeakingAssessmentEditor'
+import VideoUploadEditor from '../editors/VideoUploadEditor'
 
 const CreateExerciseModal = ({ folders, selectedFolder, onClose, onCreated, allowedTypes = null }) => {
   const [formData, setFormData] = useState({
@@ -39,6 +40,7 @@ const CreateExerciseModal = ({ folders, selectedFolder, onClose, onCreated, allo
     { value: 'image_hotspot', label: 'Image Hotspot', icon: Image },
     { value: 'pdf_worksheet', label: 'PDF Worksheet', icon: FileText },
     { value: 'speaking_assessment', label: 'Speaking Assessment', icon: Mic },
+    { value: 'video_upload', label: 'Video Upload', icon: Video },
   ]
   const exerciseTypes = allowedTypes
     ? allExerciseTypes.filter(t => allowedTypes.includes(t.value))
@@ -344,6 +346,15 @@ const CreateExerciseModal = ({ folders, selectedFolder, onClose, onCreated, allo
 
             {formData.exercise_type === 'speaking_assessment' && (
               <SpeakingAssessmentEditor
+                questions={formData.content.questions || []}
+                level={formData.content.level || 'middle'}
+                onQuestionsChange={(questions) => handleContentChange('questions', questions)}
+                onLevelChange={(level) => handleContentChange('level', level)}
+              />
+            )}
+
+            {formData.exercise_type === 'video_upload' && (
+              <VideoUploadEditor
                 questions={formData.content.questions || []}
                 level={formData.content.level || 'middle'}
                 onQuestionsChange={(questions) => handleContentChange('questions', questions)}

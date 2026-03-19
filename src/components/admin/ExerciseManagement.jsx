@@ -46,6 +46,7 @@ const ExerciseManagement = () => {
     'ai_fill_blank': { icon: Brain, label: 'Fill in AI Score', color: 'purple' },
     'image_hotspot': { icon: Image, label: 'Image Hotspot', color: 'cyan' },
     'pdf_worksheet': { icon: Edit3, label: 'PDF Worksheet', color: 'rose' },
+    'video_upload': { icon: Video, label: 'Video Upload', color: 'teal' },
   }
 
   useEffect(() => {

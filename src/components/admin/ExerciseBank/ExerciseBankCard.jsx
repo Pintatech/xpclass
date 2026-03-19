@@ -15,7 +15,8 @@ import {
   Tag,
   FolderOpen,
   Image,
-  FileText
+  FileText,
+  Video
 } from 'lucide-react'
 
 const ExerciseBankCard = ({ exercise, viewMode, onUpdate, onEdit, readOnly = false, allowedTypes = null }) => {
@@ -62,6 +63,8 @@ const ExerciseBankCard = ({ exercise, viewMode, onUpdate, onEdit, readOnly = fal
         return Edit3
       case 'pdf_worksheet':
         return FileText
+      case 'video_upload':
+        return Video
       default:
         return BookOpen
     }
@@ -89,6 +92,8 @@ const ExerciseBankCard = ({ exercise, viewMode, onUpdate, onEdit, readOnly = fal
         return 'PDF Worksheet'
       case 'speaking_assessment':
         return 'Speaking Assessment'
+      case 'video_upload':
+        return 'Video Upload'
       default:
         return 'Exercise'
     }
@@ -164,6 +169,8 @@ const ExerciseBankCard = ({ exercise, viewMode, onUpdate, onEdit, readOnly = fal
           return `/study/pdf-worksheet?exerciseId=${exercise.id}`
         case 'speaking_assessment':
           return `/study/speaking-assessment?exerciseId=${exercise.id}`
+        case 'video_upload':
+          return `/study/video-upload?exerciseId=${exercise.id}`
         default:
           return null
       }

@@ -11,6 +11,7 @@ import PronunciationEditor from '../editors/PronunciationEditor'
 import ImageHotspotEditor from '../editors/ImageHotspotEditor'
 import PDFWorksheetEditor from '../editors/PDFWorksheetEditor'
 import SpeakingAssessmentEditor from '../editors/SpeakingAssessmentEditor'
+import VideoUploadEditor from '../editors/VideoUploadEditor'
 
 const EditExerciseModal = ({ isOpen, onClose, exercise, onUpdate }) => {
   const [formData, setFormData] = useState({
@@ -234,6 +235,15 @@ const EditExerciseModal = ({ isOpen, onClose, exercise, onUpdate }) => {
       case 'speaking_assessment':
         return (
           <SpeakingAssessmentEditor
+            questions={content.questions || []}
+            level={content.level || 'middle'}
+            onQuestionsChange={(questions) => handleContentChange({ ...content, questions })}
+            onLevelChange={(level) => handleContentChange({ ...content, level })}
+          />
+        )
+      case 'video_upload':
+        return (
+          <VideoUploadEditor
             questions={content.questions || []}
             level={content.level || 'middle'}
             onQuestionsChange={(questions) => handleContentChange({ ...content, questions })}

@@ -11,7 +11,8 @@ import {
   Mic,
   HelpCircle,
   Copy,
-  Brain
+  Brain,
+  Video
 } from 'lucide-react'
 import FolderTree from './ExerciseBank/FolderTree'
 import ExerciseBankCard from './ExerciseBank/ExerciseBankCard'
@@ -187,6 +188,7 @@ const ExerciseBank = ({ readOnly = false, allowedTypes = null }) => {
     { value: 'dropdown', label: 'Dropdown', icon: HelpCircle },
     { value: 'drag_drop', label: 'Drag & Drop', icon: Copy },
     { value: 'ai_fill_blank', label: 'Fill in AI Score', icon: Brain },
+    { value: 'video_upload', label: 'Video Upload', icon: Video },
   ]
 
   const breadcrumbs = () => {

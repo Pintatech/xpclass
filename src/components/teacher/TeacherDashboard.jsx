@@ -15,8 +15,10 @@ import {
   Grid,
   Eye,
   BarChart3,
-  FileText
+  FileText,
+  Video
 } from 'lucide-react';
+import VideoSubmissionReview from './VideoSubmissionReview';
 
 const TeacherDashboard = () => {
   const { user, isAdmin, profile, loading: authLoading } = useAuth();
@@ -440,6 +442,17 @@ const TeacherDashboard = () => {
                     <FileText className="w-4 h-4" />
                     <span>Tests</span>
                   </button>
+                  <button
+                    onClick={() => setCurrentView('video-reviews')}
+                    className={`flex items-center space-x-2 px-4 py-2 rounded-lg transition-colors ${
+                      currentView === 'video-reviews'
+                        ? 'bg-blue-600 text-white'
+                        : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                    }`}
+                  >
+                    <Video className="w-4 h-4" />
+                    <span>Video Reviews</span>
+                  </button>
                 </div>
               </div>
             )}
@@ -649,6 +662,11 @@ const TeacherDashboard = () => {
       {/* Test Results View */}
       {selectedCourse && currentView === 'test-results' && (
         <TestResultsView selectedCourse={selectedCourse} />
+      )}
+
+      {/* Video Submission Reviews */}
+      {selectedCourse && currentView === 'video-reviews' && (
+        <VideoSubmissionReview selectedCourse={selectedCourse} />
       )}
 
       {/* No Courses */}

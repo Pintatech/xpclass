@@ -65,6 +65,7 @@ import {
   Star,
   Map,
   List,
+  Video,
 } from "lucide-react";
 
 import { getMapTheme } from "../../config/mapThemes";
@@ -687,6 +688,7 @@ const ExerciseList = () => {
           {...props}
         />
       ),
+      video_upload: (props) => <Video {...props} />,
     };
     return icons[exerciseType] || ((props) => <BookOpen {...props} />);
   };
@@ -700,6 +702,7 @@ const ExerciseList = () => {
       image_hotspot: "text-cyan-600 bg-cyan-100",
       pdf_worksheet: "text-rose-600 bg-rose-100",
       speaking_assessment: "text-violet-600 bg-violet-100",
+      video_upload: "text-teal-600 bg-teal-100",
     };
     return colors[exerciseType] || "text-gray-600 bg-gray-100";
   };
@@ -799,6 +802,7 @@ const ExerciseList = () => {
       image_hotspot: "/study/image-hotspot",
       pdf_worksheet: "/study/pdf-worksheet",
       speaking_assessment: "/study/speaking-assessment",
+      video_upload: "/study/video-upload",
     };
 
     const basePath = paths[exercise.exercise_type] || "/study/flashcard";

@@ -7,9 +7,10 @@ import { supabase } from '../../supabase/client'
 import { saveRecentExercise } from '../../utils/recentExercise'
 import LoadingSpinner from '../ui/LoadingSpinner'
 import RichTextRenderer from '../ui/RichTextRenderer'
-import { Mic, Square, ArrowRight, ArrowLeft, Star, RefreshCw, CheckCircle, MessageSquare } from 'lucide-react'
+import { Upload, ArrowRight, ArrowLeft, Star, RefreshCw, CheckCircle, Video, X, Clock } from 'lucide-react'
 import { assetUrl } from '../../hooks/useBranding'
 import TeacherExerciseNav from '../ui/TeacherExerciseNav'
+import { LEVELS, scoreSpeechWithLLM } from './SpeakingAssessmentExercise'
 
 const themeSideImages = {
   blue: { left: assetUrl('/image/theme_question/ice_left.png'), right: assetUrl('/image/theme_question/ice_right.png') },
@@ -21,124 +22,9 @@ const themeSideImages = {
 }
 const getThemeSideImages = (theme) => themeSideImages[theme] || themeSideImages.blue
 
-const isMobileDevice = () =>
-  /iPad|iPhone|iPod|Android/i.test(navigator.userAgent) ||
-  (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1)
-
-// Send recorded audio blob to AssemblyAI via the /api/transcribe proxy
-const transcribeWithAssembly = async (audioBlob) => {
-  const response = await fetch('/api/transcribe', {
-    method: 'POST',
-    headers: { 'Content-Type': audioBlob.type || 'audio/webm' },
-    body: audioBlob,
-  })
-  if (!response.ok) throw new Error('Transcription request failed')
-  const data = await response.json()
-  if (!data.success) throw new Error(data.error || 'Transcription failed')
-  return data.text || ''
-}
-
-export const LEVELS = [
-  {
-    value: 'kindergarten',
-    label: 'Kindergarten',
-    emoji: '🧒',
-    color: 'bg-pink-100 text-pink-700 border-pink-200',
-    ageRange: 'Ages 4–6',
-    aiContext: `The student is a kindergarten child (age 4-6). Judge ONLY on: did they understand the question, did they try to answer, are they confident. Use very simple, encouraging language. Even a few words is a good response. Do NOT penalize for grammar or complex vocabulary. Scores should be generous (60-100 range for any genuine attempt).`,
-  },
-  {
-    value: 'primary',
-    label: 'Primary School',
-    emoji: '📚',
-    color: 'bg-blue-100 text-blue-700 border-blue-200',
-    ageRange: 'Grades 2–5 · Ages 7–11',
-    aiContext: `The student is a primary school child (age 7-11). Expect simple sentences, basic vocabulary, and some grammar errors. Focus feedback on communication success, topic relevance, and simple vocabulary use. Keep suggestions simple and encouraging. Scores in the 50-90 range are typical.`,
-  },
-  {
-    value: 'middle',
-    label: 'Middle School',
-    emoji: '🎒',
-    color: 'bg-green-100 text-green-700 border-green-200',
-    ageRange: 'Grades 6–8 · Ages 11–14',
-    aiContext: `The student is a middle school student (age 11-14). Expect developing grammar, moderate vocabulary, and some sentence variety. Assess content relevance, basic grammar accuracy, and growing vocabulary. Provide constructive feedback appropriate for a teen learner.`,
-  },
-  {
-    value: 'high_school',
-    label: 'High School',
-    emoji: '🏫',
-    color: 'bg-orange-100 text-orange-700 border-orange-200',
-    ageRange: 'Grades 9–12 · Ages 14–18',
-    aiContext: `The student is a high school student (age 14-18). Apply standard English speaking assessment. Expect grammatical accuracy, varied vocabulary, logical organisation, and coherent answers. Provide detailed, specific feedback to help them improve toward academic/exam readiness.`,
-  },
-  {
-    value: 'adult',
-    label: 'Adult / College',
-    emoji: '🎓',
-    color: 'bg-purple-100 text-purple-700 border-purple-200',
-    ageRange: 'Age 18+',
-    aiContext: `The student is an adult or college-level learner. Apply full IELTS speaking band standards. Assess lexical resource, grammatical range and accuracy, coherence, fluency, and content depth. Provide professional, detailed feedback suitable for exam or professional preparation.`,
-  },
-]
-
 const getLevelConfig = (value) => LEVELS.find(l => l.value === value) || LEVELS[2]
 
-// Call MegaLLM with level-aware scoring prompt
-export const scoreSpeechWithLLM = async (prompt, spokenText, keyPoints, evaluationCriteria, level) => {
-  const API_KEY = import.meta.env.VITE_MEGALLM_API_KEY || 'sk-mega-90798a7547487b440a37b054ffbb33cbc57d85cf86929b52bb894def833d784e'
-  const kp = keyPoints?.join(', ') || ''
-  const criteria = evaluationCriteria || 'content relevance, vocabulary, grammar, fluency'
-  const levelConfig = getLevelConfig(level)
-
-  const userPrompt = `You are a speaking assessment examiner. Evaluate the following spoken response.
-
-Student level: ${levelConfig.label} (${levelConfig.ageRange})
-Scoring guidance: ${levelConfig.aiContext}
-
-Topic/Prompt: "${prompt}"
-${kp ? `Key points to cover: ${kp}` : ''}
-Evaluation criteria: ${criteria}
-
-Student's spoken response: "${spokenText}"
-
-Provide evaluation in JSON calibrated to the student's level:
-{
-  "overall_score": number (0-100),
-  "content_score": number (0-100),
-  "vocabulary_score": number (0-100),
-  "grammar_score": number (0-100),
-  "fluency_score": number (0-100),
-  "strengths": "2-3 sentences about what the student did well (age-appropriate tone)",
-  "suggestions": "2-3 specific, actionable suggestions suitable for this age/level",
-  "sample_improvement": "One example sentence showing improvement appropriate for this level"
-}`
-
-  const response = await fetch('https://ai.megallm.io/v1/chat/completions', {
-    method: 'POST',
-    headers: {
-      'Authorization': `Bearer ${API_KEY}`,
-      'Content-Type': 'application/json',
-    },
-    body: JSON.stringify({
-      model: 'openai-gpt-oss-20b',
-      messages: [
-        { role: 'system', content: 'You are an expert speaking examiner who adapts feedback to student age and level. Always respond in valid JSON.' },
-        { role: 'user', content: userPrompt },
-      ],
-      max_tokens: 1200,
-      temperature: 0.3,
-    }),
-  })
-
-  if (!response.ok) throw new Error('LLM request failed')
-  const data = await response.json()
-  const content = data.choices[0].message.content
-  const jsonMatch = content.match(/\{[\s\S]*\}/)
-  if (!jsonMatch) throw new Error('No JSON in response')
-  const parsed = JSON.parse(jsonMatch[0])
-  if (parsed.overall_score === undefined) throw new Error('Invalid response shape')
-  return parsed
-}
+const ACCEPTED_VIDEO_TYPES = ['video/mp4', 'video/webm', 'video/quicktime', 'video/x-msvideo']
 
 const fallbackResult = (msg = '') => ({
   overall_score: 50,
@@ -146,12 +32,12 @@ const fallbackResult = (msg = '') => ({
   vocabulary_score: 50,
   grammar_score: 50,
   fluency_score: 50,
-  strengths: 'Your response was recorded successfully.',
+  strengths: 'Your video was uploaded successfully.',
   suggestions: msg || 'AI analysis is temporarily unavailable. Please try again.',
   sample_improvement: '',
 })
 
-const SpeakingAssessmentExercise = () => {
+const VideoUploadExercise = () => {
   const location = useLocation()
   const navigate = useNavigate()
   const { user } = useAuth()
@@ -177,27 +63,15 @@ const SpeakingAssessmentExercise = () => {
   const [isQuizComplete, setIsQuizComplete] = useState(false)
   const [xpAwarded, setXpAwarded] = useState(0)
 
-  // Recording state
-  const [isRecording, setIsRecording] = useState(false)
+  // Video upload state
+  const [selectedFile, setSelectedFile] = useState(null)
+  const [videoPreviewUrl, setVideoPreviewUrl] = useState(null)
+  const [uploadPhase, setUploadPhase] = useState('idle') // idle | uploading | transcribing | scoring | results
+  const [uploadProgress, setUploadProgress] = useState(0)
   const [transcription, setTranscription] = useState('')
-  const [interimTranscription, setInterimTranscription] = useState('')
   const [aiResult, setAiResult] = useState(null)
-  const [isAnalyzing, setIsAnalyzing] = useState(false)
-  const [isTranscribing, setIsTranscribing] = useState(false)
-  const [showResults, setShowResults] = useState(false)
-
-  // Timer
-  const [timeRemaining, setTimeRemaining] = useState(null)
-  const [timerActive, setTimerActive] = useState(false)
-  const timerIntervalRef = useRef(null)
-
-  // Refs for recording
-  const recognitionRef = useRef(null)       // Web Speech API (desktop)
-  const mediaRecorderRef = useRef(null)     // MediaRecorder (mobile)
-  const audioChunksRef = useRef([])
-  const finalTranscriptRef = useRef('')
-
-  const isMobile = isMobileDevice()
+  const fileInputRef = useRef(null)
+  const [isDragOver, setIsDragOver] = useState(false)
 
   useEffect(() => {
     if (exerciseId && user) startExercise(exerciseId)
@@ -216,32 +90,12 @@ const SpeakingAssessmentExercise = () => {
     if (isQuizComplete && questionResults.length > 0) markExerciseCompleted()
   }, [isQuizComplete])
 
-  // Reset timer when question changes
+  // Clean up video preview URL
   useEffect(() => {
-    if (questions.length === 0 || currentQuestionIndex >= questions.length) return
-    const timeLimit = questions[currentQuestionIndex]?.time_limit || 0
-    if (timerIntervalRef.current) clearInterval(timerIntervalRef.current)
-    if (timeLimit > 0) { setTimeRemaining(timeLimit); setTimerActive(true) }
-    else { setTimeRemaining(null); setTimerActive(false) }
-    return () => { if (timerIntervalRef.current) clearInterval(timerIntervalRef.current) }
-  }, [currentQuestionIndex, questions])
-
-  // Countdown
-  useEffect(() => {
-    if (!timerActive || !timeRemaining) return
-    timerIntervalRef.current = setInterval(() => {
-      setTimeRemaining(prev => {
-        if (prev <= 1) {
-          clearInterval(timerIntervalRef.current)
-          setTimerActive(false)
-          stopRecording()
-          return 0
-        }
-        return prev - 1
-      })
-    }, 1000)
-    return () => { if (timerIntervalRef.current) clearInterval(timerIntervalRef.current) }
-  }, [timerActive])
+    return () => {
+      if (videoPreviewUrl) URL.revokeObjectURL(videoPreviewUrl)
+    }
+  }, [videoPreviewUrl])
 
   const fetchSessionInfo = async () => {
     try {
@@ -266,7 +120,7 @@ const SpeakingAssessmentExercise = () => {
         .from('exercises')
         .select('*')
         .eq('id', exerciseId)
-        .eq('exercise_type', 'speaking_assessment')
+        .eq('exercise_type', 'video_upload')
         .single()
       if (error) throw error
       setExercise(data)
@@ -274,7 +128,7 @@ const SpeakingAssessmentExercise = () => {
       setQuestions(qs)
       if (qs.length) {
         try {
-          saveRecentExercise({ ...data, continuePath: `/study/speaking-assessment?exerciseId=${data.id}&sessionId=${sessionId}` })
+          saveRecentExercise({ ...data, continuePath: `/study/video-upload?exerciseId=${data.id}&sessionId=${sessionId}` })
         } catch { }
       }
     } catch (err) {
@@ -285,142 +139,154 @@ const SpeakingAssessmentExercise = () => {
     }
   }
 
-  // ── Desktop recording: Web Speech API ─────────────────────────────────────
-  const startWebSpeech = () => {
-    const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition
-    if (!SpeechRecognition) return false
-
-    if (recognitionRef.current) recognitionRef.current.abort()
-    finalTranscriptRef.current = ''
-
-    const recognition = new SpeechRecognition()
-    recognition.lang = 'en-US'
-    recognition.continuous = true
-    recognition.interimResults = true
-
-    recognition.onresult = (event) => {
-      let interim = ''
-      for (let i = event.resultIndex; i < event.results.length; i++) {
-        const t = event.results[i][0].transcript
-        if (event.results[i].isFinal) {
-          finalTranscriptRef.current += (finalTranscriptRef.current ? ' ' : '') + t.trim()
-        } else {
-          interim += t
-        }
-      }
-      setTranscription(finalTranscriptRef.current)
-      setInterimTranscription(interim)
+  const validateFile = (file) => {
+    if (!file) return 'No file selected'
+    if (!ACCEPTED_VIDEO_TYPES.includes(file.type)) {
+      return 'Invalid file type. Please upload an MP4, WebM, or MOV video.'
     }
-
-    recognition.onerror = (e) => {
-      console.error('Speech recognition error:', e.error)
-      setIsRecording(false)
+    const maxSizeMb = questions[currentQuestionIndex]?.max_file_size_mb || 50
+    if (file.size > maxSizeMb * 1024 * 1024) {
+      return `File too large. Maximum size is ${maxSizeMb} MB.`
     }
-
-    recognition.onend = () => {
-      setIsRecording(false)
-      setInterimTranscription('')
-      const text = finalTranscriptRef.current.trim()
-      if (text) analyzeWithAI(text)
-    }
-
-    recognitionRef.current = recognition
-    recognition.start()
-    return true
+    return null
   }
 
-  // ── Mobile recording: MediaRecorder → AssemblyAI ──────────────────────────
-  const startMobileRecording = async () => {
-    let stream
-    try {
-      stream = await navigator.mediaDevices.getUserMedia({ audio: true })
-    } catch (err) {
-      console.error('Microphone permission denied:', err)
-      setError('Microphone access denied. Please allow microphone access and try again.')
-      return false
+  const handleFileSelect = (file) => {
+    const validationError = validateFile(file)
+    if (validationError) {
+      setError(validationError)
+      return
     }
-
-    audioChunksRef.current = []
-    let options = {}
-    if (MediaRecorder.isTypeSupported('audio/mp4')) options.mimeType = 'audio/mp4'
-    else if (MediaRecorder.isTypeSupported('audio/webm')) options.mimeType = 'audio/webm'
-
-    const recorder = new MediaRecorder(stream, options)
-    recorder.ondataavailable = (e) => { if (e.data.size > 0) audioChunksRef.current.push(e.data) }
-    recorder.onstop = async () => {
-      stream.getTracks().forEach(t => t.stop())
-      const blob = new Blob(audioChunksRef.current, { type: options.mimeType || 'audio/webm' })
-      setIsTranscribing(true)
-      try {
-        const text = await transcribeWithAssembly(blob)
-        setTranscription(text)
-        if (text.trim()) analyzeWithAI(text.trim())
-        else setError('No speech detected. Please try again.')
-      } catch (err) {
-        console.error('AssemblyAI transcription error:', err)
-        setError('Transcription failed. Please try again.')
-      } finally {
-        setIsTranscribing(false)
-      }
-    }
-
-    mediaRecorderRef.current = recorder
-    recorder.start()
-    return true
+    setError(null)
+    setSelectedFile(file)
+    if (videoPreviewUrl) URL.revokeObjectURL(videoPreviewUrl)
+    setVideoPreviewUrl(URL.createObjectURL(file))
   }
 
-  const startRecording = async () => {
-    setTranscription('')
-    setInterimTranscription('')
-    setAiResult(null)
-    setShowResults(false)
+  const handleDrop = (e) => {
+    e.preventDefault()
+    setIsDragOver(false)
+    const file = e.dataTransfer.files?.[0]
+    if (file) handleFileSelect(file)
+  }
+
+  const handleDragOver = (e) => {
+    e.preventDefault()
+    setIsDragOver(true)
+  }
+
+  const handleDragLeave = (e) => {
+    e.preventDefault()
+    setIsDragOver(false)
+  }
+
+  const clearFile = () => {
+    setSelectedFile(null)
+    if (videoPreviewUrl) URL.revokeObjectURL(videoPreviewUrl)
+    setVideoPreviewUrl(null)
+    setError(null)
+    if (fileInputRef.current) fileInputRef.current.value = ''
+  }
+
+  const handleSubmitVideo = async () => {
+    if (!selectedFile || !user) return
     setError(null)
 
-    let started
-    if (isMobile) {
-      started = await startMobileRecording()
-    } else {
-      started = startWebSpeech()
-      if (!started) {
-        // Web Speech not supported — fallback to MediaRecorder + AssemblyAI
-        started = await startMobileRecording()
-      }
-    }
-    if (started) setIsRecording(true)
-  }
-
-  const stopRecording = () => {
-    if (isMobile || !recognitionRef.current) {
-      // Stop MediaRecorder
-      if (mediaRecorderRef.current && mediaRecorderRef.current.state !== 'inactive') {
-        mediaRecorderRef.current.stop()
-      }
-    } else {
-      // Stop Web Speech
-      if (recognitionRef.current) {
-        recognitionRef.current.stop()
-        recognitionRef.current = null
-      }
-    }
-    setIsRecording(false)
-  }
-
-  const analyzeWithAI = async (spokenText) => {
-    const q = questions[currentQuestionIndex]
-    if (!spokenText || !q) return
-    setIsAnalyzing(true)
     try {
-      const result = await scoreSpeechWithLLM(
-        q.prompt, spokenText, q.key_points, q.evaluation_criteria,
-        exercise?.content?.level
-      )
-      setAiResult(result)
+      // Phase 1: Upload to Supabase Storage
+      setUploadPhase('uploading')
+      setUploadProgress(0)
+
+      const ext = selectedFile.name.split('.').pop() || 'mp4'
+      const filePath = `${user.id}/${Date.now()}.${ext}`
+
+      // Simulate progress since Supabase JS doesn't expose it
+      const progressInterval = setInterval(() => {
+        setUploadProgress(prev => Math.min(prev + 5, 90))
+      }, 300)
+
+      const { error: uploadError } = await supabase.storage
+        .from('exercise-videos')
+        .upload(filePath, selectedFile, { contentType: selectedFile.type })
+
+      clearInterval(progressInterval)
+      setUploadProgress(100)
+
+      if (uploadError) throw new Error(`Upload failed: ${uploadError.message}`)
+
+      // Get public URL
+      const { data: urlData } = supabase.storage
+        .from('exercise-videos')
+        .getPublicUrl(filePath)
+
+      const publicUrl = urlData?.publicUrl
+      if (!publicUrl) throw new Error('Failed to get video URL')
+
+      // Phase 2: Transcribe via AssemblyAI
+      setUploadPhase('transcribing')
+
+      const transcribeRes = await fetch('/api/transcribe-video', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ url: publicUrl }),
+      })
+
+      if (!transcribeRes.ok) {
+        const errData = await transcribeRes.json().catch(() => ({}))
+        throw new Error(errData.error || 'Transcription failed')
+      }
+
+      const transcribeData = await transcribeRes.json()
+      if (!transcribeData.success) throw new Error(transcribeData.error || 'Transcription failed')
+
+      const spokenText = transcribeData.text || ''
+      setTranscription(spokenText)
+
+      if (!spokenText.trim()) {
+        setAiResult(fallbackResult('No speech detected in your video. Please upload a video with clear spoken audio.'))
+        setUploadPhase('results')
+        return
+      }
+
+      // Phase 3: AI scoring
+      setUploadPhase('scoring')
+      const q = questions[currentQuestionIndex]
+
+      let aiScoreResult
+      try {
+        aiScoreResult = await scoreSpeechWithLLM(
+          q.prompt, spokenText, q.key_points, q.evaluation_criteria,
+          exercise?.content?.level
+        )
+        setAiResult(aiScoreResult)
+      } catch (err) {
+        console.error('AI scoring error:', err)
+        aiScoreResult = fallbackResult()
+        setAiResult(aiScoreResult)
+      }
+
+      // Phase 4: Save submission to DB for teacher review
+      try {
+        await supabase.from('video_submissions').insert({
+          user_id: user.id,
+          exercise_id: exerciseId,
+          session_id: sessionId || null,
+          question_index: currentQuestionIndex,
+          video_url: publicUrl,
+          transcription: spokenText,
+          ai_result: aiScoreResult,
+          ai_score: Math.round(aiScoreResult?.overall_score || 0),
+          status: 'pending',
+        })
+      } catch (err) {
+        console.error('Error saving submission:', err)
+      }
+
+      setUploadPhase('results')
     } catch (err) {
-      console.error('AI scoring error:', err)
-      setAiResult(fallbackResult())
-    } finally {
-      setIsAnalyzing(false)
-      setShowResults(true)
+      console.error('Video processing error:', err)
+      setError(err.message || 'An error occurred. Please try again.')
+      setUploadPhase('idle')
     }
   }
 
@@ -431,17 +297,24 @@ const SpeakingAssessmentExercise = () => {
       overallScore: aiResult?.overall_score || 0,
       aiResult,
     }])
+    // Reset state for next question
     setTranscription('')
-    setInterimTranscription('')
     setAiResult(null)
-    setShowResults(false)
-    finalTranscriptRef.current = ''
+    setUploadPhase('idle')
+    clearFile()
 
     if (currentQuestionIndex < questions.length - 1) {
       setCurrentQuestionIndex(currentQuestionIndex + 1)
     } else {
       setIsQuizComplete(true)
     }
+  }
+
+  const handleRetry = () => {
+    setTranscription('')
+    setAiResult(null)
+    setUploadPhase('idle')
+    clearFile()
   }
 
   const markExerciseCompleted = async () => {
@@ -467,7 +340,7 @@ const SpeakingAssessmentExercise = () => {
   // ── Loading / Error states ─────────────────────────────────────────────────
   if (loading) return <div className="flex justify-center items-center min-h-64"><LoadingSpinner size="lg" /></div>
 
-  if (error && !isRecording && !isTranscribing && !showResults) {
+  if (error && uploadPhase === 'idle' && !selectedFile) {
     return (
       <div className="text-center py-12">
         <div className="text-red-600 mb-4">{error}</div>
@@ -492,7 +365,7 @@ const SpeakingAssessmentExercise = () => {
         {isTeacherView && sessionId && <TeacherExerciseNav sessionId={sessionId} currentExerciseId={exerciseId} />}
         <div className="flex items-center justify-between mb-6">
           <div>
-            <h2 className="text-2xl font-bold text-gray-900">{exercise?.title || 'Speaking Assessment'}</h2>
+            <h2 className="text-2xl font-bold text-gray-900">{exercise?.title || 'Video Upload'}</h2>
             {exercise?.content?.level && (() => { const lc = getLevelConfig(exercise.content.level); return (
               <span className={`inline-flex items-center gap-1 mt-1 px-2 py-0.5 rounded-full text-xs font-medium border ${lc.color}`}>
                 {lc.emoji} {lc.label} · {lc.ageRange}
@@ -502,9 +375,9 @@ const SpeakingAssessmentExercise = () => {
           <div className="flex items-center gap-2">
             <button
               onClick={() => setTeacherPreview(false)}
-              className="flex items-center gap-2 px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 text-sm font-medium"
+              className="flex items-center gap-2 px-4 py-2 bg-teal-600 text-white rounded-lg hover:bg-teal-700 text-sm font-medium"
             >
-              <Mic className="w-4 h-4" /> Attempt Exercise
+              <Video className="w-4 h-4" /> Attempt Exercise
             </button>
             <button onClick={() => session?.units ? navigate(`/study/course/${session.units.course_id}/unit/${session.units.id}/session/${sessionId}`) : navigate(-1)} className="flex items-center gap-2 px-4 py-2 text-gray-600 hover:text-gray-800 border rounded-lg">
               <ArrowLeft className="w-4 h-4" /> Back
@@ -520,9 +393,9 @@ const SpeakingAssessmentExercise = () => {
           {questions.map((q, idx) => (
             <div key={idx} className="bg-white rounded-lg shadow-md p-6 border border-gray-200">
               <div className="flex items-start gap-3">
-                <span className="flex-shrink-0 w-8 h-8 bg-purple-100 text-purple-700 rounded-full flex items-center justify-center font-bold text-sm">{idx + 1}</span>
+                <span className="flex-shrink-0 w-8 h-8 bg-teal-100 text-teal-700 rounded-full flex items-center justify-center font-bold text-sm">{idx + 1}</span>
                 <div className="flex-1">
-                  <p className="text-xs font-medium text-purple-600 uppercase tracking-wide mb-1">Speaking Prompt</p>
+                  <p className="text-xs font-medium text-teal-600 uppercase tracking-wide mb-1">Video Upload Task</p>
                   <div className="text-lg font-semibold text-gray-900 mb-2">
                     <RichTextRenderer content={q.prompt} allowImages={true} />
                   </div>
@@ -530,11 +403,11 @@ const SpeakingAssessmentExercise = () => {
                   {q.key_points?.length > 0 && (
                     <div className="flex flex-wrap gap-1 mt-2">
                       {q.key_points.map((kp, i) => (
-                        <span key={i} className="px-2 py-0.5 bg-purple-100 text-purple-700 text-xs rounded-full">{kp}</span>
+                        <span key={i} className="px-2 py-0.5 bg-teal-100 text-teal-700 text-xs rounded-full">{kp}</span>
                       ))}
                     </div>
                   )}
-                  {q.time_limit > 0 && <p className="text-xs text-gray-500 mt-2">Time limit: {q.time_limit}s</p>}
+                  {q.max_file_size_mb && <p className="text-xs text-gray-500 mt-2">Max file size: {q.max_file_size_mb} MB</p>}
                 </div>
               </div>
             </div>
@@ -585,35 +458,24 @@ const SpeakingAssessmentExercise = () => {
             <div className="mt-3">
               <div className="flex items-center justify-between mb-2">
                 <span className="text-xs text-gray-600">Progress</span>
-                <span className="text-xs font-semibold text-purple-600">{currentQuestionIndex + 1} / {totalQuestions}</span>
+                <span className="text-xs font-semibold text-teal-600">{currentQuestionIndex + 1} / {totalQuestions}</span>
               </div>
               <div className="w-full bg-gray-200 rounded-full h-2.5">
                 <div
-                  className="bg-purple-600 h-2.5 rounded-full transition-all duration-500"
+                  className="bg-teal-600 h-2.5 rounded-full transition-all duration-500"
                   style={{ width: `${((currentQuestionIndex + 1) / totalQuestions) * 100}%` }}
                 />
               </div>
             </div>
-            {timeRemaining !== null && (
-              <div className="mt-3 p-3 bg-orange-50 border border-orange-200 rounded-lg">
-                <div className="flex items-center justify-between">
-                  <span className="text-sm font-medium text-orange-800">Time Remaining</span>
-                  <span className={`text-2xl font-bold ${timeRemaining <= 10 ? 'text-red-600 animate-pulse' : 'text-orange-600'}`}>
-                    {Math.floor(timeRemaining / 60)}:{String(timeRemaining % 60).padStart(2, '0')}
-                  </span>
-                </div>
-                {timeRemaining <= 10 && <p className="text-xs text-red-600 mt-1">Recording will stop soon!</p>}
-              </div>
-            )}
           </div>
 
           {/* Complete screen */}
           {isQuizComplete && (
             <div className="bg-white rounded-lg shadow-md p-8 text-center border border-gray-200">
-              <div className="w-20 h-20 mx-auto mb-4 bg-purple-100 rounded-full flex items-center justify-center">
-                <CheckCircle className="w-10 h-10 text-purple-500" />
+              <div className="w-20 h-20 mx-auto mb-4 bg-teal-100 rounded-full flex items-center justify-center">
+                <CheckCircle className="w-10 h-10 text-teal-500" />
               </div>
-              <h2 className="text-2xl font-bold text-purple-800 mb-2">Exercise Complete!</h2>
+              <h2 className="text-2xl font-bold text-teal-800 mb-2">Exercise Complete!</h2>
               {questionResults.length > 0 && (
                 <p className="text-gray-600 mb-2">
                   Average Score: {Math.round(questionResults.reduce((s, r) => s + (r.overallScore || 0), 0) / questionResults.length)}%
@@ -630,7 +492,7 @@ const SpeakingAssessmentExercise = () => {
                   if (session?.units) navigate(`/study/course/${session.units.course_id}/unit/${session.unit_id}/session/${sessionId}`)
                   else navigate('/study')
                 }}
-                className="w-full max-w-sm mx-auto block px-6 py-3 bg-purple-600 hover:bg-purple-700 text-white rounded-lg font-medium"
+                className="w-full max-w-sm mx-auto block px-6 py-3 bg-teal-600 hover:bg-teal-700 text-white rounded-lg font-medium"
               >
                 Back to Exercise List
               </button>
@@ -639,7 +501,7 @@ const SpeakingAssessmentExercise = () => {
 
           {/* Question card */}
           {!isQuizComplete && currentQuestion && (
-            <div className="bg-white rounded-lg shadow-md p-4 md:p-8 border border-gray-200 border-l-4 border-l-purple-400 relative">
+            <div className="bg-white rounded-lg shadow-md p-4 md:p-8 border border-gray-200 border-l-4 border-l-teal-400 relative">
               <div className="absolute top-4 right-6 flex gap-2 z-20">
                 <div className="w-3 h-3 rounded-full bg-red-500" />
                 <div className="w-3 h-3 rounded-full bg-yellow-500" />
@@ -648,17 +510,14 @@ const SpeakingAssessmentExercise = () => {
 
               <div className="space-y-5 pt-4">
                 <div className="flex items-center gap-2">
-                  <MessageSquare className="w-4 h-4 text-purple-600" />
-                  <span className="text-xs font-semibold text-purple-600 uppercase tracking-wide">
-                    Speaking Task {currentQuestionIndex + 1}
+                  <Video className="w-4 h-4 text-teal-600" />
+                  <span className="text-xs font-semibold text-teal-600 uppercase tracking-wide">
+                    Video Task {currentQuestionIndex + 1}
                   </span>
-                  {isMobile && (
-                    <span className="ml-auto text-xs text-gray-400 bg-gray-100 px-2 py-0.5 rounded-full">AssemblyAI</span>
-                  )}
                 </div>
 
                 {/* Prompt */}
-                <div className="p-4 bg-purple-50 rounded-lg border border-purple-100">
+                <div className="p-4 bg-teal-50 rounded-lg border border-teal-100">
                   <div className="text-xl md:text-2xl font-bold text-gray-900 mb-2">
                     <RichTextRenderer content={currentQuestion.prompt} />
                   </div>
@@ -673,94 +532,143 @@ const SpeakingAssessmentExercise = () => {
                     <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-2">Points to cover:</p>
                     <div className="flex flex-wrap gap-2">
                       {currentQuestion.key_points.map((kp, i) => (
-                        <span key={i} className="px-3 py-1 bg-purple-100 text-purple-700 text-sm rounded-full">{kp}</span>
+                        <span key={i} className="px-3 py-1 bg-teal-100 text-teal-700 text-sm rounded-full">{kp}</span>
                       ))}
                     </div>
                   </div>
                 )}
 
-                {/* Recording section */}
-                {!showResults && !isAnalyzing && !isTranscribing && (
-                  <div className="flex flex-col items-center space-y-4 py-4">
+                {/* Upload section */}
+                {uploadPhase === 'idle' && (
+                  <div className="space-y-4">
                     {error && (
                       <div className="w-full p-3 bg-red-50 border border-red-200 rounded-lg text-sm text-red-700 text-center">
                         {error}
                       </div>
                     )}
 
-                    <button
-                      onClick={isRecording ? stopRecording : startRecording}
-                      className={`w-24 h-24 rounded-full flex items-center justify-center transition-all transform hover:scale-105 ${
-                        isRecording
-                          ? 'bg-red-500 animate-pulse shadow-xl shadow-red-200'
-                          : 'bg-purple-600 hover:bg-purple-700 shadow-lg'
-                      }`}
-                    >
-                      {isRecording
-                        ? <Square className="w-9 h-9 text-white" />
-                        : <Mic className="w-9 h-9 text-white" />}
-                    </button>
-                    <p className="text-sm text-gray-500">
-                      {isRecording ? 'Recording… tap to stop' : 'Tap to start speaking'}
-                    </p>
-
-                    {/* Live transcription (desktop only — mobile gets it after stop) */}
-                    {(transcription || interimTranscription) && (
-                      <div className="w-full p-4 bg-gray-50 border border-gray-200 rounded-lg">
-                        <p className="text-xs font-semibold text-gray-500 mb-2">Your speech:</p>
-                        <p className="text-gray-800">
-                          {transcription}
-                          <span className="text-gray-400 italic">{interimTranscription}</span>
+                    {!selectedFile ? (
+                      <div
+                        onDrop={handleDrop}
+                        onDragOver={handleDragOver}
+                        onDragLeave={handleDragLeave}
+                        onClick={() => fileInputRef.current?.click()}
+                        className={`flex flex-col items-center justify-center py-12 px-6 border-2 border-dashed rounded-xl cursor-pointer transition-all ${
+                          isDragOver
+                            ? 'border-teal-500 bg-teal-50'
+                            : 'border-gray-300 hover:border-teal-400 hover:bg-gray-50'
+                        }`}
+                      >
+                        <Upload className={`w-12 h-12 mb-3 ${isDragOver ? 'text-teal-500' : 'text-gray-400'}`} />
+                        <p className="text-sm font-medium text-gray-700 mb-1">
+                          {isDragOver ? 'Drop your video here' : 'Click or drag & drop to upload'}
                         </p>
+                        <p className="text-xs text-gray-500">
+                          MP4, WebM, or MOV · Max {currentQuestion.max_file_size_mb || 50} MB
+                        </p>
+                        <input
+                          ref={fileInputRef}
+                          type="file"
+                          accept="video/mp4,video/webm,video/quicktime"
+                          onChange={(e) => e.target.files?.[0] && handleFileSelect(e.target.files[0])}
+                          className="hidden"
+                        />
+                      </div>
+                    ) : (
+                      <div className="space-y-4">
+                        {/* Video preview */}
+                        <div className="relative rounded-xl overflow-hidden bg-black">
+                          <video
+                            src={videoPreviewUrl}
+                            controls
+                            className="w-full max-h-80 object-contain"
+                          />
+                          <button
+                            onClick={clearFile}
+                            className="absolute top-2 right-2 p-1.5 bg-black/60 hover:bg-black/80 text-white rounded-full transition-colors"
+                            title="Remove video"
+                          >
+                            <X className="w-4 h-4" />
+                          </button>
+                        </div>
+                        <div className="flex items-center justify-between text-sm text-gray-600">
+                          <span className="truncate max-w-xs">{selectedFile.name}</span>
+                          <span>{(selectedFile.size / (1024 * 1024)).toFixed(1)} MB</span>
+                        </div>
+                        <button
+                          onClick={handleSubmitVideo}
+                          className="w-full flex items-center justify-center gap-2 px-6 py-3 bg-teal-600 hover:bg-teal-700 text-white rounded-lg font-medium transition-colors"
+                        >
+                          <Upload className="w-5 h-5" />
+                          Submit Video for Review
+                        </button>
                       </div>
                     )}
-
-                    {/* Manual re-analyze button */}
-                    {transcription && !isRecording && (
-                      <button
-                        onClick={() => analyzeWithAI(transcription)}
-                        className="flex items-center gap-2 px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700"
-                      >
-                        <CheckCircle className="w-4 h-4" /> Analyze My Response
-                      </button>
-                    )}
                   </div>
                 )}
 
-                {/* Transcribing (AssemblyAI) */}
-                {isTranscribing && (
+                {/* Uploading */}
+                {uploadPhase === 'uploading' && (
+                  <div className="flex flex-col items-center py-8 space-y-4">
+                    <Upload className="w-10 h-10 text-teal-500 animate-bounce" />
+                    <p className="text-gray-600 font-medium">Uploading video...</p>
+                    <div className="w-full max-w-xs bg-gray-200 rounded-full h-2.5">
+                      <div
+                        className="bg-teal-500 h-2.5 rounded-full transition-all duration-300"
+                        style={{ width: `${uploadProgress}%` }}
+                      />
+                    </div>
+                    <p className="text-xs text-gray-500">{uploadProgress}%</p>
+                  </div>
+                )}
+
+                {/* Transcribing */}
+                {uploadPhase === 'transcribing' && (
                   <div className="flex flex-col items-center py-8 space-y-3">
                     <RefreshCw className="w-10 h-10 text-blue-500 animate-spin" />
-                    <p className="text-gray-600 font-medium">Transcribing your audio…</p>
+                    <p className="text-gray-600 font-medium">Transcribing speech from your video...</p>
+                    <p className="text-xs text-gray-400">This may take up to a minute</p>
                   </div>
                 )}
 
-                {/* Analyzing */}
-                {isAnalyzing && (
+                {/* Scoring */}
+                {uploadPhase === 'scoring' && (
                   <div className="flex flex-col items-center py-8 space-y-3">
-                    <RefreshCw className="w-10 h-10 text-purple-600 animate-spin" />
-                    <p className="text-gray-600 font-medium">AI is scoring your response…</p>
+                    <RefreshCw className="w-10 h-10 text-teal-600 animate-spin" />
+                    <p className="text-gray-600 font-medium">AI is scoring your response...</p>
                   </div>
                 )}
 
                 {/* Results */}
-                {showResults && aiResult && (
+                {uploadPhase === 'results' && aiResult && (
                   <div className="space-y-4">
+                    {/* Pending teacher review banner */}
+                    <div className="p-4 bg-amber-50 border border-amber-200 rounded-lg flex items-start gap-3">
+                      <Clock className="w-5 h-5 text-amber-600 flex-shrink-0 mt-0.5" />
+                      <div>
+                        <p className="text-sm font-semibold text-amber-800">Submitted for teacher review</p>
+                        <p className="text-xs text-amber-700 mt-0.5">
+                          The AI score below is a reference. Your teacher will review your video and give the final score.
+                        </p>
+                      </div>
+                    </div>
+
                     {transcription && (
                       <div className="p-3 bg-gray-50 border border-gray-200 rounded-lg">
-                        <p className="text-xs font-semibold text-gray-500 mb-1">You said:</p>
+                        <p className="text-xs font-semibold text-gray-500 mb-1">Transcription:</p>
                         <p className="text-sm text-gray-800 italic">"{transcription}"</p>
                       </div>
                     )}
 
-                    {/* Overall score ring */}
+                    {/* AI score (reference only) */}
+                    <p className="text-xs text-center text-gray-400 uppercase tracking-wide">AI Reference Score</p>
                     <div className="flex flex-col items-center py-4">
                       <div className="relative w-36 h-36">
                         <svg className="w-36 h-36 transform -rotate-90">
                           <circle cx="72" cy="72" r="60" stroke="#e5e7eb" strokeWidth="14" fill="none" />
                           <circle
                             cx="72" cy="72" r="60"
-                            stroke={aiResult.overall_score >= 80 ? '#9333ea' : aiResult.overall_score >= 60 ? '#eab308' : '#ef4444'}
+                            stroke={aiResult.overall_score >= 80 ? '#0d9488' : aiResult.overall_score >= 60 ? '#eab308' : '#ef4444'}
                             strokeWidth="14" fill="none"
                             strokeDasharray={`${2 * Math.PI * 60}`}
                             strokeDashoffset={`${2 * Math.PI * 60 * (1 - (aiResult.overall_score || 0) / 100)}`}
@@ -802,22 +710,22 @@ const SpeakingAssessmentExercise = () => {
                       </div>
                     )}
                     {aiResult.sample_improvement && (
-                      <div className="p-4 bg-purple-50 border border-purple-200 rounded-lg">
-                        <p className="text-sm font-semibold text-purple-800 mb-1">Example improvement</p>
-                        <p className="text-sm text-purple-700 italic">"{aiResult.sample_improvement}"</p>
+                      <div className="p-4 bg-teal-50 border border-teal-200 rounded-lg">
+                        <p className="text-sm font-semibold text-teal-800 mb-1">Example improvement</p>
+                        <p className="text-sm text-teal-700 italic">"{aiResult.sample_improvement}"</p>
                       </div>
                     )}
 
                     <div className="flex gap-3 justify-between pt-2">
                       <button
-                        onClick={() => { setTranscription(''); setAiResult(null); setShowResults(false); finalTranscriptRef.current = '' }}
+                        onClick={handleRetry}
                         className="flex items-center gap-2 px-4 py-2 text-gray-600 border border-gray-300 rounded-lg hover:bg-gray-50"
                       >
                         <RefreshCw className="w-4 h-4" /> Try Again
                       </button>
                       <button
                         onClick={handleNextQuestion}
-                        className="flex items-center gap-2 px-6 py-2 bg-purple-600 hover:bg-purple-700 text-white rounded-lg font-medium"
+                        className="flex items-center gap-2 px-6 py-2 bg-teal-600 hover:bg-teal-700 text-white rounded-lg font-medium"
                       >
                         {currentQuestionIndex < questions.length - 1
                           ? <><span>Next</span><ArrowRight className="w-4 h-4" /></>
@@ -835,4 +743,4 @@ const SpeakingAssessmentExercise = () => {
   )
 }
 
-export default SpeakingAssessmentExercise
+export default VideoUploadExercise

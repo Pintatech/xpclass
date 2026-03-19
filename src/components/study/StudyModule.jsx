@@ -13,6 +13,7 @@ import PronunciationExercise from '../exercises/PronunciationExercise'
 import ImageHotspotExercise from '../exercises/ImageHotspotExercise'
 import PDFWorksheetExercise from '../exercises/PDFWorksheetExercise'
 import SpeakingAssessmentExercise from '../exercises/SpeakingAssessmentExercise'
+import VideoUploadExercise from '../exercises/VideoUploadExercise'
 import TestRunner from '../test/TestRunner'
 
 const StudyModule = () => {
@@ -47,6 +48,7 @@ const StudyModule = () => {
       <Route path="image-hotspot" element={<ImageHotspotExercise />} />
       <Route path="pdf-worksheet" element={<PDFWorksheetExercise />} />
       <Route path="speaking-assessment" element={<SpeakingAssessmentExercise />} />
+      <Route path="video-upload" element={<VideoUploadExercise />} />
     </Routes>
   )
 }
