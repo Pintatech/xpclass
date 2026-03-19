@@ -339,8 +339,12 @@ const PetAngryPet = ({ petImageUrl, petName, onGameEnd, onClose, questionBank: q
 
   // Play level-complete sound on successful results
   useEffect(() => {
-    if (phase === 'results' && questionsCorrect >= 10) {
-      playSound('https://xpclass.vn/xpclass/pet-game/angry/angry-birds-level-complete.mp3', 0.5)
+    if (phase === 'results') {
+      if (questionsCorrect >= 10) {
+        playSound('https://xpclass.vn/xpclass/pet-game/angry/angry-birds-level-complete.mp3', 0.5)
+      } else {
+        playSound('https://xpclass.vn/xpclass/pet-game/angry/angry-birds-level-failed.mp3', 0.5)
+      }
     }
   }, [phase, questionsCorrect, playSound])
 

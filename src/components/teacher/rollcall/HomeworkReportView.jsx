@@ -20,6 +20,8 @@ const HomeworkReportView = ({ students, courseId, records, onChange, onMarkAll, 
   const feedbackRefs = useRef({});
   const scoreRefs = useRef({});
   const maxScoreRefs = useRef({});
+  const vocabScoreRefs = useRef({});
+  const vocabMaxScoreRefs = useRef({});
   const [uploading, setUploading] = useState({});
 
   useEffect(() => {
@@ -330,7 +332,6 @@ const HomeworkReportView = ({ students, courseId, records, onChange, onMarkAll, 
                 const p = progress[student.id];
                 const record = records[student.id] || {};
                 const grade = record.homework_status || '';
-                const pct = p && p.max_score > 0 ? Math.round((p.score / p.max_score) * 100) : null;
 
                 return (
                   <div key={student.id} className="flex flex-col md:flex-row md:items-center md:justify-between p-3 md:p-4 border-b last:border-b-0 hover:bg-gray-50 gap-2">
@@ -350,11 +351,11 @@ const HomeworkReportView = ({ students, courseId, records, onChange, onMarkAll, 
                           <p className="text-xs text-gray-400 truncate">{student.email.split('@')[0]}</p>
                         )}
                       </div>
-                      {pct !== null && (
-                        <span className="text-xs md:text-sm text-gray-400 flex-shrink-0">{pct}%</span>
+                      {p && p.max_score > 0 && (
+                        <span className="text-xs md:text-sm text-gray-400 flex-shrink-0">{p.score}/{p.max_score}</span>
                       )}
                     </div>
-                    <div className="flex items-center gap-2 md:gap-3 flex-shrink-0">
+                    <div className="flex items-end gap-4 md:gap-6 flex-shrink-0">
                       {renderPhotoButton(student.id, record)}
                       <input
                         type="text"
@@ -363,6 +364,52 @@ const HomeworkReportView = ({ students, courseId, records, onChange, onMarkAll, 
                         onChange={(e) => onChange(student.id, { homework_notes: e.target.value })}
                         className="border border-gray-300 rounded-lg px-2 md:px-3 py-1.5 md:py-2 flex-1 md:w-48 md:flex-none text-sm focus:ring-2 focus:ring-blue-500 min-w-0"
                       />
+                      <div className="flex items-center gap-8 flex-shrink-0">
+                        <div className="flex flex-col items-center gap-0.5">
+                          <span className="text-[10px] text-gray-400 leading-none">Bài tập</span>
+                          <div className="flex items-center gap-0.5">
+                            <input
+                              type="number"
+                              min="0"
+                              placeholder="—"
+                              value={record.homework_score ?? ''}
+                              onChange={(e) => onChange(student.id, { homework_score: e.target.value === '' ? null : Number(e.target.value) })}
+                              className="w-10 md:w-12 border border-gray-300 rounded-lg px-1 py-1.5 md:py-2 text-center text-xs md:text-sm focus:ring-2 focus:ring-blue-500"
+                            />
+                            <span className="text-gray-400 text-xs">/</span>
+                            <input
+                              type="number"
+                              min="1"
+                              placeholder="—"
+                              value={record.homework_max_score ?? ''}
+                              onChange={(e) => onChange(student.id, { homework_max_score: e.target.value === '' ? null : Number(e.target.value) })}
+                              className="w-10 md:w-12 border border-gray-300 rounded-lg px-1 py-1.5 md:py-2 text-center text-xs md:text-sm focus:ring-2 focus:ring-blue-500"
+                            />
+                          </div>
+                        </div>
+                        <div className="flex flex-col items-center gap-0.5">
+                          <span className="text-[10px] text-gray-400 leading-none">Từ vựng</span>
+                          <div className="flex items-center gap-0.5">
+                            <input
+                              type="number"
+                              min="0"
+                              placeholder="—"
+                              value={record.vocab_score ?? ''}
+                              onChange={(e) => onChange(student.id, { vocab_score: e.target.value === '' ? null : Number(e.target.value) })}
+                              className="w-10 md:w-12 border border-gray-300 rounded-lg px-1 py-1.5 md:py-2 text-center text-xs md:text-sm focus:ring-2 focus:ring-blue-500"
+                            />
+                            <span className="text-gray-400 text-xs">/</span>
+                            <input
+                              type="number"
+                              min="1"
+                              placeholder="—"
+                              value={record.vocab_max_score ?? ''}
+                              onChange={(e) => onChange(student.id, { vocab_max_score: e.target.value === '' ? null : Number(e.target.value) })}
+                              className="w-10 md:w-12 border border-gray-300 rounded-lg px-1 py-1.5 md:py-2 text-center text-xs md:text-sm focus:ring-2 focus:ring-blue-500"
+                            />
+                          </div>
+                        </div>
+                      </div>
                       <div className="flex gap-1 flex-shrink-0">
                         {gradeOptions.map(opt => (
                           <button
@@ -432,7 +479,7 @@ const HomeworkReportView = ({ students, courseId, records, onChange, onMarkAll, 
                       </div>
                     </div>
 
-                    <div className="flex items-center gap-2 md:gap-3 flex-shrink-0">
+                    <div className="flex items-end gap-4 md:gap-6 flex-shrink-0">
                       {renderPhotoButton(student.id, record)}
                       <input
                         ref={el => feedbackRefs.current[student.id] = el}
@@ -448,40 +495,81 @@ const HomeworkReportView = ({ students, courseId, records, onChange, onMarkAll, 
                         }}
                         className="border border-gray-300 rounded-lg px-2 md:px-3 py-1.5 md:py-2 flex-1 md:w-48 md:flex-none text-sm focus:ring-2 focus:ring-blue-500 min-w-0"
                       />
-                      <div className="flex items-center gap-0.5 flex-shrink-0">
-                        <input
-                          ref={el => scoreRefs.current[student.id] = el}
-                          type="number"
-                          min="0"
-                          placeholder="—"
-                          value={record.homework_score ?? ''}
-                          onChange={(e) => onChange(student.id, { homework_score: e.target.value === '' ? null : Number(e.target.value) })}
-                          onKeyDown={(e) => {
-                            if (e.key === 'Enter') {
-                              e.preventDefault();
-                              maxScoreRefs.current[student.id]?.focus();
-                            }
-                          }}
-                          className="w-10 md:w-12 border border-gray-300 rounded-lg px-1 py-1.5 md:py-2 text-center text-xs md:text-sm focus:ring-2 focus:ring-blue-500"
-                        />
-                        <span className="text-gray-400 text-xs">/</span>
-                        <input
-                          ref={el => maxScoreRefs.current[student.id] = el}
-                          type="number"
-                          min="1"
-                          placeholder="—"
-                          value={record.homework_max_score ?? ''}
-                          onChange={(e) => onChange(student.id, { homework_max_score: e.target.value === '' ? null : Number(e.target.value) })}
-                          onKeyDown={(e) => {
-                            if (e.key === 'Enter') {
-                              e.preventDefault();
-                              const idx = students.findIndex(s => s.id === student.id);
-                              const next = students[idx + 1];
-                              if (next) feedbackRefs.current[next.id]?.focus();
-                            }
-                          }}
-                          className="w-10 md:w-12 border border-gray-300 rounded-lg px-1 py-1.5 md:py-2 text-center text-xs md:text-sm focus:ring-2 focus:ring-blue-500"
-                        />
+                      <div className="flex items-center gap-8 flex-shrink-0">
+                        <div className="flex flex-col items-center gap-0.5">
+                          <span className="text-[10px] text-gray-400 leading-none">Bài tập</span>
+                          <div className="flex items-center gap-0.5">
+                            <input
+                              ref={el => scoreRefs.current[student.id] = el}
+                              type="number"
+                              min="0"
+                              placeholder="—"
+                              value={record.homework_score ?? ''}
+                              onChange={(e) => onChange(student.id, { homework_score: e.target.value === '' ? null : Number(e.target.value) })}
+                              onKeyDown={(e) => {
+                                if (e.key === 'Enter') {
+                                  e.preventDefault();
+                                  maxScoreRefs.current[student.id]?.focus();
+                                }
+                              }}
+                              className="w-10 md:w-12 border border-gray-300 rounded-lg px-1 py-1.5 md:py-2 text-center text-xs md:text-sm focus:ring-2 focus:ring-blue-500"
+                            />
+                            <span className="text-gray-400 text-xs">/</span>
+                            <input
+                              ref={el => maxScoreRefs.current[student.id] = el}
+                              type="number"
+                              min="1"
+                              placeholder="—"
+                              value={record.homework_max_score ?? ''}
+                              onChange={(e) => onChange(student.id, { homework_max_score: e.target.value === '' ? null : Number(e.target.value) })}
+                              onKeyDown={(e) => {
+                                if (e.key === 'Enter') {
+                                  e.preventDefault();
+                                  vocabScoreRefs.current[student.id]?.focus();
+                                }
+                              }}
+                              className="w-10 md:w-12 border border-gray-300 rounded-lg px-1 py-1.5 md:py-2 text-center text-xs md:text-sm focus:ring-2 focus:ring-blue-500"
+                            />
+                          </div>
+                        </div>
+                        <div className="flex flex-col items-center gap-0.5">
+                          <span className="text-[10px] text-gray-400 leading-none">Từ vựng</span>
+                          <div className="flex items-center gap-0.5">
+                            <input
+                              ref={el => vocabScoreRefs.current[student.id] = el}
+                              type="number"
+                              min="0"
+                              placeholder="—"
+                              value={record.vocab_score ?? ''}
+                              onChange={(e) => onChange(student.id, { vocab_score: e.target.value === '' ? null : Number(e.target.value) })}
+                              onKeyDown={(e) => {
+                                if (e.key === 'Enter') {
+                                  e.preventDefault();
+                                  vocabMaxScoreRefs.current[student.id]?.focus();
+                                }
+                              }}
+                              className="w-10 md:w-12 border border-gray-300 rounded-lg px-1 py-1.5 md:py-2 text-center text-xs md:text-sm focus:ring-2 focus:ring-blue-500"
+                            />
+                            <span className="text-gray-400 text-xs">/</span>
+                            <input
+                              ref={el => vocabMaxScoreRefs.current[student.id] = el}
+                              type="number"
+                              min="1"
+                              placeholder="—"
+                              value={record.vocab_max_score ?? ''}
+                              onChange={(e) => onChange(student.id, { vocab_max_score: e.target.value === '' ? null : Number(e.target.value) })}
+                              onKeyDown={(e) => {
+                                if (e.key === 'Enter') {
+                                  e.preventDefault();
+                                  const idx = students.findIndex(s => s.id === student.id);
+                                  const next = students[idx + 1];
+                                  if (next) feedbackRefs.current[next.id]?.focus();
+                                }
+                              }}
+                              className="w-10 md:w-12 border border-gray-300 rounded-lg px-1 py-1.5 md:py-2 text-center text-xs md:text-sm focus:ring-2 focus:ring-blue-500"
+                            />
+                          </div>
+                        </div>
                       </div>
                       <div className="flex gap-1 flex-shrink-0">
                         {gradeOptions.map(opt => (
