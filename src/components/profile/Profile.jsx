@@ -28,14 +28,15 @@ import {
   Upload,
   AlertCircle,
   CheckCircle,
-  XCircle
+  XCircle,
+  LogOut
 } from 'lucide-react'
 
 const Profile = () => {
   const { userId } = useParams()
   const navigate = useNavigate()
   const [searchParams, setSearchParams] = useSearchParams()
-  const { user, profile, updateProfile } = useAuth()
+  const { user, profile, updateProfile, signOut } = useAuth()
   const {
     currentLevel,
     nextLevel,
@@ -1593,6 +1594,19 @@ const Profile = () => {
               )}
             </div>
           </div>
+        </div>
+      )}
+
+      {/* Log Out Button */}
+      {isOwnProfile && (
+        <div className="mt-6 mb-8 flex justify-center">
+          <button
+            onClick={async () => { await signOut(); navigate('/login'); }}
+            className="flex items-center gap-2 px-6 py-3 rounded-xl bg-red-50 text-red-600 font-semibold hover:bg-red-100 transition-colors border border-red-200"
+          >
+            <LogOut className="w-5 h-5" />
+            Log Out
+          </button>
         </div>
       )}
     </div>

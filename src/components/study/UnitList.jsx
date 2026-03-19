@@ -19,7 +19,11 @@ import {
   List,
   Trash2,
   FileText,
+  BarChart3,
+  ClipboardList,
 } from "lucide-react";
+import StudentStatsPopover from "../ui/StudentStatsPopover";
+import useClassStats from "../../hooks/useClassStats";
 
 // Theme-based background images for unit cards
 const getThemeBackground = (colorTheme) => {
@@ -81,6 +85,7 @@ const UnitList = () => {
   const [editingUnit, setEditingUnit] = useState(null);
   const { user, profile } = useAuth();
   const { canCreateContent } = usePermissions();
+  const { sessionStats: classStats } = useClassStats(currentId);
 
   // Skeletons
   const SkeletonCard = () => (
@@ -588,6 +593,23 @@ const UnitList = () => {
                 {session.title}
               </h3>
             </div>
+
+            {/* Teacher stats badge with hover popover */}
+            {canCreateContent() && classStats?.[session.id] && (
+              <div className="absolute -bottom-1 left-1/2 -translate-x-1/2 z-40">
+                <StudentStatsPopover stats={classStats[session.id]}>
+                  <div className={`rounded px-1.5 py-0.5 text-[8px] font-bold leading-none whitespace-nowrap shadow-sm cursor-default ${
+                    classStats[session.id].completed === classStats[session.id].total
+                      ? 'bg-green-500 text-white'
+                      : classStats[session.id].completed > 0
+                        ? 'bg-yellow-400 text-gray-800'
+                        : 'bg-gray-200 text-gray-600'
+                  }`}>
+                    {classStats[session.id].completed}/{classStats[session.id].total}
+                  </div>
+                </StudentStatsPopover>
+              </div>
+            )}
           </span>
         </div>
       </div>
@@ -648,6 +670,28 @@ const UnitList = () => {
                 Quay lại
               </Button>
             </div>
+            {canCreateContent() && (
+              <div className="flex items-center space-x-2">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => navigate(`/teacher/class-reports?course=${currentId}`)}
+                  className="flex items-center space-x-2 bg-green-50 border-green-200 text-green-700 hover:bg-green-100"
+                >
+                  <ClipboardList className="w-4 h-4" />
+                  <span>Điểm danh</span>
+                </Button>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => navigate(`/teacher/course-report/${currentId}`)}
+                  className="flex items-center space-x-2 bg-purple-50 border-purple-200 text-purple-700 hover:bg-purple-100"
+                >
+                  <BarChart3 className="w-4 h-4" />
+                  <span>Report</span>
+                </Button>
+              </div>
+            )}
           </div>
         </div>
 

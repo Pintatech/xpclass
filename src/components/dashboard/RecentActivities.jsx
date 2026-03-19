@@ -1,10 +1,30 @@
 import React, { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { supabase } from '../../supabase/client'
-import { Clock, Star, Trophy, BookOpen, Edit3, HelpCircle, Award, Crown } from 'lucide-react'
+import { Clock, Trophy } from 'lucide-react'
 import AvatarWithFrame from '../ui/AvatarWithFrame'
 
 import { assetUrl } from '../../hooks/useBranding';
+
+const MISSION_IMAGE_MAP = {
+  'target': '/icon/dashboard/wow.svg',
+  'star': '/image/3_star.png',
+  'trophy': '/icon/profile/paper.svg',
+  'flame': '/icon/profile/streak.svg',
+  'swords': '/icon/dashboard/pvp.png',
+  'gamepad-2': '/image/dashboard/pet-type.webp',
+  'book-open': '/image/dashboard/match1.png',
+  'graduation-cap': '/pet-game/mole-whacked.png',
+  'zap': '/image/chest/legendary-chest.png',
+  'gem': '/pet-game/astro/alien1.png',
+  'medal': '/image/dashboard/pet-train.svg',
+  'gift': '/image/dashboard/pet-scramble.jpg',
+  'package-open': '/image/inventory/spaceship/phantom-voyager.png',
+  'joystick': '/pet-game/astro/alien4.png',
+}
+const DEFAULT_MISSION_IMAGE = '/icon/dashboard/wow.svg'
+const getMissionImage = (iconName) => MISSION_IMAGE_MAP[iconName] || DEFAULT_MISSION_IMAGE
+
 const RecentActivities = () => {
   const navigate = useNavigate()
   const [activities, setActivities] = useState([])
@@ -51,6 +71,37 @@ const RecentActivities = () => {
 
       if (achievementError) throw achievementError
 
+      // Fetch claimed missions with user and mission data
+      const { data: missionData, error: missionError } = await supabase
+        .from('user_missions')
+        .select(`
+          id,
+          user_id,
+          mission_id,
+          updated_at,
+          users:user_id (
+            id,
+            full_name,
+            avatar_url,
+            active_title,
+            active_frame_ratio,
+            hide_frame
+          ),
+          missions:mission_id (
+            id,
+            title,
+            reward_xp,
+            reward_gems,
+            mission_type,
+            icon
+          )
+        `)
+        .eq('status', 'claimed')
+        .order('updated_at', { ascending: false })
+        .limit(20)
+
+      if (missionError) throw missionError
+
       // Process achievement claims
       const achievementActivities = (achievementData || [])
         .filter(achievement => achievement.users && achievement.achievements)
@@ -60,7 +111,21 @@ const RecentActivities = () => {
           activity_date: achievement.claimed_at
         }))
 
-      setActivities(achievementActivities)
+      // Process mission claims
+      const missionActivities = (missionData || [])
+        .filter(mission => mission.users && mission.missions)
+        .map(mission => ({
+          ...mission,
+          type: 'mission',
+          activity_date: mission.updated_at
+        }))
+
+      // Merge and sort by date
+      const allActivities = [...achievementActivities, ...missionActivities]
+        .sort((a, b) => new Date(b.activity_date) - new Date(a.activity_date))
+        .slice(0, 20)
+
+      setActivities(allActivities)
     } catch (error) {
       console.error('Error fetching recent activities:', error)
       setActivities([])
@@ -114,13 +179,13 @@ const RecentActivities = () => {
 
       <div className="space-y-3 max-h-96 overflow-y-auto">
         {activities.map((activity) => (
-          <div key={`achievement-${activity.id}`} className="flex items-center space-x-3 p-3 rounded-lg hover:bg-yellow-50 transition-colors">
+          <div key={`${activity.type}-${activity.id}`} className={`flex items-center space-x-3 p-3 rounded-lg transition-colors ${activity.type === 'mission' ? 'hover:bg-blue-50' : 'hover:bg-yellow-50'}`}>
             {/* User Avatar with Frame */}
             <AvatarWithFrame
               avatarUrl={activity.users.avatar_url}
               frameUrl={activity.users.hide_frame ? null : activity.users.active_title}
               frameRatio={activity.users.active_frame_ratio}
-              size={32}
+              size={40}
               fallback={activity.users.full_name?.charAt(0) || 'U'}
               onClick={() => handleUserClick(activity.users.id)}
               className="cursor-pointer hover:ring-2 hover:ring-yellow-400 rounded-full transition-all"
@@ -129,7 +194,11 @@ const RecentActivities = () => {
             {/* Activity Content */}
             <div className="flex-1 min-w-0">
               <div className="flex items-center space-x-2">
-                <img src={assetUrl('/icon/profile/achievement.svg')} alt="achievement" className="w-4 h-4 flex-shrink-0" />
+                {activity.type === 'mission' ? (
+                  <img src={getMissionImage(activity.missions.icon).startsWith('http') ? getMissionImage(activity.missions.icon) : assetUrl(getMissionImage(activity.missions.icon))} alt="mission" className="w-4 h-4 flex-shrink-0 object-contain" />
+                ) : (
+                  <img src={assetUrl('/icon/profile/achievement.svg')} alt="achievement" className="w-4 h-4 flex-shrink-0" />
+                )}
                 <span
                   className="text-sm font-medium text-gray-900 truncate cursor-pointer hover:text-yellow-600 transition-colors"
                   onClick={() => handleUserClick(activity.users.id)}
@@ -137,15 +206,17 @@ const RecentActivities = () => {
                   {activity.users.full_name || 'Người dùng'}
                 </span>
               </div>
-              <p className="text-sm text-gray-600 truncate">
-                đạt thành tích <span className="font-medium text-yellow-700">{activity.achievements.title}</span>
-              </p>
-            </div>
-
-            {/* XP Reward */}
-            <div className="flex items-center space-x-1 text-yellow-600 font-medium">
-              <Star className="w-4 h-4" />
-              <span className="text-sm">+{activity.achievements.xp_reward || 0}</span>
+              {activity.type === 'mission' ? (
+                <p className="text-sm text-gray-600">
+                  hoàn thành nhiệm vụ <span className="font-medium text-blue-700">{activity.missions.title}</span>
+                  {' '}<span className="inline-flex items-center text-yellow-600 font-medium whitespace-nowrap"><img src={assetUrl('/image/study/xp.png')} alt="XP" className="w-3 h-3 inline mr-0.5" />+{activity.missions.reward_xp || 0}</span>
+                </p>
+              ) : (
+                <p className="text-sm text-gray-600">
+                  đạt thành tích <span className="font-medium text-yellow-700">{activity.achievements.title}</span>
+                  {' '}<span className="inline-flex items-center text-yellow-600 font-medium whitespace-nowrap"><img src={assetUrl('/image/study/xp.png')} alt="XP" className="w-3 h-3 inline mr-0.5" />+{activity.achievements.xp_reward || 0}</span>
+                </p>
+              )}
             </div>
           </div>
         ))}

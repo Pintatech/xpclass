@@ -1,100 +1,154 @@
-import React, { useState, useEffect, useRef, useCallback } from 'react'
+import { useState, useEffect, useRef, useCallback } from 'react'
 import { createPortal } from 'react-dom'
 import { X, Trophy } from 'lucide-react'
 
 import { assetUrl } from '../../hooks/useBranding';
-const FOOD_ITEMS = [
-  { emoji: '🍎', points: 10, weight: 30, color: '#ef4444' },
-  { emoji: '🍕', points: 15, weight: 25, color: '#f97316' },
-  { emoji: '🍖', points: 20, weight: 20, color: '#a16207' },
-  { emoji: '🍪', points: 25, weight: 15, color: '#d97706' },
-  { emoji: '🌟', points: 50, weight: 10, color: '#eab308', golden: true },
-]
 
-const GAME_DURATION = 30
-const SPAWN_INTERVAL_START = 800
-const SPAWN_INTERVAL_END = 350
-const FALL_SPEED_START = 120
-const FALL_SPEED_END = 280
-const BASKET_WIDTH = 80
-const ITEM_SIZE = 40
-const CATCH_ZONE_HEIGHT = 110
+const GAME_DURATION = 60
+const PET_SIZE = 64
+const FRUIT_SIZE = 48
+const CATCH_RADIUS = 44
+const POINTS_CORRECT = 20
+const POINTS_WRONG = -5
+const QUESTION_DELAY = 1000
 
-const PetCatchGame = ({ bowlImageUrl, petName, onGameEnd, onClose, chestEnabled = false }) => {
+const FRUIT_EMOJIS = ['🍈', '🍉', '🍊', '🍋', '🍌', '🍍', '🥭', '🍎', '🍏', '🍐', '🍑', '🍒', '🍓', '🍅', '🍆', '🌽', '🥑', '🍕', '🍔', '🌭', '🥨', '🍞', '🌮', '🥪', '🍗', '🍖', '🍩', '🍰', '🧁']
+
+const shuffle = (arr) => {
+  const a = [...arr]
+  for (let i = a.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [a[i], a[j]] = [a[j], a[i]]
+  }
+  return a
+}
+
+const PetCatchGame = ({ petImageUrl, petName, onGameEnd, onClose, questionBank: questionBankProp = [], chestEnabled = false }) => {
   const [phase, setPhase] = useState('countdown')
   const [displayScore, setDisplayScore] = useState(0)
   const [displayTime, setDisplayTime] = useState(GAME_DURATION)
   const [countdownNumber, setCountdownNumber] = useState(3)
   const [catchEffects, setCatchEffects] = useState([])
-  const [renderTick, setRenderTick] = useState(0)
+  const [, setRenderTick] = useState(0)
+  const [currentQuestion, setCurrentQuestion] = useState(null)
+  const [questionsCorrect, setQuestionsCorrect] = useState(0)
+  const [questionsTotal, setQuestionsTotal] = useState(0)
+  const [feedback, setFeedback] = useState(null)
+  const [streak, setStreak] = useState(0)
+  const [fruits, setFruits] = useState([]) // displayed fruit choices
 
   const [chestCollected, setChestCollected] = useState(false)
   const [chestPopup, setChestPopup] = useState(false)
 
   const gameAreaRef = useRef(null)
-  const basketXRef = useRef(0.5)
-  const itemsRef = useRef([])
+  const petPosRef = useRef({ x: 0.5, y: 0.85 })
   const scoreRef = useRef(0)
   const timeRef = useRef(GAME_DURATION)
-  const lastSpawnRef = useRef(0)
   const animFrameRef = useRef(null)
   const lastFrameTimeRef = useRef(0)
   const gameStartTimeRef = useRef(0)
-  const nextItemIdRef = useRef(0)
   const gameEndedRef = useRef(false)
   const frameCountRef = useRef(0)
   const catchSoundRef = useRef(null)
+  const wrongSoundRef = useRef(null)
+  const questionsRef = useRef([])
+  const qIndexRef = useRef(0)
+  const currentQuestionRef = useRef(null)
+  const waitingNextRef = useRef(false)
+  const streakRef = useRef(0)
   const chestSpawnedRef = useRef(false)
-  const chestTimeRef = useRef(0)
+  const chestQRef = useRef(0)
+  const questionsCorrectRef = useRef(0)
+  const questionsTotalRef = useRef(0)
+  const fruitsRef = useRef([])
 
-  // Pre-load catch sound
+  // Pre-load sounds
   useEffect(() => {
     catchSoundRef.current = new Audio(assetUrl('/sound/chomp.mp3'))
     catchSoundRef.current.volume = 0.5
+    wrongSoundRef.current = new Audio(assetUrl('/sound/chomp.mp3'))
+    wrongSoundRef.current.volume = 0.3
   }, [])
 
-  // Weighted random food selection
-  const pickRandomFood = useCallback(() => {
-    const totalWeight = FOOD_ITEMS.reduce((sum, f) => sum + f.weight, 0)
-    let random = Math.random() * totalWeight
-    for (const food of FOOD_ITEMS) {
-      random -= food.weight
-      if (random <= 0) return food
+  // Prepare questions
+  useEffect(() => {
+    if (questionBankProp.length > 0) {
+      questionsRef.current = shuffle(questionBankProp).slice(0, 30)
+      chestQRef.current = 3 + Math.floor(Math.random() * 8) // chest on question 3-10
     }
-    return FOOD_ITEMS[0]
-  }, [])
+  }, [questionBankProp])
 
-  // Spawn a new falling item
-  const spawnItem = useCallback(() => {
-    const type = pickRandomFood()
-    itemsRef.current.push({
-      id: nextItemIdRef.current++,
-      x: 0.1 + Math.random() * 0.8,
-      y: -ITEM_SIZE,
-      type,
-      caught: false,
+  // Place fruits at fixed positions for current question
+  const spawnQuestion = useCallback(() => {
+    if (qIndexRef.current >= questionsRef.current.length) {
+      questionsRef.current = shuffle(questionsRef.current)
+      qIndexRef.current = 0
+    }
+    const q = questionsRef.current[qIndexRef.current]
+    qIndexRef.current++
+    currentQuestionRef.current = q
+    setCurrentQuestion(q)
+    setFeedback(null)
+    waitingNextRef.current = false
+
+    // Place choices as fruits at spread-out positions
+    const count = q.choices.length
+    const shuffledChoices = shuffle(q.choices.map((text, i) => ({ text, index: i })))
+    const usedEmojis = shuffle([...FRUIT_EMOJIS]).slice(0, count)
+
+    // Check if this question should have a chest
+    const isChestQ = chestEnabled && !chestSpawnedRef.current && qIndexRef.current === chestQRef.current
+
+    // Distribute fruits in a grid-like pattern across the play area
+    // Avoid top area (question) and very bottom (pet start)
+    const positions = []
+    if (count <= 2) {
+      positions.push({ x: 0.25, y: 0.45 }, { x: 0.75, y: 0.45 })
+    } else if (count <= 4) {
+      positions.push(
+        { x: 0.25, y: 0.35 }, { x: 0.75, y: 0.35 },
+        { x: 0.25, y: 0.58 }, { x: 0.75, y: 0.58 },
+      )
+    } else {
+      // 5-6 choices
+      positions.push(
+        { x: 0.2, y: 0.32 }, { x: 0.5, y: 0.32 }, { x: 0.8, y: 0.32 },
+        { x: 0.2, y: 0.55 }, { x: 0.5, y: 0.55 }, { x: 0.8, y: 0.55 },
+      )
+    }
+
+    // Add slight randomness to positions
+    const newFruits = shuffledChoices.map((choice, i) => {
+      const pos = positions[i] || { x: 0.5, y: 0.45 }
+      return {
+        id: `${qIndexRef.current}-${i}`,
+        x: pos.x + (Math.random() - 0.5) * 0.08,
+        y: pos.y + (Math.random() - 0.5) * 0.06,
+        text: choice.text,
+        choiceIndex: choice.index,
+        isCorrect: choice.index === q.answer_index,
+        isChest: isChestQ && choice.index === q.answer_index,
+        emoji: usedEmojis[i],
+        eaten: false,
+        scale: 1,
+      }
     })
-  }, [pickRandomFood])
 
-  // Trigger floating +points effect
-  const triggerCatchEffect = useCallback((x, y, foodType) => {
+    fruitsRef.current = newFruits
+    setFruits(newFruits)
+  }, [chestEnabled])
+
+  // Trigger floating effect
+  const triggerCatchEffect = useCallback((x, y, text, color, isCorrect) => {
     const effectId = Date.now() + Math.random()
-    setCatchEffects(prev => [...prev, {
-      id: effectId,
-      x,
-      y,
-      points: foodType.points,
-      color: foodType.color,
-      golden: foodType.golden,
-    }])
-    // Play sound
+    setCatchEffects(prev => [...prev, { id: effectId, x, y, text, color, isCorrect }])
     try {
-      const sound = catchSoundRef.current?.cloneNode()
+      const sound = (isCorrect ? catchSoundRef.current : wrongSoundRef.current)?.cloneNode()
       if (sound) {
-        sound.volume = 0.4
+        sound.volume = isCorrect ? 0.4 : 0.25
         sound.play().catch(() => {})
       }
-    } catch {}
+    } catch { /* ignore */ }
     setTimeout(() => {
       setCatchEffects(prev => prev.filter(e => e.id !== effectId))
     }, 800)
@@ -112,25 +166,28 @@ const PetCatchGame = ({ bowlImageUrl, petName, onGameEnd, onClose, chestEnabled 
     }
   }, [phase, countdownNumber])
 
-  // Input handling
+  // Input handling - free movement
   useEffect(() => {
     if (phase !== 'playing') return
     const gameArea = gameAreaRef.current
     if (!gameArea) return
 
-    const updateBasketX = (clientX) => {
+    const FINGER_OFFSET = 300 // px above touch point so finger doesn't cover pet
+    const updatePetPos = (clientX, clientY) => {
       const rect = gameArea.getBoundingClientRect()
-      const relativeX = (clientX - rect.left) / rect.width
-      basketXRef.current = Math.max(0.05, Math.min(0.95, relativeX))
+      petPosRef.current = {
+        x: Math.max(0.05, Math.min(0.95, (clientX - rect.left) / rect.width)),
+        y: Math.max(0.1, Math.min(0.95, (clientY - FINGER_OFFSET - rect.top) / rect.height)),
+      }
     }
 
-    const handleMouseMove = (e) => updateBasketX(e.clientX)
+    const handleMouseMove = (e) => updatePetPos(e.clientX, e.clientY)
     const handleTouchMove = (e) => {
       e.preventDefault()
-      if (e.touches.length > 0) updateBasketX(e.touches[0].clientX)
+      if (e.touches.length > 0) updatePetPos(e.touches[0].clientX, e.touches[0].clientY)
     }
     const handleTouchStart = (e) => {
-      if (e.touches.length > 0) updateBasketX(e.touches[0].clientX)
+      if (e.touches.length > 0) updatePetPos(e.touches[0].clientX, e.touches[0].clientY)
     }
 
     gameArea.addEventListener('mousemove', handleMouseMove)
@@ -144,35 +201,34 @@ const PetCatchGame = ({ bowlImageUrl, petName, onGameEnd, onClose, chestEnabled 
     }
   }, [phase])
 
-  // Main game loop
+  // Main game loop — only handles timer + collision detection
   useEffect(() => {
     if (phase !== 'playing') return
+    if (questionsRef.current.length === 0) return
 
     gameStartTimeRef.current = performance.now()
     lastFrameTimeRef.current = performance.now()
-    lastSpawnRef.current = performance.now()
     timeRef.current = GAME_DURATION
     scoreRef.current = 0
-    itemsRef.current = []
     gameEndedRef.current = false
     frameCountRef.current = 0
+    streakRef.current = 0
+    questionsCorrectRef.current = 0
+    questionsTotalRef.current = 0
     chestSpawnedRef.current = false
-    chestTimeRef.current = 8 + Math.floor(Math.random() * 15) // spawn chest between 8-22s
+    qIndexRef.current = 0
+
+    spawnQuestion()
 
     const gameLoop = (timestamp) => {
       if (gameEndedRef.current) return
 
-      const deltaMs = timestamp - lastFrameTimeRef.current
       lastFrameTimeRef.current = timestamp
-      const deltaSec = Math.min(deltaMs / 1000, 0.1) // cap delta to prevent jumps
       const elapsed = (timestamp - gameStartTimeRef.current) / 1000
-      const progress = Math.min(elapsed / GAME_DURATION, 1)
 
-      // Update timer
       timeRef.current = Math.max(0, GAME_DURATION - elapsed)
       setDisplayTime(Math.ceil(timeRef.current))
 
-      // Check game over
       if (timeRef.current <= 0) {
         gameEndedRef.current = true
         setDisplayScore(scoreRef.current)
@@ -180,67 +236,72 @@ const PetCatchGame = ({ bowlImageUrl, petName, onGameEnd, onClose, chestEnabled 
         return
       }
 
-      // Spawn new items
-      const spawnInterval = SPAWN_INTERVAL_START +
-        (SPAWN_INTERVAL_END - SPAWN_INTERVAL_START) * progress
-      if (timestamp - lastSpawnRef.current >= spawnInterval) {
-        spawnItem()
-        lastSpawnRef.current = timestamp
-      }
+      // Check collision with fruits
+      if (!waitingNextRef.current) {
+        const gameWidth = gameAreaRef.current?.clientWidth || 300
+        const gameHeight = gameAreaRef.current?.clientHeight || 600
+        const petPixelX = petPosRef.current.x * gameWidth
+        const petPixelY = petPosRef.current.y * gameHeight
 
-      // Spawn chest once per game (only if chestEnabled)
-      if (chestEnabled && !chestSpawnedRef.current && elapsed >= chestTimeRef.current) {
-        chestSpawnedRef.current = true
-        itemsRef.current.push({
-          id: nextItemIdRef.current++,
-          x: 0.2 + Math.random() * 0.6,
-          y: -ITEM_SIZE,
-          type: { emoji: '📦', points: 0, weight: 0, color: '#f59e0b', isChest: true },
-          caught: false,
-        })
-      }
+        for (const fruit of fruitsRef.current) {
+          if (fruit.eaten) continue
+          const fruitPixelX = fruit.x * gameWidth
+          const fruitPixelY = fruit.y * gameHeight
+          const dist = Math.sqrt(
+            Math.pow(petPixelX - fruitPixelX, 2) +
+            Math.pow(petPixelY - fruitPixelY, 2)
+          )
 
-      // Cap items
-      if (itemsRef.current.length > 30) {
-        itemsRef.current = itemsRef.current.slice(-25)
-      }
+          if (dist < CATCH_RADIUS + FRUIT_SIZE / 2) {
+            fruit.eaten = true
+            fruit.scale = 0
 
-      // Update item positions & check catches
-      const fallSpeed = FALL_SPEED_START +
-        (FALL_SPEED_END - FALL_SPEED_START) * progress
-      const gameWidth = gameAreaRef.current?.clientWidth || 300
-      const gameHeight = gameAreaRef.current?.clientHeight || 600
-
-      itemsRef.current = itemsRef.current.filter(item => {
-        item.y += fallSpeed * deltaSec
-
-        // Check catch
-        if (!item.caught && item.y >= gameHeight - CATCH_ZONE_HEIGHT && item.y < gameHeight) {
-          const basketPixelX = basketXRef.current * gameWidth
-          const itemPixelX = item.x * gameWidth
-          const distance = Math.abs(basketPixelX - itemPixelX)
-
-          if (distance < BASKET_WIDTH * 0.65) {
-            item.caught = true
-            if (item.type.isChest) {
+            // Chest check
+            if (fruit.isChest) {
+              chestSpawnedRef.current = true
               setChestCollected(true)
               setChestPopup(true)
               setTimeout(() => setChestPopup(false), 1500)
-              triggerCatchEffect(itemPixelX, gameHeight - CATCH_ZONE_HEIGHT, { points: 0, color: '#f59e0b', golden: false })
-            } else {
-              scoreRef.current += item.type.points
-              setDisplayScore(scoreRef.current)
-              triggerCatchEffect(itemPixelX, gameHeight - CATCH_ZONE_HEIGHT, item.type)
             }
-            return false
+
+            if (fruit.isCorrect) {
+              streakRef.current++
+              const bonus = streakRef.current >= 3 ? 10 : 0
+              const points = POINTS_CORRECT + bonus
+              scoreRef.current = Math.max(0, scoreRef.current + points)
+              questionsCorrectRef.current++
+              questionsTotalRef.current++
+              setDisplayScore(scoreRef.current)
+              setQuestionsCorrect(questionsCorrectRef.current)
+              setQuestionsTotal(questionsTotalRef.current)
+              setStreak(streakRef.current)
+              triggerCatchEffect(fruitPixelX, fruitPixelY, `+${points}`, '#22c55e', true)
+              setFeedback({ type: 'correct', text: fruit.text })
+
+              // Next question after delay
+              waitingNextRef.current = true
+              setTimeout(() => {
+                if (!gameEndedRef.current) spawnQuestion()
+              }, QUESTION_DELAY)
+            } else {
+              streakRef.current = 0
+              scoreRef.current = Math.max(0, scoreRef.current + POINTS_WRONG)
+              questionsTotalRef.current++
+              setDisplayScore(scoreRef.current)
+              setQuestionsTotal(questionsTotalRef.current)
+              setStreak(0)
+              triggerCatchEffect(fruitPixelX, fruitPixelY, `${POINTS_WRONG}`, '#ef4444', false)
+              setFeedback({ type: 'wrong', text: fruit.text })
+            }
+
+            // Update visual
+            setFruits([...fruitsRef.current])
+            break // only one collision per frame
           }
         }
+      }
 
-        // Remove if fallen off screen
-        return item.y < gameHeight + ITEM_SIZE
-      })
-
-      // Throttle re-renders to ~30fps for item positions
+      // Re-render pet position ~30fps
       frameCountRef.current++
       if (frameCountRef.current % 2 === 0) {
         setRenderTick(prev => prev + 1)
@@ -254,12 +315,14 @@ const PetCatchGame = ({ bowlImageUrl, petName, onGameEnd, onClose, chestEnabled 
       gameEndedRef.current = true
       cancelAnimationFrame(animFrameRef.current)
     }
-  }, [phase, spawnItem, triggerCatchEffect])
+  }, [phase, spawnQuestion, triggerCatchEffect])
 
   return createPortal(
-    <div className="fixed inset-0 z-50 select-none overflow-hidden"
-      style={{ background: 'linear-gradient(to bottom, #7dd3fc, #bae6fd, #d9f99d)' }}
-    >
+    <div className="fixed inset-0 z-50 select-none overflow-hidden bg-black/70 flex items-center justify-center">
+      <div
+        className="relative w-full max-w-[400px] h-full max-h-[100dvh] overflow-hidden rounded-none sm:rounded-2xl sm:max-h-[90vh] sm:shadow-2xl"
+        style={{ background: 'linear-gradient(to bottom, #7dd3fc, #bae6fd, #d9f99d)' }}
+      >
       <style>{`
         @keyframes catchFloat {
           0% { transform: translateY(0) scale(1); opacity: 1; }
@@ -270,10 +333,6 @@ const PetCatchGame = ({ bowlImageUrl, petName, onGameEnd, onClose, chestEnabled 
           50% { transform: scale(1.2); opacity: 1; }
           100% { transform: scale(1); opacity: 0.9; }
         }
-        @keyframes goldenGlow {
-          0%, 100% { filter: drop-shadow(0 0 6px #eab308); }
-          50% { filter: drop-shadow(0 0 14px #fbbf24); }
-        }
         @keyframes resultsFadeIn {
           0% { opacity: 0; transform: translateY(30px) scale(0.9); }
           100% { opacity: 1; transform: translateY(0) scale(1); }
@@ -283,19 +342,32 @@ const PetCatchGame = ({ bowlImageUrl, petName, onGameEnd, onClose, chestEnabled 
           70% { transform: scale(1.15); }
           100% { transform: scale(1); }
         }
-        @keyframes itemWobble {
-          0%, 100% { transform: translateX(-50%) rotate(-5deg); }
-          50% { transform: translateX(-50%) rotate(5deg); }
+        @keyframes fruitBob {
+          0%, 100% { transform: translate(-50%, -50%) scale(1); }
+          50% { transform: translate(-50%, -50%) scale(1.08); }
         }
-        @keyframes chestBounce {
-          0%, 100% { transform: translateX(-50%) scale(1); }
-          50% { transform: translateX(-50%) scale(1.15); }
+        @keyframes fruitAppear {
+          0% { transform: translate(-50%, -50%) scale(0); opacity: 0; }
+          60% { transform: translate(-50%, -50%) scale(1.15); opacity: 1; }
+          100% { transform: translate(-50%, -50%) scale(1); opacity: 1; }
         }
         @keyframes chestPopupAnim {
           0% { transform: scale(0) translateY(0); opacity: 0; }
           20% { transform: scale(1.2) translateY(0); opacity: 1; }
           40% { transform: scale(1) translateY(0); opacity: 1; }
           100% { transform: scale(1) translateY(-80px); opacity: 0; }
+        }
+        @keyframes wrongShake {
+          0%, 100% { transform: translateX(0); }
+          20% { transform: translateX(-6px); }
+          40% { transform: translateX(6px); }
+          60% { transform: translateX(-4px); }
+          80% { transform: translateX(4px); }
+        }
+        @keyframes streakPulse {
+          0% { transform: scale(1); }
+          50% { transform: scale(1.15); }
+          100% { transform: scale(1); }
         }
       `}</style>
 
@@ -309,20 +381,48 @@ const PetCatchGame = ({ bowlImageUrl, petName, onGameEnd, onClose, chestEnabled 
         </button>
       )}
 
-      {/* HUD - Score and Timer */}
+      {/* HUD */}
       {phase === 'playing' && (
-        <div className="absolute top-4 left-1/2 -translate-x-1/2 z-40 flex items-center gap-4">
-          <div className="bg-white/85 backdrop-blur rounded-2xl px-5 py-2 shadow-lg flex items-center gap-2">
-            <span className="text-2xl">🍖</span>
-            <span className="text-2xl font-black text-orange-600">{displayScore}</span>
+        <div className="absolute top-4 left-1/2 -translate-x-1/2 z-40 flex items-center gap-3">
+          <div className="bg-white/85 backdrop-blur rounded-2xl px-4 py-2 shadow-lg flex items-center gap-2">
+            <span className="text-xl">⭐</span>
+            <span className="text-xl font-black text-orange-600">{displayScore}</span>
           </div>
-          <div className={`bg-white/85 backdrop-blur rounded-2xl px-5 py-2 shadow-lg ${
+          {streak >= 3 && (
+            <div className="bg-orange-500/90 backdrop-blur rounded-2xl px-3 py-2 shadow-lg"
+              style={{ animation: 'streakPulse 0.5s ease-out' }}
+            >
+              <span className="text-lg font-black text-white">🔥 {streak}</span>
+            </div>
+          )}
+          <div className={`bg-white/85 backdrop-blur rounded-2xl px-4 py-2 shadow-lg ${
             displayTime <= 5 ? 'animate-pulse' : ''
           }`}>
-            <span className={`text-2xl font-black ${displayTime <= 5 ? 'text-red-500' : 'text-gray-800'}`}>
+            <span className={`text-xl font-black ${displayTime <= 5 ? 'text-red-500' : 'text-gray-800'}`}>
               {displayTime}
             </span>
             <span className="text-sm text-gray-500 ml-1">s</span>
+          </div>
+        </div>
+      )}
+
+      {/* Question Display */}
+      {phase === 'playing' && currentQuestion && (
+        <div className="absolute top-16 left-4 right-4 z-40">
+          <div className={`bg-white/90 backdrop-blur-md rounded-2xl px-4 py-2.5 shadow-xl text-center border-2 ${
+            feedback?.type === 'correct' ? 'border-green-400' : feedback?.type === 'wrong' ? 'border-red-400' : 'border-white/50'
+          }`}
+            style={feedback?.type === 'wrong' ? { animation: 'wrongShake 0.4s ease-out' } : {}}
+          >
+            {currentQuestion.image_url && (
+              <img src={currentQuestion.image_url} alt="" className="w-14 h-14 object-contain mx-auto mb-1.5 rounded-lg" />
+            )}
+            <p className="text-base font-bold text-gray-800 leading-snug">{currentQuestion.question}</p>
+            {feedback && (
+              <p className={`text-xs font-semibold mt-1 ${feedback.type === 'correct' ? 'text-green-600' : 'text-red-500'}`}>
+                {feedback.type === 'correct' ? '✓ Correct!' : `✗ "${feedback.text}" is wrong`}
+              </p>
+            )}
           </div>
         </div>
       )}
@@ -353,26 +453,37 @@ const PetCatchGame = ({ bowlImageUrl, petName, onGameEnd, onClose, chestEnabled 
           {/* Ground decoration */}
           <div className="absolute bottom-0 left-0 right-0 h-16 bg-gradient-to-t from-green-400/50 to-transparent" />
 
-          {/* Falling Items */}
-          {itemsRef.current.map(item => (
+          {/* Fruit choices */}
+          {fruits.map(fruit => (
             <div
-              key={item.id}
-              className="absolute pointer-events-none"
+              key={fruit.id}
+              className="absolute pointer-events-none flex flex-col items-center"
               style={{
-                left: `${item.x * 100}%`,
-                top: item.y,
-                transform: 'translateX(-50%)',
-                fontSize: item.type.isChest ? '2.5rem' : '2rem',
-                animation: item.type.isChest
-                  ? 'chestBounce 0.6s ease-in-out infinite'
-                  : item.type.golden
-                    ? 'goldenGlow 0.8s ease-in-out infinite, itemWobble 1.2s ease-in-out infinite'
-                    : 'itemWobble 1.5s ease-in-out infinite',
-                willChange: 'top',
-                filter: item.type.isChest ? 'drop-shadow(0 4px 8px rgba(245,158,11,0.5))' : 'none',
+                left: `${fruit.x * 100}%`,
+                top: `${fruit.y * 100}%`,
+                transform: 'translate(-50%, -50%)',
+                opacity: fruit.eaten ? 0 : 1,
+                transition: fruit.eaten ? 'opacity 0.2s, transform 0.2s' : 'none',
+                animation: fruit.eaten ? 'none' : 'fruitAppear 0.4s ease-out forwards',
               }}
             >
-              {item.type.emoji}
+              {/* Word label above fruit */}
+              <div className="mb-1">
+                <span className="inline-block bg-white/95 text-gray-800 text-[11px] font-bold px-2.5 py-1 rounded-full shadow-md border border-gray-200 whitespace-nowrap"
+                  style={{ maxWidth: 110, overflow: 'hidden', textOverflow: 'ellipsis' }}
+                >
+                  {fruit.text}
+                </span>
+              </div>
+              {/* Fruit emoji */}
+              <div style={{
+                fontSize: FRUIT_SIZE - 8,
+                lineHeight: 1,
+                animation: 'none',
+                filter: 'drop-shadow(0 3px 6px rgba(0,0,0,0.15))',
+              }}>
+                {fruit.isChest ? '📦' : fruit.emoji}
+              </div>
             </div>
           ))}
 
@@ -397,32 +508,33 @@ const PetCatchGame = ({ bowlImageUrl, petName, onGameEnd, onClose, chestEnabled 
                 left: effect.x,
                 top: effect.y,
                 transform: 'translateX(-50%)',
-                color: effect.color,
+                color: effect.isCorrect ? '#22c55e' : '#ef4444',
                 animation: 'catchFloat 0.8s ease-out forwards',
                 textShadow: '0 0 8px rgba(255,255,255,0.9), 1px 1px 3px rgba(0,0,0,0.3)',
               }}
             >
-              +{effect.points}{effect.golden ? ' ✨' : ''}
+              {effect.text}
             </div>
           ))}
 
-          {/* Basket */}
+          {/* Pet (player character) */}
           <div
             className="absolute z-20"
             style={{
-              bottom: 24,
-              left: `${basketXRef.current * 100}%`,
-              transform: 'translateX(-50%)',
-              width: BASKET_WIDTH,
-              height: BASKET_WIDTH,
-              transition: 'left 0.03s linear',
+              left: `${petPosRef.current.x * 100}%`,
+              top: `${petPosRef.current.y * 100}%`,
+              transform: 'translate(-50%, -50%)',
+              width: PET_SIZE,
+              height: PET_SIZE,
+              transition: 'left 0.03s linear, top 0.03s linear',
             }}
           >
             <img
-              src={bowlImageUrl}
-              alt="basket"
+              src={petImageUrl}
+              alt={petName}
               className="w-full h-full object-contain drop-shadow-lg"
               draggable={false}
+              onContextMenu={(e) => e.preventDefault()}
             />
           </div>
         </div>
@@ -446,11 +558,24 @@ const PetCatchGame = ({ bowlImageUrl, petName, onGameEnd, onClose, chestEnabled 
             <p className="text-gray-500 mb-5">{petName} had a great workout!</p>
 
             <div
-              className="bg-gradient-to-br from-orange-50 to-yellow-50 rounded-2xl p-5 mb-5 border border-orange-100"
+              className="bg-gradient-to-br from-orange-50 to-yellow-50 rounded-2xl p-5 mb-4 border border-orange-100"
               style={{ animation: 'scorePopIn 0.6s ease-out 0.5s both' }}
             >
               <p className="text-5xl font-black text-orange-600">{displayScore}</p>
               <p className="text-sm text-orange-400 font-semibold mt-1">points scored</p>
+            </div>
+
+            <div className="flex justify-center gap-4 mb-5 text-sm"
+              style={{ animation: 'scorePopIn 0.6s ease-out 0.6s both' }}
+            >
+              <div className="bg-green-50 rounded-xl px-4 py-2 border border-green-100">
+                <p className="text-2xl font-bold text-green-600">{questionsCorrect}</p>
+                <p className="text-green-500">correct</p>
+              </div>
+              <div className="bg-gray-50 rounded-xl px-4 py-2 border border-gray-100">
+                <p className="text-2xl font-bold text-gray-600">{questionsTotal}</p>
+                <p className="text-gray-400">total</p>
+              </div>
             </div>
 
             <p className="text-sm text-gray-600 mb-6">
@@ -481,6 +606,7 @@ const PetCatchGame = ({ bowlImageUrl, petName, onGameEnd, onClose, chestEnabled 
           </div>
         </div>
       )}
+      </div>
     </div>,
     document.body
   )

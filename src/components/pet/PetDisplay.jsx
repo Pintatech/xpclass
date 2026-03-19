@@ -102,7 +102,7 @@ const PetDisplay = () => {
   const [gameLeaderboards, setGameLeaderboards] = useState({ whackmole: [], scramble: [], astroblast: [], matchgame: [], wordtype: [], sayitright: [], quizrush: [], bossbattle: [], angrypet: [] });
   const [wordBank, setWordBank] = useState([]);
   const [questionBank, setQuestionBank] = useState([]);
-  const [enabledGames, setEnabledGames] = useState(['scramble', 'whackmole', 'astroblast', 'matchgame', 'wordtype', 'sayitright', 'quizrush', 'bossbattle', 'angrypet']);
+  const [enabledGames, setEnabledGames] = useState(['scramble', 'whackmole', 'astroblast', 'matchgame', 'wordtype', 'sayitright', 'quizrush', 'bossbattle', 'angrypet', 'catch']);
   const [competitionGame, setCompetitionGame] = useState(null); // game type with active competition
   const [chestEnabled, setChestEnabled] = useState(false); // whether chest can appear in games
   const [trainingBlocked, setTrainingBlocked] = useState(false); // true when outside allowed schedule
@@ -1931,7 +1931,7 @@ const PetDisplay = () => {
                 className={`relative flex flex-col items-center gap-2 p-4 rounded-xl border-2 transition-all group ${competitionGame === 'sayitright' ? 'border-yellow-400 bg-yellow-50 ring-2 ring-yellow-300' : 'border-orange-200 hover:border-orange-400 hover:bg-orange-50'}`}
               >
                 {competitionGame === 'sayitright' && <span className="absolute -top-2 -right-2 text-lg">🏆</span>}
-                <span className="text-4xl group-hover:scale-110 transition-transform">🎤</span>
+                <span className="text-5xl w-20 h-20 flex items-center justify-center group-hover:scale-110 transition-transform">🎤</span>
                 <span className="font-bold text-gray-800 text-xs">Say It Right</span>
               </button>
               )}
@@ -1941,7 +1941,7 @@ const PetDisplay = () => {
                 className={`relative flex flex-col items-center gap-2 p-4 rounded-xl border-2 transition-all group ${competitionGame === 'quizrush' ? 'border-yellow-400 bg-yellow-50 ring-2 ring-yellow-300' : 'border-violet-200 hover:border-violet-400 hover:bg-violet-50'}`}
               >
                 {competitionGame === 'quizrush' && <span className="absolute -top-2 -right-2 text-lg">🏆</span>}
-                <span className="text-4xl group-hover:scale-110 transition-transform">🧠</span>
+                <span className="text-5xl w-20 h-20 flex items-center justify-center group-hover:scale-110 transition-transform">🧠</span>
                 <span className="font-bold text-gray-800 text-xs">Quiz Rush</span>
               </button>
               )}
@@ -1951,7 +1951,7 @@ const PetDisplay = () => {
                 className={`relative flex flex-col items-center gap-2 p-4 rounded-xl border-2 transition-all group ${competitionGame === 'bossbattle' ? 'border-yellow-400 bg-yellow-50 ring-2 ring-yellow-300' : 'border-red-200 hover:border-red-400 hover:bg-red-50'}`}
               >
                 {competitionGame === 'bossbattle' && <span className="absolute -top-2 -right-2 text-lg">🏆</span>}
-                <img src="https://xpclass.vn/xpclass/pet-game/boss/boss1.png" alt="Boss Battle" className="w-10 h-10 object-contain group-hover:scale-110 transition-transform" />
+                <img src="https://xpclass.vn/xpclass/pet-game/boss/boss1.png" alt="Boss Battle" className="w-20 h-20 object-contain group-hover:scale-110 transition-transform" />
                 <span className="font-bold text-gray-800 text-xs">Boss Battle</span>
               </button>
               )}
@@ -1962,8 +1962,19 @@ const PetDisplay = () => {
                 className={`relative flex flex-col items-center gap-2 p-4 rounded-xl border-2 transition-all group ${competitionGame === 'angrypet' ? 'border-yellow-400 bg-yellow-50 ring-2 ring-yellow-300' : 'border-orange-200 hover:border-orange-400 hover:bg-orange-50'}`}
               >
                 {competitionGame === 'angrypet' && <span className="absolute -top-2 -right-2 text-lg">🏆</span>}
-                <img src="https://xpclass.vn/xpclass/pet-game/angry/Slingshot.png" alt="Angry Pet" className="w-10 h-10 object-contain group-hover:scale-110 transition-transform" />
+                <img src="https://xpclass.vn/xpclass/pet-game/angry/Slingshot.png" alt="Angry Pet" className="w-20 h-20 object-contain group-hover:scale-110 transition-transform" />
                 <span className="font-bold text-gray-800 text-xs">Angry Pet</span>
+              </button>
+              )}
+
+              {(isAdmin() || enabledGames.includes('catch')) && (
+              <button
+                onClick={() => { drainPetEnergy(10); recordAttemptStart('catch'); setShowGame('catch'); }}
+                className={`relative flex flex-col items-center gap-2 p-4 rounded-xl border-2 transition-all group ${competitionGame === 'catch' ? 'border-yellow-400 bg-yellow-50 ring-2 ring-yellow-300' : 'border-teal-200 hover:border-teal-400 hover:bg-teal-50'}`}
+              >
+                {competitionGame === 'catch' && <span className="absolute -top-2 -right-2 text-lg">🏆</span>}
+                <span className="text-5xl w-20 h-20 flex items-center justify-center group-hover:scale-110 transition-transform">🫧</span>
+                <span className="font-bold text-gray-800 text-xs">Quiz Catch</span>
               </button>
               )}
 
@@ -2003,8 +2014,16 @@ const PetDisplay = () => {
       {/* Catch Mini-Game */}
       {showGame === 'catch' && (
         <PetCatchGame
-          bowlImageUrl={profile?.active_bowl_url ? (profile.active_bowl_url.startsWith('http') ? profile.active_bowl_url : assetUrl(profile.active_bowl_url)) : "https://png.pngtree.com/png-clipart/20220111/original/pngtree-dog-food-bowl-png-image_7072429.png"}
+          petImageUrl={(() => {
+            let baseImage = activePet.image_url;
+            if (activePet.evolution_stages && activePet.evolution_stage > 0) {
+              const stage = activePet.evolution_stages.find(s => s.stage === activePet.evolution_stage);
+              if (stage?.image_url) baseImage = stage.image_url;
+            }
+            return baseImage;
+          })()}
           petName={activePet.nickname || activePet.name}
+          questionBank={questionBank}
           chestEnabled={chestEnabled}
           onGameEnd={(score, extra) => handleGameEnd(score, 'catch', extra)}
           onClose={() => setShowGame(null)}

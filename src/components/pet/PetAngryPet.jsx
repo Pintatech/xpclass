@@ -195,7 +195,7 @@ const PetAngryPet = ({ petImageUrl, petName, onGameEnd, onClose, questionBank: q
         16
       )
 
-      playSound(assetUrl('/sound/scram-correct.mp3'), 0.4)
+      playSound('https://xpclass.vn/xpclass/pet-game/angry/piglette-damage.mp3', 0.4)
       setTimeout(() => advanceQuestion(), 900)
     } else {
       streakRef.current = 0
@@ -242,7 +242,8 @@ const PetAngryPet = ({ petImageUrl, petName, onGameEnd, onClose, questionBank: q
     e.preventDefault()
     setIsDragging(true)
     setDragPos({ x, y: SLING_Y - 8 }) // Lock Y to sling position
-  }, [phase, feedback, petOnSling])
+    playSound('https://xpclass.vn/xpclass/pet-game/angry/angry-birds-slingshot.mp3', 0.2)
+  }, [phase, feedback, petOnSling, playSound])
 
   const handleDragMove = useCallback((e) => {
     if (!isDragging) return
@@ -335,6 +336,13 @@ const PetAngryPet = ({ petImageUrl, petName, onGameEnd, onClose, questionBank: q
     }, 1000)
     return () => clearInterval(timerRef.current)
   }, [phase])
+
+  // Play level-complete sound on successful results
+  useEffect(() => {
+    if (phase === 'results' && questionsCorrect >= 10) {
+      playSound('https://xpclass.vn/xpclass/pet-game/angry/angry-birds-level-complete.mp3', 0.5)
+    }
+  }, [phase, questionsCorrect, playSound])
 
   // Cleanup
   useEffect(() => {

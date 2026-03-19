@@ -66,9 +66,12 @@ import {
   Map,
   List,
   Video,
+  Users,
 } from "lucide-react";
 
 import { getMapTheme } from "../../config/mapThemes";
+import StudentStatsPopover from "../ui/StudentStatsPopover";
+import useClassStats from "../../hooks/useClassStats";
 
 import { assetUrl } from '../../hooks/useBranding';
 // Returns indices of positions where real exercises should be placed
@@ -143,6 +146,7 @@ const ExerciseList = () => {
   const { user, profile } = useAuth();
   const { canCreateContent } = usePermissions();
   const { userProgress, fetchUserProgress } = useProgress();
+  const { exerciseStats: exerciseClassStats } = useClassStats(courseId);
 
   // Drag and drop sensors
   const sensors = useSensors(
@@ -540,6 +544,7 @@ const ExerciseList = () => {
     }
   }, [session])
 
+
   // Refresh progress when userProgress changes
   useEffect(() => {
     if (userProgress.length > 0) {
@@ -892,7 +897,7 @@ const ExerciseList = () => {
       if (isGemReward) {
         gems = Math.random() < 0.7 ? 1 : 2; // 70% chance 1 gem, 30% chance 2 gems
       } else {
-        xp = 5 + exercises.length * 3 + (Math.floor(Math.random() * 10) + 1);
+        xp = 5 + exercises.length * 5 + (Math.floor(Math.random() * 10) + 1);
       }
 
       // Set reward amounts immediately so they show when card flips
@@ -1129,6 +1134,11 @@ const ExerciseList = () => {
 
             {/* Stars on the right */}
             {!canCreateContent() && renderStars(progress?.score, status, progress?.max_score)}
+
+            {/* Teacher: student completion stats with hover popover */}
+            {canCreateContent() && exerciseClassStats?.[exercise.id] && (
+              <StudentStatsPopover stats={exerciseClassStats[exercise.id]} size="sm" position="bottom" />
+            )}
 
             {/* Action Buttons */}
             {canCreateContent() && (
@@ -1495,6 +1505,23 @@ const ExerciseList = () => {
           </div>
         )}
 
+        {/* Teacher: student completion badge on map nodes with hover popover */}
+        {canCreateContent() && !isDummy && exerciseClassStats?.[exercise?.id] && (
+          <div className="absolute left-1/2 -translate-x-1/2 z-30" style={{ bottom: completed ? '-28px' : '-8px' }}>
+            <StudentStatsPopover stats={exerciseClassStats[exercise.id]} position="bottom">
+              <div className={`rounded px-1 py-0.5 text-[8px] md:text-[10px] font-bold leading-none whitespace-nowrap shadow-sm cursor-default ${
+                exerciseClassStats[exercise.id].completed === exerciseClassStats[exercise.id].total
+                  ? 'bg-green-500 text-white'
+                  : exerciseClassStats[exercise.id].completed > 0
+                    ? 'bg-yellow-400 text-gray-800'
+                    : 'bg-white/80 text-gray-600'
+              }`}>
+                {exerciseClassStats[exercise.id].completed}/{exerciseClassStats[exercise.id].total}
+              </div>
+            </StudentStatsPopover>
+          </div>
+        )}
+
         {/* Admin/Teacher action buttons */}
         {canCreateContent() && (
           <div className="absolute -top-2 -right-2 flex gap-1 opacity-0 hover:opacity-100 transition-opacity z-20">
@@ -1806,7 +1833,7 @@ const ExerciseList = () => {
             </p>
             <div className="flex items-center justify-center gap-3 mb-4 sm:mb-8">
               <div className="bg-gradient-to-r from-yellow-400 to-orange-500 text-white rounded-lg py-2 px-4 text-lg font-bold flex items-center justify-center gap-1">
-                {5 + exercises.length * 3 + 1} - {5 + exercises.length * 3 + 10}{" "}
+                {5 + exercises.length * 5 + 1} - {5 + exercises.length * 5 + 10}{" "}
                 <img
                   src={assetUrl('/image/study/xp.png')}
                   alt="XP"
@@ -1958,7 +1985,7 @@ const ExerciseList = () => {
 
             <div className="flex items-center justify-center gap-3 mb-4 sm:mb-8">
               <div className="bg-gradient-to-r from-yellow-400 to-orange-500 text-white rounded-lg py-2 px-4 text-lg font-bold flex items-center justify-center gap-1">
-                {5 + exercises.length * 3 + 1} - {5 + exercises.length * 3 + 10}{" "}
+                {5 + exercises.length * 5 + 1} - {5 + exercises.length * 5 + 10}{" "}
                 <img
                   src={assetUrl('/image/study/xp.png')}
                   alt="XP"

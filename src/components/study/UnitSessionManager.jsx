@@ -3,6 +3,8 @@ import { useParams, useNavigate, Link } from 'react-router-dom'
 import { supabase } from '../../supabase/client'
 import { useAuth } from '../../hooks/useAuth'
 import { usePermissions } from '../../hooks/usePermissions'
+import StudentStatsPopover from '../ui/StudentStatsPopover'
+import useClassStats from '../../hooks/useClassStats'
 import {
   ArrowLeft,
   Plus,
@@ -19,6 +21,7 @@ const UnitSessionManager = () => {
   const navigate = useNavigate()
   const { user } = useAuth()
   const { canCreateContent } = usePermissions()
+  const { sessionStats: sessionClassStats } = useClassStats(currentId)
 
   const [unit, setUnit] = useState(null)
   const [course, setCourse] = useState(null)
@@ -297,6 +300,13 @@ const UnitSessionManager = () => {
 
                 {session.description && (
                   <p className="text-sm text-gray-600 mb-4">{session.description}</p>
+                )}
+
+                {/* Teacher: student completion stats with hover popover */}
+                {canCreateContent() && sessionClassStats?.[session.id] && (
+                  <div className="mb-3">
+                    <StudentStatsPopover stats={sessionClassStats[session.id]} size="md" />
+                  </div>
                 )}
 
                 <Link

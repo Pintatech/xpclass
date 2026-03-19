@@ -20,6 +20,7 @@ import PetInventory from './components/pet/PetInventory'
 import AdminDashboard from './components/admin/AdminDashboard'
 import TeacherDashboard from './components/teacher/TeacherDashboard'
 import TeacherExerciseBank from './components/teacher/TeacherExerciseBank'
+import CourseReport from './components/teacher/CourseReport'
 import TeacherClassReports from './components/teacher/rollcall/TeacherClassReports'
 import TeacherCourseOverview from './components/teacher/TeacherCourseOverview'
 import StudentLessonHistory from './components/teacher/reports/StudentLessonHistory'
@@ -66,6 +67,7 @@ function App() {
                 <Route path="teacher/overview" element={<TeacherCourseOverview />} />
                 <Route path="teacher/student-history/:courseId/:studentId" element={<StudentLessonHistory />} />
                 <Route path="teacher/exercise-bank" element={<TeacherExerciseBank />} />
+                <Route path="teacher/course-report/:courseId" element={<CourseReport />} />
                 <Route path="teacher/class-reports" element={
                   <TeacherCourseProvider>
                     <TeacherClassReports />
