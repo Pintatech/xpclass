@@ -6,7 +6,8 @@ import {
   LogOut,
   Shield,
   GraduationCap,
-  ShoppingBag
+  ShoppingBag,
+  MessageSquarePlus
 } from 'lucide-react'
 import { useInventory } from '../../hooks/useInventory'
 import { useMissions } from '../../hooks/useMissions'
@@ -14,7 +15,7 @@ import { useNotifications } from '../../hooks/useNotifications'
 import NotificationPanel from '../notifications/NotificationPanel'
 
 import { assetUrl, useBranding } from '../../hooks/useBranding';
-const LeftSidebar = () => {
+const LeftSidebar = ({ onOpenReport }) => {
   const { profile, signOut, isAdmin, isTeacher } = useAuth()
   const { branding } = useBranding()
   const { currentBadge } = useStudentLevels()
@@ -208,6 +209,13 @@ const LeftSidebar = () => {
               )}
             </div>
 
+            <button
+              onClick={onOpenReport}
+              className="w-full flex items-center space-x-3 px-4 py-3 rounded-lg transition-all text-orange-600 hover:bg-orange-50"
+            >
+              <MessageSquarePlus size={22} />
+              <span className="font-medium">Báo cáo</span>
+            </button>
             <Link
               to="/profile"
               className={`flex items-center space-x-3 px-4 py-3 rounded-lg transition-all ${

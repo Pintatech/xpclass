@@ -1,6 +1,6 @@
 import { useState, useRef, useEffect } from 'react'
 import { Link, useLocation } from 'react-router-dom'
-import { MoreHorizontal, ShieldCheck, GraduationCap } from 'lucide-react'
+import { MoreHorizontal, ShieldCheck, GraduationCap, MessageSquarePlus } from 'lucide-react'
 import { useInventory } from '../../hooks/useInventory'
 import { useMissions } from '../../hooks/useMissions'
 import { useNotifications } from '../../hooks/useNotifications'
@@ -8,7 +8,7 @@ import { useAuth } from '../../hooks/useAuth'
 import NotificationPanel from '../notifications/NotificationPanel'
 
 import { assetUrl } from '../../hooks/useBranding';
-const BottomNavigation = () => {
+const BottomNavigation = ({ onOpenReport }) => {
   const location = useLocation()
   const { newItemCount } = useInventory()
   const { unclaimedCount: missionBadge } = useMissions()
@@ -45,6 +45,7 @@ const BottomNavigation = () => {
     { path: '/leaderboard', imageSrc: assetUrl('/icon/navigation/leaderboard.svg'), label: 'BXH' },
     { path: '/inventory', imageSrc: assetUrl('/icon/navigation/inventory.svg'), label: 'Kho đồ', badge: newItemCount },
     { id: 'notifications', label: 'Thông báo', isNotification: true, badge: unreadCount },
+    { id: 'report', label: 'Báo cáo', isReport: true },
     { path: '/profile', imageSrc: assetUrl('/icon/navigation/account.svg'), label: 'Account' },
     ...(isTeacher() ? [{ path: '/teacher', icon: 'teacher', label: 'Teacher' }] : []),
     ...(isAdmin() ? [{ path: '/admin', icon: 'admin', label: 'Admin' }] : []),
@@ -136,6 +137,22 @@ const BottomNavigation = () => {
                             {item.badge > 99 ? '99+' : item.badge}
                           </span>
                         )}
+                      </button>
+                    )
+                  }
+
+                  if (item.isReport) {
+                    return (
+                      <button
+                        key="report"
+                        onClick={() => {
+                          setShowMoreMenu(false)
+                          onOpenReport?.()
+                        }}
+                        className="flex items-center gap-3 w-full px-4 py-3 text-left text-orange-600 hover:bg-orange-50 transition-colors"
+                      >
+                        <MessageSquarePlus size={20} />
+                        <span className="text-sm font-medium flex-1">{item.label}</span>
                       </button>
                     )
                   }

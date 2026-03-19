@@ -1,4 +1,4 @@
-import { useEffect } from 'react'
+import { useEffect, useState } from 'react'
 import { Outlet, useLocation } from 'react-router-dom'
 import { useAuth } from '../hooks/useAuth'
 import { supabase } from '../supabase/client'
@@ -10,10 +10,12 @@ import NotificationModal from './notifications/NotificationModal'
 import LoadingSpinner from './ui/LoadingSpinner'
 import OnlineUsers from './navigation/OnlineUsers'
 import PvPIncomingBanner from './pvp/PvPIncomingBanner'
+import ReportModal from './reports/ReportModal'
 
 const Layout = () => {
   const { loading, user } = useAuth()
   const location = useLocation()
+  const [showReportModal, setShowReportModal] = useState(false)
 
   // Heartbeat: update last_seen_at only when user is active
   useEffect(() => {
@@ -93,7 +95,7 @@ const Layout = () => {
       <PvPIncomingBanner />
 
       {/* Left Sidebar - Desktop and Mobile */}
-      {!hideSidebar && <LeftSidebar />}
+      {!hideSidebar && <LeftSidebar onOpenReport={() => setShowReportModal(true)} />}
 
       {/* Right Sidebar - Online Users */}
       {!hideSidebar && <OnlineUsers />}
@@ -108,9 +110,12 @@ const Layout = () => {
       {/* Bottom Navigation - Mobile (hidden on exercise/question UIs) */}
       {!hideBottomNav && (
         <div className="lg:hidden">
-          <BottomNavigation />
+          <BottomNavigation onOpenReport={() => setShowReportModal(true)} />
         </div>
       )}
+
+      {/* Report Modal */}
+      <ReportModal isOpen={showReportModal} onClose={() => setShowReportModal(false)} />
     </div>
   )
 }

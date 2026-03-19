@@ -23,7 +23,8 @@ import {
   Menu,
   X,
   ImagePlus,
-  Target
+  Target,
+  MessageSquarePlus
 } from 'lucide-react';
 import { supabase } from '../../supabase/client';
 import { useAuth } from '../../hooks/useAuth';
@@ -50,6 +51,7 @@ import LeaderboardSettings from './LeaderboardSettings';
 import BrandingSettings from './BrandingSettings';
 import AvatarApproval from './AvatarApproval';
 import MissionManagement from './MissionManagement';
+import ReportManagement from './ReportManagement';
 import { useCohorts } from '../../hooks/useCohorts';
 
 const AdminDashboard = () => {
@@ -210,6 +212,7 @@ const AdminDashboard = () => {
     { id: 'pets', label: 'Pet Management', icon: Cat },
     { id: 'giftcodes', label: 'Gift Codes', icon: Gift },
     { id: 'notifications', label: 'Notifications', icon: Bell },
+    { id: 'reports', label: 'Reports', icon: MessageSquarePlus },
     { id: 'users', label: 'Users', icon: Users },
     { id: 'activities', label: 'Activities', icon: Activity },
     { id: 'leaderboard', label: 'Leaderboard', icon: Trophy },
@@ -309,6 +312,7 @@ const AdminDashboard = () => {
                   {activeTab === 'inventory' && 'Manage collectible items, chests, and recipes'}
                   {activeTab === 'giftcodes' && 'Create and manage gift codes'}
                   {activeTab === 'notifications' && 'Send announcements to users'}
+                  {activeTab === 'reports' && 'View and respond to user reports'}
                   {activeTab === 'users' && 'User management and profiles'}
                   {activeTab === 'activities' && 'Recent student exercise attempts'}
                   {activeTab === 'analytics' && 'Platform analytics and insights'}
@@ -371,6 +375,7 @@ const AdminDashboard = () => {
               <Route path="pets" element={<PetManagement />} />
               <Route path="giftcodes" element={<GiftcodeManagement />} />
               <Route path="notifications" element={<NotificationManagement />} />
+              <Route path="reports" element={<ReportManagement />} />
               {/* Redirect legacy exercises path to bank */}
               <Route path="exercises" element={<ExerciseBank />} />
               <Route path="users" element={<UserManagement />} />
