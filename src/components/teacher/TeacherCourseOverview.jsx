@@ -189,7 +189,7 @@ const TeacherCourseOverview = () => {
       const lessonIds = lessonList.map(l => l.id);
       const { data: recs } = await supabase
         .from('lesson_records')
-        .select('id, lesson_info_id, student_id, attendance_status, homework_status, homework_notes, homework_score, homework_max_score, performance_rating, notes, score, max_score, star_flag')
+        .select('id, lesson_info_id, student_id, attendance_status, homework_status, homework_notes, homework_score, homework_max_score, vocab_score, vocab_max_score, performance_rating, notes, score, max_score, star_flag')
         .in('lesson_info_id', lessonIds);
       records = recs || [];
     }
@@ -459,7 +459,15 @@ const TeacherCourseOverview = () => {
                                             ) : <span className="text-gray-300">-</span>}
                                           </td>
                                           <td className="px-3 py-2 text-center text-gray-600">
-                                            {rec?.homework_score != null ? `${rec.homework_score}/${rec.homework_max_score ?? '?'}` : <span className="text-gray-300">-</span>}
+                                            <div className="flex flex-col items-center gap-0.5">
+                                              {rec?.homework_score != null && (
+                                                <span className="text-xs"><span className="text-gray-400">BT</span> {rec.homework_score}/{rec.homework_max_score ?? '?'}</span>
+                                              )}
+                                              {rec?.vocab_score != null && (
+                                                <span className="text-xs"><span className="text-gray-400">TV</span> {rec.vocab_score}/{rec.vocab_max_score ?? '?'}</span>
+                                              )}
+                                              {rec?.homework_score == null && rec?.vocab_score == null && <span className="text-gray-300">-</span>}
+                                            </div>
                                           </td>
                                           <td className="px-3 py-2 text-gray-700">{rec?.homework_notes || <span className="text-gray-300">-</span>}</td>
                                           <td className="px-3 py-2 text-center">
@@ -575,7 +583,10 @@ const TeacherCourseOverview = () => {
                     </span>
                   )}
                   {popoverData.record.homework_score != null && (
-                    <span className="text-gray-500">{popoverData.record.homework_score}/{popoverData.record.homework_max_score ?? '?'}</span>
+                    <span className="text-gray-500">BT: {popoverData.record.homework_score}/{popoverData.record.homework_max_score ?? '?'}</span>
+                  )}
+                  {popoverData.record.vocab_score != null && (
+                    <span className="text-gray-500">TV: {popoverData.record.vocab_score}/{popoverData.record.vocab_max_score ?? '?'}</span>
                   )}
                   {popoverData.record.homework_notes && (
                     <span className="text-gray-600 truncate">{popoverData.record.homework_notes}</span>

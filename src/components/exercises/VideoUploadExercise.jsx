@@ -7,7 +7,7 @@ import { supabase } from '../../supabase/client'
 import { saveRecentExercise } from '../../utils/recentExercise'
 import LoadingSpinner from '../ui/LoadingSpinner'
 import RichTextRenderer from '../ui/RichTextRenderer'
-import { Upload, ArrowRight, ArrowLeft, Star, RefreshCw, CheckCircle, Video, X, Clock } from 'lucide-react'
+import { Upload, ArrowRight, ArrowLeft, Star, RefreshCw, CheckCircle, Video, X, Clock, Lock, Play } from 'lucide-react'
 import { assetUrl } from '../../hooks/useBranding'
 import TeacherExerciseNav from '../ui/TeacherExerciseNav'
 import { LEVELS, scoreSpeechWithLLM } from './SpeakingAssessmentExercise'
@@ -72,6 +72,9 @@ const VideoUploadExercise = () => {
   const [aiResult, setAiResult] = useState(null)
   const fileInputRef = useRef(null)
   const [isDragOver, setIsDragOver] = useState(false)
+  const [classVideos, setClassVideos] = useState([])
+  const [hasSubmitted, setHasSubmitted] = useState(false)
+  const [playingVideoId, setPlayingVideoId] = useState(null)
 
   useEffect(() => {
     if (exerciseId && user) startExercise(exerciseId)
@@ -89,6 +92,52 @@ const VideoUploadExercise = () => {
   useEffect(() => {
     if (isQuizComplete && questionResults.length > 0) markExerciseCompleted()
   }, [isQuizComplete])
+
+  // Fetch class videos
+  useEffect(() => {
+    if (exerciseId && user) fetchClassVideos()
+  }, [exerciseId, user])
+
+  const fetchClassVideos = async () => {
+    try {
+      const { data } = await supabase
+        .from('video_submissions')
+        .select('id, user_id, video_url, ai_score, created_at, question_index')
+        .eq('exercise_id', exerciseId)
+        .order('created_at', { ascending: false })
+
+      if (!data || data.length === 0) return
+
+      // Check if current user has submitted
+      const userHasSubmitted = data.some(v => v.user_id === user.id)
+      setHasSubmitted(userHasSubmitted)
+
+      // Get unique user IDs for profiles
+      const userIds = [...new Set(data.map(v => v.user_id))]
+      const { data: profiles } = await supabase
+        .from('users')
+        .select('id, full_name, avatar_url')
+        .in('id', userIds)
+
+      const profileMap = {}
+      ;(profiles || []).forEach(p => { profileMap[p.id] = p })
+
+      // Keep only the latest submission per user
+      const seen = new Set()
+      const unique = data.filter(v => {
+        if (seen.has(v.user_id)) return false
+        seen.add(v.user_id)
+        return true
+      })
+
+      setClassVideos(unique.map(v => ({
+        ...v,
+        profile: profileMap[v.user_id] || { full_name: 'Student', avatar_url: null },
+      })))
+    } catch (err) {
+      console.error('Error fetching class videos:', err)
+    }
+  }
 
   // Clean up video preview URL
   useEffect(() => {
@@ -281,6 +330,10 @@ const VideoUploadExercise = () => {
       } catch (err) {
         console.error('Error saving submission:', err)
       }
+
+      // Refresh class videos after submission
+      setHasSubmitted(true)
+      fetchClassVideos()
 
       setUploadPhase('results')
     } catch (err) {
@@ -734,6 +787,80 @@ const VideoUploadExercise = () => {
                     </div>
                   </div>
                 )}
+              </div>
+            </div>
+          )}
+
+          {/* Class Videos Section */}
+          {classVideos.length > 0 && !isTeacherView && (
+            <div className="relative">
+              <div className="bg-white rounded-lg shadow-md border border-gray-200 overflow-hidden">
+                <div className="px-4 py-2.5 border-b border-gray-100 flex items-center gap-2">
+                  <Play className="w-3.5 h-3.5 text-teal-600" />
+                  <h3 className="text-sm font-semibold text-gray-900">Class Videos</h3>
+                  <span className="text-xs text-gray-400 ml-auto">{classVideos.length}</span>
+                </div>
+
+                <div className="relative">
+                  {/* Lock overlay - only covers classmate videos, user's own always visible */}
+                  {!hasSubmitted && classVideos.some(v => v.user_id !== user?.id) && (
+                    <div className="absolute inset-0 z-30 bg-white/80 backdrop-blur-sm flex items-center justify-center gap-2 rounded-b-lg">
+                      <Lock className="w-4 h-4 text-gray-400" />
+                      <p className="text-sm text-gray-500">Submit your video to unlock</p>
+                    </div>
+                  )}
+
+                  <div className="grid grid-cols-2 md:grid-cols-3 gap-2 p-2 max-h-[400px] overflow-y-auto">
+                    {classVideos.map(v => {
+                      const isMe = v.user_id === user?.id
+                      return (
+                        <div key={v.id} className={`rounded-lg overflow-hidden border ${isMe ? 'border-teal-300 ring-1 ring-teal-200' : 'border-gray-100'}`}>
+                          {playingVideoId === v.id ? (
+                            <video
+                              src={v.video_url}
+                              controls
+                              autoPlay
+                              className="w-full aspect-video bg-black object-contain"
+                            />
+                          ) : (
+                            <button
+                              onClick={() => setPlayingVideoId(v.id)}
+                              className="w-full aspect-video bg-gray-900 flex items-center justify-center group hover:bg-gray-800 transition-colors relative"
+                            >
+                              <Play className="w-8 h-8 text-white/60 group-hover:text-white/90 transition-colors" />
+                            </button>
+                          )}
+                          <div className={`flex items-center gap-1.5 px-2 py-1.5 ${isMe ? 'bg-teal-50' : 'bg-gray-50'}`}>
+                            <div className="w-5 h-5 rounded-full bg-teal-100 flex items-center justify-center flex-shrink-0 overflow-hidden">
+                              {v.profile.avatar_url ? (
+                                <img src={v.profile.avatar_url} alt="" className="w-5 h-5 rounded-full object-cover" />
+                              ) : (
+                                <span className="text-teal-700 font-bold text-[10px]">
+                                  {v.profile.full_name?.charAt(0).toUpperCase() || 'S'}
+                                </span>
+                              )}
+                            </div>
+                            <span className="text-xs text-gray-700 truncate flex-1">
+                              {isMe ? 'You' : v.profile.full_name}
+                            </span>
+                            {v.ai_score != null && (
+                              <span className={`text-[10px] font-bold px-1.5 py-0.5 rounded-full ${
+                                v.ai_score >= 80 ? 'bg-green-100 text-green-700' : v.ai_score >= 60 ? 'bg-yellow-100 text-yellow-700' : 'bg-red-100 text-red-700'
+                              }`}>
+                                {v.ai_score}%
+                              </span>
+                            )}
+                          </div>
+                        </div>
+                      )
+                    })}
+                    {classVideos.length === 0 && (
+                      <div className="col-span-full py-6 text-center text-gray-400 text-xs">
+                        No submissions yet.
+                      </div>
+                    )}
+                  </div>
+                </div>
               </div>
             </div>
           )}
