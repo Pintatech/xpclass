@@ -20,6 +20,7 @@ const GAME_TYPES = [
   { key: 'sayitright', label: 'Say It Right', icon: '🎤' },
   { key: 'quizrush', label: 'Quiz Rush', icon: '❓' },
   { key: 'bossbattle', label: 'Boss Battle', icon: '⚔️' },
+  { key: 'angrypet', label: 'Angry Pet', icon: '🏹' },
 ];
 
 const TRAINING_GAMES = [
@@ -32,6 +33,7 @@ const TRAINING_GAMES = [
   { key: 'sayitright', label: 'Say It Right', icon: '🎤' },
   { key: 'quizrush', label: 'Quiz Rush', icon: '❓' },
   { key: 'bossbattle', label: 'Boss Battle', icon: '⚔️' },
+  { key: 'angrypet', label: 'Angry Pet', icon: '🏹' },
 ];
 
 const LeaderboardSettings = () => {

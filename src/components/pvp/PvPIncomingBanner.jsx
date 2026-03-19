@@ -631,6 +631,7 @@ import PetFlappyGame from "../pet/PetFlappyGame";
 import PetWordType from "../pet/PetWordType";
 import PetSayItRight from "../pet/PetSayItRight";
 import PetQuizRush from "../pet/PetQuizRush";
+import PetAngryPet from "../pet/PetAngryPet";
 import PvPRealtimeWordType from "./PvPRealtimeWordType";
 import PvPRealtimeWordScramble from "./PvPRealtimeWordScramble";
 import PvPRealtimeMatchGame from "./PvPRealtimeMatchGame";
@@ -882,6 +883,14 @@ const PvPResponseModal = ({ challenge, onClose }) => {
       case "quizrush":
         return (
           <PetQuizRush
+            {...commonProps}
+            onGameEnd={handleGameEnd}
+            questionBank={questionBank}
+          />
+        );
+      case "angrypet":
+        return (
+          <PetAngryPet
             {...commonProps}
             onGameEnd={handleGameEnd}
             questionBank={questionBank}

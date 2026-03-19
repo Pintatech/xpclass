@@ -47,7 +47,7 @@ const PIG_DEFAULT = (i) => `https://xpclass.vn/xpclass/pet-game/angry/pig${i + 1
 const PIG_CORRECT = (i) => `https://xpclass.vn/xpclass/pet-game/angry/pig${i + 1}-correct.webp`
 const PIG_WRONG = (i) => `https://xpclass.vn/xpclass/pet-game/angry/pig${i + 1}-wrong.webp`
 
-const PetAngryLaunch = ({ petImageUrl, petName, onGameEnd, onClose, questionBank: questionBankProp = [], hideClose = false, scoreToBeat = null, leaderboard = [], chestEnabled = false }) => {
+const PetAngryPet = ({ petImageUrl, petName, onGameEnd, onClose, questionBank: questionBankProp = [], hideClose = false, scoreToBeat = null, leaderboard = [], chestEnabled = false }) => {
   const [phase, setPhase] = useState('ready')
   const [displayScore, setDisplayScore] = useState(0)
   const [displayTime, setDisplayTime] = useState(GAME_DURATION)
@@ -73,6 +73,7 @@ const PetAngryLaunch = ({ petImageUrl, petName, onGameEnd, onClose, questionBank
   const [petLaunch, setPetLaunch] = useState(null) // { targetX, targetY } flying animation
   const [petOnSling, setPetOnSling] = useState(true)
   const [impactEffect, setImpactEffect] = useState(null) // { x, y, correct }
+  const [petFalling, setPetFalling] = useState(false)
 
   const scoreRef = useRef(0)
   const timerRef = useRef(null)
@@ -124,6 +125,7 @@ const PetAngryLaunch = ({ petImageUrl, petName, onGameEnd, onClose, questionBank
     setSelectedChoice(null)
     setPetOnSling(true)
     setPetLaunch(null)
+    setPetFalling(false)
     setImpactEffect(null)
     setDragPos(null)
     qStartRef.current = Date.now()
@@ -204,7 +206,9 @@ const PetAngryLaunch = ({ petImageUrl, petName, onGameEnd, onClose, questionBank
 
       setWrongQuestions(prev => [...prev, { word: currentQ.choices[currentQ.answer_index], hint: currentQ.question }])
       playSound('https://xpclass.vn/xpclass/pet-game/angry/oink.wav', 0.4)
-      setTimeout(() => advanceQuestion(), 1200)
+      // Pet falls to the ground after hitting wrong target
+      setTimeout(() => setPetFalling(true), 300)
+      setTimeout(() => advanceQuestion(), 1500)
     }
   }, [phase, currentQ, feedback, selectedChoice, advanceQuestion, questionsCorrect, chestEnabled, playSound, spawnParticles])
 
@@ -293,6 +297,7 @@ const PetAngryLaunch = ({ petImageUrl, petName, onGameEnd, onClose, questionBank
     setFeedback(null)
     setPetOnSling(true)
     setPetLaunch(null)
+    setPetFalling(false)
     setImpactEffect(null)
     setDragPos(null)
 
@@ -374,23 +379,37 @@ const PetAngryLaunch = ({ petImageUrl, petName, onGameEnd, onClose, questionBank
   }, [isDragging, handleDragMove, handleDragEnd])
 
   // Pet position during various states - pet stays on slingshot while aiming
+  // Pet sits low on the slingshot but pivots from below the slingshot base
+  const PET_REST_Y = SLING_Y - 3 // pet sits 3% above slingshot origin
+  const PIVOT_ARM = 16 // distance from pivot (below slingshot) to pet — controls arc size
   const getPetPos = () => {
+    if (petFalling) return { x: petLaunch?.targetX ?? SLING_X, y: 60 }
     if (petLaunch) return { x: petLaunch.targetX, y: petLaunch.targetY }
-    return { x: SLING_X, y: SLING_Y - 8 }
+    if (isDragging && dragPos) {
+      const angle = (dragPos.x - SLING_X) * 0.4 * (Math.PI / 180)
+      return {
+        x: SLING_X + Math.sin(angle) * PIVOT_ARM,
+        y: (SLING_Y + PIVOT_ARM - (SLING_Y - PET_REST_Y)) - Math.cos(angle) * PIVOT_ARM,
+      }
+    }
+    return { x: SLING_X, y: PET_REST_Y }
   }
 
   const petPos = getPetPos()
 
   // Slingshot image
   const renderSlingshot = () => {
+    const rotation = isDragging && dragPos ? (dragPos.x - SLING_X) * 0.4 : 0
     return (
       <div className="absolute pointer-events-none" style={{
         left: `${SLING_X}%`,
         top: `${SLING_Y}%`,
-        transform: 'translate(-50%, -40%)',
+        transform: `translate(-50%, -40%) rotate(${rotation}deg)`,
+        transition: isDragging ? 'none' : 'transform 0.3s ease-out',
+        transformOrigin: 'center bottom',
         zIndex: 4,
       }}>
-        <img src="https://xpclass.vn/xpclass/pet-game/angry/Slingshot.webp" alt="Slingshot" className="w-24 h-28 object-contain" />
+        <img src="https://xpclass.vn/xpclass/pet-game/angry/Slingshot.png" alt="Slingshot" className="w-24 h-28 object-contain" />
       </div>
     )
   }
@@ -438,6 +457,7 @@ const PetAngryLaunch = ({ petImageUrl, petName, onGameEnd, onClose, questionBank
         @keyframes alCombo { 0% { transform: scale(1) } 50% { transform: scale(1.3) } 100% { transform: scale(1) } }
         @keyframes alQuestionIn { 0% { opacity: 0; transform: translateY(-15px) } 100% { opacity: 1; transform: translateY(0) } }
         @keyframes alPetBounce { 0%,100% { transform: translateY(0) } 50% { transform: translateY(-4px) } }
+        @keyframes alPetFall { 0% { transform: translate(-50%,-50%) rotate(0deg) } 100% { transform: translate(-50%,-50%) rotate(720deg) } }
         @keyframes chestPopupAnim { 0% { opacity: 0; transform: scale(0.5) translateY(20px) } 50% { opacity: 1; transform: scale(1.1) translateY(-10px) } 100% { opacity: 0; transform: scale(1) translateY(-30px) } }
         @keyframes alTargetDestroy { 0% { transform: scale(1); opacity: 1 } 30% { transform: scale(1.2); opacity: 0.8 } 100% { transform: scale(1.2) rotate(15deg); opacity: 0 } }
         @keyframes alTargetWrong { 0% { transform: translateX(0) } 20% { transform: translateX(-5px) } 40% { transform: translateX(5px) } 60% { transform: translateX(-3px) } 80% { transform: translateX(3px) } 100% { transform: translateX(0) } }
@@ -470,7 +490,7 @@ const PetAngryLaunch = ({ petImageUrl, petName, onGameEnd, onClose, questionBank
                 <span className="text-7xl">🐾</span>
               )}
             </div>
-            <h2 className="text-3xl font-black text-white drop-shadow-lg">Angry Launch!</h2>
+            <h2 className="text-3xl font-black text-white drop-shadow-lg">Angry Pet!</h2>
             <p className="text-white/80 text-sm text-center max-w-[260px]">
               Swipe left or right to aim {petName}, then release to launch at the correct answer!
             </p>
@@ -598,8 +618,8 @@ const PetAngryLaunch = ({ petImageUrl, petName, onGameEnd, onClose, questionBank
                   left: `${petPos.x}%`,
                   top: `${petPos.y}%`,
                   transform: 'translate(-50%, -50%)',
-                  transition: petLaunch ? 'left 0.35s ease-out, top 0.35s ease-out' : isDragging ? 'none' : 'left 0.2s, top 0.2s',
-                  animation: petLaunch ? 'alPetFly 0.4s ease-out' : petOnSling && !isDragging ? 'alPetBounce 1.5s ease-in-out infinite' : undefined,
+                  transition: petFalling ? 'left 0.5s ease-in, top 0.5s ease-in' : petLaunch ? 'left 0.35s ease-out, top 0.35s ease-out' : isDragging ? 'none' : 'left 0.2s, top 0.2s',
+                  animation: petFalling ? 'alPetFall 0.5s ease-in' : petLaunch ? 'alPetFly 0.4s ease-out' : petOnSling && !isDragging ? 'alPetBounce 1.5s ease-in-out infinite' : undefined,
                   cursor: petOnSling && !isDragging ? 'grab' : isDragging ? 'grabbing' : 'default',
                 }}
               >
@@ -802,4 +822,4 @@ const PetAngryLaunch = ({ petImageUrl, petName, onGameEnd, onClose, questionBank
   )
 }
 
-export default PetAngryLaunch
+export default PetAngryPet

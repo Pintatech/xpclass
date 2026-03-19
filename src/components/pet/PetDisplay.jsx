@@ -24,7 +24,7 @@ import PetWordType from "./PetWordType";
 import PetSayItRight from "./PetSayItRight";
 import PetQuizRush from "./PetQuizRush";
 import PetQuizBossBattle from "./PetQuizBossBattle";
-import PetAngryLaunch from "./PetAngryLaunch";
+import PetAngryPet from "./PetAngryPet";
 import PvPMatchmaking from "../pvp/PvPMatchmaking";
 
 import { assetUrl } from '../../hooks/useBranding';
@@ -98,11 +98,11 @@ const PetDisplay = () => {
   // Chat state
   const [playDisabled, setPlayDisabled] = useState(false);
   const [playCooldown, setPlayCooldown] = useState(0);
-  const [showGame, setShowGame] = useState(null); // null | 'picker' | 'catch' | 'flappy' | 'scramble' | 'whackmole' | 'astroblast' | 'matchgame' | 'quizrush' | 'bossbattle' | 'angrylaunch'
-  const [gameLeaderboards, setGameLeaderboards] = useState({ whackmole: [], scramble: [], astroblast: [], matchgame: [], wordtype: [], sayitright: [], quizrush: [], bossbattle: [], angrylaunch: [] });
+  const [showGame, setShowGame] = useState(null); // null | 'picker' | 'catch' | 'flappy' | 'scramble' | 'whackmole' | 'astroblast' | 'matchgame' | 'quizrush' | 'bossbattle' | 'angrypet'
+  const [gameLeaderboards, setGameLeaderboards] = useState({ whackmole: [], scramble: [], astroblast: [], matchgame: [], wordtype: [], sayitright: [], quizrush: [], bossbattle: [], angrypet: [] });
   const [wordBank, setWordBank] = useState([]);
   const [questionBank, setQuestionBank] = useState([]);
-  const [enabledGames, setEnabledGames] = useState(['scramble', 'whackmole', 'astroblast', 'matchgame', 'wordtype', 'sayitright', 'quizrush', 'bossbattle', 'angrylaunch']);
+  const [enabledGames, setEnabledGames] = useState(['scramble', 'whackmole', 'astroblast', 'matchgame', 'wordtype', 'sayitright', 'quizrush', 'bossbattle', 'angrypet']);
   const [competitionGame, setCompetitionGame] = useState(null); // game type with active competition
   const [chestEnabled, setChestEnabled] = useState(false); // whether chest can appear in games
   const [trainingBlocked, setTrainingBlocked] = useState(false); // true when outside allowed schedule
@@ -693,7 +693,7 @@ const PetDisplay = () => {
         sayitright: extra?.wordsPronounced && { goal_type: 'pronounce_words', increment: extra.wordsPronounced },
         quizrush: extra?.wordsCompleted && { goal_type: 'answer_questions', increment: extra.wordsCompleted },
         bossbattle: extra?.wordsCompleted && { goal_type: 'answer_questions', increment: extra.wordsCompleted },
-        angrylaunch: extra?.wordsCompleted && { goal_type: 'answer_questions', increment: extra.wordsCompleted },
+        angrypet: extra?.wordsCompleted && { goal_type: 'answer_questions', increment: extra.wordsCompleted },
       }
       const gameGoal = gameGoalMap[gameType]
       if (gameGoal) {
@@ -1956,14 +1956,14 @@ const PetDisplay = () => {
               </button>
               )}
 
-              {(isAdmin() || enabledGames.includes('angrylaunch')) && (
+              {(isAdmin() || enabledGames.includes('angrypet')) && (
               <button
-                onClick={() => { drainPetEnergy(10); recordAttemptStart('angrylaunch'); fetchGameLeaderboard('angrylaunch'); setShowGame('angrylaunch'); }}
-                className={`relative flex flex-col items-center gap-2 p-4 rounded-xl border-2 transition-all group ${competitionGame === 'angrylaunch' ? 'border-yellow-400 bg-yellow-50 ring-2 ring-yellow-300' : 'border-orange-200 hover:border-orange-400 hover:bg-orange-50'}`}
+                onClick={() => { drainPetEnergy(10); recordAttemptStart('angrypet'); fetchGameLeaderboard('angrypet'); setShowGame('angrypet'); }}
+                className={`relative flex flex-col items-center gap-2 p-4 rounded-xl border-2 transition-all group ${competitionGame === 'angrypet' ? 'border-yellow-400 bg-yellow-50 ring-2 ring-yellow-300' : 'border-orange-200 hover:border-orange-400 hover:bg-orange-50'}`}
               >
-                {competitionGame === 'angrylaunch' && <span className="absolute -top-2 -right-2 text-lg">🏆</span>}
-                <span className="text-4xl group-hover:scale-110 transition-transform">🏹</span>
-                <span className="font-bold text-gray-800 text-xs">Angry Launch</span>
+                {competitionGame === 'angrypet' && <span className="absolute -top-2 -right-2 text-lg">🏆</span>}
+                <img src="https://xpclass.vn/xpclass/pet-game/angry/Slingshot.png" alt="Angry Pet" className="w-10 h-10 object-contain group-hover:scale-110 transition-transform" />
+                <span className="font-bold text-gray-800 text-xs">Angry Pet</span>
               </button>
               )}
 
@@ -2204,9 +2204,9 @@ const PetDisplay = () => {
         />
       )}
 
-      {/* Angry Launch Mini-Game */}
-      {showGame === 'angrylaunch' && (
-        <PetAngryLaunch
+      {/* Angry Pet Mini-Game */}
+      {showGame === 'angrypet' && (
+        <PetAngryPet
           petImageUrl={(() => {
             let baseImage = activePet.image_url;
             if (activePet.evolution_stages && activePet.evolution_stage > 0) {
@@ -2217,9 +2217,9 @@ const PetDisplay = () => {
           })()}
           petName={activePet.nickname || activePet.name}
           questionBank={questionBank}
-          leaderboard={gameLeaderboards.angrylaunch}
+          leaderboard={gameLeaderboards.angrypet}
           chestEnabled={chestEnabled}
-          onGameEnd={(score, extra) => handleGameEnd(score, 'angrylaunch', extra)}
+          onGameEnd={(score, extra) => handleGameEnd(score, 'angrypet', extra)}
           onClose={() => setShowGame(null)}
         />
       )}

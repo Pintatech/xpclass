@@ -59,6 +59,7 @@ const Leaderboard = () => {
     wordtype: 'Word Type',
     sayitright: 'Say It Right',
     quizrush: 'Quiz Rush',
+    angrypet: 'Angry Pet',
   }
 
   // Fetch leaderboard settings on mount
