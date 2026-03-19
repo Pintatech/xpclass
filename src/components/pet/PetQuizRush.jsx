@@ -1,9 +1,10 @@
 import { useState, useEffect, useRef, useCallback } from 'react'
 import { createPortal } from 'react-dom'
-import { X, Trophy, Volume2, VolumeX } from 'lucide-react'
+import { X, Trophy, Volume2, VolumeX, Heart } from 'lucide-react'
 import { assetUrl } from '../../hooks/useBranding'
 
 const GAME_DURATION = 76
+const PET_MAX_HP = 5
 const POINTS_PER_Q = 10
 const STREAK_BONUS = 5
 const QUESTION_TIME_LIMIT = 5
@@ -62,6 +63,7 @@ const PetQuizRush = ({ petImageUrl, petName, onGameEnd, onClose, questionBank: q
   const [isChestQ, setIsChestQ] = useState(false)
   const [chestTimer, setChestTimer] = useState(0)
   const [comboAnim, setComboAnim] = useState(false)
+  const [petHp, setPetHp] = useState(PET_MAX_HP)
 
   const scoreRef = useRef(0)
   const timerRef = useRef(null)
@@ -192,7 +194,19 @@ const PetQuizRush = ({ petImageUrl, petName, onGameEnd, onClose, questionBank: q
 
       setWrongQuestions(prev => [...prev, { word: currentQ.choices[currentQ.answer_index], hint: currentQ.question }])
 
+      const newPetHp = petHp - 1
+      setPetHp(newPetHp)
+
       playSound(assetUrl('/sound/flappy-hit.mp3'), 0.4)
+
+      if (newPetHp <= 0) {
+        setTimeout(() => {
+          clearInterval(timerRef.current)
+          setPhase('defeated')
+        }, 800)
+        return
+      }
+
       setTimeout(() => advanceQuestion(), 1200)
     }
   }, [phase, currentQ, feedback, selectedChoice, advanceQuestion, questionsCorrect, chestEnabled, playSound])
@@ -209,9 +223,21 @@ const PetQuizRush = ({ petImageUrl, petName, onGameEnd, onClose, questionBank: q
     setScreenShake(10)
 
     setWrongQuestions(prev => [...prev, { word: currentQ.choices[currentQ.answer_index], hint: currentQ.question }])
+
+    const newPetHp = petHp - 1
+    setPetHp(newPetHp)
+
     playSound(assetUrl('/sound/flappy-hit.mp3'), 0.4)
-    setTimeout(() => advanceQuestion(), 1200)
-  }, [qTimeLeft, phase, feedback, currentQ, advanceQuestion, playSound])
+
+    if (newPetHp <= 0) {
+      setTimeout(() => {
+        clearInterval(timerRef.current)
+        setPhase('defeated')
+      }, 800)
+    } else {
+      setTimeout(() => advanceQuestion(), 1200)
+    }
+  }, [qTimeLeft, phase, feedback, currentQ, advanceQuestion, playSound, petHp])
 
   const startGame = useCallback(() => {
     const gameQs = pickQuestions(questionBankProp)
@@ -228,6 +254,7 @@ const PetQuizRush = ({ petImageUrl, petName, onGameEnd, onClose, questionBank: q
     scoreRef.current = 0
     streakRef.current = 0
     setStreak(0)
+    setPetHp(PET_MAX_HP)
     chestSpawnedRef.current = false
     chestQRef.current = 3 + Math.floor(Math.random() * 5)
     setChestCollected(false)
@@ -288,7 +315,7 @@ const PetQuizRush = ({ petImageUrl, petName, onGameEnd, onClose, questionBank: q
 
   // Stop music on results
   useEffect(() => {
-    if (phase === 'results' && bgMusicRef.current) {
+    if ((phase === 'results' || phase === 'defeated') && bgMusicRef.current) {
       bgMusicRef.current.pause()
       bgMusicRef.current = null
     }
@@ -385,6 +412,11 @@ const PetQuizRush = ({ petImageUrl, petName, onGameEnd, onClose, questionBank: q
           0% { opacity: 0; transform: translateY(15px) scale(0.95); }
           100% { opacity: 1; transform: translateY(0) scale(1); }
         }
+        @keyframes bbHeartLose {
+          0% { transform: scale(1); opacity: 1; }
+          50% { transform: scale(1.4); opacity: 0.5; }
+          100% { transform: scale(0); opacity: 0; }
+        }
       `}</style>
 
       <div
@@ -402,7 +434,7 @@ const PetQuizRush = ({ petImageUrl, petName, onGameEnd, onClose, questionBank: q
       <div className="absolute top-[30%] left-[50%] w-40 h-40 rounded-full bg-white/[0.03] pointer-events-none" />
 
       {/* Close */}
-      {phase !== 'results' && !hideClose && (
+      {phase !== 'results' && phase !== 'defeated' && !hideClose && (
         <button onClick={onClose} className="absolute top-4 left-4 z-50 bg-white/80 backdrop-blur rounded-full p-2 shadow-lg hover:bg-white transition-colors">
           <X className="w-6 h-6 text-gray-700" />
         </button>
@@ -502,12 +534,21 @@ const PetQuizRush = ({ petImageUrl, petName, onGameEnd, onClose, questionBank: q
                   })()}
                 </div>
 
-                {/* Pet */}
-                {petImageUrl && (
-                  <img src={petImageUrl} alt={petName} className="w-10 h-10 object-contain drop-shadow-md"
-                    onError={(e) => { e.target.style.display = 'none' }}
-                  />
-                )}
+                {/* Pet + HP */}
+                <div className="flex flex-col items-center gap-0.5">
+                  {petImageUrl && (
+                    <img src={petImageUrl} alt={petName} className="w-10 h-10 object-contain drop-shadow-md"
+                      onError={(e) => { e.target.style.display = 'none' }}
+                    />
+                  )}
+                  <div className="flex gap-0.5">
+                    {Array.from({ length: PET_MAX_HP }).map((_, i) => (
+                      <Heart key={i} className={`w-3.5 h-3.5 transition-all ${i < petHp ? 'text-red-400 fill-red-400' : 'text-gray-600/40'}`}
+                        style={i === petHp ? { animation: 'bbHeartLose 0.5s ease-out' } : {}}
+                      />
+                    ))}
+                  </div>
+                </div>
 
                 {/* Timer */}
                 {(() => {
@@ -661,6 +702,62 @@ const PetQuizRush = ({ petImageUrl, petName, onGameEnd, onClose, questionBank: q
                   </button>
                 )
               })}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ═══ DEFEATED PHASE ═══ */}
+      {phase === 'defeated' && (
+        <div className="absolute inset-0 flex flex-col items-center justify-start overflow-y-auto p-6 z-50">
+          <div className="bg-white rounded-3xl shadow-2xl max-w-sm w-full p-8 text-center my-auto"
+            style={{ animation: 'qrResultsFadeIn 0.5s ease-out' }}
+          >
+            <div className="inline-flex items-center justify-center w-20 h-20 rounded-full bg-red-100 mb-4"
+              style={{ animation: 'qrScorePopIn 0.6s ease-out 0.3s both' }}
+            >
+              <Heart className="w-10 h-10 text-red-400" />
+            </div>
+
+            <h2 className="text-2xl font-bold text-gray-800 mb-1">Defeated!</h2>
+            <p className="text-gray-500 mb-5">{petName} ran out of lives!</p>
+
+            <div className="rounded-2xl p-5 mb-5 border bg-gradient-to-br from-gray-50 to-gray-100 border-gray-200"
+              style={{ animation: 'qrScorePopIn 0.6s ease-out 0.5s both' }}
+            >
+              <p className="text-5xl font-black text-gray-400">{questionsCorrect}</p>
+              <p className="text-sm font-semibold mt-1 text-gray-400">questions correct</p>
+            </div>
+
+            {wrongQuestions.length > 0 && (
+              <div className="mb-5 text-left">
+                <p className="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-2 text-center">Questions to Review</p>
+                <div className="max-h-[180px] overflow-y-auto rounded-xl border border-gray-100 divide-y divide-gray-50">
+                  {wrongQuestions.map((w, i) => (
+                    <div key={i} className="flex items-center gap-2 px-3 py-2">
+                      <span className="font-bold text-sm text-green-600">{w.word}</span>
+                      <span className="text-xs text-gray-400 ml-auto truncate max-w-[160px]">{w.hint}</span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            <p className="text-sm text-gray-600 mb-6">Try to keep your lives! Wrong answers cost a heart.</p>
+
+            <div className="flex flex-col gap-2">
+              <button
+                onClick={() => { setPhase('ready'); setDisplayScore(0) }}
+                className="w-full py-3.5 bg-gradient-to-b from-violet-500 to-violet-600 hover:from-violet-600 hover:to-violet-700 text-white rounded-full font-bold text-lg shadow-lg border-b-4 border-violet-700 active:border-b-0 active:mt-1 transition-all"
+              >
+                Try Again
+              </button>
+              <button
+                onClick={onClose}
+                className="text-sm text-gray-400 hover:text-gray-600 transition-colors"
+              >
+                Exit
+              </button>
             </div>
           </div>
         </div>

@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef, useCallback } from 'react'
 import { createPortal } from 'react-dom'
-import { X, Trophy, Volume2, VolumeX, Mic, Square, Loader2 } from 'lucide-react'
+import { X, Trophy, Volume2, VolumeX, Mic, Square, Loader2, Heart } from 'lucide-react'
 import WORD_BANK from './wordBank'
 
 import { assetUrl } from '../../hooks/useBranding'
@@ -69,6 +69,7 @@ const transcribeAudio = async (audioBlob) => {
 const WORDS_PER_GAME = 10
 const MAX_ATTEMPTS = 2
 const PASS_SCORE = 70 // score threshold to pass a word
+const PET_MAX_HP = 5
 
 const shuffle = (arr) => {
   const a = [...arr]
@@ -124,7 +125,7 @@ const levenshtein = (a, b) => {
 }
 
 const PetSayItRight = ({ petImageUrl, petName, onGameEnd, onClose, wordBank: wordBankProp = [], hideClose = false, scoreToBeat = null, leaderboard = [], chestEnabled = false, pvpOpponentPetUrl = null }) => {
-  const [phase, setPhase] = useState('ready') // ready | playing | results
+  const [phase, setPhase] = useState('ready') // ready | playing | defeated | results
   const [words, setWords] = useState([])
   const [wordIndex, setWordIndex] = useState(0)
   const [attempt, setAttempt] = useState(1)
@@ -148,6 +149,7 @@ const PetSayItRight = ({ petImageUrl, petName, onGameEnd, onClose, wordBank: wor
   const [wordPopup, setWordPopup] = useState(null)
   const [chestCollected, setChestCollected] = useState(false)
   const [chestPopup, setChestPopup] = useState(false)
+  const [petHp, setPetHp] = useState(PET_MAX_HP)
 
   const scoreRef = useRef(0)
   const containerRef = useRef(null)
@@ -322,6 +324,15 @@ const PetSayItRight = ({ petImageUrl, petName, onGameEnd, onClose, wordBank: wor
 
       if (!muted) playSound(assetUrl('/sound/flappy-hit.mp3'), 0.4)
 
+      const newPetHp = petHp - 1
+      setPetHp(newPetHp)
+      if (newPetHp <= 0) {
+        setTimeout(() => {
+          setPhase('defeated')
+        }, 800)
+        return
+      }
+
       advanceToNextWord()
     }
   }, [pronunciationScore, attempt, currentWord, attemptScores, muted])
@@ -364,6 +375,7 @@ const PetSayItRight = ({ petImageUrl, petName, onGameEnd, onClose, wordBank: wor
     chestWordRef.current = 2 + Math.floor(Math.random() * 5)
     setChestCollected(false)
     setChestPopup(false)
+    setPetHp(PET_MAX_HP)
     setPhase('playing')
 
     try {
@@ -377,7 +389,7 @@ const PetSayItRight = ({ petImageUrl, petName, onGameEnd, onClose, wordBank: wor
 
   // Stop music on results
   useEffect(() => {
-    if (phase === 'results' && bgMusicRef.current) {
+    if ((phase === 'results' || phase === 'defeated') && bgMusicRef.current) {
       bgMusicRef.current.pause()
       bgMusicRef.current = null
     }
@@ -471,6 +483,7 @@ const PetSayItRight = ({ petImageUrl, petName, onGameEnd, onClose, wordBank: wor
           40% { transform: scale(1) translateY(0); opacity: 1; }
           100% { transform: scale(1) translateY(-80px); opacity: 0; }
         }
+        @keyframes bbHeartLose { 0% { transform: scale(1); opacity: 1; } 50% { transform: scale(1.4); opacity: 0.5; } 100% { transform: scale(0); opacity: 0; } }
       `}</style>
 
       <div
@@ -487,7 +500,7 @@ const PetSayItRight = ({ petImageUrl, petName, onGameEnd, onClose, wordBank: wor
       <div className="absolute bottom-[-15%] left-[-10%] w-80 h-80 rounded-full bg-white/5 pointer-events-none" />
 
       {/* Close Button */}
-      {phase !== 'results' && !hideClose && (
+      {phase !== 'results' && phase !== 'defeated' && !hideClose && (
         <button
           onClick={onClose}
           className="absolute top-4 left-4 z-50 bg-white/80 backdrop-blur rounded-full p-2 shadow-lg hover:bg-white transition-colors"
@@ -625,6 +638,18 @@ const PetSayItRight = ({ petImageUrl, petName, onGameEnd, onClose, wordBank: wor
                       </div>
                     )
                   })()}
+                </div>
+
+                <div className="flex items-center gap-1">
+                  {Array.from({ length: PET_MAX_HP }).map((_, i) => (
+                    <Heart
+                      key={i}
+                      className="w-4 h-4"
+                      fill={i < petHp ? '#ef4444' : 'none'}
+                      stroke={i < petHp ? '#ef4444' : 'rgba(255,255,255,0.3)'}
+                      style={i >= petHp ? { animation: 'bbHeartLose 0.4s ease-out forwards' } : {}}
+                    />
+                  ))}
                 </div>
 
                 {petImageUrl && (
@@ -792,6 +817,14 @@ const PetSayItRight = ({ petImageUrl, petName, onGameEnd, onClose, wordBank: wor
                 onClick={() => {
                   setWordsFailed(prev => [...prev, currentWord])
                   setWordResults(prev => [...prev, { word: currentWord.word, hint: currentWord.hint, score: 0, passed: false }])
+                  const newPetHp = petHp - 1
+                  setPetHp(newPetHp)
+                  if (newPetHp <= 0) {
+                    setTimeout(() => {
+                      setPhase('defeated')
+                    }, 800)
+                    return
+                  }
                   advanceToNextWord()
                 }}
                 className="text-xs text-white/50 hover:text-white/80 underline transition-colors"
@@ -799,6 +832,59 @@ const PetSayItRight = ({ petImageUrl, petName, onGameEnd, onClose, wordBank: wor
                 Skip
               </button>
             )}
+          </div>
+        </div>
+      )}
+
+      {/* Defeated Phase */}
+      {phase === 'defeated' && (
+        <div className="absolute inset-0 flex flex-col items-center justify-start overflow-y-auto p-6 z-50">
+          <div
+            className="bg-white rounded-3xl shadow-2xl max-w-sm w-full p-8 text-center my-auto"
+            style={{ animation: 'sayResultsFadeIn 0.5s ease-out' }}
+          >
+            <div
+              className="inline-flex items-center justify-center w-20 h-20 rounded-full bg-red-100 mb-4"
+              style={{ animation: 'sayScorePopIn 0.6s ease-out 0.3s both' }}
+            >
+              <Heart className="w-10 h-10 text-red-500" fill="#ef4444" />
+            </div>
+
+            <h2 className="text-2xl font-bold text-gray-800 mb-1">Defeated!</h2>
+            <p className="text-gray-500 mb-5">{petName} ran out of lives!</p>
+
+            <div
+              className="rounded-2xl p-5 mb-5 border bg-gradient-to-br from-gray-50 to-gray-100 border-gray-200"
+              style={{ animation: 'sayScorePopIn 0.6s ease-out 0.5s both' }}
+            >
+              <p className="text-5xl font-black text-gray-400">{wordsCorrect}</p>
+              <p className="text-sm font-semibold mt-1 text-gray-400">words completed</p>
+            </div>
+
+            <p className="text-sm text-gray-600 mb-6">
+              Try to keep your lives! Failed words cost a heart.
+            </p>
+
+            <div className="flex flex-col gap-2">
+              <button
+                onClick={() => {
+                  setPhase('ready')
+                  setDisplayScore(0)
+                  setWordsCorrect(0)
+                  setWordsFailed([])
+                  setWordResults([])
+                }}
+                className="w-full py-3.5 bg-gradient-to-b from-orange-500 to-red-500 hover:from-orange-600 hover:to-red-600 text-white rounded-full font-bold text-lg shadow-lg border-b-4 border-red-700 active:border-b-0 active:mt-1 transition-all"
+              >
+                Try Again
+              </button>
+              <button
+                onClick={onClose}
+                className="w-full py-2.5 text-gray-400 hover:text-gray-600 font-medium transition-colors"
+              >
+                Close
+              </button>
+            </div>
           </div>
         </div>
       )}

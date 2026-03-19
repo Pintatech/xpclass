@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react'
 import { createPortal } from 'react-dom'
-import { X, Trophy, Clock } from 'lucide-react'
+import { X, Trophy, Clock, Heart } from 'lucide-react'
 
 import { assetUrl } from '../../hooks/useBranding';
 import WORD_BANK_FALLBACK from './wordBank';
@@ -24,6 +24,7 @@ const PET_X_PERCENT = 0.18
 // Game
 const GAME_DURATION = 61 // seconds
 const PASS_SCORE = 10
+const PET_MAX_HP = 5
 
 const FRUIT_EMOJIS = ['🍈', '🍉', '🍊', '🍋', '🍌', '🍍', '🥭', '🍎', '🍏', '🍐', '🍑', '🍒', '🍓', '🍅', '🍆', '🌽', '🥑', '🍕', '🍔', '🌭', '🥨', '🥐', '🍞', '🌮', '🥪', '🥠', '🥩', '🍗', '🍖', '🍘', '🍤', '🍩', '🍰', '🧁']
 
@@ -47,6 +48,7 @@ const PetFlappyGame = ({ petImageUrl, petName, wordBank: wordBankProp, onGameEnd
   const [chestCollected, setChestCollected] = useState(false)
   const [chestPopup, setChestPopup] = useState(false)
   const [isChestRound, setIsChestRound] = useState(false)
+  const [petHp, setPetHp] = useState(PET_MAX_HP)
 
   const wordBank = (wordBankProp && wordBankProp.length > 0) ? wordBankProp : WORD_BANK_FALLBACK
 
@@ -92,6 +94,7 @@ const PetFlappyGame = ({ petImageUrl, petName, wordBank: wordBankProp, onGameEnd
   const floatingTextsRef = useRef([])
   const chestSpawnedRef = useRef(false)
   const chestWaveRef = useRef(0)
+  const petHpRef = useRef(PET_MAX_HP)
 
   // Flap / jump
   const flap = useCallback(() => {
@@ -172,7 +175,7 @@ const PetFlappyGame = ({ petImageUrl, petName, wordBank: wordBankProp, onGameEnd
 
   // Stop music on results
   useEffect(() => {
-    if (phase === 'results') stopMusic()
+    if (phase === 'results' || phase === 'defeated') stopMusic()
   }, [phase, stopMusic])
 
   // Cleanup music on unmount
@@ -258,6 +261,8 @@ const PetFlappyGame = ({ petImageUrl, petName, wordBank: wordBankProp, onGameEnd
     floatingTextsRef.current = []
     chestSpawnedRef.current = false
     chestWaveRef.current = 3 + Math.floor(Math.random() * 6)
+    petHpRef.current = PET_MAX_HP
+    setPetHp(PET_MAX_HP)
     setChestCollected(false)
     setChestPopup(false)
     setIsChestRound(false)
@@ -416,6 +421,16 @@ const PetFlappyGame = ({ petImageUrl, petName, wordBank: wordBankProp, onGameEnd
               }
 
               playSound(assetUrl('/sound/flappy-hit.mp3'), 0.4)
+
+              // HP loss on wrong fruit
+              petHpRef.current -= 1
+              setPetHp(petHpRef.current)
+              if (petHpRef.current <= 0) {
+                gameOverRef.current = true
+                clearInterval(timerRef.current)
+                setTimeout(() => setPhase('defeated'), 800)
+                return
+              }
             }
           }
         })
@@ -432,6 +447,16 @@ const PetFlappyGame = ({ petImageUrl, petName, wordBank: wordBankProp, onGameEnd
           }
           streakRef.current = 0
           setStreak(0)
+
+          // HP loss on missed wave
+          petHpRef.current -= 1
+          setPetHp(petHpRef.current)
+          if (petHpRef.current <= 0) {
+            gameOverRef.current = true
+            clearInterval(timerRef.current)
+            setTimeout(() => setPhase('defeated'), 800)
+            return
+          }
           setNewWord()
           if (hintTextRef.current) hintTextRef.current.textContent = currentHintRef.current
         }
@@ -515,6 +540,11 @@ const PetFlappyGame = ({ petImageUrl, petName, wordBank: wordBankProp, onGameEnd
           40% { transform: scale(1) translateY(0); opacity: 1; }
           100% { transform: scale(1) translateY(-80px); opacity: 0; }
         }
+        @keyframes bbHeartLose {
+          0% { transform: scale(1); opacity: 1; }
+          50% { transform: scale(1.4); opacity: 0.5; }
+          100% { transform: scale(0); opacity: 0; }
+        }
       `}</style>
 
       {/* Narrow portrait game container */}
@@ -548,7 +578,7 @@ const PetFlappyGame = ({ petImageUrl, petName, wordBank: wordBankProp, onGameEnd
         />
 
         {/* Close Button */}
-        {phase !== 'results' && (
+        {phase !== 'results' && phase !== 'defeated' && (
           <button
             onClick={() => { stopMusic(); onClose(); }}
             className="absolute top-4 left-4 z-50 bg-white/80 backdrop-blur rounded-full p-2 shadow-lg hover:bg-white transition-colors"
@@ -578,6 +608,14 @@ const PetFlappyGame = ({ petImageUrl, petName, wordBank: wordBankProp, onGameEnd
                   <span className="text-lg font-black text-white">🔥 {streak}</span>
                 </div>
               )}
+            </div>
+            {/* HP Hearts */}
+            <div className="flex gap-0.5 justify-center mt-1">
+              {Array.from({ length: PET_MAX_HP }).map((_, i) => (
+                <Heart key={i} className={`w-4 h-4 transition-all ${i < petHp ? 'text-red-400 fill-red-400' : 'text-gray-400/40'}`}
+                  style={i === petHp ? { animation: 'bbHeartLose 0.5s ease-out' } : {}}
+                />
+              ))}
             </div>
           </div>
         )}
@@ -707,6 +745,48 @@ const PetFlappyGame = ({ petImageUrl, petName, wordBank: wordBankProp, onGameEnd
           style={{ display: 'none' }}
         />
       </div>
+
+      {/* Defeated Phase */}
+      {phase === 'defeated' && (
+        <div className="absolute inset-0 flex items-center justify-center p-6 z-50">
+          <div className="bg-white rounded-3xl shadow-2xl max-w-sm w-full p-8 text-center"
+            style={{ animation: 'flappyResultsFadeIn 0.5s ease-out' }}
+          >
+            <div className="inline-flex items-center justify-center w-20 h-20 rounded-full bg-red-100 mb-4"
+              style={{ animation: 'flappyScorePopIn 0.6s ease-out 0.3s both' }}
+            >
+              <Heart className="w-10 h-10 text-red-400" />
+            </div>
+
+            <h2 className="text-2xl font-bold text-gray-800 mb-1">Defeated!</h2>
+            <p className="text-gray-500 mb-5">{petName} ran out of lives!</p>
+
+            <div className="rounded-2xl p-5 mb-5 border bg-gradient-to-br from-gray-50 to-gray-100 border-gray-200"
+              style={{ animation: 'flappyScorePopIn 0.6s ease-out 0.5s both' }}
+            >
+              <p className="text-5xl font-black text-gray-400">{displayScore}</p>
+              <p className="text-sm font-semibold mt-1 text-gray-400">points</p>
+            </div>
+
+            <p className="text-sm text-gray-600 mb-6">Try to keep your lives! Wrong fruits cost a heart.</p>
+
+            <div className="flex flex-col gap-2">
+              <button
+                onClick={() => { setPhase('ready'); setDisplayScore(0); setStreak(0) }}
+                className="w-full py-3.5 bg-gradient-to-b from-cyan-400 to-cyan-500 hover:from-cyan-500 hover:to-cyan-600 text-white rounded-full font-bold text-lg shadow-lg border-b-4 border-cyan-600 active:border-b-0 active:mt-1 transition-all"
+              >
+                Try Again
+              </button>
+              <button
+                onClick={onClose}
+                className="w-full py-2.5 text-gray-400 hover:text-gray-600 font-medium transition-colors"
+              >
+                Close
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Results Phase */}
       {phase === 'results' && (

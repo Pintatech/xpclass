@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef, useCallback } from 'react'
 import { createPortal } from 'react-dom'
-import { X, Trophy } from 'lucide-react'
+import { X, Trophy, Heart } from 'lucide-react'
 
 import { assetUrl } from '../../hooks/useBranding';
 
@@ -11,6 +11,7 @@ const CATCH_RADIUS = 44
 const POINTS_CORRECT = 20
 const POINTS_WRONG = -5
 const QUESTION_DELAY = 1000
+const PET_MAX_HP = 5
 
 const FRUIT_EMOJIS = ['🍈', '🍉', '🍊', '🍋', '🍌', '🍍', '🥭', '🍎', '🍏', '🍐', '🍑', '🍒', '🍓', '🍅', '🍆', '🌽', '🥑', '🍕', '🍔', '🌭', '🥨', '🍞', '🌮', '🥪', '🍗', '🍖', '🍩', '🍰', '🧁']
 
@@ -35,6 +36,7 @@ const PetCatchGame = ({ petImageUrl, petName, onGameEnd, onClose, questionBank: 
   const [questionsTotal, setQuestionsTotal] = useState(0)
   const [feedback, setFeedback] = useState(null)
   const [streak, setStreak] = useState(0)
+  const [petHp, setPetHp] = useState(PET_MAX_HP)
   const [fruits, setFruits] = useState([]) // displayed fruit choices
 
   const [chestCollected, setChestCollected] = useState(false)
@@ -56,6 +58,7 @@ const PetCatchGame = ({ petImageUrl, petName, onGameEnd, onClose, questionBank: 
   const currentQuestionRef = useRef(null)
   const waitingNextRef = useRef(false)
   const streakRef = useRef(0)
+  const petHpRef = useRef(PET_MAX_HP)
   const chestSpawnedRef = useRef(false)
   const chestQRef = useRef(0)
   const questionsCorrectRef = useRef(0)
@@ -218,6 +221,8 @@ const PetCatchGame = ({ petImageUrl, petName, onGameEnd, onClose, questionBank: 
     questionsTotalRef.current = 0
     chestSpawnedRef.current = false
     qIndexRef.current = 0
+    petHpRef.current = PET_MAX_HP
+    setPetHp(PET_MAX_HP)
 
     try {
       const music = new Audio(assetUrl('/sound/pet-word-scamble-2-faster.mp3'))
@@ -305,6 +310,22 @@ const PetCatchGame = ({ petImageUrl, petName, onGameEnd, onClose, questionBank: 
               setStreak(0)
               triggerCatchEffect(fruitPixelX, fruitPixelY, `${POINTS_WRONG}`, '#ef4444', false)
               setFeedback({ type: 'wrong', text: fruit.text })
+
+              const newPetHp = petHpRef.current - 1
+              petHpRef.current = newPetHp
+              setPetHp(newPetHp)
+              if (newPetHp <= 0) {
+                setTimeout(() => {
+                  gameEndedRef.current = true
+                  cancelAnimationFrame(animFrameRef.current)
+                  if (bgMusicRef.current) {
+                    bgMusicRef.current.pause()
+                    bgMusicRef.current = null
+                  }
+                  setPhase('defeated')
+                }, 800)
+                return
+              }
             }
 
             // Update visual
@@ -386,10 +407,15 @@ const PetCatchGame = ({ petImageUrl, petName, onGameEnd, onClose, questionBank: 
           50% { transform: scale(1.15); }
           100% { transform: scale(1); }
         }
+        @keyframes bbHeartLose {
+          0% { transform: scale(1); opacity: 1; }
+          50% { transform: scale(1.4); opacity: 0.5; }
+          100% { transform: scale(0); opacity: 0; }
+        }
       `}</style>
 
       {/* Close Button */}
-      {phase !== 'results' && (
+      {phase !== 'results' && phase !== 'defeated' && (
         <button
           onClick={onClose}
           className="absolute top-4 left-4 z-50 bg-white/80 backdrop-blur rounded-full p-2 shadow-lg hover:bg-white transition-colors"
@@ -419,6 +445,13 @@ const PetCatchGame = ({ petImageUrl, petName, onGameEnd, onClose, questionBank: 
               {displayTime}
             </span>
             <span className="text-sm text-gray-500 ml-1">s</span>
+          </div>
+          <div className="flex gap-0.5">
+            {Array.from({ length: PET_MAX_HP }).map((_, i) => (
+              <Heart key={i} className={`w-3.5 h-3.5 transition-all ${i < petHp ? 'text-red-400 fill-red-400' : 'text-gray-600/40'}`}
+                style={i === petHp ? { animation: 'bbHeartLose 0.5s ease-out' } : {}}
+              />
+            ))}
           </div>
         </div>
       )}
@@ -553,6 +586,49 @@ const PetCatchGame = ({ petImageUrl, petName, onGameEnd, onClose, questionBank: 
               draggable={false}
               onContextMenu={(e) => e.preventDefault()}
             />
+          </div>
+        </div>
+      )}
+
+      {/* Defeated Phase */}
+      {phase === 'defeated' && (
+        <div className="absolute inset-0 flex flex-col items-center justify-start overflow-y-auto p-6 z-50">
+          <div className="bg-white rounded-3xl shadow-2xl max-w-sm w-full p-8 text-center my-auto"
+            style={{ animation: 'resultsFadeIn 0.5s ease-out' }}
+          >
+            <div className="inline-flex items-center justify-center w-20 h-20 rounded-full bg-red-100 mb-4"
+              style={{ animation: 'scorePopIn 0.6s ease-out 0.3s both' }}
+            >
+              <Heart className="w-10 h-10 text-red-400" />
+            </div>
+            <h2 className="text-2xl font-bold text-gray-800 mb-1">Defeated!</h2>
+            <p className="text-gray-500 mb-5">{petName} ran out of lives!</p>
+
+            <div
+              className="bg-gradient-to-br from-gray-50 to-gray-100 rounded-2xl p-5 mb-4 border border-gray-200"
+              style={{ animation: 'scorePopIn 0.6s ease-out 0.5s both' }}
+            >
+              <p className="text-5xl font-black text-gray-500">{displayScore}</p>
+              <p className="text-sm text-gray-400 font-semibold mt-1">points scored</p>
+            </div>
+
+            <p className="text-sm text-gray-600 mb-6">Try to keep your lives! Wrong catches cost a heart.</p>
+
+            <button
+              onClick={() => {
+                setPhase('countdown')
+                setCountdownNumber(3)
+              }}
+              className="w-full py-3.5 bg-gradient-to-b from-cyan-400 to-cyan-500 hover:from-cyan-500 hover:to-cyan-600 text-white rounded-full font-bold text-lg shadow-lg border-b-4 border-cyan-600 active:border-b-0 active:mt-1 transition-all mb-3"
+            >
+              Try Again
+            </button>
+            <button
+              onClick={onClose}
+              className="w-full py-3 bg-gray-100 hover:bg-gray-200 text-gray-600 rounded-full font-bold text-base transition-all"
+            >
+              Close
+            </button>
           </div>
         </div>
       )}

@@ -1,9 +1,10 @@
 import { useState, useEffect, useRef, useCallback } from 'react'
 import { createPortal } from 'react-dom'
-import { X, Trophy, Volume2, VolumeX } from 'lucide-react'
+import { X, Trophy, Volume2, VolumeX, Heart } from 'lucide-react'
 import WORD_BANK from './wordBank'
 
 import { assetUrl } from '../../hooks/useBranding';
+const PET_MAX_HP = 5
 const GAME_DURATION = 76
 const POINTS_PER_WORD = 10
 const STREAK_BONUS = 5
@@ -64,6 +65,7 @@ const PetWordScramble = ({ petImageUrl, petName, onGameEnd, onClose, wordBank: w
   const [chestPopup, setChestPopup] = useState(false)
   const [chestMissed, setChestMissed] = useState(false)
   const [chestTimer, setChestTimer] = useState(0)
+  const [petHp, setPetHp] = useState(PET_MAX_HP)
 
   const scoreRef = useRef(0)
   const timerRef = useRef(null)
@@ -183,6 +185,7 @@ const PetWordScramble = ({ petImageUrl, petName, onGameEnd, onClose, wordBank: w
     setChestCollected(false)
     setChestPopup(false)
     setChestMissed(false)
+    setPetHp(PET_MAX_HP)
 
     // Use container dimensions for initial setup
     const width = containerRef.current?.clientWidth || 400
@@ -252,7 +255,7 @@ const PetWordScramble = ({ petImageUrl, petName, onGameEnd, onClose, wordBank: w
 
   // Stop background music when game ends
   useEffect(() => {
-    if (phase === 'results' && bgMusicRef.current) {
+    if ((phase === 'results' || phase === 'defeated') && bgMusicRef.current) {
       bgMusicRef.current.pause()
       bgMusicRef.current = null
     }
@@ -426,6 +429,18 @@ const PetWordScramble = ({ petImageUrl, petName, onGameEnd, onClose, wordBank: w
       // Wrong sound
       playSound(assetUrl('/sound/flappy-hit.mp3'), 0.3)
 
+      // HP loss
+      const newPetHp = petHp - 1
+      setPetHp(newPetHp)
+
+      if (newPetHp <= 0) {
+        setTimeout(() => {
+          clearInterval(timerRef.current)
+          setPhase('defeated')
+        }, 800)
+        return
+      }
+
       // Red explosion particles
       spawnParticles(Array.from({ length: 12 }, (_, i) => ({
         x: bubble.x, y: bubble.y,
@@ -468,6 +483,18 @@ const PetWordScramble = ({ petImageUrl, petName, onGameEnd, onClose, wordBank: w
 
     setCombo(0)
     setSkippedWords(prev => [...prev, words[wordIndex]])
+
+    const newPetHp = petHp - 1
+    setPetHp(newPetHp)
+
+    if (newPetHp <= 0) {
+      setTimeout(() => {
+        clearInterval(timerRef.current)
+        setPhase('defeated')
+      }, 800)
+      return
+    }
+
     const nextIdx = wordIndex + 1
     if (nextIdx < words.length) {
       setWordIndex(nextIdx)
@@ -646,6 +673,11 @@ const PetWordScramble = ({ petImageUrl, petName, onGameEnd, onClose, wordBank: w
           40% { transform: scale(1) translateY(0); opacity: 1; }
           100% { transform: scale(1) translateY(-80px); opacity: 0; }
         }
+        @keyframes bbHeartLose {
+          0% { transform: scale(1); opacity: 1; }
+          50% { transform: scale(1.4); opacity: 0.5; }
+          100% { transform: scale(0); opacity: 0; }
+        }
       `}</style>
 
       {/* Narrow portrait game container */}
@@ -660,7 +692,7 @@ const PetWordScramble = ({ petImageUrl, petName, onGameEnd, onClose, wordBank: w
       <div className="absolute bottom-[-15%] left-[-10%] w-80 h-80 rounded-full bg-white/5 pointer-events-none" />
 
       {/* Close Button */}
-      {phase !== 'results' && !hideClose && (
+      {phase !== 'results' && phase !== 'defeated' && !hideClose && (
         <button
           onClick={onClose}
           className="absolute top-4 left-4 z-50 bg-white/80 backdrop-blur rounded-full p-2 shadow-lg hover:bg-white transition-colors"
@@ -806,12 +838,21 @@ const PetWordScramble = ({ petImageUrl, petName, onGameEnd, onClose, wordBank: w
                   })()}
                 </div>
 
-                {petImageUrl && (
-                  <img src={petImageUrl} alt={petName}
-                    className="w-10 h-10 object-contain drop-shadow-md"
-                    onError={(e) => { e.target.style.display = 'none' }}
-                  />
-                )}
+                <div className="flex flex-col items-center gap-0.5">
+                  {petImageUrl && (
+                    <img src={petImageUrl} alt={petName}
+                      className="w-10 h-10 object-contain drop-shadow-md"
+                      onError={(e) => { e.target.style.display = 'none' }}
+                    />
+                  )}
+                  <div className="flex gap-0.5">
+                    {Array.from({ length: PET_MAX_HP }).map((_, i) => (
+                      <Heart key={i} className={`w-3.5 h-3.5 transition-all ${i < petHp ? 'text-red-400 fill-red-400' : 'text-gray-600/40'}`}
+                        style={i === petHp ? { animation: 'bbHeartLose 0.5s ease-out' } : {}}
+                      />
+                    ))}
+                  </div>
+                </div>
 
                 {(() => {
                   const pct = displayTime / GAME_DURATION
@@ -1056,6 +1097,62 @@ const PetWordScramble = ({ petImageUrl, petName, onGameEnd, onClose, wordBank: w
                   Skip
                 </button>
               </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Defeated Phase */}
+      {phase === 'defeated' && (
+        <div className="absolute inset-0 flex flex-col items-center justify-start overflow-y-auto p-6 z-50">
+          <div className="bg-white rounded-3xl shadow-2xl max-w-sm w-full p-8 text-center my-auto"
+            style={{ animation: 'scrambleResultsFadeIn 0.5s ease-out' }}
+          >
+            <div className="inline-flex items-center justify-center w-20 h-20 rounded-full bg-red-100 mb-4"
+              style={{ animation: 'scrambleScorePopIn 0.6s ease-out 0.3s both' }}
+            >
+              <Heart className="w-10 h-10 text-red-400" />
+            </div>
+
+            <h2 className="text-2xl font-bold text-gray-800 mb-1">Defeated!</h2>
+            <p className="text-gray-500 mb-5">{petName} ran out of lives!</p>
+
+            <div className="rounded-2xl p-5 mb-5 border bg-gradient-to-br from-gray-50 to-gray-100 border-gray-200"
+              style={{ animation: 'scrambleScorePopIn 0.6s ease-out 0.5s both' }}
+            >
+              <p className="text-5xl font-black text-gray-400">{wordsCompleted}</p>
+              <p className="text-sm font-semibold mt-1 text-gray-400">words completed</p>
+            </div>
+
+            {skippedWords.length > 0 && (
+              <div className="mb-5 text-left">
+                <p className="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-2 text-center">Words to Practice</p>
+                <div className="max-h-[180px] overflow-y-auto rounded-xl border border-gray-100 divide-y divide-gray-50">
+                  {skippedWords.map((w, i) => (
+                    <div key={i} className="flex items-center gap-2 px-3 py-2">
+                      <span className="font-bold text-sm text-gray-800">{w.word}</span>
+                      <span className="text-xs text-gray-400 ml-auto">{w.hint}</span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            <p className="text-sm text-gray-600 mb-6">Try to keep your lives! Wrong pops cost a heart.</p>
+
+            <div className="flex flex-col gap-2">
+              <button
+                onClick={() => { setPhase('ready'); setDisplayScore(0); setWordsCompleted(0) }}
+                className="w-full py-3.5 bg-gradient-to-b from-purple-500 to-purple-600 hover:from-purple-600 hover:to-purple-700 text-white rounded-full font-bold text-lg shadow-lg border-b-4 border-purple-700 active:border-b-0 active:mt-1 transition-all"
+              >
+                Try Again
+              </button>
+              <button
+                onClick={onClose}
+                className="w-full py-2.5 text-gray-400 hover:text-gray-600 font-medium transition-colors"
+              >
+                Close
+              </button>
             </div>
           </div>
         </div>

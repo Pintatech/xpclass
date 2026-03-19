@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef, useCallback } from 'react'
 import { createPortal } from 'react-dom'
-import { X, Trophy, Volume2, VolumeX } from 'lucide-react'
+import { X, Trophy, Volume2, VolumeX, Heart } from 'lucide-react'
 import WORD_BANK from './wordBank'
 import { assetUrl } from '../../hooks/useBranding'
 
@@ -8,6 +8,7 @@ const GAME_DURATION = 76
 // Streak tier scoring (like Whack-a-Mole): streak>=5 → 3, >=3 → 2, else 1
 const WORDS_PER_ROUND = 4 // how many words fall per round
 const GRAVITY = 0 // no acceleration, constant fall speed
+const PET_MAX_HP = 5
 
 // Jagged asteroid clip-path shapes (irregular polygons)
 const ASTEROID_CLIPS = [
@@ -37,6 +38,7 @@ const PetAstroBlast = ({ petImageUrl, petName, onGameEnd, onClose, shipSkinUrl, 
   const [screenShake, setScreenShake] = useState(0)
   const [feedback, setFeedback] = useState(null) // { type: 'correct'|'wrong', word, x, y }
   const [streak, setStreak] = useState(0)
+  const [petHp, setPetHp] = useState(PET_MAX_HP)
 
   const [slashTrail, setSlashTrail] = useState([])
   const [muted, setMuted] = useState(false)
@@ -145,6 +147,7 @@ const PetAstroBlast = ({ petImageUrl, petName, onGameEnd, onClose, shipSkinUrl, 
     setWordsCompleted(0)
     setMissedWords([])
     setStreak(0)
+    setPetHp(PET_MAX_HP)
 
     setFlyingWords([])
     setParticles([])
@@ -222,7 +225,7 @@ const PetAstroBlast = ({ petImageUrl, petName, onGameEnd, onClose, shipSkinUrl, 
 
   // Stop music on results
   useEffect(() => {
-    if (phase === 'results' && bgMusicRef.current) {
+    if ((phase === 'results' || phase === 'defeated') && bgMusicRef.current) {
       bgMusicRef.current.pause()
       bgMusicRef.current = null
     }
@@ -325,6 +328,16 @@ const PetAstroBlast = ({ petImageUrl, petName, onGameEnd, onClose, shipSkinUrl, 
               })
               streakRef.current = 0
               setStreak(0)
+              setPetHp(prev => {
+                const newPetHp = prev - 1
+                if (newPetHp <= 0) {
+                  setTimeout(() => {
+                    clearInterval(timerRef.current)
+                    setPhase('defeated')
+                  }, 800)
+                }
+                return newPetHp
+              })
               // Correct word missed — spawn next round
               scheduleNextRound()
             }
@@ -445,7 +458,17 @@ const PetAstroBlast = ({ petImageUrl, petName, onGameEnd, onClose, shipSkinUrl, 
       // WRONG slash
       streakRef.current = 0
       setStreak(0)
-  
+
+      const newPetHp = petHp - 1
+      setPetHp(newPetHp)
+      if (newPetHp <= 0) {
+        setTimeout(() => {
+          clearInterval(timerRef.current)
+          setPhase('defeated')
+        }, 800)
+        return
+      }
+
       setScreenShake(10)
 
       // Mark tapped word as wrong, dismiss all other words in same round
@@ -557,6 +580,7 @@ const PetAstroBlast = ({ petImageUrl, petName, onGameEnd, onClose, shipSkinUrl, 
           0%, 100% { transform: translateX(-50%) translateY(0); }
           50% { transform: translateX(-50%) translateY(-3px); }
         }
+        @keyframes bbHeartLose { 0% { transform: scale(1); opacity: 1; } 50% { transform: scale(1.4); opacity: 0.5; } 100% { transform: scale(0); opacity: 0; } }
         @keyframes timerUrgent {
           0%, 100% { transform: scale(1) rotate(0deg); }
           15% { transform: scale(1.1) rotate(-3deg); }
@@ -575,7 +599,7 @@ const PetAstroBlast = ({ petImageUrl, petName, onGameEnd, onClose, shipSkinUrl, 
 
 
       {/* Close Button */}
-      {phase !== 'results' && !hideClose && (
+      {phase !== 'results' && phase !== 'defeated' && !hideClose && (
         <button
           onClick={onClose}
           className="absolute top-4 left-4 z-50 bg-white/80 backdrop-blur rounded-full p-2 shadow-lg hover:bg-white transition-colors"
@@ -873,12 +897,25 @@ const PetAstroBlast = ({ petImageUrl, petName, onGameEnd, onClose, shipSkinUrl, 
                   })()}
                 </div>
 
-                {petImageUrl && (
-                  <img src={petImageUrl} alt={petName}
-                    className="w-10 h-10 object-contain drop-shadow-md"
-                    onError={(e) => { e.target.style.display = 'none' }}
-                  />
-                )}
+                <div className="flex flex-col items-center gap-1">
+                  {petImageUrl && (
+                    <img src={petImageUrl} alt={petName}
+                      className="w-10 h-10 object-contain drop-shadow-md"
+                      onError={(e) => { e.target.style.display = 'none' }}
+                    />
+                  )}
+                  <div className="flex items-center gap-0.5">
+                    {Array.from({ length: PET_MAX_HP }, (_, i) => (
+                      <Heart
+                        key={i}
+                        className="w-3.5 h-3.5"
+                        fill={i < petHp ? '#ef4444' : 'transparent'}
+                        stroke={i < petHp ? '#ef4444' : '#6b7280'}
+                        style={i >= petHp ? { animation: 'bbHeartLose 0.4s ease-out forwards' } : {}}
+                      />
+                    ))}
+                  </div>
+                </div>
 
                 {/* Timer */}
                 {(() => {
@@ -1093,6 +1130,57 @@ const PetAstroBlast = ({ petImageUrl, petName, onGameEnd, onClose, shipSkinUrl, 
           {/* Bottom instruction */}
           <div className="absolute bottom-2 left-0 right-0 z-10 pointer-events-none">
             <p className="text-center text-white/30 text-xs">Tap the correct asteroid!</p>
+          </div>
+        </div>
+      )}
+
+      {/* Defeated Phase */}
+      {phase === 'defeated' && (
+        <div className="absolute inset-0 flex flex-col items-center justify-start overflow-y-auto p-6 z-50">
+          <div
+            className="bg-white rounded-3xl shadow-2xl max-w-sm w-full p-8 text-center my-auto"
+            style={{ animation: 'slasherResultsFadeIn 0.5s ease-out' }}
+          >
+            <div
+              className="inline-flex items-center justify-center w-20 h-20 rounded-full bg-red-100 mb-4"
+              style={{ animation: 'slasherScorePopIn 0.6s ease-out 0.3s both' }}
+            >
+              <Heart className="w-10 h-10 text-red-500" />
+            </div>
+
+            <h2 className="text-2xl font-bold text-gray-800 mb-1">Defeated!</h2>
+            <p className="text-gray-500 mb-5">{petName} ran out of lives!</p>
+
+            <div
+              className="rounded-2xl p-5 mb-5 border bg-gradient-to-br from-gray-50 to-gray-100 border-gray-200"
+              style={{ animation: 'slasherScorePopIn 0.6s ease-out 0.5s both' }}
+            >
+              <p className="text-5xl font-black text-gray-400">{wordsCompleted}</p>
+              <p className="text-sm font-semibold mt-1 text-gray-400">words blasted</p>
+            </div>
+
+            <p className="text-sm text-gray-600 mb-6">
+              Try to keep your lives! Wrong answers cost a heart.
+            </p>
+
+            <div className="flex flex-col gap-2">
+              <button
+                onClick={() => {
+                  setPhase('ready')
+                  setDisplayScore(0)
+                  setWordsCompleted(0)
+                }}
+                className="w-full py-3.5 bg-gradient-to-b from-red-500 to-red-600 hover:from-red-600 hover:to-red-700 text-white rounded-full font-bold text-lg shadow-lg border-b-4 border-red-700 active:border-b-0 active:mt-1 transition-all"
+              >
+                Try Again
+              </button>
+              <button
+                onClick={onClose}
+                className="w-full py-2.5 text-gray-400 hover:text-gray-600 font-medium transition-colors"
+              >
+                Close
+              </button>
+            </div>
           </div>
         </div>
       )}

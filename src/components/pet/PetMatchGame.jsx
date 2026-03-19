@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef, useCallback } from 'react'
 import { createPortal } from 'react-dom'
-import { Trophy, Volume2, VolumeX } from 'lucide-react'
+import { Trophy, Volume2, VolumeX, Heart } from 'lucide-react'
 import WORD_BANK from './wordBank'
 import { assetUrl } from '../../hooks/useBranding'
 
@@ -8,6 +8,7 @@ const GAME_DURATION = 76
 const PAIRS_PER_ROUND = 6 // 6 pairs = 12 tiles in a 4x3 grid
 const POINTS_PER_MATCH = 10
 const STREAK_BONUS = 5
+const PET_MAX_HP = 5
 const shuffle = (arr) => {
   const a = [...arr]
   for (let i = a.length - 1; i > 0; i--) {
@@ -40,6 +41,7 @@ const PetMatchGame = ({ petImageUrl, petName, onGameEnd, onClose, wordBank: word
   const [chestMissed, setChestMissed] = useState(false)
   const [chestRoundIndex, setChestRoundIndex] = useState(-1)
   const [chestTimer, setChestTimer] = useState(0)
+  const [petHp, setPetHp] = useState(PET_MAX_HP)
 
   const timerRef = useRef(null)
   const scoreRef = useRef(0)
@@ -108,6 +110,7 @@ const PetMatchGame = ({ petImageUrl, petName, onGameEnd, onClose, wordBank: word
     setChestCollected(false)
     setChestPopup(false)
     setChestMissed(false)
+    setPetHp(PET_MAX_HP)
     setPhase('playing')
 
     // Background music
@@ -141,7 +144,7 @@ const PetMatchGame = ({ petImageUrl, petName, onGameEnd, onClose, wordBank: word
 
   // Stop music on results
   useEffect(() => {
-    if (phase === 'results' && bgMusicRef.current) {
+    if ((phase === 'results' || phase === 'defeated') && bgMusicRef.current) {
       bgMusicRef.current.pause()
       bgMusicRef.current = null
     }
@@ -323,6 +326,17 @@ const PetMatchGame = ({ petImageUrl, petName, onGameEnd, onClose, wordBank: word
         playSound(assetUrl('/sound/flappy-hit.mp3'), 0.4)
       }
 
+      const newPetHp = petHp - 1
+      setPetHp(newPetHp)
+
+      if (newPetHp <= 0) {
+        setTimeout(() => {
+          clearInterval(timerRef.current)
+          setPhase('defeated')
+        }, 800)
+        return
+      }
+
       setTimeout(() => {
         setWrongPair(null)
         setSelected(null)
@@ -404,6 +418,11 @@ const PetMatchGame = ({ petImageUrl, petName, onGameEnd, onClose, wordBank: word
           0%, 100% { box-shadow: 0 0 0 3px rgba(59,130,246,0.5), 0 0 15px rgba(59,130,246,0.3); }
           50% { box-shadow: 0 0 0 3px rgba(59,130,246,0.8), 0 0 20px rgba(59,130,246,0.5); }
         }
+        @keyframes bbHeartLose {
+          0% { transform: scale(1); opacity: 1; }
+          50% { transform: scale(1.4); opacity: 0.5; }
+          100% { transform: scale(0); opacity: 0; }
+        }
         .match-tile-3d {
           transition: transform 0.08s ease, box-shadow 0.08s ease;
           transform-style: preserve-3d;
@@ -438,7 +457,7 @@ const PetMatchGame = ({ petImageUrl, petName, onGameEnd, onClose, wordBank: word
         </div>
 
         {/* Close & Mute buttons */}
-        {phase !== 'results' && (
+        {phase !== 'results' && phase !== 'defeated' && (
           <div className="absolute top-4 left-4 z-50 flex gap-2">
             {!hideClose && (
               <button
@@ -567,12 +586,21 @@ const PetMatchGame = ({ petImageUrl, petName, onGameEnd, onClose, wordBank: word
                       {streak}x
                     </div>
                   )}
-                  {petImageUrl && (
-                    <img src={petImageUrl} alt={petName}
-                      className="w-10 h-10 object-contain drop-shadow-md"
-                      onError={(e) => { e.target.style.display = 'none' }}
-                    />
-                  )}
+                  <div className="flex flex-col items-center gap-0.5">
+                    {petImageUrl && (
+                      <img src={petImageUrl} alt={petName}
+                        className="w-10 h-10 object-contain drop-shadow-md"
+                        onError={(e) => { e.target.style.display = 'none' }}
+                      />
+                    )}
+                    <div className="flex gap-0.5">
+                      {Array.from({ length: PET_MAX_HP }).map((_, i) => (
+                        <Heart key={i} className={`w-3.5 h-3.5 transition-all ${i < petHp ? 'text-red-400 fill-red-400' : 'text-gray-600/40'}`}
+                          style={i === petHp ? { animation: 'bbHeartLose 0.5s ease-out' } : {}}
+                        />
+                      ))}
+                    </div>
+                  </div>
                 </div>
 
                 {/* Timer ring */}
@@ -839,6 +867,48 @@ const PetMatchGame = ({ petImageUrl, petName, onGameEnd, onClose, wordBank: word
                 </div>
               </div>
             )}
+          </div>
+        )}
+
+        {/* Defeated Phase */}
+        {phase === 'defeated' && (
+          <div className="absolute inset-0 flex flex-col items-center justify-start overflow-y-auto p-6 z-50">
+            <div className="bg-white rounded-3xl shadow-2xl max-w-sm w-full p-8 text-center my-auto"
+              style={{ animation: 'matchResultsFadeIn 0.5s ease-out' }}
+            >
+              <div className="inline-flex items-center justify-center w-20 h-20 rounded-full bg-red-100 mb-4"
+                style={{ animation: 'matchScorePopIn 0.6s ease-out 0.3s both' }}
+              >
+                <Heart className="w-10 h-10 text-red-400" />
+              </div>
+
+              <h2 className="text-2xl font-bold text-gray-800 mb-1">Defeated!</h2>
+              <p className="text-gray-500 mb-5">{petName} ran out of lives!</p>
+
+              <div className="rounded-2xl p-5 mb-5 border bg-gradient-to-br from-gray-50 to-gray-100 border-gray-200"
+                style={{ animation: 'matchScorePopIn 0.6s ease-out 0.5s both' }}
+              >
+                <p className="text-5xl font-black text-gray-400">{totalMatched}</p>
+                <p className="text-sm font-semibold mt-1 text-gray-400">pairs matched</p>
+              </div>
+
+              <p className="text-sm text-gray-600 mb-6">Try to keep your lives! Wrong matches cost a heart.</p>
+
+              <div className="flex flex-col gap-2">
+                <button
+                  onClick={() => { setPhase('ready'); setScore(0); setStreak(0) }}
+                  className="w-full py-3.5 bg-gradient-to-b from-indigo-500 to-indigo-600 hover:from-indigo-600 hover:to-indigo-700 text-white rounded-full font-bold text-lg shadow-lg border-b-4 border-indigo-700 active:border-b-0 active:mt-1 transition-all"
+                >
+                  Try Again
+                </button>
+                <button
+                  onClick={onClose}
+                  className="w-full py-2.5 text-gray-400 hover:text-gray-600 font-medium transition-colors"
+                >
+                  Close
+                </button>
+              </div>
+            </div>
           </div>
         )}
 

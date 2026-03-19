@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef, useCallback } from 'react'
 import { createPortal } from 'react-dom'
-import { Trophy } from 'lucide-react'
+import { Trophy, Heart } from 'lucide-react'
 import WORD_BANK from './wordBank'
 
 import { assetUrl } from '../../hooks/useBranding';
@@ -10,6 +10,7 @@ const MOLE_SHOW_MAX = 2500
 const GRID_COLS = 3
 const GRID_ROWS = 3
 const HOLES = GRID_COLS * GRID_ROWS
+const PET_MAX_HP = 5
 
 
 const shuffle = (arr) => {
@@ -42,6 +43,7 @@ const PetWhackMole = ({ petImageUrl, petName, onGameEnd, onClose, hammerSkinUrl,
   const [chestCollected, setChestCollected] = useState(false)
   const [chestPopup, setChestPopup] = useState(false)
   const [isChestRound, setIsChestRound] = useState(false)
+  const [petHp, setPetHp] = useState(PET_MAX_HP)
 
   const timerRef = useRef(null)
   const moleTimersRef = useRef([])
@@ -116,9 +118,23 @@ const PetWhackMole = ({ petImageUrl, petName, onGameEnd, onClose, hammerSkinUrl,
         }
         return prev.map(h => h.visible && !h.hit ? { ...h, hiding: true } : h)
       })
-      // If player missed the correct one, break streak
+      // If player missed the correct one, break streak and lose HP
       streakRef.current = 0
       setStreak(0)
+
+      setPetHp(prev => {
+        const newHp = prev - 1
+        if (newHp <= 0) {
+          moleTimersRef.current.forEach(t => clearTimeout(t))
+          moleTimersRef.current = []
+          setTimeout(() => {
+            clearInterval(timerRef.current)
+            setPhase('defeated')
+          }, 800)
+        }
+        return newHp
+      })
+
       // After animation finishes, fully remove and spawn next
       const removeTimer = setTimeout(() => {
         setHoles(prev => prev.map(h => h.hiding ? { ...h, visible: false, hiding: false, word: null } : h))
@@ -146,6 +162,7 @@ const PetWhackMole = ({ petImageUrl, petName, onGameEnd, onClose, hammerSkinUrl,
     setChestCollected(false)
     setChestPopup(false)
     setIsChestRound(false)
+    setPetHp(PET_MAX_HP)
     setPhase('playing')
 
     // Start background music
@@ -160,7 +177,7 @@ const PetWhackMole = ({ petImageUrl, petName, onGameEnd, onClose, hammerSkinUrl,
 
   // Stop background music when game ends
   useEffect(() => {
-    if (phase === 'results' && bgMusicRef.current) {
+    if ((phase === 'results' || phase === 'defeated') && bgMusicRef.current) {
       bgMusicRef.current.pause()
       bgMusicRef.current = null
     }
@@ -309,13 +326,26 @@ const PetWhackMole = ({ petImageUrl, petName, onGameEnd, onClose, hammerSkinUrl,
 
       playSound(assetUrl('/pet-game/mole-incorrect.mp3'), 0.4)
 
+      const newPetHp = petHp - 1
+      setPetHp(newPetHp)
+
+      if (newPetHp <= 0) {
+        moleTimersRef.current.forEach(t => clearTimeout(t))
+        moleTimersRef.current = []
+        setTimeout(() => {
+          clearInterval(timerRef.current)
+          setPhase('defeated')
+        }, 800)
+        return
+      }
+
       setTimeout(() => {
         setHoles(prev => prev.map((h, i) =>
           i === holeIndex ? { ...h, wrong: false } : h
         ))
       }, 300)
     }
-  }, [phase, holes, spawnRound])
+  }, [phase, holes, spawnRound, petHp])
 
   // Find the person just ahead of current score (lowest score still above current)
   const nextToBeat = [...leaderboard].reverse().find(e => e.score > score) || null
@@ -415,6 +445,11 @@ const PetWhackMole = ({ petImageUrl, petName, onGameEnd, onClose, hammerSkinUrl,
           40% { transform: scale(1) translateY(0); opacity: 1; }
           100% { transform: scale(1) translateY(-80px); opacity: 0; }
         }
+        @keyframes bbHeartLose {
+          0% { transform: scale(1); opacity: 1; }
+          50% { transform: scale(1.4); opacity: 0.5; }
+          100% { transform: scale(0); opacity: 0; }
+        }
       `}</style>
 
       {/* Narrow portrait game container */}
@@ -442,7 +477,7 @@ const PetWhackMole = ({ petImageUrl, petName, onGameEnd, onClose, hammerSkinUrl,
         }}
       >
         {/* Close Button */}
-        {phase !== 'results' && !hideClose && (
+        {phase !== 'results' && phase !== 'defeated' && !hideClose && (
           <button
             onClick={onClose}
             className="absolute top-4 left-4 z-50 bg-white/80 backdrop-blur rounded-full p-2 shadow-lg hover:bg-white transition-colors"
@@ -526,12 +561,21 @@ const PetWhackMole = ({ petImageUrl, petName, onGameEnd, onClose, hammerSkinUrl,
                       {streak}x
                     </div>
                   )}
-                  {petImageUrl && (
-                    <img src={petImageUrl} alt={petName}
-                      className="w-10 h-10 object-contain drop-shadow-md"
-                      onError={(e) => { e.target.style.display = 'none' }}
-                    />
-                  )}
+                  <div className="flex flex-col items-center gap-0.5">
+                    {petImageUrl && (
+                      <img src={petImageUrl} alt={petName}
+                        className="w-10 h-10 object-contain drop-shadow-md"
+                        onError={(e) => { e.target.style.display = 'none' }}
+                      />
+                    )}
+                    <div className="flex gap-0.5">
+                      {Array.from({ length: PET_MAX_HP }).map((_, i) => (
+                        <Heart key={i} className={`w-3.5 h-3.5 transition-all ${i < petHp ? 'text-red-400 fill-red-400' : 'text-gray-600/40'}`}
+                          style={i === petHp ? { animation: 'bbHeartLose 0.5s ease-out' } : {}}
+                        />
+                      ))}
+                    </div>
+                  </div>
                 </div>
 
                 {/* Timer ring */}
@@ -814,6 +858,48 @@ const PetWhackMole = ({ petImageUrl, petName, onGameEnd, onClose, hammerSkinUrl,
                 {ft.text}
               </div>
             ))}
+          </div>
+        )}
+
+        {/* Defeated Phase */}
+        {phase === 'defeated' && (
+          <div className="absolute inset-0 flex flex-col items-center justify-start overflow-y-auto p-6 z-50">
+            <div className="bg-white rounded-3xl shadow-2xl max-w-sm w-full p-8 text-center my-auto"
+              style={{ animation: 'moleResultsFadeIn 0.5s ease-out' }}
+            >
+              <div className="inline-flex items-center justify-center w-20 h-20 rounded-full bg-red-100 mb-4"
+                style={{ animation: 'moleScorePopIn 0.6s ease-out 0.3s both' }}
+              >
+                <Heart className="w-10 h-10 text-red-400" />
+              </div>
+
+              <h2 className="text-2xl font-bold text-gray-800 mb-1">Defeated!</h2>
+              <p className="text-gray-500 mb-5">{petName} ran out of lives!</p>
+
+              <div className="rounded-2xl p-5 mb-5 border bg-gradient-to-br from-gray-50 to-gray-100 border-gray-200"
+                style={{ animation: 'moleScorePopIn 0.6s ease-out 0.5s both' }}
+              >
+                <p className="text-5xl font-black text-gray-400">{roundsCompleted}</p>
+                <p className="text-sm font-semibold mt-1 text-gray-400">correct hits</p>
+              </div>
+
+              <p className="text-sm text-gray-600 mb-6">Try to keep your lives! Wrong whacks cost a heart.</p>
+
+              <div className="flex flex-col gap-2">
+                <button
+                  onClick={() => { setPhase('ready'); setScore(0); setStreak(0) }}
+                  className="w-full py-3.5 bg-gradient-to-b from-green-500 to-green-600 hover:from-green-600 hover:to-green-700 text-white rounded-full font-bold text-lg shadow-lg border-b-4 border-green-700 active:border-b-0 active:mt-1 transition-all"
+                >
+                  Try Again
+                </button>
+                <button
+                  onClick={onClose}
+                  className="w-full py-2.5 text-gray-400 hover:text-gray-600 font-medium transition-colors"
+                >
+                  Close
+                </button>
+              </div>
+            </div>
           </div>
         )}
 

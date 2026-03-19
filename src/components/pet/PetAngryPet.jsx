@@ -1,11 +1,12 @@
 import { useState, useEffect, useRef, useCallback } from 'react'
 import { createPortal } from 'react-dom'
-import { X, Trophy, Volume2, VolumeX } from 'lucide-react'
+import { X, Trophy, Volume2, VolumeX, Heart } from 'lucide-react'
 import { assetUrl } from '../../hooks/useBranding'
 
 const GAME_DURATION = 76
 const POINTS_PER_Q = 10
 const STREAK_BONUS = 5
+const PET_MAX_HP = 5
 
 const shuffle = (arr) => {
   const a = [...arr]
@@ -65,6 +66,7 @@ const PetAngryPet = ({ petImageUrl, petName, onGameEnd, onClose, questionBank: q
   const [chestCollected, setChestCollected] = useState(false)
   const [chestPopup, setChestPopup] = useState(false)
   const [comboAnim, setComboAnim] = useState(false)
+  const [petHp, setPetHp] = useState(PET_MAX_HP)
 
 
   // Slingshot / launch state
@@ -208,9 +210,21 @@ const PetAngryPet = ({ petImageUrl, petName, onGameEnd, onClose, questionBank: q
       playSound('https://xpclass.vn/xpclass/pet-game/angry/oink.wav', 0.4)
       // Pet falls to the ground after hitting wrong target
       setTimeout(() => setPetFalling(true), 300)
+
+      const newPetHp = petHp - 1
+      setPetHp(newPetHp)
+      if (newPetHp <= 0) {
+        setTimeout(() => {
+          clearInterval(timerRef.current)
+          if (bgMusicRef.current) { bgMusicRef.current.pause(); bgMusicRef.current = null }
+          setPhase('defeated')
+        }, 800)
+        return
+      }
+
       setTimeout(() => advanceQuestion(), 1500)
     }
-  }, [phase, currentQ, feedback, selectedChoice, advanceQuestion, questionsCorrect, chestEnabled, playSound, spawnParticles])
+  }, [phase, currentQ, feedback, selectedChoice, advanceQuestion, questionsCorrect, chestEnabled, playSound, spawnParticles, petHp])
 
   // Launch the pet towards a target position, then resolve answer
   const launchPet = useCallback((targetX, targetY, choiceIndex, choice) => {
@@ -308,6 +322,7 @@ const PetAngryPet = ({ petImageUrl, petName, onGameEnd, onClose, questionBank: q
     chestSpawnedRef.current = false
     setChestCollected(false)
     setChestPopup(false)
+    setPetHp(PET_MAX_HP)
     qStartRef.current = Date.now()
     setPhase('playing')
 
@@ -345,6 +360,9 @@ const PetAngryPet = ({ petImageUrl, petName, onGameEnd, onClose, questionBank: q
       } else {
         playSound('https://xpclass.vn/xpclass/pet-game/angry/angry-birds-level-failed.mp3', 0.5)
       }
+    }
+    if (phase === 'defeated') {
+      playSound('https://xpclass.vn/xpclass/pet-game/angry/angry-birds-level-failed.mp3', 0.5)
     }
   }, [phase, questionsCorrect, playSound])
 
@@ -473,6 +491,7 @@ const PetAngryPet = ({ petImageUrl, petName, onGameEnd, onClose, questionBank: q
         @keyframes chestPopupAnim { 0% { opacity: 0; transform: scale(0.5) translateY(20px) } 50% { opacity: 1; transform: scale(1.1) translateY(-10px) } 100% { opacity: 0; transform: scale(1) translateY(-30px) } }
         @keyframes alTargetDestroy { 0% { transform: scale(1); opacity: 1 } 30% { transform: scale(1.2); opacity: 0.8 } 100% { transform: scale(1.2) rotate(15deg); opacity: 0 } }
         @keyframes alTargetWrong { 0% { transform: translateX(0) } 20% { transform: translateX(-5px) } 40% { transform: translateX(5px) } 60% { transform: translateX(-3px) } 80% { transform: translateX(3px) } 100% { transform: translateX(0) } }
+        @keyframes bbHeartLose { 0% { transform: scale(1); opacity: 1; } 50% { transform: scale(1.4); opacity: 0.5; } 100% { transform: scale(0); opacity: 0; } }
       `}</style>
 
       <div
@@ -486,7 +505,7 @@ const PetAngryPet = ({ petImageUrl, petName, onGameEnd, onClose, questionBank: q
         <img src="https://xpclass.vn/xpclass/pet-game/angry/angry-background.png" alt="" className="absolute inset-0 w-full h-full object-cover pointer-events-none" />
 
         {/* Close button */}
-        {!hideClose && phase !== 'results' && (
+        {!hideClose && phase !== 'results' && phase !== 'defeated' && (
           <button onClick={onClose} className="absolute top-3 left-3 z-40 bg-black/30 rounded-full p-1.5 text-white/80 hover:text-white hover:bg-black/50 transition-colors">
             <X size={18} />
           </button>
@@ -556,6 +575,19 @@ const PetAngryPet = ({ petImageUrl, petName, onGameEnd, onClose, questionBank: q
                   {muted ? <VolumeX size={18} /> : <Volume2 size={18} />}
                 </button>
               </div>
+            </div>
+
+            {/* Heart / HP display */}
+            <div className="flex items-center justify-center gap-1 pb-1 z-20 relative">
+              {Array.from({ length: PET_MAX_HP }, (_, i) => (
+                <Heart
+                  key={i}
+                  size={18}
+                  className={i < petHp ? 'text-red-500 drop-shadow' : 'text-gray-400/50'}
+                  fill={i < petHp ? '#ef4444' : 'none'}
+                  style={i === petHp ? { animation: 'bbHeartLose 0.5s ease-out forwards' } : {}}
+                />
+              ))}
             </div>
 
             {/* Question card - top area */}
@@ -747,6 +779,47 @@ const PetAngryPet = ({ petImageUrl, petName, onGameEnd, onClose, questionBank: q
                   </div>
                 </div>
               )}
+            </div>
+          </div>
+        )}
+
+        {/* ═══ DEFEATED PHASE ═══ */}
+        {phase === 'defeated' && (
+          <div className="absolute inset-0 flex flex-col items-center justify-start overflow-y-auto p-6 z-50">
+            <div className="bg-white rounded-3xl shadow-2xl max-w-sm w-full p-8 text-center my-auto"
+              style={{ animation: 'alResultsFadeIn 0.5s ease-out' }}
+            >
+              <div className="inline-flex items-center justify-center w-20 h-20 rounded-full bg-red-100 mb-4"
+                style={{ animation: 'alScorePopIn 0.6s ease-out 0.3s both' }}
+              >
+                <Heart className="w-10 h-10 text-red-500" fill="#ef4444" />
+              </div>
+
+              <h2 className="text-2xl font-bold text-gray-800 mb-1">Defeated!</h2>
+              <p className="text-gray-500 mb-5">{petName} ran out of lives!</p>
+
+              <div className="rounded-2xl p-5 mb-5 border bg-gradient-to-br from-gray-50 to-gray-100 border-gray-200"
+                style={{ animation: 'alScorePopIn 0.6s ease-out 0.5s both' }}
+              >
+                <p className="text-5xl font-black text-gray-400">{displayScore}</p>
+                <p className="text-sm font-semibold mt-1 text-gray-400">score</p>
+              </div>
+
+              <p className="text-sm text-gray-600 mb-6">
+                Try to keep your lives! Wrong answers cost a heart.
+              </p>
+
+              <div className="flex flex-col gap-2">
+                <button
+                  onClick={() => { setPhase('ready'); setDisplayScore(0) }}
+                  className="w-full py-3.5 bg-gradient-to-b from-orange-400 to-red-500 hover:from-orange-500 hover:to-red-600 text-white rounded-full font-bold text-lg shadow-lg border-b-4 border-red-700 active:border-b-0 active:mt-1 transition-all"
+                >
+                  Try Again
+                </button>
+                <button onClick={onClose} className="text-sm text-gray-400 hover:text-gray-600 transition-colors">
+                  Exit
+                </button>
+              </div>
             </div>
           </div>
         )}
