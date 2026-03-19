@@ -61,6 +61,7 @@ const PetCatchGame = ({ petImageUrl, petName, onGameEnd, onClose, questionBank: 
   const questionsCorrectRef = useRef(0)
   const questionsTotalRef = useRef(0)
   const fruitsRef = useRef([])
+  const bgMusicRef = useRef(null)
 
   // Pre-load sounds
   useEffect(() => {
@@ -218,6 +219,14 @@ const PetCatchGame = ({ petImageUrl, petName, onGameEnd, onClose, questionBank: 
     chestSpawnedRef.current = false
     qIndexRef.current = 0
 
+    try {
+      const music = new Audio(assetUrl('/sound/pet-word-scamble-2-faster.mp3'))
+      music.loop = true
+      music.volume = 0.3
+      bgMusicRef.current = music
+      music.play().catch(() => {})
+    } catch {}
+
     spawnQuestion()
 
     const gameLoop = (timestamp) => {
@@ -231,6 +240,10 @@ const PetCatchGame = ({ petImageUrl, petName, onGameEnd, onClose, questionBank: 
 
       if (timeRef.current <= 0) {
         gameEndedRef.current = true
+        if (bgMusicRef.current) {
+          bgMusicRef.current.pause()
+          bgMusicRef.current = null
+        }
         setDisplayScore(scoreRef.current)
         setPhase('results')
         return
@@ -314,6 +327,10 @@ const PetCatchGame = ({ petImageUrl, petName, onGameEnd, onClose, questionBank: 
     return () => {
       gameEndedRef.current = true
       cancelAnimationFrame(animFrameRef.current)
+      if (bgMusicRef.current) {
+        bgMusicRef.current.pause()
+        bgMusicRef.current = null
+      }
     }
   }, [phase, spawnQuestion, triggerCatchEffect])
 

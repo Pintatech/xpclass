@@ -195,7 +195,7 @@ const PetAngryPet = ({ petImageUrl, petName, onGameEnd, onClose, questionBank: q
         16
       )
 
-      playSound('https://xpclass.vn/xpclass/pet-game/angry/piglette-damage.mp3', 0.4)
+      playSound(assetUrl('/sound/flappy-hit.mp3'), 0.4)
       setTimeout(() => advanceQuestion(), 900)
     } else {
       streakRef.current = 0
@@ -217,6 +217,7 @@ const PetAngryPet = ({ petImageUrl, petName, onGameEnd, onClose, questionBank: q
     if (phase !== 'playing' || feedback) return
     setPetOnSling(false)
     setPetLaunch({ targetX, targetY })
+    playSound(assetUrl('/sound/flappy-wing.mp3'), 0.4)
 
     // After flight animation completes, handle the answer
     setTimeout(() => {
@@ -224,7 +225,7 @@ const PetAngryPet = ({ petImageUrl, petName, onGameEnd, onClose, questionBank: q
       const pos = layout[choiceIndex] || { x: targetX, y: targetY }
       handleAnswer(choice.originalIndex, pos)
     }, 400)
-  }, [phase, feedback, shuffledChoices, handleAnswer])
+  }, [phase, feedback, shuffledChoices, handleAnswer, playSound])
 
   // Drag handlers for slingshot - only start from near the pet
   const handleDragStart = useCallback((e) => {
@@ -242,8 +243,7 @@ const PetAngryPet = ({ petImageUrl, petName, onGameEnd, onClose, questionBank: q
     e.preventDefault()
     setIsDragging(true)
     setDragPos({ x, y: SLING_Y - 8 }) // Lock Y to sling position
-    playSound('https://xpclass.vn/xpclass/pet-game/angry/angry-birds-slingshot.mp3', 0.2)
-  }, [phase, feedback, petOnSling, playSound])
+  }, [phase, feedback, petOnSling])
 
   const handleDragMove = useCallback((e) => {
     if (!isDragging) return
