@@ -1,11 +1,12 @@
-import React, { useState } from 'react'
-import { X, Eye, EyeOff, ChevronLeft, ChevronRight, BookOpen } from 'lucide-react'
+import { useState } from 'react'
+import { X, Eye, EyeOff, ChevronLeft, ChevronRight, BookOpen, Minimize2, Maximize2 } from 'lucide-react'
 import RichTextRenderer from '../ui/RichTextRenderer'
 
 const QuestionModal = ({ exercise, onClose }) => {
   const questions = exercise?.content?.questions || []
   const [currentIndex, setCurrentIndex] = useState(0)
   const [showAnswer, setShowAnswer] = useState(false)
+  const [minimized, setMinimized] = useState(false)
 
   if (questions.length === 0) return null
 
@@ -41,34 +42,54 @@ const QuestionModal = ({ exercise, onClose }) => {
     }
   }
 
+  // Minimized: floating bar at bottom
+  if (minimized) {
+    return (
+      <div className="fixed bottom-4 left-1/2 -translate-x-1/2 z-50 bg-indigo-600 text-white rounded-full shadow-2xl px-5 py-3 flex items-center gap-3 cursor-pointer hover:bg-indigo-500 transition-colors"
+        onClick={() => setMinimized(false)}
+      >
+        <BookOpen className="w-4 h-4" />
+        <span className="font-bold text-sm truncate max-w-[200px]">{exercise.title}</span>
+        <span className="text-xs bg-white/20 rounded-full px-2 py-0.5">Q{currentIndex + 1}/{questions.length}</span>
+        <Maximize2 className="w-4 h-4 ml-1" />
+      </div>
+    )
+  }
+
+  // Expanded: floating panel (not blocking — no backdrop overlay)
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm">
-      <div className="bg-white rounded-2xl shadow-2xl w-full max-w-2xl max-h-[85vh] flex flex-col m-4">
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40">
+      <div className="bg-white rounded-2xl shadow-2xl border border-gray-200 flex flex-col w-[80%] max-h-[85vh]">
         {/* Header */}
-        <div className="flex items-center justify-between px-6 py-4 border-b">
-          <div className="flex items-center gap-2">
-            <BookOpen className="w-5 h-5 text-indigo-500" />
-            <span className="font-bold text-gray-800 truncate max-w-xs">{exercise.title}</span>
-            <span className="text-xs bg-gray-100 text-gray-500 px-2 py-0.5 rounded-full">
+        <div className="flex items-center justify-between px-5 py-3 border-b bg-gray-50 rounded-t-2xl">
+          <div className="flex items-center gap-2 min-w-0">
+            <BookOpen className="w-4 h-4 text-indigo-500 flex-shrink-0" />
+            <span className="font-bold text-gray-800 truncate text-sm">{exercise.title}</span>
+            <span className="text-xs bg-indigo-100 text-indigo-600 px-2 py-0.5 rounded-full flex-shrink-0">
               {currentIndex + 1} / {questions.length}
             </span>
           </div>
-          <button onClick={onClose} className="p-1 hover:bg-gray-100 rounded-lg">
-            <X className="w-5 h-5 text-gray-500" />
-          </button>
+          <div className="flex items-center gap-1 flex-shrink-0">
+            <button onClick={() => setMinimized(true)} className="p-1.5 hover:bg-gray-200 rounded-lg" title="Minimize">
+              <Minimize2 className="w-4 h-4 text-gray-500" />
+            </button>
+            <button onClick={onClose} className="p-1.5 hover:bg-gray-200 rounded-lg" title="Close exercise">
+              <X className="w-4 h-4 text-gray-500" />
+            </button>
+          </div>
         </div>
 
         {/* Question content */}
-        <div className="flex-1 overflow-y-auto p-6">
+        <div className="flex-1 overflow-y-auto p-5">
           {renderQuestion()}
         </div>
 
         {/* Footer controls */}
-        <div className="flex items-center justify-between px-6 py-4 border-t">
+        <div className="flex items-center justify-between px-5 py-3 border-t bg-gray-50 rounded-b-2xl">
           <button
             onClick={goPrev}
             disabled={currentIndex === 0}
-            className="flex items-center gap-1 px-4 py-2 bg-gray-100 hover:bg-gray-200 disabled:opacity-30 disabled:hover:bg-gray-100 rounded-lg text-sm font-semibold text-gray-700 transition-colors"
+            className="flex items-center gap-1 px-3 py-1.5 bg-gray-100 hover:bg-gray-200 disabled:opacity-30 disabled:hover:bg-gray-100 rounded-lg text-sm font-semibold text-gray-700 transition-colors"
           >
             <ChevronLeft className="w-4 h-4" />
             Prev
@@ -76,7 +97,7 @@ const QuestionModal = ({ exercise, onClose }) => {
 
           <button
             onClick={() => setShowAnswer(!showAnswer)}
-            className={`flex items-center gap-2 px-5 py-2 rounded-lg text-sm font-bold transition-all ${
+            className={`flex items-center gap-2 px-4 py-1.5 rounded-lg text-sm font-bold transition-all ${
               showAnswer
                 ? 'bg-green-100 text-green-700 hover:bg-green-200'
                 : 'bg-indigo-600 text-white hover:bg-indigo-500'
@@ -89,7 +110,7 @@ const QuestionModal = ({ exercise, onClose }) => {
           <button
             onClick={goNext}
             disabled={currentIndex === questions.length - 1}
-            className="flex items-center gap-1 px-4 py-2 bg-gray-100 hover:bg-gray-200 disabled:opacity-30 disabled:hover:bg-gray-100 rounded-lg text-sm font-semibold text-gray-700 transition-colors"
+            className="flex items-center gap-1 px-3 py-1.5 bg-gray-100 hover:bg-gray-200 disabled:opacity-30 disabled:hover:bg-gray-100 rounded-lg text-sm font-semibold text-gray-700 transition-colors"
           >
             Next
             <ChevronRight className="w-4 h-4" />
@@ -107,19 +128,16 @@ const MultipleChoiceQuestion = ({ q, showAnswer }) => {
 
   return (
     <div className="space-y-4">
-      {/* Question text */}
       <div className="text-lg font-semibold text-gray-800">
         <RichTextRenderer content={q.question} />
       </div>
 
-      {/* Question image */}
       {q.image_url && (
         <div className="flex justify-center">
           <img src={q.image_url} alt="" className="max-h-60 rounded-xl object-contain" />
         </div>
       )}
 
-      {/* Options */}
       <div className="grid gap-2">
         {(q.options || []).map((opt, idx) => {
           const isCorrect = idx === correctIndex
@@ -142,7 +160,6 @@ const MultipleChoiceQuestion = ({ q, showAnswer }) => {
         })}
       </div>
 
-      {/* Explanation */}
       {showAnswer && q.explanation && (
         <div className="bg-yellow-50 border border-yellow-200 rounded-xl p-4 text-sm text-yellow-800">
           <span className="font-bold">Explanation:</span> <RichTextRenderer content={q.explanation} />
@@ -184,7 +201,6 @@ const FillBlankQuestion = ({ q, showAnswer }) => {
 }
 
 const DropdownQuestion = ({ q, showAnswer }) => {
-  // Dropdown questions typically have blanks with options
   return (
     <div className="space-y-4">
       <div className="text-lg font-semibold text-gray-800">
@@ -228,7 +244,6 @@ const DropdownQuestion = ({ q, showAnswer }) => {
 const FlashcardQuestion = ({ q, showAnswer }) => {
   return (
     <div className="space-y-4">
-      {/* Front */}
       <div className="bg-indigo-50 border-2 border-indigo-200 rounded-2xl p-6 text-center">
         <div className="text-xs text-indigo-500 font-semibold mb-2 uppercase">Front</div>
         <div className="text-xl font-bold text-gray-800">
@@ -241,7 +256,6 @@ const FlashcardQuestion = ({ q, showAnswer }) => {
         )}
       </div>
 
-      {/* Back */}
       {showAnswer && (
         <div className="bg-green-50 border-2 border-green-300 rounded-2xl p-6 text-center">
           <div className="text-xs text-green-600 font-semibold mb-2 uppercase">Back</div>

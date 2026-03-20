@@ -1,6 +1,7 @@
 import React, { useState } from 'react'
 import { ArrowRightLeft, Edit2, Check } from 'lucide-react'
 import { assetUrl } from '../../hooks/useBranding'
+import { POWERUPS } from '../../hooks/useLiveBattle'
 
 const pointButtons = [
   { value: -1, emoji: '👎', label: '-1' },
@@ -32,6 +33,7 @@ const TeamPanel = ({
   onUpdateTeam,
   onTeamNameChange,
   onAddTeamPoints,
+  onActivatePowerup,
   teamColor, // 'red' or 'blue'
 }) => {
   const [editingName, setEditingName] = useState(false)
@@ -85,9 +87,9 @@ const TeamPanel = ({
         </div>
       </div>
 
-      {/* Team-level point buttons */}
+      {/* Team-level point buttons + powerups */}
       {isActive && (
-        <div className="flex items-center justify-center gap-2 px-4 py-2 bg-white/80 border-b">
+        <div className="flex items-center justify-center gap-2 px-4 py-2 bg-white/80 border-b flex-wrap">
           <span className="text-xs text-gray-500 mr-1">Team:</span>
           {pointButtons.map(btn => (
             <button
@@ -104,6 +106,17 @@ const TeamPanel = ({
               {btn.emoji}
             </button>
           ))}
+          <div className="w-px h-6 bg-gray-300 mx-1" />
+          {Object.entries(POWERUPS).map(([key, pu]) => (
+            <button
+              key={key}
+              onClick={() => onActivatePowerup(key, team)}
+              className={`bg-gradient-to-r ${pu.color} text-white rounded-full w-8 h-8 flex items-center justify-center hover:scale-110 active:scale-95 transition-transform shadow`}
+              title={`${pu.name}: ${pu.description}`}
+            >
+              <span className="text-sm">{pu.icon}</span>
+            </button>
+          ))}
         </div>
       )}
 
@@ -112,16 +125,16 @@ const TeamPanel = ({
         {participants.length === 0 ? (
           <div className="text-center text-gray-400 text-sm py-8">No students</div>
         ) : (
-          <div className="grid grid-cols-2 gap-2">
+          <div className="grid grid-cols-3 gap-2">
             {participants.map(p => (
               <div key={p.id} className={`bg-white rounded-xl p-2 shadow-sm border ${rarityColors[p.pet_rarity] || 'border-gray-200'} relative group`}>
                 {/* Pet image */}
                 <div className="flex items-center gap-2">
-                  <div className="w-12 h-12 flex-shrink-0 flex items-center justify-center">
+                  <div className="w-20 h-20 flex-shrink-0 flex items-center justify-center">
                     {p.pet_image ? (
-                      <img src={p.pet_image} alt={p.pet_name} className={`w-12 h-12 object-contain ${team === 'b' ? '-scale-x-100' : ''}`} />
+                      <img src={p.pet_image} alt={p.pet_name} className={`w-20 h-20 object-contain ${team === 'b' ? '-scale-x-100' : ''}`} />
                     ) : (
-                      <div className="w-12 h-12 bg-gray-100 rounded-full flex items-center justify-center text-lg">🥚</div>
+                      <div className="w-20 h-20 bg-gray-100 rounded-full flex items-center justify-center text-2xl">🥚</div>
                     )}
                   </div>
                   <div className="min-w-0 flex-1">

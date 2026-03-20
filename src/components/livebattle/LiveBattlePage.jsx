@@ -4,7 +4,6 @@ import { ArrowLeft, Play, Square, Shuffle, Trophy, Sparkles, BookOpen } from 'lu
 import { useAuth } from '../../hooks/useAuth'
 import { useLiveBattle } from '../../hooks/useLiveBattle'
 import TeamPanel from './TeamPanel'
-import PowerUpBar from './PowerUpBar'
 import PowerUpEffect from './PowerUpEffect'
 import BattleEventLog from './BattleEventLog'
 import ExercisePickerModal from './ExercisePickerModal'
@@ -102,7 +101,7 @@ const LiveBattlePage = () => {
     const winTeamName = winnerTeam === 'a' ? session.team_a_name : winnerTeam === 'b' ? session.team_b_name : 'Draw'
 
     return (
-      <div className="min-h-screen bg-gradient-to-br from-indigo-50 via-white to-purple-50 p-4">
+      <div className="min-h-screen bg-cover bg-center bg-no-repeat p-4" style={{ backgroundImage: 'url(https://xpclass.vn/xpclass/pet-game/petbattle.jpg)' }}>
         <div className="max-w-4xl mx-auto">
           {/* Victory header */}
           <div className="text-center py-8">
@@ -167,10 +166,10 @@ const LiveBattlePage = () => {
   const isActive = session?.status === 'active'
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-indigo-50 via-white to-purple-50 p-4">
+    <div className="min-h-screen bg-cover bg-center bg-no-repeat px-2 py-3" style={{ backgroundImage: 'url(https://static.vecteezy.com/system/resources/thumbnails/046/106/279/small/comic-vs-fight-scene-versus-background-with-blue-and-red-color-parts-halftone-banner-with-frames-duel-poster-with-retro-stripes-lightning-rays-explosion-cloud-concept-vector.jpg)' }}>
       <PowerUpEffect events={events} />
 
-      <div className="max-w-7xl mx-auto">
+      <div className="w-full px-2">
         {/* Top bar */}
         <div className="flex items-center justify-between mb-4">
           <button
@@ -264,17 +263,6 @@ const LiveBattlePage = () => {
           </div>
         )}
 
-        {/* Power-ups (active phase) */}
-        {isActive && (
-          <div className="mb-4">
-            <PowerUpBar
-              onActivate={activatePowerup}
-              teamAName={session?.team_a_name || 'Team Alpha'}
-              teamBName={session?.team_b_name || 'Team Beta'}
-            />
-          </div>
-        )}
-
         {/* Two team panels */}
         <div className="grid grid-cols-2 gap-4 mb-4">
           <TeamPanel
@@ -291,6 +279,7 @@ const LiveBattlePage = () => {
             onUpdateTeam={updateTeam}
             onTeamNameChange={updateTeamName}
             onAddTeamPoints={addTeamPoints}
+            onActivatePowerup={activatePowerup}
             teamColor="red"
           />
           <TeamPanel
@@ -307,6 +296,7 @@ const LiveBattlePage = () => {
             onUpdateTeam={updateTeam}
             onTeamNameChange={updateTeamName}
             onAddTeamPoints={addTeamPoints}
+            onActivatePowerup={activatePowerup}
             teamColor="blue"
           />
         </div>
