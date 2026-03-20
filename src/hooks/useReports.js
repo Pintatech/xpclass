@@ -48,14 +48,14 @@ export const useReports = () => {
       if (fetchError) throw fetchError
 
       // Fetch reporter info from public.users
-      const userIds = [...new Set((data || []).map(r => r.user_id))]
+      const userIds = [...new Set((data || []).map(r => r.user_id).filter(Boolean))]
       let usersMap = {}
       if (userIds.length > 0) {
-        const { data: usersData } = await supabase
+        const { data: usersData, error: usersError } = await supabase
           .from('users')
-          .select('id, display_name, avatar_url, email')
+          .select('id, full_name, email, avatar_url')
           .in('id', userIds)
-        if (usersData) {
+        if (!usersError && usersData) {
           usersMap = Object.fromEntries(usersData.map(u => [u.id, u]))
         }
       }
@@ -99,17 +99,63 @@ export const useReports = () => {
     }
   }
 
+  // Fetch messages for a report
+  const fetchMessages = async (reportId) => {
+    try {
+      const { data, error: fetchError } = await supabase
+        .from('report_messages')
+        .select('*')
+        .eq('report_id', reportId)
+        .order('created_at', { ascending: true })
+
+      if (fetchError) throw fetchError
+      return data || []
+    } catch (err) {
+      console.error('Error fetching messages:', err)
+      return []
+    }
+  }
+
+  // Upload attachment for a message
+  const uploadMessageAttachment = async (file) => {
+    const ext = file.name.split('.').pop()
+    const path = `${user.id}/${Date.now()}.${ext}`
+    const { error: uploadError } = await supabase.storage
+      .from('report-attachments')
+      .upload(path, file, { cacheControl: '3600', upsert: false })
+    if (uploadError) throw uploadError
+    const { data: publicData } = supabase.storage
+      .from('report-attachments')
+      .getPublicUrl(path)
+    return publicData.publicUrl
+  }
+
   // Admin: reply to a report
-  const replyToReport = async (reportId, adminReply, newStatus = 'resolved') => {
+  const replyToReport = async (reportId, adminReply, newStatus = 'resolved', attachmentFile = null) => {
     if (!user || !isAdmin()) return
     try {
+      let attachmentUrl = null
+      if (attachmentFile) {
+        attachmentUrl = await uploadMessageAttachment(attachmentFile)
+      }
+
+      // Insert message
+      const { error: msgError } = await supabase
+        .from('report_messages')
+        .insert({
+          report_id: reportId,
+          sender_id: user.id,
+          sender_role: 'admin',
+          message: adminReply,
+          attachment_url: attachmentUrl
+        })
+      if (msgError) throw msgError
+
+      // Update report status
       const { data, error: updateError } = await supabase
         .from('reports')
         .update({
-          admin_reply: adminReply,
           status: newStatus,
-          replied_by: user.id,
-          replied_at: new Date().toISOString(),
           updated_at: new Date().toISOString()
         })
         .eq('id', reportId)
@@ -117,7 +163,48 @@ export const useReports = () => {
         .single()
 
       if (updateError) throw updateError
-      setReports(prev => prev.map(r => r.id === reportId ? data : r))
+      setReports(prev => prev.map(r => r.id === reportId ? { ...r, ...data } : r))
+      return data
+    } catch (err) {
+      console.error('Error replying to report:', err)
+      throw err
+    }
+  }
+
+  // User: reply to admin's response
+  const userReplyToReport = async (reportId, userReply, attachmentFile = null) => {
+    if (!user) return
+    try {
+      let attachmentUrl = null
+      if (attachmentFile) {
+        attachmentUrl = await uploadMessageAttachment(attachmentFile)
+      }
+
+      const { error: msgError } = await supabase
+        .from('report_messages')
+        .insert({
+          report_id: reportId,
+          sender_id: user.id,
+          sender_role: 'user',
+          message: userReply,
+          attachment_url: attachmentUrl
+        })
+      if (msgError) throw msgError
+
+      // Set status back to pending so admin sees it
+      const { data, error: updateError } = await supabase
+        .from('reports')
+        .update({
+          status: 'pending',
+          updated_at: new Date().toISOString()
+        })
+        .eq('id', reportId)
+        .eq('user_id', user.id)
+        .select()
+        .single()
+
+      if (updateError) throw updateError
+      setMyReports(prev => prev.map(r => r.id === reportId ? data : r))
       return data
     } catch (err) {
       console.error('Error replying to report:', err)
@@ -174,7 +261,9 @@ export const useReports = () => {
     fetchMyReports,
     fetchAllReports,
     submitReport,
+    fetchMessages,
     replyToReport,
+    userReplyToReport,
     updateReportStatus,
     deleteReport
   }

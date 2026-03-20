@@ -1,7 +1,7 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import {
   MessageSquare, Bug, HelpCircle, AlertTriangle, Clock, CheckCircle,
-  X, Send, Trash2, Filter, ChevronDown, ChevronUp, Search
+  X, Send, Trash2, Filter, ChevronDown, ChevronUp, Search, ImagePlus
 } from 'lucide-react'
 import { useReports } from '../../hooks/useReports'
 
@@ -20,13 +20,22 @@ const STATUS_OPTIONS = [
 ]
 
 const ReportManagement = () => {
-  const { reports, loading, fetchAllReports, replyToReport, updateReportStatus, deleteReport } = useReports()
+  const { reports, loading, fetchAllReports, fetchMessages, replyToReport, updateReportStatus, deleteReport } = useReports()
   const [statusFilter, setStatusFilter] = useState('all')
   const [searchQuery, setSearchQuery] = useState('')
   const [expandedReport, setExpandedReport] = useState(null)
   const [replyText, setReplyText] = useState('')
   const [replyStatus, setReplyStatus] = useState('resolved')
   const [replying, setReplying] = useState(false)
+  const [messages, setMessages] = useState({})
+  const [replyAttachment, setReplyAttachment] = useState(null)
+  const [replyAttachmentPreview, setReplyAttachmentPreview] = useState(null)
+  const adminFileRef = useRef(null)
+
+  const loadMessages = async (reportId) => {
+    const msgs = await fetchMessages(reportId)
+    setMessages(prev => ({ ...prev, [reportId]: msgs }))
+  }
 
   useEffect(() => {
     fetchAllReports(statusFilter)
@@ -39,17 +48,40 @@ const ReportManagement = () => {
       r.subject?.toLowerCase().includes(q) ||
       r.message?.toLowerCase().includes(q) ||
       r.reporter?.display_name?.toLowerCase().includes(q) ||
+      r.reporter?.full_name?.toLowerCase().includes(q) ||
       r.reporter?.email?.toLowerCase().includes(q)
     )
   })
 
+  const handleAdminFileChange = (e) => {
+    const file = e.target.files?.[0]
+    if (!file) return
+    if (!file.type.startsWith('image/') && !file.type.startsWith('video/')) {
+      alert('Chỉ chấp nhận ảnh hoặc video.')
+      return
+    }
+    if (file.size > 50 * 1024 * 1024) {
+      alert('File tối đa 50MB.')
+      return
+    }
+    setReplyAttachment(file)
+    setReplyAttachmentPreview(URL.createObjectURL(file))
+  }
+
+  const removeAdminAttachment = () => {
+    setReplyAttachment(null)
+    setReplyAttachmentPreview(null)
+    if (adminFileRef.current) adminFileRef.current.value = ''
+  }
+
   const handleReply = async (reportId) => {
-    if (!replyText.trim()) return
+    if (!replyText.trim() && !replyAttachment) return
     try {
       setReplying(true)
-      await replyToReport(reportId, replyText.trim(), replyStatus)
+      await replyToReport(reportId, replyText.trim() || '(đính kèm)', replyStatus, replyAttachment)
       setReplyText('')
-      setExpandedReport(null)
+      removeAdminAttachment()
+      await loadMessages(reportId)
     } catch (err) {
       alert('Lỗi khi phản hồi: ' + err.message)
     } finally {
@@ -142,9 +174,11 @@ const ReportManagement = () => {
                   <div
                     className="flex items-center gap-3 px-5 py-4 cursor-pointer hover:bg-gray-50 transition-colors"
                     onClick={() => {
-                      setExpandedReport(isExpanded ? null : report.id)
-                      setReplyText(report.admin_reply || '')
+                      const newId = isExpanded ? null : report.id
+                      setExpandedReport(newId)
+                      setReplyText('')
                       setReplyStatus('resolved')
+                      if (newId) loadMessages(newId)
                     }}
                   >
                     {/* Category Icon */}
@@ -158,10 +192,16 @@ const ReportManagement = () => {
                         <span className="text-sm font-semibold text-gray-800 truncate">{report.subject}</span>
                       </div>
                       <div className="flex items-center gap-2 mt-0.5">
-                        <span className="text-xs text-gray-500">
-                          {report.reporter?.display_name || report.reporter?.email || 'Unknown'}
+                        <span className="text-xs font-medium text-gray-700">
+                          {report.reporter?.full_name || report.reporter?.email || 'Unknown'}
                         </span>
-                        <span className="text-xs text-gray-300">-</span>
+                        {report.reporter?.email && (
+                          <>
+                            <span className="text-xs text-gray-300">·</span>
+                            <span className="text-xs text-gray-400">{report.reporter.email}</span>
+                          </>
+                        )}
+                        <span className="text-xs text-gray-300">·</span>
                         <span className="text-xs text-gray-400">
                           {new Date(report.created_at).toLocaleDateString('vi-VN', {
                             day: '2-digit', month: '2-digit', year: 'numeric',
@@ -191,11 +231,56 @@ const ReportManagement = () => {
                         <p className="text-sm text-gray-700 whitespace-pre-wrap">{report.message}</p>
                       </div>
 
-                      {/* Existing Reply */}
-                      {report.admin_reply && (
-                        <div className="mt-3 p-3 bg-blue-50 border border-blue-100 rounded-lg">
-                          <div className="text-xs font-medium text-blue-700 mb-1">Phản hồi trước đó:</div>
-                          <p className="text-sm text-blue-800 whitespace-pre-wrap">{report.admin_reply}</p>
+                      {/* Attachment */}
+                      {report.screenshot_url && (
+                        <div className="mt-3">
+                          {report.screenshot_url.match(/\.(mp4|webm|mov)$/i) ? (
+                            <video src={report.screenshot_url} className="max-h-48 rounded-lg border border-gray-200" controls />
+                          ) : (
+                            <img src={report.screenshot_url} alt="Attachment" className="max-h-48 rounded-lg border border-gray-200" />
+                          )}
+                        </div>
+                      )}
+
+                      {/* Message Thread */}
+                      {(messages[report.id] || []).length > 0 && (
+                        <div className="mt-3 space-y-2">
+                          {messages[report.id].map(msg => (
+                            <div
+                              key={msg.id}
+                              className={`p-3 rounded-lg ${
+                                msg.sender_role === 'admin'
+                                  ? 'bg-blue-50 border border-blue-100'
+                                  : 'bg-orange-50 border border-orange-100'
+                              }`}
+                            >
+                              <div className={`text-xs font-medium mb-1 ${
+                                msg.sender_role === 'admin' ? 'text-blue-700' : 'text-orange-700'
+                              }`}>
+                                {msg.sender_role === 'admin' ? 'Admin' : report.reporter?.full_name || 'Người dùng'}
+                              </div>
+                              <p className={`text-sm whitespace-pre-wrap ${
+                                msg.sender_role === 'admin' ? 'text-blue-800' : 'text-orange-800'
+                              }`}>{msg.message}</p>
+                              {msg.attachment_url && (
+                                <div className="mt-2">
+                                  {msg.attachment_url.match(/\.(mp4|webm|mov)$/i) ? (
+                                    <video src={msg.attachment_url} className="max-h-40 rounded-lg border border-gray-200" controls />
+                                  ) : (
+                                    <img src={msg.attachment_url} alt="" className="max-h-40 rounded-lg border border-gray-200" />
+                                  )}
+                                </div>
+                              )}
+                              <div className={`text-xs mt-1 ${
+                                msg.sender_role === 'admin' ? 'text-blue-500' : 'text-orange-500'
+                              }`}>
+                                {new Date(msg.created_at).toLocaleDateString('vi-VN', {
+                                  day: '2-digit', month: '2-digit', year: 'numeric',
+                                  hour: '2-digit', minute: '2-digit'
+                                })}
+                              </div>
+                            </div>
+                          ))}
                         </div>
                       )}
 
@@ -208,8 +293,31 @@ const ReportManagement = () => {
                           rows={3}
                           className="w-full px-3 py-2.5 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-blue-300 focus:border-blue-400 outline-none resize-none"
                         />
+                        <input ref={adminFileRef} type="file" accept="image/*,video/*" onChange={handleAdminFileChange} className="hidden" />
+                        {replyAttachmentPreview && (
+                          <div className="relative inline-block">
+                            {replyAttachment?.type.startsWith('video/') ? (
+                              <video src={replyAttachmentPreview} className="max-h-32 rounded-lg border border-gray-200" controls />
+                            ) : (
+                              <img src={replyAttachmentPreview} alt="Preview" className="max-h-32 rounded-lg border border-gray-200" />
+                            )}
+                            <button type="button" onClick={removeAdminAttachment} className="absolute -top-2 -right-2 w-5 h-5 bg-red-500 text-white rounded-full flex items-center justify-center hover:bg-red-600">
+                              <Trash2 size={10} />
+                            </button>
+                          </div>
+                        )}
 
                         <div className="flex items-center gap-3 flex-wrap">
+                          {/* Attachment button */}
+                          <button
+                            type="button"
+                            onClick={() => adminFileRef.current?.click()}
+                            className="p-2 text-gray-400 hover:text-blue-500 hover:bg-blue-50 rounded-lg transition-colors"
+                            title="Đính kèm ảnh/video"
+                          >
+                            <ImagePlus size={18} />
+                          </button>
+
                           {/* Status select */}
                           <select
                             value={replyStatus}
@@ -224,7 +332,7 @@ const ReportManagement = () => {
                           {/* Reply button */}
                           <button
                             onClick={() => handleReply(report.id)}
-                            disabled={replying || !replyText.trim()}
+                            disabled={replying || (!replyText.trim() && !replyAttachment)}
                             className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg text-sm font-medium hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
                           >
                             {replying ? (

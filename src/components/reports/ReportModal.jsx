@@ -1,6 +1,8 @@
-import { useState } from 'react'
-import { X, Send, Bug, HelpCircle, MessageSquare, AlertTriangle, CheckCircle, Clock, ChevronDown, ChevronUp } from 'lucide-react'
+import { useState, useRef } from 'react'
+import { X, Send, Bug, HelpCircle, MessageSquare, AlertTriangle, CheckCircle, Clock, ChevronDown, ChevronUp, ImagePlus, Trash2 } from 'lucide-react'
 import { useReports } from '../../hooks/useReports'
+import { supabase } from '../../supabase/client'
+import { useAuth } from '../../hooks/useAuth'
 
 const CATEGORIES = [
   { value: 'bug', label: 'Lỗi / Bug', icon: Bug, color: 'text-red-500' },
@@ -17,34 +19,127 @@ const STATUS_LABELS = {
 }
 
 const ReportModal = ({ isOpen, onClose }) => {
-  const { myReports, submitReport, fetchMyReports, loading } = useReports()
+  const { myReports, submitReport, fetchMyReports, fetchMessages, userReplyToReport, loading } = useReports()
+  const { user } = useAuth()
   const [tab, setTab] = useState('new') // 'new' | 'history'
   const [category, setCategory] = useState('bug')
   const [subject, setSubject] = useState('')
   const [message, setMessage] = useState('')
+  const [attachment, setAttachment] = useState(null) // File object
+  const [attachmentPreview, setAttachmentPreview] = useState(null)
   const [submitting, setSubmitting] = useState(false)
   const [success, setSuccess] = useState(false)
   const [expandedReport, setExpandedReport] = useState(null)
   const [historyLoaded, setHistoryLoaded] = useState(false)
+  const [userReplyText, setUserReplyText] = useState('')
+  const [replyingTo, setReplyingTo] = useState(null)
+  const [messages, setMessages] = useState({}) // { reportId: [messages] }
+  const [replyAttachment, setReplyAttachment] = useState(null)
+  const [replyAttachmentPreview, setReplyAttachmentPreview] = useState(null)
+  const replyFileRef = useRef(null)
+  const fileInputRef = useRef(null)
 
   if (!isOpen) return null
 
+  const handleFileChange = (e) => {
+    const file = e.target.files?.[0]
+    if (!file) return
+    const isImage = file.type.startsWith('image/')
+    const isVideo = file.type.startsWith('video/')
+    if (!isImage && !isVideo) {
+      alert('Chỉ chấp nhận ảnh hoặc video.')
+      return
+    }
+    if (file.size > 50 * 1024 * 1024) {
+      alert('File tối đa 50MB.')
+      return
+    }
+    setAttachment(file)
+    setAttachmentPreview(URL.createObjectURL(file))
+  }
+
+  const removeAttachment = () => {
+    setAttachment(null)
+    setAttachmentPreview(null)
+    if (fileInputRef.current) fileInputRef.current.value = ''
+  }
+
   const handleSubmit = async (e) => {
     e.preventDefault()
-    if (!subject.trim() || !message.trim()) return
+    if (!subject.trim() || !message.trim() || !attachment) return
 
     try {
       setSubmitting(true)
-      await submitReport({ category, subject: subject.trim(), message: message.trim() })
+
+      // Upload attachment
+      const ext = attachment.name.split('.').pop()
+      const path = `${user.id}/${Date.now()}.${ext}`
+      const { error: uploadError } = await supabase.storage
+        .from('report-attachments')
+        .upload(path, attachment, { cacheControl: '3600', upsert: false })
+      if (uploadError) throw uploadError
+
+      const { data: publicData } = supabase.storage
+        .from('report-attachments')
+        .getPublicUrl(path)
+
+      await submitReport({
+        category,
+        subject: subject.trim(),
+        message: message.trim(),
+        screenshotUrl: publicData.publicUrl
+      })
       setSuccess(true)
       setSubject('')
       setMessage('')
       setCategory('bug')
+      removeAttachment()
       setTimeout(() => setSuccess(false), 3000)
     } catch (err) {
       alert('Gửi báo cáo thất bại: ' + err.message)
     } finally {
       setSubmitting(false)
+    }
+  }
+
+  const loadMessages = async (reportId) => {
+    const msgs = await fetchMessages(reportId)
+    setMessages(prev => ({ ...prev, [reportId]: msgs }))
+  }
+
+  const handleReplyFileChange = (e) => {
+    const file = e.target.files?.[0]
+    if (!file) return
+    if (!file.type.startsWith('image/') && !file.type.startsWith('video/')) {
+      alert('Chỉ chấp nhận ảnh hoặc video.')
+      return
+    }
+    if (file.size > 50 * 1024 * 1024) {
+      alert('File tối đa 50MB.')
+      return
+    }
+    setReplyAttachment(file)
+    setReplyAttachmentPreview(URL.createObjectURL(file))
+  }
+
+  const removeReplyAttachment = () => {
+    setReplyAttachment(null)
+    setReplyAttachmentPreview(null)
+    if (replyFileRef.current) replyFileRef.current.value = ''
+  }
+
+  const handleUserReply = async (reportId) => {
+    if (!userReplyText.trim() && !replyAttachment) return
+    try {
+      setReplyingTo(reportId)
+      await userReplyToReport(reportId, userReplyText.trim() || '(đính kèm)', replyAttachment)
+      setUserReplyText('')
+      removeReplyAttachment()
+      setReplyingTo(null)
+      await loadMessages(reportId)
+    } catch (err) {
+      alert('Gửi phản hồi thất bại: ' + err.message)
+      setReplyingTo(null)
     }
   }
 
@@ -165,10 +260,49 @@ const ReportModal = ({ isOpen, onClose }) => {
                 />
               </div>
 
+              {/* Attachment (required) */}
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Ảnh / Video <span className="text-red-500">*</span>
+                </label>
+                <input
+                  ref={fileInputRef}
+                  type="file"
+                  accept="image/*,video/*"
+                  onChange={handleFileChange}
+                  className="hidden"
+                />
+                {attachmentPreview ? (
+                  <div className="relative inline-block">
+                    {attachment?.type.startsWith('video/') ? (
+                      <video src={attachmentPreview} className="max-h-40 rounded-lg border border-gray-200" controls />
+                    ) : (
+                      <img src={attachmentPreview} alt="Preview" className="max-h-40 rounded-lg border border-gray-200" />
+                    )}
+                    <button
+                      type="button"
+                      onClick={removeAttachment}
+                      className="absolute -top-2 -right-2 w-6 h-6 bg-red-500 text-white rounded-full flex items-center justify-center hover:bg-red-600 transition-colors"
+                    >
+                      <Trash2 size={12} />
+                    </button>
+                  </div>
+                ) : (
+                  <button
+                    type="button"
+                    onClick={() => fileInputRef.current?.click()}
+                    className="w-full py-6 border-2 border-dashed border-gray-300 rounded-lg text-gray-500 hover:border-orange-400 hover:text-orange-500 transition-colors flex flex-col items-center gap-1"
+                  >
+                    <ImagePlus size={24} />
+                    <span className="text-sm">Nhấn để chọn ảnh hoặc video</span>
+                  </button>
+                )}
+              </div>
+
               {/* Submit */}
               <button
                 type="submit"
-                disabled={submitting || !subject.trim() || !message.trim()}
+                disabled={submitting || !subject.trim() || !message.trim() || !attachment}
                 className="w-full py-2.5 bg-orange-500 text-white rounded-xl font-medium hover:bg-orange-600 transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
               >
                 {submitting ? (
@@ -201,7 +335,12 @@ const ReportModal = ({ isOpen, onClose }) => {
                     return (
                       <div key={report.id} className="border border-gray-200 rounded-lg overflow-hidden">
                         <button
-                          onClick={() => setExpandedReport(isExpanded ? null : report.id)}
+                          onClick={() => {
+                            const newId = isExpanded ? null : report.id
+                            setExpandedReport(newId)
+                            setUserReplyText('')
+                            if (newId) loadMessages(newId)
+                          }}
                           className="w-full flex items-center gap-3 px-4 py-3 text-left hover:bg-gray-50 transition-colors"
                         >
                           <CatIcon size={16} className={catInfo.color} />
@@ -220,18 +359,105 @@ const ReportModal = ({ isOpen, onClose }) => {
 
                         {isExpanded && (
                           <div className="px-4 pb-4 border-t border-gray-100">
+                            {/* Original message */}
                             <p className="text-sm text-gray-600 mt-3 whitespace-pre-wrap">{report.message}</p>
-                            {report.admin_reply && (
-                              <div className="mt-3 p-3 bg-blue-50 border border-blue-100 rounded-lg">
-                                <div className="text-xs font-medium text-blue-700 mb-1">Phản hồi từ Admin:</div>
-                                <p className="text-sm text-blue-800 whitespace-pre-wrap">{report.admin_reply}</p>
-                                {report.replied_at && (
-                                  <div className="text-xs text-blue-500 mt-1">
-                                    {new Date(report.replied_at).toLocaleDateString('vi-VN')}
-                                  </div>
+                            {report.screenshot_url && (
+                              <div className="mt-2">
+                                {report.screenshot_url.match(/\.(mp4|webm|mov)$/i) ? (
+                                  <video src={report.screenshot_url} className="max-h-40 rounded-lg border border-gray-200" controls />
+                                ) : (
+                                  <img src={report.screenshot_url} alt="Attachment" className="max-h-40 rounded-lg border border-gray-200" />
                                 )}
                               </div>
                             )}
+
+                            {/* Message thread */}
+                            {(messages[report.id] || []).length > 0 && (
+                              <div className="mt-3 space-y-2">
+                                {messages[report.id].map(msg => (
+                                  <div
+                                    key={msg.id}
+                                    className={`p-3 rounded-lg ${
+                                      msg.sender_role === 'admin'
+                                        ? 'bg-blue-50 border border-blue-100'
+                                        : 'bg-orange-50 border border-orange-100'
+                                    }`}
+                                  >
+                                    <div className={`text-xs font-medium mb-1 ${
+                                      msg.sender_role === 'admin' ? 'text-blue-700' : 'text-orange-700'
+                                    }`}>
+                                      {msg.sender_role === 'admin' ? 'Admin' : 'Bạn'}
+                                    </div>
+                                    <p className={`text-sm whitespace-pre-wrap ${
+                                      msg.sender_role === 'admin' ? 'text-blue-800' : 'text-orange-800'
+                                    }`}>{msg.message}</p>
+                                    {msg.attachment_url && (
+                                      <div className="mt-2">
+                                        {msg.attachment_url.match(/\.(mp4|webm|mov)$/i) ? (
+                                          <video src={msg.attachment_url} className="max-h-32 rounded-lg border border-gray-200" controls />
+                                        ) : (
+                                          <img src={msg.attachment_url} alt="" className="max-h-32 rounded-lg border border-gray-200" />
+                                        )}
+                                      </div>
+                                    )}
+                                    <div className={`text-xs mt-1 ${
+                                      msg.sender_role === 'admin' ? 'text-blue-500' : 'text-orange-500'
+                                    }`}>
+                                      {new Date(msg.created_at).toLocaleDateString('vi-VN', {
+                                        day: '2-digit', month: '2-digit', year: 'numeric',
+                                        hour: '2-digit', minute: '2-digit'
+                                      })}
+                                    </div>
+                                  </div>
+                                ))}
+                              </div>
+                            )}
+
+                            {/* Reply input */}
+                            <div className="mt-3">
+                              <textarea
+                                value={userReplyText}
+                                onChange={e => setUserReplyText(e.target.value)}
+                                placeholder="Nhập phản hồi của bạn..."
+                                rows={2}
+                                className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-orange-300 focus:border-orange-400 outline-none resize-none"
+                              />
+                              <input ref={replyFileRef} type="file" accept="image/*,video/*" onChange={handleReplyFileChange} className="hidden" />
+                              {replyAttachmentPreview && (
+                                <div className="mt-2 relative inline-block">
+                                  {replyAttachment?.type.startsWith('video/') ? (
+                                    <video src={replyAttachmentPreview} className="max-h-24 rounded-lg border border-gray-200" controls />
+                                  ) : (
+                                    <img src={replyAttachmentPreview} alt="Preview" className="max-h-24 rounded-lg border border-gray-200" />
+                                  )}
+                                  <button type="button" onClick={removeReplyAttachment} className="absolute -top-2 -right-2 w-5 h-5 bg-red-500 text-white rounded-full flex items-center justify-center hover:bg-red-600">
+                                    <Trash2 size={10} />
+                                  </button>
+                                </div>
+                              )}
+                              <div className="mt-2 flex items-center gap-2">
+                                <button
+                                  type="button"
+                                  onClick={() => replyFileRef.current?.click()}
+                                  className="p-2 text-gray-400 hover:text-orange-500 hover:bg-orange-50 rounded-lg transition-colors"
+                                  title="Đính kèm ảnh/video"
+                                >
+                                  <ImagePlus size={18} />
+                                </button>
+                                <button
+                                  onClick={() => handleUserReply(report.id)}
+                                  disabled={replyingTo === report.id || (!userReplyText.trim() && !replyAttachment)}
+                                  className="px-4 py-2 bg-orange-500 text-white rounded-lg text-sm font-medium hover:bg-orange-600 disabled:opacity-50 disabled:cursor-not-allowed transition-colors flex items-center gap-2"
+                                >
+                                  {replyingTo === report.id ? (
+                                    <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                                  ) : (
+                                    <Send size={14} />
+                                  )}
+                                  Gửi phản hồi
+                                </button>
+                              </div>
+                            </div>
                           </div>
                         )}
                       </div>

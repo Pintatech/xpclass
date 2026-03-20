@@ -108,7 +108,6 @@ const Profile = () => {
       fetchRecentActivity()
       fetchAvailableAvatars()
       fetchCustomAvatars()
-      processBadges()
     } else if (!isOwnProfile && userId) {
       fetchOtherUserProfile()
     }
@@ -243,12 +242,9 @@ const Profile = () => {
 
       setStats(newStats)
 
-      // Process badges after stats are updated
-      if (targetUserId) {
-        processBadges(totalXP)
-      } else {
-        processBadges()
-      }
+      // Process badges after stats are updated - always pass totalXP explicitly
+      // since React state (stats.totalXP) may still hold stale value from another user's profile
+      processBadges(totalXP)
 
     } catch (error) {
       console.error('Error fetching user stats:', error)
