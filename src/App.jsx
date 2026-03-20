@@ -28,6 +28,7 @@ import ProtectedRoute from './components/auth/ProtectedRoute'
 import { TeacherCourseProvider } from './hooks/useTeacherCourseContext'
 import { MissionsProvider } from './hooks/useMissions'
 import MissionBoard from './components/missions/MissionBoard'
+import LiveBattlePage from './components/livebattle/LiveBattlePage'
 
 
 function App() {
@@ -67,6 +68,7 @@ function App() {
                 <Route path="teacher/overview" element={<TeacherCourseOverview />} />
                 <Route path="teacher/student-history/:courseId/:studentId" element={<StudentLessonHistory />} />
                 <Route path="teacher/exercise-bank" element={<TeacherExerciseBank />} />
+                <Route path="teacher/live-battle/:courseId" element={<LiveBattlePage />} />
                 <Route path="teacher/course-report/:courseId" element={<CourseReport />} />
                 <Route path="teacher/class-reports" element={
                   <TeacherCourseProvider>

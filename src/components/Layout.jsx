@@ -80,7 +80,8 @@ const Layout = () => {
   const isFullWidthPage = location.pathname === '/teacher/exercise-bank'
 
   const hideBottomNav = exercisePaths.some(p => location.pathname.startsWith(p)) || isSessionPage || isTestPage
-  const hideSidebar = exercisePaths.some(p => location.pathname.startsWith(p)) || isTestPage
+  const isLiveBattle = location.pathname.startsWith('/teacher/live-battle')
+  const hideSidebar = exercisePaths.some(p => location.pathname.startsWith(p)) || isTestPage || isLiveBattle
 
   if (loading) {
     return <LoadingSpinner />

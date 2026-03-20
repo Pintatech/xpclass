@@ -24,7 +24,8 @@ export const AuthProvider = ({ children }) => {
 
         try {
           if (session?.user) {
-            setUser(session.user)
+            // Only update user state if the user actually changed
+            setUser(prev => prev?.id === session.user.id ? prev : session.user)
             // INITIAL_SESSION: Fired on page load with existing session
             // TOKEN_REFRESHED: Fired after user signs in successfully
             if (event === 'INITIAL_SESSION' || event === 'TOKEN_REFRESHED') {

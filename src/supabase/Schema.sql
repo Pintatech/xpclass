@@ -3180,3 +3180,38 @@ INSERT INTO missions (title, description, icon, mission_type, goal_type, goal_va
 ('Thợ săn kho báu', 'Mở 3 rương trong tuần', 'package-open', 'weekly', 'open_chests', 3, 60, 2, 6),
 ('Huyền thoại XP', 'Kiếm 500 XP', 'zap', 'special', 'earn_xp', 500, 200, 10, 1),
 ('Nhà sưu tập', 'Thu thập 5 vật phẩm', 'gem', 'special', 'collect_items', 5, 100, 8, 2);
+
+-- =============================================
+-- LIVE BATTLE SYSTEM
+-- =============================================
+
+CREATE TABLE public.live_battle_sessions (
+  id uuid NOT NULL DEFAULT uuid_generate_v4(),
+  course_id uuid NOT NULL REFERENCES public.courses(id),
+  teacher_id uuid NOT NULL REFERENCES public.users(id),
+  status text NOT NULL DEFAULT 'setup' CHECK (status IN ('setup','active','finished')),
+  team_a_name text DEFAULT 'Team Alpha',
+  team_b_name text DEFAULT 'Team Beta',
+  team_a_score integer DEFAULT 0,
+  team_b_score integer DEFAULT 0,
+  winner_team text CHECK (winner_team IN ('a','b','draw')),
+  xp_winner integer DEFAULT 30,
+  xp_loser integer DEFAULT 10,
+  started_at timestamptz,
+  finished_at timestamptz,
+  created_at timestamptz DEFAULT now(),
+  CONSTRAINT live_battle_sessions_pkey PRIMARY KEY (id)
+);
+
+CREATE TABLE public.live_battle_participants (
+  id uuid NOT NULL DEFAULT uuid_generate_v4(),
+  session_id uuid NOT NULL REFERENCES public.live_battle_sessions(id) ON DELETE CASCADE,
+  user_id uuid NOT NULL REFERENCES public.users(id),
+  user_pet_id uuid REFERENCES public.user_pets(id),
+  team text NOT NULL CHECK (team IN ('a','b')),
+  individual_score integer DEFAULT 0,
+  xp_awarded integer DEFAULT 0,
+  CONSTRAINT live_battle_participants_pkey PRIMARY KEY (id),
+  CONSTRAINT live_battle_participants_unique UNIQUE (session_id, user_id)
+);
+

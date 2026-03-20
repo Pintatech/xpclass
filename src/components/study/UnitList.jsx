@@ -21,6 +21,7 @@ import {
   FileText,
   BarChart3,
   ClipboardList,
+  Swords,
 } from "lucide-react";
 import StudentStatsPopover from "../ui/StudentStatsPopover";
 import useClassStats from "../../hooks/useClassStats";
@@ -722,6 +723,15 @@ const UnitList = () => {
                 >
                   <BarChart3 className="w-4 h-4" />
                   <span>Report</span>
+                </Button>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => navigate(`/teacher/live-battle/${currentId}`)}
+                  className="flex items-center space-x-2 bg-orange-50 border-orange-200 text-orange-700 hover:bg-orange-100"
+                >
+                  <Swords className="w-4 h-4" />
+                  <span>Live Battle</span>
                 </Button>
               </div>
             )}
