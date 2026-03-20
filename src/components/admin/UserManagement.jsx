@@ -83,7 +83,8 @@ const UserManagement = () => {
           role: user.role || 'user',
           level: user.current_level || 1,
           xp: user.xp || 0,
-          status: daysSinceActivity > 7 ? 'inactive' : 'active',
+          is_banned: user.is_banned || false,
+          status: user.is_banned ? 'banned' : daysSinceActivity > 7 ? 'inactive' : 'active',
           lastActive: lastActivityDate,
           joinDate: new Date(user.created_at).toISOString().split('T')[0],
           streakCount: user.streak_count || 0,
@@ -149,6 +150,33 @@ const UserManagement = () => {
     } catch (err) {
       console.error('Error deleting user:', err)
       showNotification('Error deleting user: ' + err.message, 'error')
+    }
+  }
+
+  const handleToggleBan = async (userId, userName, currentlyBanned) => {
+    if (userId === currentUser?.id) {
+      showNotification('Cannot ban your own account', 'error')
+      return
+    }
+
+    const action = currentlyBanned ? 'unban' : 'ban'
+    if (!confirm(`Are you sure you want to ${action} "${userName}"?`)) {
+      return
+    }
+
+    try {
+      const { error } = await supabase
+        .from('users')
+        .update({ is_banned: !currentlyBanned })
+        .eq('id', userId)
+
+      if (error) throw error
+
+      showNotification(`User "${userName}" ${currentlyBanned ? 'unbanned' : 'banned'} successfully`)
+      fetchUsers()
+    } catch (err) {
+      console.error('Error toggling ban:', err)
+      showNotification('Error updating ban status: ' + err.message, 'error')
     }
   }
 
@@ -377,6 +405,18 @@ const UserManagement = () => {
                           <option value="teacher">Giáo viên</option>
                           <option value="admin">Quản trị</option>
                         </select>
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => handleToggleBan(user.id, user.name, user.is_banned)}
+                          disabled={user.id === currentUser?.id}
+                          className={`${user.is_banned ? 'text-green-600 hover:text-green-800' : 'text-orange-600 hover:text-orange-800'} ${
+                            user.id === currentUser?.id ? 'opacity-50 cursor-not-allowed' : ''
+                          }`}
+                          title={user.is_banned ? 'Unban user' : 'Ban user'}
+                        >
+                          {user.is_banned ? <CheckCircle className="w-4 h-4" /> : <Ban className="w-4 h-4" />}
+                        </Button>
                         <Button
                           variant="ghost"
                           size="sm"

@@ -1357,7 +1357,7 @@ const PetDisplay = () => {
             </div>
 
             {/* Train Button - Above Food Bowl */}
-            <div className="absolute bottom-52 right-2 z-10">
+            {!profile?.is_banned && <div className="absolute bottom-52 right-2 z-10">
               <button
                 onClick={handlePlay}
                 disabled={playDisabled}
@@ -1393,7 +1393,7 @@ const PetDisplay = () => {
                   </span>
                 )}
               </button>
-            </div>
+            </div>}
 
             {/* Food Bowl - Bottom Right */}
             <div className="absolute bottom-36 right-2 z-10">

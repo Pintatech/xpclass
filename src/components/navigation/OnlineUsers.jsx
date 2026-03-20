@@ -6,7 +6,7 @@ import { supabase } from '../../supabase/client'
 import { useAuth } from '../../hooks/useAuth'
 import PvPChallengeModal from '../pvp/PvPChallengeModal'
 const OnlineUsers = () => {
-  const { user } = useAuth()
+  const { user, profile } = useAuth()
   const [onlineUsers, setOnlineUsers] = useState([])
   const [offlineUsers, setOfflineUsers] = useState([])
   const [challengeTarget, setChallengeTarget] = useState(null)
@@ -101,7 +101,7 @@ const OnlineUsers = () => {
                   </div>
                   <span className="text-sm text-gray-700 truncate">{u.full_name || 'An danh'}</span>
                 </Link>
-                {u.id !== user?.id && (
+                {u.id !== user?.id && !profile?.is_banned && (
                   <button
                     onClick={() => setChallengeTarget(u)}
                     className={`flex-shrink-0 p-1.5 rounded-lg transition-all ${pendingChallengeUserIds[u.id] ? (pendingChallengeUserIds[u.id] === 'received' ? 'opacity-100 animate-pulse text-red-500 hover:bg-red-50' : 'opacity-100 text-gray-400 hover:bg-gray-100') : 'opacity-0 group-hover:opacity-100 text-red-500 hover:bg-red-50'}`}
@@ -138,7 +138,7 @@ const OnlineUsers = () => {
                       </div>
                       <span className="text-sm text-gray-500 truncate">{u.full_name || 'An danh'}</span>
                     </Link>
-                    {u.id !== user?.id && pendingChallengeUserIds[u.id] && (
+                    {u.id !== user?.id && !profile?.is_banned && pendingChallengeUserIds[u.id] && (
                       <button
                         onClick={() => setChallengeTarget(u)}
                         className={`flex-shrink-0 p-1.5 rounded-lg transition-all ${pendingChallengeUserIds[u.id] === 'received' ? 'opacity-100 animate-pulse text-red-500 hover:bg-red-50' : 'opacity-100 text-gray-400 hover:bg-gray-100'}`}

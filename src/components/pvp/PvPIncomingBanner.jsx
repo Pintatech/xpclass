@@ -191,7 +191,7 @@ const TauntDisplay = ({ tauntJson }) => {
 };
 
 const PvPIncomingBanner = () => {
-  const { user } = useAuth();
+  const { user, profile } = useAuth();
   const [challenges, setChallenges] = useState([]);
   const [acceptedChallenge, setAcceptedChallenge] = useState(null);
   const [dismissed, setDismissed] = useState(() => {
@@ -444,9 +444,10 @@ const PvPIncomingBanner = () => {
   );
 
   if (
-    visibleChallenges.length === 0 &&
+    profile?.is_banned ||
+    (visibleChallenges.length === 0 &&
     visibleResults.length === 0 &&
-    !acceptedChallenge
+    !acceptedChallenge)
   )
     return null;
 

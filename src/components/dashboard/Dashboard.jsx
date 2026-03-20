@@ -650,7 +650,7 @@ const Dashboard = () => {
             }).map((u) => (
               <button
                 key={u.id}
-                onClick={() => u.id === profile?.id ? navigate(`/profile/${u.id}`) : setChallengeTarget(u)}
+                onClick={() => (u.id === profile?.id || profile?.is_banned) ? navigate(`/profile/${u.id}`) : setChallengeTarget(u)}
                 className="flex flex-col items-center flex-shrink-0 w-16"
               >
                 <div className="relative">
@@ -662,10 +662,10 @@ const Dashboard = () => {
                     fallback={u.full_name?.[0]?.toUpperCase() || '?'}
                   />
                   <div className="absolute bottom-0 right-0 w-3.5 h-3.5 bg-green-500 rounded-full border-2 border-white z-10" />
-                  {pvpAvailable && pendingChallengeUserIds[u.id] === 'received' && (
+                  {pvpAvailable && !profile?.is_banned && pendingChallengeUserIds[u.id] === 'received' && (
                     <img src={assetUrl('/icon/dashboard/pvp.png')} alt="PvP" className="absolute top-0 right-0 w-4 h-4 animate-pulse" />
                   )}
-                  {pvpAvailable && pendingChallengeUserIds[u.id] === 'sent' && (
+                  {pvpAvailable && !profile?.is_banned && pendingChallengeUserIds[u.id] === 'sent' && (
                     <img src={assetUrl('/icon/dashboard/pvp.png')} alt="PvP" className="absolute top-0 right-0 w-4 h-4 opacity-50" />
                   )}
                 </div>
@@ -684,7 +684,7 @@ const Dashboard = () => {
             }).map((u) => (
               <button
                 key={u.id}
-                onClick={() => u.id === profile?.id ? navigate(`/profile/${u.id}`) : setChallengeTarget(u)}
+                onClick={() => (u.id === profile?.id || profile?.is_banned) ? navigate(`/profile/${u.id}`) : setChallengeTarget(u)}
                 className="flex flex-col items-center flex-shrink-0 w-16 opacity-50"
               >
                 <div className="relative grayscale">
@@ -696,10 +696,10 @@ const Dashboard = () => {
                     fallback={u.full_name?.[0]?.toUpperCase() || '?'}
                   />
                   <div className="absolute bottom-0 right-0 w-3.5 h-3.5 bg-gray-400 rounded-full border-2 border-white z-10" />
-                  {pvpAvailable && pendingChallengeUserIds[u.id] === 'received' && (
+                  {pvpAvailable && !profile?.is_banned && pendingChallengeUserIds[u.id] === 'received' && (
                     <img src={assetUrl('/icon/dashboard/pvp.png')} alt="PvP" className="absolute top-0 right-0 w-4 h-4 animate-pulse" />
                   )}
-                  {pvpAvailable && pendingChallengeUserIds[u.id] === 'sent' && (
+                  {pvpAvailable && !profile?.is_banned && pendingChallengeUserIds[u.id] === 'sent' && (
                     <img src={assetUrl('/icon/dashboard/pvp.png')} alt="PvP" className="absolute top-0 right-0 w-4 h-4 opacity-50" />
                   )}
                 </div>
