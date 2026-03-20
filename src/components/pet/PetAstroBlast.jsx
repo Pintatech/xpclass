@@ -9,6 +9,7 @@ const GAME_DURATION = 76
 const WORDS_PER_ROUND = 4 // how many words fall per round
 const GRAVITY = 0 // no acceleration, constant fall speed
 const PET_MAX_HP = 5
+const PASS_THRESHOLDS = { 1: 20, 2: 23, 3: 25, 4: 28 }
 
 // Jagged asteroid clip-path shapes (irregular polygons)
 const ASTEROID_CLIPS = [
@@ -27,7 +28,8 @@ const shuffle = (arr) => {
   return a
 }
 
-const PetAstroBlast = ({ petImageUrl, petName, onGameEnd, onClose, shipSkinUrl, shipLaserColor, asteroidSkinUrls, wordBank: wordBankProp = [], hideClose = false, scoreToBeat = null, leaderboard = [], chestEnabled = false, pvpOpponentPetUrl = null }) => {
+const PetAstroBlast = ({ petImageUrl, petName, onGameEnd, onClose, shipSkinUrl, shipLaserColor, asteroidSkinUrls, wordBank: wordBankProp = [], hideClose = false, scoreToBeat = null, leaderboard = [], chestEnabled = false, pvpOpponentPetUrl = null, currentLevel = 1 }) => {
+  const passGoal = PASS_THRESHOLDS[currentLevel] || 20
   const [phase, setPhase] = useState('ready')
   const [displayScore, setDisplayScore] = useState(0)
   const [displayTime, setDisplayTime] = useState(GAME_DURATION)
@@ -230,6 +232,20 @@ const PetAstroBlast = ({ petImageUrl, petName, onGameEnd, onClose, shipSkinUrl, 
       bgMusicRef.current = null
     }
   }, [phase])
+
+  // Play end-of-game sounds
+  useEffect(() => {
+    if (phase === 'results') {
+      if (wordsCompleted >= passGoal) {
+        playSound('https://xpclass.vn/xpclass/pet-game/angry/angry-birds-level-complete.mp3', 0.5)
+      } else {
+        playSound('https://xpclass.vn/xpclass/sound/craft_fail.mp3', 0.5)
+      }
+    }
+    if (phase === 'defeated') {
+      playSound('https://xpclass.vn/xpclass/sound/craft_fail.mp3', 0.5)
+    }
+  }, [phase, playSound, wordsCompleted, passGoal])
 
   // Cleanup on unmount
   useEffect(() => {
@@ -979,7 +995,7 @@ const PetAstroBlast = ({ petImageUrl, petName, onGameEnd, onClose, shipSkinUrl, 
 
               {/* Progress dots */}
               <div className="flex items-center justify-center gap-1">
-                {Array.from({ length: 20 }, (_, i) => (
+                {Array.from({ length: passGoal }, (_, i) => (
                   <div
                     key={i}
                     className="relative"
@@ -1200,20 +1216,20 @@ const PetAstroBlast = ({ petImageUrl, petName, onGameEnd, onClose, shipSkinUrl, 
             </div>
 
             <h2 className="text-2xl font-bold text-gray-800 mb-1">
-              {wordsCompleted >= 20 ? 'Training Complete!' : 'Not Enough Words!'}
+              {wordsCompleted >= passGoal ? 'Training Complete!' : 'Not Enough Words!'}
             </h2>
             <p className="text-gray-500 mb-5">
-              {wordsCompleted >= 20
+              {wordsCompleted >= passGoal
                 ? `${petName} blasted ${wordsCompleted} words!`
-                : `${petName} only blasted ${wordsCompleted}/20 words`}
+                : `${petName} only blasted ${wordsCompleted}/${passGoal} words`}
             </p>
 
             <div
-              className={`rounded-2xl p-5 mb-5 border ${wordsCompleted >= 20 ? 'bg-gradient-to-br from-red-50 to-orange-50 border-red-100' : 'bg-gradient-to-br from-gray-50 to-gray-100 border-gray-200'}`}
+              className={`rounded-2xl p-5 mb-5 border ${wordsCompleted >= passGoal ? 'bg-gradient-to-br from-red-50 to-orange-50 border-red-100' : 'bg-gradient-to-br from-gray-50 to-gray-100 border-gray-200'}`}
               style={{ animation: 'slasherScorePopIn 0.6s ease-out 0.5s both' }}
             >
-              <p className={`text-5xl font-black ${wordsCompleted >= 20 ? 'text-red-600' : 'text-gray-400'}`}>{wordsCompleted}</p>
-              <p className={`text-sm font-semibold mt-1 ${wordsCompleted >= 20 ? 'text-red-400' : 'text-gray-400'}`}>words blasted</p>
+              <p className={`text-5xl font-black ${wordsCompleted >= passGoal ? 'text-red-600' : 'text-gray-400'}`}>{wordsCompleted}</p>
+              <p className={`text-sm font-semibold mt-1 ${wordsCompleted >= passGoal ? 'text-red-400' : 'text-gray-400'}`}>words blasted</p>
             </div>
 
             {/* Missed Words */}
@@ -1242,14 +1258,14 @@ const PetAstroBlast = ({ petImageUrl, petName, onGameEnd, onClose, shipSkinUrl, 
             )}
 
             <p className="text-sm text-gray-600 mb-6">
-              {wordsCompleted >= 25
+              {wordsCompleted >= passGoal + 5
                 ? 'Blast master! 🏆'
-                : wordsCompleted >= 20
+                : wordsCompleted >= passGoal
                   ? 'Amazing reflexes! 🚀'
-                  : 'Need at least 20 words to earn XP. Try again! 💪'}
+                  : `Need at least ${passGoal} words to earn XP. Try again! 💪`}
             </p>
 
-            {wordsCompleted >= 20 ? (
+            {wordsCompleted >= passGoal ? (
               <button
                 onClick={() => onGameEnd(displayScore, { chestCollected, wordsCompleted })}
                 className="w-full py-3.5 bg-gradient-to-b from-red-500 to-red-600 hover:from-red-600 hover:to-red-700 text-white rounded-full font-bold text-lg shadow-lg border-b-4 border-red-700 active:border-b-0 active:mt-1 transition-all"

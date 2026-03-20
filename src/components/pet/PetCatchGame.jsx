@@ -4,7 +4,7 @@ import { X, Trophy, Heart } from 'lucide-react'
 
 import { assetUrl } from '../../hooks/useBranding';
 
-const GAME_DURATION = 60
+const GAME_DURATION = 76
 const PET_SIZE = 64
 const FRUIT_SIZE = 48
 const CATCH_RADIUS = 44
@@ -12,6 +12,7 @@ const POINTS_CORRECT = 20
 const POINTS_WRONG = -5
 const QUESTION_DELAY = 1000
 const PET_MAX_HP = 5
+const PASS_THRESHOLDS = { 1: 20, 2: 23, 3: 25, 4: 28 }
 
 const FRUIT_EMOJIS = ['🍈', '🍉', '🍊', '🍋', '🍌', '🍍', '🥭', '🍎', '🍏', '🍐', '🍑', '🍒', '🍓', '🍅', '🍆', '🌽', '🥑', '🍕', '🍔', '🌭', '🥨', '🍞', '🌮', '🥪', '🍗', '🍖', '🍩', '🍰', '🧁']
 
@@ -24,7 +25,8 @@ const shuffle = (arr) => {
   return a
 }
 
-const PetCatchGame = ({ petImageUrl, petName, onGameEnd, onClose, questionBank: questionBankProp = [], chestEnabled = false }) => {
+const PetCatchGame = ({ petImageUrl, petName, onGameEnd, onClose, questionBank: questionBankProp = [], chestEnabled = false, currentLevel = 1 }) => {
+  const passGoal = PASS_THRESHOLDS[currentLevel] || 20
   const [phase, setPhase] = useState('countdown')
   const [displayScore, setDisplayScore] = useState(0)
   const [displayTime, setDisplayTime] = useState(GAME_DURATION)
@@ -355,12 +357,38 @@ const PetCatchGame = ({ petImageUrl, petName, onGameEnd, onClose, questionBank: 
     }
   }, [phase, spawnQuestion, triggerCatchEffect])
 
+  // Play end-of-game sounds
+  useEffect(() => {
+    try {
+      if (phase === 'results') {
+        if (questionsCorrectRef.current >= passGoal) {
+          const sound = new Audio('https://xpclass.vn/xpclass/pet-game/angry/angry-birds-level-complete.mp3')
+          sound.volume = 0.5
+          sound.play().catch(() => {})
+        } else {
+          const sound = new Audio('https://xpclass.vn/xpclass/sound/craft_fail.mp3')
+          sound.volume = 0.5
+          sound.play().catch(() => {})
+        }
+      }
+      if (phase === 'defeated') {
+        const sound = new Audio('https://xpclass.vn/xpclass/sound/craft_fail.mp3')
+        sound.volume = 0.5
+        sound.play().catch(() => {})
+      }
+    } catch {}
+  }, [phase, passGoal])
+
   return createPortal(
     <div className="fixed inset-0 z-50 select-none overflow-hidden bg-black/70 flex items-center justify-center">
       <div
         className="relative w-full max-w-[400px] h-full max-h-[100dvh] overflow-hidden rounded-none sm:rounded-2xl sm:max-h-[90vh] sm:shadow-2xl"
-        style={{ background: 'linear-gradient(to bottom, #7dd3fc, #bae6fd, #d9f99d)' }}
       >
+        {/* Background image */}
+        <div className="absolute inset-0 z-0">
+          <img src="https://xpclass.vn/xpclass/image/pet/pet-catch-bg.jpg" alt="" className="w-full h-full object-cover blur-sm" />
+          <div className="absolute inset-0 bg-black/40" />
+        </div>
       <style>{`
         @keyframes catchFloat {
           0% { transform: translateY(0) scale(1); opacity: 1; }
@@ -412,6 +440,17 @@ const PetCatchGame = ({ petImageUrl, petName, onGameEnd, onClose, questionBank: 
           50% { transform: scale(1.4); opacity: 0.5; }
           100% { transform: scale(0); opacity: 0; }
         }
+        @keyframes hintPulse {
+          0%, 100% { transform: scale(1); }
+          50% { transform: scale(1.03); }
+        }
+        @keyframes timerUrgent {
+          0%, 100% { transform: scale(1) rotate(0deg); }
+          15% { transform: scale(1.1) rotate(-3deg); }
+          30% { transform: scale(1) rotate(3deg); }
+          45% { transform: scale(1.05) rotate(-2deg); }
+          60% { transform: scale(1) rotate(0deg); }
+        }
       `}</style>
 
       {/* Close Button */}
@@ -426,53 +465,118 @@ const PetCatchGame = ({ petImageUrl, petName, onGameEnd, onClose, questionBank: 
 
       {/* HUD */}
       {phase === 'playing' && (
-        <div className="absolute top-4 left-1/2 -translate-x-1/2 z-40 flex items-center gap-3">
-          <div className="bg-white/85 backdrop-blur rounded-2xl px-4 py-2 shadow-lg flex items-center gap-2">
-            <span className="text-xl">⭐</span>
-            <span className="text-xl font-black text-orange-600">{displayScore}</span>
-          </div>
-          {streak >= 3 && (
-            <div className="bg-orange-500/90 backdrop-blur rounded-2xl px-3 py-2 shadow-lg"
-              style={{ animation: 'streakPulse 0.5s ease-out' }}
-            >
-              <span className="text-lg font-black text-white">🔥 {streak}</span>
+        <div className="absolute top-4 left-0 right-0 z-40 pl-14 pr-4">
+          <div className="flex items-center justify-between">
+            {/* Score */}
+            <div className="bg-white/15 backdrop-blur rounded-2xl px-4 py-2">
+              <span className="text-xl font-black text-white">{displayScore}</span>
             </div>
-          )}
-          <div className={`bg-white/85 backdrop-blur rounded-2xl px-4 py-2 shadow-lg ${
-            displayTime <= 5 ? 'animate-pulse' : ''
-          }`}>
-            <span className={`text-xl font-black ${displayTime <= 5 ? 'text-red-500' : 'text-gray-800'}`}>
-              {displayTime}
-            </span>
-            <span className="text-sm text-gray-500 ml-1">s</span>
-          </div>
-          <div className="flex gap-0.5">
-            {Array.from({ length: PET_MAX_HP }).map((_, i) => (
-              <Heart key={i} className={`w-3.5 h-3.5 transition-all ${i < petHp ? 'text-red-400 fill-red-400' : 'text-gray-600/40'}`}
-                style={i === petHp ? { animation: 'bbHeartLose 0.5s ease-out' } : {}}
-              />
-            ))}
+            {/* HP Hearts */}
+            <div className="flex gap-0.5 items-center">
+              {Array.from({ length: PET_MAX_HP }).map((_, i) => (
+                <Heart key={i} className={`w-4 h-4 transition-all ${i < petHp ? 'text-red-400 fill-red-400' : 'text-gray-400/40'}`}
+                  style={i === petHp ? { animation: 'bbHeartLose 0.5s ease-out' } : {}}
+                />
+              ))}
+            </div>
+            {/* Circular Timer */}
+            {(() => {
+              const pct = displayTime / GAME_DURATION
+              const radius = 22
+              const circumference = 2 * Math.PI * radius
+              const offset = circumference * (1 - pct)
+              const color = displayTime <= 5 ? '#ef4444' : displayTime <= 10 ? '#f97316' : displayTime <= 20 ? '#eab308' : '#22c55e'
+              return (
+                <div className="relative flex items-center justify-center"
+                  style={{
+                    animation: displayTime <= 5 ? 'timerUrgent 0.5s ease-in-out infinite'
+                      : displayTime <= 10 ? 'timerUrgent 1s ease-in-out infinite' : 'none'
+                  }}
+                >
+                  <svg width="48" height="48" className="drop-shadow-lg" style={{ transform: 'rotate(-90deg)' }}>
+                    <circle cx="24" cy="24" r={radius} fill="rgba(0,0,0,0.3)" stroke="rgba(255,255,255,0.15)" strokeWidth="4" />
+                    <circle cx="24" cy="24" r={radius} fill="none" stroke={color} strokeWidth="4" strokeLinecap="round"
+                      strokeDasharray={circumference} strokeDashoffset={offset}
+                      style={{ transition: 'stroke-dashoffset 1s linear, stroke 0.5s ease' }}
+                    />
+                  </svg>
+                  <span className="absolute font-black text-white"
+                    style={{ fontSize: displayTime < 10 ? '16px' : '14px', textShadow: `0 0 8px ${color}80, 0 1px 2px rgba(0,0,0,0.3)` }}
+                  >
+                    {displayTime}
+                  </span>
+                </div>
+              )
+            })()}
           </div>
         </div>
       )}
 
-      {/* Question Display */}
+      {/* Question + Streak + Progress */}
       {phase === 'playing' && currentQuestion && (
-        <div className="absolute top-16 left-4 right-4 z-40">
-          <div className={`bg-white/90 backdrop-blur-md rounded-2xl px-4 py-2.5 shadow-xl text-center border-2 ${
-            feedback?.type === 'correct' ? 'border-green-400' : feedback?.type === 'wrong' ? 'border-red-400' : 'border-white/50'
-          }`}
-            style={feedback?.type === 'wrong' ? { animation: 'wrongShake 0.4s ease-out' } : {}}
-          >
-            {currentQuestion.image_url && (
-              <img src={currentQuestion.image_url} alt="" className="w-14 h-14 object-contain mx-auto mb-1.5 rounded-lg" />
-            )}
-            <p className="text-base font-bold text-gray-800 leading-snug">{currentQuestion.question}</p>
-            {feedback && (
-              <p className={`text-xs font-semibold mt-1 ${feedback.type === 'correct' ? 'text-green-600' : 'text-red-500'}`}>
-                {feedback.type === 'correct' ? '✓ Correct!' : `✗ "${feedback.text}" is wrong`}
-              </p>
-            )}
+        <div className="absolute top-16 left-0 right-0 z-40 pointer-events-none px-4">
+          <div className="w-full flex items-center gap-2">
+            <div className={`rounded-full px-2.5 py-1 text-xs font-bold flex items-center gap-1 shrink-0 ${
+              streak >= 3 ? 'bg-yellow-400 text-yellow-900' : 'bg-white/15 text-white/70'
+            }`}>
+              <img src={assetUrl('/icon/profile/streak.svg')} alt="streak" className="w-3.5 h-3.5" />{streak}x
+            </div>
+            <div className={`flex-1 bg-white/10 backdrop-blur rounded-xl px-4 py-2 text-center min-w-0 ${
+              feedback?.type === 'wrong' ? '' : ''
+            }`}
+              style={{
+                animation: feedback?.type === 'wrong' ? 'wrongShake 0.4s ease-out' : currentQuestion ? 'hintPulse 2s ease-in-out infinite' : 'none'
+              }}
+            >
+              {currentQuestion.image_url && (
+                <img src={currentQuestion.image_url} alt="" className="w-10 h-10 object-contain mx-auto mb-1 rounded-lg" />
+              )}
+              <span className="text-xs text-white/50 mr-1">Catch:</span>
+              <span className="text-base font-bold text-white">{currentQuestion.question}</span>
+              {feedback && (
+                <p className={`text-xs font-semibold mt-0.5 ${feedback.type === 'correct' ? 'text-green-300' : 'text-red-300'}`}>
+                  {feedback.type === 'correct' ? '✓ Correct!' : `✗ "${feedback.text}" is wrong`}
+                </p>
+              )}
+            </div>
+          </div>
+          {/* Progress dots */}
+          <div className="flex items-center justify-center gap-1 mt-2">
+            {Array.from({ length: passGoal }, (_, i) => (
+              <div
+                key={i}
+                className="relative"
+                style={{
+                  width: 14,
+                  height: 14,
+                  transition: 'transform 0.3s ease',
+                  transform: i === questionsCorrect ? 'scale(1.3)' : 'scale(1)',
+                }}
+              >
+                {i < questionsCorrect ? (
+                  <div className="w-full h-full rounded-full flex items-center justify-center"
+                    style={{
+                      background: 'linear-gradient(135deg, #22d3ee, #0891b2)',
+                      boxShadow: '0 0 8px rgba(34,211,238,0.5)',
+                    }}
+                  >
+                    <span className="text-white font-bold text-[8px]">✓</span>
+                  </div>
+                ) : i === questionsCorrect ? (
+                  <div className="w-full h-full rounded-full border-2 border-white/60 flex items-center justify-center"
+                    style={{ background: 'rgba(255,255,255,0.15)', animation: 'hintPulse 1.5s ease-in-out infinite' }}
+                  >
+                    <span className="text-white/80 font-bold text-[7px]">{i + 1}</span>
+                  </div>
+                ) : (
+                  <div className="w-full h-full rounded-full border border-white/20 flex items-center justify-center"
+                    style={{ background: 'rgba(255,255,255,0.08)' }}
+                  >
+                    <span className="text-white/30 text-[7px]">{i + 1}</span>
+                  </div>
+                )}
+              </div>
+            ))}
           </div>
         </div>
       )}
@@ -500,8 +604,6 @@ const PetCatchGame = ({ petImageUrl, petName, onGameEnd, onClose, questionBank: 
           className="absolute inset-0"
           style={{ cursor: 'none' }}
         >
-          {/* Ground decoration */}
-          <div className="absolute bottom-0 left-0 right-0 h-16 bg-gradient-to-t from-green-400/50 to-transparent" />
 
           {/* Fruit choices */}
           {fruits.map(fruit => (
@@ -647,15 +749,21 @@ const PetCatchGame = ({ petImageUrl, petName, onGameEnd, onClose, questionBank: 
               <Trophy className="w-10 h-10 text-yellow-500" />
             </div>
 
-            <h2 className="text-2xl font-bold text-gray-800 mb-1">Training Complete!</h2>
-            <p className="text-gray-500 mb-5">{petName} had a great workout!</p>
+            <h2 className="text-2xl font-bold text-gray-800 mb-1">
+              {questionsCorrect >= passGoal ? 'Training Complete!' : 'Not Enough Catches!'}
+            </h2>
+            <p className="text-gray-500 mb-5">
+              {questionsCorrect >= passGoal
+                ? `${petName} caught ${questionsCorrect} correct!`
+                : `${petName} only caught ${questionsCorrect}/${passGoal} correct`}
+            </p>
 
             <div
-              className="bg-gradient-to-br from-orange-50 to-yellow-50 rounded-2xl p-5 mb-4 border border-orange-100"
+              className={`rounded-2xl p-5 mb-4 border ${questionsCorrect >= passGoal ? 'bg-gradient-to-br from-orange-50 to-yellow-50 border-orange-100' : 'bg-gradient-to-br from-gray-50 to-gray-100 border-gray-200'}`}
               style={{ animation: 'scorePopIn 0.6s ease-out 0.5s both' }}
             >
-              <p className="text-5xl font-black text-orange-600">{displayScore}</p>
-              <p className="text-sm text-orange-400 font-semibold mt-1">points scored</p>
+              <p className={`text-5xl font-black ${questionsCorrect >= passGoal ? 'text-orange-600' : 'text-gray-400'}`}>{questionsCorrect}</p>
+              <p className={`text-sm font-semibold mt-1 ${questionsCorrect >= passGoal ? 'text-orange-400' : 'text-gray-400'}`}>correct catches</p>
             </div>
 
             <div className="flex justify-center gap-4 mb-5 text-sm"
@@ -672,13 +780,11 @@ const PetCatchGame = ({ petImageUrl, petName, onGameEnd, onClose, questionBank: 
             </div>
 
             <p className="text-sm text-gray-600 mb-6">
-              {displayScore >= 500
+              {questionsCorrect >= passGoal + 5
                 ? 'Amazing reflexes! 🏆'
-                : displayScore >= 300
-                  ? 'Great training session! 💪'
-                  : displayScore >= 100
-                    ? 'Good effort, keep it up! 👍'
-                    : 'Practice makes perfect! 🌱'}
+                : questionsCorrect >= passGoal
+                  ? 'Great catching! 💪'
+                  : `Need at least ${passGoal} correct catches to earn XP. Try again! 💪`}
             </p>
 
             {chestCollected && (
@@ -690,12 +796,26 @@ const PetCatchGame = ({ petImageUrl, petName, onGameEnd, onClose, questionBank: 
               </div>
             )}
 
-            <button
-              onClick={() => onGameEnd(displayScore, { chestCollected })}
-              className="w-full py-3.5 bg-gradient-to-b from-cyan-400 to-cyan-500 hover:from-cyan-500 hover:to-cyan-600 text-white rounded-full font-bold text-lg shadow-lg border-b-4 border-cyan-600 active:border-b-0 active:mt-1 transition-all"
-            >
-              Collect Rewards ✨
-            </button>
+            {questionsCorrect >= passGoal ? (
+              <button
+                onClick={() => onGameEnd(displayScore, { chestCollected })}
+                className="w-full py-3.5 bg-gradient-to-b from-cyan-400 to-cyan-500 hover:from-cyan-500 hover:to-cyan-600 text-white rounded-full font-bold text-lg shadow-lg border-b-4 border-cyan-600 active:border-b-0 active:mt-1 transition-all"
+              >
+                Collect Rewards ✨
+              </button>
+            ) : (
+              <div className="flex flex-col gap-2">
+                <button
+                  onClick={() => { setPhase('countdown'); setDisplayScore(0); setQuestionsCorrect(0); setQuestionsTotal(0) }}
+                  className="w-full py-3.5 bg-gradient-to-b from-cyan-400 to-cyan-500 hover:from-cyan-500 hover:to-cyan-600 text-white rounded-full font-bold text-lg shadow-lg border-b-4 border-cyan-600 active:border-b-0 active:mt-1 transition-all"
+                >
+                  Try Again
+                </button>
+                <button onClick={onClose} className="text-sm text-gray-400 hover:text-gray-600 transition-colors">
+                  Exit
+                </button>
+              </div>
+            )}
           </div>
         </div>
       )}

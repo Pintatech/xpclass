@@ -410,6 +410,16 @@ const PetQuizBossBattle = ({
     }
   }, [phase])
 
+  // Play end-of-game sounds
+  useEffect(() => {
+    if (phase === 'results' || phase === 'victory') {
+      playSound('https://xpclass.vn/xpclass/pet-game/angry/angry-birds-level-complete.mp3', 0.5)
+    }
+    if (phase === 'defeated') {
+      playSound('https://xpclass.vn/xpclass/sound/craft_fail.mp3', 0.5)
+    }
+  }, [phase, playSound])
+
   // Cleanup
   useEffect(() => {
     return () => {

@@ -40,7 +40,10 @@ const pickGameWords = (source) => {
   return picked
 }
 
-const PetWordType = ({ petImageUrl, petName, onGameEnd, onClose, wordBank: wordBankProp = [], hideClose = false, scoreToBeat = null, leaderboard = [], chestEnabled = false, pvpOpponentPetUrl = null, initialWords = null, onProgressUpdate = null, opponentProgress = null, isRealtimePvP = false }) => {
+const PASS_THRESHOLDS = { 1: 10, 2: 13, 3: 17, 4: 20 }
+
+const PetWordType = ({ petImageUrl, petName, onGameEnd, onClose, wordBank: wordBankProp = [], hideClose = false, scoreToBeat = null, leaderboard = [], chestEnabled = false, pvpOpponentPetUrl = null, initialWords = null, onProgressUpdate = null, opponentProgress = null, isRealtimePvP = false, currentLevel = 1 }) => {
+  const passGoal = PASS_THRESHOLDS[currentLevel] || 10
   const [phase, setPhase] = useState('ready')
   const [displayScore, setDisplayScore] = useState(0)
   const [displayTime, setDisplayTime] = useState(GAME_DURATION)
@@ -348,6 +351,20 @@ const PetWordType = ({ petImageUrl, petName, onGameEnd, onClose, wordBank: wordB
       bgMusicRef.current = null
     }
   }, [phase])
+
+  // Play end-of-game sounds
+  useEffect(() => {
+    if (phase === 'results') {
+      if (wordsCompleted >= passGoal) {
+        playSound('https://xpclass.vn/xpclass/pet-game/angry/angry-birds-level-complete.mp3', 0.5)
+      } else {
+        playSound('https://xpclass.vn/xpclass/sound/craft_fail.mp3', 0.5)
+      }
+    }
+    if (phase === 'defeated') {
+      playSound('https://xpclass.vn/xpclass/sound/craft_fail.mp3', 0.5)
+    }
+  }, [phase, playSound, wordsCompleted, passGoal])
 
   // Cleanup on unmount
   useEffect(() => {
@@ -882,7 +899,7 @@ const PetWordType = ({ petImageUrl, petName, onGameEnd, onClose, wordBank: wordB
           {/* Progress dots - hidden in PvP */}
           {!isRealtimePvP && (
           <div className="absolute top-[76px] left-0 right-0 flex items-center justify-center gap-1.5 z-10 pointer-events-none">
-            {Array.from({ length: 10 }, (_, i) => (
+            {Array.from({ length: passGoal }, (_, i) => (
               <div
                 key={i}
                 className="relative"
@@ -1036,19 +1053,19 @@ const PetWordType = ({ petImageUrl, petName, onGameEnd, onClose, wordBank: wordB
             ) : (
               <>
                 <h2 className="text-2xl font-bold text-gray-800 mb-1">
-                  {wordsCompleted >= 10 ? 'Training Complete!' : 'Not Enough Words!'}
+                  {wordsCompleted >= passGoal ? 'Training Complete!' : 'Not Enough Words!'}
                 </h2>
                 <p className="text-gray-500 mb-5">
-                  {wordsCompleted >= 10
+                  {wordsCompleted >= passGoal
                     ? `${petName} learned ${wordsCompleted} words!`
-                    : `${petName} only learned ${wordsCompleted}/10 words`}
+                    : `${petName} only learned ${wordsCompleted}/${passGoal} words`}
                 </p>
                 <div
-                  className={`rounded-2xl p-5 mb-5 border ${wordsCompleted >= 10 ? 'bg-gradient-to-br from-indigo-50 to-purple-50 border-indigo-100' : 'bg-gradient-to-br from-gray-50 to-gray-100 border-gray-200'}`}
+                  className={`rounded-2xl p-5 mb-5 border ${wordsCompleted >= passGoal ? 'bg-gradient-to-br from-indigo-50 to-purple-50 border-indigo-100' : 'bg-gradient-to-br from-gray-50 to-gray-100 border-gray-200'}`}
                   style={{ animation: 'typeScorePopIn 0.6s ease-out 0.5s both' }}
                 >
-                  <p className={`text-5xl font-black ${wordsCompleted >= 10 ? 'text-indigo-600' : 'text-gray-400'}`}>{wordsCompleted}</p>
-                  <p className={`text-sm font-semibold mt-1 ${wordsCompleted >= 10 ? 'text-indigo-400' : 'text-gray-400'}`}>words completed</p>
+                  <p className={`text-5xl font-black ${wordsCompleted >= passGoal ? 'text-indigo-600' : 'text-gray-400'}`}>{wordsCompleted}</p>
+                  <p className={`text-sm font-semibold mt-1 ${wordsCompleted >= passGoal ? 'text-indigo-400' : 'text-gray-400'}`}>words completed</p>
                 </div>
               </>
             )}
@@ -1069,11 +1086,11 @@ const PetWordType = ({ petImageUrl, petName, onGameEnd, onClose, wordBank: wordB
             )}
 
             <p className="text-sm text-gray-600 mb-6">
-              {wordsCompleted >= 15
+              {wordsCompleted >= passGoal + 5
                 ? 'Typing master!'
-                : wordsCompleted >= 10
+                : wordsCompleted >= passGoal
                   ? 'Great vocabulary!'
-                  : 'Need at least 10 words to earn XP. Try again!'}
+                  : `Need at least ${passGoal} words to earn XP. Try again!`}
             </p>
 
             {chestCollected && (
@@ -1083,7 +1100,7 @@ const PetWordType = ({ petImageUrl, petName, onGameEnd, onClose, wordBank: wordB
               </div>
             )}
 
-            {isRealtimePvP || wordsCompleted >= 10 ? (
+            {isRealtimePvP || wordsCompleted >= passGoal ? (
               <button
                 onClick={() => onGameEnd(displayScore, { chestCollected, wordsCompleted })}
                 className="w-full py-3.5 bg-gradient-to-b from-indigo-500 to-indigo-600 hover:from-indigo-600 hover:to-indigo-700 text-white rounded-full font-bold text-lg shadow-lg border-b-4 border-indigo-700 active:border-b-0 active:mt-1 transition-all"

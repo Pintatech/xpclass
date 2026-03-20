@@ -1732,7 +1732,7 @@ const PetDisplay = () => {
                             <div className="w-full bg-gray-200 rounded-full h-2 overflow-hidden">
                               <div className="bg-gradient-to-r from-purple-500 to-pink-500 h-2 rounded-full transition-all duration-500" style={{ width: `${progress}%` }} />
                             </div>
-                            {xpReady && (
+                            {xpReady ? (
                               <div className="mt-2.5">
                                 {fruit ? (
                                   <button
@@ -1751,10 +1751,14 @@ const PetDisplay = () => {
                                   </button>
                                 ) : (
                                   <p className="text-[10px] text-center text-orange-500 font-medium">
-                                    XP ready! You need a {activePet.rarity} evolution fruit to evolve.
+                                    XP ready! You need a {activePet.rarity} Evolution Potion to evolve.
                                   </p>
                                 )}
                               </div>
+                            ) : (
+                              <p className="mt-2 text-[10px] text-center text-purple-500 font-medium">
+                                🧪 Your pet needs a {activePet.rarity} Evolution Potion to evolve!
+                              </p>
                             )}
                           </div>
                         );
@@ -2026,6 +2030,7 @@ const PetDisplay = () => {
           petName={activePet.nickname || activePet.name}
           questionBank={questionBank}
           chestEnabled={chestEnabled}
+          currentLevel={profile?.current_level || 1}
           onGameEnd={(score, extra) => handleGameEnd(score, 'catch', extra)}
           onClose={() => setShowGame(null)}
         />
@@ -2047,6 +2052,7 @@ const PetDisplay = () => {
           wordBank={wordBank}
           leaderboard={gameLeaderboards.flappy || []}
           chestEnabled={chestEnabled}
+          currentLevel={profile?.current_level || 1}
           onGameEnd={(score, extra) => handleGameEnd(score, 'flappy', extra)}
           onClose={() => setShowGame(null)}
         />
@@ -2066,6 +2072,7 @@ const PetDisplay = () => {
           })()}
           petName={activePet.nickname || activePet.name}
           wordBank={wordBank}
+          currentLevel={profile?.current_level || 1}
           leaderboard={gameLeaderboards.scramble}
           chestEnabled={chestEnabled}
           onGameEnd={(score, extra) => handleGameEnd(score, 'scramble', extra)}
@@ -2089,6 +2096,7 @@ const PetDisplay = () => {
           leaderboard={gameLeaderboards.whackmole}
           wordBank={wordBank}
           chestEnabled={chestEnabled}
+          currentLevel={profile?.current_level || 1}
           onGameEnd={(score, extra) => handleGameEnd(score, 'whackmole', extra)}
           onClose={() => setShowGame(null)}
         />
@@ -2119,6 +2127,7 @@ const PetDisplay = () => {
           wordBank={wordBank}
           leaderboard={gameLeaderboards.astroblast}
           chestEnabled={chestEnabled}
+          currentLevel={profile?.current_level || 1}
           onGameEnd={(score, extra) => handleGameEnd(score, 'astroblast', extra)}
           onClose={() => setShowGame(null)}
         />
@@ -2157,6 +2166,7 @@ const PetDisplay = () => {
           })()}
           petName={activePet.nickname || activePet.name}
           wordBank={wordBank}
+          currentLevel={profile?.current_level || 1}
           leaderboard={gameLeaderboards.wordtype}
           chestEnabled={chestEnabled}
           onGameEnd={(score, extra) => handleGameEnd(score, 'wordtype', extra)}
@@ -2239,6 +2249,7 @@ const PetDisplay = () => {
           questionBank={questionBank}
           leaderboard={gameLeaderboards.angrypet}
           chestEnabled={chestEnabled}
+          currentLevel={profile?.current_level || 1}
           onGameEnd={(score, extra) => handleGameEnd(score, 'angrypet', extra)}
           onClose={() => setShowGame(null)}
         />

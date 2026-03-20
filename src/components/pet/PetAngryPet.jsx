@@ -7,6 +7,7 @@ const GAME_DURATION = 76
 const POINTS_PER_Q = 10
 const STREAK_BONUS = 5
 const PET_MAX_HP = 5
+const PASS_THRESHOLDS = { 1: 10, 2: 13, 3: 17, 4: 20 }
 
 const shuffle = (arr) => {
   const a = [...arr]
@@ -48,7 +49,8 @@ const PIG_DEFAULT = (i) => `https://xpclass.vn/xpclass/pet-game/angry/pig${i + 1
 const PIG_CORRECT = (i) => `https://xpclass.vn/xpclass/pet-game/angry/pig${i + 1}-correct.png`
 const PIG_WRONG = (i) => `https://xpclass.vn/xpclass/pet-game/angry/pig${i + 1}-wrong.png`
 
-const PetAngryPet = ({ petImageUrl, petName, onGameEnd, onClose, questionBank: questionBankProp = [], hideClose = false, scoreToBeat = null, leaderboard = [], chestEnabled = false }) => {
+const PetAngryPet = ({ petImageUrl, petName, onGameEnd, onClose, questionBank: questionBankProp = [], hideClose = false, scoreToBeat = null, leaderboard = [], chestEnabled = false, currentLevel = 1 }) => {
+  const passGoal = PASS_THRESHOLDS[currentLevel] || 10
   const [phase, setPhase] = useState('ready')
   const [displayScore, setDisplayScore] = useState(0)
   const [displayTime, setDisplayTime] = useState(GAME_DURATION)
@@ -355,16 +357,16 @@ const PetAngryPet = ({ petImageUrl, petName, onGameEnd, onClose, questionBank: q
   // Play level-complete sound on successful results
   useEffect(() => {
     if (phase === 'results') {
-      if (questionsCorrect >= 10) {
+      if (questionsCorrect >= passGoal) {
         playSound('https://xpclass.vn/xpclass/pet-game/angry/angry-birds-level-complete.mp3', 0.5)
       } else {
-        playSound('https://xpclass.vn/xpclass/pet-game/angry/angry-birds-level-failed.mp3', 0.5)
+        playSound('https://xpclass.vn/xpclass/sound/craft_fail.mp3', 0.5)
       }
     }
     if (phase === 'defeated') {
-      playSound('https://xpclass.vn/xpclass/pet-game/angry/angry-birds-level-failed.mp3', 0.5)
+      playSound('https://xpclass.vn/xpclass/sound/craft_fail.mp3', 0.5)
     }
-  }, [phase, questionsCorrect, playSound])
+  }, [phase, playSound, questionsCorrect, passGoal])
 
   // Cleanup
   useEffect(() => {
@@ -492,6 +494,8 @@ const PetAngryPet = ({ petImageUrl, petName, onGameEnd, onClose, questionBank: q
         @keyframes alTargetDestroy { 0% { transform: scale(1); opacity: 1 } 30% { transform: scale(1.2); opacity: 0.8 } 100% { transform: scale(1.2) rotate(15deg); opacity: 0 } }
         @keyframes alTargetWrong { 0% { transform: translateX(0) } 20% { transform: translateX(-5px) } 40% { transform: translateX(5px) } 60% { transform: translateX(-3px) } 80% { transform: translateX(3px) } 100% { transform: translateX(0) } }
         @keyframes bbHeartLose { 0% { transform: scale(1); opacity: 1; } 50% { transform: scale(1.4); opacity: 0.5; } 100% { transform: scale(0); opacity: 0; } }
+        @keyframes hintPulse { 0%, 100% { transform: scale(1); } 50% { transform: scale(1.03); } }
+        @keyframes timerUrgent { 0%, 100% { transform: scale(1) rotate(0deg); } 15% { transform: scale(1.1) rotate(-3deg); } 30% { transform: scale(1) rotate(3deg); } 45% { transform: scale(1.05) rotate(-2deg); } 60% { transform: scale(1) rotate(0deg); } }
       `}</style>
 
       <div
@@ -552,90 +556,107 @@ const PetAngryPet = ({ petImageUrl, petName, onGameEnd, onClose, questionBank: q
         {phase === 'playing' && currentQ && (
           <div className="flex flex-col h-full relative">
             {/* Top HUD */}
-            <div className="flex items-center justify-between px-4 pt-3 pb-2 z-20 relative">
-              <div className="flex items-center gap-2">
-                <div className="bg-white/20 backdrop-blur-sm rounded-full px-3 py-1.5 flex items-center gap-1.5">
-                  <Trophy size={14} className="text-yellow-300" />
-                  <span className="font-black text-white text-sm">{displayScore}</span>
-                </div>
-                {streak >= 3 && (
-                  <div className="bg-orange-500/80 rounded-full px-2.5 py-1 text-xs font-bold text-white"
-                    style={comboAnim ? { animation: 'alCombo 0.6s ease-out' } : {}}
+            <div className="flex items-center justify-between pl-12 pr-4 pt-3 pb-2 z-20 relative">
+              {/* Score */}
+              <div className="bg-white/15 backdrop-blur rounded-2xl px-4 py-2">
+                <span className="text-xl font-black text-white">{displayScore}</span>
+              </div>
+              {/* HP Hearts */}
+              <div className="flex gap-0.5 items-center">
+                {Array.from({ length: PET_MAX_HP }).map((_, i) => (
+                  <Heart key={i} className={`w-4 h-4 transition-all ${i < petHp ? 'text-red-400 fill-red-400' : 'text-gray-400/40'}`}
+                    style={i === petHp ? { animation: 'bbHeartLose 0.5s ease-out' } : {}}
+                  />
+                ))}
+              </div>
+              {/* Circular Timer */}
+              {(() => {
+                const pct = displayTime / GAME_DURATION
+                const radius = 22
+                const circumference = 2 * Math.PI * radius
+                const offset = circumference * (1 - pct)
+                const color = displayTime <= 5 ? '#ef4444' : displayTime <= 10 ? '#f97316' : displayTime <= 20 ? '#eab308' : '#22c55e'
+                return (
+                  <div className="relative flex items-center justify-center"
+                    style={{
+                      animation: displayTime <= 5 ? 'timerUrgent 0.5s ease-in-out infinite'
+                        : displayTime <= 10 ? 'timerUrgent 1s ease-in-out infinite' : 'none'
+                    }}
                   >
-                    🔥 x{streak}
+                    <svg width="48" height="48" className="drop-shadow-lg" style={{ transform: 'rotate(-90deg)' }}>
+                      <circle cx="24" cy="24" r={radius} fill="rgba(0,0,0,0.3)" stroke="rgba(255,255,255,0.15)" strokeWidth="4" />
+                      <circle cx="24" cy="24" r={radius} fill="none" stroke={color} strokeWidth="4" strokeLinecap="round"
+                        strokeDasharray={circumference} strokeDashoffset={offset}
+                        style={{ transition: 'stroke-dashoffset 1s linear, stroke 0.5s ease' }}
+                      />
+                    </svg>
+                    <span className="absolute font-black text-white"
+                      style={{ fontSize: displayTime < 10 ? '16px' : '14px', textShadow: `0 0 8px ${color}80, 0 1px 2px rgba(0,0,0,0.3)` }}
+                    >
+                      {displayTime}
+                    </span>
                   </div>
-                )}
-              </div>
-
-              <div className="flex items-center gap-2">
-                <div className={`bg-white/20 backdrop-blur-sm rounded-full px-3 py-1.5 font-bold text-sm ${displayTime <= 10 ? 'text-red-300 animate-pulse' : 'text-white'}`}>
-                  ⏱ {displayTime}s
-                </div>
-                <button onClick={() => setMuted(!muted)} className="text-white/60 hover:text-white">
-                  {muted ? <VolumeX size={18} /> : <Volume2 size={18} />}
-                </button>
-              </div>
+                )
+              })()}
+              <button onClick={() => setMuted(!muted)} className="text-white/60 hover:text-white">
+                {muted ? <VolumeX size={18} /> : <Volume2 size={18} />}
+              </button>
             </div>
 
-            {/* Heart / HP display */}
-            <div className="flex items-center justify-center gap-1 pb-1 z-20 relative">
-              {Array.from({ length: PET_MAX_HP }, (_, i) => (
-                <Heart
-                  key={i}
-                  size={18}
-                  className={i < petHp ? 'text-red-500 drop-shadow' : 'text-gray-400/50'}
-                  fill={i < petHp ? '#ef4444' : 'none'}
-                  style={i === petHp ? { animation: 'bbHeartLose 0.5s ease-out forwards' } : {}}
-                />
-              ))}
-            </div>
-
-            {/* Question card - top area */}
+            {/* Question + Streak */}
             <div className="px-4 pb-2 z-20 relative">
-              <div className="bg-white/90 backdrop-blur-md rounded-2xl px-4 py-3 w-full text-center border border-white/50 shadow-lg"
-                key={qIndex}
-                style={{ animation: 'alQuestionIn 0.3s ease-out' }}
-              >
-                <p className="text-base font-bold text-gray-800 leading-snug">
-                  {currentQ.question}
-                </p>
-                {currentQ.image_url && (
-                  <img src={currentQ.image_url} alt="" className="w-12 h-12 object-contain mx-auto mt-2 rounded-lg" />
-                )}
+              <div className="w-full flex items-center gap-2">
+                <div className={`rounded-full px-2.5 py-1 text-xs font-bold flex items-center gap-1 shrink-0 ${
+                  streak >= 3 ? 'bg-yellow-400 text-yellow-900' : 'bg-white/15 text-white/70'
+                }`}
+                  style={comboAnim ? { animation: 'alCombo 0.6s ease-out' } : {}}
+                >
+                  <img src={assetUrl('/icon/profile/streak.svg')} alt="streak" className="w-3.5 h-3.5" />{streak}x
+                </div>
+                <div className="flex-1 bg-white/10 backdrop-blur rounded-xl px-4 py-2 text-center min-w-0"
+                  key={qIndex}
+                  style={{ animation: 'alQuestionIn 0.3s ease-out' }}
+                >
+                  <span className="text-xs text-white/50 mr-1">Hit:</span>
+                  <span className="text-base font-bold text-white">{currentQ.question}</span>
+                  {currentQ.image_url && (
+                    <img src={currentQ.image_url} alt="" className="w-10 h-10 object-contain mx-auto mt-1 rounded-lg" />
+                  )}
+                </div>
               </div>
               {/* Progress dots */}
-              <div className="flex items-center justify-center gap-1.5 mt-2">
-                {Array.from({ length: 10 }, (_, i) => (
+              <div className="flex items-center justify-center gap-1 mt-2">
+                {Array.from({ length: passGoal }, (_, i) => (
                   <div
                     key={i}
                     className="relative"
                     style={{
-                      width: 24,
-                      height: 24,
+                      width: 14,
+                      height: 14,
                       transition: 'transform 0.3s ease',
                       transform: i === questionsCorrect ? 'scale(1.3)' : 'scale(1)',
                     }}
                   >
                     {i < questionsCorrect ? (
-                      <div className="w-full h-full rounded-full flex items-center justify-center text-xs"
+                      <div className="w-full h-full rounded-full flex items-center justify-center"
                         style={{
-                          background: 'linear-gradient(135deg, #fb923c, #ea580c)',
-                          boxShadow: '0 0 8px rgba(249,115,22,0.5)',
+                          background: 'linear-gradient(135deg, #22d3ee, #0891b2)',
+                          boxShadow: '0 0 8px rgba(34,211,238,0.5)',
                         }}
                       >
-                        <span className="text-white font-bold">✓</span>
+                        <span className="text-white font-bold text-[8px]">✓</span>
                       </div>
                     ) : i === questionsCorrect ? (
                       <div className="w-full h-full rounded-full border-2 border-white/60 flex items-center justify-center"
-                        style={{ background: 'rgba(255,255,255,0.15)', animation: 'alFloat 1.5s ease-in-out infinite' }}
+                        style={{ background: 'rgba(255,255,255,0.15)', animation: 'hintPulse 1.5s ease-in-out infinite' }}
                       >
-                        <span className="text-white/80 font-bold text-[10px]">{i + 1}</span>
+                        <span className="text-white/80 font-bold text-[7px]">{i + 1}</span>
                       </div>
                     ) : (
                       <div className="w-full h-full rounded-full border border-white/20 flex items-center justify-center"
                         style={{ background: 'rgba(255,255,255,0.08)' }}
                       >
-                        <span className="text-white/30 text-[10px]">{i + 1}</span>
+                        <span className="text-white/30 text-[7px]">{i + 1}</span>
                       </div>
                     )}
                   </div>
@@ -837,19 +858,19 @@ const PetAngryPet = ({ petImageUrl, petName, onGameEnd, onClose, questionBank: q
               </div>
 
               <h2 className="text-2xl font-bold text-gray-800 mb-1">
-                {questionsCorrect >= 10 ? 'Great Aim!' : 'Not Enough Hits!'}
+                {questionsCorrect >= passGoal ? 'Great Aim!' : 'Not Enough Hits!'}
               </h2>
               <p className="text-gray-500 mb-5">
-                {questionsCorrect >= 10
+                {questionsCorrect >= passGoal
                   ? `${petName} hit ${questionsCorrect} targets!`
-                  : `${petName} only hit ${questionsCorrect}/10 targets`}
+                  : `${petName} only hit ${questionsCorrect}/${passGoal} targets`}
               </p>
 
-              <div className={`rounded-2xl p-5 mb-5 border ${questionsCorrect >= 10 ? 'bg-gradient-to-br from-orange-50 to-amber-50 border-orange-100' : 'bg-gradient-to-br from-gray-50 to-gray-100 border-gray-200'}`}
+              <div className={`rounded-2xl p-5 mb-5 border ${questionsCorrect >= passGoal ? 'bg-gradient-to-br from-orange-50 to-amber-50 border-orange-100' : 'bg-gradient-to-br from-gray-50 to-gray-100 border-gray-200'}`}
                 style={{ animation: 'alScorePopIn 0.6s ease-out 0.5s both' }}
               >
-                <p className={`text-5xl font-black ${questionsCorrect >= 10 ? 'text-orange-600' : 'text-gray-400'}`}>{questionsCorrect}</p>
-                <p className={`text-sm font-semibold mt-1 ${questionsCorrect >= 10 ? 'text-orange-400' : 'text-gray-400'}`}>targets hit</p>
+                <p className={`text-5xl font-black ${questionsCorrect >= passGoal ? 'text-orange-600' : 'text-gray-400'}`}>{questionsCorrect}</p>
+                <p className={`text-sm font-semibold mt-1 ${questionsCorrect >= passGoal ? 'text-orange-400' : 'text-gray-400'}`}>targets hit</p>
               </div>
 
               {wrongQuestions.length > 0 && (
@@ -867,7 +888,7 @@ const PetAngryPet = ({ petImageUrl, petName, onGameEnd, onClose, questionBank: q
               )}
 
               <p className="text-sm text-gray-600 mb-6">
-                {questionsCorrect >= 15 ? 'Sharpshooter!' : questionsCorrect >= 10 ? 'Nice aim!' : 'Need at least 10 hits to earn XP. Try again!'}
+                {questionsCorrect >= passGoal + 5 ? 'Sharpshooter!' : questionsCorrect >= passGoal ? 'Nice aim!' : `Need at least ${passGoal} hits to earn XP. Try again!`}
               </p>
 
               {chestCollected && (
@@ -877,7 +898,7 @@ const PetAngryPet = ({ petImageUrl, petName, onGameEnd, onClose, questionBank: q
                 </div>
               )}
 
-              {questionsCorrect >= 10 ? (
+              {questionsCorrect >= passGoal ? (
                 <button
                   onClick={() => onGameEnd(displayScore, { chestCollected, wordsCompleted: questionsCorrect })}
                   className="w-full py-3.5 bg-gradient-to-b from-orange-400 to-red-500 hover:from-orange-500 hover:to-red-600 text-white rounded-full font-bold text-lg shadow-lg border-b-4 border-red-700 active:border-b-0 active:mt-1 transition-all"

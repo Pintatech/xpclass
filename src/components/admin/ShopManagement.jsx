@@ -20,6 +20,7 @@ const categoryOptions = [
   { value: 'pet', label: 'Pet' },
   { value: 'spaceship', label: 'Spaceship' },
   { value: 'hammer', label: 'Hammer' },
+  { value: 'rod', label: 'Rod' },
   { value: 'school', label: 'School Things' },
 ]
 
