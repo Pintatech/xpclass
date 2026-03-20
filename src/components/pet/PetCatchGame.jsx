@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef, useCallback } from 'react'
 import { createPortal } from 'react-dom'
-import { X, Trophy, Heart } from 'lucide-react'
+import { X, Star, Heart } from 'lucide-react'
 
 import { assetUrl } from '../../hooks/useBranding';
 
@@ -12,7 +12,12 @@ const POINTS_CORRECT = 20
 const POINTS_WRONG = -5
 const QUESTION_DELAY = 1000
 const PET_MAX_HP = 5
-const PASS_THRESHOLDS = { 1: 20, 2: 23, 3: 25, 4: 28 }
+const STAR_THRESHOLDS = {
+  1: [7, 10, 14],
+  2: [10, 13, 17],
+  3: [13, 17, 20],
+  4: [16, 20, 22],
+}
 
 const FRUIT_EMOJIS = ['🍈', '🍉', '🍊', '🍋', '🍌', '🍍', '🥭', '🍎', '🍏', '🍐', '🍑', '🍒', '🍓', '🍅', '🍆', '🌽', '🥑', '🍕', '🍔', '🌭', '🥨', '🍞', '🌮', '🥪', '🍗', '🍖', '🍩', '🍰', '🧁']
 
@@ -26,7 +31,9 @@ const shuffle = (arr) => {
 }
 
 const PetCatchGame = ({ petImageUrl, petName, onGameEnd, onClose, questionBank: questionBankProp = [], chestEnabled = false, currentLevel = 1 }) => {
-  const passGoal = PASS_THRESHOLDS[currentLevel] || 20
+  const thresholds = STAR_THRESHOLDS[currentLevel] || [15, 20, 25]
+  const [star1Goal, star2Goal, star3Goal] = thresholds
+  const passGoal = star1Goal
   const [phase, setPhase] = useState('countdown')
   const [displayScore, setDisplayScore] = useState(0)
   const [displayTime, setDisplayTime] = useState(GAME_DURATION)
@@ -35,6 +42,7 @@ const PetCatchGame = ({ petImageUrl, petName, onGameEnd, onClose, questionBank: 
   const [, setRenderTick] = useState(0)
   const [currentQuestion, setCurrentQuestion] = useState(null)
   const [questionsCorrect, setQuestionsCorrect] = useState(0)
+  const starsEarned = questionsCorrect >= star3Goal ? 3 : questionsCorrect >= star2Goal ? 2 : questionsCorrect >= star1Goal ? 1 : 0
   const [questionsTotal, setQuestionsTotal] = useState(0)
   const [feedback, setFeedback] = useState(null)
   const [streak, setStreak] = useState(0)
@@ -540,43 +548,36 @@ const PetCatchGame = ({ petImageUrl, petName, onGameEnd, onClose, questionBank: 
               )}
             </div>
           </div>
-          {/* Progress dots */}
-          <div className="flex items-center justify-center gap-1 mt-2">
-            {Array.from({ length: passGoal }, (_, i) => (
-              <div
-                key={i}
-                className="relative"
-                style={{
-                  width: 14,
-                  height: 14,
-                  transition: 'transform 0.3s ease',
-                  transform: i === questionsCorrect ? 'scale(1.3)' : 'scale(1)',
-                }}
-              >
-                {i < questionsCorrect ? (
-                  <div className="w-full h-full rounded-full flex items-center justify-center"
-                    style={{
-                      background: 'linear-gradient(135deg, #22d3ee, #0891b2)',
-                      boxShadow: '0 0 8px rgba(34,211,238,0.5)',
-                    }}
-                  >
-                    <span className="text-white font-bold text-[8px]">✓</span>
-                  </div>
-                ) : i === questionsCorrect ? (
-                  <div className="w-full h-full rounded-full border-2 border-white/60 flex items-center justify-center"
-                    style={{ background: 'rgba(255,255,255,0.15)', animation: 'hintPulse 1.5s ease-in-out infinite' }}
-                  >
-                    <span className="text-white/80 font-bold text-[7px]">{i + 1}</span>
-                  </div>
-                ) : (
-                  <div className="w-full h-full rounded-full border border-white/20 flex items-center justify-center"
-                    style={{ background: 'rgba(255,255,255,0.08)' }}
-                  >
-                    <span className="text-white/30 text-[7px]">{i + 1}</span>
-                  </div>
-                )}
+          {/* Progress bar */}
+          <div className="flex items-center gap-1.5 w-full max-w-[280px] mx-auto mt-2">
+            <div className="flex-1 relative" style={{ height: 22 }}>
+              <div className="absolute inset-0 rounded-full" style={{
+                background: 'linear-gradient(180deg, #f0c040 0%, #c8940a 40%, #a07008 60%, #d4a820 100%)',
+                boxShadow: 'inset 0 1px 0 rgba(255,255,255,0.4), inset 0 -1px 0 rgba(0,0,0,0.2), 0 1px 3px rgba(0,0,0,0.3)',
+              }} />
+              <div className="absolute rounded-full overflow-hidden" style={{
+                top: 3, bottom: 3, left: 4, right: 4,
+                background: 'linear-gradient(180deg, #7a5a10 0%, #5a4008 100%)',
+                boxShadow: 'inset 0 2px 4px rgba(0,0,0,0.5)',
+              }}>
+                <div className="h-full rounded-full" style={{
+                  width: `${Math.min(100, (questionsCorrect / star3Goal) * 100)}%`,
+                  background: 'linear-gradient(180deg, #67e8f9 0%, #0891b2 50%, #0e7490 100%)',
+                  boxShadow: 'inset 0 1px 0 rgba(255,255,255,0.4), 0 0 6px rgba(34,211,238,0.6)',
+                  transition: 'width 0.4s ease',
+                }} />
               </div>
-            ))}
+              {[star1Goal, star2Goal].map((goal, i) => (
+                <div key={i} className="absolute top-0 bottom-0 flex items-center justify-center" style={{ left: `${(goal / star3Goal) * 100}%`, transform: 'translateX(-50%)' }}>
+                  <div className="w-0.5 h-3 rounded-full" style={{ background: questionsCorrect >= goal ? 'rgba(250,204,21,0.9)' : 'rgba(255,255,255,0.3)' }} />
+                </div>
+              ))}
+            </div>
+            <div className="flex -space-x-0.5">
+              {thresholds.map((goal, i) => (
+                <Star key={i} className={`w-5 h-5 transition-all ${questionsCorrect >= goal ? 'text-yellow-400 fill-yellow-400 drop-shadow-sm' : 'text-white/25'}`} />
+              ))}
+            </div>
           </div>
         </div>
       )}
@@ -742,28 +743,40 @@ const PetCatchGame = ({ petImageUrl, petName, onGameEnd, onClose, questionBank: 
             className="bg-white rounded-3xl shadow-2xl max-w-sm w-full p-8 text-center"
             style={{ animation: 'resultsFadeIn 0.5s ease-out' }}
           >
-            <div
-              className="inline-flex items-center justify-center w-20 h-20 rounded-full bg-yellow-100 mb-4"
-              style={{ animation: 'scorePopIn 0.6s ease-out 0.3s both' }}
-            >
-              <Trophy className="w-10 h-10 text-yellow-500" />
+            {/* Star display */}
+            <div className="flex justify-center gap-1 mb-4">
+              {[1, 2, 3].map(s => (
+                <Star
+                  key={s}
+                  className={`w-12 h-12 transition-all ${starsEarned >= s ? 'text-yellow-400 fill-yellow-400 drop-shadow-lg' : 'text-gray-300'}`}
+                  style={{ animation: starsEarned >= s ? `scorePopIn 0.5s ease-out ${0.2 + s * 0.15}s both` : 'scorePopIn 0.5s ease-out 0.3s both' }}
+                />
+              ))}
             </div>
 
             <h2 className="text-2xl font-bold text-gray-800 mb-1">
-              {questionsCorrect >= passGoal ? 'Training Complete!' : 'Not Enough Catches!'}
+              {starsEarned >= 3 ? 'Perfect Catching!' : starsEarned >= 2 ? 'Great Job!' : starsEarned >= 1 ? 'Training Complete!' : 'Not Enough Catches!'}
             </h2>
             <p className="text-gray-500 mb-5">
-              {questionsCorrect >= passGoal
+              {starsEarned >= 1
                 ? `${petName} caught ${questionsCorrect} correct!`
                 : `${petName} only caught ${questionsCorrect}/${passGoal} correct`}
             </p>
 
             <div
-              className={`rounded-2xl p-5 mb-4 border ${questionsCorrect >= passGoal ? 'bg-gradient-to-br from-orange-50 to-yellow-50 border-orange-100' : 'bg-gradient-to-br from-gray-50 to-gray-100 border-gray-200'}`}
+              className={`rounded-2xl p-5 mb-4 border ${
+                starsEarned >= 3 ? 'bg-gradient-to-br from-yellow-50 to-amber-50 border-yellow-200'
+                : starsEarned >= 1 ? 'bg-gradient-to-br from-orange-50 to-yellow-50 border-orange-100'
+                : 'bg-gradient-to-br from-gray-50 to-gray-100 border-gray-200'
+              }`}
               style={{ animation: 'scorePopIn 0.6s ease-out 0.5s both' }}
             >
-              <p className={`text-5xl font-black ${questionsCorrect >= passGoal ? 'text-orange-600' : 'text-gray-400'}`}>{questionsCorrect}</p>
-              <p className={`text-sm font-semibold mt-1 ${questionsCorrect >= passGoal ? 'text-orange-400' : 'text-gray-400'}`}>correct catches</p>
+              <p className={`text-5xl font-black ${
+                starsEarned >= 3 ? 'text-yellow-500' : starsEarned >= 1 ? 'text-orange-600' : 'text-gray-400'
+              }`}>{questionsCorrect}</p>
+              <p className={`text-sm font-semibold mt-1 ${
+                starsEarned >= 3 ? 'text-yellow-400' : starsEarned >= 1 ? 'text-orange-400' : 'text-gray-400'
+              }`}>correct catches</p>
             </div>
 
             <div className="flex justify-center gap-4 mb-5 text-sm"
@@ -780,11 +793,13 @@ const PetCatchGame = ({ petImageUrl, petName, onGameEnd, onClose, questionBank: 
             </div>
 
             <p className="text-sm text-gray-600 mb-6">
-              {questionsCorrect >= passGoal + 5
-                ? 'Amazing reflexes! 🏆'
-                : questionsCorrect >= passGoal
-                  ? 'Great catching! 💪'
-                  : `Need at least ${passGoal} correct catches to earn XP. Try again! 💪`}
+              {starsEarned >= 3
+                ? 'Amazing reflexes! Perfect performance!'
+                : starsEarned >= 2
+                  ? `Great catching! Get ${star3Goal} catches for 3 stars!`
+                  : starsEarned >= 1
+                    ? `Good job! Get ${star2Goal} catches for 2 stars!`
+                    : `Need at least ${star1Goal} correct catches to earn a star. Try again!`}
             </p>
 
             {chestCollected && (
@@ -796,12 +811,12 @@ const PetCatchGame = ({ petImageUrl, petName, onGameEnd, onClose, questionBank: 
               </div>
             )}
 
-            {questionsCorrect >= passGoal ? (
+            {starsEarned >= 1 ? (
               <button
-                onClick={() => onGameEnd(displayScore, { chestCollected })}
+                onClick={() => onGameEnd(displayScore, { chestCollected, stars: starsEarned })}
                 className="w-full py-3.5 bg-gradient-to-b from-cyan-400 to-cyan-500 hover:from-cyan-500 hover:to-cyan-600 text-white rounded-full font-bold text-lg shadow-lg border-b-4 border-cyan-600 active:border-b-0 active:mt-1 transition-all"
               >
-                Collect Rewards ✨
+                Collect Rewards
               </button>
             ) : (
               <div className="flex flex-col gap-2">

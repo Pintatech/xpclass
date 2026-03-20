@@ -49,6 +49,7 @@ const GOAL_TYPES = [
   { value: 'type_words', label: 'Gõ từ (Word Type)' },
   { value: 'match_pairs', label: 'Ghép cặp (Match Game)' },
   { value: 'pronounce_words', label: 'Phát âm (Say It Right)' },
+  { value: 'earn_3_stars', label: 'Đạt 3 sao trong game' },
 ]
 
 const MISSION_TYPES = [

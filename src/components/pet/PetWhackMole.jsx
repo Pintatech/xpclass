@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef, useCallback } from 'react'
 import { createPortal } from 'react-dom'
-import { Trophy, Heart } from 'lucide-react'
+import { Star, Heart } from 'lucide-react'
 import WORD_BANK from './wordBank'
 
 import { assetUrl } from '../../hooks/useBranding';
@@ -11,7 +11,12 @@ const GRID_COLS = 3
 const GRID_ROWS = 3
 const HOLES = GRID_COLS * GRID_ROWS
 const PET_MAX_HP = 5
-const PASS_THRESHOLDS = { 1: 20, 2: 23, 3: 25, 4: 28 }
+const STAR_THRESHOLDS = {
+  1: [15, 18, 20],
+  2: [18, 22, 25],
+  3: [20, 25, 30],
+  4: [25, 30, 35],
+}
 
 
 const shuffle = (arr) => {
@@ -24,7 +29,9 @@ const shuffle = (arr) => {
 }
 
 const PetWhackMole = ({ petImageUrl, petName, onGameEnd, onClose, hammerSkinUrl, leaderboard = [], wordBank: wordBankProp = [], hideClose = false, chestEnabled = false, pvpOpponentPetUrl = null, currentLevel = 1 }) => {
-  const passGoal = PASS_THRESHOLDS[currentLevel] || 20
+  const thresholds = STAR_THRESHOLDS[currentLevel] || [15, 20, 26]
+  const [star1Goal, star2Goal, star3Goal] = thresholds
+  const passGoal = star1Goal
   const [phase, setPhase] = useState('ready')
   const [displayTime, setDisplayTime] = useState(GAME_DURATION)
   const [score, setScore] = useState(0)
@@ -41,6 +48,7 @@ const PetWhackMole = ({ petImageUrl, petName, onGameEnd, onClose, hammerSkinUrl,
   const [wordHistory, setWordHistory] = useState([])
   const [impacts, setImpacts] = useState([])
   const [roundsCompleted, setRoundsCompleted] = useState(0)
+  const starsEarned = roundsCompleted >= star3Goal ? 3 : roundsCompleted >= star2Goal ? 2 : roundsCompleted >= star1Goal ? 1 : 0
   const [wordPopup, setWordPopup] = useState(null)
   const [chestCollected, setChestCollected] = useState(false)
   const [chestPopup, setChestPopup] = useState(false)
@@ -188,7 +196,7 @@ const PetWhackMole = ({ petImageUrl, petName, onGameEnd, onClose, hammerSkinUrl,
   // Play end-of-game sounds
   useEffect(() => {
     if (phase === 'results') {
-      if (roundsCompleted >= passGoal) {
+      if (starsEarned >= 1) {
         playSound('https://xpclass.vn/xpclass/pet-game/angry/angry-birds-level-complete.mp3', 0.5)
       } else {
         playSound('https://xpclass.vn/xpclass/sound/craft_fail.mp3', 0.5)
@@ -197,7 +205,7 @@ const PetWhackMole = ({ petImageUrl, petName, onGameEnd, onClose, hammerSkinUrl,
     if (phase === 'defeated') {
       playSound('https://xpclass.vn/xpclass/sound/craft_fail.mp3', 0.5)
     }
-  }, [phase, playSound, roundsCompleted, passGoal])
+  }, [phase, playSound, starsEarned])
 
   // Cleanup music on unmount
   useEffect(() => {
@@ -641,44 +649,36 @@ const PetWhackMole = ({ petImageUrl, petName, onGameEnd, onClose, hammerSkinUrl,
                 </div>
               )}
 
-              {/* Progress dots */}
-              <div className="flex items-center justify-center gap-1 mt-2">
-                {Array.from({ length: passGoal }, (_, i) => (
-                  <div
-                    key={i}
-                    className="relative"
-                    style={{
-                      width: 20,
-                      height: 20,
-                      transition: 'transform 0.3s ease',
-                      transform: i === roundsCompleted ? 'scale(1.3)' : 'scale(1)',
-                    }}
-                  >
-                    {i < roundsCompleted ? (
-                      <div className="w-full h-full rounded-full flex items-center justify-center text-xs"
-                        style={{
-                          background: 'linear-gradient(135deg, #86efac, #22c55e)',
-                          boxShadow: '0 0 8px rgba(34,197,94,0.5)',
-                          animation: 'moleStreakPulse 0.4s ease-out',
-                        }}
-                      >
-                        <span className="text-white font-bold">✓</span>
+              {/* Progress bar */}
+              <div className="flex items-center gap-1.5 w-full max-w-[280px] mx-auto mt-2">
+                <div className="flex-1 relative" style={{ height: 22 }}>
+                  <div className="absolute inset-0 rounded-full" style={{
+                    background: 'linear-gradient(180deg, #f0c040 0%, #c8940a 40%, #a07008 60%, #d4a820 100%)',
+                    boxShadow: 'inset 0 1px 0 rgba(255,255,255,0.4), inset 0 -1px 0 rgba(0,0,0,0.2), 0 1px 3px rgba(0,0,0,0.3)',
+                  }} />
+                  <div className="absolute rounded-full overflow-hidden" style={{
+                    top: 3, bottom: 3, left: 4, right: 4,
+                    background: 'linear-gradient(180deg, #7a5a10 0%, #5a4008 100%)',
+                    boxShadow: 'inset 0 2px 4px rgba(0,0,0,0.5)',
+                  }}>
+                    <div className="h-full rounded-full" style={{
+                      width: `${Math.min(100, (roundsCompleted / star3Goal) * 100)}%`,
+                      background: 'linear-gradient(180deg, #f0b27a 0%, #8B4513 50%, #6b3410 100%)',
+                      boxShadow: 'inset 0 1px 0 rgba(255,255,255,0.4), 0 0 6px rgba(139,69,19,0.6)',
+                      transition: 'width 0.4s ease',
+                    }} />
+                    {[star1Goal, star2Goal].map((goal, i) => (
+                      <div key={i} className="absolute top-0 bottom-0 flex items-center justify-center" style={{ left: `${(goal / star3Goal) * 100}%`, transform: 'translateX(-50%)' }}>
+                        <div className="w-0.5 h-3 rounded-full" style={{ background: roundsCompleted >= goal ? 'rgba(250,204,21,0.9)' : 'rgba(255,255,255,0.3)' }} />
                       </div>
-                    ) : i === roundsCompleted ? (
-                      <div className="w-full h-full rounded-full border-2 border-white/60 flex items-center justify-center"
-                        style={{ background: 'rgba(255,255,255,0.25)', animation: 'hintPulse 1.5s ease-in-out infinite' }}
-                      >
-                        <span className="text-white/80 font-bold text-[10px]">{i + 1}</span>
-                      </div>
-                    ) : (
-                      <div className="w-full h-full rounded-full border border-white/20 flex items-center justify-center"
-                        style={{ background: 'rgba(255,255,255,0.1)' }}
-                      >
-                        <span className="text-white/30 text-[10px]">{i + 1}</span>
-                      </div>
-                    )}
+                    ))}
                   </div>
-                ))}
+                </div>
+                <div className="flex -space-x-0.5">
+                  {thresholds.map((goal, i) => (
+                    <Star key={i} className={`w-5 h-5 transition-all ${roundsCompleted >= goal ? 'text-yellow-400 fill-yellow-400 drop-shadow-sm' : 'text-white/25'}`} />
+                  ))}
+                </div>
               </div>
 
               {/* Chest indicator under progress dots */}
@@ -926,28 +926,29 @@ const PetWhackMole = ({ petImageUrl, petName, onGameEnd, onClose, hammerSkinUrl,
               className="bg-white rounded-3xl shadow-2xl max-w-sm w-full p-8 text-center my-auto"
               style={{ animation: 'moleResultsFadeIn 0.5s ease-out' }}
             >
-              <div
-                className="inline-flex items-center justify-center w-20 h-20 rounded-full bg-green-100 mb-4"
-                style={{ animation: 'moleScorePopIn 0.6s ease-out 0.3s both' }}
-              >
-                <Trophy className="w-10 h-10 text-green-500" />
+              <div className="flex justify-center gap-1 mb-4">
+                {[1, 2, 3].map(s => (
+                  <Star key={s} className={`w-12 h-12 transition-all ${starsEarned >= s ? 'text-yellow-400 fill-yellow-400 drop-shadow-lg' : 'text-gray-300'}`}
+                    style={{ animation: starsEarned >= s ? `moleScorePopIn 0.5s ease-out ${0.2 + s * 0.15}s both` : 'moleScorePopIn 0.5s ease-out 0.3s both' }}
+                  />
+                ))}
               </div>
 
               <h2 className="text-2xl font-bold text-gray-800 mb-1">
-                {roundsCompleted >= passGoal ? 'Training Complete!' : 'Not Enough Hits!'}
+                {starsEarned >= 3 ? 'Perfect Whacking!' : starsEarned >= 2 ? 'Great Job!' : starsEarned >= 1 ? 'Training Complete!' : 'Not Enough Hits!'}
               </h2>
               <p className="text-gray-500 mb-5">
-                {roundsCompleted >= passGoal
+                {starsEarned >= 1
                   ? `${petName} got ${roundsCompleted} correct hits!`
                   : `${petName} only got ${roundsCompleted}/${passGoal} correct hits`}
               </p>
 
               <div
-                className={`rounded-2xl p-5 mb-5 border ${roundsCompleted >= passGoal ? 'bg-gradient-to-br from-green-50 to-emerald-50 border-green-100' : 'bg-gradient-to-br from-gray-50 to-gray-100 border-gray-200'}`}
+                className={`rounded-2xl p-5 mb-5 border ${starsEarned >= 3 ? 'bg-gradient-to-br from-yellow-50 to-amber-50 border-yellow-200' : starsEarned >= 1 ? 'bg-gradient-to-br from-green-50 to-emerald-50 border-green-100' : 'bg-gradient-to-br from-gray-50 to-gray-100 border-gray-200'}`}
                 style={{ animation: 'moleScorePopIn 0.6s ease-out 0.5s both' }}
               >
-                <p className={`text-5xl font-black ${roundsCompleted >= passGoal ? 'text-green-600' : 'text-gray-400'}`}>{roundsCompleted}</p>
-                <p className={`text-sm font-semibold mt-1 ${roundsCompleted >= passGoal ? 'text-green-400' : 'text-gray-400'}`}>correct hits</p>
+                <p className={`text-5xl font-black ${starsEarned >= 3 ? 'text-amber-500' : starsEarned >= 1 ? 'text-green-600' : 'text-gray-400'}`}>{roundsCompleted}</p>
+                <p className={`text-sm font-semibold mt-1 ${starsEarned >= 3 ? 'text-amber-400' : starsEarned >= 1 ? 'text-green-400' : 'text-gray-400'}`}>correct hits</p>
               </div>
 
               {/* Missed Words */}
@@ -976,19 +977,21 @@ const PetWhackMole = ({ petImageUrl, petName, onGameEnd, onClose, hammerSkinUrl,
               )}
 
               <p className="text-sm text-gray-600 mb-6">
-                {roundsCompleted >= passGoal + 5
-                  ? 'Whack master! 🏆'
-                  : roundsCompleted >= passGoal
-                    ? 'Nice whacking! 🔨'
-                    : `Need at least ${passGoal} correct hits to earn XP. Try again! 💪`}
+                {starsEarned >= 3
+                  ? `All 3 stars! You hit ${star3Goal}+ correct!`
+                  : starsEarned >= 2
+                    ? `Almost there! ${star3Goal} hits for 3 stars!`
+                    : starsEarned >= 1
+                      ? `Good start! ${star2Goal} hits for 2 stars, ${star3Goal} for 3!`
+                      : `Need at least ${star1Goal} correct hits to earn a star. Try again!`}
               </p>
 
-              {roundsCompleted >= passGoal ? (
+              {starsEarned >= 1 ? (
                 <button
-                  onClick={() => onGameEnd(score, { chestCollected, molesWhacked: roundsCompleted })}
+                  onClick={() => onGameEnd(score, { chestCollected, molesWhacked: roundsCompleted, stars: starsEarned })}
                   className="w-full py-3.5 bg-gradient-to-b from-green-500 to-green-600 hover:from-green-600 hover:to-green-700 text-white rounded-full font-bold text-lg shadow-lg border-b-4 border-green-700 active:border-b-0 active:mt-1 transition-all"
                 >
-                  Collect Rewards ✨
+                  Collect Rewards
                 </button>
               ) : (
                 <div className="flex flex-col gap-2">

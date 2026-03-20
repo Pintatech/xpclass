@@ -26,7 +26,8 @@ CREATE TABLE IF NOT EXISTS public.missions (
     'scramble_words',       -- Unscramble X words in Word Scramble
     'type_words',           -- Type X words in Word Type
     'match_pairs',          -- Match X pairs in Match Game
-    'pronounce_words'       -- Pronounce X words in Say It Right
+    'pronounce_words',      -- Pronounce X words in Say It Right
+    'earn_3_stars'          -- Earn 3 stars in X pet games
   )),
   goal_value integer NOT NULL DEFAULT 1,
   reward_xp integer DEFAULT 0,

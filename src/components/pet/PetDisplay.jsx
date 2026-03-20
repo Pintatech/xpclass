@@ -704,6 +704,15 @@ const PetDisplay = () => {
           p_increment: gameGoal.increment
         }).then(() => {}, () => {})
       }
+
+      // Track 3-star achievements for missions
+      if (extra?.stars === 3) {
+        supabase.rpc('update_mission_progress', {
+          p_user_id: user.id,
+          p_goal_type: 'earn_3_stars',
+          p_increment: 1
+        }).then(() => {}, () => {})
+      }
     }
 
     // Grant chest if collected during the game
@@ -1978,7 +1987,7 @@ const PetDisplay = () => {
                 className={`relative flex flex-col items-center gap-2 p-4 rounded-xl border-2 transition-all group ${competitionGame === 'catch' ? 'border-yellow-400 bg-yellow-50 ring-2 ring-yellow-300' : 'border-teal-200 hover:border-teal-400 hover:bg-teal-50'}`}
               >
                 {competitionGame === 'catch' && <span className="absolute -top-2 -right-2 text-lg">🏆</span>}
-                <span className="text-5xl w-20 h-20 flex items-center justify-center group-hover:scale-110 transition-transform">🫧</span>
+                <img src="https://xpclass.vn/xpclass/image/pet/catch-game.png" alt="Quiz Catch" className="w-20 h-20 object-contain group-hover:scale-110 transition-transform" />
                 <span className="font-bold text-gray-800 text-xs">Quiz Catch</span>
               </button>
               )}

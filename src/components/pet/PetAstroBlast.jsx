@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef, useCallback } from 'react'
 import { createPortal } from 'react-dom'
-import { X, Trophy, Volume2, VolumeX, Heart } from 'lucide-react'
+import { X, Star, Volume2, VolumeX, Heart } from 'lucide-react'
 import WORD_BANK from './wordBank'
 import { assetUrl } from '../../hooks/useBranding'
 
@@ -9,7 +9,12 @@ const GAME_DURATION = 76
 const WORDS_PER_ROUND = 4 // how many words fall per round
 const GRAVITY = 0 // no acceleration, constant fall speed
 const PET_MAX_HP = 5
-const PASS_THRESHOLDS = { 1: 20, 2: 23, 3: 25, 4: 28 }
+const STAR_THRESHOLDS = {
+  1: [15, 18, 23],
+  2: [18, 23, 27],
+  3: [20, 25, 30],
+  4: [25, 30, 35],
+}
 
 // Jagged asteroid clip-path shapes (irregular polygons)
 const ASTEROID_CLIPS = [
@@ -29,11 +34,14 @@ const shuffle = (arr) => {
 }
 
 const PetAstroBlast = ({ petImageUrl, petName, onGameEnd, onClose, shipSkinUrl, shipLaserColor, asteroidSkinUrls, wordBank: wordBankProp = [], hideClose = false, scoreToBeat = null, leaderboard = [], chestEnabled = false, pvpOpponentPetUrl = null, currentLevel = 1 }) => {
-  const passGoal = PASS_THRESHOLDS[currentLevel] || 20
+  const thresholds = STAR_THRESHOLDS[currentLevel] || [15, 20, 25]
+  const [star1Goal, star2Goal, star3Goal] = thresholds
+  const passGoal = star1Goal
   const [phase, setPhase] = useState('ready')
   const [displayScore, setDisplayScore] = useState(0)
   const [displayTime, setDisplayTime] = useState(GAME_DURATION)
   const [wordsCompleted, setWordsCompleted] = useState(0)
+  const starsEarned = wordsCompleted >= star3Goal ? 3 : wordsCompleted >= star2Goal ? 2 : wordsCompleted >= star1Goal ? 1 : 0
   const [currentHint, setCurrentHint] = useState(null)
   const [flyingWords, setFlyingWords] = useState([])
   const [particles, setParticles] = useState([])
@@ -993,43 +1001,40 @@ const PetAstroBlast = ({ petImageUrl, petName, onGameEnd, onClose, shipSkinUrl, 
                 </div>
               </div>
 
-              {/* Progress dots */}
-              <div className="flex items-center justify-center gap-1">
-                {Array.from({ length: passGoal }, (_, i) => (
-                  <div
-                    key={i}
-                    className="relative"
-                    style={{
-                      width: 14,
-                      height: 14,
-                      transition: 'transform 0.3s ease',
-                      transform: i === wordsCompleted ? 'scale(1.3)' : 'scale(1)',
-                    }}
-                  >
-                    {i < wordsCompleted ? (
-                      <div className="w-full h-full rounded-full flex items-center justify-center"
-                        style={{
-                          background: 'linear-gradient(135deg, #22d3ee, #0891b2)',
-                          boxShadow: '0 0 8px rgba(34,211,238,0.5)',
-                        }}
-                      >
-                        <span className="text-white font-bold text-[8px]">✓</span>
-                      </div>
-                    ) : i === wordsCompleted ? (
-                      <div className="w-full h-full rounded-full border-2 border-white/60 flex items-center justify-center"
-                        style={{ background: 'rgba(255,255,255,0.15)', animation: 'hintPulse 1.5s ease-in-out infinite' }}
-                      >
-                        <span className="text-white/80 font-bold text-[7px]">{i + 1}</span>
-                      </div>
-                    ) : (
-                      <div className="w-full h-full rounded-full border border-white/20 flex items-center justify-center"
-                        style={{ background: 'rgba(255,255,255,0.08)' }}
-                      >
-                        <span className="text-white/30 text-[7px]">{i + 1}</span>
-                      </div>
-                    )}
+              {/* Progress bar */}
+              <div className="flex items-center gap-1.5 w-full max-w-[280px] mx-auto">
+                <div className="flex-1 relative" style={{ height: 22 }}>
+                  {/* Gold frame */}
+                  <div className="absolute inset-0 rounded-full" style={{
+                    background: 'linear-gradient(180deg, #f0c040 0%, #c8940a 40%, #a07008 60%, #d4a820 100%)',
+                    boxShadow: 'inset 0 1px 0 rgba(255,255,255,0.4), inset 0 -1px 0 rgba(0,0,0,0.2), 0 1px 3px rgba(0,0,0,0.3)',
+                  }} />
+                  {/* Inner track */}
+                  <div className="absolute rounded-full overflow-hidden" style={{
+                    top: 3, bottom: 3, left: 4, right: 4,
+                    background: 'linear-gradient(180deg, #7a5a10 0%, #5a4008 100%)',
+                    boxShadow: 'inset 0 2px 4px rgba(0,0,0,0.5)',
+                  }}>
+                    {/* Fill bar */}
+                    <div className="h-full rounded-full" style={{
+                      width: `${Math.min(100, (wordsCompleted / star3Goal) * 100)}%`,
+                      background: 'linear-gradient(180deg, #a78bfa 0%, #7c3aed 50%, #6d28d9 100%)',
+                      boxShadow: 'inset 0 1px 0 rgba(255,255,255,0.4), 0 0 6px rgba(139,92,246,0.6)',
+                      transition: 'width 0.4s ease',
+                    }} />
                   </div>
-                ))}
+                  {/* Threshold markers */}
+                  {[star1Goal, star2Goal].map((goal, i) => (
+                    <div key={i} className="absolute top-0 bottom-0 flex items-center justify-center" style={{ left: `${(goal / star3Goal) * 100}%`, transform: 'translateX(-50%)' }}>
+                      <div className="w-0.5 h-3 rounded-full" style={{ background: wordsCompleted >= goal ? 'rgba(250,204,21,0.9)' : 'rgba(255,255,255,0.3)' }} />
+                    </div>
+                  ))}
+                </div>
+                <div className="flex -space-x-0.5">
+                  {thresholds.map((goal, i) => (
+                    <Star key={i} className={`w-5 h-5 transition-all ${wordsCompleted >= goal ? 'text-yellow-400 fill-yellow-400 drop-shadow-sm' : 'text-white/25'}`} />
+                  ))}
+                </div>
               </div>
 
               {/* Chest indicator under progress dots */}
@@ -1208,28 +1213,38 @@ const PetAstroBlast = ({ petImageUrl, petName, onGameEnd, onClose, shipSkinUrl, 
             className="bg-white rounded-3xl shadow-2xl max-w-sm w-full p-8 text-center my-auto"
             style={{ animation: 'slasherResultsFadeIn 0.5s ease-out' }}
           >
-            <div
-              className="inline-flex items-center justify-center w-20 h-20 rounded-full bg-red-100 mb-4"
-              style={{ animation: 'slasherScorePopIn 0.6s ease-out 0.3s both' }}
-            >
-              <Trophy className="w-10 h-10 text-red-500" />
+            {/* Star display */}
+            <div className="flex justify-center gap-1 mb-4">
+              {[1, 2, 3].map(s => (
+                <Star key={s} className={`w-12 h-12 transition-all ${starsEarned >= s ? 'text-yellow-400 fill-yellow-400 drop-shadow-lg' : 'text-gray-300'}`}
+                  style={{ animation: starsEarned >= s ? `slasherScorePopIn 0.5s ease-out ${0.2 + s * 0.15}s both` : 'slasherScorePopIn 0.5s ease-out 0.3s both' }}
+                />
+              ))}
             </div>
 
             <h2 className="text-2xl font-bold text-gray-800 mb-1">
-              {wordsCompleted >= passGoal ? 'Training Complete!' : 'Not Enough Words!'}
+              {starsEarned >= 3 ? 'Perfect Blasting!' : starsEarned >= 2 ? 'Great Job!' : starsEarned >= 1 ? 'Training Complete!' : 'Not Enough Words!'}
             </h2>
             <p className="text-gray-500 mb-5">
-              {wordsCompleted >= passGoal
+              {starsEarned >= 1
                 ? `${petName} blasted ${wordsCompleted} words!`
                 : `${petName} only blasted ${wordsCompleted}/${passGoal} words`}
             </p>
 
             <div
-              className={`rounded-2xl p-5 mb-5 border ${wordsCompleted >= passGoal ? 'bg-gradient-to-br from-red-50 to-orange-50 border-red-100' : 'bg-gradient-to-br from-gray-50 to-gray-100 border-gray-200'}`}
+              className={`rounded-2xl p-5 mb-5 border ${
+                starsEarned >= 3 ? 'bg-gradient-to-br from-yellow-50 to-amber-50 border-yellow-200'
+                : starsEarned >= 1 ? 'bg-gradient-to-br from-red-50 to-orange-50 border-red-100'
+                : 'bg-gradient-to-br from-gray-50 to-gray-100 border-gray-200'
+              }`}
               style={{ animation: 'slasherScorePopIn 0.6s ease-out 0.5s both' }}
             >
-              <p className={`text-5xl font-black ${wordsCompleted >= passGoal ? 'text-red-600' : 'text-gray-400'}`}>{wordsCompleted}</p>
-              <p className={`text-sm font-semibold mt-1 ${wordsCompleted >= passGoal ? 'text-red-400' : 'text-gray-400'}`}>words blasted</p>
+              <p className={`text-5xl font-black ${
+                starsEarned >= 3 ? 'text-yellow-500' : starsEarned >= 1 ? 'text-red-600' : 'text-gray-400'
+              }`}>{wordsCompleted}</p>
+              <p className={`text-sm font-semibold mt-1 ${
+                starsEarned >= 3 ? 'text-yellow-400' : starsEarned >= 1 ? 'text-red-400' : 'text-gray-400'
+              }`}>words blasted</p>
             </div>
 
             {/* Missed Words */}
@@ -1258,19 +1273,21 @@ const PetAstroBlast = ({ petImageUrl, petName, onGameEnd, onClose, shipSkinUrl, 
             )}
 
             <p className="text-sm text-gray-600 mb-6">
-              {wordsCompleted >= passGoal + 5
-                ? 'Blast master! 🏆'
-                : wordsCompleted >= passGoal
-                  ? 'Amazing reflexes! 🚀'
-                  : `Need at least ${passGoal} words to earn XP. Try again! 💪`}
+              {starsEarned >= 3
+                ? 'Blast master! Perfect performance!'
+                : starsEarned >= 2
+                  ? `Amazing reflexes! Get ${star3Goal} words for 3 stars!`
+                  : starsEarned >= 1
+                    ? `Good job! Get ${star2Goal} words for 2 stars!`
+                    : `Need at least ${star1Goal} words to earn a star. Try again!`}
             </p>
 
-            {wordsCompleted >= passGoal ? (
+            {starsEarned >= 1 ? (
               <button
-                onClick={() => onGameEnd(displayScore, { chestCollected, wordsCompleted })}
+                onClick={() => onGameEnd(displayScore, { chestCollected, wordsCompleted, stars: starsEarned })}
                 className="w-full py-3.5 bg-gradient-to-b from-red-500 to-red-600 hover:from-red-600 hover:to-red-700 text-white rounded-full font-bold text-lg shadow-lg border-b-4 border-red-700 active:border-b-0 active:mt-1 transition-all"
               >
-                Collect Rewards ✨
+                Collect Rewards
               </button>
             ) : (
               <div className="flex flex-col gap-2">
