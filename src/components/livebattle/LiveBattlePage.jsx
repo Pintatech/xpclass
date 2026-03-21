@@ -13,7 +13,7 @@ import DuckRaceTimer from './DuckRaceTimer'
 const LiveBattlePage = () => {
   const { courseId } = useParams()
   const navigate = useNavigate()
-  const { user, isTeacher, isAdmin } = useAuth()
+  const { user, profile, isTeacher, isAdmin } = useAuth()
   const {
     session,
     participants,
@@ -45,13 +45,13 @@ const LiveBattlePage = () => {
   const [showPetRace, setShowPetRace] = useState(false)
 
   useEffect(() => {
-    if (!user || !courseId) return
+    if (!user || !courseId || !profile) return
     if (!isTeacher() && !isAdmin()) {
       navigate('/teacher')
       return
     }
     createSession(courseId, user.id)
-  }, [user, courseId])
+  }, [user, courseId, profile])
 
   const handleStart = async () => {
     await startGame()

@@ -615,7 +615,7 @@ const PetFlappyGame = ({ petImageUrl, petName, wordBank: wordBankProp, onGameEnd
         />
 
         {/* Close Button */}
-        {phase !== 'results' && phase !== 'defeated' && (
+        {phase !== 'results' && phase !== 'defeated' && !isPvP && (
           <button
             onClick={() => { stopMusic(); onClose(); }}
             className="absolute top-4 left-4 z-50 bg-white/80 backdrop-blur rounded-full p-2 shadow-lg hover:bg-white transition-colors"
@@ -870,18 +870,29 @@ const PetFlappyGame = ({ petImageUrl, petName, wordBank: wordBankProp, onGameEnd
             <p className="text-sm text-gray-600 mb-6">Try to keep your lives! Wrong fruits cost a heart.</p>
 
             <div className="flex flex-col gap-2">
-              <button
-                onClick={() => { setPhase('ready'); setDisplayScore(0); setStreak(0); setWordsCompleted(0) }}
-                className="w-full py-3.5 bg-gradient-to-b from-cyan-400 to-cyan-500 hover:from-cyan-500 hover:to-cyan-600 text-white rounded-full font-bold text-lg shadow-lg border-b-4 border-cyan-600 active:border-b-0 active:mt-1 transition-all"
-              >
-                Try Again
-              </button>
-              <button
-                onClick={onClose}
-                className="w-full py-2.5 text-gray-400 hover:text-gray-600 font-medium transition-colors"
-              >
-                Close
-              </button>
+              {isPvP ? (
+                <button
+                  onClick={() => onGameEnd(displayScore, { chestCollected: false, stars: 0 })}
+                  className="w-full py-3.5 bg-gradient-to-b from-cyan-400 to-cyan-500 hover:from-cyan-500 hover:to-cyan-600 text-white rounded-full font-bold text-lg shadow-lg border-b-4 border-cyan-600 active:border-b-0 active:mt-1 transition-all"
+                >
+                  Submit Score
+                </button>
+              ) : (
+                <>
+                  <button
+                    onClick={() => { setPhase('ready'); setDisplayScore(0); setStreak(0); setWordsCompleted(0) }}
+                    className="w-full py-3.5 bg-gradient-to-b from-cyan-400 to-cyan-500 hover:from-cyan-500 hover:to-cyan-600 text-white rounded-full font-bold text-lg shadow-lg border-b-4 border-cyan-600 active:border-b-0 active:mt-1 transition-all"
+                  >
+                    Try Again
+                  </button>
+                  <button
+                    onClick={onClose}
+                    className="w-full py-2.5 text-gray-400 hover:text-gray-600 font-medium transition-colors"
+                  >
+                    Close
+                  </button>
+                </>
+              )}
             </div>
           </div>
         </div>

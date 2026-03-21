@@ -9,12 +9,11 @@ const FINISH_LINE = 88 // % from left
 const DuckRaceTimer = ({ onClose, participants = [] }) => {
   const allRacers = useMemo(() => {
     return participants
-      .filter(p => p.pet_image)
       .map((p, i) => ({
         id: p.id || i,
         name: p.pet_name || p.student_name || `Racer ${i + 1}`,
         ownerName: p.student_name || '',
-        image: p.pet_image,
+        image: p.pet_image || null,
         color: LANE_COLORS[i % LANE_COLORS.length],
       }))
   }, [participants])
@@ -378,7 +377,9 @@ const DuckRaceTimer = ({ onClose, participants = [] }) => {
                         className={`flex flex-col items-center gap-1 p-2 rounded-xl transition-all ${selected ? 'bg-yellow-400/80 shadow-lg scale-105' : 'bg-white/10 opacity-50 hover:opacity-80'}`}
                         style={{ minWidth: 64 }}>
                         <div style={{ animation: selected ? 'petPreviewBob 1.5s ease-in-out infinite' : 'none', animationDelay: `${i * 0.15}s` }}>
-                          <img src={racer.image} alt={racer.name} className="w-10 h-10 object-contain" onError={e => { e.target.style.display = 'none' }} />
+                          {racer.image
+                            ? <img src={racer.image} alt={racer.name} className="w-10 h-10 object-contain" onError={e => { e.target.style.display = 'none' }} />
+                            : <span className="text-3xl">🐾</span>}
                         </div>
                         <span className={`text-[9px] font-bold truncate max-w-[56px] ${selected ? 'text-yellow-900' : 'text-white/70'}`}>{racer.name}</span>
                         <span className={`text-[8px] truncate max-w-[56px] ${selected ? 'text-yellow-800' : 'text-white/50'}`}>{racer.ownerName}</span>
@@ -391,8 +392,8 @@ const DuckRaceTimer = ({ onClose, participants = [] }) => {
 
             {allRacers.length === 0 && (
               <div className="bg-white/20 backdrop-blur rounded-2xl px-5 py-4 w-full max-w-[400px] text-center">
-                <div className="text-white/80 text-sm">No participants with pets found.</div>
-                <div className="text-white/50 text-xs mt-1">Students need to join with an active pet.</div>
+                <div className="text-white/80 text-sm">No participants found.</div>
+                <div className="text-white/50 text-xs mt-1">Students need to join the session first.</div>
               </div>
             )}
 
@@ -573,10 +574,12 @@ const DuckRaceTimer = ({ onClose, participants = [] }) => {
                         animationDelay: `${i * 0.08}s`,
                         filter: isWinner && phase === 'finished' ? 'drop-shadow(0 0 10px rgba(250,204,21,0.8))' : 'drop-shadow(0 2px 3px rgba(0,0,0,0.3))',
                       }}>
-                        <img src={racer.image} alt={racer.name}
-                          className="w-10 h-10 sm:w-12 sm:h-12 object-contain"
-                          onError={e => { e.target.style.display = 'none'; e.target.nextSibling && (e.target.nextSibling.style.display = '') }} />
-                        <span className="text-2xl hidden">🥚</span>
+                        {racer.image
+                          ? <img src={racer.image} alt={racer.name}
+                              className="w-10 h-10 sm:w-12 sm:h-12 object-contain"
+                              onError={e => { e.target.style.display = 'none'; e.target.nextSibling && (e.target.nextSibling.style.display = '') }} />
+                          : null}
+                        <span className={`text-2xl ${racer.image ? 'hidden' : ''}`}>🐾</span>
                       </div>
 
                       {/* Name */}
@@ -609,7 +612,9 @@ const DuckRaceTimer = ({ onClose, participants = [] }) => {
               <div className="absolute inset-0 z-30 flex flex-col items-center justify-end pb-6 pointer-events-none">
                 <div className="pointer-events-auto text-center mb-3" style={{ animation: 'splashIn 0.5s ease-out' }}>
                   <div className="inline-flex items-center gap-3 bg-yellow-400/90 backdrop-blur rounded-2xl px-5 py-3 shadow-xl">
-                    <img src={racers[winner].image} alt={racers[winner].name} className="w-12 h-12 object-contain" />
+                    {racers[winner].image
+                      ? <img src={racers[winner].image} alt={racers[winner].name} className="w-12 h-12 object-contain" />
+                      : <span className="text-4xl">🐾</span>}
                     <div>
                       <div className="text-yellow-900 font-black text-lg">🏆 {racers[winner].ownerName || racers[winner].name} Wins!</div>
                       <div className="text-yellow-800 text-xs font-bold">{racers[winner].name} finishes first!</div>
@@ -654,7 +659,9 @@ const DuckRaceTimer = ({ onClose, participants = [] }) => {
                         rank === 0 ? 'bg-yellow-100' : rank === 1 ? 'bg-gray-100' : rank === 2 ? 'bg-orange-50' : ''
                       }`}>
                         <span className="text-lg w-6 text-center">{medals[rank] || `${rank + 1}.`}</span>
-                        <img src={r.image} alt="" className="w-8 h-8 object-contain" />
+                        {r.image
+                          ? <img src={r.image} alt="" className="w-8 h-8 object-contain" />
+                          : <span className="text-2xl">🐾</span>}
                         <div className="flex-1 min-w-0">
                           <div className="text-sm font-bold text-gray-800 truncate">{r.ownerName || r.name}</div>
                           <div className="text-[10px] text-gray-500">{r.name}</div>

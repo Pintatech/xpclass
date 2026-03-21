@@ -103,6 +103,44 @@ const RecentActivities = () => {
 
       if (missionError) throw missionError
 
+      // Fetch all gem missions claimed today (so none are missed)
+      const todayStart = new Date()
+      todayStart.setHours(0, 0, 0, 0)
+      const { data: gemMissionData } = await supabase
+        .from('user_missions')
+        .select(`
+          id,
+          user_id,
+          mission_id,
+          updated_at,
+          users:user_id (
+            id,
+            full_name,
+            avatar_url,
+            active_title,
+            active_frame_ratio,
+            hide_frame,
+            role
+          ),
+          missions:mission_id (
+            id,
+            title,
+            reward_xp,
+            reward_gems,
+            mission_type,
+            icon
+          )
+        `)
+        .eq('status', 'claimed')
+        .gt('missions.reward_gems', 0)
+        .gte('updated_at', todayStart.toISOString())
+        .order('updated_at', { ascending: false })
+
+      // Merge gem missions into missionData, avoiding duplicates
+      const missionIds = new Set((missionData || []).map(m => m.id))
+      const extraGemMissions = (gemMissionData || []).filter(m => m.missions && !missionIds.has(m.id))
+      const allMissionData = [...(missionData || []), ...extraGemMissions]
+
       // Process achievement claims
       const achievementActivities = (achievementData || [])
         .filter(achievement => achievement.users && achievement.achievements)
@@ -113,7 +151,7 @@ const RecentActivities = () => {
         }))
 
       // Process mission claims (exclude admins)
-      const missionActivities = (missionData || [])
+      const missionActivities = (allMissionData || [])
         .filter(mission => mission.users && mission.missions && mission.users.role !== 'admin')
         .map(mission => ({
           ...mission,
@@ -121,9 +159,26 @@ const RecentActivities = () => {
           activity_date: mission.updated_at
         }))
 
-      // Merge and sort by date
+      // Merge and sort by date, gem missions stick to top for their day
       const allActivities = [...achievementActivities, ...missionActivities]
-        .sort((a, b) => new Date(b.activity_date) - new Date(a.activity_date))
+        .sort((a, b) => {
+          const dateA = new Date(a.activity_date)
+          const dateB = new Date(b.activity_date)
+          const dayA = dateA.toDateString()
+          const dayB = dateB.toDateString()
+
+          // Different days: sort by date descending
+          if (dayA !== dayB) return dateB - dateA
+
+          // Same day: gem missions go first
+          const aHasGems = a.type === 'mission' && a.missions?.reward_gems > 0
+          const bHasGems = b.type === 'mission' && b.missions?.reward_gems > 0
+          if (aHasGems && !bHasGems) return -1
+          if (!aHasGems && bHasGems) return 1
+
+          // Same priority: sort by date descending
+          return dateB - dateA
+        })
         .slice(0, 20)
 
       setActivities(allActivities)
@@ -180,7 +235,7 @@ const RecentActivities = () => {
 
       <div className="space-y-3 max-h-96 overflow-y-auto">
         {activities.map((activity) => (
-          <div key={`${activity.type}-${activity.id}`} className={`flex items-center space-x-3 p-3 rounded-lg transition-colors ${activity.type === 'mission' ? 'hover:bg-blue-50' : 'hover:bg-yellow-50'}`}>
+          <div key={`${activity.type}-${activity.id}`} className={`flex items-center space-x-3 p-3 rounded-lg transition-colors ${activity.type === 'mission' ? (activity.missions?.reward_gems > 0 ? 'border border-purple-200 hover:bg-purple-100' : 'hover:bg-blue-50') : 'hover:bg-yellow-50'}`} style={activity.type === 'mission' && activity.missions?.reward_gems > 0 ? { animation: 'gem-shine 3s ease-in-out infinite' } : undefined}>
             {/* User Avatar with Frame */}
             <AvatarWithFrame
               avatarUrl={activity.users.avatar_url}
@@ -211,6 +266,9 @@ const RecentActivities = () => {
                 <p className="text-sm text-gray-600">
                   hoàn thành nhiệm vụ <span className="font-medium text-blue-700">{activity.missions.title}</span>
                   {' '}<span className="inline-flex items-center text-yellow-600 font-medium whitespace-nowrap"><img src={assetUrl('/image/study/xp.png')} alt="XP" className="w-3 h-3 inline mr-0.5" />+{activity.missions.reward_xp || 0}</span>
+                  {activity.missions.reward_gems > 0 && (
+                    <>{' '}<span className="inline-flex items-center text-purple-600 font-medium whitespace-nowrap"><img src={assetUrl('/image/study/gem.png')} alt="Gem" className="w-3 h-3 inline mr-0.5" />+{activity.missions.reward_gems}</span></>
+                  )}
                 </p>
               ) : (
                 <p className="text-sm text-gray-600">

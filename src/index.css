@@ -13,6 +13,22 @@
 }
 
 @layer components {
+  /* Gem mission shine animation */
+  @keyframes gem-shine {
+    0% {
+      background: rgba(243, 232, 255, 0.6);
+      box-shadow: 0 0 4px rgba(168, 85, 247, 0.1);
+    }
+    50% {
+      background: rgba(233, 213, 255, 0.9);
+      box-shadow: 0 0 12px rgba(168, 85, 247, 0.3);
+    }
+    100% {
+      background: rgba(243, 232, 255, 0.6);
+      box-shadow: 0 0 4px rgba(168, 85, 247, 0.1);
+    }
+  }
+
   /* Batman running animation */
   @keyframes run-across {
     0% {
