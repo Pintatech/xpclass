@@ -6,6 +6,7 @@ import { usePermissions } from "../../hooks/usePermissions";
 import Button from "../ui/Button";
 import AddUnitModal from "./modals/AddUnitModal";
 import EditUnitModal from "./modals/EditUnitModal";
+import AddSessionModal from "./modals/AddSessionModal";
 import { assetUrl } from '../../hooks/useBranding';
 // Thay spinner bằng skeleton để điều hướng mượt hơn
 import {
@@ -84,6 +85,7 @@ const UnitList = () => {
   const [showAddUnitModal, setShowAddUnitModal] = useState(false);
   const [showEditUnitModal, setShowEditUnitModal] = useState(false);
   const [editingUnit, setEditingUnit] = useState(null);
+  const [addSessionUnitId, setAddSessionUnitId] = useState(null);
   const { user, profile } = useAuth();
   const { canCreateContent } = usePermissions();
   const { sessionStats: classStats } = useClassStats(currentId);
@@ -436,6 +438,11 @@ const UnitList = () => {
     } finally {
       setLoading(false);
     }
+  };
+
+  const handleSessionCreated = (newSession) => {
+    setSessions((prev) => [...prev, newSession]);
+    setAddSessionUnitId(null);
   };
 
   const handleUnitCreated = (newUnit) => {
@@ -840,6 +847,28 @@ const UnitList = () => {
                             </div>
                           </div>
                         ))}
+                        {canCreateContent() && (
+                          <div className="flex justify-center items-start">
+                            <div
+                              style={{ width: "80px", height: "80px" }}
+                              onClick={() => setAddSessionUnitId(unit.id)}
+                              className="cursor-pointer"
+                            >
+                              <div className="relative w-full" style={{ aspectRatio: "4/3" }}>
+                                <span className="absolute inset-0 rounded-lg bg-gray-400" />
+                                <span
+                                  className="absolute inset-0 rounded-lg bg-gray-300 flex items-center justify-center transition-all duration-150"
+                                  style={{
+                                    transform: 'translateY(-10%)',
+                                    boxShadow: '0 0.5em 1em -0.2em rgba(0, 0, 0, 0.3)'
+                                  }}
+                                >
+                                  <Plus className="w-5 h-5 text-gray-700" />
+                                </span>
+                              </div>
+                            </div>
+                          </div>
+                        )}
                       </div>
                     ) : (
                       <div className="relative text-center py-8 bg-gray-50 rounded-lg border-2 border-dashed border-gray-300">
@@ -921,6 +950,15 @@ const UnitList = () => {
           levelId={currentId}
           onClose={() => setShowAddUnitModal(false)}
           onCreated={handleUnitCreated}
+        />
+      )}
+
+      {/* Add Session Modal */}
+      {addSessionUnitId && (
+        <AddSessionModal
+          unitId={addSessionUnitId}
+          onClose={() => setAddSessionUnitId(null)}
+          onCreated={handleSessionCreated}
         />
       )}
 

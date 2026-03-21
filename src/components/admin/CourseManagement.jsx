@@ -456,6 +456,30 @@ const CourseModal = ({ course, teachers, onSave, onCancel, loading }) => {
     is_active: course?.is_active ?? true
   });
   const [errors, setErrors] = useState({});
+  const [uploading, setUploading] = useState(false);
+
+  const handleImageUpload = async (e) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    try {
+      setUploading(true);
+      const ext = file.name.split('.').pop();
+      const path = `${Date.now()}.${ext}`;
+      const { error: uploadError } = await supabase.storage
+        .from('course-backgrounds')
+        .upload(path, file, { cacheControl: '3600', upsert: true });
+      if (uploadError) throw uploadError;
+      const { data: publicData } = supabase.storage
+        .from('course-backgrounds')
+        .getPublicUrl(path);
+      handleInputChange('thumbnail_url', publicData.publicUrl);
+    } catch (err) {
+      console.error('Upload error:', err);
+      alert('Upload failed: ' + (err.message || 'Unknown error'));
+    } finally {
+      setUploading(false);
+    }
+  };
 
   const validateForm = () => {
     const newErrors = {};
@@ -606,18 +630,37 @@ const CourseModal = ({ course, teachers, onSave, onCancel, loading }) => {
 
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1">
-              Thumbnail URL
+              Background Image
             </label>
-            <input
-              type="url"
-              value={formData.thumbnail_url}
-              onChange={(e) => handleInputChange('thumbnail_url', e.target.value)}
-              className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
-              placeholder="https://example.com/image.jpg"
-            />
-            <p className="text-sm text-gray-500 mt-1">
-              Optional: URL to an image for this course (400x400px recommended)
-            </p>
+            <div className="flex items-center gap-3">
+              {formData.thumbnail_url && (
+                <img src={formData.thumbnail_url} alt="Preview" className="w-20 h-20 object-cover rounded-lg border" />
+              )}
+              <div className="flex-1">
+                <label className={`inline-flex items-center gap-2 px-4 py-2 border border-gray-300 rounded-lg cursor-pointer hover:bg-gray-50 ${uploading ? 'opacity-50 pointer-events-none' : ''}`}>
+                  {uploading ? 'Uploading...' : formData.thumbnail_url ? 'Change Image' : 'Upload Image'}
+                  <input
+                    type="file"
+                    accept="image/*"
+                    onChange={handleImageUpload}
+                    className="hidden"
+                    disabled={uploading}
+                  />
+                </label>
+                {formData.thumbnail_url && (
+                  <button
+                    type="button"
+                    onClick={() => handleInputChange('thumbnail_url', '')}
+                    className="ml-2 text-sm text-red-500 hover:text-red-700"
+                  >
+                    Remove
+                  </button>
+                )}
+                <p className="text-sm text-gray-500 mt-1">
+                  Optional: Custom background for unit cards (uses theme default if empty)
+                </p>
+              </div>
+            </div>
           </div>
 
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4">

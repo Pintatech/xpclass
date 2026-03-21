@@ -20,6 +20,7 @@ const StudentExerciseMatrix = ({ selectedCourse, initialSessionId }) => {
   const [averageMode, setAverageMode] = useState('all'); // 'all' or 'attempted'
   const [allExercisesFetched, setAllExercisesFetched] = useState(false);
   const [overriding, setOverriding] = useState(null); // Track which attempt is being overridden
+  const [exerciseDetail, setExerciseDetail] = useState(null); // Exercise info for the modal
 
   useEffect(() => {
     if (selectedCourse) {
@@ -357,14 +358,16 @@ const StudentExerciseMatrix = ({ selectedCourse, initialSessionId }) => {
 
       if (attemptsError) throw attemptsError;
 
-      // Fetch exercise content to get actual questions
+      // Fetch exercise content and details
       const { data: exerciseData, error: exerciseError } = await supabase
         .from('exercises')
-        .select('content')
+        .select('content, description, exercise_type, difficulty_level, xp_reward, estimated_duration')
         .eq('id', exerciseId)
         .single();
 
       if (exerciseError) throw exerciseError;
+
+      setExerciseDetail(exerciseData);
 
       // Group by question_id to show latest attempt for each question
       const latestAttempts = {};
@@ -405,6 +408,7 @@ const StudentExerciseMatrix = ({ selectedCourse, initialSessionId }) => {
   const closeModal = () => {
     setSelectedCell(null);
     setQuestionAttempts([]);
+    setExerciseDetail(null);
   };
 
   const handleOverrideCorrectness = async (attemptId, currentIsCorrect) => {
@@ -760,25 +764,66 @@ const StudentExerciseMatrix = ({ selectedCourse, initialSessionId }) => {
       {/* Question Attempts Modal */}
       {selectedCell && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-lg shadow-xl max-w-4xl w-full max-h-[90vh] overflow-hidden">
+          <div className="bg-white rounded-lg shadow-xl max-w-4xl w-full max-h-[90vh] overflow-hidden flex flex-col">
             {/* Modal Header */}
-            <div className="flex items-center justify-between p-6 border-b">
-              <div>
-                <h2 className="text-2xl font-bold text-gray-900">Question Attempts</h2>
-                <p className="text-sm text-gray-600 mt-1">
-                  {selectedCell.studentName} • {selectedCell.exerciseTitle}
-                </p>
+            <div className="p-6 border-b">
+              <div className="flex items-center justify-between">
+                <div>
+                  <h2 className="text-2xl font-bold text-gray-900">{selectedCell.exerciseTitle}</h2>
+                  <p className="text-sm text-gray-600 mt-1">
+                    Student: <span className="font-medium text-gray-900">{selectedCell.studentName}</span>
+                  </p>
+                </div>
+                <button
+                  onClick={closeModal}
+                  className="text-gray-400 hover:text-gray-600 transition-colors"
+                >
+                  <X className="w-6 h-6" />
+                </button>
               </div>
-              <button
-                onClick={closeModal}
-                className="text-gray-400 hover:text-gray-600 transition-colors"
-              >
-                <X className="w-6 h-6" />
-              </button>
+
             </div>
 
             {/* Modal Body */}
-            <div className="p-6 overflow-y-auto max-h-[calc(90vh-120px)]">
+            <div className="p-6 overflow-y-auto flex-1 min-h-0">
+              {/* Exercise Info */}
+              {exerciseDetail && (
+                <div className="mb-6 space-y-2">
+                  <div className="flex flex-wrap items-center gap-2 text-xs">
+                    <span className="px-2 py-1 rounded-full bg-purple-100 text-purple-700 font-medium">
+                      {exerciseDetail.exercise_type?.replace(/_/g, ' ')}
+                    </span>
+                    {exerciseDetail.difficulty_level && (
+                      <span className="px-2 py-1 rounded-full bg-gray-100 text-gray-700">
+                        Difficulty: {exerciseDetail.difficulty_level}/5
+                      </span>
+                    )}
+                    {exerciseDetail.xp_reward && (
+                      <span className="px-2 py-1 rounded-full bg-yellow-100 text-yellow-700">
+                        {exerciseDetail.xp_reward} XP
+                      </span>
+                    )}
+                    {exerciseDetail.estimated_duration && (
+                      <span className="px-2 py-1 rounded-full bg-blue-100 text-blue-700">
+                        ~{exerciseDetail.estimated_duration} min
+                      </span>
+                    )}
+                    {exerciseDetail.content?.questions && (
+                      <span className="px-2 py-1 rounded-full bg-gray-100 text-gray-700">
+                        {exerciseDetail.content.questions.length} questions
+                      </span>
+                    )}
+                  </div>
+                  {exerciseDetail.description && (
+                    <p className="text-sm text-gray-600">{exerciseDetail.description}</p>
+                  )}
+                  {exerciseDetail.content?.intro && (
+                    <div className="text-sm text-gray-700 bg-blue-50 border border-blue-200 rounded-lg p-3"
+                      dangerouslySetInnerHTML={{ __html: exerciseDetail.content.intro }}
+                    />
+                  )}
+                </div>
+              )}
               {loadingAttempts ? (
                 <div className="flex items-center justify-center py-12">
                   <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
@@ -792,145 +837,117 @@ const StudentExerciseMatrix = ({ selectedCourse, initialSessionId }) => {
               ) : (
                 <div className="space-y-4">
                   {/* Summary Stats */}
-                  <div className="grid grid-cols-3 gap-4 mb-6">
-                    <div className="bg-green-50 border border-green-200 rounded-lg p-4">
-                      <div className="flex items-center space-x-2">
-                        <CheckCircle className="w-5 h-5 text-green-600" />
-                        <span className="text-sm text-gray-600">Correct</span>
-                      </div>
-                      <p className="text-2xl font-bold text-green-700 mt-1">
-                        {questionAttempts.filter(a => a.is_correct).length}
-                      </p>
-                    </div>
-                    <div className="bg-red-50 border border-red-200 rounded-lg p-4">
-                      <div className="flex items-center space-x-2">
-                        <XCircle className="w-5 h-5 text-red-600" />
-                        <span className="text-sm text-gray-600">Incorrect</span>
-                      </div>
-                      <p className="text-2xl font-bold text-red-700 mt-1">
-                        {questionAttempts.filter(a => !a.is_correct).length}
-                      </p>
-                    </div>
-                    <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
-                      <div className="flex items-center space-x-2">
-                        <span className="text-sm text-gray-600">Accuracy</span>
-                      </div>
-                      <p className="text-2xl font-bold text-blue-700 mt-1">
-                        {Math.round((questionAttempts.filter(a => a.is_correct).length / questionAttempts.length) * 100)}%
-                      </p>
-                    </div>
+                  <div className="flex items-center gap-3 mb-4 text-sm">
+                    <span className="flex items-center gap-1 px-3 py-1.5 rounded-lg bg-green-50 border border-green-200 text-green-700 font-bold">
+                      <CheckCircle className="w-4 h-4" />
+                      {questionAttempts.filter(a => a.is_correct).length} correct
+                    </span>
+                    <span className="flex items-center gap-1 px-3 py-1.5 rounded-lg bg-red-50 border border-red-200 text-red-700 font-bold">
+                      <XCircle className="w-4 h-4" />
+                      {questionAttempts.filter(a => !a.is_correct).length} incorrect
+                    </span>
+                    <span className="px-3 py-1.5 rounded-lg bg-blue-50 border border-blue-200 font-bold text-blue-700">
+                      {Math.round((questionAttempts.filter(a => a.is_correct).length / questionAttempts.length) * 100)}% accuracy
+                    </span>
                   </div>
 
                   {/* Questions List */}
-                  <div className="space-y-3">
+                  <div className="space-y-2">
                     {questionAttempts.map((attempt, index) => (
                       <div
                         key={attempt.id}
-                        className={`border-2 rounded-lg p-4 ${
+                        className={`border rounded-lg px-3 py-2 ${
                           attempt.is_correct
                             ? 'bg-green-50 border-green-200'
                             : 'bg-red-50 border-red-200'
                         }`}
                       >
-                        <div className="flex items-start justify-between">
-                          <div className="flex-1">
-                            <div className="flex items-center space-x-2 mb-2">
-                              {attempt.is_correct ? (
-                                <CheckCircle className="w-5 h-5 text-green-600 flex-shrink-0" />
-                              ) : (
-                                <XCircle className="w-5 h-5 text-red-600 flex-shrink-0" />
-                              )}
-                              <h4 className="font-semibold text-gray-900">
-                                Question {index + 1}
-                              </h4>
-                              <span className={`text-xs px-2 py-1 rounded-full ${
-                                attempt.is_correct
-                                  ? 'bg-green-200 text-green-800'
-                                  : 'bg-red-200 text-red-800'
-                              }`}>
-                                {attempt.is_correct ? 'Correct' : 'Incorrect'}
+                        <div className="flex items-center justify-between gap-2">
+                          <div className="flex items-start gap-2 flex-1">
+                            {attempt.is_correct ? (
+                              <CheckCircle className="w-4 h-4 text-green-600 flex-shrink-0" />
+                            ) : (
+                              <XCircle className="w-4 h-4 text-red-600 flex-shrink-0" />
+                            )}
+                            <span className="text-sm font-medium text-gray-900 flex-shrink-0">Q{index + 1}.</span>
+                            <span className="text-sm text-gray-800">{attempt.questionText}</span>
+                            {attempt.manually_overridden && (
+                              <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-blue-100 text-blue-700 flex-shrink-0">
+                                Overridden
                               </span>
-                              {attempt.manually_overridden && (
-                                <span className="text-xs px-2 py-1 rounded-full bg-blue-100 text-blue-800 border border-blue-300">
-                                  Overridden
-                                </span>
-                              )}
-                            </div>
-
-                            <div className="ml-7 space-y-2">
-                              {attempt.questionText && (
-                                <div className="mb-3 p-3 bg-gray-50 border border-gray-200 rounded">
-                                  <p className="text-sm font-medium text-gray-700 mb-1">Question:</p>
-                                  <p className="text-sm text-gray-900">{attempt.questionText}</p>
-                                </div>
-                              )}
-                              <div>
-                                <p className="text-sm font-medium text-gray-700">Student's Answer:</p>
-                                <p className={`text-sm ${
-                                  attempt.is_correct ? 'text-green-700' : 'text-red-700'
-                                }`}>
-                                  {attempt.selected_answer || 'No answer'}
-                                </p>
-                              </div>
-
-                              {!attempt.is_correct && (
-                                <div>
-                                  <p className="text-sm font-medium text-gray-700">Correct Answer:</p>
-                                  <p className="text-sm text-green-700">
-                                    {attempt.correct_answer}
-                                  </p>
-                                </div>
-                              )}
-
-                              <div className="flex items-center space-x-4 text-xs text-gray-500 mt-2">
-                                {attempt.response_time && (
-                                  <span>Response time: {(attempt.response_time / 1000).toFixed(1)}s</span>
-                                )}
-                                {attempt.attempt_number && (
-                                  <span>Attempt #{attempt.attempt_number}</span>
-                                )}
-                                {attempt.created_at && (
-                                  <span>{new Date(attempt.created_at).toLocaleString()}</span>
-                                )}
-                              </div>
-                            </div>
+                            )}
                           </div>
-
-                          {/* Override Button */}
-                          <div className="ml-4 flex-shrink-0">
-                            <button
-                              onClick={() => handleOverrideCorrectness(attempt.id, attempt.is_correct)}
-                              disabled={overriding === attempt.id}
-                              className={`px-3 py-2 rounded-lg text-sm font-medium transition-colors ${
-                                overriding === attempt.id
-                                  ? 'bg-gray-300 text-gray-500 cursor-not-allowed'
-                                  : attempt.is_correct
-                                  ? 'bg-red-100 text-red-700 hover:bg-red-200 border border-red-300'
-                                  : 'bg-green-100 text-green-700 hover:bg-green-200 border border-green-300'
-                              }`}
-                              title={attempt.is_correct ? 'Mark as incorrect' : 'Mark as correct'}
-                            >
-                              {overriding === attempt.id ? (
-                                <span className="flex items-center space-x-1">
-                                  <RefreshCw className="w-4 h-4 animate-spin" />
-                                  <span>Saving...</span>
-                                </span>
-                              ) : (
-                                <span className="flex items-center space-x-1">
-                                  {attempt.is_correct ? (
-                                    <>
-                                      <XCircle className="w-4 h-4" />
-                                      <span>Mark Wrong</span>
-                                    </>
-                                  ) : (
-                                    <>
-                                      <CheckCircle className="w-4 h-4" />
-                                      <span>Mark Correct</span>
-                                    </>
-                                  )}
-                                </span>
+                          <button
+                            onClick={() => handleOverrideCorrectness(attempt.id, attempt.is_correct)}
+                            disabled={overriding === attempt.id}
+                            className={`flex-shrink-0 p-1.5 rounded transition-colors ${
+                              overriding === attempt.id
+                                ? 'text-gray-400 cursor-not-allowed'
+                                : attempt.is_correct
+                                ? 'text-red-500 hover:bg-red-100'
+                                : 'text-green-500 hover:bg-green-100'
+                            }`}
+                            title={attempt.is_correct ? 'Mark as incorrect' : 'Mark as correct'}
+                          >
+                            {overriding === attempt.id ? (
+                              <RefreshCw className="w-4 h-4 animate-spin" />
+                            ) : attempt.is_correct ? (
+                              <XCircle className="w-4 h-4" />
+                            ) : (
+                              <CheckCircle className="w-4 h-4" />
+                            )}
+                          </button>
+                        </div>
+                        <div className="ml-6 mt-1">
+                          {attempt.exercise_type === 'fill_blank' && attempt.selected_answer?.includes(', ') ? (
+                            <div className="flex flex-wrap items-baseline gap-x-3 gap-y-1 text-sm">
+                              {attempt.selected_answer.split(', ').map((ans, i) => {
+                                const correctParts = attempt.correct_answer?.split(', ') || [];
+                                const correctAns = correctParts[i] || '';
+                                // Check if answer matches (handle | alternatives)
+                                const isBlankCorrect = correctAns.split('|').some(
+                                  alt => alt.trim().toLowerCase() === ans.trim().toLowerCase()
+                                );
+                                return (
+                                  <span key={i} className="inline-flex items-baseline gap-1">
+                                    <span className="text-gray-400 text-xs">#{i + 1}</span>
+                                    <span className={isBlankCorrect ? 'text-green-700' : 'text-red-600 line-through'}>
+                                      {ans || '(empty)'}
+                                    </span>
+                                    {!isBlankCorrect && (
+                                      <>
+                                        <span className="text-gray-400">→</span>
+                                        <span className="text-green-700">{correctAns}</span>
+                                      </>
+                                    )}
+                                  </span>
+                                );
+                              })}
+                            </div>
+                          ) : (
+                            <div className="flex items-baseline gap-1 text-sm">
+                              <span className="text-gray-500">Ans:</span>
+                              <span className={attempt.is_correct ? 'text-green-700' : 'text-red-700'}>
+                                {attempt.selected_answer || 'No answer'}
+                              </span>
+                              {!attempt.is_correct && attempt.correct_answer && (
+                                <>
+                                  <span className="text-gray-400 mx-1">→</span>
+                                  <span className="text-green-700">{attempt.correct_answer}</span>
+                                </>
                               )}
-                            </button>
+                            </div>
+                          )}
+                          <div className="flex items-center gap-3 text-[11px] text-gray-400 mt-0.5">
+                            {attempt.response_time && (
+                              <span>{(attempt.response_time / 1000).toFixed(1)}s</span>
+                            )}
+                            {attempt.attempt_number && (
+                              <span>Attempt #{attempt.attempt_number}</span>
+                            )}
+                            {attempt.created_at && (
+                              <span>{new Date(attempt.created_at).toLocaleString()}</span>
+                            )}
                           </div>
                         </div>
                       </div>

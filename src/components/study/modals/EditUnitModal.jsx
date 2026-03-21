@@ -1,15 +1,17 @@
 import React, { useState, useEffect } from 'react'
 import { supabase } from '../../../supabase/client'
-import { X, BookOpen, Save } from 'lucide-react'
+import { X, BookOpen, Save, Upload, Trash2 } from 'lucide-react'
 
 const EditUnitModal = ({ unit, onClose, onUpdated }) => {
   const [formData, setFormData] = useState({
     title: '',
     description: '',
     color_theme: 'blue',
-    estimated_duration: 60
+    estimated_duration: 60,
+    thumbnail_url: ''
   })
   const [loading, setLoading] = useState(false)
+  const [uploading, setUploading] = useState(false)
   const [error, setError] = useState('')
 
   const colorOptions = [
@@ -27,10 +29,34 @@ const EditUnitModal = ({ unit, onClose, onUpdated }) => {
         title: unit.title || '',
         description: unit.description || '',
         color_theme: unit.color_theme || 'blue',
-        estimated_duration: unit.estimated_duration || 60
+        estimated_duration: unit.estimated_duration || 60,
+        thumbnail_url: unit.thumbnail_url || ''
       })
     }
   }, [unit])
+
+  const handleImageUpload = async (e) => {
+    const file = e.target.files?.[0]
+    if (!file) return
+    try {
+      setUploading(true)
+      const ext = file.name.split('.').pop()
+      const path = `${Date.now()}.${ext}`
+      const { error: uploadError } = await supabase.storage
+        .from('course-backgrounds')
+        .upload(path, file, { cacheControl: '3600', upsert: true })
+      if (uploadError) throw uploadError
+      const { data: publicData } = supabase.storage
+        .from('course-backgrounds')
+        .getPublicUrl(path)
+      handleChange('thumbnail_url', publicData.publicUrl)
+    } catch (err) {
+      console.error('Upload error:', err)
+      setError('Upload failed: ' + (err.message || 'Unknown error'))
+    } finally {
+      setUploading(false)
+    }
+  }
 
   const handleSubmit = async (e) => {
     e.preventDefault()
@@ -44,7 +70,8 @@ const EditUnitModal = ({ unit, onClose, onUpdated }) => {
           title: formData.title.trim(),
           description: formData.description.trim() || null,
           color_theme: formData.color_theme,
-          estimated_duration: formData.estimated_duration
+          estimated_duration: formData.estimated_duration,
+          thumbnail_url: formData.thumbnail_url || null
         })
         .eq('id', unit.id)
         .select()
@@ -109,20 +136,6 @@ const EditUnitModal = ({ unit, onClose, onUpdated }) => {
             />
           </div>
 
-          {/* Description */}
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">
-              Description
-            </label>
-            <textarea
-              value={formData.description}
-              onChange={(e) => handleChange('description', e.target.value)}
-              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-              placeholder="Brief description of what this unit covers"
-              rows={3}
-            />
-          </div>
-
           {/* Color Theme */}
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-2">
@@ -149,58 +162,38 @@ const EditUnitModal = ({ unit, onClose, onUpdated }) => {
             </div>
           </div>
 
-          {/* Estimated Duration */}
+          {/* Background Image */}
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-2">
-              Estimated Duration (minutes)
+              Background Image
             </label>
-            <input
-              type="number"
-              value={formData.estimated_duration}
-              onChange={(e) => handleChange('estimated_duration', parseInt(e.target.value))}
-              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-              min="1"
-              max="300"
-            />
-          </div>
-
-          {/* Preview */}
-          <div className="bg-gray-50 rounded-lg p-4">
-            <label className="block text-sm font-medium text-gray-700 mb-2">
-              Preview
-            </label>
-            <div className="bg-white rounded-lg border p-3">
-              <div className="flex items-center space-x-3">
-                <div className={`w-12 h-12 rounded-lg ${
-                  formData.color_theme === 'blue' ? 'bg-blue-100' :
-                  formData.color_theme === 'green' ? 'bg-green-100' :
-                  formData.color_theme === 'purple' ? 'bg-purple-100' :
-                  formData.color_theme === 'orange' ? 'bg-orange-100' :
-                  formData.color_theme === 'red' ? 'bg-red-100' :
-                  'bg-yellow-100'
-                } flex items-center justify-center`}>
-                  <BookOpen className={`w-6 h-6 ${
-                    formData.color_theme === 'blue' ? 'text-blue-600' :
-                    formData.color_theme === 'green' ? 'text-green-600' :
-                    formData.color_theme === 'purple' ? 'text-purple-600' :
-                    formData.color_theme === 'orange' ? 'text-orange-600' :
-                    formData.color_theme === 'red' ? 'text-red-600' :
-                    'text-yellow-600'
-                  }`} />
-                </div>
-                <div className="flex-1">
-                  <h3 className="font-medium text-gray-900">
-                    {formData.title || 'Unit Title'}
-                  </h3>
-                  <p className="text-sm text-gray-600">
-                    {formData.description || 'Unit description'}
-                  </p>
-                  <p className="text-xs text-gray-500">
-                    Est. {formData.estimated_duration} minutes
-                  </p>
-                </div>
-              </div>
+            {formData.thumbnail_url && (
+              <img src={formData.thumbnail_url} alt="Preview" className="w-full h-24 object-cover rounded-lg border mb-2" />
+            )}
+            <div className="flex items-center gap-2">
+              <label className={`inline-flex items-center gap-2 px-3 py-2 text-sm border border-gray-300 rounded-lg cursor-pointer hover:bg-gray-50 ${uploading ? 'opacity-50 pointer-events-none' : ''}`}>
+                <Upload className="w-4 h-4" />
+                {uploading ? 'Uploading...' : formData.thumbnail_url ? 'Change' : 'Upload'}
+                <input
+                  type="file"
+                  accept="image/*"
+                  onChange={handleImageUpload}
+                  className="hidden"
+                  disabled={uploading}
+                />
+              </label>
+              {formData.thumbnail_url && (
+                <button
+                  type="button"
+                  onClick={() => handleChange('thumbnail_url', '')}
+                  className="inline-flex items-center gap-1 px-3 py-2 text-sm text-red-500 hover:text-red-700 border border-red-200 rounded-lg hover:bg-red-50"
+                >
+                  <Trash2 className="w-3 h-3" />
+                  Remove
+                </button>
+              )}
             </div>
+            <p className="text-xs text-gray-500 mt-1">Uses theme default if empty</p>
           </div>
 
           {/* Actions */}

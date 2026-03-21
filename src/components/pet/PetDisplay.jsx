@@ -359,7 +359,7 @@ const PetDisplay = () => {
   const bonuses = getActiveBonuses();
 
   const petFoodItems = inventory.filter(
-    (item) => item.item?.item_type === "pet_food" && item.quantity > 0,
+    (item) => item.item?.item_type === "pet_food" && item.quantity > 0 && !item.item?.name?.toLowerCase().includes('evolution'),
   );
 
   // Get energy gain based on food rarity
@@ -387,8 +387,8 @@ const PetDisplay = () => {
   // Find evolution fruit matching pet rarity in inventory
   const getEvolutionFruit = () => {
     if (!activePet) return null
-    return petFoodItems.find(
-      (item) => item.item?.rarity === activePet.rarity && item.item?.name?.toLowerCase().includes('evolution')
+    return inventory.find(
+      (item) => item.item?.item_type === "pet_food" && item.quantity > 0 && item.item?.rarity === activePet.rarity && item.item?.name?.toLowerCase().includes('evolution')
     ) || null
   }
 
