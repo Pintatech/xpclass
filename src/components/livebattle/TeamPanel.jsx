@@ -24,6 +24,33 @@ const pointButtons = [
   { value: 'random', image: 'https://xpclass.vn/xpclass/class-battle/random.png', label: '?', name: 'Random' },
 ]
 
+const memeImages = [
+  'Black-Girl-Wat.png', 'drake.jpg', 'leo laugh.jpg',
+  'minus1.gif', 'minus2.gif', 'minus3.gif', 'minus4.gif', 'minus5.gif',
+  'minus6.png', 'minus7.gif', 'minus8.jpg', 'minus9.gif',
+  'nick young.jpg', 'nick-confused.gif', 'tom.jpg', 'vince mc.gif',
+  'you-guys-are-getting-paid.jpg',
+].map(f => `https://xpclass.vn/leaderboard/wrong_image/${encodeURIComponent(f)}`)
+
+const correctImages = {
+  small: [
+    'plus11.png', 'plus12.png', 'plus13.png', 'plus14.png',
+    'drake yes.jpg', 'tapping head.jpg', 'tapping head.png', 'tapping-head-tap-head.gif',
+  ].map(f => `https://xpclass.vn/leaderboard/correct_image/${encodeURIComponent(f)}`),
+  medium: [
+    'plus31.png', 'plus32.png', 'plus33.png', 'plus34.png',
+  ].map(f => `https://xpclass.vn/leaderboard/correct_image/${encodeURIComponent(f)}`),
+  big: [
+    'plus51.gif', 'plus52.gif', 'plus53.gif', 'plus54.gif',
+    'plus55.gif', 'plus56.gif', 'plus57.gif',
+  ].map(f => `https://xpclass.vn/leaderboard/correct_image/${encodeURIComponent(f)}`),
+}
+
+const pickCorrectImage = (val) => {
+  const pool = val >= 5 ? correctImages.big : val >= 3 ? correctImages.medium : correctImages.small
+  return pool[Math.floor(Math.random() * pool.length)]
+}
+
 const rarityColors = {
   common: 'border-gray-300',
   uncommon: 'border-green-400',
@@ -51,6 +78,15 @@ const TeamPanel = ({
 }) => {
   const [editingName, setEditingName] = useState(false)
   const [nameInput, setNameInput] = useState(teamName)
+  const [memeImage, setMemeImage] = useState(null)
+
+  const showMeme = (val) => {
+    const img = val < 0
+      ? memeImages[Math.floor(Math.random() * memeImages.length)]
+      : pickCorrectImage(val)
+    setMemeImage(img)
+    setTimeout(() => setMemeImage(null), 3000)
+  }
 
   const colorTheme = teamColor === 'red'
     ? { bg: 'bg-red-50', border: 'border-red-300', header: 'bg-gradient-to-r from-red-500 to-red-600', accent: 'text-red-600', btn: 'bg-red-500 hover:bg-red-600', light: 'bg-red-100' }
@@ -113,6 +149,7 @@ const TeamPanel = ({
                   : btn.value
                 onAddTeamPoints(team, val)
                 playPointSound(val)
+                showMeme(val)
               }}
               className="w-8 h-8 rounded-full bg-gray-100 hover:bg-gray-200 flex items-center justify-center transition-all hover:scale-110 active:scale-95 text-base"
               title={btn.value === 'random' ? 'Random 1-10' : `${btn.name} (${btn.label})`}
@@ -176,6 +213,7 @@ const TeamPanel = ({
                             : btn.value
                           onAddIndividualPoints(p.id, val)
                           playPointSound(val)
+                          showMeme(val)
                         }}
                         className="w-7 h-7 rounded-full bg-gray-100 hover:bg-gray-200 flex items-center justify-center transition-all hover:scale-110 active:scale-95 text-sm"
                         title={btn.value === 'random' ? 'Random 1-10' : `${btn.name} (${btn.label})`}
@@ -191,7 +229,7 @@ const TeamPanel = ({
                 )}
 
                 {/* Move team button (setup phase) */}
-                {isSetup && (
+                {(isSetup || isActive) && (
                   <button
                     onClick={() => onUpdateTeam(p.id, team === 'a' ? 'b' : 'a')}
                     className="absolute top-1 right-1 w-5 h-5 rounded-full bg-gray-200 hover:bg-gray-300 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity"
@@ -205,6 +243,15 @@ const TeamPanel = ({
           </div>
         )}
       </div>
+      {/* Wrong answer meme popup */}
+      {memeImage && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/60"
+          onClick={() => setMemeImage(null)}
+        >
+          <img src={memeImage} alt="Wrong!" className="max-w-md max-h-[70vh] rounded-2xl shadow-2xl animate-bounce-in" />
+        </div>
+      )}
     </div>
   )
 }

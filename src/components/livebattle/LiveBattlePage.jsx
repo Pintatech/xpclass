@@ -247,7 +247,9 @@ const LiveBattlePage = () => {
               <input
                 type="number"
                 value={session?.xp_winner || 30}
-                onChange={e => updateXpRewards(parseInt(e.target.value) || 0, session?.xp_loser || 10)}
+                onChange={e => updateXpRewards(Math.min(parseInt(e.target.value) || 0, 100), session?.xp_loser || 10)}
+                min={0}
+                max={100}
                 className="w-16 bg-gray-100 text-gray-800 text-center rounded px-2 py-0.5 border border-gray-200"
               />
               XP
@@ -257,7 +259,9 @@ const LiveBattlePage = () => {
               <input
                 type="number"
                 value={session?.xp_loser || 10}
-                onChange={e => updateXpRewards(session?.xp_winner || 30, parseInt(e.target.value) || 0)}
+                onChange={e => updateXpRewards(session?.xp_winner || 30, Math.min(parseInt(e.target.value) || 0, 100))}
+                min={0}
+                max={100}
                 className="w-16 bg-gray-100 text-gray-800 text-center rounded px-2 py-0.5 border border-gray-200"
               />
               XP
