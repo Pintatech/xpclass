@@ -103,44 +103,6 @@ const RecentActivities = () => {
 
       if (missionError) throw missionError
 
-      // Fetch all gem missions claimed today (so none are missed)
-      const todayStart = new Date()
-      todayStart.setHours(0, 0, 0, 0)
-      const { data: gemMissionData } = await supabase
-        .from('user_missions')
-        .select(`
-          id,
-          user_id,
-          mission_id,
-          updated_at,
-          users:user_id (
-            id,
-            full_name,
-            avatar_url,
-            active_title,
-            active_frame_ratio,
-            hide_frame,
-            role
-          ),
-          missions:mission_id (
-            id,
-            title,
-            reward_xp,
-            reward_gems,
-            mission_type,
-            icon
-          )
-        `)
-        .eq('status', 'claimed')
-        .gt('missions.reward_gems', 0)
-        .gte('updated_at', todayStart.toISOString())
-        .order('updated_at', { ascending: false })
-
-      // Merge gem missions into missionData, avoiding duplicates
-      const missionIds = new Set((missionData || []).map(m => m.id))
-      const extraGemMissions = (gemMissionData || []).filter(m => m.missions && !missionIds.has(m.id))
-      const allMissionData = [...(missionData || []), ...extraGemMissions]
-
       // Process achievement claims
       const achievementActivities = (achievementData || [])
         .filter(achievement => achievement.users && achievement.achievements)
@@ -151,7 +113,7 @@ const RecentActivities = () => {
         }))
 
       // Process mission claims (exclude admins)
-      const missionActivities = (allMissionData || [])
+      const missionActivities = (missionData || [])
         .filter(mission => mission.users && mission.missions && mission.users.role !== 'admin')
         .map(mission => ({
           ...mission,
