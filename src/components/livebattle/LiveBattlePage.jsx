@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
-import { ArrowLeft, Play, Square, Shuffle, Trophy, Sparkles, BookOpen, RotateCcw } from 'lucide-react'
+import { ArrowLeft, Play, Square, Shuffle, Trophy, Sparkles, BookOpen, RotateCcw, Flag } from 'lucide-react'
 import { useAuth } from '../../hooks/useAuth'
 import { useLiveBattle } from '../../hooks/useLiveBattle'
 import TeamPanel from './TeamPanel'
@@ -8,6 +8,7 @@ import PowerUpEffect from './PowerUpEffect'
 import BattleEventLog from './BattleEventLog'
 import ExercisePickerModal from './ExercisePickerModal'
 import QuestionModal from './QuestionModal'
+import DuckRaceTimer from './DuckRaceTimer'
 
 const LiveBattlePage = () => {
   const { courseId } = useParams()
@@ -41,6 +42,7 @@ const LiveBattlePage = () => {
   const [confirmEnd, setConfirmEnd] = useState(false)
   const [showExercisePicker, setShowExercisePicker] = useState(false)
   const [activeExercise, setActiveExercise] = useState(null)
+  const [showPetRace, setShowPetRace] = useState(false)
 
   useEffect(() => {
     if (!user || !courseId) return
@@ -203,6 +205,13 @@ const LiveBattlePage = () => {
             {isActive && (
               <>
                 <button
+                  onClick={() => setShowPetRace(true)}
+                  className="flex items-center gap-1 px-4 py-1.5 bg-amber-600 hover:bg-amber-500 text-white rounded-lg text-sm font-bold transition-colors"
+                >
+                  <Flag className="w-3 h-3" />
+                  Pet Race
+                </button>
+                <button
                   onClick={() => setShowExercisePicker(true)}
                   className="flex items-center gap-1 px-4 py-1.5 bg-indigo-600 hover:bg-indigo-500 text-white rounded-lg text-sm font-bold transition-colors"
                 >
@@ -333,6 +342,12 @@ const LiveBattlePage = () => {
         <QuestionModal
           exercise={activeExercise}
           onClose={() => setActiveExercise(null)}
+        />
+      )}
+      {showPetRace && (
+        <DuckRaceTimer
+          participants={participants}
+          onClose={() => setShowPetRace(false)}
         />
       )}
     </div>
