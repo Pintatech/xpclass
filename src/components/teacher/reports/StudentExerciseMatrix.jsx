@@ -569,7 +569,7 @@ const StudentExerciseMatrix = ({ selectedCourse, initialSessionId }) => {
                   <option value="all">All Units</option>
                   {units.map(unit => (
                     <option key={unit.id} value={unit.id}>
-                      Unit {unit.unit_number}: {unit.title}
+                      {unit.title}
                     </option>
                   ))}
                 </select>
@@ -590,7 +590,7 @@ const StudentExerciseMatrix = ({ selectedCourse, initialSessionId }) => {
                     <option value="all">All Lessons</option>
                     {sessions.map(session => (
                       <option key={session.id} value={session.id}>
-                        Lesson {session.session_number}: {session.title}
+                        {session.title}
                       </option>
                     ))}
                   </select>

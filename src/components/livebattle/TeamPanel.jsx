@@ -3,6 +3,19 @@ import { ArrowRightLeft, Edit2, Check } from 'lucide-react'
 import { assetUrl } from '../../hooks/useBranding'
 import { POWERUPS } from '../../hooks/useLiveBattle'
 
+const pointSounds = {
+  add1: new Audio('https://xpclass.vn/xpclass/class-battle/add1.mp3'),
+  add2: new Audio('https://xpclass.vn/xpclass/class-battle/add2.mp3'),
+  add3: new Audio('https://xpclass.vn/xpclass/class-battle/add3.mp3'),
+  minus1: new Audio('https://xpclass.vn/xpclass/class-battle/minus1.mp3'),
+}
+const playPointSound = (val) => {
+  const key = val < 0 ? 'minus1' : val >= 3 ? 'add3' : val === 2 ? 'add2' : 'add1'
+  const sound = pointSounds[key]
+  sound.currentTime = 0
+  sound.play().catch(() => {})
+}
+
 const pointButtons = [
   { value: -1, image: 'https://xpclass.vn/xpclass/class-battle/brick.png', label: '-1', name: 'Brick' },
   { value: 1, image: 'https://xpclass.vn/xpclass/class-battle/apple.png', label: '+1', name: 'Apple' },
@@ -51,7 +64,7 @@ const TeamPanel = ({
   return (
     <div className={`rounded-2xl ${colorTheme.border} border-2 overflow-hidden flex flex-col ${isFrozen ? 'opacity-60' : ''}`}>
       {/* Header */}
-      <div className={`${colorTheme.header} text-white px-4 py-3 flex items-center justify-between`}>
+      <div className={`${colorTheme.header} text-white px-4 py-3 flex items-center justify-between ${team === 'b' ? 'flex-row-reverse' : ''}`}>
         <div className="flex items-center gap-2">
           {editingName ? (
             <div className="flex items-center gap-1">
@@ -99,6 +112,7 @@ const TeamPanel = ({
                   ? Math.floor(Math.random() * 10) + 1
                   : btn.value
                 onAddTeamPoints(team, val)
+                playPointSound(val)
               }}
               className="w-8 h-8 rounded-full bg-gray-100 hover:bg-gray-200 flex items-center justify-center transition-all hover:scale-110 active:scale-95 text-base"
               title={btn.value === 'random' ? 'Random 1-10' : `${btn.name} (${btn.label})`}
@@ -118,7 +132,7 @@ const TeamPanel = ({
               className={`bg-gradient-to-r ${pu.color} text-white rounded-full w-8 h-8 flex items-center justify-center hover:scale-110 active:scale-95 transition-transform shadow`}
               title={`${pu.name}: ${pu.description}`}
             >
-              <span className="text-sm">{pu.icon}</span>
+              {pu.image ? <img src={pu.image} alt={pu.name} className="w-6 h-6 object-contain" /> : <span className="text-sm">{pu.icon}</span>}
             </button>
           ))}
         </div>
@@ -161,6 +175,7 @@ const TeamPanel = ({
                             ? Math.floor(Math.random() * 10) + 1
                             : btn.value
                           onAddIndividualPoints(p.id, val)
+                          playPointSound(val)
                         }}
                         className="w-7 h-7 rounded-full bg-gray-100 hover:bg-gray-200 flex items-center justify-center transition-all hover:scale-110 active:scale-95 text-sm"
                         title={btn.value === 'random' ? 'Random 1-10' : `${btn.name} (${btn.label})`}

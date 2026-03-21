@@ -30,7 +30,7 @@ const PowerUpBar = ({ onActivate, teamAName, teamBName }) => {
       {selecting ? (
         <div className="space-y-2">
           <div className="text-sm text-gray-700 text-center">
-            {POWERUPS[selecting]?.icon} {POWERUPS[selecting]?.name} — Choose team:
+            {POWERUPS[selecting]?.image ? <img src={POWERUPS[selecting].image} alt={POWERUPS[selecting].name} className="w-5 h-5 inline" /> : POWERUPS[selecting]?.icon} {POWERUPS[selecting]?.name} — Choose team:
           </div>
           <div className="flex gap-2 justify-center">
             <button
@@ -62,7 +62,7 @@ const PowerUpBar = ({ onActivate, teamAName, teamBName }) => {
               className={`bg-gradient-to-r ${pu.color} text-white rounded-lg px-3 py-2 text-sm font-semibold hover:scale-105 active:scale-95 transition-transform shadow-lg flex items-center gap-1`}
               title={pu.description}
             >
-              <span className="text-base">{pu.icon}</span>
+              {pu.image ? <img src={pu.image} alt={pu.name} className="w-5 h-5" /> : <span className="text-base">{pu.icon}</span>}
               <span>{pu.name}</span>
             </button>
           ))}

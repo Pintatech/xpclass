@@ -676,21 +676,8 @@ const PetFlappyGame = ({ petImageUrl, petName, wordBank: wordBankProp, onGameEnd
         {/* Hint + Streak */}
         {phase === 'playing' && (
           <div className="absolute top-16 left-0 right-0 z-40 pointer-events-none px-4">
-            <div className="w-full flex items-center gap-2">
-              <div className={`rounded-full px-2.5 py-1 text-xs font-bold flex items-center gap-1 shrink-0 ${
-                streak >= 3 ? 'bg-yellow-400 text-yellow-900' : 'bg-white/15 text-white/70'
-              }`}>
-                <img src={assetUrl('/icon/profile/streak.svg')} alt="streak" className="w-3.5 h-3.5" />{streak}x
-              </div>
-              <div className="flex-1 bg-white/10 backdrop-blur rounded-xl px-4 py-2 text-center min-w-0"
-                style={{ animation: currentHintRef.current ? 'hintPulse 2s ease-in-out infinite' : 'none' }}
-              >
-                <span className="text-xs text-white/50 mr-1">Find:</span>
-                <span ref={hintTextRef} className="text-base font-bold text-white">{currentHintRef.current}</span>
-              </div>
-            </div>
             {/* Progress bar */}
-            <div className="flex items-center gap-2 w-full max-w-[280px] mx-auto mt-2">
+            <div className="flex items-center gap-2 w-full max-w-[280px] mx-auto">
               <div className="flex-1 relative" style={{ height: 22 }}>
                 <div className="absolute inset-0 rounded-full" style={{
                   background: 'linear-gradient(180deg, #f0c040 0%, #c8940a 40%, #a07008 60%, #d4a820 100%)',
@@ -718,6 +705,20 @@ const PetFlappyGame = ({ petImageUrl, petName, wordBank: wordBankProp, onGameEnd
                 {thresholds.map((goal, i) => (
                   <Star key={i} className={`w-5 h-5 transition-all ${wordsCompleted >= goal ? 'text-yellow-400 fill-yellow-400 drop-shadow-sm' : 'text-white/25'}`} />
                 ))}
+              </div>
+            </div>
+            {/* Hint + Streak */}
+            <div className="w-full flex items-center gap-2 mt-2">
+              <div className={`rounded-full px-2.5 py-1 text-xs font-bold flex items-center gap-1 shrink-0 ${
+                streak >= 3 ? 'bg-yellow-400 text-yellow-900' : 'bg-white/15 text-white/70'
+              }`}>
+                <img src={assetUrl('/icon/profile/streak.svg')} alt="streak" className="w-3.5 h-3.5" />{streak}x
+              </div>
+              <div className="flex-1 bg-white/10 backdrop-blur rounded-xl px-4 py-2 text-center min-w-0"
+                style={{ animation: currentHintRef.current ? 'hintPulse 2s ease-in-out infinite' : 'none' }}
+              >
+                <span className="text-base text-white/50 mr-1">Find:</span>
+                <span ref={hintTextRef} className="text-2xl font-bold text-white">{currentHintRef.current}</span>
               </div>
             </div>
             {isChestRound && !chestCollected && (

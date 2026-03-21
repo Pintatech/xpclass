@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
-import { ArrowLeft, Play, Square, Shuffle, Trophy, Sparkles, BookOpen } from 'lucide-react'
+import { ArrowLeft, Play, Square, Shuffle, Trophy, Sparkles, BookOpen, RotateCcw } from 'lucide-react'
 import { useAuth } from '../../hooks/useAuth'
 import { useLiveBattle } from '../../hooks/useLiveBattle'
 import TeamPanel from './TeamPanel'
@@ -31,6 +31,7 @@ const LiveBattlePage = () => {
     endGame,
     updateXpRewards,
     getTeamScore,
+    resetScores,
     isFrozen,
     hasShield,
     hasDouble,
@@ -166,7 +167,7 @@ const LiveBattlePage = () => {
   const isActive = session?.status === 'active'
 
   return (
-    <div className="min-h-screen bg-cover bg-center bg-no-repeat px-2 py-3" style={{ backgroundImage: 'url(https://static.vecteezy.com/system/resources/thumbnails/046/106/279/small/comic-vs-fight-scene-versus-background-with-blue-and-red-color-parts-halftone-banner-with-frames-duel-poster-with-retro-stripes-lightning-rays-explosion-cloud-concept-vector.jpg)' }}>
+    <div className="min-h-screen bg-cover bg-center bg-no-repeat px-2 py-3" style={{ backgroundImage: 'url(https://xpclass.vn/xpclass/class-battle/bg.jpg)' }}>
       <PowerUpEffect events={events} />
 
       <div className="w-full px-2">
@@ -207,6 +208,13 @@ const LiveBattlePage = () => {
                 >
                   <BookOpen className="w-3 h-3" />
                   Exercise
+                </button>
+                <button
+                  onClick={resetScores}
+                  className="flex items-center gap-1 px-4 py-1.5 bg-yellow-600 hover:bg-yellow-500 text-white rounded-lg text-sm font-bold transition-colors"
+                >
+                  <RotateCcw className="w-3 h-3" />
+                  Reset
                 </button>
                 <button
                   onClick={handleEnd}
@@ -253,12 +261,12 @@ const LiveBattlePage = () => {
           <div className="flex items-center justify-center gap-6 mb-4">
             <div className="text-center">
               <div className="text-red-500 text-sm font-bold">{session?.team_a_name}</div>
-              <div className="text-5xl font-black text-gray-800">{teamAScore}</div>
+              <div className="text-5xl font-black text-gray-100">{teamAScore}</div>
             </div>
             <div className="text-gray-400 text-3xl font-black">VS</div>
             <div className="text-center">
               <div className="text-blue-500 text-sm font-bold">{session?.team_b_name}</div>
-              <div className="text-5xl font-black text-gray-800">{teamBScore}</div>
+              <div className="text-5xl font-black text-gray-100">{teamBScore}</div>
             </div>
           </div>
         )}

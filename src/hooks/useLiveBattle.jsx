@@ -4,12 +4,12 @@ import { assetUrl } from './useBranding'
 
 // Power-up definitions
 export const POWERUPS = {
-  double: { name: 'Double', icon: '⚡', description: 'Next point add is 2x', color: 'from-yellow-400 to-orange-500' },
-  shield: { name: 'Shield', icon: '🛡️', description: 'Block next steal or freeze', color: 'from-blue-400 to-blue-600' },
-  steal:  { name: 'Steal', icon: '🦊', description: 'Steal points from opponent', color: 'from-red-400 to-red-600' },
-  swap:   { name: 'Swap', icon: '🔄', description: 'Swap team scores', color: 'from-purple-400 to-purple-600' },
-  mystery:{ name: 'Mystery', icon: '🎁', description: 'Random effect!', color: 'from-pink-400 to-pink-600' },
-  random: { name: 'Random', icon: '🎲', description: 'Pick a random power-up!', color: 'from-emerald-400 to-teal-500' },
+  double: { name: 'Double', icon: '⚡', image: 'https://xpclass.vn/xpclass/class-battle/double.png', description: 'Next point add is 2x', color: 'from-yellow-400 to-orange-500' },
+  shield: { name: 'Shield', icon: '🛡️', image: 'https://xpclass.vn/xpclass/class-battle/shield.png', description: 'Block next steal or freeze', color: 'from-blue-400 to-blue-600' },
+  steal:  { name: 'Steal', icon: '🦊', image: 'https://xpclass.vn/xpclass/class-battle/steal.png', description: 'Steal points from opponent', color: 'from-red-400 to-red-600' },
+  swap:   { name: 'Swap', icon: '🔄', image: 'https://xpclass.vn/xpclass/class-battle/swap.png', description: 'Swap team scores', color: 'from-purple-400 to-purple-600' },
+  mystery:{ name: 'Mystery', icon: '🎁', image: 'https://xpclass.vn/xpclass/class-battle/spell.png', description: 'Random effect!', color: 'from-pink-400 to-pink-600' },
+  random: { name: 'Random', icon: '🎲', image: 'https://xpclass.vn/xpclass/class-battle/randomspell.png', description: 'Pick a random power-up!', color: 'from-emerald-400 to-teal-500' },
 }
 
 const resolvePetImage = (userPet) => {
@@ -28,6 +28,9 @@ export function useLiveBattle() {
   const [events, setEvents] = useState([])
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState(null)
+
+  // Flat team scores (not distributed to individuals)
+  const [teamScores, setTeamScores] = useState({ a: 0, b: 0 })
 
   // Power-up state (local only)
   const [activePowerups, setActivePowerups] = useState({ a: [], b: [] })
@@ -49,9 +52,9 @@ export function useLiveBattle() {
           .eq('id', p.id)
           .then(() => {})
       }
-      // Persist session team names and scores
-      const teamA = participants.filter(p => p.team === 'a').reduce((s, p) => s + p.individual_score, 0)
-      const teamB = participants.filter(p => p.team === 'b').reduce((s, p) => s + p.individual_score, 0)
+      // Persist session team names and scores (individual + flat team scores)
+      const teamA = participants.filter(p => p.team === 'a').reduce((s, p) => s + p.individual_score, 0) + teamScores.a
+      const teamB = participants.filter(p => p.team === 'b').reduce((s, p) => s + p.individual_score, 0) + teamScores.b
       supabase
         .from('live_battle_sessions')
         .update({
@@ -65,7 +68,7 @@ export function useLiveBattle() {
     }, 500)
 
     return () => { if (saveTimerRef.current) clearTimeout(saveTimerRef.current) }
-  }, [participants, session])
+  }, [participants, session, teamScores])
 
   const recalcTeamScores = useCallback((parts) => {
     const teamA = parts.filter(p => p.team === 'a').reduce((s, p) => s + p.individual_score, 0)
@@ -323,18 +326,9 @@ export function useLiveBattle() {
       removeDouble(team)
     }
 
-    // Distribute evenly to team members
-    const teamMembers = participants.filter(p => p.team === team)
-    if (teamMembers.length === 0) return
-    const perPerson = Math.floor(finalAmount / teamMembers.length)
-    const remainder = finalAmount % teamMembers.length
-
-    let distributed = 0
-    setParticipants(prev => prev.map(p => {
-      if (p.team !== team) return p
-      const extra = distributed < remainder ? 1 : 0
-      distributed++
-      return { ...p, individual_score: Math.max(0, p.individual_score + perPerson + extra) }
+    setTeamScores(prev => ({
+      ...prev,
+      [team]: Math.max(0, prev[team] + finalAmount)
     }))
 
     addEvent({
@@ -356,7 +350,7 @@ export function useLiveBattle() {
           ...prev,
           [targetTeam]: [...prev[targetTeam], { type: 'double', ts: Date.now() }],
         }))
-        addEvent({ type: 'powerup', text: `⚡ Double activated!`, team: targetTeam, ts: Date.now() })
+        addEvent({ type: 'powerup', text: `Double activated!`, team: targetTeam, ts: Date.now() })
         break
 
       case 'shield':
@@ -364,14 +358,14 @@ export function useLiveBattle() {
           ...prev,
           [targetTeam]: [...prev[targetTeam], { type: 'shield', ts: Date.now() }],
         }))
-        addEvent({ type: 'powerup', text: `🛡️ Shield activated!`, team: targetTeam, ts: Date.now() })
+        addEvent({ type: 'powerup', text: `Shield activated!`, team: targetTeam, ts: Date.now() })
         break
 
       case 'steal': {
         const stealAmount = 5
         if (hasShield(opponentTeam)) {
           removeShield(opponentTeam)
-          addEvent({ type: 'powerup', text: `🛡️ Shield blocked the steal!`, team: opponentTeam, ts: Date.now() })
+          addEvent({ type: 'powerup', text: `Shield blocked the steal!`, team: opponentTeam, ts: Date.now() })
           return
         }
         // Remove from opponent team members
@@ -390,23 +384,33 @@ export function useLiveBattle() {
             return p
           })
         })
-        addEvent({ type: 'powerup', text: `🦊 Stole ${stealAmount} points!`, team: targetTeam, ts: Date.now() })
+        addEvent({ type: 'powerup', text: `Steal ${stealAmount} points!`, team: targetTeam, ts: Date.now() })
         break
       }
 
-      case 'swap':
+      case 'swap': {
+        // Swap individual scores between teams
         setParticipants(prev => {
-          // Swap all team assignments' scores conceptually by swapping teams
-          return prev.map(p => ({ ...p, team: p.team === 'a' ? 'b' : 'a' }))
+          const teamAMembers = prev.filter(p => p.team === 'a')
+          const teamBMembers = prev.filter(p => p.team === 'b')
+          const teamATotal = teamAMembers.reduce((s, p) => s + p.individual_score, 0)
+          const teamBTotal = teamBMembers.reduce((s, p) => s + p.individual_score, 0)
+          // Reset all to 0, then distribute the swapped total evenly
+          return prev.map(p => {
+            if (p.team === 'a') {
+              const perPerson = teamAMembers.length ? Math.floor(teamBTotal / teamAMembers.length) : 0
+              return { ...p, individual_score: perPerson }
+            } else {
+              const perPerson = teamBMembers.length ? Math.floor(teamATotal / teamBMembers.length) : 0
+              return { ...p, individual_score: perPerson }
+            }
+          })
         })
-        // Also swap team names
-        setSession(prev => prev ? {
-          ...prev,
-          team_a_name: prev.team_b_name,
-          team_b_name: prev.team_a_name,
-        } : prev)
-        addEvent({ type: 'powerup', text: `🔄 Teams swapped!`, team: targetTeam, ts: Date.now() })
+        // Swap flat team scores
+        setTeamScores(prev => ({ a: prev.b, b: prev.a }))
+        addEvent({ type: 'powerup', text: `Swap scores!`, team: targetTeam, ts: Date.now() })
         break
+      }
 
       case 'mystery': {
         const effects = [
@@ -418,7 +422,7 @@ export function useLiveBattle() {
           { text: 'Shield granted!', apply: () => activatePowerup('shield', targetTeam) },
         ]
         const effect = effects[Math.floor(Math.random() * effects.length)]
-        addEvent({ type: 'powerup', text: `🎁 Mystery Box: ${effect.text}`, team: targetTeam, ts: Date.now() })
+        addEvent({ type: 'powerup', text: `Mystery Box: ${effect.text}`, team: targetTeam, ts: Date.now() })
         setTimeout(() => effect.apply(), 500)
         break
       }
@@ -426,7 +430,7 @@ export function useLiveBattle() {
       case 'random': {
         const powerupKeys = ['double', 'shield', 'steal', 'swap', 'mystery']
         const randomKey = powerupKeys[Math.floor(Math.random() * powerupKeys.length)]
-        addEvent({ type: 'powerup', text: `🎲 Random picked: ${POWERUPS[randomKey].icon} ${POWERUPS[randomKey].name}!`, team: targetTeam, ts: Date.now() })
+        addEvent({ type: 'powerup', text: `Random picked: ${POWERUPS[randomKey].name}!`, team: targetTeam, ts: Date.now() })
         setTimeout(() => activatePowerup(randomKey, targetTeam), 500)
         break
       }
@@ -460,7 +464,9 @@ export function useLiveBattle() {
   const endGame = useCallback(async () => {
     if (!session) return
 
-    const { teamA, teamB } = recalcTeamScores(participants)
+    const { teamA: indA, teamB: indB } = recalcTeamScores(participants)
+    const teamA = indA + teamScores.a
+    const teamB = indB + teamScores.b
     const winnerTeam = teamA > teamB ? 'a' : teamB > teamA ? 'b' : 'draw'
     const xpWinner = session.xp_winner || 30
     const xpLoser = session.xp_loser || 10
@@ -531,11 +537,17 @@ export function useLiveBattle() {
     setSession(prev => prev ? { ...prev, xp_winner: xpWinner, xp_loser: xpLoser } : prev)
   }, [])
 
+  const resetScores = useCallback(() => {
+    setParticipants(prev => prev.map(p => ({ ...p, individual_score: 0 })))
+    setTeamScores({ a: 0, b: 0 })
+  }, [])
+
   const getTeamScore = useCallback((team) => {
-    return participants
+    const individualTotal = participants
       .filter(p => p.team === team)
       .reduce((s, p) => s + p.individual_score, 0)
-  }, [participants])
+    return individualTotal + teamScores[team]
+  }, [participants, teamScores])
 
   return {
     session,
@@ -555,6 +567,7 @@ export function useLiveBattle() {
     endGame,
     updateXpRewards,
     getTeamScore,
+    resetScores,
     isFrozen,
     hasShield,
     hasDouble,
