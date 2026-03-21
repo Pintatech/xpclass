@@ -1,5 +1,6 @@
 import { useState, useRef, useEffect, useCallback } from 'react';
 import { createPortal } from 'react-dom';
+import { useNavigate } from 'react-router-dom';
 import { Users, CheckCircle, XCircle, Clock } from 'lucide-react';
 
 /**
@@ -12,7 +13,8 @@ import { Users, CheckCircle, XCircle, Clock } from 'lucide-react';
  * - size: 'sm' | 'md' (default: 'sm')
  * - children: optional custom trigger (if not provided, renders default badge)
  */
-const StudentStatsPopover = ({ stats, size = 'sm', children }) => {
+const StudentStatsPopover = ({ stats, size = 'sm', children, courseId, sessionId }) => {
+  const navigate = useNavigate();
   const [isOpen, setIsOpen] = useState(false);
   const [coords, setCoords] = useState({ top: 0, left: 0 });
   const triggerRef = useRef(null);
@@ -26,6 +28,13 @@ const StudentStatsPopover = ({ stats, size = 'sm', children }) => {
   const completedStudents = students.filter(s => s.status === 'completed');
   const inProgressStudents = students.filter(s => s.status === 'in_progress');
   const notStartedStudents = students.filter(s => s.status === 'not_started');
+
+  const handleStudentClick = (studentId) => {
+    if (!courseId) return;
+    const params = new URLSearchParams({ view: 'matrix' });
+    if (sessionId) params.set('sessionId', sessionId);
+    navigate(`/teacher/course-report/${courseId}?${params.toString()}`);
+  };
 
   const updatePosition = useCallback(() => {
     if (!triggerRef.current) return;
@@ -142,9 +151,18 @@ const StudentStatsPopover = ({ stats, size = 'sm', children }) => {
                     </span>
                   </div>
                   {completedStudents.map(student => (
-                    <div key={student.id} className="flex items-center px-3 py-1.5 hover:bg-gray-50">
+                    <div
+                      key={student.id}
+                      className={`flex items-center px-3 py-1.5 hover:bg-gray-50 ${courseId ? 'cursor-pointer hover:bg-green-50' : ''}`}
+                      onClick={() => handleStudentClick(student.id)}
+                    >
                       <CheckCircle className="w-3.5 h-3.5 text-green-500 flex-shrink-0" />
                       <span className="ml-2 text-sm text-gray-700 truncate flex-1">{student.name}</span>
+                      {student.score != null && (
+                        <span className="ml-1 text-[10px] text-green-600 font-bold whitespace-nowrap">
+                          {student.score}%
+                        </span>
+                      )}
                       {student.totalExercises > 0 && (
                         <span className="ml-1 text-[10px] text-green-600 font-medium whitespace-nowrap">
                           {student.completedExercises}/{student.totalExercises}
@@ -164,9 +182,18 @@ const StudentStatsPopover = ({ stats, size = 'sm', children }) => {
                     </span>
                   </div>
                   {inProgressStudents.map(student => (
-                    <div key={student.id} className="flex items-center px-3 py-1.5 hover:bg-gray-50">
+                    <div
+                      key={student.id}
+                      className={`flex items-center px-3 py-1.5 hover:bg-gray-50 ${courseId ? 'cursor-pointer hover:bg-yellow-50' : ''}`}
+                      onClick={() => handleStudentClick(student.id)}
+                    >
                       <Clock className="w-3.5 h-3.5 text-yellow-500 flex-shrink-0" />
                       <span className="ml-2 text-sm text-gray-700 truncate flex-1">{student.name}</span>
+                      {student.score != null && (
+                        <span className="ml-1 text-[10px] text-yellow-600 font-bold whitespace-nowrap">
+                          {student.score}%
+                        </span>
+                      )}
                       {student.totalExercises > 0 && (
                         <span className="ml-1 text-[10px] text-yellow-600 font-medium whitespace-nowrap">
                           {student.completedExercises}/{student.totalExercises}
@@ -186,7 +213,11 @@ const StudentStatsPopover = ({ stats, size = 'sm', children }) => {
                     </span>
                   </div>
                   {notStartedStudents.map(student => (
-                    <div key={student.id} className="flex items-center px-3 py-1.5 hover:bg-gray-50">
+                    <div
+                      key={student.id}
+                      className={`flex items-center px-3 py-1.5 hover:bg-gray-50 ${courseId ? 'cursor-pointer' : ''}`}
+                      onClick={() => handleStudentClick(student.id)}
+                    >
                       <XCircle className="w-3.5 h-3.5 text-gray-400 flex-shrink-0" />
                       <span className="ml-2 text-sm text-gray-500 truncate flex-1">{student.name}</span>
                       {student.totalExercises > 0 && (

@@ -1895,7 +1895,7 @@ const PetDisplay = () => {
                 className={`relative flex flex-col items-center gap-2 p-4 rounded-xl border-2 transition-all group ${competitionGame === 'whackmole' ? 'border-yellow-400 bg-yellow-50 ring-2 ring-yellow-300' : 'border-green-200 hover:border-green-400 hover:bg-green-50'}`}
               >
                 {competitionGame === 'whackmole' && <span className="absolute -top-2 -right-2 text-lg">🏆</span>}
-                <img src={assetUrl('/pet-game/mole-normal.png')} alt="Whack-a-Mole" className="w-20 h-20 object-contain group-hover:scale-110 transition-transform" />
+                <img src={assetUrl('/pet-game/whack/mole-normal.png')} alt="Whack-a-Mole" className="w-20 h-20 object-contain group-hover:scale-110 transition-transform" />
                 <span className="font-bold text-gray-800 text-xs">Whack-a-Mole</span>
               </button>
               )}

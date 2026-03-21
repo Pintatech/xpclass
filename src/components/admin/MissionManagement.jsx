@@ -19,7 +19,7 @@ const MISSION_IMAGE_MAP = {
   'medal': '/image/dashboard/pet-train.svg',
   'gift': '/image/dashboard/pet-scramble.jpg',
   'package-open': '/image/inventory/spaceship/phantom-voyager.png',
-  'joystick': '/pet-game/astro/alien4.png',
+  'joystick': '/image/pet/game-win.png',
 }
 
 const DEFAULT_MISSION_IMAGE = '/icon/dashboard/wow.svg'

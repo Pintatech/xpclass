@@ -3,12 +3,12 @@ import { supabase } from '../../../supabase/client';
 import { useAuth } from '../../../hooks/useAuth';
 import { CheckCircle, XCircle, Clock, Minus, RotateCcw, Eye, X, ChevronDown, RefreshCw } from 'lucide-react';
 
-const StudentExerciseMatrix = ({ selectedCourse }) => {
+const StudentExerciseMatrix = ({ selectedCourse, initialSessionId }) => {
   const { user, isAdmin } = useAuth();
   const [units, setUnits] = useState([]);
   const [selectedUnit, setSelectedUnit] = useState('all');
   const [sessions, setSessions] = useState([]);
-  const [selectedSession, setSelectedSession] = useState('all');
+  const [selectedSession, setSelectedSession] = useState(initialSessionId || 'all');
   const [students, setStudents] = useState([]);
   const [exercises, setExercises] = useState([]);
   const [progressMatrix, setProgressMatrix] = useState(new Map());
@@ -55,6 +55,21 @@ const StudentExerciseMatrix = ({ selectedCourse }) => {
       if (error) throw error;
 
       setUnits(data || []);
+
+      // If initialSessionId is provided, find its unit and auto-select
+      if (initialSessionId) {
+        const { data: sessionData } = await supabase
+          .from('sessions')
+          .select('unit_id')
+          .eq('id', initialSessionId)
+          .single();
+
+        if (sessionData && data?.some(u => u.id === sessionData.unit_id)) {
+          setSelectedUnit(sessionData.unit_id);
+          return; // Don't reset — fetchSessions will run from the unit effect
+        }
+      }
+
       setSelectedUnit('all'); // Reset to "All Units" when course changes
     } catch (error) {
       console.error('Error fetching units:', error);
@@ -72,7 +87,13 @@ const StudentExerciseMatrix = ({ selectedCourse }) => {
       if (error) throw error;
 
       setSessions(data || []);
-      setSelectedSession('all'); // Reset to "All Sessions" when unit changes
+
+      // Keep initialSessionId if it belongs to this unit's sessions
+      if (initialSessionId && data?.some(s => s.id === initialSessionId)) {
+        setSelectedSession(initialSessionId);
+      } else {
+        setSelectedSession('all');
+      }
     } catch (error) {
       console.error('Error fetching sessions:', error);
     }
@@ -457,17 +478,30 @@ const StudentExerciseMatrix = ({ selectedCourse }) => {
         attempt => attempt.is_correct
       ).length;
 
-      const newScore = correctAnswers;
-      const maxScore = totalQuestions;
+      const newScore = totalQuestions > 0 ? Math.round((correctAnswers / totalQuestions) * 100) : 0;
+      const maxScore = 100;
+      const meetingRequirement = newScore >= 75;
+
+      // Build update object
+      const updateData = {
+        score: newScore,
+        max_score: maxScore,
+        updated_at: new Date().toISOString()
+      };
+
+      // Update status to completed if score meets threshold (75%)
+      if (meetingRequirement) {
+        updateData.status = 'completed';
+        updateData.completed_at = new Date().toISOString();
+      } else {
+        updateData.status = 'attempted';
+        updateData.completed_at = null;
+      }
 
       // Update user_progress table
       const { error: progressError } = await supabase
         .from('user_progress')
-        .update({
-          score: newScore,
-          max_score: maxScore,
-          updated_at: new Date().toISOString()
-        })
+        .update(updateData)
         .eq('user_id', studentId)
         .eq('exercise_id', exerciseId);
 

@@ -123,25 +123,31 @@ const useClassStats = (courseId) => {
       // 4. All user progress — single query (the big one, but still just one)
       const { data: progress } = await supabase
         .from('user_progress')
-        .select('user_id, exercise_id, status')
+        .select('user_id, exercise_id, status, score, max_score')
         .in('user_id', studentIds)
         .in('exercise_id', exerciseIdArray);
 
-      // Build lookup: `userId-exerciseId` -> status
+      // Build lookup: `userId-exerciseId` -> { status, score, max_score }
       const progressMap = {};
       (progress || []).forEach(p => {
-        progressMap[`${p.user_id}-${p.exercise_id}`] = p.status;
+        progressMap[`${p.user_id}-${p.exercise_id}`] = {
+          status: p.status,
+          score: p.score,
+          max_score: p.max_score
+        };
       });
 
       // --- Compute exercise-level stats ---
       const exerciseStats = {};
       exerciseIdArray.forEach(exId => {
         const studentDetails = studentIds.map(studentId => {
-          const status = progressMap[`${studentId}-${exId}`];
+          const prog = progressMap[`${studentId}-${exId}`];
+          const score = prog?.max_score ? Math.round((prog.score / prog.max_score) * 100) : null;
           return {
             id: studentId,
             name: studentMap[studentId],
-            status: status === 'completed' ? 'completed' : status ? 'in_progress' : 'not_started'
+            status: prog?.status === 'completed' ? 'completed' : prog ? 'in_progress' : 'not_started',
+            score
           };
         });
         const completed = studentDetails.filter(s => s.status === 'completed').length;
@@ -157,7 +163,7 @@ const useClassStats = (courseId) => {
             return { id: studentId, name: studentMap[studentId], status: 'not_started', completedExercises: 0, totalExercises: 0 };
           }
           const completedCount = exercises.filter(exId =>
-            progressMap[`${studentId}-${exId}`] === 'completed'
+            progressMap[`${studentId}-${exId}`]?.status === 'completed'
           ).length;
           const anyProgress = exercises.some(exId => progressMap[`${studentId}-${exId}`]);
           let status = 'not_started';

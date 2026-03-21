@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { useParams, useNavigate } from 'react-router-dom';
+import { useParams, useNavigate, useSearchParams } from 'react-router-dom';
 import { supabase } from '../../supabase/client';
 import { useAuth } from '../../hooks/useAuth';
 import StudentExerciseMatrix from './reports/StudentExerciseMatrix';
@@ -24,6 +24,7 @@ const CourseReport = () => {
   const { courseId } = useParams();
   const { user, isAdmin, loading: authLoading } = useAuth();
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
   const [course, setCourse] = useState(null);
   const [students, setStudents] = useState([]);
   const [studentProgress, setStudentProgress] = useState([]);
@@ -31,7 +32,8 @@ const CourseReport = () => {
   const [courseExerciseIds, setCourseExerciseIds] = useState([]);
   const [loading, setLoading] = useState(false);
   const [expandedStudent, setExpandedStudent] = useState(null);
-  const [currentView, setCurrentView] = useState('overview');
+  const [currentView, setCurrentView] = useState(searchParams.get('view') || 'overview');
+  const initialSessionId = searchParams.get('sessionId') || null;
 
   useEffect(() => {
     if (user && courseId && !authLoading) {
@@ -521,7 +523,7 @@ const CourseReport = () => {
       )}
 
       {/* Report Views */}
-      {currentView === 'matrix' && <StudentExerciseMatrix selectedCourse={courseId} />}
+      {currentView === 'matrix' && <StudentExerciseMatrix selectedCourse={courseId} initialSessionId={initialSessionId} />}
       {currentView === 'unit-progress' && <UnitProgressView selectedCourse={courseId} />}
       {currentView === 'lesson-report' && <LessonReportView selectedCourse={courseId} />}
       {currentView === 'test-results' && <TestResultsView selectedCourse={courseId} />}

@@ -20,7 +20,7 @@ const MISSION_IMAGE_MAP = {
   'medal': '/image/dashboard/pet-train.svg',
   'gift': '/image/dashboard/pet-scramble.jpg',
   'package-open': '/image/inventory/spaceship/phantom-voyager.png',
-  'joystick': '/pet-game/astro/alien4.png',
+  'joystick': '/image/pet/game-win.png',
 }
 const DEFAULT_MISSION_IMAGE = '/icon/dashboard/wow.svg'
 const getMissionImage = (iconName) => MISSION_IMAGE_MAP[iconName] || DEFAULT_MISSION_IMAGE
@@ -85,7 +85,8 @@ const RecentActivities = () => {
             avatar_url,
             active_title,
             active_frame_ratio,
-            hide_frame
+            hide_frame,
+            role
           ),
           missions:mission_id (
             id,
@@ -111,9 +112,9 @@ const RecentActivities = () => {
           activity_date: achievement.claimed_at
         }))
 
-      // Process mission claims
+      // Process mission claims (exclude admins)
       const missionActivities = (missionData || [])
-        .filter(mission => mission.users && mission.missions)
+        .filter(mission => mission.users && mission.missions && mission.users.role !== 'admin')
         .map(mission => ({
           ...mission,
           type: 'mission',

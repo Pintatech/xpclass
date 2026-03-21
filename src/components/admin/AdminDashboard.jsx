@@ -63,6 +63,7 @@ const AdminDashboard = () => {
   const [notification, setNotification] = useState(null);
   const [stats, setStats] = useState(null);
   const [sidebarOpen, setSidebarOpen] = useState(false);
+  const [pendingReportsCount, setPendingReportsCount] = useState(0);
 
   // Get current tab from URL
   const getCurrentTab = () => {
@@ -91,8 +92,19 @@ const AdminDashboard = () => {
   useEffect(() => {
     if (isAdmin()) {
       loadStats();
+      fetchPendingReportsCount();
     }
   }, [isAdmin]);
+
+  const fetchPendingReportsCount = async () => {
+    try {
+      const { count, error } = await supabase
+        .from('reports')
+        .select('*', { count: 'exact', head: true })
+        .eq('status', 'pending')
+      if (!error) setPendingReportsCount(count || 0)
+    } catch {}
+  }
 
   const showNotification = (message, type = 'success') => {
     setNotification({ message, type });
@@ -261,6 +273,11 @@ const AdminDashboard = () => {
                 >
                   <IconComponent className="w-4 h-4" />
                   {tab.label}
+                  {tab.id === 'reports' && pendingReportsCount > 0 && (
+                    <span className="ml-auto bg-red-500 text-white text-[10px] font-bold rounded-full min-w-[18px] h-[18px] flex items-center justify-center px-1">
+                      {pendingReportsCount}
+                    </span>
+                  )}
                 </button>
               );
             })}

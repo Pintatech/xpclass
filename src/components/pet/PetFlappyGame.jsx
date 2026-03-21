@@ -862,8 +862,8 @@ const PetFlappyGame = ({ petImageUrl, petName, wordBank: wordBankProp, onGameEnd
             <div className="rounded-2xl p-5 mb-5 border bg-gradient-to-br from-gray-50 to-gray-100 border-gray-200"
               style={{ animation: 'flappyScorePopIn 0.6s ease-out 0.5s both' }}
             >
-              <p className="text-5xl font-black text-gray-400">{displayScore}</p>
-              <p className="text-sm font-semibold mt-1 text-gray-400">points</p>
+              <p className="text-5xl font-black text-gray-400">{wordsCompleted}</p>
+              <p className="text-sm font-semibold mt-1 text-gray-400">words</p>
             </div>
 
             <p className="text-sm text-gray-600 mb-6">Try to keep your lives! Wrong fruits cost a heart.</p>
@@ -909,7 +909,7 @@ const PetFlappyGame = ({ petImageUrl, petName, wordBank: wordBankProp, onGameEnd
             </h2>
             <p className="text-gray-500 mb-5">
               {starsEarned >= 1
-                ? `${petName} scored ${displayScore} points!`
+                ? `${petName} completed ${wordsCompleted} words!`
                 : `${petName} only completed ${wordsCompleted}/${passGoal} words`}
             </p>
 
@@ -923,10 +923,10 @@ const PetFlappyGame = ({ petImageUrl, petName, wordBank: wordBankProp, onGameEnd
             >
               <p className={`text-5xl font-black ${
                 starsEarned >= 3 ? 'text-yellow-500' : starsEarned >= 1 ? 'text-sky-600' : 'text-gray-400'
-              }`}>{displayScore}</p>
+              }`}>{wordsCompleted}</p>
               <p className={`text-sm font-semibold mt-1 ${
                 starsEarned >= 3 ? 'text-yellow-400' : starsEarned >= 1 ? 'text-sky-400' : 'text-gray-400'
-              }`}>points</p>
+              }`}>words</p>
             </div>
 
             <p className="text-sm text-gray-600 mb-6">

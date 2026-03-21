@@ -331,7 +331,7 @@ const PetWhackMole = ({ petImageUrl, petName, onGameEnd, onClose, hammerSkinUrl,
         color: newStreak >= 5 ? '#f59e0b' : newStreak >= 3 ? '#8b5cf6' : '#22c55e',
       }])
 
-      playSound(assetUrl('/pet-game/mole-correct.mp3'), 0.4)
+      playSound(assetUrl('/pet-game/whack/mole-correct.mp3'), 0.4)
 
       // Clear mole timers and spawn next round
       moleTimersRef.current.forEach(t => clearTimeout(t))
@@ -348,7 +348,7 @@ const PetWhackMole = ({ petImageUrl, petName, onGameEnd, onClose, hammerSkinUrl,
         i === holeIndex ? { ...h, wrong: true } : h
       ))
 
-      playSound(assetUrl('/pet-game/mole-incorrect.mp3'), 0.4)
+      playSound(assetUrl('/pet-game/whack/mole-incorrect.mp3'), 0.4)
 
       const newPetHp = petHp - 1
       setPetHp(newPetHp)
@@ -790,7 +790,7 @@ const PetWhackMole = ({ petImageUrl, petName, onGameEnd, onClose, hammerSkinUrl,
                           </span>
                         </div>
                         {/* Mole image */}
-                        <img src={assetUrl('/pet-game/mole-normal.png')} alt="mole" className="w-16 h-16 object-contain drop-shadow-lg" />
+                        <img src={assetUrl('/pet-game/whack/mole-normal.png')} alt="mole" className="w-16 h-16 object-contain drop-shadow-lg" />
                       </div>
                     )}
 
@@ -800,7 +800,7 @@ const PetWhackMole = ({ petImageUrl, petName, onGameEnd, onClose, hammerSkinUrl,
                         className="flex flex-col items-center"
                         style={{ animation: 'moleWhacked 0.4s ease-out forwards' }}
                       >
-                        <img src={assetUrl('/pet-game/mole-whacked.png')} alt="whacked" className="w-16 h-16 object-contain drop-shadow-lg" />
+                        <img src={assetUrl('/pet-game/whack/mole-whacked.png')} alt="whacked" className="w-16 h-16 object-contain drop-shadow-lg" />
                       </div>
                     )}
 
@@ -842,7 +842,7 @@ const PetWhackMole = ({ petImageUrl, petName, onGameEnd, onClose, hammerSkinUrl,
             {/* Hammer cursor */}
             {hammerPos.x > 0 && (
               <img
-                src={hammerSkinUrl || assetUrl('/pet-game/mole-hammer.png')}
+                src={hammerSkinUrl || assetUrl('/pet-game/whack/mole-hammer.png')}
                 alt="hammer"
                 className="absolute pointer-events-none z-30"
                 style={{

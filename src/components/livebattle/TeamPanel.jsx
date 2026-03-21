@@ -4,11 +4,11 @@ import { assetUrl } from '../../hooks/useBranding'
 import { POWERUPS } from '../../hooks/useLiveBattle'
 
 const pointButtons = [
-  { value: -1, emoji: '👎', label: '-1' },
-  { value: 1, emoji: '👍', label: '+1' },
-  { value: 3, emoji: '🔥', label: '+3' },
-  { value: 5, emoji: '⭐', label: '+5' },
-  { value: 'random', emoji: '🎲', label: '?' },
+  { value: -1, image: 'https://xpclass.vn/xpclass/class-battle/brick.png', label: '-1', name: 'Brick' },
+  { value: 1, image: 'https://xpclass.vn/xpclass/class-battle/apple.png', label: '+1', name: 'Apple' },
+  { value: 2, image: 'https://xpclass.vn/xpclass/class-battle/fish.png', label: '+2', name: 'Fish' },
+  { value: 3, image: 'https://xpclass.vn/xpclass/class-battle/meat.png', label: '+3', name: 'Meat' },
+  { value: 'random', image: 'https://xpclass.vn/xpclass/class-battle/random.png', label: '?', name: 'Random' },
 ]
 
 const rarityColors = {
@@ -101,9 +101,13 @@ const TeamPanel = ({
                 onAddTeamPoints(team, val)
               }}
               className="w-8 h-8 rounded-full bg-gray-100 hover:bg-gray-200 flex items-center justify-center transition-all hover:scale-110 active:scale-95 text-base"
-              title={btn.value === 'random' ? 'Random 1-10' : `${btn.label}`}
+              title={btn.value === 'random' ? 'Random 1-10' : `${btn.name} (${btn.label})`}
             >
-              {btn.emoji}
+              {btn.image ? (
+                <img src={btn.image} alt={btn.name} className="w-6 h-6 object-contain" />
+              ) : (
+                btn.emoji
+              )}
             </button>
           ))}
           <div className="w-px h-6 bg-gray-300 mx-1" />
@@ -159,9 +163,13 @@ const TeamPanel = ({
                           onAddIndividualPoints(p.id, val)
                         }}
                         className="w-7 h-7 rounded-full bg-gray-100 hover:bg-gray-200 flex items-center justify-center transition-all hover:scale-110 active:scale-95 text-sm"
-                        title={btn.value === 'random' ? 'Random 1-10' : `${btn.label}`}
+                        title={btn.value === 'random' ? 'Random 1-10' : `${btn.name} (${btn.label})`}
                       >
-                        {btn.emoji}
+                        {btn.image ? (
+                          <img src={btn.image} alt={btn.name} className="w-5 h-5 object-contain" />
+                        ) : (
+                          btn.emoji
+                        )}
                       </button>
                     ))}
                   </div>

@@ -1137,7 +1137,7 @@ const ExerciseList = () => {
 
             {/* Teacher: student completion stats with hover popover */}
             {canCreateContent() && exerciseClassStats?.[exercise.id] && (
-              <StudentStatsPopover stats={exerciseClassStats[exercise.id]} size="sm" position="bottom" />
+              <StudentStatsPopover stats={exerciseClassStats[exercise.id]} size="sm" position="bottom" courseId={courseId} sessionId={sessionId} />
             )}
 
             {/* Action Buttons */}
@@ -1508,7 +1508,7 @@ const ExerciseList = () => {
         {/* Teacher: student completion badge on map nodes with hover popover */}
         {canCreateContent() && !isDummy && exerciseClassStats?.[exercise?.id] && (
           <div className="absolute left-1/2 -translate-x-1/2 z-30" style={{ bottom: completed ? '-28px' : '-8px' }}>
-            <StudentStatsPopover stats={exerciseClassStats[exercise.id]} position="bottom">
+            <StudentStatsPopover stats={exerciseClassStats[exercise.id]} position="bottom" courseId={courseId} sessionId={sessionId}>
               <div className={`rounded px-1 py-0.5 text-[8px] md:text-[10px] font-bold leading-none whitespace-nowrap shadow-sm cursor-default ${
                 exerciseClassStats[exercise.id].completed === exerciseClassStats[exercise.id].total
                   ? 'bg-green-500 text-white'
