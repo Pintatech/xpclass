@@ -2,7 +2,7 @@ import { useState, useEffect, useRef, useCallback } from 'react'
 import { createPortal } from 'react-dom'
 import { Trophy, Volume2, VolumeX, Heart } from 'lucide-react'
 
-import { assetUrl } from '../../hooks/useBranding'
+import { assetUrl } from '../../../hooks/useBranding'
 
 const GAME_DURATION = 76
 const PAIRS_PER_ROUND = 6 // 6 pairs = 12 tiles in a 4x3 grid

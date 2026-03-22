@@ -13,7 +13,7 @@ const PVP_TAUNTS = {
 }
 import { usePet } from '../../hooks/usePet'
 import { seededPickGameWords } from '../../utils/seededRandom'
-import PetWordType from '../pet/PetWordType'
+import PetWordType from '../pet/games/PetWordType'
 
 
 const PvPRealtimeWordType = ({

@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef, useCallback } from 'react'
 import { createPortal } from 'react-dom'
 import { X, Trophy, Volume2, VolumeX, Heart } from 'lucide-react'
-import { assetUrl } from '../../hooks/useBranding'
+import { assetUrl } from '../../../hooks/useBranding'
 
 const GAME_DURATION = 76
 const PET_MAX_HP = 5

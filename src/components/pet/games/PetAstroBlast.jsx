@@ -2,7 +2,7 @@ import { useState, useEffect, useRef, useCallback } from 'react'
 import { createPortal } from 'react-dom'
 import { X, Star, Volume2, VolumeX, Heart } from 'lucide-react'
 
-import { assetUrl } from '../../hooks/useBranding'
+import { assetUrl } from '../../../hooks/useBranding'
 
 const GAME_DURATION = 76
 // Streak tier scoring (like Whack-a-Mole): streak>=5 → 3, >=3 → 2, else 1

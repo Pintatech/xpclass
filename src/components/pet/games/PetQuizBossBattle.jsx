@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef, useCallback } from 'react'
 import { createPortal } from 'react-dom'
 import { X, Volume2, VolumeX, Trophy, Heart, Swords, Shield, Zap } from 'lucide-react'
-import { assetUrl } from '../../hooks/useBranding'
+import { assetUrl } from '../../../hooks/useBranding'
 
 const BOSSES = [
   { name: 'Stone Golem', hp: 4, img: 'https://xpclass.vn/xpclass/pet-game/boss/boss1.png', color: '#9ca3af', bg: 'from-gray-800 to-gray-700', attackName: 'Rock Slam', accent: 'gray' },

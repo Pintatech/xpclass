@@ -2,7 +2,7 @@ import { useState, useEffect, useRef, useCallback } from 'react'
 import { createPortal } from 'react-dom'
 import { X, Star, Volume2, VolumeX, Heart } from 'lucide-react'
 
-import { assetUrl } from '../../hooks/useBranding';
+import { assetUrl } from '../../../hooks/useBranding';
 
 const GAME_DURATION = 76
 const POINTS_PER_WORD = 10
@@ -18,11 +18,12 @@ const shuffle = (arr) => {
   return a
 }
 
-const pickGameWords = (source) => {
-  const short = shuffle(source.filter(w => w.word.length <= 4)).slice(0, 6)
-  const medium = shuffle(source.filter(w => w.word.length === 5)).slice(0, 5)
-  const long = shuffle(source.filter(w => w.word.length === 6)).slice(0, 5)
-  const longer = shuffle(source.filter(w => w.word.length >= 7)).slice(0, 4)
+const pickGameWords = (source, level = 1) => {
+  const filtered = source.filter(w => !w.min_level || w.min_level <= level)
+  const short = shuffle(filtered.filter(w => w.word.length <= 4)).slice(0, 6)
+  const medium = shuffle(filtered.filter(w => w.word.length === 5)).slice(0, 5)
+  const long = shuffle(filtered.filter(w => w.word.length === 6)).slice(0, 5)
+  const longer = shuffle(filtered.filter(w => w.word.length >= 7)).slice(0, 4)
   const buckets = [short, medium, long, longer]
   const picked = []
   const maxLen = Math.max(...buckets.map(b => b.length))
@@ -110,12 +111,12 @@ const PetWordType = ({ petImageUrl, petName, onGameEnd, onClose, wordBank: wordB
       setWordIndex(nextIdx)
     } else {
       const source = wordBankProp
-      const moreWords = pickGameWords(source)
+      const moreWords = pickGameWords(source, currentLevel)
       setWords(moreWords)
       setWordIndex(0)
     }
     setTimeout(() => inputRef.current?.focus(), 50)
-  }, [wordIndex, wordBankProp])
+  }, [wordIndex, words, wordBankProp, currentLevel])
 
   const handleCheck = useCallback(() => {
     if (phase !== 'playing' || !currentWord) return
@@ -266,7 +267,7 @@ const PetWordType = ({ petImageUrl, petName, onGameEnd, onClose, wordBank: wordB
   }, [currentWord, hintRevealed])
 
   const startGame = useCallback(() => {
-    const gameWords = initialWords || pickGameWords(wordBankProp)
+    const gameWords = initialWords || pickGameWords(wordBankProp, currentLevel)
     setWords(gameWords)
     setWordIndex(0)
     setDisplayScore(0)
@@ -299,7 +300,7 @@ const PetWordType = ({ petImageUrl, petName, onGameEnd, onClose, wordBank: wordB
     } catch {}
 
     setTimeout(() => inputRef.current?.focus(), 200)
-  }, [wordBankProp])
+  }, [wordBankProp, currentLevel])
 
   // Auto-start for realtime PvP (skip the ready screen)
   useEffect(() => {

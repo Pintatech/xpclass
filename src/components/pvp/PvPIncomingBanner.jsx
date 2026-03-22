@@ -624,15 +624,15 @@ const PvPIncomingBanner = () => {
 
 // Separate component for responding to a challenge
 import { usePet as usePetHook } from "../../hooks/usePet";
-import PetWhackMole from "../pet/PetWhackMole";
-import PetWordScramble from "../pet/PetWordScramble";
-import PetAstroBlast from "../pet/PetAstroBlast";
-import PetMatchGame from "../pet/PetMatchGame";
-import PetFlappyGame from "../pet/PetFlappyGame";
-import PetWordType from "../pet/PetWordType";
-import PetSayItRight from "../pet/PetSayItRight";
-import PetQuizRush from "../pet/PetQuizRush";
-import PetAngryPet from "../pet/PetAngryPet";
+import PetWhackMole from "../pet/games/PetWhackMole";
+import PetWordScramble from "../pet/games/PetWordScramble";
+import PetAstroBlast from "../pet/games/PetAstroBlast";
+import PetMatchGame from "../pet/games/PetMatchGame";
+import PetFlappyGame from "../pet/games/PetFlappyGame";
+import PetWordType from "../pet/games/PetWordType";
+import PetSayItRight from "../pet/games/PetSayItRight";
+import PetQuizRush from "../pet/games/PetQuizRush";
+import PetAngryPet from "../pet/games/PetAngryPet";
 import PvPRealtimeWordType from "./PvPRealtimeWordType";
 import PvPRealtimeWordScramble from "./PvPRealtimeWordScramble";
 import PvPRealtimeMatchGame from "./PvPRealtimeMatchGame";

@@ -2,7 +2,7 @@ import { useState, useEffect, useRef, useCallback } from 'react'
 import { createPortal } from 'react-dom'
 import { X, Trophy, Volume2, VolumeX, Mic, Square, Loader2, Heart } from 'lucide-react'
 
-import { assetUrl } from '../../hooks/useBranding'
+import { assetUrl } from '../../../hooks/useBranding'
 
 const ASSEMBLYAI_KEY = import.meta.env.VITE_ASSEMBLYAI_API_KEY || ''
 

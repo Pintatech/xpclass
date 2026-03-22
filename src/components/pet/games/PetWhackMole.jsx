@@ -2,7 +2,7 @@ import { useState, useEffect, useRef, useCallback } from 'react'
 import { createPortal } from 'react-dom'
 import { Star, Heart } from 'lucide-react'
 
-import { assetUrl } from '../../hooks/useBranding';
+import { assetUrl } from '../../../hooks/useBranding';
 const GAME_DURATION = 61
 const MOLE_SHOW_MIN = 1500
 const MOLE_SHOW_MAX = 2500

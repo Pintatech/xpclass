@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef, useCallback } from 'react'
 import { createPortal } from 'react-dom'
 import { X, Star, Volume2, VolumeX, Heart } from 'lucide-react'
-import { assetUrl } from '../../hooks/useBranding'
+import { assetUrl } from '../../../hooks/useBranding'
 
 const GAME_DURATION = 76
 const POINTS_PER_Q = 10

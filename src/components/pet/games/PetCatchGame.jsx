@@ -2,7 +2,7 @@ import { useState, useEffect, useRef, useCallback } from 'react'
 import { createPortal } from 'react-dom'
 import { X, Star, Heart } from 'lucide-react'
 
-import { assetUrl } from '../../hooks/useBranding';
+import { assetUrl } from '../../../hooks/useBranding';
 
 const GAME_DURATION = 76
 const PET_SIZE = 64

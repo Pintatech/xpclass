@@ -2,7 +2,7 @@ import React, { useState, useEffect, useRef, useCallback } from 'react'
 import { createPortal } from 'react-dom'
 import { X, Star, Clock, Heart } from 'lucide-react'
 
-import { assetUrl } from '../../hooks/useBranding';
+import { assetUrl } from '../../../hooks/useBranding';
 
 // Physics
 const GRAVITY = 0.4

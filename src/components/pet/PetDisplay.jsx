@@ -14,20 +14,20 @@ import {
   X,
   Loader2,
 } from "lucide-react";
-import PetCatchGame from "./PetCatchGame";
-import PetFlappyGame from "./PetFlappyGame";
-import PetWordScramble from "./PetWordScramble";
-import PetWhackMole from "./PetWhackMole";
-import PetAstroBlast from "./PetAstroBlast";
-import PetMatchGame from "./PetMatchGame";
-import PetWordType from "./PetWordType";
-import PetSayItRight from "./PetSayItRight";
-import PetQuizRush from "./PetQuizRush";
-import PetQuizBossBattle from "./PetQuizBossBattle";
-import PetAngryPet from "./PetAngryPet";
+import PetCatchGame from "./games/PetCatchGame";
+import PetFlappyGame from "./games/PetFlappyGame";
+import PetWordScramble from "./games/PetWordScramble";
+import PetWhackMole from "./games/PetWhackMole";
+import PetAstroBlast from "./games/PetAstroBlast";
+import PetMatchGame from "./games/PetMatchGame";
+import PetWordType from "./games/PetWordType";
+import PetSayItRight from "./games/PetSayItRight";
+import PetQuizRush from "./games/PetQuizRush";
+import PetQuizBossBattle from "./games/PetQuizBossBattle";
+import PetAngryPet from "./games/PetAngryPet";
 import PvPMatchmaking from "../pvp/PvPMatchmaking";
 import WildEncounterModal from "./WildEncounterModal";
-import PetMazeAdventure from "./PetMazeAdventure";
+import PetMazeAdventure from "./games/PetMazeAdventure";
 
 import { assetUrl } from '../../hooks/useBranding';
 import { fetchPvpSchedule, checkPvpAvailability } from '../../utils/pvpSchedule';
@@ -673,7 +673,7 @@ const PetDisplay = () => {
 
     const { data: words } = await supabase
       .from('pet_word_bank')
-      .select('word, hint, image_url')
+      .select('word, hint, image_url, min_level')
       .eq('is_active', true)
       .lte('min_level', userLevel);
 
