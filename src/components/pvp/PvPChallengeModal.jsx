@@ -314,20 +314,20 @@ const PvPChallengeModal = ({ opponent, onClose }) => {
 
     const seed = live ? Math.floor(Math.random() * 2147483647) : null
 
-    // Create challenge row immediately so refreshing can't allow retries
-    if (!hasPending || hasPending.challenger_id === user.id) {
-      const { data: row } = await supabase.from('pvp_challenges').insert({
-        challenger_id: user.id,
-        opponent_id: opponent.id,
-        game_type: gameId,
-        challenger_score: 0,
-        status: 'pending',
-        ...(live ? { realtime_mode: true, word_seed: seed } : {}),
-      }).select('id, challenger_id, challenger_score, game_type, created_at, status').single()
-      if (row) setHasPending(row)
-    }
-
     if (live) {
+      // Live mode still needs the row upfront so both players can sync
+      if (!hasPending || hasPending.challenger_id === user.id) {
+        const { data: row } = await supabase.from('pvp_challenges').insert({
+          challenger_id: user.id,
+          opponent_id: opponent.id,
+          game_type: gameId,
+          challenger_score: 0,
+          status: 'pending',
+          realtime_mode: true,
+          word_seed: seed,
+        }).select('id, challenger_id, challenger_score, game_type, created_at, status').single()
+        if (row) setHasPending(row)
+      }
       setRealtimeMode(true)
       setWordSeed(seed)
     }
@@ -362,10 +362,20 @@ const PvPChallengeModal = ({ opponent, onClose }) => {
           status: 'completed',
         }).eq('id', hasPending.id)
       } else if (hasPending && hasPending.challenger_id === user.id) {
-        // Update the challenge row created at game start with the real score
+        // Live mode: row already exists, just update score
         await supabase.from('pvp_challenges').update({
           challenger_score: score,
         }).eq('id', hasPending.id)
+      } else {
+        // Async mode: create the challenge row now that the game is finished
+        const { data: row } = await supabase.from('pvp_challenges').insert({
+          challenger_id: user.id,
+          opponent_id: opponent.id,
+          game_type: selectedGame,
+          challenger_score: score,
+          status: 'pending',
+        }).select('id, challenger_id, challenger_score, game_type, created_at, status').single()
+        if (row) setHasPending(row)
       }
       // Award pet XP
       if (activePet?.id) {
