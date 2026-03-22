@@ -13,6 +13,7 @@ import PetWordType from '../pet/games/PetWordType'
 import PetSayItRight from '../pet/games/PetSayItRight'
 import PetQuizRush from '../pet/games/PetQuizRush'
 import PetAngryPet from '../pet/games/PetAngryPet'
+import PetFishingGame from '../pet/games/PetFishingGame'
 import PvPRealtimeWordType from './PvPRealtimeWordType'
 import PvPRealtimeWordScramble from './PvPRealtimeWordScramble'
 import PvPRealtimeMatchGame from './PvPRealtimeMatchGame'
@@ -162,6 +163,7 @@ const GAMES = [
   { id: 'sayitright', name: 'Say It Right', icon: null, emoji: '🎤', description: 'Pronounce the word!' },
   { id: 'quizrush', name: 'Quiz Rush', icon: null, emoji: '❓', description: 'Answer questions fast!' },
   { id: 'angrypet', name: 'Angry Pet', icon: 'https://xpclass.vn/xpclass/pet-game/angry/Slingshot.png', description: 'Launch at the answer!' },
+  { id: 'fishing', name: 'Fishing', icon: null, emoji: '🎣', description: 'Catch the right fish!' },
 ]
 
 const PvPChallengeModal = ({ opponent, onClose }) => {
@@ -468,6 +470,8 @@ const PvPChallengeModal = ({ opponent, onClose }) => {
         return <PetQuizRush {...commonProps} onGameEnd={(s) => handleGameEnd(s)} questionBank={questionBank} />
       case 'angrypet':
         return <PetAngryPet {...commonProps} onGameEnd={(s) => handleGameEnd(s)} questionBank={questionBank} />
+      case 'fishing':
+        return <PetFishingGame {...commonProps} onGameEnd={(s) => handleGameEnd(s)} wordBank={wordBank} />
       default:
         return null
     }

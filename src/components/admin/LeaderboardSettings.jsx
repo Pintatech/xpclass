@@ -21,6 +21,7 @@ const GAME_TYPES = [
   { key: 'quizrush', label: 'Quiz Rush', icon: '❓' },
   { key: 'bossbattle', label: 'Boss Battle', icon: '⚔️' },
   { key: 'angrypet', label: 'Angry Pet', icon: '🏹' },
+  { key: 'fishing', label: 'Fishing', icon: '🎣' },
 ];
 
 const TRAINING_GAMES = [
@@ -34,6 +35,7 @@ const TRAINING_GAMES = [
   { key: 'quizrush', label: 'Quiz Rush', icon: '❓' },
   { key: 'bossbattle', label: 'Boss Battle', icon: '⚔️' },
   { key: 'angrypet', label: 'Angry Pet', icon: '🏹' },
+  { key: 'fishing', label: 'Fishing', icon: '🎣' },
 ];
 
 const LeaderboardSettings = () => {

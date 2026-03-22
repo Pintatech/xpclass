@@ -633,6 +633,7 @@ import PetWordType from "../pet/games/PetWordType";
 import PetSayItRight from "../pet/games/PetSayItRight";
 import PetQuizRush from "../pet/games/PetQuizRush";
 import PetAngryPet from "../pet/games/PetAngryPet";
+import PetFishingGame from "../pet/games/PetFishingGame";
 import PvPRealtimeWordType from "./PvPRealtimeWordType";
 import PvPRealtimeWordScramble from "./PvPRealtimeWordScramble";
 import PvPRealtimeMatchGame from "./PvPRealtimeMatchGame";
@@ -895,6 +896,14 @@ const PvPResponseModal = ({ challenge, onClose }) => {
             {...commonProps}
             onGameEnd={handleGameEnd}
             questionBank={questionBank}
+          />
+        );
+      case "fishing":
+        return (
+          <PetFishingGame
+            {...commonProps}
+            onGameEnd={handleGameEnd}
+            wordBank={wordBank}
           />
         );
       default:
