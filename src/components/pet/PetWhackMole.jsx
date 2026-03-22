@@ -1,7 +1,6 @@
 import { useState, useEffect, useRef, useCallback } from 'react'
 import { createPortal } from 'react-dom'
 import { Star, Heart } from 'lucide-react'
-import WORD_BANK from './wordBank'
 
 import { assetUrl } from '../../hooks/useBranding';
 const GAME_DURATION = 61
@@ -82,7 +81,7 @@ const PetWhackMole = ({ petImageUrl, petName, onGameEnd, onClose, hammerSkinUrl,
   // Pick a new target word and spawn moles
   const spawnRound = useCallback(() => {
     roundCountRef.current += 1
-    const words = wordBankProp.length > 0 ? wordBankProp : WORD_BANK
+    const words = wordBankProp
     const pair = words[Math.floor(Math.random() * words.length)]
     setTargetWord(pair)
     targetRef.current = pair

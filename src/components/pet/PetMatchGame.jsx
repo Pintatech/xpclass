@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef, useCallback } from 'react'
 import { createPortal } from 'react-dom'
 import { Trophy, Volume2, VolumeX, Heart } from 'lucide-react'
-import WORD_BANK from './wordBank'
+
 import { assetUrl } from '../../hooks/useBranding'
 
 const GAME_DURATION = 76
@@ -80,7 +80,7 @@ const PetMatchGame = ({ petImageUrl, petName, onGameEnd, onClose, wordBank: word
     const roundIdx = roundNumRef.current
     const picked = initialRounds && initialRounds[roundIdx]
       ? initialRounds[roundIdx]
-      : shuffle(wordBankProp.length > 0 ? wordBankProp : WORD_BANK).slice(0, PAIRS_PER_ROUND)
+      : shuffle(wordBankProp).slice(0, PAIRS_PER_ROUND)
     const wordTiles = picked.map((pair, i) => ({ id: `w-${i}`, pairId: i, text: pair.word, type: 'word', matched: false }))
     const hintTiles = picked.map((pair, i) => ({ id: `h-${i}`, pairId: i, text: pair.hint, type: 'hint', matched: false }))
     setTiles([...shuffle(wordTiles), ...shuffle(hintTiles)])

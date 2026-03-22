@@ -14,7 +14,7 @@ const PVP_TAUNTS = {
 import { usePet } from '../../hooks/usePet'
 import { seededPickGameWords } from '../../utils/seededRandom'
 import PetWordType from '../pet/PetWordType'
-import WORD_BANK from '../pet/wordBank'
+
 
 const PvPRealtimeWordType = ({
   challengeId,
@@ -77,7 +77,7 @@ const PvPRealtimeWordType = ({
   }, [opponent?.id, opponentPetUrl])
 
   // Generate the same word list for both players using the shared seed
-  const source = wordBank.length >= 10 ? wordBank : WORD_BANK
+  const source = wordBank
   const gameWords = useRef(seededPickGameWords(source, wordSeed)).current
 
   // Set up Supabase broadcast channel

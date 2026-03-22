@@ -1,7 +1,6 @@
 import { useState, useEffect, useRef, useCallback } from 'react'
 import { createPortal } from 'react-dom'
 import { X, Star, Volume2, VolumeX, Heart } from 'lucide-react'
-import WORD_BANK from './wordBank'
 
 import { assetUrl } from '../../hooks/useBranding';
 const PET_MAX_HP = 5
@@ -171,7 +170,7 @@ const PetWordScramble = ({ petImageUrl, petName, onGameEnd, onClose, wordBank: w
 
   // Start the game
   const startGame = useCallback(() => {
-    const gameWords = initialWords || pickGameWords(wordBankProp.length > 0 ? wordBankProp : WORD_BANK)
+    const gameWords = initialWords || pickGameWords(wordBankProp)
     setWords(gameWords)
     setWordIndex(0)
     setDisplayScore(0)
@@ -523,7 +522,7 @@ const PetWordScramble = ({ petImageUrl, petName, onGameEnd, onClose, wordBank: w
       const height = containerRef.current?.clientHeight || 700
       setupWord(words, nextIdx, width, height)
     } else {
-      const source = wordBankProp.length > 0 ? wordBankProp : WORD_BANK
+      const source = wordBankProp
       const moreWords = pickGameWords(source)
       setWords(moreWords)
       setWordIndex(0)
@@ -613,7 +612,7 @@ const PetWordScramble = ({ petImageUrl, petName, onGameEnd, onClose, wordBank: w
           setupWord(words, nextIdx, width, height)
         } else {
           // Pick more words and continue — replace array to avoid unbounded growth
-          const source = wordBankProp.length > 0 ? wordBankProp : WORD_BANK
+          const source = wordBankProp
           const moreWords = pickGameWords(source)
           setWords(moreWords)
           setWordIndex(0)

@@ -14,7 +14,7 @@ const PVP_TAUNTS = {
 import { usePet } from '../../hooks/usePet'
 import { seededPickGameWords } from '../../utils/seededRandom'
 import PetWordScramble from '../pet/PetWordScramble'
-import WORD_BANK from '../pet/wordBank'
+
 
 const PvPRealtimeWordScramble = ({
   challengeId,
@@ -75,7 +75,7 @@ const PvPRealtimeWordScramble = ({
     fetchPet()
   }, [opponent?.id, opponentPetUrl])
 
-  const source = wordBank.length >= 10 ? wordBank : WORD_BANK
+  const source = wordBank
   const gameWords = useRef(seededPickGameWords(source, wordSeed)).current
 
   useEffect(() => {

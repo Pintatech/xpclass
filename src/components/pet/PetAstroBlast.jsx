@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef, useCallback } from 'react'
 import { createPortal } from 'react-dom'
 import { X, Star, Volume2, VolumeX, Heart } from 'lucide-react'
-import WORD_BANK from './wordBank'
+
 import { assetUrl } from '../../hooks/useBranding'
 
 const GAME_DURATION = 76
@@ -92,7 +92,7 @@ const PetAstroBlast = ({ petImageUrl, petName, onGameEnd, onClose, shipSkinUrl, 
     const containerW = containerRef.current?.clientWidth || 400
 
     // Pick target
-    const words = wordBankProp.length > 0 ? wordBankProp : WORD_BANK
+    const words = wordBankProp
     const target = words[Math.floor(Math.random() * words.length)]
     currentTargetRef.current = target
     setCurrentHint(target.hint)

@@ -27,6 +27,7 @@ import PetQuizBossBattle from "./PetQuizBossBattle";
 import PetAngryPet from "./PetAngryPet";
 import PvPMatchmaking from "../pvp/PvPMatchmaking";
 import WildEncounterModal from "./WildEncounterModal";
+import PetMazeAdventure from "./PetMazeAdventure";
 
 import { assetUrl } from '../../hooks/useBranding';
 import { fetchPvpSchedule, checkPvpAvailability } from '../../utils/pvpSchedule';
@@ -115,6 +116,8 @@ const PetDisplay = () => {
   const [pvpWaitingCount, setPvpWaitingCount] = useState(0);
   const [showWildArea, setShowWildArea] = useState(false);
   const [wildAreaLoading, setWildAreaLoading] = useState(false);
+  const [mazeAdventure, setMazeAdventure] = useState(null); // { mode: 'encounter'|'standalone', pet: object|null, rarity: string }
+  const [encounterPetAfterMaze, setEncounterPetAfterMaze] = useState(null); // pet object to show WildEncounterModal after maze
   const [wildAreaCooldown, setWildAreaCooldown] = useState(0);
   const [showChat, setShowChat] = useState(false);
   const [chatInput, setChatInput] = useState("");
@@ -361,7 +364,7 @@ const PetDisplay = () => {
     return () => clearInterval(timer)
   }, [wildAreaCooldown])
 
-  // Wild Area handler
+  // Wild Area handler — routes through maze adventure before encounter
   const handleWildAreaSearch = async () => {
     setWildAreaLoading(true)
     const result = await rollWildAreaEncounter()
@@ -369,10 +372,17 @@ const PetDisplay = () => {
     if (result?.cooldown_remaining && !isAdmin()) {
       setWildAreaCooldown(result.cooldown_remaining)
     }
-    if (!result?.encountered && !result?.cooldown_remaining) {
+    if (result?.encountered) {
+      clearEncounter() // prevent WildEncounterModal from showing yet
+      setShowWildArea(false)
+      await fetchWordBank()
+      await fetchQuestionBank()
+      setMazeAdventure({ mode: 'encounter', pet: result.pet, rarity: result.pet.rarity })
+    } else if (!result?.cooldown_remaining) {
       setMessage({ type: 'info', text: 'No wild pets found... try again later!' })
     }
   }
+
 
   if (!activePet) {
     return (
@@ -668,7 +678,6 @@ const PetDisplay = () => {
       .lte('min_level', userLevel);
 
     if (words && words.length >= 10) setWordBank(words);
-    // else keep empty → games fall back to static wordBank.js
   };
 
   const fetchQuestionBank = async () => {
@@ -2366,16 +2375,41 @@ const PetDisplay = () => {
         </div>
       )}
 
-      {/* Wild Encounter Modal */}
-      {pendingEncounter && (
+      {/* Maze Adventure */}
+      {mazeAdventure && (
+        <PetMazeAdventure
+          mode={mazeAdventure.mode}
+          encounterPet={mazeAdventure.pet}
+          rarity={mazeAdventure.rarity}
+          activePet={activePet}
+          wordBank={wordBank}
+          questionBank={questionBank}
+          currentLevel={profile?.current_level || 1}
+          chestEnabled={chestEnabled}
+          profile={profile}
+          onGameEnd={(score, gameType, extra) => handleGameEnd(score, gameType, extra)}
+          onMazeComplete={() => {
+            if (mazeAdventure.mode === 'encounter' && mazeAdventure.pet) {
+              setEncounterPetAfterMaze(mazeAdventure.pet)
+            }
+            setMazeAdventure(null)
+          }}
+          onClose={() => setMazeAdventure(null)}
+        />
+      )}
+
+      {/* Wild Encounter Modal — from direct encounter or after maze adventure */}
+      {(pendingEncounter || encounterPetAfterMaze) && (
         <WildEncounterModal
-          pet={pendingEncounter}
+          pet={pendingEncounter || encounterPetAfterMaze}
           onClose={() => {
             clearEncounter()
+            setEncounterPetAfterMaze(null)
             setShowWildArea(false)
           }}
           onCatchComplete={() => {
             clearEncounter()
+            setEncounterPetAfterMaze(null)
             setShowWildArea(false)
           }}
         />

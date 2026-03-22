@@ -1,7 +1,6 @@
 import { useState, useEffect, useRef, useCallback } from 'react'
 import { createPortal } from 'react-dom'
 import { X, Trophy, Volume2, VolumeX, Mic, Square, Loader2, Heart } from 'lucide-react'
-import WORD_BANK from './wordBank'
 
 import { assetUrl } from '../../hooks/useBranding'
 
@@ -356,7 +355,7 @@ const PetSayItRight = ({ petImageUrl, petName, onGameEnd, onClose, wordBank: wor
   }, [wordIndex, words.length])
 
   const startGame = useCallback(() => {
-    const source = wordBankProp.length > 0 ? wordBankProp : WORD_BANK
+    const source = wordBankProp
     const gameWords = pickGameWords(source)
     setWords(gameWords)
     setWordIndex(0)

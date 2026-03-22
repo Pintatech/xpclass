@@ -238,7 +238,7 @@ const PetInventory = () => {
       ) : (
         <>
           <div className="absolute inset-0 bg-cover bg-center lg:hidden" style={{ backgroundImage: "url('https://imgcdn.stablediffusionweb.com/2025/2/6/3c42fbef-5900-4c3c-acb9-da0480c4b238.jpg')" }} />
-          <div className="absolute inset-0 bg-cover bg-center hidden lg:block" style={{ backgroundImage: "url('https://cdn.vectorstock.com/i/500p/37/22/cozy-home-interior-collection-vector-40573722.jpg')" }} />
+          <div className="absolute inset-0 bg-cover bg-center hidden lg:block" style={{ backgroundImage: "url('https://xpclass.vn/xpclass/pet-habitat/pet-home.jpg')" }} />
         </>
       )}
 

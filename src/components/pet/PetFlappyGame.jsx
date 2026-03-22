@@ -3,7 +3,6 @@ import { createPortal } from 'react-dom'
 import { X, Star, Clock, Heart } from 'lucide-react'
 
 import { assetUrl } from '../../hooks/useBranding';
-import WORD_BANK_FALLBACK from './wordBank';
 
 // Physics
 const GRAVITY = 0.4
@@ -60,7 +59,7 @@ const PetFlappyGame = ({ petImageUrl, petName, wordBank: wordBankProp, onGameEnd
   const [wordsCompleted, setWordsCompleted] = useState(0)
   const starsEarned = wordsCompleted >= star3Goal ? 3 : wordsCompleted >= star2Goal ? 2 : wordsCompleted >= star1Goal ? 1 : 0
 
-  const wordBank = (wordBankProp && wordBankProp.length > 0) ? wordBankProp : WORD_BANK_FALLBACK
+  const wordBank = wordBankProp || []
 
   const gameAreaRef = useRef(null)
   const animFrameRef = useRef(null)
