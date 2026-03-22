@@ -77,7 +77,7 @@ const Layout = () => {
 
   const isTestPage = location.pathname.startsWith('/study/test-runner')
   const isAdminPage = location.pathname.startsWith('/admin')
-  const isFullWidthPage = location.pathname === '/teacher/exercise-bank'
+  const isFullWidthPage = location.pathname === '/teacher/exercise-bank' || location.pathname === '/pets'
 
   const hideBottomNav = exercisePaths.some(p => location.pathname.startsWith(p)) || isSessionPage || isTestPage
   const isLiveBattle = location.pathname.startsWith('/teacher/live-battle')

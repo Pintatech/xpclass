@@ -102,8 +102,22 @@ const DuckRaceTimer = ({ onClose, participants = [] }) => {
   }, [duration, customTime, racers])
 
   // Music: play on race start, fade out on finish
+  const fadeRef = useRef(null)
+  const fadeTimeoutRef = useRef(null)
+
+  const killMusic = useCallback(() => {
+    if (fadeRef.current) { clearInterval(fadeRef.current); fadeRef.current = null }
+    if (fadeTimeoutRef.current) { clearTimeout(fadeTimeoutRef.current); fadeTimeoutRef.current = null }
+    if (musicRef.current) {
+      musicRef.current.pause()
+      musicRef.current.currentTime = 0
+      musicRef.current = null
+    }
+  }, [])
+
   useEffect(() => {
     if (phase === 'racing') {
+      killMusic()
       const audio = new Audio('https://xpclass.vn/xpclass/class-battle/race-bgmusic.mp3')
       audio.loop = true
       audio.volume = 0.5
@@ -112,16 +126,16 @@ const DuckRaceTimer = ({ onClose, participants = [] }) => {
     } else if (phase === 'finished') {
       if (musicRef.current) {
         const audio = musicRef.current
-        // Keep playing for 2 seconds, then fade out
-        setTimeout(() => {
+        fadeTimeoutRef.current = setTimeout(() => {
           let vol = audio.volume
-          const fade = setInterval(() => {
+          fadeRef.current = setInterval(() => {
             vol -= 0.05
             if (vol <= 0) {
-              clearInterval(fade)
+              clearInterval(fadeRef.current)
+              fadeRef.current = null
               audio.pause()
               audio.currentTime = 0
-              musicRef.current = null
+              if (musicRef.current === audio) musicRef.current = null
             } else {
               audio.volume = vol
             }
@@ -132,17 +146,12 @@ const DuckRaceTimer = ({ onClose, participants = [] }) => {
       applause.volume = 0.6
       applause.play().catch(() => {})
     }
-  }, [phase])
+  }, [phase, killMusic])
 
-  // Clean up music on unmount only
+  // Clean up music on unmount
   useEffect(() => {
-    return () => {
-      if (musicRef.current) {
-        musicRef.current.pause()
-        musicRef.current = null
-      }
-    }
-  }, [])
+    return () => killMusic()
+  }, [killMusic])
 
   useEffect(() => {
     if (phase !== 'racing') return
@@ -203,7 +212,7 @@ const DuckRaceTimer = ({ onClose, participants = [] }) => {
       if (progress > 0.7) {
         const winIdx = racerDataRef.current.findIndex(r => r.rank === 0)
         if (winIdx !== -1) {
-          newPositions[winIdx] += Math.pow((progress - 0.7) * 3.33, 2) * 40
+          newPositions[winIdx] += Math.pow((progress - 0.7) * 3.33, 2) * 30
         }
       }
 
@@ -220,14 +229,14 @@ const DuckRaceTimer = ({ onClose, participants = [] }) => {
       let winnerIdx = -1
 
       if (progress >= 0.65) {
-        const FINISH_LEFT = 48
+        const FINISH_LEFT = 78
         const t = Math.min((progress - 0.65) / 0.35, 1)
         const eased = t < 0.5 ? 4 * t * t * t : 1 - Math.pow(-2 * t + 2, 3) / 2
         const finishLineLeft = 110 - eased * (110 - FINISH_LEFT)
 
-        const PET_WIDTH_PCT = 6
+        const PET_WIDTH_PCT = 3
         const crossedIdx = newPositions.findIndex(pos => {
-          const displayLeft = 10 + pos * 0.45
+          const displayLeft = 5 + pos * 0.85
           return (displayLeft + PET_WIDTH_PCT) >= finishLineLeft
         })
 
@@ -289,6 +298,10 @@ const DuckRaceTimer = ({ onClose, participants = [] }) => {
           50% { transform: translateY(-2px) rotate(3deg); }
           75% { transform: translateY(3px) rotate(-2deg); }
         }
+        @keyframes petSprint {
+          0%, 100% { transform: translateY(-1px) rotate(2deg); }
+          50% { transform: translateY(1px) rotate(2deg); }
+        }
         @keyframes winnerBounce {
           0%, 100% { transform: scale(1) translateY(0); }
           30% { transform: scale(1.3) translateY(-15px); }
@@ -334,7 +347,7 @@ const DuckRaceTimer = ({ onClose, participants = [] }) => {
         }
       `}</style>
 
-      <div className="relative w-full max-w-[700px] h-full max-h-[100dvh] overflow-hidden rounded-none sm:rounded-2xl sm:max-h-[90vh] sm:shadow-2xl flex flex-col">
+      <div className="relative w-full max-w-[95vw] h-full max-h-[100dvh] overflow-hidden rounded-none sm:rounded-2xl sm:max-h-[90vh] sm:shadow-2xl flex flex-col">
 
         {/* Sky */}
         <div className="absolute inset-0" style={{
@@ -430,7 +443,7 @@ const DuckRaceTimer = ({ onClose, participants = [] }) => {
             <div className="py-2" />
 
             {/* Race track — scrolling camera follows the pack */}
-            <div className="flex-1 relative mx-3 mb-3 rounded-2xl overflow-hidden" style={{
+            <div className="flex-1 relative overflow-hidden" style={{
               background: '#3f6212',
               boxShadow: 'inset 0 2px 10px rgba(0,0,0,0.3)',
             }}>
@@ -486,7 +499,7 @@ const DuckRaceTimer = ({ onClose, participants = [] }) => {
               {(() => {
                 // Finish line scrolls from off-screen right (110%) to left (48%)
                 // Appears at progress 0.65, arrives at final position at progress 1.0
-                const FINISH_LEFT = 48
+                const FINISH_LEFT = 78
                 if (raceProgress < 0.65 && phase !== 'finished') return null
                 const t = Math.min((raceProgress - 0.65) / 0.35, 1)
                 const eased = t < 0.5 ? 4 * t * t * t : 1 - Math.pow(-2 * t + 2, 3) / 2
@@ -519,7 +532,7 @@ const DuckRaceTimer = ({ onClose, participants = [] }) => {
                 const isSprinting = speed > 1.2
                 const isSlow = speed < 0.6
                 // Compress positions into a narrower band — camera follows the pack
-                const displayLeft = 10 + pos * 0.45
+                const displayLeft = 5 + pos * 0.85
 
                 return (
                   <div key={racer.id} className="absolute left-0 right-0" style={{
@@ -567,7 +580,9 @@ const DuckRaceTimer = ({ onClose, participants = [] }) => {
                       {/* Pet image — animation speed reacts to current racer speed */}
                       <div style={{
                         animation: isRunning
-                          ? `petRun ${isSprinting ? '0.25' : isSlow ? '0.7' : '0.4'}s ease-in-out infinite`
+                          ? (raceProgress > 0.75
+                            ? 'petSprint 0.3s ease-in-out infinite'
+                            : `petRun ${Math.max(0.25, 0.6 / Math.min(speed || 1, 1.8))}s ease-in-out infinite`)
                           : isWinner
                             ? 'winnerBounce 0.8s ease-in-out infinite'
                             : 'idleBob 2s ease-in-out infinite',

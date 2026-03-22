@@ -22,6 +22,7 @@ const itemTypeOptions = [
   { value: 'pet_food', label: 'Pet Food' },
   { value: 'pet_toy', label: 'Pet Toy' },
   { value: 'background', label: 'Background' },
+  { value: 'ball', label: 'Ball' },
 ]
 
 const rarityOptions = [

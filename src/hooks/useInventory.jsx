@@ -233,6 +233,10 @@ export const InventoryProvider = ({ children }) => {
     return inventory.filter(i => i.item?.item_type === 'egg' && i.quantity > 0)
   }
 
+  const getBallsInInventory = () => {
+    return inventory.filter(i => i.item?.item_type === 'ball' && i.quantity > 0)
+  }
+
   const markTabViewed = (tab) => {
     setNewCounts(prev => ({ ...prev, [tab]: 0 }))
   }
@@ -264,6 +268,7 @@ export const InventoryProvider = ({ children }) => {
     getItemQuantity,
     getSetProgress,
     getEggsInInventory,
+    getBallsInInventory,
     newItemCount,
     newCounts,
     markTabViewed,

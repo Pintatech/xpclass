@@ -1177,6 +1177,9 @@ CREATE TABLE IF NOT EXISTS public.user_pets (
   obtained_at timestamp with time zone DEFAULT now(),
   last_fed_at timestamp with time zone,
   last_played_at timestamp with time zone,
+  habitat_x double precision,
+  habitat_y double precision,
+  habitat_flip boolean DEFAULT false,
   CONSTRAINT user_pets_pkey PRIMARY KEY (id),
   CONSTRAINT user_pets_user_id_fkey FOREIGN KEY (user_id) REFERENCES public.users(id),
   CONSTRAINT user_pets_pet_id_fkey FOREIGN KEY (pet_id) REFERENCES public.pets(id)

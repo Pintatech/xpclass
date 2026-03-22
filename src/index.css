@@ -72,6 +72,63 @@
     animation: run-across-with-pause 18s linear infinite;
   }
 
+  /* Meme fly-through: left → center (pause) → right */
+  @keyframes meme-fly-through {
+    0% {
+      transform: translateX(-120vw) scale(0.5) rotate(-15deg);
+      opacity: 0;
+    }
+    15% {
+      opacity: 1;
+    }
+    35% {
+      transform: translateX(0) scale(1) rotate(0deg);
+      opacity: 1;
+    }
+    65% {
+      transform: translateX(0) scale(1) rotate(0deg);
+      opacity: 1;
+    }
+    85% {
+      opacity: 1;
+    }
+    100% {
+      transform: translateX(120vw) scale(0.5) rotate(15deg);
+      opacity: 0;
+    }
+  }
+
+  .animate-meme-fly {
+    animation: meme-fly-through 2s ease-in-out forwards;
+  }
+
+  /* Card flash on score */
+  @keyframes card-flash {
+    0% { transform: scale(1); }
+    30% { transform: scale(1.06); }
+    100% { transform: scale(1); }
+  }
+
+  .animate-card-flash {
+    animation: card-flash 0.4s ease-out;
+  }
+
+  /* Floating point number */
+  @keyframes float-up {
+    0% {
+      opacity: 1;
+      transform: translateX(-50%) translateY(0);
+    }
+    100% {
+      opacity: 0;
+      transform: translateX(-50%) translateY(-30px);
+    }
+  }
+
+  .animate-float-up {
+    animation: float-up 0.8s ease-out forwards;
+  }
+
   .btn {
     @apply inline-flex items-center justify-center rounded-md text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-500 focus-visible:ring-offset-2 disabled:opacity-50 disabled:pointer-events-none;
   }

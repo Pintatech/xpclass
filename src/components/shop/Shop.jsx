@@ -47,12 +47,13 @@ const Shop = () => {
   const [searchParams] = useSearchParams()
   const { user, profile, updateProfile, fetchUserProfile } = useAuth()
   const { spendGems, spendXP } = useProgress()
-  const { buyEgg } = usePet()
+  const { buyEgg, buyBall } = usePet()
   const { inventory, fetchInventory, incrementNewCount } = useInventory()
 
   const [items, setItems] = useState([])
   const [purchases, setPurchases] = useState([])
   const [eggCatalog, setEggCatalog] = useState([])
+  const [ballCatalog, setBallCatalog] = useState([])
   const [loading, setLoading] = useState(true)
   const [activeTab, setActiveTab] = useState(searchParams.get('tab') || 'avatar')
   const [purchasing, setPurchasing] = useState(null)
@@ -75,7 +76,7 @@ const Shop = () => {
     try {
       setLoading(true)
 
-      const [itemsResult, purchasesResult, eggsResult] = await Promise.all([
+      const [itemsResult, purchasesResult, eggsResult, ballsResult] = await Promise.all([
         supabase
           .from('shop_items')
           .select('*')
@@ -90,6 +91,12 @@ const Shop = () => {
           .select('*')
           .eq('item_type', 'egg')
           .eq('is_active', true)
+          .order('sort_order', { ascending: true }),
+        supabase
+          .from('collectible_items')
+          .select('*')
+          .eq('item_type', 'ball')
+          .eq('is_active', true)
           .order('sort_order', { ascending: true })
       ])
 
@@ -100,6 +107,7 @@ const Shop = () => {
       setItems(itemsResult.data || [])
       setPurchases(purchasesResult.data || [])
       setEggCatalog(eggsResult.data || [])
+      setBallCatalog(ballsResult.data || [])
     } catch (err) {
       console.error('Error fetching shop data:', err)
     } finally {
@@ -199,6 +207,35 @@ const Shop = () => {
     setTimeout(() => setMessage(null), 3000)
   }
 
+  // Ball purchase handler
+  const handleConfirmBallPurchase = async () => {
+    if (!confirmItem || !confirmEggCurrency) return
+
+    const ball = confirmItem
+    const currency = confirmEggCurrency
+    setBuyingEggId(ball.id)
+    setConfirmItem(null)
+    setConfirmEggCurrency(null)
+
+    const result = await buyBall(ball.id, currency)
+
+    if (result.success) {
+      new Audio(assetUrl('/sound/shop-purchase.mp3')).play().catch(() => {})
+      const spentText = currency === 'xp'
+        ? `-${result.xp_spent} XP`
+        : `-${result.gems_spent} gems`
+      setMessage({ type: 'success', text: `Bought ${result.ball_name}! (${spentText})` })
+      await fetchInventory()
+      incrementNewCount('items')
+      if (user) await fetchUserProfile(user.id)
+    } else {
+      setMessage({ type: 'error', text: result.error || 'Failed to buy ball' })
+    }
+
+    setBuyingEggId(null)
+    setTimeout(() => setMessage(null), 3000)
+  }
+
   const handleToggleHideFrame = async () => {
     try {
       await updateProfile({ hide_frame: !profile?.hide_frame })
@@ -250,11 +287,12 @@ const Shop = () => {
   const categories = [
     { key: 'avatar', label: 'Avatar' },
     { key: 'frame', label: 'Frame' },
-    // { key: 'background', label: 'Background' },
+    { key: 'background', label: 'Background' },
     { key: 'pet', label: 'Pet bowl' },
     { key: 'spaceship', label: 'Spaceship' },
     { key: 'hammer', label: 'Hammer' },
-    { key: 'egg', label: 'Egg' },
+    { key: 'ball', label: 'Ball' },
+    // { key: 'egg', label: 'Egg' },
     // { key: 'school', label: 'School things' },
   ]
 
@@ -332,6 +370,7 @@ const Shop = () => {
   })()
 
   const sortedEggs = eggCatalog.sort((a, b) => rarityOrder.indexOf(a.rarity) - rarityOrder.indexOf(b.rarity))
+  const sortedBalls = ballCatalog.sort((a, b) => rarityOrder.indexOf(a.rarity) - rarityOrder.indexOf(b.rarity))
 
   if (loading) {
     return (
@@ -429,8 +468,90 @@ const Shop = () => {
         </div>
       )}
 
-      {/* Egg Grid */}
-      {activeTab === 'egg' ? (
+      {/* Ball Grid */}
+      {activeTab === 'ball' ? (
+        sortedBalls.length === 0 ? (
+          <div className="text-center py-16 text-gray-400">
+            <ShoppingBag className="w-16 h-16 mx-auto mb-4 opacity-30" />
+            <p className="text-lg">No balls available</p>
+            <p className="text-sm mt-1">Check back later!</p>
+          </div>
+        ) : (
+          <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-5 gap-4">
+            {sortedBalls.map(ball => {
+              const canAffordGems = (profile?.gems || 0) >= ball.price_gems
+
+              return (
+                <div
+                  key={ball.id}
+                  className={`border-2 rounded-xl p-4 transition-all hover:shadow-lg ${rarityCardColors[ball.rarity]}`}
+                >
+                  {/* Rarity Badge */}
+                  <div className="flex justify-between items-start mb-3">
+                    <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold ${rarityBadgeColors[ball.rarity]}`}>
+                      {ball.rarity.toUpperCase()}
+                    </span>
+                  </div>
+
+                  {/* Ball Image */}
+                  <div className={`w-full aspect-square rounded-xl bg-gradient-to-br ${rarityEggGradient[ball.rarity]} flex items-center justify-center mb-3 shadow-inner`}>
+                    {ball.image_url ? (
+                      <img src={ball.image_url} alt={ball.name} className="w-3/4 h-3/4 object-contain" />
+                    ) : (
+                      <div className="w-16 h-16 rounded-full bg-gradient-to-b from-red-500 to-white border-4 border-gray-800 flex items-center justify-center">
+                        <div className="w-5 h-5 rounded-full bg-white border-2 border-gray-800" />
+                      </div>
+                    )}
+                  </div>
+
+                  {/* Ball Name */}
+                  <h3 className="text-sm font-bold text-gray-800 mb-2 text-center">{ball.name}</h3>
+
+                  {/* Buy Buttons */}
+                  <div className="space-y-2">
+                    {ball.price_gems > 0 && (
+                      <button
+                        onClick={() => { setConfirmItem(ball); setConfirmEggCurrency('gems') }}
+                        disabled={buyingEggId === ball.id || !canAffordGems}
+                        className={`w-full py-1.5 rounded-lg text-xs font-bold flex items-center justify-center gap-1 transition-colors ${
+                          canAffordGems
+                            ? `bg-gradient-to-r ${rarityButtonGradient[ball.rarity]} text-white`
+                            : 'bg-gray-200 text-gray-400 cursor-not-allowed'
+                        } disabled:opacity-50`}
+                      >
+                        <img src={assetUrl('/image/study/gem.png')} alt="Gem" className="w-3.5 h-3.5" />
+                        {buyingEggId === ball.id ? '...' : ball.price_gems}
+                      </button>
+                    )}
+
+                    {ball.price_xp > 0 && (
+                      <button
+                        onClick={() => { setConfirmItem(ball); setConfirmEggCurrency('xp') }}
+                        disabled={buyingEggId === ball.id || (profile?.xp || 0) < ball.price_xp}
+                        className={`w-full py-1.5 rounded-lg text-xs font-bold flex items-center justify-center gap-1 transition-colors ${
+                          (profile?.xp || 0) >= ball.price_xp
+                            ? `bg-gradient-to-r ${rarityButtonGradient[ball.rarity]} text-white`
+                            : 'bg-gray-200 text-gray-400 cursor-not-allowed'
+                        } disabled:opacity-50`}
+                      >
+                        <img src={assetUrl('/image/study/xp.png')} alt="XP" className="w-3.5 h-3.5" />
+                        {buyingEggId === ball.id ? '...' : ball.price_xp}
+                      </button>
+                    )}
+
+                    {(!ball.price_gems || ball.price_gems <= 0) && (!ball.price_xp || ball.price_xp <= 0) && (
+                      <div className="w-full py-1.5 flex items-center justify-center gap-1 text-gray-400 text-xs">
+                        <Lock className="w-3 h-3" />
+                        Not for sale
+                      </div>
+                    )}
+                  </div>
+                </div>
+              )
+            })}
+          </div>
+        )
+      ) : activeTab === 'egg' ? (
         sortedEggs.length === 0 ? (
           <div className="text-center py-16 text-gray-400">
             <ShoppingBag className="w-16 h-16 mx-auto mb-4 opacity-30" />
@@ -746,7 +867,7 @@ const Shop = () => {
                 Hủy
               </button>
               <button
-                onClick={confirmEggCurrency ? handleConfirmEggPurchase : confirmPurchase}
+                onClick={confirmEggCurrency ? (confirmItem?.item_type === 'ball' ? handleConfirmBallPurchase : handleConfirmEggPurchase) : confirmPurchase}
                 className="flex-1 py-2 rounded-xl bg-blue-500 text-white font-medium hover:bg-blue-600 transition-colors"
               >
                 Mua

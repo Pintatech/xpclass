@@ -19,6 +19,8 @@ export const PetProvider = ({ children }) => {
   const [allPets, setAllPets] = useState([])
   const [loading, setLoading] = useState(false)
   const [userEnergy, setUserEnergy] = useState(100)
+  const [pendingEncounter, setPendingEncounter] = useState(null)
+  const [catchResult, setCatchResult] = useState(null)
 
   useEffect(() => {
     if (user) {
@@ -359,6 +361,92 @@ export const PetProvider = ({ children }) => {
     return bonuses
   }
 
+  // ---- Ball & Catch System ----
+
+  const buyBall = async (ballItemId, currency = 'gems') => {
+    if (!user) return { success: false, error: 'No user logged in' }
+    try {
+      const { data, error } = await supabase.rpc('buy_ball', {
+        p_user_id: user.id,
+        p_ball_item_id: ballItemId,
+        p_currency: currency
+      })
+      if (error) throw error
+      return data
+    } catch (error) {
+      console.error('Error buying ball:', error)
+      return { success: false, error: error.message }
+    }
+  }
+
+  const rollEncounter = async (score) => {
+    if (!user) return { encountered: false }
+    try {
+      const { data, error } = await supabase.rpc('roll_pet_encounter', {
+        p_user_id: user.id,
+        p_score: score
+      })
+      if (error) throw error
+      if (data?.encountered) {
+        setPendingEncounter(data.pet)
+      }
+      return data
+    } catch (error) {
+      console.error('Error rolling encounter:', error)
+      return { encountered: false }
+    }
+  }
+
+  const rollWildAreaEncounter = async () => {
+    if (!user) return { encountered: false }
+    try {
+      const { data, error } = await supabase.rpc('roll_wild_area_encounter', {
+        p_user_id: user.id
+      })
+      if (error) throw error
+      if (data?.encountered) {
+        setPendingEncounter(data.pet)
+      }
+      return data
+    } catch (error) {
+      console.error('Error rolling wild area encounter:', error)
+      return { encountered: false }
+    }
+  }
+
+  const attemptCatch = async (petId, ballItemId) => {
+    if (!user) return { success: false, error: 'No user logged in' }
+    try {
+      const { data, error } = await supabase.rpc('attempt_catch_pet', {
+        p_user_id: user.id,
+        p_pet_id: petId,
+        p_ball_item_id: ballItemId
+      })
+      if (error) throw error
+      setCatchResult(data)
+      if (data?.caught && !data?.duplicate) {
+        await fetchUserPets()
+        await fetchActivePet()
+      }
+      return data
+    } catch (error) {
+      console.error('Error catching pet:', error)
+      return { success: false, error: error.message }
+    }
+  }
+
+  const clearEncounter = () => setPendingEncounter(null)
+  const clearCatchResult = () => setCatchResult(null)
+
+  // Listen for encounter events from exercise completion
+  useEffect(() => {
+    const handleEncounter = (e) => {
+      if (e.detail) setPendingEncounter(e.detail)
+    }
+    window.addEventListener('pet-encounter', handleEncounter)
+    return () => window.removeEventListener('pet-encounter', handleEncounter)
+  }, [])
+
   const renamePet = async (newNickname) => {
     if (!activePet) return
     try {
@@ -374,6 +462,34 @@ export const PetProvider = ({ children }) => {
     }
   }
 
+  // Batch save all habitat positions: layout = {[userPetId]: {x, y} | undefined}
+  const saveHabitatLayout = async (layout) => {
+    if (!user) return { success: false, error: 'No user logged in' }
+    try {
+      const updates = userPets.map(up => {
+        const pos = layout[up.id]
+        return supabase
+          .from('user_pets')
+          .update({ habitat_x: pos?.x ?? null, habitat_y: pos?.y ?? null, habitat_flip: pos?.flip ?? false })
+          .eq('id', up.id)
+          .eq('user_id', user.id)
+      })
+      const results = await Promise.all(updates)
+      const failed = results.find(r => r.error)
+      if (failed) throw failed.error
+
+      // Update local state to match
+      setUserPets(prev => prev.map(up => {
+        const pos = layout[up.id]
+        return { ...up, habitat_x: pos?.x ?? null, habitat_y: pos?.y ?? null, habitat_flip: pos?.flip ?? false }
+      }))
+      return { success: true }
+    } catch (error) {
+      console.error('Error saving habitat layout:', error)
+      return { success: false, error: error.message }
+    }
+  }
+
   const value = {
     activePet,
     userPets,
@@ -382,11 +498,20 @@ export const PetProvider = ({ children }) => {
     userEnergy,
     buyEgg,
     openEgg,
+    buyBall,
+    rollEncounter,
+    rollWildAreaEncounter,
+    attemptCatch,
+    pendingEncounter,
+    catchResult,
+    clearEncounter,
+    clearCatchResult,
     setActivePetById,
     feedPet,
     playWithPet,
     evolvePet,
     renamePet,
+    saveHabitatLayout,
     updatePetOnActivity,
     drainPetEnergy,
     restoreUserEnergy,

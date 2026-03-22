@@ -59,6 +59,22 @@ const rarityColors = {
   legendary: 'border-yellow-400',
 }
 
+const rarityBg = {
+  common: 'bg-gray-50',
+  uncommon: 'bg-green-50',
+  rare: 'bg-blue-50',
+  epic: 'bg-purple-50',
+  legendary: 'bg-gradient-to-br from-yellow-50 to-amber-50',
+}
+
+const rarityGlow = {
+  common: '',
+  uncommon: 'shadow-green-200',
+  rare: 'shadow-blue-200',
+  epic: 'shadow-purple-300',
+  legendary: 'shadow-yellow-300',
+}
+
 const TeamPanel = ({
   team, // 'a' or 'b'
   teamName,
@@ -79,13 +95,19 @@ const TeamPanel = ({
   const [editingName, setEditingName] = useState(false)
   const [nameInput, setNameInput] = useState(teamName)
   const [memeImage, setMemeImage] = useState(null)
+  const [memeKey, setMemeKey] = useState(0)
+  const memeTimer = React.useRef(null)
+  const [flashCard, setFlashCard] = useState(null) // { id, val, key }
+  const flashTimer = React.useRef(null)
 
   const showMeme = (val) => {
     const img = val < 0
       ? memeImages[Math.floor(Math.random() * memeImages.length)]
       : pickCorrectImage(val)
+    if (memeTimer.current) clearTimeout(memeTimer.current)
     setMemeImage(img)
-    setTimeout(() => setMemeImage(null), 3000)
+    setMemeKey(k => k + 1)
+    memeTimer.current = setTimeout(() => setMemeImage(null), 2200)
   }
 
   const colorTheme = teamColor === 'red'
@@ -145,14 +167,14 @@ const TeamPanel = ({
               key={btn.label}
               onClick={() => {
                 const val = btn.value === 'random'
-                  ? Math.floor(Math.random() * 10) + 1
+                  ? Math.floor(Math.random() * 7) - 1
                   : btn.value
                 onAddTeamPoints(team, val)
                 playPointSound(val)
                 showMeme(val)
               }}
               className="w-8 h-8 rounded-full bg-gray-100 hover:bg-gray-200 flex items-center justify-center transition-all hover:scale-110 active:scale-95 text-base"
-              title={btn.value === 'random' ? 'Random 1-10' : `${btn.name} (${btn.label})`}
+              title={btn.value === 'random' ? 'Random -1 to 5' : `${btn.name} (${btn.label})`}
             >
               {btn.image ? (
                 <img src={btn.image} alt={btn.name} className="w-6 h-6 object-contain" />
@@ -182,7 +204,13 @@ const TeamPanel = ({
         ) : (
           <div className="grid grid-cols-3 gap-2">
             {participants.map(p => (
-              <div key={p.id} className={`bg-white rounded-xl p-2 shadow-sm border ${rarityColors[p.pet_rarity] || 'border-gray-200'} relative group`}>
+              <div key={p.id} className={`${rarityBg[p.pet_rarity] || 'bg-white'} rounded-xl p-2 border-2 ${rarityColors[p.pet_rarity] || 'border-gray-200'} ${rarityGlow[p.pet_rarity] ? `shadow-md ${rarityGlow[p.pet_rarity]}` : 'shadow-sm'} relative group transition-all duration-300 ${flashCard?.id === p.id ? 'animate-card-flash ring-2 ' + (flashCard.val < 0 ? 'ring-red-400' : 'ring-green-400') : ''}`}>
+                {/* Floating point text */}
+                {flashCard?.id === p.id && (
+                  <div key={flashCard.key} className={`absolute -top-2 left-1/2 -translate-x-1/2 z-10 text-lg font-black animate-float-up ${flashCard.val < 0 ? 'text-red-500' : 'text-green-500'}`}>
+                    {flashCard.val > 0 ? `+${flashCard.val}` : flashCard.val}
+                  </div>
+                )}
                 {/* Pet image */}
                 <div className="flex items-center gap-2">
                   <div className="w-20 h-20 flex-shrink-0 flex items-center justify-center">
@@ -209,14 +237,17 @@ const TeamPanel = ({
                         key={btn.label}
                         onClick={() => {
                           const val = btn.value === 'random'
-                            ? Math.floor(Math.random() * 10) + 1
+                            ? Math.floor(Math.random() * 7) - 1
                             : btn.value
                           onAddIndividualPoints(p.id, val)
                           playPointSound(val)
                           showMeme(val)
+                          if (flashTimer.current) clearTimeout(flashTimer.current)
+                          setFlashCard({ id: p.id, val, key: Date.now() })
+                          flashTimer.current = setTimeout(() => setFlashCard(null), 800)
                         }}
                         className="w-7 h-7 rounded-full bg-gray-100 hover:bg-gray-200 flex items-center justify-center transition-all hover:scale-110 active:scale-95 text-sm"
-                        title={btn.value === 'random' ? 'Random 1-10' : `${btn.name} (${btn.label})`}
+                        title={btn.value === 'random' ? 'Random -1 to 5' : `${btn.name} (${btn.label})`}
                       >
                         {btn.image ? (
                           <img src={btn.image} alt={btn.name} className="w-5 h-5 object-contain" />
@@ -243,13 +274,10 @@ const TeamPanel = ({
           </div>
         )}
       </div>
-      {/* Wrong answer meme popup */}
+      {/* Meme fly-through popup */}
       {memeImage && (
-        <div
-          className="fixed inset-0 z-50 flex items-center justify-center bg-black/60"
-          onClick={() => setMemeImage(null)}
-        >
-          <img src={memeImage} alt="Wrong!" className="max-w-md max-h-[70vh] rounded-2xl shadow-2xl animate-bounce-in" />
+        <div key={memeKey} className="fixed inset-0 z-50 flex items-center justify-center pointer-events-none">
+          <img src={memeImage} alt="Meme" className="max-w-md max-h-[60vh] rounded-2xl shadow-2xl animate-meme-fly" />
         </div>
       )}
     </div>

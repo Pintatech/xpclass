@@ -26,6 +26,7 @@ import PetQuizRush from "./PetQuizRush";
 import PetQuizBossBattle from "./PetQuizBossBattle";
 import PetAngryPet from "./PetAngryPet";
 import PvPMatchmaking from "../pvp/PvPMatchmaking";
+import WildEncounterModal from "./WildEncounterModal";
 
 import { assetUrl } from '../../hooks/useBranding';
 import { fetchPvpSchedule, checkPvpAvailability } from '../../utils/pvpSchedule';
@@ -72,6 +73,9 @@ const PetDisplay = () => {
     restoreUserEnergy,
     getActiveBonuses,
     userEnergy,
+    rollWildAreaEncounter,
+    pendingEncounter,
+    clearEncounter,
   } = usePet();
   const { inventory } = useInventory();
   const { user, profile, isAdmin } = useAuth();
@@ -109,6 +113,9 @@ const PetDisplay = () => {
   const [trainingBlocked, setTrainingBlocked] = useState(false); // true when outside allowed schedule
   const [trainingBlockedReason, setTrainingBlockedReason] = useState('');
   const [pvpWaitingCount, setPvpWaitingCount] = useState(0);
+  const [showWildArea, setShowWildArea] = useState(false);
+  const [wildAreaLoading, setWildAreaLoading] = useState(false);
+  const [wildAreaCooldown, setWildAreaCooldown] = useState(0);
   const [showChat, setShowChat] = useState(false);
   const [chatInput, setChatInput] = useState("");
   const [chatMessages, setChatMessages] = useState([]);
@@ -341,6 +348,31 @@ const PetDisplay = () => {
       setChatLoading(false);
     }
   };
+
+  // Wild area cooldown timer
+  useEffect(() => {
+    if (wildAreaCooldown <= 0) return
+    const timer = setInterval(() => {
+      setWildAreaCooldown(prev => {
+        if (prev <= 1) { clearInterval(timer); return 0 }
+        return prev - 1
+      })
+    }, 1000)
+    return () => clearInterval(timer)
+  }, [wildAreaCooldown])
+
+  // Wild Area handler
+  const handleWildAreaSearch = async () => {
+    setWildAreaLoading(true)
+    const result = await rollWildAreaEncounter()
+    setWildAreaLoading(false)
+    if (result?.cooldown_remaining && !isAdmin()) {
+      setWildAreaCooldown(result.cooldown_remaining)
+    }
+    if (!result?.encountered && !result?.cooldown_remaining) {
+      setMessage({ type: 'info', text: 'No wild pets found... try again later!' })
+    }
+  }
 
   if (!activePet) {
     return (
@@ -778,13 +810,18 @@ const PetDisplay = () => {
 
   const getRarityColor = (rarity) => {
     const colors = {
-      common: "text-gray-600 bg-gray-100",
-      uncommon: "text-green-600 bg-green-100",
-      rare: "text-blue-600 bg-blue-100",
-      epic: "text-purple-600 bg-purple-100",
-      legendary: "text-yellow-600 bg-yellow-100",
+      common: "text-gray-600 bg-gray-200 border border-gray-300",
+      uncommon: "text-green-700 bg-green-100 border border-green-300",
+      rare: "text-blue-700 bg-blue-100 border border-blue-300 shadow-sm shadow-blue-200",
+      epic: "text-purple-700 bg-purple-100 border border-purple-300 shadow-sm shadow-purple-200",
+      legendary: "text-yellow-800 bg-gradient-to-r from-yellow-200 to-amber-200 border border-yellow-400 shadow-md shadow-yellow-300",
     };
     return colors[rarity] || colors.common;
+  };
+
+  const getRarityStars = (rarity) => {
+    const stars = { common: '', uncommon: '★', rare: '★★', epic: '★★★', legendary: '★★★★' };
+    return stars[rarity] || '';
   };
 
   const getRarityGradient = (rarity) => {
@@ -851,8 +888,6 @@ const PetDisplay = () => {
     ? getPetEnergyStatus(userEnergy ?? 100)
     : null;
 
-  // Get background URL (null if none selected)
-  const backgroundUrl = profile?.active_background_url || null;
 
   return (
     <div
@@ -1004,8 +1039,7 @@ const PetDisplay = () => {
         {/* Pet Avatar */}
         <div className="flex-1">
           <div
-            className="bg-white rounded-xl p-4 text-center relative bg-cover bg-center"
-            style={{ backgroundImage: `url(${backgroundUrl})` }}
+            className="bg-white rounded-xl p-4 text-center relative"
           >
             {/* Pet Status - top left */}
 
@@ -1461,14 +1495,25 @@ const PetDisplay = () => {
               )}
             </div>
 
+            {/* Wild Area Button - Bottom Left (Admin only) */}
+            {isAdmin() && <div className="absolute bottom-36 left-2 z-10">
+              <button
+                onClick={() => setShowWildArea(true)}
+                className="w-12 h-12 rounded-full bg-gradient-to-br from-emerald-400 to-green-600 hover:from-emerald-300 hover:to-green-500 shadow-lg hover:scale-110 transition-all flex items-center justify-center border-2 border-emerald-300"
+                title="Wild Area - Search for wild pets"
+              >
+                <span className="text-2xl">🌿</span>
+              </button>
+            </div>}
+
             <div className="flex items-center justify-center gap-2">
               <h2 className="text-2xl font-bold text-gray-800">
                 {activePet.nickname || activePet.name}
               </h2>
               <span
-                className={`px-2 py-0.5 rounded-full text-xs font-semibold ${getRarityColor(activePet.rarity)}`}
+                className={`px-3 py-1 rounded-full text-sm font-black uppercase tracking-wider ${getRarityColor(activePet.rarity)}`}
               >
-                {activePet.rarity.toUpperCase()}
+                {getRarityStars(activePet.rarity)} {activePet.rarity}
               </span>
             </div>
             <p className="text-sm text-gray-500 mb-4">
@@ -2271,6 +2316,68 @@ const PetDisplay = () => {
           petName={evolutionOverlay.petName}
           newStageName={evolutionOverlay.newStageName}
           onComplete={() => setEvolutionOverlay(null)}
+        />
+      )}
+
+      {/* Wild Area Overlay */}
+      {showWildArea && (
+        <div className="fixed inset-0 bg-black/70 flex items-center justify-center z-40 p-4">
+          <div className="relative bg-gradient-to-b from-emerald-900 to-green-950 rounded-2xl max-w-sm w-full p-6 border border-emerald-700 shadow-2xl">
+            {/* Close button */}
+            <button
+              onClick={() => setShowWildArea(false)}
+              className="absolute top-3 right-3 text-emerald-300 hover:text-white transition-colors"
+            >
+              <X className="w-5 h-5" />
+            </button>
+
+            <div className="text-center">
+              <span className="text-4xl mb-2 block">🌿</span>
+              <h2 className="text-emerald-100 text-xl font-bold">Wild Area</h2>
+              <p className="text-emerald-300/70 text-sm mt-1">Search for wild pets hiding in the wild!</p>
+
+              <div className="mt-6">
+                {wildAreaCooldown > 0 ? (
+                  <div>
+                    <div className="text-emerald-400 text-3xl font-mono font-bold">
+                      {Math.floor(wildAreaCooldown / 60)}:{String(wildAreaCooldown % 60).padStart(2, '0')}
+                    </div>
+                    <p className="text-emerald-500 text-xs mt-2">Next search available soon...</p>
+                  </div>
+                ) : (
+                  <button
+                    onClick={handleWildAreaSearch}
+                    disabled={wildAreaLoading}
+                    className="px-8 py-3 bg-gradient-to-r from-emerald-500 to-green-600 hover:from-emerald-400 hover:to-green-500 text-white font-bold rounded-xl shadow-lg hover:scale-105 active:scale-95 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+                  >
+                    {wildAreaLoading ? (
+                      <span className="flex items-center gap-2">
+                        <Loader2 className="w-4 h-4 animate-spin" />
+                        Searching...
+                      </span>
+                    ) : (
+                      'Search for Wild Pet'
+                    )}
+                  </button>
+                )}
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Wild Encounter Modal */}
+      {pendingEncounter && (
+        <WildEncounterModal
+          pet={pendingEncounter}
+          onClose={() => {
+            clearEncounter()
+            setShowWildArea(false)
+          }}
+          onCatchComplete={() => {
+            clearEncounter()
+            setShowWildArea(false)
+          }}
         />
       )}
     </div>
