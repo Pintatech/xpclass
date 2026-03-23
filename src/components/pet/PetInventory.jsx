@@ -30,11 +30,11 @@ const rarityBadge = {
 }
 
 const rarityStars = {
-  common: '',
-  uncommon: '★',
-  rare: '★★',
-  epic: '★★★',
-  legendary: '★★★★',
+  common: '★',
+  uncommon: '★★',
+  rare: '★★★',
+  epic: '★★★★',
+  legendary: '★★★★★',
 }
 
 const rarityRing = {

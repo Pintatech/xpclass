@@ -839,7 +839,7 @@ const PetDisplay = () => {
   };
 
   const getRarityStars = (rarity) => {
-    const stars = { common: '', uncommon: '★', rare: '★★', epic: '★★★', legendary: '★★★★' };
+    const stars = { common: '★', uncommon: '★★', rare: '★★★', epic: '★★★★', legendary: '★★★★★' };
     return stars[rarity] || '';
   };
 
