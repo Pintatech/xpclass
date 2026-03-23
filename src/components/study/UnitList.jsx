@@ -778,17 +778,13 @@ const UnitList = () => {
         <div className="flex-1 overflow-y-auto p-6">
           <>
             {/* Units with Sessions */}
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-x-6 gap-y-10 mt-4 items-start">
-              {units.map((unit, unitIndex) => {
+            {(() => {
+              const renderUnitCard = (unit, unitIndex) => {
                 const unitSessions = sessions
                   .filter((session) => session.unit_id === unit.id)
-                  .sort(
-                    (a, b) =>
-                      (a.session_number || 0) - (b.session_number || 0)
-                  );
+                  .sort((a, b) => (a.session_number || 0) - (b.session_number || 0));
 
                 const progress = unitProgress[unit.id];
-
                 const backgroundImage = unit.thumbnail_url || getThemeBackground(unit.color_theme);
 
                 return (
@@ -801,34 +797,22 @@ const UnitList = () => {
                       backgroundPosition: "center",
                     }}
                   >
-                    {/* Overlay for readability */}
                     <div className="absolute inset-0 bg-white/30" />
-
-                    {/* Ribbon centered at top, overlapping the div */}
                     <div className="absolute -top-8 left-1/2 -translate-x-1/2 z-20">
                       <div className="relative">
-                        <img
-                          src={getRibbonImage(unit.color_theme)}
-                          className="w-48 h-12"
-                          alt=""
-                        />
-
-                        {/* Text overlay */}
+                        <img src={getRibbonImage(unit.color_theme)} className="w-48 h-12" alt="" />
                         <span className="absolute inset-0 flex items-center justify-center text-white font-bold text-lg drop-shadow-md">
                           {unit.title}
                         </span>
                       </div>
                     </div>
 
-                    {/* Unit Header */}
                     <div className="relative mb-3 mt-6 flex items-center justify-end">
                       <div className="flex items-center space-x-3">
                         {canCreateContent() && (
                           <button
                             onClick={() => {
-                              const base = levelId
-                                ? `/study/level/${levelId}`
-                                : `/study/course/${currentId}`;
+                              const base = levelId ? `/study/level/${levelId}` : `/study/course/${currentId}`;
                               navigate(`${base}/unit/${unit.id}`);
                             }}
                             className="p-2 text-blue-400 hover:text-blue-600 hover:bg-blue-100 rounded-lg transition-colors"
@@ -876,17 +860,13 @@ const UnitList = () => {
                       </div>
                     </div>
 
-                    {/* Sessions Grid for this Unit */}
                     {unitSessions.length > 0 ? (
                       <div
                         className="relative grid grid-cols-3 md:grid-cols-6 lg:grid-cols-4 xl:grid-cols-3 gap-3"
                         style={{ gridAutoFlow: "dense" }}
                       >
                         {unitSessions.map((session, index) => (
-                          <div
-                            key={session.id}
-                            className="flex justify-center items-start"
-                          >
+                          <div key={session.id} className="flex justify-center items-start">
                             <div style={{ width: "80px", height: "80px" }}>
                               {renderSessionCard(session, index, unit.color_theme)}
                             </div>
@@ -920,9 +900,7 @@ const UnitList = () => {
                         {canCreateContent() ? (
                           <Button
                             onClick={() => {
-                              const base = levelId
-                                ? `/study/level/${levelId}`
-                                : `/study/course/${currentId}`;
+                              const base = levelId ? `/study/level/${levelId}` : `/study/course/${currentId}`;
                               navigate(`${base}/unit/${unit.id}`);
                             }}
                             className="bg-green-600 text-white hover:bg-green-700"
@@ -931,38 +909,50 @@ const UnitList = () => {
                             Add Sessions
                           </Button>
                         ) : (
-                          <p className="text-sm text-gray-500">
-                            Sessions will be available soon
-                          </p>
+                          <p className="text-sm text-gray-500">Sessions will be available soon</p>
                         )}
                       </div>
                     )}
                   </div>
                 );
-              })}
-              {/* Add Unit Button */}
-              {canCreateContent() && (
-                <div className="bg-white rounded-lg border-2 border-dashed border-gray-300 p-8 text-center hover:border-blue-400 transition-colors">
+              };
+
+              const addUnitCard = canCreateContent() ? (
+                <div key="add-unit" className="bg-white rounded-lg border-2 border-dashed border-gray-300 p-8 text-center hover:border-blue-400 transition-colors">
                   <div className="flex flex-col items-center space-y-3">
                     <div className="w-12 h-12 bg-blue-100 rounded-lg flex items-center justify-center">
                       <Plus className="w-6 h-6 text-blue-600" />
                     </div>
                     <div>
-                      <p className="text-gray-600">
-                        Create a new learning unit for this level
-                      </p>
+                      <p className="text-gray-600">Create a new learning unit for this level</p>
                     </div>
-                    <Button
-                      onClick={() => setShowAddUnitModal(true)}
-                      className="bg-blue-600 text-white hover:bg-blue-700"
-                    >
+                    <Button onClick={() => setShowAddUnitModal(true)} className="bg-blue-600 text-white hover:bg-blue-700">
                       <Plus className="w-4 h-4 mr-2" />
                       Create Unit
                     </Button>
                   </div>
                 </div>
-              )}
-            </div>
+              ) : null;
+
+              const allItems = [
+                ...units.map((u, i) => ({ type: 'unit', unit: u, unitIndex: i })),
+                ...(addUnitCard ? [{ type: 'add' }] : []),
+              ];
+              const cols = [[], []];
+              allItems.forEach((item, i) => cols[i % 2].push(item));
+
+              return (
+                <div className="flex flex-col lg:flex-row gap-6 mt-4 items-start">
+                  {cols.map((col, colIdx) => (
+                    <div key={colIdx} className="flex-1 flex flex-col gap-10 min-w-0">
+                      {col.map((item) =>
+                        item.type === 'add' ? addUnitCard : renderUnitCard(item.unit, item.unitIndex)
+                      )}
+                    </div>
+                  ))}
+                </div>
+              );
+            })()}
 
             {/* Empty state */}
             {units.length === 0 && (

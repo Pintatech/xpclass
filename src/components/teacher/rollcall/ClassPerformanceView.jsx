@@ -15,6 +15,43 @@ const ClassPerformanceView = ({ students, records, onChange, onMarkAll, loading 
   const feedbackRefs = useRef({});
   const [uploading, setUploading] = useState({});
 
+  const fieldOrder = ['feedback', 'score', 'maxScore'];
+  const fieldRefMap = {
+    feedback: feedbackRefs,
+    score: scoreRefs,
+    maxScore: maxScoreRefs,
+  };
+
+  const handleFieldKeyDown = (e, fieldName, studentIndex) => {
+    const fi = fieldOrder.indexOf(fieldName);
+    if (e.key === 'ArrowRight') {
+      e.preventDefault();
+      const next = fieldOrder[fi + 1];
+      if (next) fieldRefMap[next].current[students[studentIndex].id]?.focus();
+    } else if (e.key === 'ArrowLeft') {
+      e.preventDefault();
+      const prev = fieldOrder[fi - 1];
+      if (prev) fieldRefMap[prev].current[students[studentIndex].id]?.focus();
+    } else if (e.key === 'ArrowDown') {
+      e.preventDefault();
+      const next = students[studentIndex + 1];
+      if (next) fieldRefMap[fieldName].current[next.id]?.focus();
+    } else if (e.key === 'ArrowUp') {
+      e.preventDefault();
+      const prev = students[studentIndex - 1];
+      if (prev) fieldRefMap[fieldName].current[prev.id]?.focus();
+    } else if (e.key === 'Enter') {
+      e.preventDefault();
+      const nextField = fieldOrder[fi + 1];
+      if (nextField) {
+        fieldRefMap[nextField].current[students[studentIndex].id]?.focus();
+      } else {
+        const nextStudent = students[studentIndex + 1];
+        if (nextStudent) fieldRefMap[fieldOrder[0]].current[nextStudent.id]?.focus();
+      }
+    }
+  };
+
   const handlePhotoUpload = async (studentId, file) => {
     if (!file) return;
 
@@ -86,7 +123,7 @@ const ClassPerformanceView = ({ students, records, onChange, onMarkAll, loading 
           </div>
         ) : (
           <div>
-            {students.map(student => {
+            {students.map((student, si) => {
               const record = records[student.id] || {};
               const rating = record.performance_rating || '';
               const starFlag = record.star_flag || '';
@@ -178,12 +215,7 @@ const ClassPerformanceView = ({ students, records, onChange, onMarkAll, loading 
                       placeholder="Feedback..."
                       value={record.notes || ''}
                       onChange={(e) => onChange(student.id, { notes: e.target.value })}
-                      onKeyDown={(e) => {
-                        if (e.key === 'Enter') {
-                          e.preventDefault();
-                          scoreRefs.current[student.id]?.focus();
-                        }
-                      }}
+                      onKeyDown={(e) => handleFieldKeyDown(e, 'feedback', si)}
                       className="border border-gray-300 rounded-lg px-2 md:px-3 py-1.5 md:py-2 flex-1 md:w-48 md:flex-none text-sm focus:ring-2 focus:ring-blue-500 min-w-0"
                     />
                     <div className="flex items-center gap-0.5 flex-shrink-0">
@@ -194,12 +226,7 @@ const ClassPerformanceView = ({ students, records, onChange, onMarkAll, loading 
                         placeholder="—"
                         value={record.score ?? ''}
                         onChange={(e) => onChange(student.id, { score: e.target.value === '' ? null : Number(e.target.value) })}
-                        onKeyDown={(e) => {
-                          if (e.key === 'Enter') {
-                            e.preventDefault();
-                            maxScoreRefs.current[student.id]?.focus();
-                          }
-                        }}
+                        onKeyDown={(e) => handleFieldKeyDown(e, 'score', si)}
                         className="w-10 md:w-12 border border-gray-300 rounded-lg px-1 py-1.5 md:py-2 text-center text-xs md:text-sm focus:ring-2 focus:ring-blue-500"
                       />
                       <span className="text-gray-400 text-xs">/</span>
@@ -210,14 +237,7 @@ const ClassPerformanceView = ({ students, records, onChange, onMarkAll, loading 
                         placeholder="—"
                         value={record.max_score ?? ''}
                         onChange={(e) => onChange(student.id, { max_score: e.target.value === '' ? null : Number(e.target.value) })}
-                        onKeyDown={(e) => {
-                          if (e.key === 'Enter') {
-                            e.preventDefault();
-                            const idx = students.findIndex(s => s.id === student.id);
-                            const next = students[idx + 1];
-                            if (next) feedbackRefs.current[next.id]?.focus();
-                          }
-                        }}
+                        onKeyDown={(e) => handleFieldKeyDown(e, 'maxScore', si)}
                         className="w-10 md:w-12 border border-gray-300 rounded-lg px-1 py-1.5 md:py-2 text-center text-xs md:text-sm focus:ring-2 focus:ring-blue-500"
                       />
                     </div>

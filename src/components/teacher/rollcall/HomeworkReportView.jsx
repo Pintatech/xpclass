@@ -24,6 +24,45 @@ const HomeworkReportView = ({ students, courseId, records, onChange, onMarkAll, 
   const vocabMaxScoreRefs = useRef({});
   const [uploading, setUploading] = useState({});
 
+  const fieldOrder = ['feedback', 'score', 'maxScore', 'vocabScore', 'vocabMaxScore'];
+  const fieldRefMap = {
+    feedback: feedbackRefs,
+    score: scoreRefs,
+    maxScore: maxScoreRefs,
+    vocabScore: vocabScoreRefs,
+    vocabMaxScore: vocabMaxScoreRefs,
+  };
+
+  const handleFieldKeyDown = (e, fieldName, studentIndex) => {
+    const fi = fieldOrder.indexOf(fieldName);
+    if (e.key === 'ArrowRight') {
+      e.preventDefault();
+      const next = fieldOrder[fi + 1];
+      if (next) fieldRefMap[next].current[students[studentIndex].id]?.focus();
+    } else if (e.key === 'ArrowLeft') {
+      e.preventDefault();
+      const prev = fieldOrder[fi - 1];
+      if (prev) fieldRefMap[prev].current[students[studentIndex].id]?.focus();
+    } else if (e.key === 'ArrowDown') {
+      e.preventDefault();
+      const next = students[studentIndex + 1];
+      if (next) fieldRefMap[fieldName].current[next.id]?.focus();
+    } else if (e.key === 'ArrowUp') {
+      e.preventDefault();
+      const prev = students[studentIndex - 1];
+      if (prev) fieldRefMap[fieldName].current[prev.id]?.focus();
+    } else if (e.key === 'Enter') {
+      e.preventDefault();
+      const nextField = fieldOrder[fi + 1];
+      if (nextField) {
+        fieldRefMap[nextField].current[students[studentIndex].id]?.focus();
+      } else {
+        const nextStudent = students[studentIndex + 1];
+        if (nextStudent) fieldRefMap[fieldOrder[0]].current[nextStudent.id]?.focus();
+      }
+    }
+  };
+
   useEffect(() => {
     if (courseId && mode === 'course') loadSessions();
   }, [courseId, mode]);
@@ -328,7 +367,7 @@ const HomeworkReportView = ({ students, courseId, records, onChange, onMarkAll, 
             </div>
           ) : (
             <div className="bg-white rounded-lg shadow-sm border">
-              {students.map(student => {
+              {students.map((student, si) => {
                 const p = progress[student.id];
                 const record = records[student.id] || {};
                 const grade = record.homework_status || '';
@@ -358,10 +397,12 @@ const HomeworkReportView = ({ students, courseId, records, onChange, onMarkAll, 
                     <div className="flex items-end gap-4 md:gap-6 flex-shrink-0">
                       {renderPhotoButton(student.id, record)}
                       <input
+                        ref={el => feedbackRefs.current[student.id] = el}
                         type="text"
                         placeholder="Feedback..."
                         value={record.homework_notes || ''}
                         onChange={(e) => onChange(student.id, { homework_notes: e.target.value })}
+                        onKeyDown={(e) => handleFieldKeyDown(e, 'feedback', si)}
                         className="border border-gray-300 rounded-lg px-2 md:px-3 py-1.5 md:py-2 flex-1 md:w-48 md:flex-none text-sm focus:ring-2 focus:ring-blue-500 min-w-0"
                       />
                       <div className="flex items-center gap-8 flex-shrink-0">
@@ -369,20 +410,24 @@ const HomeworkReportView = ({ students, courseId, records, onChange, onMarkAll, 
                           <span className="text-[10px] text-gray-400 leading-none">Bài tập</span>
                           <div className="flex items-center gap-0.5">
                             <input
+                              ref={el => scoreRefs.current[student.id] = el}
                               type="number"
                               min="0"
                               placeholder="—"
                               value={record.homework_score ?? ''}
                               onChange={(e) => onChange(student.id, { homework_score: e.target.value === '' ? null : Number(e.target.value) })}
+                              onKeyDown={(e) => handleFieldKeyDown(e, 'score', si)}
                               className="w-10 md:w-12 border border-gray-300 rounded-lg px-1 py-1.5 md:py-2 text-center text-xs md:text-sm focus:ring-2 focus:ring-blue-500"
                             />
                             <span className="text-gray-400 text-xs">/</span>
                             <input
+                              ref={el => maxScoreRefs.current[student.id] = el}
                               type="number"
                               min="1"
                               placeholder="—"
                               value={record.homework_max_score ?? ''}
                               onChange={(e) => onChange(student.id, { homework_max_score: e.target.value === '' ? null : Number(e.target.value) })}
+                              onKeyDown={(e) => handleFieldKeyDown(e, 'maxScore', si)}
                               className="w-10 md:w-12 border border-gray-300 rounded-lg px-1 py-1.5 md:py-2 text-center text-xs md:text-sm focus:ring-2 focus:ring-blue-500"
                             />
                           </div>
@@ -391,20 +436,24 @@ const HomeworkReportView = ({ students, courseId, records, onChange, onMarkAll, 
                           <span className="text-[10px] text-gray-400 leading-none">Từ vựng</span>
                           <div className="flex items-center gap-0.5">
                             <input
+                              ref={el => vocabScoreRefs.current[student.id] = el}
                               type="number"
                               min="0"
                               placeholder="—"
                               value={record.vocab_score ?? ''}
                               onChange={(e) => onChange(student.id, { vocab_score: e.target.value === '' ? null : Number(e.target.value) })}
+                              onKeyDown={(e) => handleFieldKeyDown(e, 'vocabScore', si)}
                               className="w-10 md:w-12 border border-gray-300 rounded-lg px-1 py-1.5 md:py-2 text-center text-xs md:text-sm focus:ring-2 focus:ring-blue-500"
                             />
                             <span className="text-gray-400 text-xs">/</span>
                             <input
+                              ref={el => vocabMaxScoreRefs.current[student.id] = el}
                               type="number"
                               min="1"
                               placeholder="—"
                               value={record.vocab_max_score ?? ''}
                               onChange={(e) => onChange(student.id, { vocab_max_score: e.target.value === '' ? null : Number(e.target.value) })}
+                              onKeyDown={(e) => handleFieldKeyDown(e, 'vocabMaxScore', si)}
                               className="w-10 md:w-12 border border-gray-300 rounded-lg px-1 py-1.5 md:py-2 text-center text-xs md:text-sm focus:ring-2 focus:ring-blue-500"
                             />
                           </div>
@@ -455,7 +504,7 @@ const HomeworkReportView = ({ students, courseId, records, onChange, onMarkAll, 
             </div>
           ) : (
             <div>
-              {students.map(student => {
+              {students.map((student, si) => {
                 const record = records[student.id] || {};
                 const grade = record.homework_status || '';
 
@@ -487,12 +536,7 @@ const HomeworkReportView = ({ students, courseId, records, onChange, onMarkAll, 
                         placeholder="Feedback..."
                         value={record.homework_notes || ''}
                         onChange={(e) => onChange(student.id, { homework_notes: e.target.value })}
-                        onKeyDown={(e) => {
-                          if (e.key === 'Enter') {
-                            e.preventDefault();
-                            scoreRefs.current[student.id]?.focus();
-                          }
-                        }}
+                        onKeyDown={(e) => handleFieldKeyDown(e, 'feedback', si)}
                         className="border border-gray-300 rounded-lg px-2 md:px-3 py-1.5 md:py-2 flex-1 md:w-48 md:flex-none text-sm focus:ring-2 focus:ring-blue-500 min-w-0"
                       />
                       <div className="flex items-center gap-8 flex-shrink-0">
@@ -506,12 +550,7 @@ const HomeworkReportView = ({ students, courseId, records, onChange, onMarkAll, 
                               placeholder="—"
                               value={record.homework_score ?? ''}
                               onChange={(e) => onChange(student.id, { homework_score: e.target.value === '' ? null : Number(e.target.value) })}
-                              onKeyDown={(e) => {
-                                if (e.key === 'Enter') {
-                                  e.preventDefault();
-                                  maxScoreRefs.current[student.id]?.focus();
-                                }
-                              }}
+                              onKeyDown={(e) => handleFieldKeyDown(e, 'score', si)}
                               className="w-10 md:w-12 border border-gray-300 rounded-lg px-1 py-1.5 md:py-2 text-center text-xs md:text-sm focus:ring-2 focus:ring-blue-500"
                             />
                             <span className="text-gray-400 text-xs">/</span>
@@ -522,12 +561,7 @@ const HomeworkReportView = ({ students, courseId, records, onChange, onMarkAll, 
                               placeholder="—"
                               value={record.homework_max_score ?? ''}
                               onChange={(e) => onChange(student.id, { homework_max_score: e.target.value === '' ? null : Number(e.target.value) })}
-                              onKeyDown={(e) => {
-                                if (e.key === 'Enter') {
-                                  e.preventDefault();
-                                  vocabScoreRefs.current[student.id]?.focus();
-                                }
-                              }}
+                              onKeyDown={(e) => handleFieldKeyDown(e, 'maxScore', si)}
                               className="w-10 md:w-12 border border-gray-300 rounded-lg px-1 py-1.5 md:py-2 text-center text-xs md:text-sm focus:ring-2 focus:ring-blue-500"
                             />
                           </div>
@@ -542,12 +576,7 @@ const HomeworkReportView = ({ students, courseId, records, onChange, onMarkAll, 
                               placeholder="—"
                               value={record.vocab_score ?? ''}
                               onChange={(e) => onChange(student.id, { vocab_score: e.target.value === '' ? null : Number(e.target.value) })}
-                              onKeyDown={(e) => {
-                                if (e.key === 'Enter') {
-                                  e.preventDefault();
-                                  vocabMaxScoreRefs.current[student.id]?.focus();
-                                }
-                              }}
+                              onKeyDown={(e) => handleFieldKeyDown(e, 'vocabScore', si)}
                               className="w-10 md:w-12 border border-gray-300 rounded-lg px-1 py-1.5 md:py-2 text-center text-xs md:text-sm focus:ring-2 focus:ring-blue-500"
                             />
                             <span className="text-gray-400 text-xs">/</span>
@@ -558,14 +587,7 @@ const HomeworkReportView = ({ students, courseId, records, onChange, onMarkAll, 
                               placeholder="—"
                               value={record.vocab_max_score ?? ''}
                               onChange={(e) => onChange(student.id, { vocab_max_score: e.target.value === '' ? null : Number(e.target.value) })}
-                              onKeyDown={(e) => {
-                                if (e.key === 'Enter') {
-                                  e.preventDefault();
-                                  const idx = students.findIndex(s => s.id === student.id);
-                                  const next = students[idx + 1];
-                                  if (next) feedbackRefs.current[next.id]?.focus();
-                                }
-                              }}
+                              onKeyDown={(e) => handleFieldKeyDown(e, 'vocabMaxScore', si)}
                               className="w-10 md:w-12 border border-gray-300 rounded-lg px-1 py-1.5 md:py-2 text-center text-xs md:text-sm focus:ring-2 focus:ring-blue-500"
                             />
                           </div>
