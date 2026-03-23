@@ -23,6 +23,8 @@ import {
   BarChart3,
   ClipboardList,
   Swords,
+  ChevronUp,
+  ChevronDown,
 } from "lucide-react";
 import StudentStatsPopover from "../ui/StudentStatsPopover";
 import useClassStats from "../../hooks/useClassStats";
@@ -462,6 +464,33 @@ const UnitList = () => {
     alert("Unit updated successfully!");
   };
 
+  const handleSwapUnit = async (unitIndex, direction) => {
+    const targetIndex = unitIndex + direction;
+    if (targetIndex < 0 || targetIndex >= units.length) return;
+
+    const unitA = units[unitIndex];
+    const unitB = units[targetIndex];
+    const numA = unitA.unit_number;
+    const numB = unitB.unit_number;
+
+    try {
+      await Promise.all([
+        supabase.from("units").update({ unit_number: numB }).eq("id", unitA.id),
+        supabase.from("units").update({ unit_number: numA }).eq("id", unitB.id),
+      ]);
+
+      setUnits((prev) => {
+        const next = [...prev];
+        next[unitIndex] = { ...unitA, unit_number: numB };
+        next[targetIndex] = { ...unitB, unit_number: numA };
+        next.sort((a, b) => (a.unit_number || 0) - (b.unit_number || 0));
+        return next;
+      });
+    } catch (err) {
+      console.error("Error swapping units:", err);
+    }
+  };
+
   const handleEditUnit = (unit) => {
     setEditingUnit(unit);
     setShowEditUnitModal(true);
@@ -749,8 +778,8 @@ const UnitList = () => {
         <div className="flex-1 overflow-y-auto p-6">
           <>
             {/* Units with Sessions */}
-            <div className="columns-1 lg:columns-2 gap-6 mt-4 [&>*]:mb-10 [&>*]:break-inside-avoid">
-              {units.map((unit) => {
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-x-6 gap-y-10 mt-4 items-start">
+              {units.map((unit, unitIndex) => {
                 const unitSessions = sessions
                   .filter((session) => session.unit_id === unit.id)
                   .sort(
@@ -812,6 +841,22 @@ const UnitList = () => {
                       <div className="flex items-center space-x-2">
                         {canCreateContent() && (
                           <div className="flex items-center space-x-1">
+                            <button
+                              onClick={() => handleSwapUnit(unitIndex, -1)}
+                              disabled={unitIndex === 0}
+                              className="p-2 text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded-lg transition-colors disabled:opacity-30 disabled:cursor-not-allowed"
+                              title="Move up"
+                            >
+                              <ChevronUp className="w-4 h-4" />
+                            </button>
+                            <button
+                              onClick={() => handleSwapUnit(unitIndex, 1)}
+                              disabled={unitIndex === units.length - 1}
+                              className="p-2 text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded-lg transition-colors disabled:opacity-30 disabled:cursor-not-allowed"
+                              title="Move down"
+                            >
+                              <ChevronDown className="w-4 h-4" />
+                            </button>
                             <button
                               onClick={() => handleEditUnit(unit)}
                               className="p-2 text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded-lg transition-colors"
