@@ -1440,8 +1440,8 @@ const ExerciseList = () => {
               isDummy
                 ? "w-[14px] h-[14px] md:w-[32px] md:h-[32px]"
                 : !unlocked
-                  ? "w-[50px] h-[50px] md:w-[80px] md:h-[80px] cursor-not-allowed" // locked which is not used
-                  : "w-[42px] h-[42px] md:w-[80px] md:h-[80px]" // exercise node
+                  ? "w-[50px] h-[50px] md:w-[72px] md:h-[72px] cursor-not-allowed" // locked which is not used
+                  : "w-[42px] h-[42px] md:w-[72px] md:h-[72px]" // exercise node
             }`}
             onClick={handleClick}
           >

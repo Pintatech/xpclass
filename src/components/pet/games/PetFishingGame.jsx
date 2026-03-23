@@ -16,6 +16,18 @@ const STAR_THRESHOLDS = {
 const BASE_FISH_SPEED = 0.7
 const SPEED_BY_LEVEL = { 1: 1, 2: 1.15, 3: 1.3, 4: 1.5 }
 const FISH_EMOJIS = ['🐟', '🐠', '🐡', '🦈', '🐙', '🦀', '🦞', '🦐', '🐳', '🐋']
+const FISH_BASE_POINTS = {
+  '🐟': 10, '🐠': 10, '🐡': 10, 
+  '🦀': 11, '🦞': 11, '🦐': 11,'🐙': 10,
+  '🐬': 12, '🦈': 12, '🐳': 12, '🐋': 12,
+}
+
+const POWERUPS = [
+  { type: 'slow', img: 'https://xpclass.vn/xpclass/pet-game/fish/freeze.png', label: 'Slow', duration: 0 },
+  { type: 'double', img: 'https://xpclass.vn/xpclass/pet-game/fish/double-fish.png', label: '2x', duration: 8000 },
+  { type: 'heal', img: 'https://xpclass.vn/xpclass/pet-game/fish/heart.png', label: '+1 HP', duration: 0 },
+]
+const POWERUP_CHANCE = 0.15 // 15% chance per round
 
 const shuffle = (arr) => {
   const a = [...arr]
@@ -52,6 +64,11 @@ const PetFishingGame = ({ petImageUrl, petName, onGameEnd, onClose, wordBank: wo
   const [isChestRound, setIsChestRound] = useState(false)
   const [chestTimer, setChestTimer] = useState(0)
 
+  // Power-ups
+  const [powerups, setPowerups] = useState([]) // floating power-up items
+  const [activePowerup, setActivePowerup] = useState(null) // { type, expiresAt }
+  const activePowerupRef = useRef(null)
+
   // Hook state: null | { phase: 'dropping'|'reeling', fishId, targetX, targetY, hookY, startTime }
   const [hook, setHook] = useState(null)
   const hookRef = useRef(null) // keep in sync for animation loop
@@ -85,6 +102,12 @@ const PetFishingGame = ({ petImageUrl, petName, onGameEnd, onClose, wordBank: wo
 
   // Spawn a round of fish
   const spawnRound = useCallback(() => {
+    // Clear round-scoped power-ups (slow)
+    if (activePowerupRef.current?.type === 'slow') {
+      activePowerupRef.current = null
+      setActivePowerup(null)
+    }
+
     const containerW = containerRef.current?.clientWidth || 400
     const containerH = containerRef.current?.clientHeight || 700
 
@@ -147,6 +170,25 @@ const PetFishingGame = ({ petImageUrl, petName, onGameEnd, onClose, wordBank: wo
         setFish(prev => [...prev, newFish])
       }, delay)
     })
+
+    // Maybe spawn a power-up
+    if (Math.random() < POWERUP_CHANCE && !activePowerupRef.current) {
+      const pu = POWERUPS[Math.floor(Math.random() * POWERUPS.length)]
+      const goingRight = Math.random() > 0.5
+      const puY = waterTop + Math.random() * (waterBottom - waterTop)
+      const puSpeed = (BASE_FISH_SPEED + 0.5) * speedMul
+      setPowerups(prev => [...prev, {
+        id: `pu-${Date.now()}`,
+        ...pu,
+        x: goingRight ? -60 : containerW + 60,
+        y: puY,
+        baseY: puY,
+        vx: goingRight ? puSpeed : -puSpeed,
+        direction: goingRight ? 1 : -1,
+        opacity: 1,
+        wiggleOffset: Math.random() * Math.PI * 2,
+      }])
+    }
   }, [wordBankProp, chestEnabled, speedMul])
 
   // Start game
@@ -172,6 +214,9 @@ const PetFishingGame = ({ petImageUrl, petName, onGameEnd, onClose, wordBank: wo
     setChestTimer(0)
     setHook(null)
     hookRef.current = null
+    setPowerups([])
+    setActivePowerup(null)
+    activePowerupRef.current = null
     setPhase('playing')
 
     try {
@@ -210,10 +255,10 @@ const PetFishingGame = ({ petImageUrl, petName, onGameEnd, onClose, wordBank: wo
     return () => clearInterval(interval)
   }, [chestTimer])
 
-  // Spawn next round
+  // Spawn next round immediately
   const scheduleNextRound = useCallback(() => {
     if (spawnTimerRef.current) clearTimeout(spawnTimerRef.current)
-    spawnTimerRef.current = setTimeout(() => spawnRound(), 100)
+    spawnRound()
   }, [spawnRound])
 
   // Timer countdown
@@ -359,11 +404,12 @@ const PetFishingGame = ({ petImageUrl, petName, onGameEnd, onClose, wordBank: wo
             const wobble = Math.sin(now / 500 + f.wiggleOffset) * 3
             return { ...f, x: f.x + f.vx * 0.5 * dt, y: f.baseY + wobble }
           }
-          // Normal swimming
+          // Normal swimming (slow if power-up active)
+          const slowMul = activePowerupRef.current?.type === 'slow' ? 0.35 : 1
           const wobble = Math.sin(now / 500 + f.wiggleOffset) * 6
           return {
             ...f,
-            x: f.x + f.vx * dt,
+            x: f.x + f.vx * dt * slowMul,
             y: f.baseY + wobble,
           }
         })
@@ -412,6 +458,27 @@ const PetFishingGame = ({ petImageUrl, petName, onGameEnd, onClose, wordBank: wo
         scheduleNextRound()
       }
 
+      // Power-up movement
+      setPowerups(prev => prev.map(p => {
+        const wobble = Math.sin(now / 400 + p.wiggleOffset) * 8
+        return { ...p, x: p.x + p.vx * dt, y: p.baseY + wobble }
+      }).filter(p => {
+        const offScreen = p.direction === 1 ? p.x > containerW() + 80 : p.x < -80
+        return !offScreen
+      }))
+
+      // Expire timed power-ups + update progress
+      if (activePowerupRef.current?.expiresAt) {
+        if (now >= activePowerupRef.current.expiresAt) {
+          activePowerupRef.current = null
+          setActivePowerup(null)
+        } else {
+          const remaining = activePowerupRef.current.expiresAt - now
+          const duration = activePowerupRef.current.duration
+          setActivePowerup(prev => prev ? { ...prev, progress: remaining / duration } : null)
+        }
+      }
+
       // Particles
       setParticles(prev => prev.map(p => ({
         ...p,
@@ -449,7 +516,11 @@ const PetFishingGame = ({ petImageUrl, petName, onGameEnd, onClose, wordBank: wo
       setStreak(newStreak)
 
       const streakTier = newStreak >= 5 ? 3 : newStreak >= 3 ? 2 : 1
-      const points = 10 + streakTier
+      const base = FISH_BASE_POINTS[fishObj.emoji] || 10
+      const catchTime = (performance.now() - fishObj.spawnTime) / 1000
+      const speedBonus = catchTime < 1.5 ? 3 : catchTime < 3 ? 2 : catchTime < 5 ? 1 : 0
+      const doubleMul = activePowerupRef.current?.type === 'double' ? 2 : 1
+      const points = (base + streakTier + speedBonus) * doubleMul
       scoreRef.current += points
       setDisplayScore(scoreRef.current)
       setWordsCompleted(prev => prev + 1)
@@ -533,6 +604,42 @@ const PetFishingGame = ({ petImageUrl, petName, onGameEnd, onClose, wordBank: wo
   // Keep ref in sync so the animation loop can call it
   evaluateCatchRef.current = evaluateCatch
 
+  // Handle tapping a power-up
+  const handlePowerupTap = useCallback((pu) => {
+    if (phase !== 'playing') return
+    setPowerups(prev => prev.filter(p => p.id !== pu.id))
+    playSound(assetUrl('/sound/scram-correct.mp3'), 0.3)
+
+    if (pu.type === 'heal') {
+      if (petHp >= PET_MAX_HP) {
+        // Full HP — award 30 points instead
+        scoreRef.current += 30
+        setDisplayScore(scoreRef.current)
+        setWordPopup({ points: 30, streak: 0 })
+        setTimeout(() => setWordPopup(null), 1000)
+        setFeedback({ type: 'correct', word: '+30', x: pu.x, y: pu.y })
+      } else {
+        setPetHp(prev => Math.min(prev + 1, PET_MAX_HP))
+        setFeedback({ type: 'correct', word: '+1 HP', x: pu.x, y: pu.y })
+      }
+      setTimeout(() => setFeedback(null), 600)
+    } else if (pu.type === 'slow') {
+      // Slow applies to current round only — store the round index
+      const active = { type: 'slow', img: pu.img, label: pu.label, roundIndex: roundIndexRef.current }
+      activePowerupRef.current = active
+      setActivePowerup(active)
+      setFeedback({ type: 'correct', word: `${pu.label}!`, x: pu.x, y: pu.y })
+      setTimeout(() => setFeedback(null), 600)
+    } else {
+      // Timed power-ups (slow, double)
+      const active = { type: pu.type, img: pu.img, label: pu.label, duration: pu.duration, expiresAt: performance.now() + pu.duration }
+      activePowerupRef.current = active
+      setActivePowerup(active)
+      setFeedback({ type: 'correct', word: `${pu.label}!`, x: pu.x, y: pu.y })
+      setTimeout(() => setFeedback(null), 600)
+    }
+  }, [phase, playSound, petHp])
+
   // Handle tapping a fish — drop the hook
   const handleFishTap = useCallback((fishObj) => {
     if (phase !== 'playing' || fishObj.caught || fishObj.wrong || fishObj.hooked) return
@@ -569,6 +676,10 @@ const PetFishingGame = ({ petImageUrl, petName, onGameEnd, onClose, wordBank: wo
         @keyframes fishBob {
           0%, 100% { transform: translateY(-3px); }
           50% { transform: translateY(3px); }
+        }
+        @keyframes bobFloat {
+          0%, 100% { transform: translateY(0) scale(1); }
+          50% { transform: translateY(-8px) scale(1.1); }
         }
         @keyframes fishCaught {
           0% { transform: translateY(0) scale(1); opacity: 1; }
@@ -795,6 +906,26 @@ const PetFishingGame = ({ petImageUrl, petName, onGameEnd, onClose, wordBank: wo
             />
           ))}
 
+          {/* Floating power-ups */}
+          {powerups.map(pu => (
+            <button
+              key={pu.id}
+              onPointerDown={(e) => { e.preventDefault(); e.stopPropagation(); handlePowerupTap(pu) }}
+              className="absolute touch-none cursor-pointer z-10"
+              style={{
+                left: pu.x - 25,
+                top: pu.y - 25,
+                animation: 'bobFloat 1.5s ease-in-out infinite',
+              }}
+            >
+              <div className="w-12 h-12 rounded-full bg-white/90 border-2 border-yellow-400 flex items-center justify-center shadow-lg"
+                style={{ boxShadow: '0 0 12px rgba(250,204,21,0.5)' }}
+              >
+                <img src={pu.img} alt={pu.label} className="w-8 h-8 object-contain" />
+              </div>
+            </button>
+          ))}
+
           {/* Swimming fish */}
           {fish.map(f => (
             <button
@@ -814,7 +945,7 @@ const PetFishingGame = ({ petImageUrl, petName, onGameEnd, onClose, wordBank: wo
             >
               <div className="flex flex-col items-center gap-0.5" style={{ minWidth: 90 }}>
                 <span className="text-4xl" style={{
-                  transform: f.direction === -1 ? 'scaleX(-1)' : 'none',
+                  transform: f.direction === 1 ? 'scaleX(-1)' : 'none',
                   filter: f.isChest ? 'drop-shadow(0 0 8px #fbbf24)' : 'none',
                 }}>
                   {f.isChest ? '🪙' : f.emoji}
@@ -1067,6 +1198,25 @@ const PetFishingGame = ({ petImageUrl, petName, onGameEnd, onClose, wordBank: wo
           {/* Boat on water surface */}
           <div className="absolute left-1/2 z-[3] pointer-events-none" style={{ top: '32%', transform: 'translateX(-50%)', animation: 'boatRock 4s ease-in-out infinite' }}>
             <span style={{ fontSize: 42, filter: 'drop-shadow(0 3px 6px rgba(0,0,0,0.4))' }}>⛵</span>
+            {activePowerup && (
+              <div className="absolute -right-10 top-1/2 -translate-y-1/2" style={{ width: 40, height: 40 }}>
+                {activePowerup.expiresAt ? (() => {
+                  const circumference = 2 * Math.PI * 16
+                  const progress = activePowerup.progress ?? 1
+                  return (
+                    <svg className="absolute inset-0 w-full h-full -rotate-90" viewBox="0 0 36 36">
+                      <circle cx="18" cy="18" r="16" fill="none" stroke="rgba(255,255,255,0.2)" strokeWidth="3" />
+                      <circle cx="18" cy="18" r="16" fill="none" stroke="#facc15" strokeWidth="3"
+                        strokeDasharray={circumference}
+                        strokeDashoffset={circumference * (1 - progress)}
+                        strokeLinecap="round"
+                      />
+                    </svg>
+                  )
+                })() : null}
+                <img src={activePowerup.img} alt={activePowerup.label} className="absolute inset-0 m-auto w-6 h-6 object-contain drop-shadow-lg animate-pulse" />
+              </div>
+            )}
           </div>
 
           {/* Fishing line + hook (dynamic) */}

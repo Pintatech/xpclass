@@ -79,7 +79,7 @@ const PetDisplay = () => {
     pendingEncounter,
     clearEncounter,
   } = usePet();
-  const { inventory } = useInventory();
+  const { inventory, fetchInventory } = useInventory();
   const { user, profile, isAdmin } = useAuth();
   const isStaff = () => isAdmin() || profile?.role === 'teacher';
   const { getEquippedItemsXPBonus, addXP } = useProgress();
@@ -365,15 +365,24 @@ const PetDisplay = () => {
     return () => clearInterval(timer)
   }, [wildAreaCooldown])
 
+  // Ticket count for wild area
+  const adventureTickets = inventory.filter(i => i.item?.item_type === 'ticket' && i.item?.name === 'Adventure Ticket')
+  const adventureTicketCount = adventureTickets.reduce((sum, i) => sum + (i.quantity || 0), 0)
+
   // Wild Area handler — routes through maze adventure before encounter
   const handleWildAreaSearch = async () => {
     setWildAreaLoading(true)
     const result = await rollWildAreaEncounter()
     setWildAreaLoading(false)
+    if (result?.error === 'no_ticket') {
+      setMessage({ type: 'error', text: 'You need an Adventure Ticket to enter the Wild Area!' })
+      return
+    }
     if (result?.cooldown_remaining && !isAdmin()) {
       setWildAreaCooldown(result.cooldown_remaining)
     }
     if (result?.encountered) {
+      fetchInventory() // refresh ticket count
       clearEncounter() // prevent WildEncounterModal from showing yet
       setShowWildArea(false)
       await fetchWordBank()
@@ -1701,7 +1710,6 @@ const PetDisplay = () => {
             <div className="sticky top-0 z-10 bg-blue-500 text-white px-6 py-5 rounded-t-2xl flex justify-between items-center">
               <div>
                 <h2 className="text-xl font-bold tracking-tight">Pet System Guide</h2>
-                <p className="text-blue-100 text-xs mt-0.5">Everything about your companion</p>
               </div>
               <button
                 onClick={() => setShowPetInfo(false)}
@@ -2000,7 +2008,7 @@ const PetDisplay = () => {
                 className={`relative flex flex-col items-center gap-2 p-4 rounded-xl border-2 transition-all group ${competitionGame === 'sayitright' ? 'border-yellow-400 bg-yellow-50 ring-2 ring-yellow-300' : 'border-orange-200 hover:border-orange-400 hover:bg-orange-50'}`}
               >
                 {competitionGame === 'sayitright' && <span className="absolute -top-2 -right-2 text-lg">🏆</span>}
-                <span className="text-5xl w-20 h-20 flex items-center justify-center group-hover:scale-110 transition-transform">🎤</span>
+                <img src="https://xpclass.vn/xpclass/pet-display/game-logo/say.png" alt="Say It Right" className="w-20 h-20 object-contain rounded-lg group-hover:scale-110 transition-transform" />
                 <span className="font-bold text-gray-800 text-xs">Say It Right</span>
               </button>
               )}
@@ -2010,7 +2018,7 @@ const PetDisplay = () => {
                 className={`relative flex flex-col items-center gap-2 p-4 rounded-xl border-2 transition-all group ${competitionGame === 'quizrush' ? 'border-yellow-400 bg-yellow-50 ring-2 ring-yellow-300' : 'border-violet-200 hover:border-violet-400 hover:bg-violet-50'}`}
               >
                 {competitionGame === 'quizrush' && <span className="absolute -top-2 -right-2 text-lg">🏆</span>}
-                <span className="text-5xl w-20 h-20 flex items-center justify-center group-hover:scale-110 transition-transform">🧠</span>
+                <img src="https://xpclass.vn/xpclass/pet-display/game-logo/quiz.png" alt="Quiz Rush" className="w-20 h-20 object-contain rounded-lg group-hover:scale-110 transition-transform" />
                 <span className="font-bold text-gray-800 text-xs">Quiz Rush</span>
               </button>
               )}
@@ -2042,8 +2050,8 @@ const PetDisplay = () => {
                 className={`relative flex flex-col items-center gap-2 p-4 rounded-xl border-2 transition-all group ${competitionGame === 'catch' ? 'border-yellow-400 bg-yellow-50 ring-2 ring-yellow-300' : 'border-teal-200 hover:border-teal-400 hover:bg-teal-50'}`}
               >
                 {competitionGame === 'catch' && <span className="absolute -top-2 -right-2 text-lg">🏆</span>}
-                <img src="https://xpclass.vn/xpclass/image/pet/catch-game.png" alt="Quiz Catch" className="w-20 h-20 object-contain group-hover:scale-110 transition-transform" />
-                <span className="font-bold text-gray-800 text-xs">Quiz Catch</span>
+                <img src="https://xpclass.vn/xpclass/image/pet/catch-game.png" alt="Hungry Pet" className="w-20 h-20 object-contain group-hover:scale-110 transition-transform" />
+                <span className="font-bold text-gray-800 text-xs">Hungry Pet</span>
               </button>
               )}
 
@@ -2053,8 +2061,8 @@ const PetDisplay = () => {
                 className={`relative flex flex-col items-center gap-2 p-4 rounded-xl border-2 transition-all group ${competitionGame === 'fishing' ? 'border-yellow-400 bg-yellow-50 ring-2 ring-yellow-300' : 'border-cyan-200 hover:border-cyan-400 hover:bg-cyan-50'}`}
               >
                 {competitionGame === 'fishing' && <span className="absolute -top-2 -right-2 text-lg">🏆</span>}
-                <span className="text-5xl group-hover:scale-110 transition-transform">🎣</span>
-                <span className="font-bold text-gray-800 text-xs">Fishing</span>
+                <img src="https://xpclass.vn/xpclass/pet-display/game-logo/fish.jpg" alt="Fishing Frenzy" className="w-20 h-20 object-contain rounded-lg group-hover:scale-110 transition-transform" />
+                <span className="font-bold text-gray-800 text-xs">Fishing Frenzy</span>
               </button>
               )}
 
@@ -2378,13 +2386,25 @@ const PetDisplay = () => {
               <h2 className="text-emerald-100 text-xl font-bold">Wild Area</h2>
               <p className="text-emerald-300/70 text-sm mt-1">Search for wild pets hiding in the wild!</p>
 
-              <div className="mt-6">
+              {/* Ticket count */}
+              {!isAdmin() && (
+                <div className="mt-3 flex items-center justify-center gap-1.5 text-emerald-300">
+                  <span className="text-lg">🎟️</span>
+                  <span className="text-sm font-medium">{adventureTicketCount} ticket{adventureTicketCount !== 1 ? 's' : ''}</span>
+                </div>
+              )}
+
+              <div className="mt-4">
                 {wildAreaCooldown > 0 ? (
                   <div>
                     <div className="text-emerald-400 text-3xl font-mono font-bold">
                       {Math.floor(wildAreaCooldown / 60)}:{String(wildAreaCooldown % 60).padStart(2, '0')}
                     </div>
                     <p className="text-emerald-500 text-xs mt-2">Next search available soon...</p>
+                  </div>
+                ) : !isAdmin() && adventureTicketCount < 1 ? (
+                  <div>
+                    <p className="text-emerald-400/70 text-sm">You need an Adventure Ticket to search!</p>
                   </div>
                 ) : (
                   <button
@@ -2398,7 +2418,7 @@ const PetDisplay = () => {
                         Searching...
                       </span>
                     ) : (
-                      'Search for Wild Pet'
+                      <span className="flex items-center gap-2">🎟️ Search for Wild Pet</span>
                     )}
                   </button>
                 )}

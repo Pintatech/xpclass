@@ -18,6 +18,13 @@ const STAR_THRESHOLDS = {
 }
 
 
+const POWERUPS = [
+  { type: 'slow', img: 'https://xpclass.vn/xpclass/pet-game/fish/freeze.png', label: 'Slow', duration: 0 },
+  { type: 'double', img: 'https://xpclass.vn/xpclass/pet-game/fish/double-fish.png', label: '2x', duration: 8000 },
+  { type: 'heal', img: 'https://xpclass.vn/xpclass/pet-game/fish/heart.png', label: '+1 HP', duration: 0 },
+]
+const POWERUP_CHANCE = 0.15
+
 const shuffle = (arr) => {
   const a = [...arr]
   for (let i = a.length - 1; i > 0; i--) {
@@ -54,6 +61,11 @@ const PetWhackMole = ({ petImageUrl, petName, onGameEnd, onClose, hammerSkinUrl,
   const [isChestRound, setIsChestRound] = useState(false)
   const [petHp, setPetHp] = useState(PET_MAX_HP)
 
+  // Power-ups
+  const [powerupHole, setPowerupHole] = useState(null) // { holeIndex, ...powerup }
+  const [activePowerup, setActivePowerup] = useState(null)
+  const activePowerupRef = useRef(null)
+
   const timerRef = useRef(null)
   const moleTimersRef = useRef([])
   const scoreRef = useRef(0)
@@ -80,6 +92,12 @@ const PetWhackMole = ({ petImageUrl, petName, onGameEnd, onClose, hammerSkinUrl,
 
   // Pick a new target word and spawn moles
   const spawnRound = useCallback(() => {
+    // Clear round-scoped power-ups (slow)
+    if (activePowerupRef.current?.type === 'slow') {
+      activePowerupRef.current = null
+      setActivePowerup(null)
+    }
+    setPowerupHole(null)
     roundCountRef.current += 1
     const words = wordBankProp
     const pair = words[Math.floor(Math.random() * words.length)]
@@ -116,8 +134,19 @@ const PetWhackMole = ({ petImageUrl, petName, onGameEnd, onClose, hammerSkinUrl,
 
     setHoles(newHoles)
 
-    // Auto-hide moles after a delay
-    const showTime = MOLE_SHOW_MIN + Math.random() * (MOLE_SHOW_MAX - MOLE_SHOW_MIN)
+    // Maybe spawn a power-up in an empty hole
+    if (Math.random() < POWERUP_CHANCE && !activePowerupRef.current) {
+      const emptyHoles = newHoles.filter(h => !h.visible).map(h => h.id)
+      if (emptyHoles.length > 0) {
+        const pu = POWERUPS[Math.floor(Math.random() * POWERUPS.length)]
+        const holeIdx = emptyHoles[Math.floor(Math.random() * emptyHoles.length)]
+        setPowerupHole({ holeIndex: holeIdx, ...pu })
+      }
+    }
+
+    // Auto-hide moles after a delay (slower if power-up active)
+    const slowMul = activePowerupRef.current?.type === 'slow' ? 2.5 : 1
+    const showTime = (MOLE_SHOW_MIN + Math.random() * (MOLE_SHOW_MAX - MOLE_SHOW_MIN)) * slowMul
     const hideTimer = setTimeout(() => {
       // If chest mole is still visible and not hit, chest is lost
       setHoles(prev => {
@@ -172,6 +201,9 @@ const PetWhackMole = ({ petImageUrl, petName, onGameEnd, onClose, hammerSkinUrl,
     setChestPopup(false)
     setIsChestRound(false)
     setPetHp(PET_MAX_HP)
+    setPowerupHole(null)
+    setActivePowerup(null)
+    activePowerupRef.current = null
     setPhase('playing')
 
     // Start background music
@@ -268,6 +300,19 @@ const PetWhackMole = ({ petImageUrl, petName, onGameEnd, onClose, hammerSkinUrl,
   useEffect(() => {
     if (phase !== 'playing') return
     const animate = () => {
+      // Expire timed power-ups + update progress
+      const now = performance.now()
+      if (activePowerupRef.current?.expiresAt) {
+        if (now >= activePowerupRef.current.expiresAt) {
+          activePowerupRef.current = null
+          setActivePowerup(null)
+        } else {
+          const remaining = activePowerupRef.current.expiresAt - now
+          const duration = activePowerupRef.current.duration
+          setActivePowerup(prev => prev ? { ...prev, progress: remaining / duration } : null)
+        }
+      }
+
       setScreenShake(prev => Math.max(0, prev - 1))
       setFloatingTexts(prev => prev.map(ft => ({
         ...ft,
@@ -280,9 +325,47 @@ const PetWhackMole = ({ petImageUrl, petName, onGameEnd, onClose, hammerSkinUrl,
     return () => { if (animFrameRef.current) cancelAnimationFrame(animFrameRef.current) }
   }, [phase])
 
+  // Handle tapping a power-up
+  const handlePowerupTap = useCallback((holeIndex) => {
+    if (phase !== 'playing' || !powerupHole || powerupHole.holeIndex !== holeIndex) return
+    const pu = powerupHole
+    setPowerupHole(null)
+    playSound(assetUrl('/pet-game/whack/mole-correct.mp3'), 0.3)
+
+    if (pu.type === 'heal') {
+      if (petHp >= PET_MAX_HP) {
+        scoreRef.current += 5
+        setScore(scoreRef.current)
+        setWordPopup({ points: 5, streak: 0 })
+        setTimeout(() => setWordPopup(null), 1200)
+        setFloatingTexts(prev => [...prev, { id: Date.now(), text: '+5', x: 50, y: 50, opacity: 1, color: '#22c55e' }])
+      } else {
+        setPetHp(prev => Math.min(prev + 1, PET_MAX_HP))
+        setFloatingTexts(prev => [...prev, { id: Date.now(), text: '+1 HP', x: 50, y: 50, opacity: 1, color: '#22c55e' }])
+      }
+    } else if (pu.type === 'slow') {
+      const active = { type: 'slow', img: pu.img, label: pu.label, roundIndex: roundCountRef.current }
+      activePowerupRef.current = active
+      setActivePowerup(active)
+      setFloatingTexts(prev => [...prev, { id: Date.now(), text: 'Slow!', x: 50, y: 50, opacity: 1, color: '#3b82f6' }])
+    } else {
+      const active = { type: pu.type, img: pu.img, label: pu.label, duration: pu.duration, expiresAt: performance.now() + pu.duration }
+      activePowerupRef.current = active
+      setActivePowerup(active)
+      setFloatingTexts(prev => [...prev, { id: Date.now(), text: '2x!', x: 50, y: 50, opacity: 1, color: '#f59e0b' }])
+    }
+  }, [phase, powerupHole, petHp, playSound])
+
   // Handle whacking a mole or chest
   const handleWhack = useCallback((holeIndex) => {
     if (phase !== 'playing') return
+
+    // Check if tapping a power-up hole
+    if (powerupHole && powerupHole.holeIndex === holeIndex) {
+      handlePowerupTap(holeIndex)
+      return
+    }
+
     const hole = holes[holeIndex]
     if (!hole.visible || hole.hit || hole.hiding) return
 
@@ -304,7 +387,8 @@ const PetWhackMole = ({ petImageUrl, petName, onGameEnd, onClose, hammerSkinUrl,
       const newStreak = streakRef.current + 1
       streakRef.current = newStreak
       setStreak(newStreak)
-      const points = newStreak >= 5 ? 3 : newStreak >= 3 ? 2 : 1
+      const doubleMul = activePowerupRef.current?.type === 'double' ? 2 : 1
+      const points = (newStreak >= 5 ? 3 : newStreak >= 3 ? 2 : 1) * doubleMul
       scoreRef.current += points
       setScore(scoreRef.current)
 
@@ -368,7 +452,7 @@ const PetWhackMole = ({ petImageUrl, petName, onGameEnd, onClose, hammerSkinUrl,
         ))
       }, 300)
     }
-  }, [phase, holes, spawnRound, petHp])
+  }, [phase, holes, spawnRound, petHp, powerupHole, handlePowerupTap, playSound])
 
   // Find the person just ahead of current score (lowest score still above current)
   const nextToBeat = [...leaderboard].reverse().find(e => e.score > score) || null
@@ -793,6 +877,20 @@ const PetWhackMole = ({ petImageUrl, petName, onGameEnd, onClose, hammerSkinUrl,
                       </div>
                     )}
 
+                    {/* Power-up in hole */}
+                    {powerupHole && powerupHole.holeIndex === i && !hole.visible && (
+                      <div
+                        className="flex items-center justify-center"
+                        style={{ animation: 'molePopUp 0.3s ease-out forwards' }}
+                      >
+                        <div className="w-14 h-14 rounded-full bg-white/90 border-2 border-yellow-400 flex items-center justify-center shadow-lg"
+                          style={{ boxShadow: '0 0 12px rgba(250,204,21,0.5)' }}
+                        >
+                          <img src={powerupHole.img} alt={powerupHole.label} className="w-10 h-10 object-contain" />
+                        </div>
+                      </div>
+                    )}
+
                     {/* Whacked animation */}
                     {hole.hit && (
                       <div
@@ -838,24 +936,47 @@ const PetWhackMole = ({ petImageUrl, petName, onGameEnd, onClose, hammerSkinUrl,
               </div>
             ))}
 
-            {/* Hammer cursor */}
+            {/* Hammer cursor + active power-up */}
             {hammerPos.x > 0 && (
-              <img
-                src={hammerSkinUrl || assetUrl('/pet-game/whack/mole-hammer.png')}
-                alt="hammer"
-                className="absolute pointer-events-none z-30"
-                style={{
-                  height: 48,
-                  left: hammerPos.x,
-                  top: hammerPos.y,
-                  transformOrigin: '50% 50%',
-                  transform: hammerSwing
-                    ? 'translate(-50%, -50%) rotate(-20deg) scale(1.2)'
-                    : 'translate(-50%, -50%) rotate(45deg)',
-                  transition: hammerSwing ? 'transform 0.03s ease-in' : 'transform 0.06s ease-out',
-                  filter: 'drop-shadow(2px 4px 6px rgba(0,0,0,0.4))',
-                }}
-              />
+              <>
+                <img
+                  src={hammerSkinUrl || assetUrl('/pet-game/whack/mole-hammer.png')}
+                  alt="hammer"
+                  className="absolute pointer-events-none z-30"
+                  style={{
+                    height: 48,
+                    left: hammerPos.x,
+                    top: hammerPos.y,
+                    transformOrigin: '50% 50%',
+                    transform: hammerSwing
+                      ? 'translate(-50%, -50%) rotate(-20deg) scale(1.2)'
+                      : 'translate(-50%, -50%) rotate(45deg)',
+                    transition: hammerSwing ? 'transform 0.03s ease-in' : 'transform 0.06s ease-out',
+                    filter: 'drop-shadow(2px 4px 6px rgba(0,0,0,0.4))',
+                  }}
+                />
+                {activePowerup && (
+                  <div className="absolute pointer-events-none z-30" style={{ left: hammerPos.x + 20, top: hammerPos.y - 30 }}>
+                    <div className="relative" style={{ width: 32, height: 32 }}>
+                      {activePowerup.expiresAt ? (() => {
+                        const circumference = 2 * Math.PI * 13
+                        const progress = activePowerup.progress ?? 1
+                        return (
+                          <svg className="absolute inset-0 w-full h-full -rotate-90" viewBox="0 0 28 28">
+                            <circle cx="14" cy="14" r="13" fill="rgba(0,0,0,0.3)" stroke="rgba(255,255,255,0.3)" strokeWidth="2" />
+                            <circle cx="14" cy="14" r="13" fill="none" stroke="#facc15" strokeWidth="2"
+                              strokeDasharray={circumference}
+                              strokeDashoffset={circumference * (1 - progress)}
+                              strokeLinecap="round"
+                            />
+                          </svg>
+                        )
+                      })() : null}
+                      <img src={activePowerup.img} alt={activePowerup.label} className="absolute inset-0 m-auto w-5 h-5 object-contain" />
+                    </div>
+                  </div>
+                )}
+              </>
             )}
 
             {/* Floating texts */}

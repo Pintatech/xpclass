@@ -20,7 +20,8 @@ const GAME_TYPE_LABELS = {
   flappy: 'Flappy Pet',
   wordtype: 'Word Type',
   sayitright: 'Say It Right',
-  catch: 'Catch'
+  catch: 'Hungry Pet',
+  fishing: 'Fishing Frenzy'
 }
 
 const RecentActivities = () => {

@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
-import { ArrowLeft, Play, Square, Shuffle, Trophy, Sparkles, BookOpen, RotateCcw, Flag } from 'lucide-react'
+import { ArrowLeft, Play, Square, Shuffle, Trophy, Sparkles, BookOpen, RotateCcw, Flag, Timer } from 'lucide-react'
+import TimerModal from './TimerModal'
 import { useAuth } from '../../hooks/useAuth'
 import { useLiveBattle } from '../../hooks/useLiveBattle'
 import TeamPanel from './TeamPanel'
@@ -43,6 +44,9 @@ const LiveBattlePage = () => {
   const [showExercisePicker, setShowExercisePicker] = useState(false)
   const [activeExercise, setActiveExercise] = useState(null)
   const [showPetRace, setShowPetRace] = useState(false)
+  const [showTimer, setShowTimer] = useState(false)
+  const [timerActive, setTimerActive] = useState(false)
+  const [timerRemaining, setTimerRemaining] = useState(0)
 
   useEffect(() => {
     if (!user || !courseId || !profile) return
@@ -205,6 +209,15 @@ const LiveBattlePage = () => {
             {isActive && (
               <>
                 <button
+                  onClick={() => setShowTimer(true)}
+                  className={`flex items-center gap-1 px-4 py-1.5 text-white rounded-lg text-sm font-bold transition-colors ${timerActive ? 'bg-teal-500 hover:bg-teal-400 animate-pulse' : 'bg-teal-600 hover:bg-teal-500'}`}
+                >
+                  <Timer className="w-3 h-3" />
+                  {timerActive
+                    ? `${String(Math.floor(timerRemaining / 60)).padStart(2, '0')}:${String(timerRemaining % 60).padStart(2, '0')}`
+                    : 'Timer'}
+                </button>
+                <button
                   onClick={() => setShowPetRace(true)}
                   className="flex items-center gap-1 px-4 py-1.5 bg-amber-600 hover:bg-amber-500 text-white rounded-lg text-sm font-bold transition-colors"
                 >
@@ -354,6 +367,12 @@ const LiveBattlePage = () => {
           onClose={() => setShowPetRace(false)}
         />
       )}
+      <TimerModal
+        visible={showTimer}
+        onHide={() => setShowTimer(false)}
+        onActiveChange={setTimerActive}
+        onRemainingChange={setTimerRemaining}
+      />
     </div>
   )
 }

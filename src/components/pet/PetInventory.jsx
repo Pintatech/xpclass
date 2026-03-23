@@ -286,7 +286,7 @@ const PetInventory = () => {
       {/* ---- Habitat Area (droppable) ---- */}
       <div ref={habitatRef} className="absolute inset-0">
         {/* Placed pets */}
-        {placedPets.map(userPet => {
+        {placedPets.map((userPet, i) => {
           const pos = layout[userPet.id]
           const pet = userPet.pet
           const rarity = pet.rarity || 'common'
@@ -325,6 +325,8 @@ const PetInventory = () => {
                   style={{
                     filter: `drop-shadow(0 0 6px ${rarityGlow[rarity]})`,
                     transform: pos.flip ? 'scaleX(-1)' : undefined,
+                    animation: `petBob ${2.2 + (i % 5) * 0.3}s ease-in-out infinite`,
+                    animationDelay: `${(i % 5) * -0.6}s`,
                   }}
                   draggable={false}
                   onContextMenu={(e) => e.preventDefault()}
@@ -800,6 +802,17 @@ const PetInventory = () => {
         @keyframes petIdle {
           0%, 100% { transform: translateY(0); }
           50% { transform: translateY(-4px); }
+        }
+        @keyframes petBob {
+          0%, 100% { transform: translateY(0); }
+          50% { transform: translateY(-3px); }
+        }
+        @keyframes petWiggle {
+          0%, 85%, 100% { rotate: 0deg; }
+          88% { rotate: -4deg; }
+          91% { rotate: 4deg; }
+          94% { rotate: -3deg; }
+          97% { rotate: 0deg; }
         }
         @keyframes grassSway {
           0% { transform: scaleX(1.5) rotate(-3deg); }

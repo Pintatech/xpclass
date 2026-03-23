@@ -16,7 +16,7 @@ const MISSION_IMAGE_MAP = {
   'book-open': '/image/dashboard/match1.png',
   'graduation-cap': '/pet-game/mole-whacked.png',
   'zap': '/image/chest/legendary-chest.png',
-  'gem': '/pet-game/astro/alien1.png',
+  'gem': '/image/study/gem.png',
   'medal': '/image/dashboard/pet-train.svg',
   'gift': '/image/dashboard/pet-scramble.jpg',
   'package-open': '/image/inventory/spaceship/phantom-voyager.png',
@@ -24,6 +24,18 @@ const MISSION_IMAGE_MAP = {
 }
 const DEFAULT_MISSION_IMAGE = '/icon/dashboard/wow.svg'
 const getMissionImage = (iconName) => MISSION_IMAGE_MAP[iconName] || DEFAULT_MISSION_IMAGE
+
+const GAME_TYPE_LABELS = {
+  scramble: 'Word Scramble',
+  whackmole: 'Whack-a-Mole',
+  astroblast: 'Astro Blast',
+  matchgame: 'Match Up',
+  flappy: 'Flappy Pet',
+  wordtype: 'Word Type',
+  sayitright: 'Say It Right',
+  catch: 'Hungry Pet',
+  fishing: 'Fishing Frenzy',
+}
 
 const RecentActivities = () => {
   const navigate = useNavigate()
@@ -62,7 +74,8 @@ const RecentActivities = () => {
           achievements:achievement_id (
             id,
             title,
-            xp_reward
+            xp_reward,
+            gem_reward
           )
         `)
         .not('claimed_at', 'is', null)
@@ -103,6 +116,33 @@ const RecentActivities = () => {
 
       if (missionError) throw missionError
 
+      // Fetch competition winners — top 1 only (rank=1 or weekly scramble champion)
+      const { data: competitionData, error: competitionError } = await supabase
+        .from('notifications')
+        .select(`
+          id,
+          user_id,
+          title,
+          message,
+          icon,
+          data,
+          created_at,
+          users:user_id (
+            id,
+            full_name,
+            avatar_url,
+            active_title,
+            active_frame_ratio,
+            hide_frame
+          )
+        `)
+        .eq('type', 'competition_winner')
+        .or('data->>rank.eq.1,data->>competition.eq.weekly_scramble')
+        .order('created_at', { ascending: false })
+        .limit(10)
+
+      if (competitionError) throw competitionError
+
       // Process achievement claims
       const achievementActivities = (achievementData || [])
         .filter(achievement => achievement.users && achievement.achievements)
@@ -121,8 +161,17 @@ const RecentActivities = () => {
           activity_date: mission.updated_at
         }))
 
-      // Merge and sort by date, gem missions stick to top for their day
-      const allActivities = [...achievementActivities, ...missionActivities]
+      // Process competition winners (top 1 only)
+      const competitionActivities = (competitionData || [])
+        .filter(n => n.users)
+        .map(n => ({
+          ...n,
+          type: 'competition',
+          activity_date: n.created_at
+        }))
+
+      // Merge and sort by date, gem/competition activities stick to top for their day
+      const allActivities = [...achievementActivities, ...missionActivities, ...competitionActivities]
         .sort((a, b) => {
           const dateA = new Date(a.activity_date)
           const dateB = new Date(b.activity_date)
@@ -132,9 +181,9 @@ const RecentActivities = () => {
           // Different days: sort by date descending
           if (dayA !== dayB) return dateB - dateA
 
-          // Same day: gem missions go first
-          const aHasGems = a.type === 'mission' && a.missions?.reward_gems > 0
-          const bHasGems = b.type === 'mission' && b.missions?.reward_gems > 0
+          // Same day: competition winners and gem activities go first
+          const aHasGems = a.type === 'competition' || (a.type === 'mission' && a.missions?.reward_gems > 0) || (a.type === 'achievement' && a.achievements?.gem_reward > 0)
+          const bHasGems = b.type === 'competition' || (b.type === 'mission' && b.missions?.reward_gems > 0) || (b.type === 'achievement' && b.achievements?.gem_reward > 0)
           if (aHasGems && !bHasGems) return -1
           if (!aHasGems && bHasGems) return 1
 
@@ -197,7 +246,15 @@ const RecentActivities = () => {
 
       <div className="space-y-3 max-h-96 overflow-y-auto">
         {activities.map((activity) => (
-          <div key={`${activity.type}-${activity.id}`} className={`flex items-center space-x-3 p-3 rounded-lg transition-colors ${activity.type === 'mission' ? (activity.missions?.reward_gems > 0 ? 'border border-purple-200 hover:bg-purple-100' : 'hover:bg-blue-50') : 'hover:bg-yellow-50'}`} style={activity.type === 'mission' && activity.missions?.reward_gems > 0 ? { animation: 'gem-shine 3s ease-in-out infinite' } : undefined}>
+          <div key={`${activity.type}-${activity.id}`} className={`flex items-center space-x-3 p-3 rounded-lg transition-colors ${
+            activity.type === 'competition'
+              ? 'border border-amber-300 bg-amber-100'
+              : activity.type === 'achievement' && activity.achievements?.gem_reward > 0
+              ? 'border border-purple-200 bg-purple-100'
+              : activity.type === 'mission' && activity.missions?.reward_gems > 0
+              ? 'border border-blue-200 bg-blue-100'
+              : activity.type === 'mission' ? 'hover:bg-blue-50' : 'hover:bg-yellow-50'
+          }`}>
             {/* User Avatar with Frame */}
             <AvatarWithFrame
               avatarUrl={activity.users.avatar_url}
@@ -212,7 +269,9 @@ const RecentActivities = () => {
             {/* Activity Content */}
             <div className="flex-1 min-w-0">
               <div className="flex items-center space-x-2">
-                {activity.type === 'mission' ? (
+                {activity.type === 'competition' ? (
+                  <span className="text-base flex-shrink-0">🏆</span>
+                ) : activity.type === 'mission' ? (
                   <img src={getMissionImage(activity.missions.icon).startsWith('http') ? getMissionImage(activity.missions.icon) : assetUrl(getMissionImage(activity.missions.icon))} alt="mission" className="w-4 h-4 flex-shrink-0 object-contain" />
                 ) : (
                   <img src={assetUrl('/icon/profile/achievement.svg')} alt="achievement" className="w-4 h-4 flex-shrink-0" />
@@ -224,7 +283,14 @@ const RecentActivities = () => {
                   {activity.users.full_name || 'Người dùng'}
                 </span>
               </div>
-              {activity.type === 'mission' ? (
+              {activity.type === 'competition' ? (
+                <p className="text-sm text-gray-600">
+                  vô địch <span className="font-medium text-amber-600">{GAME_TYPE_LABELS[activity.data?.game_type] || activity.data?.competition?.replace('weekly_', '') || activity.title}</span>
+                  {activity.data?.gems > 0 && (
+                    <>{' '}<span className="inline-flex items-center text-purple-600 font-medium whitespace-nowrap"><img src={assetUrl('/image/study/gem.png')} alt="Gem" className="w-3 h-3 inline mr-0.5" />+{activity.data.gems}</span></>
+                  )}
+                </p>
+              ) : activity.type === 'mission' ? (
                 <p className="text-sm text-gray-600">
                   hoàn thành nhiệm vụ <span className="font-medium text-blue-700">{activity.missions.title}</span>
                   {' '}<span className="inline-flex items-center text-yellow-600 font-medium whitespace-nowrap"><img src={assetUrl('/image/study/xp.png')} alt="XP" className="w-3 h-3 inline mr-0.5" />+{activity.missions.reward_xp || 0}</span>
@@ -235,7 +301,12 @@ const RecentActivities = () => {
               ) : (
                 <p className="text-sm text-gray-600">
                   đạt thành tích <span className="font-medium text-yellow-700">{activity.achievements.title}</span>
-                  {' '}<span className="inline-flex items-center text-yellow-600 font-medium whitespace-nowrap"><img src={assetUrl('/image/study/xp.png')} alt="XP" className="w-3 h-3 inline mr-0.5" />+{activity.achievements.xp_reward || 0}</span>
+                  {activity.achievements.xp_reward > 0 && (
+                    <>{' '}<span className="inline-flex items-center text-yellow-600 font-medium whitespace-nowrap"><img src={assetUrl('/image/study/xp.png')} alt="XP" className="w-3 h-3 inline mr-0.5" />+{activity.achievements.xp_reward}</span></>
+                  )}
+                  {activity.achievements.gem_reward > 0 && (
+                    <>{' '}<span className="inline-flex items-center text-purple-600 font-medium whitespace-nowrap"><img src={assetUrl('/image/study/gem.png')} alt="Gem" className="w-3 h-3 inline mr-0.5" />+{activity.achievements.gem_reward}</span></>
+                  )}
                 </p>
               )}
             </div>

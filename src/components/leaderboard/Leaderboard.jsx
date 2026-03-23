@@ -52,7 +52,7 @@ const Leaderboard = () => {
   const GAME_LABELS = {
     scramble: 'Word Scramble',
     whackmole: 'Whack-a-Mole',
-    catch: 'Catch Game',
+    catch: 'Hungry Pet',
     flappy: 'Flappy Pet',
     astroblast: 'Astro Blast',
     matchgame: 'Match Up',
@@ -60,7 +60,7 @@ const Leaderboard = () => {
     sayitright: 'Say It Right',
     quizrush: 'Quiz Rush',
     angrypet: 'Angry Pet',
-    fishing: 'Fishing',
+    fishing: 'Fishing Frenzy',
   }
 
   // Fetch leaderboard settings on mount

@@ -24,6 +24,13 @@ const ASTEROID_CLIPS = [
   'polygon(25% 0%, 55% 2%, 75% 0%, 100% 15%, 95% 45%, 100% 70%, 90% 100%, 60% 95%, 35% 100%, 5% 80%, 0% 50%, 8% 20%)',
 ]
 
+const POWERUPS = [
+  { type: 'slow', img: 'https://xpclass.vn/xpclass/pet-game/fish/freeze.png', label: 'Slow', duration: 0 },
+  { type: 'double', img: 'https://xpclass.vn/xpclass/pet-game/fish/double-fish.png', label: '2x', duration: 8000 },
+  { type: 'heal', img: 'https://xpclass.vn/xpclass/pet-game/fish/heart.png', label: '+1 HP', duration: 0 },
+]
+const POWERUP_CHANCE = 0.15
+
 const shuffle = (arr) => {
   const a = [...arr]
   for (let i = a.length - 1; i > 0; i--) {
@@ -62,6 +69,11 @@ const PetAstroBlast = ({ petImageUrl, petName, onGameEnd, onClose, shipSkinUrl, 
   const [isChestRound, setIsChestRound] = useState(false)
   const [chestTimer, setChestTimer] = useState(0)
 
+  // Power-ups
+  const [powerups, setPowerups] = useState([])
+  const [activePowerup, setActivePowerup] = useState(null)
+  const activePowerupRef = useRef(null)
+
   const scoreRef = useRef(0)
   const streakRef = useRef(0)
   const timerRef = useRef(null)
@@ -89,6 +101,12 @@ const PetAstroBlast = ({ petImageUrl, petName, onGameEnd, onClose, shipSkinUrl, 
 
   // Generate a round: pick a target word and distractors
   const spawnRound = useCallback(() => {
+    // Clear round-scoped power-ups (slow)
+    if (activePowerupRef.current?.type === 'slow') {
+      activePowerupRef.current = null
+      setActivePowerup(null)
+    }
+
     const containerW = containerRef.current?.clientWidth || 400
 
     // Pick target
@@ -148,6 +166,20 @@ const PetAstroBlast = ({ petImageUrl, petName, onGameEnd, onClose, shipSkinUrl, 
         setFlyingWords(prev => [...prev, newWord])
       }, delay)
     })
+
+    // Maybe spawn a power-up
+    if (Math.random() < POWERUP_CHANCE && !activePowerupRef.current) {
+      const pu = POWERUPS[Math.floor(Math.random() * POWERUPS.length)]
+      const puX = 40 + Math.random() * (containerW - 80)
+      setPowerups(prev => [...prev, {
+        id: `pu-${Date.now()}`,
+        ...pu,
+        x: puX,
+        y: -40,
+        vy: 1.5 + Math.random() * 0.5,
+        opacity: 1,
+      }])
+    }
   }, [wordBankProp])
 
   // Start game
@@ -172,6 +204,9 @@ const PetAstroBlast = ({ petImageUrl, petName, onGameEnd, onClose, shipSkinUrl, 
     setChestPopup(false)
     setIsChestRound(false)
     setChestTimer(0)
+    setPowerups([])
+    setActivePowerup(null)
+    activePowerupRef.current = null
     setPhase('playing')
 
     try {
@@ -289,9 +324,10 @@ const PetAstroBlast = ({ petImageUrl, petName, onGameEnd, onClose, shipSkinUrl, 
               rotation: w.rotation + (w.slashed ? 5 : -3) * dt,
             }
           }
-          // Falling physics: apply gravity to vy, clamp x within screen
+          // Falling physics: apply gravity to vy, clamp x within screen (slow if power-up active)
+          const slowMul = activePowerupRef.current?.type === 'slow' ? 0.35 : 1
           const containerW = containerRef.current?.clientWidth || 400
-          let newX = w.x + w.vx * dt
+          let newX = w.x + w.vx * dt * slowMul
           let newVx = w.vx
           // Bounce off edges
           if (newX < 50) { newX = 50; newVx = Math.abs(newVx) * 0.5 }
@@ -300,7 +336,7 @@ const PetAstroBlast = ({ petImageUrl, petName, onGameEnd, onClose, shipSkinUrl, 
             ...w,
             x: newX,
             vx: newVx,
-            y: w.y + w.vy * dt,
+            y: w.y + w.vy * dt * slowMul,
             vy: w.vy + GRAVITY * dt,
             rotation: w.rotation + w.rotationSpeed * dt,
           }
@@ -371,6 +407,23 @@ const PetAstroBlast = ({ petImageUrl, petName, onGameEnd, onClose, shipSkinUrl, 
         })
       })
 
+      // Power-up movement (fall down)
+      setPowerups(prev => prev.map(p => ({
+        ...p, y: p.y + p.vy * dt,
+      })).filter(p => p.y < containerH + 60))
+
+      // Expire timed power-ups + update progress
+      if (activePowerupRef.current?.expiresAt) {
+        if (now >= activePowerupRef.current.expiresAt) {
+          activePowerupRef.current = null
+          setActivePowerup(null)
+        } else {
+          const remaining = activePowerupRef.current.expiresAt - now
+          const duration = activePowerupRef.current.duration
+          setActivePowerup(prev => prev ? { ...prev, progress: remaining / duration } : null)
+        }
+      }
+
       // Particles
       setParticles(prev => prev.map(p => ({
         ...p,
@@ -414,6 +467,40 @@ const PetAstroBlast = ({ petImageUrl, petName, onGameEnd, onClose, shipSkinUrl, 
     fireLaser(toX, toY, 'miss')
   }, [phase, fireLaser])
 
+  // Handle tapping a power-up
+  const handlePowerupTap = useCallback((pu) => {
+    if (phase !== 'playing') return
+    setPowerups(prev => prev.filter(p => p.id !== pu.id))
+    playSound('https://xpclass.vn/xpclass/sound/laser.mp3', 0.3)
+
+    if (pu.type === 'heal') {
+      if (petHp >= PET_MAX_HP) {
+        scoreRef.current += 30
+        setDisplayScore(scoreRef.current)
+        setWordPopup({ points: 30, streak: 0 })
+        setTimeout(() => setWordPopup(null), 1000)
+        setFeedback({ type: 'correct', word: '+30', x: pu.x, y: pu.y })
+      } else {
+        setPetHp(prev => Math.min(prev + 1, PET_MAX_HP))
+        setFeedback({ type: 'correct', word: '+1 HP', x: pu.x, y: pu.y })
+      }
+      setTimeout(() => setFeedback(null), 600)
+    } else if (pu.type === 'slow') {
+      const active = { type: 'slow', img: pu.img, label: pu.label, roundIndex: roundIndexRef.current }
+      activePowerupRef.current = active
+      setActivePowerup(active)
+      setFeedback({ type: 'correct', word: `${pu.label}!`, x: pu.x, y: pu.y })
+      setTimeout(() => setFeedback(null), 600)
+    } else {
+      // Timed power-ups (double)
+      const active = { type: pu.type, img: pu.img, label: pu.label, duration: pu.duration, expiresAt: performance.now() + pu.duration }
+      activePowerupRef.current = active
+      setActivePowerup(active)
+      setFeedback({ type: 'correct', word: `${pu.label}!`, x: pu.x, y: pu.y })
+      setTimeout(() => setFeedback(null), 600)
+    }
+  }, [phase, playSound, petHp])
+
   // Handle slashing a word
   const handleSlash = useCallback((wordObj) => {
     if (phase !== 'playing' || wordObj.slashed || wordObj.wrong) return
@@ -438,7 +525,8 @@ const PetAstroBlast = ({ petImageUrl, petName, onGameEnd, onClose, shipSkinUrl, 
       const containerH = containerRef.current?.clientHeight || 700
       const speedBonus = Math.round(Math.max(0, 1 - wordObj.y / containerH) * 15)
       const streakTier = newStreak >= 5 ? 3 : newStreak >= 3 ? 2 : 1
-      const points = speedBonus + streakTier
+      const doubleMul = activePowerupRef.current?.type === 'double' ? 2 : 1
+      const points = (speedBonus + streakTier) * doubleMul
       scoreRef.current += points
       setDisplayScore(scoreRef.current)
       setWordsCompleted(prev => prev + 1)
@@ -540,6 +628,10 @@ const PetAstroBlast = ({ petImageUrl, petName, onGameEnd, onClose, shipSkinUrl, 
   return createPortal(
     <div className="fixed inset-0 z-50 select-none overflow-hidden bg-black/70 flex items-center justify-center">
       <style>{`
+        @keyframes puBob {
+          0%, 100% { transform: translateY(0) scale(1); }
+          50% { transform: translateY(-8px) scale(1.1); }
+        }
         @keyframes starfall {
           0% { transform: translateY(-10px); opacity: 0; }
           10% { opacity: 1; }
@@ -729,6 +821,26 @@ const PetAstroBlast = ({ petImageUrl, petName, onGameEnd, onClose, shipSkinUrl, 
             />
           ))}
 
+          {/* Floating power-ups */}
+          {powerups.map(pu => (
+            <button
+              key={pu.id}
+              onPointerDown={(e) => { e.preventDefault(); e.stopPropagation(); handlePowerupTap(pu) }}
+              className="absolute touch-none cursor-pointer z-10"
+              style={{
+                left: pu.x - 25,
+                top: pu.y - 25,
+                animation: 'puBob 1.5s ease-in-out infinite',
+              }}
+            >
+              <div className="w-12 h-12 rounded-full bg-white/90 border-2 border-yellow-400 flex items-center justify-center shadow-lg"
+                style={{ boxShadow: '0 0 12px rgba(250,204,21,0.5)' }}
+              >
+                <img src={pu.img} alt={pu.label} className="w-8 h-8 object-contain" />
+              </div>
+            </button>
+          ))}
+
           {/* Flying Words */}
           {flyingWords.map(w => (
             <button
@@ -888,6 +1000,25 @@ const PetAstroBlast = ({ petImageUrl, petName, onGameEnd, onClose, shipSkinUrl, 
                 <div className="flex flex-col items-start gap-1">
                   <div className="bg-white/15 backdrop-blur rounded-2xl px-4 py-2 flex items-center gap-2">
                     <span className="text-xl font-black text-white">{displayScore}</span>
+                    {activePowerup && (
+                      <div className="relative" style={{ width: 28, height: 28 }}>
+                        {activePowerup.expiresAt ? (() => {
+                          const circumference = 2 * Math.PI * 11
+                          const progress = activePowerup.progress ?? 1
+                          return (
+                            <svg className="absolute inset-0 w-full h-full -rotate-90" viewBox="0 0 24 24">
+                              <circle cx="12" cy="12" r="11" fill="none" stroke="rgba(255,255,255,0.2)" strokeWidth="2" />
+                              <circle cx="12" cy="12" r="11" fill="none" stroke="#facc15" strokeWidth="2"
+                                strokeDasharray={circumference}
+                                strokeDashoffset={circumference * (1 - progress)}
+                                strokeLinecap="round"
+                              />
+                            </svg>
+                          )
+                        })() : null}
+                        <img src={activePowerup.img} alt={activePowerup.label} className="absolute inset-0 m-auto w-5 h-5 object-contain animate-pulse" />
+                      </div>
+                    )}
                   </div>
                   {(() => {
                     const nextToBeat = leaderboard.length > 0

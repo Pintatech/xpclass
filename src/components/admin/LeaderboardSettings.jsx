@@ -12,7 +12,7 @@ const ALL_TABS = [
 const GAME_TYPES = [
   { key: 'scramble', label: 'Word Scramble', icon: '🔤' },
   { key: 'whackmole', label: 'Whack-a-Mole', icon: '🔨' },
-  { key: 'catch', label: 'Catch Game', icon: '🎯' },
+  { key: 'catch', label: 'Hungry Pet', icon: '🎯' },
   { key: 'flappy', label: 'Flappy Pet', icon: '🐦' },
   { key: 'astroblast', label: 'Astro Blast', icon: '🚀' },
   { key: 'matchgame', label: 'Match Up', icon: '🧩' },
@@ -21,7 +21,7 @@ const GAME_TYPES = [
   { key: 'quizrush', label: 'Quiz Rush', icon: '❓' },
   { key: 'bossbattle', label: 'Boss Battle', icon: '⚔️' },
   { key: 'angrypet', label: 'Angry Pet', icon: '🏹' },
-  { key: 'fishing', label: 'Fishing', icon: '🎣' },
+  { key: 'fishing', label: 'Fishing Frenzy', icon: '🎣' },
 ];
 
 const TRAINING_GAMES = [
@@ -35,7 +35,7 @@ const TRAINING_GAMES = [
   { key: 'quizrush', label: 'Quiz Rush', icon: '❓' },
   { key: 'bossbattle', label: 'Boss Battle', icon: '⚔️' },
   { key: 'angrypet', label: 'Angry Pet', icon: '🏹' },
-  { key: 'fishing', label: 'Fishing', icon: '🎣' },
+  { key: 'fishing', label: 'Fishing Frenzy', icon: '🎣' },
 ];
 
 const LeaderboardSettings = () => {
