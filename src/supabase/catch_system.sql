@@ -30,7 +30,7 @@ INSERT INTO public.drop_config (config_key, config_value, description) VALUES
 (
   'catch_rates',
   '{
-    "ball_bonus": {"common": 0.10, "uncommon": 0.25, "rare": 0.45, "epic": 0.70},
+    "ball_bonus": {"common": 0.10, "uncommon": 0.25, "rare": 0.45, "epic": 0.70, "legendary": 0.95},
     "pet_difficulty": {"common": 0.50, "uncommon": 0.30, "rare": 0.15, "epic": 0.07, "legendary": 0.03}
   }',
   'Catch rate formula: final_rate = min(1.0, ball_bonus + pet_difficulty). Higher ball bonus = easier. Lower pet difficulty = harder.'

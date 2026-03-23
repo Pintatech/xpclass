@@ -18,10 +18,12 @@ const STAR_THRESHOLDS = {
 }
 
 
+const FRENZY_DURATION = 3000
 const POWERUPS = [
   { type: 'slow', img: 'https://xpclass.vn/xpclass/pet-game/fish/freeze.png', label: 'Slow', duration: 0 },
   { type: 'double', img: 'https://xpclass.vn/xpclass/pet-game/fish/double-fish.png', label: '2x', duration: 8000 },
   { type: 'heal', img: 'https://xpclass.vn/xpclass/pet-game/fish/heart.png', label: '+1 HP', duration: 0 },
+  { type: 'frenzy', img: 'https://xpclass.vn/xpclass/pet-game/fish/frenzy.png', label: '🎣 Frenzy!', duration: FRENZY_DURATION },
 ]
 const POWERUP_CHANCE = 0.15
 
@@ -304,8 +306,12 @@ const PetWhackMole = ({ petImageUrl, petName, onGameEnd, onClose, hammerSkinUrl,
       const now = performance.now()
       if (activePowerupRef.current?.expiresAt) {
         if (now >= activePowerupRef.current.expiresAt) {
+          const wasFrenzy = activePowerupRef.current.type === 'frenzy'
           activePowerupRef.current = null
           setActivePowerup(null)
+          if (wasFrenzy) {
+            spawnRound()
+          }
         } else {
           const remaining = activePowerupRef.current.expiresAt - now
           const duration = activePowerupRef.current.duration
@@ -343,6 +349,37 @@ const PetWhackMole = ({ petImageUrl, petName, onGameEnd, onClose, hammerSkinUrl,
         setPetHp(prev => Math.min(prev + 1, PET_MAX_HP))
         setFloatingTexts(prev => [...prev, { id: Date.now(), text: '+1 HP', x: 50, y: 50, opacity: 1, color: '#22c55e' }])
       }
+    } else if (pu.type === 'frenzy') {
+      const active = { type: 'frenzy', img: pu.img, label: pu.label, duration: pu.duration, expiresAt: performance.now() + pu.duration }
+      activePowerupRef.current = active
+      setActivePowerup(active)
+      setFloatingTexts(prev => [...prev, { id: Date.now(), text: '🎣 Frenzy!', x: 50, y: 50, opacity: 1, color: '#f59e0b' }])
+      setTargetWord({ word: '', hint: '🎣 Frenzy! Đập tất cả!' })
+
+      // Clear mole timers — frenzy manages its own spawning
+      moleTimersRef.current.forEach(t => clearTimeout(t))
+      moleTimersRef.current = []
+
+      // Spawn frenzy round — all holes show correct words
+      const words = wordBankProp
+      const frenzyCount = 4
+      const frenzyWords = shuffle([...words]).slice(0, frenzyCount)
+      const frenzyPositions = shuffle(Array.from({ length: HOLES }, (_, i) => i)).slice(0, frenzyCount)
+      const frenzyHoles = Array.from({ length: HOLES }, (_, i) => {
+        const posIdx = frenzyPositions.indexOf(i)
+        if (posIdx === -1) return { id: i, word: null, visible: false, hit: false, wrong: false, hiding: false, isChest: false, isFrenzy: false }
+        return {
+          id: i,
+          word: frenzyWords[posIdx].word,
+          visible: true,
+          hit: false,
+          wrong: false,
+          hiding: false,
+          isChest: false,
+          isFrenzy: true,
+        }
+      })
+      setHoles(frenzyHoles)
     } else if (pu.type === 'slow') {
       const active = { type: 'slow', img: pu.img, label: pu.label, roundIndex: roundCountRef.current }
       activePowerupRef.current = active
@@ -354,7 +391,7 @@ const PetWhackMole = ({ petImageUrl, petName, onGameEnd, onClose, hammerSkinUrl,
       setActivePowerup(active)
       setFloatingTexts(prev => [...prev, { id: Date.now(), text: '2x!', x: 50, y: 50, opacity: 1, color: '#f59e0b' }])
     }
-  }, [phase, powerupHole, petHp, playSound])
+  }, [phase, powerupHole, petHp, playSound, wordBankProp])
 
   // Handle whacking a mole or chest
   const handleWhack = useCallback((holeIndex) => {
@@ -372,7 +409,43 @@ const PetWhackMole = ({ petImageUrl, petName, onGameEnd, onClose, hammerSkinUrl,
     const target = targetRef.current
     if (!target) return
 
-    if (hole.word === target.word) {
+    if (hole.isFrenzy) {
+      // FRENZY — every whack is correct, no dismissing others
+      const newStreak = streakRef.current + 1
+      streakRef.current = newStreak
+      setStreak(newStreak)
+      const doubleMul = activePowerupRef.current?.type === 'double' ? 2 : 1
+      const points = (newStreak >= 5 ? 3 : newStreak >= 3 ? 2 : 1) * doubleMul
+      scoreRef.current += points
+      setScore(scoreRef.current)
+
+      setHoles(prev => prev.map((h, i) =>
+        i === holeIndex ? { ...h, hit: true } : h
+      ))
+      setRoundsCompleted(prev => prev + 1)
+      setWordPopup({ points, streak: newStreak })
+      setTimeout(() => setWordPopup(null), 1200)
+      setFloatingTexts(prev => [...prev, {
+        id: Date.now(),
+        text: newStreak >= 3 ? `+${points} ${newStreak}x` : `+${points}`,
+        x: 50, y: 50, opacity: 1,
+        color: '#f59e0b',
+      }])
+      playSound(assetUrl('/pet-game/whack/mole-correct.mp3'), 0.4)
+
+      // End frenzy early if all frenzy moles whacked
+      setHoles(prev => {
+        const remaining = prev.filter(h => h.isFrenzy && h.visible && !h.hit && h.id !== holeIndex)
+        if (remaining.length === 0) {
+          activePowerupRef.current = null
+          setActivePowerup(null)
+          setTimeout(() => spawnRound(), 300)
+        }
+        return prev
+      })
+      return
+
+    } else if (hole.word === target.word) {
       // CORRECT!
       // Chest round — correct word grants chest
       if (hole.isChest && !chestSpawnedRef.current) {

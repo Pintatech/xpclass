@@ -2252,6 +2252,7 @@ const PetDisplay = () => {
           wordBank={wordBank}
           leaderboard={gameLeaderboards.matchgame}
           chestEnabled={chestEnabled}
+          currentLevel={profile?.current_level || 1}
           onGameEnd={(score, extra) => handleGameEnd(score, 'matchgame', extra)}
           onClose={() => setShowGame(null)}
         />

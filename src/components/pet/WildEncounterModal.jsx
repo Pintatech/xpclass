@@ -36,7 +36,7 @@ const raritySolidColor = {
   legendary: '#FACC15',
 }
 
-const BALL_BONUS = { common: 0.10, uncommon: 0.25, rare: 0.45, epic: 0.70 }
+const BALL_BONUS = { common: 0.10, uncommon: 0.25, rare: 0.45, epic: 0.70, legendary: 0.95 }
 const PET_DIFFICULTY = { common: 0.50, uncommon: 0.30, rare: 0.15, epic: 0.07, legendary: 0.03 }
 
 const getCatchRate = (ballRarity, petRarity) => {

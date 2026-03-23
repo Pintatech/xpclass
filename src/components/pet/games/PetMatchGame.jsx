@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef, useCallback } from 'react'
 import { createPortal } from 'react-dom'
-import { Trophy, Volume2, VolumeX, Heart } from 'lucide-react'
+import { Trophy, Volume2, VolumeX, Heart, Star } from 'lucide-react'
 
 import { assetUrl } from '../../../hooks/useBranding'
 
@@ -9,6 +9,13 @@ const PAIRS_PER_ROUND = 6 // 6 pairs = 12 tiles in a 4x3 grid
 const POINTS_PER_MATCH = 10
 const STREAK_BONUS = 5
 const PET_MAX_HP = 5
+const ROUND_DURATION = 15 // seconds per round
+const STAR_THRESHOLDS = {
+  1: [3, 4, 5],
+  2: [4, 5, 6],
+  3: [5, 6, 7],
+  4: [6, 7, 8],
+}
 const shuffle = (arr) => {
   const a = [...arr]
   for (let i = a.length - 1; i > 0; i--) {
@@ -19,7 +26,10 @@ const shuffle = (arr) => {
 }
 
 const EMPTY_ARRAY = []
-const PetMatchGame = ({ petImageUrl, petName, onGameEnd, onClose, wordBank: wordBankProp = EMPTY_ARRAY, hideClose = false, scoreToBeat = null, leaderboard = EMPTY_ARRAY, chestEnabled = false, pvpOpponentPetUrl = null, initialRounds = null, onProgressUpdate = null, opponentProgress = null, isRealtimePvP = false }) => {
+const PetMatchGame = ({ petImageUrl, petName, onGameEnd, onClose, wordBank: wordBankProp = EMPTY_ARRAY, hideClose = false, scoreToBeat = null, leaderboard = EMPTY_ARRAY, chestEnabled = false, pvpOpponentPetUrl = null, initialRounds = null, onProgressUpdate = null, opponentProgress = null, isRealtimePvP = false, currentLevel = 1 }) => {
+  const thresholds = STAR_THRESHOLDS[currentLevel] || [3, 5, 7]
+  const [star1Goal, star2Goal, star3Goal] = thresholds
+  const passGoal = star1Goal
   const [phase, setPhase] = useState('ready')
   const [displayTime, setDisplayTime] = useState(GAME_DURATION)
   const [score, setScore] = useState(0)
@@ -33,6 +43,10 @@ const PetMatchGame = ({ petImageUrl, petName, onGameEnd, onClose, wordBank: word
   const [wordPopup, setWordPopup] = useState(null)
   const [wordHistory, setWordHistory] = useState([])
   const [roundNum, setRoundNum] = useState(0)
+  const [roundTime, setRoundTime] = useState(ROUND_DURATION)
+  const roundTimerRef = useRef(null)
+  const roundsCompleted = roundNum > 0 ? roundNum - 1 : 0
+  const starsEarned = roundsCompleted >= star3Goal ? 3 : roundsCompleted >= star2Goal ? 2 : roundsCompleted >= star1Goal ? 1 : 0
   const [muted, setMuted] = useState(false)
   const [wrongPair, setWrongPair] = useState(null) // [idx1, idx2]
   const [locked, setLocked] = useState(false) // lock input during wrong animation
@@ -142,11 +156,14 @@ const PetMatchGame = ({ petImageUrl, petName, onGameEnd, onClose, wordBank: word
     }
   }, [])
 
-  // Stop music on results
+  // Stop music + round timer on results
   useEffect(() => {
-    if ((phase === 'results' || phase === 'defeated') && bgMusicRef.current) {
-      bgMusicRef.current.pause()
-      bgMusicRef.current = null
+    if (phase === 'results' || phase === 'defeated') {
+      if (bgMusicRef.current) {
+        bgMusicRef.current.pause()
+        bgMusicRef.current = null
+      }
+      if (roundTimerRef.current) clearInterval(roundTimerRef.current)
     }
   }, [phase])
 
@@ -174,12 +191,47 @@ const PetMatchGame = ({ petImageUrl, petName, onGameEnd, onClose, wordBank: word
   useEffect(() => {
     if (phase === 'playing' && roundNum > 0) {
       buildRound()
+      setRoundTime(ROUND_DURATION)
       // Start chest timer when entering chest round
       if (chestEnabled && !chestSpawnedRef.current && roundNum === chestRoundRef.current) {
         setChestTimer(10)
       }
     }
   }, [phase, roundNum, buildRound, chestEnabled])
+
+  // Round timer countdown
+  useEffect(() => {
+    if (phase !== 'playing') return
+    if (roundTimerRef.current) clearInterval(roundTimerRef.current)
+    roundTimerRef.current = setInterval(() => {
+      setRoundTime(prev => {
+        if (prev <= 1) {
+          // Time's up for this round — lose HP and move to next round
+          clearInterval(roundTimerRef.current)
+          setPetHp(hp => {
+            const newHp = hp - 1
+            if (newHp <= 0) {
+              setTimeout(() => {
+                clearInterval(timerRef.current)
+                setPhase('defeated')
+              }, 800)
+            }
+            return newHp
+          })
+          // Move to next round after short delay
+          setTimeout(() => {
+            setRoundNum(prev => {
+              roundNumRef.current = prev + 1
+              return prev + 1
+            })
+          }, 600)
+          return 0
+        }
+        return prev - 1
+      })
+    }, 1000)
+    return () => clearInterval(roundTimerRef.current)
+  }, [phase, roundNum])
 
   // Chest round countdown
   useEffect(() => {
@@ -303,6 +355,7 @@ const PetMatchGame = ({ petImageUrl, petName, onGameEnd, onClose, wordBank: word
 
       // Check if round complete
       if (newMatched >= PAIRS_PER_ROUND) {
+        clearInterval(roundTimerRef.current)
         if (chestEnabled && !chestSpawnedRef.current && roundNum === chestRoundRef.current) {
           chestSpawnedRef.current = true
           setChestCollected(true)
@@ -666,55 +719,43 @@ const PetMatchGame = ({ petImageUrl, petName, onGameEnd, onClose, wordBank: word
                 </div>
               )}
 
-              {/* Round indicator */}
+              {/* Round indicator + timer bar */}
               <div className="text-center">
                 <span className="text-white/50 text-xs font-semibold uppercase tracking-wider">
                   Round {roundNum}
                 </span>
               </div>
 
-              {/* Progress dots — 5 rounds needed */}
-              <div className="flex items-center justify-center gap-2.5 mt-2">
-                {Array.from({ length: 5 }, (_, i) => {
-                  const completed = roundNum > i + 1 || (roundNum === i + 1 && matchedPairs >= PAIRS_PER_ROUND)
-                  const current = roundNum === i + 1 && matchedPairs < PAIRS_PER_ROUND
-                  return (
-                    <div
-                      key={i}
-                      className="relative"
-                      style={{
-                        width: 28,
-                        height: 28,
-                        transition: 'transform 0.3s ease',
-                        transform: current ? 'scale(1.3)' : 'scale(1)',
-                      }}
-                    >
-                      {completed ? (
-                        <div className="w-full h-full rounded-full flex items-center justify-center text-xs"
-                          style={{
-                            background: 'linear-gradient(135deg, #818cf8, #6366f1)',
-                            boxShadow: '0 0 8px rgba(99,102,241,0.5)',
-                            animation: 'matchStreakPulse 0.4s ease-out',
-                          }}
-                        >
-                          <span className="text-white font-bold">✓</span>
-                        </div>
-                      ) : current ? (
-                        <div className="w-full h-full rounded-full border-2 border-white/60 flex items-center justify-center"
-                          style={{ background: 'rgba(255,255,255,0.15)', animation: 'matchHintPulse 1.5s ease-in-out infinite' }}
-                        >
-                          <span className="text-white/80 font-bold text-[10px]">{matchedPairs}/{PAIRS_PER_ROUND}</span>
-                        </div>
-                      ) : (
-                        <div className="w-full h-full rounded-full border border-white/20 flex items-center justify-center"
-                          style={{ background: 'rgba(255,255,255,0.08)' }}
-                        >
-                          <span className="text-white/30 text-[10px]">{i + 1}</span>
-                        </div>
-                      )}
-                    </div>
-                  )
-                })}
+              {/* Star progress bar */}
+              <div className="flex items-center gap-1.5 w-full max-w-[280px] mx-auto mt-2">
+                <div className="flex-1 relative" style={{ height: 22 }}>
+                  <div className="absolute inset-0 rounded-full" style={{
+                    background: 'linear-gradient(180deg, #818cf8 0%, #6366f1 40%, #4f46e5 60%, #7c7cf8 100%)',
+                    boxShadow: 'inset 0 1px 0 rgba(255,255,255,0.4), inset 0 -1px 0 rgba(0,0,0,0.2), 0 1px 3px rgba(0,0,0,0.3)',
+                  }} />
+                  <div className="absolute rounded-full overflow-hidden" style={{
+                    top: 3, bottom: 3, left: 4, right: 4,
+                    background: 'linear-gradient(180deg, #3730a3 0%, #312e81 100%)',
+                    boxShadow: 'inset 0 2px 4px rgba(0,0,0,0.5)',
+                  }}>
+                    <div className="h-full rounded-full" style={{
+                      width: `${Math.min(100, (roundsCompleted / star3Goal) * 100)}%`,
+                      background: 'linear-gradient(180deg, #a78bfa 0%, #7c3aed 50%, #6d28d9 100%)',
+                      boxShadow: 'inset 0 1px 0 rgba(255,255,255,0.4), 0 0 6px rgba(124,58,237,0.6)',
+                      transition: 'width 0.4s ease',
+                    }} />
+                    {[star1Goal, star2Goal].map((goal, i) => (
+                      <div key={i} className="absolute top-0 bottom-0 flex items-center justify-center" style={{ left: `${(goal / star3Goal) * 100}%`, transform: 'translateX(-50%)' }}>
+                        <div className="w-0.5 h-3 rounded-full" style={{ background: roundsCompleted >= goal ? 'rgba(250,204,21,0.9)' : 'rgba(255,255,255,0.3)' }} />
+                      </div>
+                    ))}
+                  </div>
+                </div>
+                <div className="flex -space-x-0.5">
+                  {thresholds.map((goal, i) => (
+                    <Star key={i} className={`w-5 h-5 transition-all ${roundsCompleted >= goal ? 'text-yellow-400 fill-yellow-400 drop-shadow-sm' : 'text-white/25'}`} />
+                  ))}
+                </div>
               </div>
 
               {/* Chest indicator - only on chest round, hide when time runs out */}
@@ -737,6 +778,20 @@ const PetMatchGame = ({ petImageUrl, petName, onGameEnd, onClose, wordBank: word
             {/* Tile Grid */}
             <div className="flex-1 flex items-center justify-center px-3 pb-4">
               <div className="w-full max-w-[380px] flex flex-col gap-2">
+                {/* Round timer */}
+                <div className="flex items-center gap-2 px-1">
+                  <div className="flex-1 h-1.5 rounded-full bg-white/10 overflow-hidden">
+                    <div
+                      className={`h-full rounded-full transition-all duration-1000 ${roundTime <= 5 ? 'bg-red-400' : roundTime <= 10 ? 'bg-yellow-400' : 'bg-green-400'}`}
+                      style={{ width: `${(roundTime / ROUND_DURATION) * 100}%` }}
+                    />
+                  </div>
+                  <span className={`text-xs font-bold min-w-[24px] text-right ${roundTime <= 5 ? 'text-red-300' : roundTime <= 10 ? 'text-yellow-300' : 'text-white/50'}`}
+                    style={{ animation: roundTime <= 5 && roundTime > 0 ? 'matchHintPulse 0.5s ease-in-out infinite' : 'none' }}
+                  >
+                    {roundTime}s
+                  </span>
+                </div>
                 {/* Words */}
                 <div className="grid gap-2" style={{ gridTemplateColumns: 'repeat(3, 1fr)' }}>
                   {tiles.slice(0, PAIRS_PER_ROUND).map((tile, i) => {
@@ -962,19 +1017,31 @@ const PetMatchGame = ({ petImageUrl, petName, onGameEnd, onClose, wordBank: word
                 </>
               ) : (
                 <>
+                  {/* Stars */}
+                  <div className="flex justify-center gap-2 mb-3">
+                    {[1, 2, 3].map(s => (
+                      <Star key={s} className={`w-12 h-12 transition-all ${starsEarned >= s ? 'text-yellow-400 fill-yellow-400 drop-shadow-lg' : 'text-gray-300'}`}
+                        style={{ animation: starsEarned >= s ? `matchScorePopIn 0.5s ease-out ${0.2 + s * 0.15}s both` : 'matchScorePopIn 0.5s ease-out 0.3s both' }}
+                      />
+                    ))}
+                  </div>
+
                   <h2 className="text-2xl font-bold text-gray-800 mb-1">
-                    {totalMatched >= 30 ? 'Great Matching!' : 'Keep Practicing!'}
+                    {starsEarned >= 3 ? 'Perfect Matching!' : starsEarned >= 2 ? 'Great Job!' : starsEarned >= 1 ? 'Training Complete!' : 'Keep Practicing!'}
                   </h2>
                   <p className="text-gray-500 mb-5">
-                    {petName} matched {totalMatched} pairs across {roundNum} round{roundNum > 1 ? 's' : ''}!
+                    {starsEarned >= 1
+                      ? `${petName} completed ${roundsCompleted} round${roundsCompleted > 1 ? 's' : ''}!`
+                      : `${petName} only completed ${roundsCompleted}/${passGoal} rounds`}
                   </p>
 
                   <div
-                    className={`rounded-2xl p-5 mb-5 border ${totalMatched >= 30 ? 'bg-gradient-to-br from-indigo-50 to-purple-50 border-indigo-100' : 'bg-gradient-to-br from-gray-50 to-gray-100 border-gray-200'}`}
+                    className={`rounded-2xl p-5 mb-5 border ${starsEarned >= 3 ? 'bg-gradient-to-br from-yellow-50 to-amber-50 border-yellow-200' : starsEarned >= 1 ? 'bg-gradient-to-br from-indigo-50 to-purple-50 border-indigo-100' : 'bg-gradient-to-br from-gray-50 to-gray-100 border-gray-200'}`}
                     style={{ animation: 'matchScorePopIn 0.6s ease-out 0.5s both' }}
                   >
-                    <p className={`text-5xl font-black ${totalMatched >= 30 ? 'text-indigo-600' : 'text-gray-400'}`}>{score}</p>
-                    <p className={`text-sm font-semibold mt-1 ${totalMatched >= 30 ? 'text-indigo-400' : 'text-gray-400'}`}>points</p>
+                    <p className={`text-5xl font-black ${starsEarned >= 3 ? 'text-amber-500' : starsEarned >= 1 ? 'text-indigo-600' : 'text-gray-400'}`}>{roundsCompleted}</p>
+                    <p className={`text-sm font-semibold mt-1 ${starsEarned >= 3 ? 'text-amber-400' : starsEarned >= 1 ? 'text-indigo-400' : 'text-gray-400'}`}>rounds completed</p>
+                    <p className="text-xs text-gray-400 mt-1">{score} points</p>
                   </div>
                 </>
               )}
@@ -996,9 +1063,13 @@ const PetMatchGame = ({ petImageUrl, petName, onGameEnd, onClose, wordBank: word
 
               {!isRealtimePvP && (
                 <p className="text-sm text-gray-600 mb-6">
-                  {totalMatched >= 30
+                  {starsEarned >= 3
                     ? 'Awesome memory!'
-                    : 'Need at least 30 matched pairs to earn XP. Try again!'}
+                    : starsEarned >= 2
+                      ? 'Almost perfect!'
+                      : starsEarned >= 1
+                        ? 'Good job, keep going!'
+                        : `Need ${passGoal} rounds to pass. Try again!`}
                 </p>
               )}
 
@@ -1009,9 +1080,9 @@ const PetMatchGame = ({ petImageUrl, petName, onGameEnd, onClose, wordBank: word
                 </div>
               )}
 
-              {isRealtimePvP || totalMatched >= 30 ? (
+              {isRealtimePvP || starsEarned >= 1 ? (
                 <button
-                  onClick={() => onGameEnd(score, { chestCollected, pairsMatched: totalMatched })}
+                  onClick={() => onGameEnd(score, { chestCollected, pairsMatched: totalMatched, roundsCompleted, stars: starsEarned })}
                   className="w-full py-3.5 bg-gradient-to-b from-indigo-500 to-indigo-600 hover:from-indigo-600 hover:to-indigo-700 text-white rounded-full font-bold text-lg shadow-lg border-b-4 border-indigo-700 active:border-b-0 active:mt-1 transition-all"
                 >
                   {isRealtimePvP ? 'Done' : 'Collect Rewards'}
