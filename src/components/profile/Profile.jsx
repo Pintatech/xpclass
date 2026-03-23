@@ -390,7 +390,7 @@ const Profile = () => {
       new Date(a.created_at) > new Date(latest.created_at) ? a : latest
     )
     const uploadedAt = new Date(mostRecent.created_at)
-    const unlockAt = new Date(uploadedAt.getTime() + 30 * 24 * 60 * 60 * 1000)
+    const unlockAt = new Date(uploadedAt.getTime() + 7 * 24 * 60 * 60 * 1000)
     const now = new Date()
     if (now >= unlockAt) return 0
     return Math.ceil((unlockAt - now) / (24 * 60 * 60 * 1000))
@@ -416,7 +416,7 @@ const Profile = () => {
       return
     }
     if (uploadCooldownDays > 0) {
-      alert(`Bạn chỉ được tải avatar 1 lần trong 30 ngày. Vui lòng chờ thêm ${uploadCooldownDays} ngày.`)
+      alert(`Bạn chỉ được tải avatar 1 lần trong 7 ngày. Vui lòng chờ thêm ${uploadCooldownDays} ngày.`)
       return
     }
 
