@@ -20,14 +20,14 @@ const RARITY_CONFIG = {
 }
 
 const GAME_POOL = [
-  { key: 'scramble',   name: 'Word Scramble', icon: '🔤', usesWords: true },
-  { key: 'whackmole',  name: 'Whack-a-Mole',  icon: '🔨', usesWords: true },
-  { key: 'astroblast', name: 'Astro Blast',    icon: '🚀', usesWords: true },
-  { key: 'flappy',     name: 'Flappy Pet',     icon: '🐦', usesWords: true },
-  { key: 'matchgame',  name: 'Match Up',       icon: '🃏', usesWords: true },
-  { key: 'wordtype',   name: 'Word Type',      icon: '⌨️', usesWords: true },
-  { key: 'quizrush',   name: 'Quiz Rush',      icon: '⚡', usesWords: false },
-  { key: 'angrypet',   name: 'Angry Pet',      icon: '😡', usesWords: false },
+  { key: 'scramble',   name: 'Word Scramble', img: 'https://xpclass.vn/xpclass/image/dashboard/pet-scramble.jpg', usesWords: true },
+  { key: 'whackmole',  name: 'Whack-a-Mole',  img: 'https://xpclass.vn/xpclass/pet-game/whack/mole-normal.png', usesWords: true },
+  { key: 'astroblast', name: 'Astro Blast',    img: 'https://xpclass.vn/xpclass/image/inventory/spaceship/phantom-voyager.png', usesWords: true },
+  { key: 'flappy',     name: 'Flappy Pet',     img: 'https://xpclass.vn/xpclass/image/dashboard/flap.png', usesWords: true },
+  { key: 'matchgame',  name: 'Match Up',       img: 'https://xpclass.vn/xpclass/image/dashboard/match1.png', usesWords: true },
+  { key: 'wordtype',   name: 'Word Type',      img: 'https://xpclass.vn/xpclass/image/dashboard/pet-type.webp', usesWords: true },
+  { key: 'quizrush',   name: 'Quiz Rush',      img: 'https://xpclass.vn/xpclass/pet-display/game-logo/quiz.png', usesWords: false },
+  { key: 'angrypet',   name: 'Angry Pet',      img: 'https://xpclass.vn/xpclass/pet-game/angry/Slingshot.png', usesWords: false },
 ]
 
 const RC = {
@@ -115,9 +115,11 @@ const PathNode = memo(({ stop, index, current, completed, isLast, rarity, onClic
         )}
 
         {/* Game icon */}
-        <span className={`text-2xl ${isCurrent ? 'animate-bounce' : ''}`} style={{ animationDuration: '2s' }}>
-          {isDone ? '✅' : stop.game.icon}
-        </span>
+        {isDone ? (
+          <span className="text-2xl">✅</span>
+        ) : (
+          <img src={stop.game.img} alt={stop.game.name} className={`w-10 h-10 object-contain rounded-lg ${isCurrent ? 'animate-bounce' : ''}`} style={{ animationDuration: '2s' }} />
+        )}
 
         {/* Score */}
         {isDone && stop.score > 0 && (
@@ -157,7 +159,7 @@ const PetMazeAdventure = ({
   // Build adventure once
   const [stops, setStops] = useState(() => buildAdventure(config.stops))
   const [currentStop, setCurrentStop] = useState(0)
-  const [phase, setPhase] = useState('map') // map | playing | complete
+  const [phase, setPhase] = useState('map') // map | playing | complete | failed
   const [totalScore, setTotalScore] = useState(0)
   const [showConfirmClose, setShowConfirmClose] = useState(false)
 
@@ -201,7 +203,8 @@ const PetMazeAdventure = ({
   }, [currentStop, stops, onGameEnd])
 
   const handleGameClose = useCallback(() => {
-    setPhase('map')
+    // Losing or closing a game = adventure over
+    setPhase('failed')
   }, [])
 
   // Stars
@@ -227,6 +230,7 @@ const PetMazeAdventure = ({
       currentLevel,
       onGameEnd: handleGameComplete,
       onClose: handleGameClose,
+      noRetry: true,
     }
     switch (game.key) {
       case 'scramble':    return <PetWordScramble {...commonProps} wordBank={wordBank} leaderboard={[]} />
@@ -390,7 +394,7 @@ const PetMazeAdventure = ({
           style={{ background: 'linear-gradient(to top, rgba(0,0,0,0.9), transparent)' }}>
           <button onClick={() => setPhase('playing')}
             className={`w-full py-4 rounded-2xl font-bold text-white text-lg bg-gradient-to-r ${rc.gradient} hover:scale-[1.02] active:scale-95 transition-all shadow-xl flex items-center justify-center gap-3`}>
-            <span className="text-2xl">{stops[currentStop].game.icon}</span>
+            <img src={stops[currentStop].game.img} alt={stops[currentStop].game.name} className="w-8 h-8 object-contain rounded" />
             Play {stops[currentStop].game.name}
           </button>
         </div>
@@ -438,6 +442,33 @@ const PetMazeAdventure = ({
             <button onClick={onMazeComplete}
               className={`mt-8 px-12 py-3.5 rounded-2xl font-bold text-white bg-gradient-to-r ${rc.gradient} hover:scale-105 active:scale-95 transition-all shadow-xl text-lg`}>
               {mode === 'encounter' ? 'Encounter Pet!' : 'Collect Rewards!'}
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* Failed — lost a game */}
+      {phase === 'failed' && (
+        <div className="fixed inset-0 z-[60] flex items-center justify-center" style={{ background: 'rgba(0,0,0,0.9)' }}>
+          <div className="flex flex-col items-center text-center px-6 animate-[advScaleIn_0.5s_ease-out]">
+            <div className="text-7xl mb-6">💀</div>
+            <h2 className="text-white text-3xl font-black mb-3">Adventure Failed!</h2>
+            <p className="text-gray-400 text-sm mb-6">You were defeated and sent back home.</p>
+
+            <div className="mt-2 flex gap-8 text-center">
+              <div>
+                <p className="text-3xl font-bold text-white">{totalScore}</p>
+                <p className="text-gray-500 text-xs">Total Score</p>
+              </div>
+              <div>
+                <p className="text-3xl font-bold text-white">{completedCount}/{stops.length}</p>
+                <p className="text-gray-500 text-xs">Games Won</p>
+              </div>
+            </div>
+
+            <button onClick={onClose}
+              className="mt-8 px-12 py-3.5 rounded-2xl font-bold text-white bg-gradient-to-r from-gray-600 to-gray-700 hover:scale-105 active:scale-95 transition-all shadow-xl text-lg">
+              Go Home
             </button>
           </div>
         </div>

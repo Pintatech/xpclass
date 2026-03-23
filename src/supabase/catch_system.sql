@@ -120,9 +120,9 @@ BEGIN
     RETURN json_build_object('encountered', false);
   END IF;
 
-  RETURN json_build_object(
+  RETURN jsonb_build_object(
     'encountered', true,
-    'pet', json_build_object(
+    'pet', jsonb_build_object(
       'id', selected_pet.id,
       'name', selected_pet.name,
       'image_url', selected_pet.image_url,
@@ -271,9 +271,9 @@ DECLARE
   user_record record;
   cost integer;
 BEGIN
-  -- Get ball
+  -- Get ball or ticket
   SELECT * INTO ball_record FROM collectible_items
-  WHERE id = p_ball_item_id AND item_type = 'ball' AND is_active = true;
+  WHERE id = p_ball_item_id AND item_type IN ('ball', 'ticket') AND is_active = true;
 
   IF ball_record IS NULL THEN
     RETURN json_build_object('success', false, 'error', 'Ball not found');
@@ -324,6 +324,8 @@ DECLARE
   cooldown_minutes integer;
   last_encounter timestamptz;
   user_role text;
+  ticket_item_id uuid;
+  ticket_qty integer;
   rarity_weights jsonb;
   total_weight integer;
   rarity_roll float;
@@ -355,6 +357,29 @@ BEGIN
         'encountered', false,
         'cooldown_remaining', EXTRACT(EPOCH FROM (last_encounter + (cooldown_minutes * interval '1 minute') - now()))::integer
       );
+    END IF;
+
+    -- Consume adventure ticket (non-admins only)
+    SELECT ci.id INTO ticket_item_id
+    FROM collectible_items ci
+    WHERE ci.item_type = 'ticket' AND ci.name = 'Adventure Ticket' AND ci.is_active = true
+    LIMIT 1;
+
+    IF ticket_item_id IS NOT NULL THEN
+      SELECT ui.quantity INTO ticket_qty
+      FROM user_inventory ui
+      WHERE ui.user_id = p_user_id AND ui.item_id = ticket_item_id;
+
+      IF ticket_qty IS NULL OR ticket_qty < 1 THEN
+        RETURN json_build_object('encountered', false, 'error', 'no_ticket');
+      END IF;
+
+      UPDATE user_inventory
+      SET quantity = quantity - 1, updated_at = now()
+      WHERE user_id = p_user_id AND item_id = ticket_item_id;
+
+      DELETE FROM user_inventory
+      WHERE user_id = p_user_id AND item_id = ticket_item_id AND quantity <= 0;
     END IF;
   END IF;
 
@@ -401,9 +426,9 @@ BEGIN
     RETURN json_build_object('encountered', false);
   END IF;
 
-  RETURN json_build_object(
+  RETURN jsonb_build_object(
     'encountered', true,
-    'pet', json_build_object(
+    'pet', jsonb_build_object(
       'id', selected_pet.id,
       'name', selected_pet.name,
       'image_url', selected_pet.image_url,

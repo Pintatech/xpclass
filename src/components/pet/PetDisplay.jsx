@@ -1514,8 +1514,8 @@ const PetDisplay = () => {
               )}
             </div>
 
-            {/* Wild Area Button - Bottom Left (Admin only) */}
-            {isAdmin() && <div className="absolute bottom-36 left-2 z-10">
+            {/* Wild Area Button - Bottom Left */}
+            <div className="absolute bottom-36 left-2 z-10">
               <button
                 onClick={() => setShowWildArea(true)}
                 className="w-12 h-12 rounded-full bg-gradient-to-br from-emerald-400 to-green-600 hover:from-emerald-300 hover:to-green-500 shadow-lg hover:scale-110 transition-all flex items-center justify-center border-2 border-emerald-300"
@@ -1523,7 +1523,7 @@ const PetDisplay = () => {
               >
                 <span className="text-2xl">🌿</span>
               </button>
-            </div>}
+            </div>
 
             <div className="flex items-center justify-center gap-2">
               <h2 className="text-2xl font-bold text-gray-800">
@@ -2387,12 +2387,10 @@ const PetDisplay = () => {
               <p className="text-emerald-300/70 text-sm mt-1">Search for wild pets hiding in the wild!</p>
 
               {/* Ticket count */}
-              {!isAdmin() && (
-                <div className="mt-3 flex items-center justify-center gap-1.5 text-emerald-300">
-                  <span className="text-lg">🎟️</span>
-                  <span className="text-sm font-medium">{adventureTicketCount} ticket{adventureTicketCount !== 1 ? 's' : ''}</span>
-                </div>
-              )}
+              <div className="mt-3 flex items-center justify-center gap-1.5 text-emerald-300">
+                <span className="text-lg">🎟️</span>
+                <span className="text-sm font-medium">{isAdmin() ? '∞' : adventureTicketCount} ticket{adventureTicketCount !== 1 ? 's' : ''}</span>
+              </div>
 
               <div className="mt-4">
                 {wildAreaCooldown > 0 ? (
@@ -2405,6 +2403,7 @@ const PetDisplay = () => {
                 ) : !isAdmin() && adventureTicketCount < 1 ? (
                   <div>
                     <p className="text-emerald-400/70 text-sm">You need an Adventure Ticket to search!</p>
+                    <p className="text-emerald-500/50 text-xs mt-1">Buy tickets from the Shop!</p>
                   </div>
                 ) : (
                   <button

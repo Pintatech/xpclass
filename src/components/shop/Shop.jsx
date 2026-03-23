@@ -95,7 +95,7 @@ const Shop = () => {
         supabase
           .from('collectible_items')
           .select('*')
-          .eq('item_type', 'ball')
+          .in('item_type', ['ball', 'ticket'])
           .eq('is_active', true)
           .order('sort_order', { ascending: true })
       ])
@@ -291,7 +291,7 @@ const Shop = () => {
     { key: 'pet', label: 'Pet bowl' },
     { key: 'spaceship', label: 'Spaceship' },
     { key: 'hammer', label: 'Hammer' },
-    { key: 'ball', label: 'Ball' },
+    { key: 'ball', label: 'Adventure' },
     // { key: 'egg', label: 'Egg' },
     // { key: 'school', label: 'School things' },
   ]
@@ -867,7 +867,7 @@ const Shop = () => {
                 Hủy
               </button>
               <button
-                onClick={confirmEggCurrency ? (confirmItem?.item_type === 'ball' ? handleConfirmBallPurchase : handleConfirmEggPurchase) : confirmPurchase}
+                onClick={confirmEggCurrency ? (['ball', 'ticket'].includes(confirmItem?.item_type) ? handleConfirmBallPurchase : handleConfirmEggPurchase) : confirmPurchase}
                 className="flex-1 py-2 rounded-xl bg-blue-500 text-white font-medium hover:bg-blue-600 transition-colors"
               >
                 Mua

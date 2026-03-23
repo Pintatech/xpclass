@@ -1,6 +1,28 @@
-import React, { useState, useEffect } from 'react'
+import React, { useState, useEffect, useCallback } from 'react'
+import Cropper from 'react-easy-crop'
 import { supabase } from '../../../supabase/client'
-import { X, BookOpen, Save, Upload, Trash2 } from 'lucide-react'
+import { X, BookOpen, Save, Upload, Trash2, Check } from 'lucide-react'
+
+// Helper to create a cropped image from canvas
+const createCroppedImage = (imageSrc, pixelCrop) => {
+  return new Promise((resolve) => {
+    const image = new Image()
+    image.crossOrigin = 'anonymous'
+    image.onload = () => {
+      const canvas = document.createElement('canvas')
+      canvas.width = pixelCrop.width
+      canvas.height = pixelCrop.height
+      const ctx = canvas.getContext('2d')
+      ctx.drawImage(
+        image,
+        pixelCrop.x, pixelCrop.y, pixelCrop.width, pixelCrop.height,
+        0, 0, pixelCrop.width, pixelCrop.height
+      )
+      canvas.toBlob(resolve, 'image/jpeg', 0.9)
+    }
+    image.src = imageSrc
+  })
+}
 
 const EditUnitModal = ({ unit, onClose, onUpdated }) => {
   const [formData, setFormData] = useState({
@@ -13,6 +35,16 @@ const EditUnitModal = ({ unit, onClose, onUpdated }) => {
   const [loading, setLoading] = useState(false)
   const [uploading, setUploading] = useState(false)
   const [error, setError] = useState('')
+
+  // Crop state
+  const [cropImageSrc, setCropImageSrc] = useState(null)
+  const [crop, setCrop] = useState({ x: 0, y: 0 })
+  const [zoom, setZoom] = useState(1)
+  const [croppedAreaPixels, setCroppedAreaPixels] = useState(null)
+
+  const onCropComplete = useCallback((_, croppedPixels) => {
+    setCroppedAreaPixels(croppedPixels)
+  }, [])
 
   const colorOptions = [
     { value: 'blue', label: 'Ice', class: 'bg-blue-500' },
@@ -35,21 +67,34 @@ const EditUnitModal = ({ unit, onClose, onUpdated }) => {
     }
   }, [unit])
 
-  const handleImageUpload = async (e) => {
+  const handleImageSelect = (e) => {
     const file = e.target.files?.[0]
     if (!file) return
+    const reader = new FileReader()
+    reader.onload = () => {
+      setCropImageSrc(reader.result)
+      setCrop({ x: 0, y: 0 })
+      setZoom(1)
+    }
+    reader.readAsDataURL(file)
+    e.target.value = ''
+  }
+
+  const handleCropConfirm = async () => {
+    if (!cropImageSrc || !croppedAreaPixels) return
     try {
       setUploading(true)
-      const ext = file.name.split('.').pop()
-      const path = `${Date.now()}.${ext}`
+      const blob = await createCroppedImage(cropImageSrc, croppedAreaPixels)
+      const path = `${Date.now()}.jpg`
       const { error: uploadError } = await supabase.storage
         .from('course-backgrounds')
-        .upload(path, file, { cacheControl: '3600', upsert: true })
+        .upload(path, blob, { contentType: 'image/jpeg', cacheControl: '3600', upsert: true })
       if (uploadError) throw uploadError
       const { data: publicData } = supabase.storage
         .from('course-backgrounds')
         .getPublicUrl(path)
       handleChange('thumbnail_url', publicData.publicUrl)
+      setCropImageSrc(null)
     } catch (err) {
       console.error('Upload error:', err)
       setError('Upload failed: ' + (err.message || 'Unknown error'))
@@ -167,32 +212,81 @@ const EditUnitModal = ({ unit, onClose, onUpdated }) => {
             <label className="block text-sm font-medium text-gray-700 mb-2">
               Background Image
             </label>
-            {formData.thumbnail_url && (
-              <img src={formData.thumbnail_url} alt="Preview" className="w-full h-24 object-cover rounded-lg border mb-2" />
+
+            {/* Crop UI */}
+            {cropImageSrc ? (
+              <div className="mb-2">
+                <div className="relative w-full h-56 bg-gray-900 rounded-lg overflow-hidden">
+                  <Cropper
+                    image={cropImageSrc}
+                    crop={crop}
+                    zoom={zoom}
+                    aspect={16 / 5}
+                    onCropChange={setCrop}
+                    onZoomChange={setZoom}
+                    onCropComplete={onCropComplete}
+                  />
+                </div>
+                <div className="flex items-center gap-2 mt-2">
+                  <label className="text-xs text-gray-500">Zoom</label>
+                  <input
+                    type="range"
+                    min={1} max={3} step={0.1}
+                    value={zoom}
+                    onChange={(e) => setZoom(Number(e.target.value))}
+                    className="flex-1"
+                  />
+                </div>
+                <div className="flex items-center gap-2 mt-2">
+                  <button
+                    type="button"
+                    onClick={handleCropConfirm}
+                    disabled={uploading}
+                    className="inline-flex items-center gap-1 px-3 py-2 text-sm bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50"
+                  >
+                    <Check className="w-4 h-4" />
+                    {uploading ? 'Uploading...' : 'Confirm Crop'}
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setCropImageSrc(null)}
+                    className="inline-flex items-center gap-1 px-3 py-2 text-sm text-gray-600 border border-gray-300 rounded-lg hover:bg-gray-50"
+                  >
+                    <X className="w-4 h-4" />
+                    Cancel
+                  </button>
+                </div>
+              </div>
+            ) : (
+              <>
+                {formData.thumbnail_url && (
+                  <img src={formData.thumbnail_url} alt="Preview" className="w-full h-24 object-cover rounded-lg border mb-2" />
+                )}
+                <div className="flex items-center gap-2">
+                  <label className={`inline-flex items-center gap-2 px-3 py-2 text-sm border border-gray-300 rounded-lg cursor-pointer hover:bg-gray-50 ${uploading ? 'opacity-50 pointer-events-none' : ''}`}>
+                    <Upload className="w-4 h-4" />
+                    {formData.thumbnail_url ? 'Change' : 'Upload'}
+                    <input
+                      type="file"
+                      accept="image/*"
+                      onChange={handleImageSelect}
+                      className="hidden"
+                      disabled={uploading}
+                    />
+                  </label>
+                  {formData.thumbnail_url && (
+                    <button
+                      type="button"
+                      onClick={() => handleChange('thumbnail_url', '')}
+                      className="inline-flex items-center gap-1 px-3 py-2 text-sm text-red-500 hover:text-red-700 border border-red-200 rounded-lg hover:bg-red-50"
+                    >
+                      <Trash2 className="w-3 h-3" />
+                      Remove
+                    </button>
+                  )}
+                </div>
+              </>
             )}
-            <div className="flex items-center gap-2">
-              <label className={`inline-flex items-center gap-2 px-3 py-2 text-sm border border-gray-300 rounded-lg cursor-pointer hover:bg-gray-50 ${uploading ? 'opacity-50 pointer-events-none' : ''}`}>
-                <Upload className="w-4 h-4" />
-                {uploading ? 'Uploading...' : formData.thumbnail_url ? 'Change' : 'Upload'}
-                <input
-                  type="file"
-                  accept="image/*"
-                  onChange={handleImageUpload}
-                  className="hidden"
-                  disabled={uploading}
-                />
-              </label>
-              {formData.thumbnail_url && (
-                <button
-                  type="button"
-                  onClick={() => handleChange('thumbnail_url', '')}
-                  className="inline-flex items-center gap-1 px-3 py-2 text-sm text-red-500 hover:text-red-700 border border-red-200 rounded-lg hover:bg-red-50"
-                >
-                  <Trash2 className="w-3 h-3" />
-                  Remove
-                </button>
-              )}
-            </div>
             <p className="text-xs text-gray-500 mt-1">Uses theme default if empty</p>
           </div>
 

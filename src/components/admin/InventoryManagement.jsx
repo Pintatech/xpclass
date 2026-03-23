@@ -23,6 +23,7 @@ const itemTypeOptions = [
   { value: 'pet_toy', label: 'Pet Toy' },
   { value: 'background', label: 'Background' },
   { value: 'ball', label: 'Ball' },
+  { value: 'ticket', label: 'Ticket' },
 ]
 
 const rarityOptions = [
@@ -57,6 +58,8 @@ const defaultItemForm = {
   rarity: 'common',
   is_active: true,
   sort_order: 0,
+  price_gems: 0,
+  price_xp: 0,
 }
 
 const defaultChestForm = {
@@ -148,6 +151,8 @@ const InventoryManagement = () => {
         rarity: item.rarity,
         is_active: item.is_active,
         sort_order: item.sort_order || 0,
+        price_gems: item.price_gems || 0,
+        price_xp: item.price_xp || 0,
       })
     } else {
       setEditingRecord(null)
@@ -170,6 +175,8 @@ const InventoryManagement = () => {
         rarity: formData.rarity,
         is_active: formData.is_active,
         sort_order: parseInt(formData.sort_order) || 0,
+        price_gems: parseInt(formData.price_gems) || 0,
+        price_xp: parseInt(formData.price_xp) || 0,
       }
 
       if (editingRecord) {
@@ -755,6 +762,20 @@ const ItemForm = ({ formData, setFormData, onSubmit, onClose, editing, saving })
         <input type="url" value={formData.image_url} onChange={e => setFormData({ ...formData, image_url: e.target.value })}
           className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500" placeholder="https://..." />
       </div>
+      {['ball', 'ticket', 'egg'].includes(formData.item_type) && (
+        <>
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">Price (Gems)</label>
+            <input type="number" min="0" value={formData.price_gems} onChange={e => setFormData({ ...formData, price_gems: e.target.value })}
+              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500" placeholder="0 = not for sale" />
+          </div>
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">Price (XP)</label>
+            <input type="number" min="0" value={formData.price_xp} onChange={e => setFormData({ ...formData, price_xp: e.target.value })}
+              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500" placeholder="0 = not for sale" />
+          </div>
+        </>
+      )}
       <div className="md:col-span-2">
         <label className="flex items-center space-x-2">
           <input type="checkbox" checked={formData.is_active} onChange={e => setFormData({ ...formData, is_active: e.target.checked })}
