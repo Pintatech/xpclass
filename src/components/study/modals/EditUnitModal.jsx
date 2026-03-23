@@ -24,7 +24,18 @@ const createCroppedImage = (imageSrc, pixelCrop) => {
   })
 }
 
-const EditUnitModal = ({ unit, onClose, onUpdated }) => {
+// Compute cropper aspect ratio to match actual unit card dimensions
+const getCropAspect = (sessionCount) => {
+  const cols = 4 // lg:grid-cols-4 in UnitList session grid
+  const rows = Math.max(1, Math.ceil(sessionCount / cols))
+  const cardWidth = 450 // approximate card width in px at lg breakpoint
+  const headerHeight = 100 // ribbon + header + padding
+  const rowHeight = 92 // 80px session + 12px gap
+  const cardHeight = headerHeight + rows * rowHeight
+  return cardWidth / cardHeight
+}
+
+const EditUnitModal = ({ unit, onClose, onUpdated, sessionCount = 0 }) => {
   const [formData, setFormData] = useState({
     title: '',
     description: '',
@@ -216,12 +227,12 @@ const EditUnitModal = ({ unit, onClose, onUpdated }) => {
             {/* Crop UI */}
             {cropImageSrc ? (
               <div className="mb-2">
-                <div className="relative w-full h-56 bg-gray-900 rounded-lg overflow-hidden">
+                <div className="relative w-full bg-gray-900 rounded-lg overflow-hidden" style={{ aspectRatio: getCropAspect(sessionCount) }}>
                   <Cropper
                     image={cropImageSrc}
                     crop={crop}
                     zoom={zoom}
-                    aspect={16 / 5}
+                    aspect={getCropAspect(sessionCount)}
                     onCropChange={setCrop}
                     onZoomChange={setZoom}
                     onCropComplete={onCropComplete}

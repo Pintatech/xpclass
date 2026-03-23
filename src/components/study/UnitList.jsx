@@ -749,7 +749,7 @@ const UnitList = () => {
         <div className="flex-1 overflow-y-auto p-6">
           <>
             {/* Units with Sessions */}
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-x-6 gap-y-10 mt-4">
+            <div className="columns-1 lg:columns-2 gap-6 mt-4 [&>*]:mb-10 [&>*]:break-inside-avoid">
               {units.map((unit) => {
                 const unitSessions = sessions
                   .filter((session) => session.unit_id === unit.id)
@@ -966,6 +966,7 @@ const UnitList = () => {
       {showEditUnitModal && editingUnit && (
         <EditUnitModal
           unit={editingUnit}
+          sessionCount={sessions.filter(s => s.unit_id === editingUnit.id).length}
           onClose={() => {
             setShowEditUnitModal(false);
             setEditingUnit(null);

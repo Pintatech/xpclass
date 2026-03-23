@@ -158,6 +158,8 @@ const PetInventory = () => {
     return pet.image_url
   }
 
+  const isEvolved = (userPet) => userPet.evolution_stage > 0
+
   // Pets in tray (not placed yet)
   const trayPets = userPets.filter(up => !layout[up.id])
 
@@ -246,19 +248,38 @@ const PetInventory = () => {
       {!activeBackgroundUrl && (
         <div className="absolute inset-0 pointer-events-none overflow-hidden">
           {/* Clouds */}
-          {[...Array(5)].map((_, i) => (
+          {[
+            { top: '6%', size: 1, speed: 35, delay: 0 },
+            { top: '14%', size: 0.7, speed: 45, delay: -12 },
+            { top: '22%', size: 1.2, speed: 38, delay: -20 },
+            { top: '10%', size: 0.6, speed: 50, delay: -30 },
+            { top: '28%', size: 0.9, speed: 42, delay: -6 },
+          ].map((c, i) => (
             <div
               key={i}
-              className="absolute bg-white/60 rounded-full blur-sm"
+              className="absolute"
               style={{
-                width: 80 + i * 30,
-                height: 30 + i * 10,
-                top: `${8 + i * 6}%`,
-                left: `${-10 + i * 22}%`,
-                animation: `cloudDrift ${30 + i * 10}s linear infinite`,
-                animationDelay: `${i * -8}s`,
+                top: c.top,
+                left: '-15%',
+                transform: `scale(${c.size})`,
+                animation: `cloudDrift ${c.speed}s linear infinite`,
+                animationDelay: `${c.delay}s`,
+                opacity: 0.85 - c.size * 0.15,
               }}
-            />
+            >
+              {/* Main body */}
+              <div className="relative" style={{ width: 140, height: 50 }}>
+                <div className="absolute rounded-full bg-white" style={{ width: 60, height: 40, bottom: 0, left: 10 }} />
+                <div className="absolute rounded-full bg-white" style={{ width: 80, height: 50, bottom: 0, left: 30 }} />
+                <div className="absolute rounded-full bg-white" style={{ width: 50, height: 35, bottom: 0, left: 85 }} />
+                {/* Top bumps */}
+                <div className="absolute rounded-full bg-white" style={{ width: 50, height: 40, bottom: 18, left: 25 }} />
+                <div className="absolute rounded-full bg-white" style={{ width: 60, height: 45, bottom: 15, left: 50 }} />
+                <div className="absolute rounded-full bg-white" style={{ width: 35, height: 28, bottom: 12, left: 80 }} />
+                {/* Soft shadow */}
+                <div className="absolute rounded-full bg-gray-200/40" style={{ width: 120, height: 15, bottom: -2, left: 10, filter: 'blur(4px)' }} />
+              </div>
+            </div>
           ))}
           {/* Sun */}
           <div className="absolute top-6 right-8 w-16 h-16 bg-yellow-300 rounded-full blur-sm opacity-80" />
@@ -321,7 +342,7 @@ const PetInventory = () => {
                 <img
                   src={getPetImage(userPet)}
                   alt={pet.name}
-                  className="w-16 h-16 sm:w-20 sm:h-20 object-contain pointer-events-none select-none"
+                  className={`object-contain pointer-events-none select-none ${isEvolved(userPet) ? 'w-24 h-24 sm:w-28 sm:h-28' : 'w-16 h-16 sm:w-20 sm:h-20'}`}
                   style={{
                     filter: `drop-shadow(0 0 6px ${rarityGlow[rarity]})`,
                     transform: pos.flip ? 'scaleX(-1)' : undefined,
@@ -367,7 +388,7 @@ const PetInventory = () => {
           <img
             src={getPetImage(draggingPet)}
             alt=""
-            className="w-16 h-16 object-contain opacity-80"
+            className={`object-contain opacity-80 ${isEvolved(draggingPet) ? 'w-24 h-24' : 'w-16 h-16'}`}
             style={{ filter: `drop-shadow(0 0 10px ${rarityGlow[draggingPet.pet?.rarity || 'common']})` }}
           />
         </div>
@@ -463,7 +484,7 @@ const PetInventory = () => {
                     <img
                       src={getPetImage(userPet)}
                       alt={pet.name}
-                      className="w-10 h-10 object-contain pointer-events-none select-none"
+                      className={`object-contain pointer-events-none select-none ${isEvolved(userPet) ? 'w-14 h-14' : 'w-10 h-10'}`}
                       draggable={false}
                       onContextMenu={(e) => e.preventDefault()}
                     />
@@ -517,7 +538,7 @@ const PetInventory = () => {
                     <img
                       src={getPetImage(userPet)}
                       alt={pet.name}
-                      className="w-10 h-10 object-contain pointer-events-none select-none"
+                      className={`object-contain pointer-events-none select-none ${isEvolved(userPet) ? 'w-14 h-14' : 'w-10 h-10'}`}
                       draggable={false}
                       onContextMenu={(e) => e.preventDefault()}
                     />
@@ -574,7 +595,7 @@ const PetInventory = () => {
               <img
                 src={getPetImage(selectedPet)}
                 alt={selectedPet.pet.name}
-                className="w-28 h-28 object-contain select-none pointer-events-none"
+                className={`object-contain select-none pointer-events-none ${isEvolved(selectedPet) ? 'w-36 h-36' : 'w-28 h-28'}`}
                 style={{ filter: `drop-shadow(0 0 8px ${rarityGlow[selectedPet.pet.rarity]})` }}
                 draggable={false}
               />
