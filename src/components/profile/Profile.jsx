@@ -29,7 +29,8 @@ import {
   AlertCircle,
   CheckCircle,
   XCircle,
-  LogOut
+  LogOut,
+  Gift
 } from 'lucide-react'
 
 const Profile = () => {
@@ -46,7 +47,7 @@ const Profile = () => {
     hasUnlockedPerk,
     isMaxLevel
   } = useStudentLevels()
-  const { getAchievementsWithProgress, userAchievements, challengeWinCounts } = useAchievements()
+  const { getAchievementsWithProgress, userAchievements, challengeWinCounts, claimAchievementXP, checkAndAwardAchievements } = useAchievements()
   const { userPets, allPets } = usePet()
 
   // State for profile being viewed
@@ -94,6 +95,8 @@ const Profile = () => {
   // Achievement state
   const [achievements, setAchievements] = useState([])
   const [showAchievementModal, setShowAchievementModal] = useState(false)
+  const [claimingAchievement, setClaimingAchievement] = useState({})
+  const [claimMessage, setClaimMessage] = useState('')
 
   // Pet state for viewed user
   const [viewedUserPets, setViewedUserPets] = useState([])
@@ -671,6 +674,29 @@ const Profile = () => {
     }
   }
 
+  const handleClaimAchievementXP = async (achievementId) => {
+    setClaimingAchievement(prev => ({ ...prev, [achievementId]: true }))
+    setClaimMessage('')
+    try {
+      // Ensure achievement is awarded in DB before claiming
+      await checkAndAwardAchievements()
+      const result = await claimAchievementXP(achievementId)
+      if (result.success) {
+        setClaimMessage(`+${result.xpAwarded} XP đã được cộng!`)
+        // Refresh achievements list using Profile's own fetch
+        await fetchAchievements()
+      } else {
+        setClaimMessage(result.message)
+      }
+      setTimeout(() => setClaimMessage(''), 3000)
+    } catch (error) {
+      setClaimMessage('Có lỗi xảy ra khi nhận XP')
+      setTimeout(() => setClaimMessage(''), 3000)
+    } finally {
+      setClaimingAchievement(prev => ({ ...prev, [achievementId]: false }))
+    }
+  }
+
   const handleSaveProfile = async () => {
     try {
       const nameChanged = editData.full_name !== profile?.full_name
@@ -1016,10 +1042,17 @@ const Profile = () => {
                       )}
                     </div>
                     {achievement.isClaimed && (
-                      <div className="text-xs text-green-600 mt-1">✓ Claimed</div>
+                      <div className="text-xs text-green-600 mt-1">✓ Đã nhận</div>
                     )}
-                    {!achievement.isClaimed && (
-                      <div className="text-xs text-blue-600 mt-1">Ready to claim!</div>
+                    {!achievement.isClaimed && isOwnProfile && achievement.xp_reward > 0 && (
+                      <button
+                        onClick={() => handleClaimAchievementXP(achievement.id)}
+                        disabled={claimingAchievement[achievement.id]}
+                        className="mt-1 flex items-center justify-center gap-1 px-2 py-1 text-xs bg-green-600 hover:bg-green-700 text-white rounded transition-colors disabled:opacity-50"
+                      >
+                        <Gift className="w-3 h-3" />
+                        {claimingAchievement[achievement.id] ? '...' : `Nhận ${achievement.xp_reward} XP`}
+                      </button>
                     )}
                   </div>
                 )
@@ -1548,12 +1581,23 @@ const Profile = () => {
             </div>
 
             <div className="p-6">
+              {/* Claim Message */}
+              {claimMessage && (
+                <div className={`mb-4 p-3 rounded-lg ${
+                  claimMessage.includes('+')
+                    ? 'bg-green-100 text-green-800 border border-green-200'
+                    : 'bg-red-100 text-red-800 border border-red-200'
+                }`}>
+                  {claimMessage}
+                </div>
+              )}
+
               {/* Unlocked Achievements */}
               {achievements.filter(a => a.isUnlocked).length > 0 ? (
                 <div>
                   <h3 className="text-lg font-semibold text-gray-900 mb-4 flex items-center space-x-2">
                     <Trophy className="w-5 h-5 text-purple-600" />
-                    <span>Unlocked Achievements ({achievements.filter(a => a.isUnlocked).length})</span>
+                    <span>Đã đạt được ({achievements.filter(a => a.isUnlocked).length})</span>
                   </h3>
                   <div className="grid grid-cols-3 md:grid-cols-5 lg:grid-cols-6 gap-4">
                     {achievements.filter(a => a.isUnlocked).map((achievement) => (
@@ -1572,10 +1616,17 @@ const Profile = () => {
                         <div className="text-sm font-medium text-gray-900">{achievement.title}</div>
                         <div className="text-xs text-gray-500">{achievement.description}</div>
                         {achievement.isClaimed && (
-                          <div className="text-xs text-green-600 mt-1">✓ Claimed</div>
+                          <div className="text-xs text-green-600 mt-1">✓ Đã nhận</div>
                         )}
-                        {!achievement.isClaimed && (
-                          <div className="text-xs text-blue-600 mt-1">Ready to claim!</div>
+                        {!achievement.isClaimed && isOwnProfile && achievement.xp_reward > 0 && (
+                          <button
+                            onClick={() => handleClaimAchievementXP(achievement.id)}
+                            disabled={claimingAchievement[achievement.id]}
+                            className="mt-1 mx-auto flex items-center gap-1 px-2 py-1 text-xs bg-green-600 hover:bg-green-700 text-white rounded transition-colors disabled:opacity-50"
+                          >
+                            <Gift className="w-3 h-3" />
+                            {claimingAchievement[achievement.id] ? '...' : `Nhận ${achievement.xp_reward} XP`}
+                          </button>
                         )}
                       </div>
                     ))}
