@@ -41,7 +41,8 @@ const EditUnitModal = ({ unit, onClose, onUpdated, sessionCount = 0 }) => {
     description: '',
     color_theme: 'blue',
     estimated_duration: 60,
-    thumbnail_url: ''
+    thumbnail_url: '',
+    unit_number: 1
   })
   const [loading, setLoading] = useState(false)
   const [uploading, setUploading] = useState(false)
@@ -73,7 +74,8 @@ const EditUnitModal = ({ unit, onClose, onUpdated, sessionCount = 0 }) => {
         description: unit.description || '',
         color_theme: unit.color_theme || 'blue',
         estimated_duration: unit.estimated_duration || 60,
-        thumbnail_url: unit.thumbnail_url || ''
+        thumbnail_url: unit.thumbnail_url || '',
+        unit_number: unit.unit_number || 1
       })
     }
   }, [unit])
@@ -127,7 +129,8 @@ const EditUnitModal = ({ unit, onClose, onUpdated, sessionCount = 0 }) => {
           description: formData.description.trim() || null,
           color_theme: formData.color_theme,
           estimated_duration: formData.estimated_duration,
-          thumbnail_url: formData.thumbnail_url || null
+          thumbnail_url: formData.thumbnail_url || null,
+          unit_number: formData.unit_number
         })
         .eq('id', unit.id)
         .select()
@@ -189,6 +192,20 @@ const EditUnitModal = ({ unit, onClose, onUpdated, sessionCount = 0 }) => {
               className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
               placeholder="e.g., Basic Vocabulary, Grammar Fundamentals"
               required
+            />
+          </div>
+
+          {/* Unit Number (Position) */}
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-2">
+              Position
+            </label>
+            <input
+              type="number"
+              min={1}
+              value={formData.unit_number}
+              onChange={(e) => handleChange('unit_number', parseInt(e.target.value) || 1)}
+              className="w-24 px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
             />
           </div>
 
