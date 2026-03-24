@@ -1,14 +1,7 @@
 import { useState, useEffect, useRef, useMemo, useCallback } from 'react'
 import { createPortal } from 'react-dom'
-import PetCatchGame from './PetCatchGame'
-import PetFlappyGame from './PetFlappyGame'
-import PetWordScramble from './PetWordScramble'
-import PetWhackMole from './PetWhackMole'
-import PetAstroBlast from './PetAstroBlast'
-import PetMatchGame from './PetMatchGame'
-import PetWordType from './PetWordType'
-import PetQuizRush from './PetQuizRush'
-import PetAngryPet from './PetAngryPet'
+import { Heart, Zap } from 'lucide-react'
+import { assetUrl } from '../../../hooks/useBranding'
 
 /* ---- Constants ---- */
 const RARITY_CONFIG = {
@@ -18,17 +11,6 @@ const RARITY_CONFIG = {
   epic:      { stops: 4 },
   legendary: { stops: 5 },
 }
-
-const GAME_POOL = [
-  { key: 'scramble',   name: 'Word Scramble', img: 'https://xpclass.vn/xpclass/image/dashboard/pet-scramble.jpg', usesWords: true },
-  { key: 'whackmole',  name: 'Whack-a-Mole',  img: 'https://xpclass.vn/xpclass/pet-game/whack/mole-normal.png', usesWords: true },
-  { key: 'astroblast', name: 'Astro Blast',    img: 'https://xpclass.vn/xpclass/image/inventory/spaceship/phantom-voyager.png', usesWords: true },
-  { key: 'flappy',     name: 'Flappy Pet',     img: 'https://xpclass.vn/xpclass/image/dashboard/flap.png', usesWords: true },
-  { key: 'matchgame',  name: 'Match Up',       img: 'https://xpclass.vn/xpclass/image/dashboard/match1.png', usesWords: true },
-  { key: 'wordtype',   name: 'Word Type',      img: 'https://xpclass.vn/xpclass/image/dashboard/pet-type.webp', usesWords: true },
-  { key: 'quizrush',   name: 'Quiz Rush',      img: 'https://xpclass.vn/xpclass/pet-display/game-logo/quiz.png', usesWords: false },
-  { key: 'angrypet',   name: 'Angry Pet',      img: 'https://xpclass.vn/xpclass/pet-game/angry/Slingshot.png', usesWords: false },
-]
 
 const RC = {
   common:    { solid: '#9CA3AF', light: 'rgba(156,163,175,0.5)', glow: 'rgba(156,163,175,0.25)', gradient: 'from-gray-300 to-gray-400', trail: '#4B5563' },
@@ -47,25 +29,6 @@ const BIOMES = [
   { name: 'Shadow Ruins',      bg: 'from-violet-950 via-purple-950 to-slate-950', emoji: '🏚️', accent: '#a78bfa', bgMobile: 'https://xpclass.vn/xpclass/image/biome/shadow-ruins-mobile.jpg', bgDesktop: 'https://thumbs.dreamstime.com/b/destroyed-abandoned-city-ruins-destroyed-abandoned-city-ruins-haunting-melancholy-sight-filled-broken-buildings-274793810.jpg' },
 ]
 
-/* ---- Generate adventure path ---- */
-function buildAdventure(stopCount) {
-  const pool = [...GAME_POOL]
-  const stops = []
-  for (let i = 0; i < stopCount; i++) {
-    const idx = Math.floor(Math.random() * pool.length)
-    const biome = BIOMES[i % BIOMES.length]
-    stops.push({
-      id: i,
-      game: pool[idx],
-      biome,
-      bossImage: BOSS_IMAGES[Math.floor(Math.random() * BOSS_IMAGES.length)],
-      completed: false,
-      score: 0,
-    })
-  }
-  return stops
-}
-
 const BOSS_IMAGES = [
   'https://xpclass.vn/xpclass/pet-game/boss/boss1.png',
   'https://xpclass.vn/xpclass/pet-game/boss/boss2.png',
@@ -73,6 +36,143 @@ const BOSS_IMAGES = [
   'https://xpclass.vn/xpclass/pet-game/boss/boss4.png',
   'https://xpclass.vn/xpclass/pet-game/boss/boss5.png',
 ]
+
+const BOSS_NAMES = ['Stone Golem', 'Forest Troll', 'Frost Giant', 'Shadow Demon', 'Dragon King']
+const BOSS_ATTACK_NAMES = ['Rock Slam', 'Vine Whip', 'Ice Crush', 'Dark Pulse', 'Golden Fire']
+
+const bossHpForStop = (i) => 5 + i * 2
+const PET_MAX_HP = 3
+const QUESTION_TIME_LIMIT = 8
+const POINTS_PER_HIT = 10
+const SPEED_BONUS_FAST = 5
+const SPEED_BONUS_MEDIUM = 3
+const SPEED_BONUS_SLOW = 1
+const STREAK_BONUS_3 = 5
+const STREAK_BONUS_5 = 8
+const INTERACTION_MODES = ['grid', 'falling', 'letters']
+const FALLING_SPEED_BASE = 1.8
+const FALLING_SPEED_VARIANCE = 0.8
+const LETTER_BOUNCE_SPEED = 1.5
+
+/* ---- Helpers ---- */
+const shuffle = (arr) => {
+  const a = [...arr]
+  for (let i = a.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [a[i], a[j]] = [a[j], a[i]]
+  }
+  return a
+}
+
+function scrambleWord(word) {
+  if (word.length <= 1) return word
+  const arr = word.split('')
+  for (let i = arr.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [arr[i], arr[j]] = [arr[j], arr[i]]
+  }
+  const scrambled = arr.join('')
+  return scrambled === word ? scrambleWord(word) : scrambled
+}
+
+function generateWrongSpellings(word, count) {
+  const wrongs = new Set()
+  let attempts = 0
+  while (wrongs.size < count && attempts < 50) {
+    attempts++
+    const arr = word.split('')
+    const swaps = 1 + Math.floor(Math.random() * 2)
+    for (let s = 0; s < swaps; s++) {
+      const i = Math.floor(Math.random() * arr.length)
+      const j = Math.floor(Math.random() * arr.length)
+      ;[arr[i], arr[j]] = [arr[j], arr[i]]
+    }
+    const wrong = arr.join('')
+    if (wrong !== word) wrongs.add(wrong)
+  }
+  return [...wrongs]
+}
+
+function pickInteractionMode(type) {
+  // words can use all 3 modes, questions only grid or falling
+  const pool = type === 'word' ? INTERACTION_MODES : ['grid', 'falling']
+  return pool[Math.floor(Math.random() * pool.length)]
+}
+
+function wordsToChallenges(wordBank, count = 6) {
+  const words = shuffle(wordBank).slice(0, count)
+  return words.map(w => {
+    const mode = pickInteractionMode('word')
+    const wrongChoices = generateWrongSpellings(w.word, 3)
+    const choices = shuffle([w.word, ...wrongChoices])
+    return {
+      type: 'word',
+      interactionMode: mode,
+      word: w.word,
+      prompt: w.hint || 'What word is this?',
+      display: scrambleWord(w.word),
+      choices,
+      correctIndex: choices.indexOf(w.word),
+    }
+  })
+}
+
+function questionsToChallenges(questionBank, count = 6) {
+  const qs = shuffle(questionBank).slice(0, count)
+  return qs.map(q => {
+    const mapped = q.choices.map((text, i) => ({ text, originalIndex: i }))
+    const mixed = shuffle(mapped)
+    return {
+      type: 'question',
+      interactionMode: pickInteractionMode('question'),
+      word: null,
+      prompt: q.question,
+      display: null,
+      choices: mixed.map(m => m.text),
+      correctIndex: mixed.findIndex(m => m.originalIndex === q.answer_index),
+    }
+  })
+}
+
+function pickChallengesForStop(wordBank, questionBank, stopIndex) {
+  const count = 3 + stopIndex
+  const hasWords = wordBank && wordBank.length > 0
+  const hasQuestions = questionBank && questionBank.length > 0
+
+  if (hasWords && hasQuestions) {
+    const wCount = Math.ceil(count / 2)
+    const qCount = count - wCount
+    return shuffle([
+      ...wordsToChallenges(wordBank, wCount + 2),
+      ...questionsToChallenges(questionBank, qCount + 2),
+    ])
+  } else if (hasWords) {
+    return wordsToChallenges(wordBank, count + 4)
+  } else if (hasQuestions) {
+    return questionsToChallenges(questionBank, count + 4)
+  }
+  return []
+}
+
+/* ---- Generate adventure path ---- */
+function buildAdventure(stopCount) {
+  const stops = []
+  for (let i = 0; i < stopCount; i++) {
+    const biome = BIOMES[i % BIOMES.length]
+    const bossIdx = Math.floor(Math.random() * BOSS_IMAGES.length)
+    stops.push({
+      id: i,
+      biome,
+      bossImage: BOSS_IMAGES[bossIdx],
+      bossName: BOSS_NAMES[bossIdx],
+      bossAttack: BOSS_ATTACK_NAMES[bossIdx],
+      bossHp: bossHpForStop(i),
+      completed: false,
+      score: 0,
+    })
+  }
+  return stops
+}
 
 /* ---- Main Component ---- */
 const PetMazeAdventure = ({
@@ -82,9 +182,9 @@ const PetMazeAdventure = ({
   activePet,
   wordBank,
   questionBank,
-  currentLevel = 1,
-  chestEnabled = false,
-  profile,
+  currentLevel: _currentLevel = 1,
+  chestEnabled: _chestEnabled = false,
+  profile: _profile,
   onGameEnd,
   onMazeComplete,
   onClose,
@@ -96,37 +196,196 @@ const PetMazeAdventure = ({
   const [stops, setStops] = useState(() => buildAdventure(config.stops))
   const [currentStop, setCurrentStop] = useState(0)
   const [phase, setPhase] = useState('entrance') // entrance | map | playing | victory | complete | failed
-  const [entranceStep, setEntranceStep] = useState(0) // 0=wipe, 1=biome, 2=pet, 3=boss, 4=ready
+  const [entranceStep, setEntranceStep] = useState(0)
   const [totalScore, setTotalScore] = useState(0)
   const [showConfirmClose, setShowConfirmClose] = useState(false)
   const [victoryScore, setVictoryScore] = useState(0)
   const entranceAudioRef = useRef(null)
 
+  // Battle state
+  const [battleChallenges, setBattleChallenges] = useState([])
+  const [challengeIndex, setChallengeIndex] = useState(0)
+  const [bossHp, setBossHp] = useState(0)
+  const [petHp, setPetHp] = useState(PET_MAX_HP)
+  const [streak, setStreak] = useState(0)
+  const [stopScore, setStopScore] = useState(0)
+  const [selectedChoice, setSelectedChoice] = useState(null)
+  const [feedback, setFeedback] = useState(null)
+  const [qTimeLeft, setQTimeLeft] = useState(QUESTION_TIME_LIMIT)
+  const [bossAnim, setBossAnim] = useState('idle')
+  const [petAnim, setPetAnim] = useState('idle')
+  const [damagePopup, setDamagePopup] = useState(null)
+  const [petDamagePopup, setPetDamagePopup] = useState(null)
+  const [slashEffect, setSlashEffect] = useState(false)
+  const [screenShake, setScreenShake] = useState(0)
+  const [particles, setParticles] = useState([])
+  const [comboAnim, setComboAnim] = useState(false)
+
+  // Falling orbs state (interactionMode === 'falling')
+  const fallingOrbsRef = useRef([])
+  const [fallingOrbs, setFallingOrbs] = useState([])
+  const fallingDoneRef = useRef(false)
+
+  // Floating letters state (interactionMode === 'letters')
+  const floatingLettersRef = useRef([])
+  const [floatingLetters, setFloatingLetters] = useState([])
+  const [placedLetters, setPlacedLetters] = useState([])
+  const floatingDoneRef = useRef(false)
+
+  const streakRef = useRef(0)
+  const scoreRef = useRef(0)
+  const qStartRef = useRef(Date.now())
+  const qTimerRef = useRef(null)
+  const audioCache = useRef({})
+  const containerRef = useRef(null)
+  const animFrameRef = useRef(null)
+  const shakeRef = useRef(0)
+  const uidRef = useRef(0)
+  const uid = () => ++uidRef.current
+
   const completedCount = stops.filter(s => s.completed).length
   const currentBiome = stops[currentStop]?.biome || BIOMES[0]
+
+  const playSound = useCallback((url, volume = 0.5) => {
+    try {
+      if (!audioCache.current[url]) audioCache.current[url] = new Audio(url)
+      const sound = audioCache.current[url]
+      sound.volume = volume
+      sound.currentTime = 0
+      sound.play().catch(() => {})
+    } catch { /* audio may fail */ }
+  }, [])
+
+  const spawnParticles = useCallback((x, y, colors, count = 12) => {
+    const newParticles = Array.from({ length: count }, () => ({
+      id: `p-${uid()}`,
+      x: x + (Math.random() - 0.5) * 60,
+      y,
+      vx: (Math.random() - 0.5) * 10,
+      vy: -Math.random() * 7 - 2,
+      color: colors[Math.floor(Math.random() * colors.length)],
+      opacity: 1,
+      size: 4 + Math.random() * 6,
+    }))
+    setParticles(prev => [...prev, ...newParticles])
+  }, [])
+
+  // Spawn falling orbs for a challenge (centered in max 320px zone)
+  const spawnFallingOrbs = useCallback((challenge) => {
+    const zoneW = 280
+    const count = challenge.choices.length
+    const spacing = zoneW / (count + 1)
+    const orbs = challenge.choices.map((text, i) => ({
+      id: uid(),
+      text,
+      choiceIndex: i,
+      x: spacing * (i + 1) + (Math.random() - 0.5) * 15,
+      y: -40 - i * 50 - Math.random() * 30,
+      vy: FALLING_SPEED_BASE + Math.random() * FALLING_SPEED_VARIANCE,
+      hit: false,
+    }))
+    fallingOrbsRef.current = orbs
+    fallingDoneRef.current = false
+    setFallingOrbs(orbs)
+  }, [])
+
+  // Spawn floating letters for a challenge (88px bubbles, centered in max 320px zone)
+  const spawnFloatingLetters = useCallback((challenge) => {
+    const zoneW = 280
+    const word = challenge.word || ''
+    const letters = shuffle(word.split('')).map((letter, i) => {
+      const cols = Math.min(word.length, 3)
+      const row = Math.floor(i / cols)
+      const col = i % cols
+      return {
+        id: uid(),
+        letter,
+        x: 50 + (zoneW / (cols + 1)) * (col + 1) + (Math.random() - 0.5) * 20,
+        y: 50 + row * 100 + (Math.random() - 0.5) * 15,
+        vx: (Math.random() - 0.5) * LETTER_BOUNCE_SPEED * 2,
+        vy: (Math.random() - 0.5) * LETTER_BOUNCE_SPEED * 2,
+        captured: false,
+      }
+    })
+    floatingLettersRef.current = letters
+    floatingDoneRef.current = false
+    setFloatingLetters(letters)
+    setPlacedLetters([])
+  }, [])
+
+  // Particle + shake + falling/floating animation loop
+  useEffect(() => {
+    if (phase !== 'playing' && phase !== 'victory') return
+
+    const animate = () => {
+      shakeRef.current = Math.max(0, shakeRef.current - 0.5)
+      setScreenShake(shakeRef.current)
+      setParticles(prev => prev
+        .map(p => ({ ...p, x: p.x + p.vx, y: p.y + p.vy, vy: p.vy + 0.18, opacity: p.opacity - 0.018 }))
+        .filter(p => p.opacity > 0)
+      )
+
+      // Falling orbs physics (280px tall container, miss at 260)
+      if (fallingOrbsRef.current.length > 0 && !fallingDoneRef.current) {
+        let missed = false
+        fallingOrbsRef.current = fallingOrbsRef.current.map(o => {
+          if (o.hit) return o
+          const newY = o.y + o.vy
+          if (newY > 260) missed = true
+          return { ...o, y: newY }
+        })
+        setFallingOrbs([...fallingOrbsRef.current])
+        if (missed && !fallingDoneRef.current) {
+          fallingDoneRef.current = true
+          // Timeout — fell past the line
+          clearInterval(qTimerRef.current)
+          setQTimeLeft(0)
+        }
+      }
+
+      // Floating letters physics (88px bubbles, bounded to ~320px centered zone)
+      if (floatingLettersRef.current.length > 0 && !floatingDoneRef.current) {
+        floatingLettersRef.current = floatingLettersRef.current.map(l => {
+          if (l.captured) return l
+          let { x, y, vx, vy } = l
+          x += vx
+          y += vy
+          if (x < 50) { x = 50; vx = Math.abs(vx) }
+          if (x > 320) { x = 320; vx = -Math.abs(vx) }
+          if (y < 50) { y = 50; vy = Math.abs(vy) }
+          if (y > 230) { y = 230; vy = -Math.abs(vy) }
+          return { ...l, x, y, vx, vy }
+        })
+        setFloatingLetters([...floatingLettersRef.current])
+      }
+
+      animFrameRef.current = requestAnimationFrame(animate)
+    }
+    animFrameRef.current = requestAnimationFrame(animate)
+    return () => { if (animFrameRef.current) cancelAnimationFrame(animFrameRef.current) }
+  }, [phase])
 
   // Entrance cinematic sequence
   useEffect(() => {
     if (phase !== 'entrance') return
     const timers = [
-      setTimeout(() => setEntranceStep(1), 400),   // biome name
-      setTimeout(() => setEntranceStep(2), 1200),   // pet slides in
-      setTimeout(() => setEntranceStep(3), 2000),   // boss appears
-      setTimeout(() => setEntranceStep(4), 2800),   // ready text
-      setTimeout(() => { setPhase('map'); setEntranceStep(0) }, 3500), // go to map
+      setTimeout(() => setEntranceStep(1), 400),
+      setTimeout(() => setEntranceStep(2), 1200),
+      setTimeout(() => setEntranceStep(3), 2000),
+      setTimeout(() => setEntranceStep(4), 2800),
+      setTimeout(() => { setPhase('map'); setEntranceStep(0) }, 3500),
     ]
     try {
       entranceAudioRef.current = new Audio('https://xpclass.vn/xpclass/sound/adventure-start.mp3')
       entranceAudioRef.current.volume = 0.4
       entranceAudioRef.current.play().catch(() => {})
-    } catch { /* audio autoplay may be blocked */ }
+    } catch {}
     return () => timers.forEach(clearTimeout)
   }, [phase])
 
-  // Victory phase after winning a game
+  // Victory phase after winning a battle
   useEffect(() => {
     if (phase !== 'victory') return
-    // Play laser sound at 1.7s (when laser fires)
     const laserTimer = setTimeout(() => {
       try {
         const s = new Audio('https://xpclass.vn/xpclass/sound/laser.mp3')
@@ -145,7 +404,7 @@ const PetMazeAdventure = ({
     return () => { clearTimeout(laserTimer); clearTimeout(timer) }
   }, [phase, currentStop, stops.length])
 
-  // Pet image for games
+  // Pet image
   const petImageUrl = useMemo(() => {
     if (!activePet) return ''
     let img = activePet.image_url
@@ -159,23 +418,19 @@ const PetMazeAdventure = ({
   const petName = activePet?.nickname || activePet?.name || 'Pet'
 
   const handleGameComplete = useCallback((score, extra) => {
-    const game = stops[currentStop]?.game
     setTotalScore(prev => prev + score)
     setVictoryScore(score)
     setStops(prev => prev.map((s, i) =>
       i === currentStop ? { ...s, completed: true, score } : s
     ))
-
-    if (onGameEnd && game) onGameEnd(score, game.key, extra)
-
-    // Go to victory phase — it will auto-advance
+    if (onGameEnd) onGameEnd(score, 'adventure-battle', extra)
     setPhase('victory')
-  }, [currentStop, stops, onGameEnd])
+  }, [currentStop, onGameEnd])
 
   const [showQuitWarning, setShowQuitWarning] = useState(false)
 
   const handleGameClose = useCallback(() => {
-    // Show warning before quitting during maze
+    clearInterval(qTimerRef.current)
     setShowQuitWarning(true)
   }, [])
 
@@ -191,35 +446,259 @@ const PetMazeAdventure = ({
     }))
   , [])
 
-  // Render active game
-  const renderGame = () => {
-    const game = stops[currentStop]?.game
-    if (!game || phase !== 'playing') return null
-    const commonProps = {
-      petImageUrl,
-      petName,
-      chestEnabled,
-      currentLevel,
-      onGameEnd: handleGameComplete,
-      onClose: handleGameClose,
-      noRetry: true,
+  /* ---- Battle logic ---- */
+  const startQTimer = useCallback(() => {
+    clearInterval(qTimerRef.current)
+    setQTimeLeft(QUESTION_TIME_LIMIT)
+    const start = Date.now()
+    qTimerRef.current = setInterval(() => {
+      const remaining = QUESTION_TIME_LIMIT - (Date.now() - start) / 1000
+      if (remaining <= 0) {
+        clearInterval(qTimerRef.current)
+        setQTimeLeft(0)
+      } else {
+        setQTimeLeft(remaining)
+      }
+    }, 50)
+  }, [])
+
+  // Init the right interaction mode visuals for a challenge
+  const initChallengeMode = useCallback((challenge) => {
+    // Clear previous mode state
+    fallingOrbsRef.current = []
+    setFallingOrbs([])
+    fallingDoneRef.current = false
+    floatingLettersRef.current = []
+    setFloatingLetters([])
+    setPlacedLetters([])
+    floatingDoneRef.current = false
+
+    if (challenge.interactionMode === 'falling') {
+      // Small delay so containerRef dimensions are ready
+      setTimeout(() => spawnFallingOrbs(challenge), 50)
+    } else if (challenge.interactionMode === 'letters') {
+      setTimeout(() => spawnFloatingLetters(challenge), 50)
     }
-    switch (game.key) {
-      case 'scramble':    return <PetWordScramble {...commonProps} wordBank={wordBank} leaderboard={[]} />
-      case 'whackmole':   return <PetWhackMole {...commonProps} wordBank={wordBank} hammerSkinUrl={profile?.active_hammer_url} leaderboard={[]} />
-      case 'astroblast':  return <PetAstroBlast {...commonProps} wordBank={wordBank} shipSkinUrl={profile?.active_spaceship_url} shipLaserColor={profile?.active_spaceship_laser} asteroidSkinUrls={['https://xpclass.vn/xpclass/pet-game/astro/alien1.png','https://xpclass.vn/xpclass/pet-game/astro/alien2.png','https://xpclass.vn/xpclass/pet-game/astro/alien3.png','https://xpclass.vn/xpclass/pet-game/astro/alien4.png','https://xpclass.vn/xpclass/pet-game/astro/alien5.png','https://xpclass.vn/xpclass/pet-game/astro/alien6.png']} leaderboard={[]} />
-      case 'flappy':      return <PetFlappyGame {...commonProps} wordBank={wordBank} leaderboard={[]} />
-      case 'matchgame':   return <PetMatchGame {...commonProps} wordBank={wordBank} leaderboard={[]} />
-      case 'wordtype':    return <PetWordType {...commonProps} wordBank={wordBank} leaderboard={[]} />
-      case 'quizrush':    return <PetQuizRush {...commonProps} questionBank={questionBank} leaderboard={[]} />
-      case 'angrypet':    return <PetAngryPet {...commonProps} questionBank={questionBank} leaderboard={[]} />
-      case 'catch':       return <PetCatchGame {...commonProps} questionBank={questionBank} leaderboard={[]} />
-      default: return null
+  }, [spawnFallingOrbs, spawnFloatingLetters])
+
+  const advanceChallenge = useCallback(() => {
+    setFeedback(null)
+    setSelectedChoice(null)
+    qStartRef.current = Date.now()
+    startQTimer()
+    let nextChallenge
+    const nextIdx = challengeIndex + 1
+    if (nextIdx < battleChallenges.length) {
+      setChallengeIndex(nextIdx)
+      nextChallenge = battleChallenges[nextIdx]
+    } else {
+      const more = pickChallengesForStop(wordBank, questionBank, currentStop)
+      setBattleChallenges(more)
+      setChallengeIndex(0)
+      nextChallenge = more[0]
     }
-  }
+    if (nextChallenge) initChallengeMode(nextChallenge)
+  }, [challengeIndex, battleChallenges, wordBank, questionBank, currentStop, startQTimer, initChallengeMode])
+
+  const startBattle = useCallback(() => {
+    const stop = stops[currentStop]
+    const challenges = pickChallengesForStop(wordBank, questionBank, currentStop)
+    setBattleChallenges(challenges)
+    setChallengeIndex(0)
+    setBossHp(stop.bossHp)
+    setPetHp(PET_MAX_HP)
+    setStreak(0)
+    streakRef.current = 0
+    setStopScore(0)
+    scoreRef.current = 0
+    setSelectedChoice(null)
+    setFeedback(null)
+    setBossAnim('idle')
+    setPetAnim('idle')
+    setDamagePopup(null)
+    setPetDamagePopup(null)
+    setSlashEffect(false)
+    shakeRef.current = 0
+    setScreenShake(0)
+    setParticles([])
+    qStartRef.current = Date.now()
+    setPhase('playing')
+    startQTimer()
+    if (challenges[0]) initChallengeMode(challenges[0])
+  }, [currentStop, stops, wordBank, questionBank, startQTimer, initChallengeMode])
+
+  const handleAnswer = useCallback((choiceIndex) => {
+    if (phase !== 'playing' || feedback || selectedChoice !== null) return
+    clearInterval(qTimerRef.current)
+    setSelectedChoice(choiceIndex)
+
+    const challenge = battleChallenges[challengeIndex]
+    if (!challenge) return
+    const isCorrect = choiceIndex === challenge.correctIndex
+    const elapsed = (Date.now() - qStartRef.current) / 1000
+
+    if (isCorrect) {
+      const newStreak = streakRef.current + 1
+      streakRef.current = newStreak
+      setStreak(newStreak)
+
+      let points = POINTS_PER_HIT
+      const isCritical = elapsed < 3
+      if (isCritical) points += SPEED_BONUS_FAST
+      else if (elapsed < 5) points += SPEED_BONUS_MEDIUM
+      else if (elapsed < 8) points += SPEED_BONUS_SLOW
+
+      if (newStreak >= 5) points += STREAK_BONUS_5
+      else if (newStreak >= 3) points += STREAK_BONUS_3
+
+      scoreRef.current += points
+      setStopScore(scoreRef.current)
+
+      const dmg = isCritical ? 2 : 1
+      const newBossHp = Math.max(0, bossHp - dmg)
+      setBossHp(newBossHp)
+
+      setPetAnim(isCritical ? 'critical' : 'attack')
+      setTimeout(() => setPetAnim('idle'), 600)
+      setSlashEffect(true)
+      setTimeout(() => setSlashEffect(false), 400)
+      setBossAnim('hit')
+      setTimeout(() => setBossAnim('idle'), 500)
+      setDamagePopup({ dmg, isCritical, points })
+      setTimeout(() => setDamagePopup(null), 1200)
+
+      if (newStreak >= 3) {
+        setComboAnim(true)
+        setTimeout(() => setComboAnim(false), 600)
+      }
+
+      setFeedback('correct')
+      shakeRef.current = isCritical ? 12 : 6
+      setScreenShake(shakeRef.current)
+
+      const cw = containerRef.current?.clientWidth || 400
+      const ch = containerRef.current?.clientHeight || 700
+      const hitColors = isCritical
+        ? ['#facc15', '#f59e0b', '#ffffff', '#fde68a']
+        : ['#a78bfa', '#f472b6', '#34d399', '#60a5fa']
+      spawnParticles(cw / 2, ch * 0.22, hitColors, isCritical ? 18 : 10)
+
+      playSound(assetUrl('/sound/scram-correct.mp3'), 0.4)
+
+      if (newBossHp <= 0) {
+        setBossAnim('defeated')
+        setTimeout(() => handleGameComplete(scoreRef.current, { bossDefeated: true }), 700)
+      } else {
+        setTimeout(() => advanceChallenge(), 700)
+      }
+    } else {
+      streakRef.current = 0
+      setStreak(0)
+      setFeedback('wrong')
+
+      const newPetHp = petHp - 1
+      setPetHp(newPetHp)
+
+      setBossAnim('attack')
+      setTimeout(() => setBossAnim('idle'), 600)
+      setPetAnim('hit')
+      setTimeout(() => setPetAnim('idle'), 600)
+      setPetDamagePopup({ text: stops[currentStop]?.bossAttack || 'Attack' })
+      setTimeout(() => setPetDamagePopup(null), 1200)
+
+      shakeRef.current = 10
+      setScreenShake(10)
+      playSound(assetUrl('/sound/flappy-hit.mp3'), 0.4)
+
+      if (newPetHp <= 0) {
+        setTimeout(() => { clearInterval(qTimerRef.current); setPhase('failed') }, 800)
+      } else {
+        setTimeout(() => advanceChallenge(), 1000)
+      }
+    }
+  }, [phase, feedback, selectedChoice, battleChallenges, challengeIndex, bossHp, petHp, stops, currentStop, advanceChallenge, handleGameComplete, playSound, spawnParticles])
+
+  // Handle tapping a falling orb
+  const handleFallingTap = useCallback((orb) => {
+    if (feedback || fallingDoneRef.current) return
+    fallingDoneRef.current = true
+    fallingOrbsRef.current = fallingOrbsRef.current.map(o =>
+      o.id === orb.id ? { ...o, hit: true } : o
+    )
+    setFallingOrbs([...fallingOrbsRef.current])
+    handleAnswer(orb.choiceIndex)
+  }, [feedback, handleAnswer])
+
+  // Handle tapping a floating letter
+  const handleLetterTap = useCallback((letter) => {
+    if (feedback || floatingDoneRef.current) return
+    const challenge = battleChallenges[challengeIndex]
+    if (!challenge?.word) return
+    const nextLetterIndex = placedLetters.length
+    const expectedLetter = challenge.word[nextLetterIndex]
+
+    if (letter.letter === expectedLetter) {
+      floatingLettersRef.current = floatingLettersRef.current.map(l =>
+        l.id === letter.id ? { ...l, captured: true } : l
+      )
+      setFloatingLetters([...floatingLettersRef.current])
+      const newPlaced = [...placedLetters, { id: letter.id, letter: letter.letter }]
+      setPlacedLetters(newPlaced)
+      playSound(assetUrl('/sound/scram-correct.mp3'), 0.3)
+
+      if (newPlaced.length === challenge.word.length) {
+        floatingDoneRef.current = true
+        handleAnswer(challenge.correctIndex)
+      }
+    } else {
+      floatingDoneRef.current = true
+      playSound(assetUrl('/sound/flappy-hit.mp3'), 0.3)
+      const wrongIdx = challenge.choices.findIndex((_, i) => i !== challenge.correctIndex)
+      handleAnswer(wrongIdx >= 0 ? wrongIdx : 0)
+    }
+  }, [feedback, battleChallenges, challengeIndex, placedLetters, handleAnswer, playSound])
+
+  // Timeout: boss attacks when timer expires
+  useEffect(() => {
+    if (phase !== 'playing' || feedback || !battleChallenges[challengeIndex] || qTimeLeft > 0) return
+    clearInterval(qTimerRef.current)
+
+    streakRef.current = 0
+    setStreak(0)
+    setFeedback('timeout')
+
+    const newPetHp = petHp - 1
+    setPetHp(newPetHp)
+
+    setBossAnim('attack')
+    setTimeout(() => setBossAnim('idle'), 600)
+    setPetAnim('hit')
+    setTimeout(() => setPetAnim('idle'), 600)
+    setPetDamagePopup({ text: '⏰ Too slow!' })
+    setTimeout(() => setPetDamagePopup(null), 1200)
+
+    shakeRef.current = 10
+    setScreenShake(10)
+    playSound(assetUrl('/sound/flappy-hit.mp3'), 0.4)
+
+    if (newPetHp <= 0) {
+      setTimeout(() => { clearInterval(qTimerRef.current); setPhase('failed') }, 800)
+    } else {
+      setTimeout(() => advanceChallenge(), 1000)
+    }
+  }, [qTimeLeft, phase, feedback, battleChallenges, challengeIndex, petHp, advanceChallenge, playSound])
+
+  // Cleanup
+  useEffect(() => {
+    return () => {
+      clearInterval(qTimerRef.current)
+      if (animFrameRef.current) cancelAnimationFrame(animFrameRef.current)
+    }
+  }, [])
 
   const isMobile = typeof window !== 'undefined' && window.innerWidth < 768
   const biomeBg = isMobile ? currentBiome.bgMobile : currentBiome.bgDesktop
+  const currentChallenge = battleChallenges[challengeIndex]
 
   const portal = createPortal(
     <div
@@ -262,7 +741,7 @@ const PetMazeAdventure = ({
       </div>
 
       {/* HUD */}
-      <div className="relative z-20 flex items-center justify-between px-4 py-3" style={{ opacity: phase === 'entrance' || phase === 'victory' ? 0 : 1, transition: 'opacity 0.3s' }}>
+      <div className="relative z-20 flex items-center justify-between px-4 py-3" style={{ opacity: phase === 'entrance' || phase === 'victory' || phase === 'playing' ? 0 : 1, transition: 'opacity 0.3s' }}>
         <div className="flex items-center gap-3">
           <h1 className="text-white font-bold text-lg">
             {mode === 'encounter' ? '🗺️ Wild Adventure' : '🗺️ Adventure'}
@@ -287,7 +766,6 @@ const PetMazeAdventure = ({
       {/* Entrance cinematic */}
       {phase === 'entrance' && (
         <div className="absolute inset-0 z-30 flex flex-col items-center justify-center overflow-hidden">
-          {/* Dark overlay with fade */}
           <div className="absolute inset-0 bg-black" style={{
             animation: 'advFadeOut 3.5s ease-out forwards',
             opacity: 0.7,
@@ -356,11 +834,8 @@ const PetMazeAdventure = ({
       {/* Victory phase */}
       {phase === 'victory' && (
         <div className="absolute inset-0 z-30">
-
-          {/* Impact flash — delayed to sync with hit */}
           <div className="absolute inset-0 bg-white" style={{ opacity: 0, animation: 'advVictoryFlash 0.5s ease-out 1.7s forwards' }} />
 
-          {/* Pet charges from left toward monster */}
           <div className="absolute bottom-32 left-1/4 sm:left-1/3" style={{
             animation: 'advPetCharge 0.5s cubic-bezier(0.22, 1, 0.36, 1) 1.5s both',
           }}>
@@ -370,7 +845,6 @@ const PetMazeAdventure = ({
             />
           </div>
 
-          {/* Laser beam — fires at peak of charge */}
           <div className="absolute pointer-events-none z-30"
             style={{
               bottom: 'calc(8rem + 2.5rem)',
@@ -386,7 +860,6 @@ const PetMazeAdventure = ({
             }}
           />
 
-          {/* Monster gets hit and flies off screen */}
           <div className="absolute bottom-32 right-1/4 sm:right-1/3" style={{
             animation: 'advMonsterKnockback 1s cubic-bezier(0.22, 1, 0.36, 1) 1.7s both',
           }}>
@@ -395,7 +868,6 @@ const PetMazeAdventure = ({
             />
           </div>
 
-          {/* Impact sparks at hit point */}
           <div className="absolute bottom-36 left-1/2 -translate-x-1/2 pointer-events-none" style={{ animation: 'advScaleIn 0.3s ease-out 1.7s both' }}>
             {[...Array(8)].map((_, i) => (
               <div key={i} className="absolute text-yellow-400"
@@ -411,10 +883,8 @@ const PetMazeAdventure = ({
             ))}
           </div>
 
-          {/* Celebration — appears after hit */}
           <div className="absolute inset-0 flex flex-col items-center justify-center z-10">
             <div className="relative z-10 flex flex-col items-center" style={{ animation: 'advScaleIn 0.8s ease-out 2.8s both' }}>
-              {/* Pet celebrating */}
               <div className="relative mb-4">
                 <div className="absolute -inset-12 rounded-full blur-2xl" style={{
                   background: `radial-gradient(circle, ${rc.light}, transparent 60%)`,
@@ -429,7 +899,6 @@ const PetMazeAdventure = ({
                 />
               </div>
 
-              {/* Victory stars burst */}
               <div className="absolute inset-0 pointer-events-none">
                 {[...Array(12)].map((_, i) => (
                   <div key={i} className="absolute left-1/2 top-1/2 text-yellow-400"
@@ -464,11 +933,10 @@ const PetMazeAdventure = ({
         </div>
       )}
 
-      {/* Map phase — single encounter view */}
+      {/* Map phase */}
       {phase === 'map' && (
         <div className="absolute inset-0 z-10 flex flex-col items-center px-6 pt-16" style={{ animation: 'advMapSlideIn 0.5s ease-out' }}>
 
-          {/* Biome name */}
           <div className="text-center mt-6 mb-4">
             <p className="text-white/50 text-xs uppercase tracking-widest">
               {currentBiome.emoji} {currentBiome.name}
@@ -478,7 +946,6 @@ const PetMazeAdventure = ({
             </p>
           </div>
 
-          {/* Progress dots */}
           <div className="flex items-center gap-2 mb-6">
             {stops.map((s, i) => (
               <div key={s.id} className="w-3 h-3 rounded-full transition-all duration-300"
@@ -490,19 +957,16 @@ const PetMazeAdventure = ({
             ))}
           </div>
 
-          {/* spacer to push button down */}
           <div className="flex-1" />
 
-          {/* Battle button */}
           <div className="flex flex-col items-center mb-12">
-            <button onClick={() => setPhase('playing')}
+            <button onClick={startBattle}
               className={`px-10 py-4 rounded-2xl font-bold text-white text-lg bg-gradient-to-r ${rc.gradient} hover:scale-105 active:scale-95 transition-all shadow-xl flex items-center justify-center gap-3`}
               style={{ boxShadow: `0 0 30px ${rc.glow}` }}
             >
               ⚔️ Battle!
             </button>
 
-            {/* Completed all — encounter button */}
             {completedCount >= config.stops && (
               <button onClick={() => setPhase('complete')}
                 className={`mt-4 px-10 py-4 rounded-2xl font-bold text-white text-lg bg-gradient-to-r ${rc.gradient} hover:scale-105 active:scale-95 transition-all shadow-xl animate-pulse`}
@@ -513,7 +977,6 @@ const PetMazeAdventure = ({
             )}
           </div>
 
-          {/* Pet & boss — same absolute positions as entrance */}
           <div className="absolute bottom-32 left-1/4 sm:left-1/3 flex flex-col items-center z-10">
             <div className="relative">
               <div className="absolute -inset-4 rounded-full blur-xl animate-pulse" style={{ background: `${rc.glow}` }} />
@@ -532,18 +995,321 @@ const PetMazeAdventure = ({
           <div className="absolute bottom-32 right-1/4 sm:right-1/3 flex flex-col items-center z-10">
             <div className="relative">
               <div className="absolute -inset-4 rounded-full blur-xl animate-pulse" style={{ background: `${currentBiome.accent}30` }} />
-              <img src={stops[currentStop]?.bossImage} alt={stops[currentStop]?.game?.name}
+              <img src={stops[currentStop]?.bossImage} alt={stops[currentStop]?.bossName}
                 className="w-20 h-20 sm:w-28 sm:h-28 object-contain relative z-10"
                 style={{ animation: 'advMonsterIdle 1.5s ease-in-out infinite' }}
               />
             </div>
-            <p className="text-white/70 text-sm font-bold mt-2">{stops[currentStop]?.game?.name}</p>
+            <p className="text-white/70 text-sm font-bold mt-2">{stops[currentStop]?.bossName}</p>
           </div>
         </div>
       )}
 
-      {/* Active mini-game */}
-      {renderGame()}
+      {/* Battle phase */}
+      {phase === 'playing' && currentChallenge && (
+        <div className="absolute inset-0 z-20" ref={containerRef}
+          style={{ transform: screenShake ? `translate(${(Math.random()-0.5)*screenShake}px, ${(Math.random()-0.5)*screenShake}px)` : 'none' }}>
+
+          {/* Particles */}
+          {particles.map(p => (
+            <div key={p.id} className="absolute rounded-full pointer-events-none z-40"
+              style={{ left: p.x, top: p.y, width: p.size, height: p.size, backgroundColor: p.color, opacity: p.opacity }} />
+          ))}
+
+          {/* === TOP SECTION: HUD + Quiz === */}
+          <div className="absolute top-0 left-0 right-0 z-30 flex flex-col">
+
+            {/* Battle HUD */}
+            <div className="px-4 pt-3 pb-1">
+              <div className="flex items-center justify-between">
+                <div className="bg-black/40 backdrop-blur rounded-2xl px-3 py-1.5 flex items-center gap-1.5">
+                  <Zap className="w-4 h-4 text-yellow-400" />
+                  <span className="text-lg font-black text-white">{stopScore}</span>
+                </div>
+
+                <div className="flex-1 mx-4 h-2 bg-white/10 rounded-full overflow-hidden">
+                  <div className="h-full rounded-full transition-all duration-100"
+                    style={{
+                      width: `${(qTimeLeft / QUESTION_TIME_LIMIT) * 100}%`,
+                      background: qTimeLeft <= 2 ? '#ef4444' : qTimeLeft <= 4 ? '#f97316' : '#22c55e',
+                    }} />
+                </div>
+
+                <div className={`rounded-full px-2.5 py-1 text-xs font-bold flex items-center gap-1 transition-all ${
+                  streak >= 3 ? 'bg-yellow-400 text-yellow-900' : 'bg-black/40 text-white/70'
+                } ${comboAnim ? 'scale-125' : 'scale-100'}`}>
+                  🔥 {streak}x
+                </div>
+              </div>
+            </div>
+
+            {/* Close button */}
+            <div className="absolute top-3 right-4 z-20">
+              <button onClick={handleGameClose}
+                className="w-8 h-8 flex items-center justify-center rounded-full bg-black/40 text-gray-400 hover:text-white hover:bg-black/60 transition-colors text-sm">
+                ✕
+              </button>
+            </div>
+
+            {/* HP bars row */}
+            <div className="flex items-center justify-between px-6 pt-2 pb-3">
+              {/* Pet HP */}
+              <div className="flex items-center gap-1.5">
+                <span className="text-[10px] font-bold text-white/60">{petName}</span>
+                <div className="flex gap-0.5">
+                  {Array.from({ length: PET_MAX_HP }).map((_, i) => (
+                    <Heart key={i} className={`w-4 h-4 transition-all ${i < petHp ? 'text-red-400 fill-red-400' : 'text-gray-600/40'}`} />
+                  ))}
+                </div>
+              </div>
+              {/* Boss HP */}
+              <div className="flex items-center gap-1.5">
+                <span className="text-[10px] font-bold text-white/60">{stops[currentStop]?.bossName}</span>
+                <div className="w-20">
+                  <div className="h-2 bg-white/10 rounded-full overflow-hidden">
+                    <div className="h-full bg-red-500 rounded-full transition-all duration-300" style={{ width: `${(bossHp / (stops[currentStop]?.bossHp || 1)) * 100}%` }} />
+                  </div>
+                </div>
+                <span className="text-[10px] text-white/40">{bossHp}/{stops[currentStop]?.bossHp}</span>
+              </div>
+            </div>
+
+            {/* Challenge interaction area */}
+            <div className="flex flex-col items-center px-4 pb-4">
+
+              {/* === GRID MODE (default multiple choice) === */}
+              {currentChallenge.interactionMode === 'grid' && (
+                <>
+                  <div className="text-center mb-4 px-2">
+                    {currentChallenge.type === 'word' ? (
+                      <>
+                        <p className="text-white/50 text-xs mb-2 uppercase tracking-wider">Unscramble the word</p>
+                        <p className="text-white text-3xl sm:text-4xl font-black tracking-widest mb-1"
+                          style={{ textShadow: `0 0 20px ${rc.light}` }}>
+                          {currentChallenge.display}
+                        </p>
+                        <p className="text-white/40 text-xs mt-1">Hint: {currentChallenge.prompt}</p>
+                      </>
+                    ) : (
+                      <p className="text-white text-lg sm:text-xl font-bold leading-snug">{currentChallenge.prompt}</p>
+                    )}
+                  </div>
+                  <div className="grid grid-cols-2 gap-2.5 w-full max-w-sm">
+                    {currentChallenge.choices.map((choice, i) => {
+                      const isSelected = selectedChoice === i
+                      const isCorrect = i === currentChallenge.correctIndex
+                      let bg = 'bg-white/10 hover:bg-white/20 border-white/10'
+                      let textColor = 'text-white'
+                      if (feedback) {
+                        if (isCorrect) { bg = 'bg-green-500/30 border-green-400/50'; textColor = 'text-green-200' }
+                        else if (isSelected && !isCorrect) { bg = 'bg-red-500/30 border-red-400/50'; textColor = 'text-red-200' }
+                        else { bg = 'bg-white/5 border-white/5'; textColor = 'text-white/40' }
+                      }
+                      return (
+                        <button key={i} onClick={() => handleAnswer(i)} disabled={!!feedback}
+                          className={`${bg} ${textColor} backdrop-blur border rounded-xl px-3 py-3 font-semibold text-sm transition-all active:scale-95`}>
+                          {choice}
+                        </button>
+                      )
+                    })}
+                  </div>
+                </>
+              )}
+
+              {/* === FALLING MODE — Astro Blast style asteroids === */}
+              {currentChallenge.interactionMode === 'falling' && (
+                <>
+                  <div className="text-center mb-2 px-2">
+                    {currentChallenge.type === 'word' ? (
+                      <>
+                        <p className="text-white/50 text-xs mb-1 uppercase tracking-wider">Slash the right word!</p>
+                        <p className="text-white/40 text-xs">Hint: {currentChallenge.prompt}</p>
+                      </>
+                    ) : (
+                      <p className="text-white text-base sm:text-lg font-bold leading-snug">{currentChallenge.prompt}</p>
+                    )}
+                  </div>
+                  <div className="relative w-full max-w-sm mx-auto" style={{ height: 280, overflow: 'visible' }}>
+                    {/* Fall zone line */}
+                    <div className="absolute bottom-0 left-4 right-4 h-0.5 rounded-full" style={{ background: 'linear-gradient(90deg, transparent, rgba(239,68,68,0.4), transparent)' }} />
+                    {/* Falling asteroids */}
+                    {fallingOrbs.map(orb => (
+                      <button key={orb.id}
+                        onPointerDown={(e) => { e.preventDefault(); e.stopPropagation(); handleFallingTap(orb) }}
+                        disabled={!!feedback || orb.hit}
+                        className="absolute touch-none cursor-pointer"
+                        style={{
+                          left: orb.x - 45,
+                          top: orb.y,
+                          opacity: orb.hit ? (orb.choiceIndex === currentChallenge.correctIndex ? 1 : 0.4) : 1,
+                          transform: orb.hit
+                            ? orb.choiceIndex === currentChallenge.correctIndex ? 'scale(1.15)' : 'scale(0.7)'
+                            : 'scale(1)',
+                          transition: orb.hit ? 'all 0.3s ease-out' : 'none',
+                          pointerEvents: orb.hit ? 'none' : 'auto',
+                          zIndex: orb.hit ? 10 : 1,
+                        }}>
+                        <div className="relative" style={{ minWidth: 90, animation: !orb.hit ? 'advAsteroidEntry 0.4s ease-out' : 'none' }}>
+                          {/* Rock shape */}
+                          <div style={{
+                            position: 'absolute', inset: 0, borderRadius: '30% 50% 40% 55%',
+                            background: orb.hit
+                              ? orb.choiceIndex === currentChallenge.correctIndex
+                                ? 'radial-gradient(ellipse at 35% 30%, #4ade80 0%, #166534 100%)'
+                                : 'radial-gradient(ellipse at 35% 30%, #7f1d1d 0%, #450a0a 100%)'
+                              : 'radial-gradient(ellipse at 25% 20%, #a8a29e 0%, #78716c 20%, #57534e 45%, #44403c 70%, #1c1917 100%)',
+                          }} />
+                          {/* Highlights */}
+                          {!orb.hit && (
+                            <>
+                              <div style={{ position: 'absolute', inset: 0, borderRadius: '30% 50% 40% 55%', background: 'radial-gradient(circle at 20% 25%, rgba(255,255,255,0.15) 0%, transparent 40%)' }} />
+                              <div style={{ position: 'absolute', inset: 0, borderRadius: '30% 50% 40% 55%', background: 'linear-gradient(135deg, rgba(255,255,255,0.12) 0%, transparent 40%)' }} />
+                              <div style={{ position: 'absolute', inset: -2, borderRadius: '30% 50% 40% 55%', boxShadow: 'inset 0 0 12px 2px rgba(251,146,60,0.25), 0 0 20px 4px rgba(251,146,60,0.2)', pointerEvents: 'none' }} />
+                            </>
+                          )}
+                          {/* Text */}
+                          <div className={`relative px-5 py-3.5 font-bold text-base uppercase tracking-wide whitespace-nowrap text-center ${
+                            orb.hit && orb.choiceIndex === currentChallenge.correctIndex ? 'text-green-200' :
+                            orb.hit ? 'text-red-300/50 line-through' : 'text-white'
+                          }`} style={{ textShadow: '0 1px 3px rgba(0,0,0,0.9), 0 0 10px rgba(0,0,0,0.5)' }}>
+                            {orb.text}
+                          </div>
+                        </div>
+                      </button>
+                    ))}
+                  </div>
+                </>
+              )}
+
+              {/* === LETTERS MODE — Word Scramble style bubbles === */}
+              {currentChallenge.interactionMode === 'letters' && (
+                <>
+                  <div className="text-center mb-2 px-2">
+                    <p className="text-white/50 text-xs mb-1 uppercase tracking-wider">Tap the letters in order!</p>
+                    <p className="text-white/40 text-xs">Hint: {currentChallenge.prompt}</p>
+                  </div>
+
+                  {/* Word progress slots — matches Word Scramble */}
+                  <div className="flex gap-2 justify-center flex-wrap mb-3">
+                    {(currentChallenge.word || '').split('').map((letter, i) => {
+                      const placed = placedLetters[i]
+                      return (
+                        <div key={i}
+                          className={`w-11 h-12 rounded-xl font-bold text-xl uppercase flex items-center justify-center transition-all ${
+                            placed
+                              ? 'bg-green-400 text-white border-2 border-green-500 shadow-lg'
+                              : i === placedLetters.length
+                                ? 'bg-white/20 border-2 border-white/50'
+                                : 'bg-white/10 border-2 border-dashed border-white/30'
+                          }`}
+                          style={placed ? { animation: 'advLetterBounceIn 0.25s ease-out' } : undefined}>
+                          {placed ? placed.letter : ''}
+                        </div>
+                      )
+                    })}
+                  </div>
+
+                  {/* Floating letter bubbles — matches Word Scramble */}
+                  <div className="relative w-full max-w-sm mx-auto" style={{ height: 280 }}>
+                    {floatingLetters.map(l => {
+                      const isNext = !l.captured && (currentChallenge.word || '')[placedLetters.length] === l.letter
+                        && !floatingLetters.some(o => !o.captured && o.id < l.id && o.letter === l.letter)
+                      return (
+                        <button key={l.id}
+                          onPointerDown={(e) => { e.preventDefault(); handleLetterTap(l) }}
+                          disabled={!!feedback || l.captured}
+                          className={`absolute rounded-full font-bold text-3xl uppercase flex items-center justify-center cursor-pointer touch-none ${
+                            l.captured
+                              ? 'opacity-0 scale-0'
+                              : 'bg-gradient-to-br from-yellow-300 to-orange-400 text-white shadow-2xl border-4 border-white/50 hover:scale-110 active:scale-90'
+                          }`}
+                          style={{
+                            left: l.x - 44,
+                            top: l.y - 44,
+                            width: 88,
+                            height: 88,
+                            zIndex: isNext ? 5 : 1,
+                            transition: l.captured ? 'all 0.3s ease-out' : 'transform 0.15s ease-out',
+                            boxShadow: l.captured ? 'none' : '0 8px 20px rgba(0,0,0,0.3), inset 0 -4px 8px rgba(0,0,0,0.2)',
+                            textShadow: '0 2px 4px rgba(0,0,0,0.3)',
+                            pointerEvents: l.captured ? 'none' : 'auto',
+                          }}>
+                          {!l.captured && l.letter}
+                        </button>
+                      )
+                    })}
+                  </div>
+                </>
+              )}
+            </div>
+          </div>
+
+          {/* === BOTTOM SECTION: Pet & Boss at same positions as entrance/map === */}
+
+          {/* Pet — same position as entrance */}
+          <div className="absolute bottom-32 left-1/4 sm:left-1/3 flex flex-col items-center z-10">
+            <div className="relative">
+              <div className="absolute -inset-4 rounded-full blur-xl animate-pulse" style={{ background: rc.glow }} />
+              <div style={{
+                animation: petAnim === 'attack' ? 'bbPetAttack 0.5s ease-out' :
+                  petAnim === 'critical' ? 'bbPetCritical 0.5s ease-out' :
+                  petAnim === 'hit' ? 'bbPetHit 0.5s ease-out' : 'advPetIdle 2s ease-in-out infinite',
+              }}>
+                <img src={petImageUrl} alt={petName}
+                  className="w-20 h-20 sm:w-28 sm:h-28 object-contain relative z-10"
+                  style={{ filter: `drop-shadow(0 0 15px ${rc.light})` }} />
+              </div>
+            </div>
+            <p className="text-white text-sm font-bold mt-2">{petName}</p>
+            {petDamagePopup && (
+              <div className="absolute -top-8 left-1/2 -translate-x-1/2 z-20 text-sm font-bold text-red-400 whitespace-nowrap"
+                style={{ animation: 'bbDmgFloat 1.2s ease-out forwards' }}>
+                {petDamagePopup.text}
+              </div>
+            )}
+          </div>
+
+          {/* Slash effect between pet and boss */}
+          {slashEffect && (
+            <div className="absolute bottom-36 left-1/2 -translate-x-1/2 z-20 pointer-events-none"
+              style={{ animation: 'bbSlash 0.4s ease-out forwards' }}>
+              <svg width="120" height="60" viewBox="0 0 120 60">
+                <line x1="10" y1="50" x2="110" y2="10" stroke="#facc15" strokeWidth="4" strokeLinecap="round" style={{ filter: 'drop-shadow(0 0 6px #facc15)' }} />
+                <line x1="20" y1="55" x2="100" y2="5" stroke="#fbbf24" strokeWidth="2" strokeLinecap="round" style={{ filter: 'drop-shadow(0 0 4px #fbbf24)' }} />
+              </svg>
+            </div>
+          )}
+
+          {/* VS */}
+          <div className="absolute bottom-36 left-1/2 -translate-x-1/2 text-2xl sm:text-3xl font-black text-white/20 z-10" style={{ textShadow: '0 0 20px rgba(255,255,255,0.1)' }}>
+            VS
+          </div>
+
+          {/* Boss — same position as entrance */}
+          <div className="absolute bottom-32 right-1/4 sm:right-1/3 flex flex-col items-center z-10">
+            <div className="relative">
+              <div className="absolute -inset-4 rounded-full blur-xl animate-pulse" style={{ background: `${currentBiome.accent}30` }} />
+              <div style={{
+                animation: bossAnim === 'hit' ? 'bbBossHit 0.5s ease-out' :
+                  bossAnim === 'attack' ? 'bbBossAttack 0.5s ease-out' :
+                  bossAnim === 'defeated' ? 'bbBossDefeated 0.7s ease-out forwards' :
+                  'advMonsterIdle 1.5s ease-in-out infinite',
+              }}>
+                <img src={stops[currentStop]?.bossImage} alt="Boss"
+                  className="w-20 h-20 sm:w-28 sm:h-28 object-contain relative z-10"
+                  style={{ filter: `drop-shadow(0 0 15px ${currentBiome.accent})` }} />
+              </div>
+            </div>
+            <p className="text-white/70 text-sm font-bold mt-2">{stops[currentStop]?.bossName}</p>
+            {damagePopup && (
+              <div className="absolute -top-8 left-1/2 -translate-x-1/2 z-20 text-lg font-black whitespace-nowrap"
+                style={{ color: damagePopup.isCritical ? '#facc15' : '#f87171', animation: 'bbDmgFloat 1.2s ease-out forwards' }}>
+                -{damagePopup.dmg} {damagePopup.isCritical && '💥'}
+              </div>
+            )}
+          </div>
+        </div>
+      )}
 
       {/* Completion */}
       {phase === 'complete' && (
@@ -552,7 +1318,6 @@ const PetMazeAdventure = ({
             <div className="relative mb-6">
               <div className="absolute -inset-16 rounded-full blur-3xl animate-pulse"
                 style={{ background: `radial-gradient(circle, ${rc.light}, transparent 60%)` }} />
-
             </div>
 
             <h2 className="text-white text-3xl font-black mb-3">
@@ -575,7 +1340,7 @@ const PetMazeAdventure = ({
               </div>
               <div>
                 <p className="text-3xl font-bold text-white">{completedCount}</p>
-                <p className="text-gray-500 text-xs">Games Won</p>
+                <p className="text-gray-500 text-xs">Bosses Slain</p>
               </div>
             </div>
 
@@ -587,7 +1352,7 @@ const PetMazeAdventure = ({
         </div>
       )}
 
-      {/* Failed — lost a game */}
+      {/* Failed */}
       {phase === 'failed' && (
         <div className="fixed inset-0 z-[60] flex items-center justify-center" style={{ background: 'rgba(0,0,0,0.9)' }}>
           <div className="flex flex-col items-center text-center px-6 animate-[advScaleIn_0.5s_ease-out]">
@@ -602,7 +1367,7 @@ const PetMazeAdventure = ({
               </div>
               <div>
                 <p className="text-3xl font-bold text-white">{completedCount}/{stops.length}</p>
-                <p className="text-gray-500 text-xs">Games Won</p>
+                <p className="text-gray-500 text-xs">Bosses Slain</p>
               </div>
             </div>
 
@@ -706,6 +1471,57 @@ const PetMazeAdventure = ({
           0% { opacity: 0; transform: translateY(30px); }
           100% { opacity: 1; transform: translateY(0); }
         }
+        @keyframes bbPetAttack {
+          0% { transform: translateX(0); }
+          40% { transform: translateX(30px) scale(1.1); }
+          100% { transform: translateX(0) scale(1); }
+        }
+        @keyframes bbPetCritical {
+          0% { transform: translateX(0); filter: brightness(1); }
+          30% { transform: translateX(40px) scale(1.2); filter: brightness(1.5); }
+          100% { transform: translateX(0) scale(1); filter: brightness(1); }
+        }
+        @keyframes bbPetHit {
+          0% { transform: translateX(0); }
+          20% { transform: translateX(-15px) rotate(-5deg); }
+          60% { transform: translateX(-10px) rotate(-3deg); }
+          100% { transform: translateX(0) rotate(0); }
+        }
+        @keyframes bbBossHit {
+          0% { transform: translateX(0); filter: brightness(1); }
+          20% { transform: translateX(15px) rotate(5deg); filter: brightness(2); }
+          60% { transform: translateX(10px) rotate(3deg); filter: brightness(1.3); }
+          100% { transform: translateX(0) rotate(0); filter: brightness(1); }
+        }
+        @keyframes bbBossAttack {
+          0% { transform: translateX(0); }
+          40% { transform: translateX(-30px) scale(1.1); }
+          100% { transform: translateX(0) scale(1); }
+        }
+        @keyframes bbBossDefeated {
+          0% { transform: scale(1); opacity: 1; filter: brightness(1); }
+          30% { transform: scale(1.1); opacity: 0.8; filter: brightness(2); }
+          100% { transform: scale(0.3) translateY(30px); opacity: 0; filter: brightness(0.5); }
+        }
+        @keyframes bbSlash {
+          0% { opacity: 0; transform: scale(0.5) rotate(-10deg); }
+          30% { opacity: 1; transform: scale(1.1) rotate(0deg); }
+          100% { opacity: 0; transform: scale(1.2) rotate(5deg); }
+        }
+        @keyframes bbDmgFloat {
+          0% { transform: translate(-50%, 0) scale(0.5); opacity: 0; }
+          20% { transform: translate(-50%, -10px) scale(1.2); opacity: 1; }
+          100% { transform: translate(-50%, -40px) scale(1); opacity: 0; }
+        }
+        @keyframes advAsteroidEntry {
+          0% { opacity: 0; transform: scale(0.5); }
+          20% { opacity: 1; transform: scale(1); }
+        }
+        @keyframes advLetterBounceIn {
+          0% { transform: scale(0) rotate(-10deg); }
+          60% { transform: scale(1.15) rotate(3deg); }
+          100% { transform: scale(1) rotate(0deg); }
+        }
       `}</style>
     </div>,
     document.body
@@ -730,7 +1546,7 @@ const PetMazeAdventure = ({
                 Continue
               </button>
               <button
-                onClick={() => { setShowQuitWarning(false); setPhase('failed'); }}
+                onClick={() => { setShowQuitWarning(false); clearInterval(qTimerRef.current); setPhase('failed'); }}
                 className="flex-1 py-2.5 rounded-xl font-medium text-white bg-red-600 hover:bg-red-500 transition-colors"
               >
                 Quit
