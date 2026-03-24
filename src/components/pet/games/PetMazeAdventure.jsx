@@ -40,7 +40,7 @@ const BOSS_IMAGES = [
 const BOSS_NAMES = ['Stone Golem', 'Forest Troll', 'Frost Giant', 'Shadow Demon', 'Dragon King']
 const BOSS_ATTACK_NAMES = ['Rock Slam', 'Vine Whip', 'Ice Crush', 'Dark Pulse', 'Golden Fire']
 
-const bossHpForStop = (i) => 5 + i * 2
+const bossHpForStop = (i) => 10 + i * 5
 const PET_MAX_HP = 3
 const QUESTION_TIME_LIMIT = 8
 const POINTS_PER_HIT = 10
@@ -281,6 +281,7 @@ const PetMazeAdventure = ({
       choiceIndex: i,
       x: spacing * (i + 1) + (Math.random() - 0.5) * 15,
       y: -40 - i * 50 - Math.random() * 30,
+      vx: (Math.random() - 0.5) * 1.2,
       vy: FALLING_SPEED_BASE + Math.random() * FALLING_SPEED_VARIANCE,
       hit: false,
     }))
@@ -328,16 +329,45 @@ const PetMazeAdventure = ({
       // Falling orbs physics (380px tall container, miss at 360)
       if (fallingOrbsRef.current.length > 0 && !fallingDoneRef.current) {
         let missed = false
-        fallingOrbsRef.current = fallingOrbsRef.current.map(o => {
-          if (o.hit) return o
-          const newY = o.y + o.vy
-          if (newY > 360) missed = true
-          return { ...o, y: newY }
-        })
-        setFallingOrbs([...fallingOrbsRef.current])
+        const orbs = fallingOrbsRef.current
+        for (const o of orbs) {
+          if (o.hit) continue
+          o.x += o.vx || 0
+          o.y += o.vy
+          // Bounce off side walls
+          if (o.x < 30) { o.x = 30; o.vx = Math.abs(o.vx || 0) * 0.8 }
+          if (o.x > 290) { o.x = 290; o.vx = -Math.abs(o.vx || 0) * 0.8 }
+          if (o.y > 360) missed = true
+        }
+        // Orb-to-orb collisions (same as AstroBlast)
+        const ORB_R = 45
+        const active = orbs.filter(o => !o.hit)
+        for (let i = 0; i < active.length; i++) {
+          for (let j = i + 1; j < active.length; j++) {
+            const a = active[i], b = active[j]
+            const dx = b.x - a.x, dy = b.y - a.y
+            const dist = Math.sqrt(dx * dx + dy * dy)
+            const minDist = ORB_R * 2
+            if (dist < minDist && dist > 0) {
+              const nx = dx / dist, ny = dy / dist
+              const overlap = (minDist - dist) / 2
+              a.x -= nx * overlap; a.y -= ny * overlap
+              b.x += nx * overlap; b.y += ny * overlap
+              const dvx = (a.vx || 0) - (b.vx || 0)
+              const dvy = a.vy - b.vy
+              const dot = dvx * nx + dvy * ny
+              if (dot > 0) {
+                a.vx = (a.vx || 0) - dot * nx * 0.8
+                a.vy -= dot * ny * 0.8
+                b.vx = (b.vx || 0) + dot * nx * 0.8
+                b.vy += dot * ny * 0.8
+              }
+            }
+          }
+        }
+        setFallingOrbs([...orbs])
         if (missed && !fallingDoneRef.current) {
           fallingDoneRef.current = true
-          // Timeout — fell past the line
           clearInterval(qTimerRef.current)
           setQTimeLeft(0)
         }
@@ -853,66 +883,78 @@ const PetMazeAdventure = ({
       {/* Victory phase */}
       {phase === 'victory' && (
         <div className="absolute inset-0 z-30">
-          <div className="absolute inset-0 bg-white" style={{ opacity: 0, animation: 'advVictoryFlash 0.5s ease-out 1.7s forwards' }} />
+          <div className="absolute inset-0 bg-white" style={{ opacity: 0, animation: 'advVictoryFlash 0.5s ease-out 1.6s forwards' }} />
 
-          <div className="absolute bottom-32 left-1/4 sm:left-1/3" style={{
-            animation: 'advPetCharge 0.5s cubic-bezier(0.22, 1, 0.36, 1) 1.5s both, advFadeOut 0.3s ease-out 2.5s forwards',
+          {/* Pet dashes forward toward boss */}
+          <div className="absolute bottom-32 left-[15%] sm:left-[20%] z-20" style={{
+            animation: 'advPetLeap 0.5s cubic-bezier(0.4, 0, 0.2, 1) 1.2s both, advFadeOut 0.3s ease-out 1.9s forwards',
           }}>
             <img src={petImageUrl} alt={petName}
-              className="w-20 h-20 sm:w-28 sm:h-28 object-contain"
-              style={{ filter: `drop-shadow(0 0 15px ${rc.light})` }}
+              className="w-24 h-24 sm:w-32 sm:h-32 object-contain"
+              style={{ filter: `drop-shadow(0 0 20px ${rc.light})` }}
             />
           </div>
 
-          <div className="absolute pointer-events-none z-30"
-            style={{
-              bottom: 'calc(8rem + 2.5rem)',
-              left: 'calc(25% + 15vw + 5rem)',
-              width: 'calc(50% - 15vw - 5rem)',
-              height: 10,
-              transformOrigin: '0 50%',
-              background: `linear-gradient(90deg, ${rc.solid}, white 40%, white 60%, ${rc.solid})`,
-              boxShadow: `0 0 20px 6px ${rc.light}, 0 0 50px 12px ${rc.glow}`,
-              borderRadius: 5,
-              opacity: 0,
-              animation: 'advLaserFire 0.4s ease-out 1.7s forwards',
-            }}
-          />
-
-          <div className="absolute bottom-32 right-1/4 sm:right-1/3" style={{
-            animation: 'advMonsterKnockback 1s cubic-bezier(0.22, 1, 0.36, 1) 1.7s both',
+          {/* Boss standing on the right, then knocked back on impact */}
+          <div className="absolute bottom-32 right-[15%] sm:right-[20%] z-20" style={{
+            animation: 'advMonsterKnockback 0.8s ease-in 1.6s both',
           }}>
             <img src={stops[currentStop]?.bossImage} alt="Boss"
               className="w-20 h-20 sm:w-28 sm:h-28 object-contain"
             />
           </div>
 
-          <div className="absolute bottom-36 left-1/2 -translate-x-1/2 pointer-events-none" style={{ animation: 'advScaleIn 0.3s ease-out 1.7s both' }}>
-            {[...Array(8)].map((_, i) => (
-              <div key={i} className="absolute text-yellow-400"
-                style={{
-                  animation: `advStarBurst 1s ease-out ${1.7 + i * 0.05}s both`,
-                  '--star-x': `${Math.cos(i * 45 * Math.PI / 180) * 60}px`,
-                  '--star-y': `${Math.sin(i * 45 * Math.PI / 180) * 60}px`,
-                  opacity: 0,
-                  fontSize: '1.2rem',
-                }}>
-                ✦
-              </div>
-            ))}
+          {/* Energy shockwave rings at boss position */}
+          <div className="absolute bottom-32 right-[15%] sm:right-[20%] pointer-events-none z-30">
+            <div className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 rounded-full" style={{
+              width: 0, height: 0,
+              border: `3px solid ${rc.solid}`,
+              boxShadow: `0 0 30px 10px ${rc.light}, 0 0 60px 20px ${rc.glow}`,
+              animation: 'advShockwave 0.8s ease-out 1.6s forwards',
+              opacity: 0,
+            }} />
+            <div className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 rounded-full" style={{
+              width: 0, height: 0,
+              border: `2px solid white`,
+              boxShadow: `0 0 20px 5px rgba(255,255,255,0.4)`,
+              animation: 'advShockwave 0.6s ease-out 1.7s forwards',
+              opacity: 0,
+            }} />
+          </div>
+
+          {/* Impact sparks at boss position */}
+          <div className="absolute bottom-36 right-[15%] sm:right-[20%] pointer-events-none z-30">
+            {[...Array(16)].map((_, i) => {
+              const angle = (i * 360 / 16) * Math.PI / 180
+              const dist = 50 + Math.random() * 60
+              return (
+                <div key={i} className="absolute rounded-full"
+                  style={{
+                    width: 4 + Math.random() * 4,
+                    height: 4 + Math.random() * 4,
+                    background: i % 3 === 0 ? 'white' : rc.solid,
+                    boxShadow: `0 0 6px ${rc.light}`,
+                    animation: `advSparkFly 0.7s ease-out ${1.6 + i * 0.02}s both`,
+                    '--spark-x': `${Math.cos(angle) * dist}px`,
+                    '--spark-y': `${Math.sin(angle) * dist}px`,
+                    opacity: 0,
+                  }}
+                />
+              )
+            })}
           </div>
 
           <div className="absolute inset-0 flex flex-col items-center justify-center z-10">
-            <div className="relative z-10 flex flex-col items-center" style={{ animation: 'advScaleIn 0.8s ease-out 2.8s both' }}>
+            <div className="relative z-10 flex flex-col items-center" style={{ animation: 'advScaleIn 0.8s ease-out 2.3s both' }}>
               <div className="relative mb-4">
                 <div className="absolute -inset-12 rounded-full blur-2xl" style={{
                   background: `radial-gradient(circle, ${rc.light}, transparent 60%)`,
-                  animation: 'advGlowPulse 1.5s ease-in-out 2.8s infinite',
+                  animation: 'advGlowPulse 1.5s ease-in-out 2.3s infinite',
                 }} />
                 <img src={petImageUrl} alt={petName}
                   className="w-28 h-28 sm:w-36 sm:h-36 object-contain relative z-10"
                   style={{
-                    animation: 'advVictoryBounce 0.8s ease-out 2.8s both',
+                    animation: 'advVictoryBounce 0.8s ease-out 2.3s both',
                     filter: `drop-shadow(0 0 20px ${rc.light})`,
                   }}
                 />
@@ -922,7 +964,7 @@ const PetMazeAdventure = ({
                 {[...Array(12)].map((_, i) => (
                   <div key={i} className="absolute left-1/2 top-1/2 text-yellow-400"
                     style={{
-                      animation: `advStarBurst 1.2s ease-out ${3.0 + i * 0.08}s forwards`,
+                      animation: `advStarBurst 1.2s ease-out ${2.5 + i * 0.08}s forwards`,
                       '--star-x': `${Math.cos(i * 30 * Math.PI / 180) * (80 + Math.random() * 40)}px`,
                       '--star-y': `${Math.sin(i * 30 * Math.PI / 180) * (80 + Math.random() * 40)}px`,
                       opacity: 0,
@@ -933,17 +975,17 @@ const PetMazeAdventure = ({
               </div>
 
               <h2 className="text-white text-3xl font-black" style={{
-                animation: 'advScaleIn 0.6s ease-out 3.2s both',
+                animation: 'advScaleIn 0.6s ease-out 2.7s both',
                 textShadow: `0 0 30px ${rc.light}`,
               }}>
                 Victory!
               </h2>
-              <p className="text-white/60 text-sm mt-2" style={{ animation: 'advScaleIn 0.6s ease-out 3.6s both' }}>
+              <p className="text-white/60 text-sm mt-2" style={{ animation: 'advScaleIn 0.6s ease-out 3.1s both' }}>
                 +{victoryScore} points
               </p>
 
               {currentStop < stops.length - 1 && (
-                <p className="text-white/30 text-xs mt-4" style={{ animation: 'advScaleIn 0.6s ease-out 4.0s both' }}>
+                <p className="text-white/30 text-xs mt-4" style={{ animation: 'advScaleIn 0.6s ease-out 3.5s both' }}>
                   Moving to next stage...
                 </p>
               )}
@@ -1292,7 +1334,12 @@ const PetMazeAdventure = ({
                   style={{ filter: `drop-shadow(0 0 15px ${rc.light})` }} />
               </div>
             </div>
-            <p className="text-white text-sm font-bold mt-2">{petName}</p>
+            <p className="text-white text-sm font-bold mt-1">{petName}</p>
+            <div className="flex gap-0.5 mt-1">
+              {Array.from({ length: PET_MAX_HP }).map((_, i) => (
+                <Heart key={i} className={`w-4 h-4 transition-all ${i < petHp ? 'text-red-400 fill-red-400' : 'text-gray-600/40'}`} />
+              ))}
+            </div>
             {petDamagePopup && (
               <div className="absolute -top-8 left-1/2 -translate-x-1/2 z-20 text-sm font-bold text-red-400 whitespace-nowrap"
                 style={{ animation: 'bbDmgFloat 1.2s ease-out forwards' }}>
@@ -1332,7 +1379,13 @@ const PetMazeAdventure = ({
                   style={{ filter: `drop-shadow(0 0 15px ${currentBiome.accent})` }} />
               </div>
             </div>
-            <p className="text-white/70 text-sm font-bold mt-2">{stops[currentStop]?.bossName}</p>
+            <p className="text-white/70 text-sm font-bold mt-1">{stops[currentStop]?.bossName}</p>
+            <div className="w-20 mt-1">
+              <div className="h-2 bg-white/10 rounded-full overflow-hidden">
+                <div className="h-full bg-red-500 rounded-full transition-all duration-300" style={{ width: `${(bossHp / (stops[currentStop]?.bossHp || 1)) * 100}%` }} />
+              </div>
+              <p className="text-[10px] text-white/40 text-center mt-0.5">{bossHp}/{stops[currentStop]?.bossHp}</p>
+            </div>
             {damagePopup && (
               <div className="absolute -top-8 left-1/2 -translate-x-1/2 z-20 text-lg font-black whitespace-nowrap"
                 style={{ color: damagePopup.isCritical ? '#facc15' : '#f87171', animation: 'bbDmgFloat 1.2s ease-out forwards' }}>
@@ -1462,19 +1515,24 @@ const PetMazeAdventure = ({
           50% { transform: scale(1.15); opacity: 1; }
           100% { transform: scale(1); opacity: 1; }
         }
-        @keyframes advPetCharge {
-          0% { transform: translateX(0); }
-          40% { transform: translateX(15vw); }
-          100% { transform: translateX(0); }
+        @keyframes advPetLeap {
+          0%   { transform: translateX(0)    scale(1);   }
+          80%  { transform: translateX(48vw) scale(1.1); }
+          90%  { transform: translateX(48vw) scale(1.2); }
+          100% { transform: translateX(48vw) scale(1);   }
+        }
+        @keyframes advShockwave {
+          0% { width: 0; height: 0; opacity: 1; }
+          60% { opacity: 0.6; }
+          100% { width: 250px; height: 250px; opacity: 0; }
+        }
+        @keyframes advSparkFly {
+          0% { transform: translate(0, 0) scale(1); opacity: 1; }
+          100% { transform: translate(var(--spark-x), var(--spark-y)) scale(0); opacity: 0; }
         }
         @keyframes advFadeIn {
           0% { opacity: 0; }
           100% { opacity: 1; }
-        }
-        @keyframes advLaserFire {
-          0% { opacity: 1; filter: brightness(2); }
-          30% { opacity: 0.9; filter: brightness(1.5); }
-          100% { opacity: 0; filter: brightness(1); }
         }
         @keyframes advMonsterKnockback {
           0% { transform: translate(0, 0) rotate(0deg) scale(1); opacity: 1; }

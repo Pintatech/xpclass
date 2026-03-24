@@ -205,7 +205,7 @@ const PetInventory = () => {
 
     // Only place if within habitat bounds
     if (x >= 0 && x <= 100 && y >= 5 && y <= 95) {
-      setLayout(prev => ({ ...prev, [draggingPet.id]: { x: Math.max(5, Math.min(95, x)), y: Math.max(10, Math.min(90, y)) } }))
+      setLayout(prev => ({ ...prev, [draggingPet.id]: { ...prev[draggingPet.id], x: Math.max(5, Math.min(95, x)), y: Math.max(10, Math.min(90, y)) } }))
       setLayoutDirty(true)
     } else if (draggingPet.fromHabitat) {
       // Dragged out of habitat — remove
@@ -335,6 +335,7 @@ const PetInventory = () => {
               {/* Pet image */}
               <div
                 className={showTray ? "cursor-grab active:cursor-grabbing" : "cursor-pointer"}
+                style={{ transform: pos.flip ? 'scaleX(-1)' : undefined }}
                 onMouseDown={(e) => handlePetDragStart(e, userPet, true)}
                 onTouchStart={(e) => handlePetDragStart(e, userPet, true)}
                 onClick={(e) => { if (!showTray && !didDrag.current) { e.stopPropagation(); setSelectedPet(userPet); setIsRenaming(false) } }}
@@ -345,7 +346,6 @@ const PetInventory = () => {
                   className={`object-contain pointer-events-none select-none ${isEvolved(userPet) ? 'w-24 h-24 sm:w-28 sm:h-28' : 'w-16 h-16 sm:w-20 sm:h-20'}`}
                   style={{
                     filter: `drop-shadow(0 0 6px ${rarityGlow[rarity]})`,
-                    transform: pos.flip ? 'scaleX(-1)' : undefined,
                     animation: `petBob ${2.2 + (i % 5) * 0.3}s ease-in-out infinite`,
                     animationDelay: `${(i % 5) * -0.6}s`,
                   }}
