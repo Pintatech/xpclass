@@ -325,13 +325,13 @@ const PetMazeAdventure = ({
         .filter(p => p.opacity > 0)
       )
 
-      // Falling orbs physics (280px tall container, miss at 260)
+      // Falling orbs physics (380px tall container, miss at 360)
       if (fallingOrbsRef.current.length > 0 && !fallingDoneRef.current) {
         let missed = false
         fallingOrbsRef.current = fallingOrbsRef.current.map(o => {
           if (o.hit) return o
           const newY = o.y + o.vy
-          if (newY > 260) missed = true
+          if (newY > 360) missed = true
           return { ...o, y: newY }
         })
         setFallingOrbs([...fallingOrbsRef.current])
@@ -1129,7 +1129,7 @@ const PetMazeAdventure = ({
                       <p className="text-white text-base sm:text-lg font-bold leading-snug">{currentChallenge.prompt}</p>
                     )}
                   </div>
-                  <div className="relative w-full max-w-sm mx-auto" style={{ height: 280, overflow: 'visible' }}>
+                  <div className="relative w-full max-w-sm mx-auto" style={{ height: 380, overflow: 'visible' }}>
                     {/* Fall zone line */}
                     <div className="absolute bottom-0 left-4 right-4 h-0.5 rounded-full" style={{ background: 'linear-gradient(90deg, transparent, rgba(239,68,68,0.4), transparent)' }} />
                     {/* Falling asteroids */}
