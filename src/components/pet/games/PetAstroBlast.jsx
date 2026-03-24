@@ -479,7 +479,7 @@ const PetAstroBlast = ({ petImageUrl, petName, onGameEnd, onClose, shipSkinUrl, 
   const handlePowerupTap = useCallback((pu) => {
     if (phase !== 'playing') return
     setPowerups(prev => prev.filter(p => p.id !== pu.id))
-    playSound('https://xpclass.vn/xpclass/sound/laser.mp3', 0.3)
+    playSound('https://xpclass.vn/xpclass/sound/power-up.mp3', 0.3)
 
     if (pu.type === 'heal') {
       if (petHp >= PET_MAX_HP) {

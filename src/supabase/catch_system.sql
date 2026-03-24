@@ -227,12 +227,12 @@ BEGIN
       WHEN 'legendary' THEN 100
       ELSE 5
     END;
-    UPDATE users SET gems = gems + refund_amount WHERE id = p_user_id;
+    UPDATE users SET xp = xp + refund_amount WHERE id = p_user_id;
     RETURN json_build_object(
       'success', true,
       'caught', true,
       'duplicate', true,
-      'refund_gems', refund_amount,
+      'refund_xp', refund_amount,
       'pet', json_build_object('id', pet_record.id, 'name', pet_record.name,
         'image_url', pet_record.image_url, 'rarity', pet_record.rarity),
       'catch_rate', round(final_rate * 100)

@@ -163,7 +163,7 @@ const GAMES = [
   { id: 'sayitright', name: 'Say It Right', icon: null, emoji: '🎤', description: 'Pronounce the word!' },
   { id: 'quizrush', name: 'Quiz Rush', icon: null, emoji: '❓', description: 'Answer questions fast!' },
   { id: 'angrypet', name: 'Angry Pet', icon: 'https://xpclass.vn/xpclass/pet-game/angry/Slingshot.png', description: 'Launch at the answer!' },
-  { id: 'fishing', name: 'Fishing', icon: null, emoji: '🎣', description: 'Catch the right fish!' },
+  { id: 'fishing', name: 'Fishing', icon: 'https://xpclass.vn/xpclass/pet-display/game-logo/fish.png', description: 'Catch the right fish!' },
 ]
 
 const PvPChallengeModal = ({ opponent, onClose }) => {

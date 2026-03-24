@@ -112,6 +112,8 @@ const PetDisplay = () => {
   const [enabledGames, setEnabledGames] = useState(['scramble', 'whackmole', 'astroblast', 'matchgame', 'wordtype', 'sayitright', 'quizrush', 'bossbattle', 'angrypet', 'catch', 'fishing']);
   const [competitionGame, setCompetitionGame] = useState(null); // game type with active competition
   const [chestEnabled, setChestEnabled] = useState(false); // whether chest can appear in games
+  const [mazeBlocked, setMazeBlocked] = useState(false); // whether maze adventure is blocked
+  const [mazeBlockedReason, setMazeBlockedReason] = useState('');
   const [trainingBlocked, setTrainingBlocked] = useState(false); // true when outside allowed schedule
   const [trainingBlockedReason, setTrainingBlockedReason] = useState('');
   const [pvpWaitingCount, setPvpWaitingCount] = useState(0);
@@ -195,6 +197,68 @@ const PetDisplay = () => {
     };
 
     checkChestEligibility();
+  }, [user?.id]);
+
+  // Fetch maze adventure settings and determine eligibility
+  useEffect(() => {
+    const checkMazeEligibility = async () => {
+      if (!user?.id) return;
+
+      const { data: settings } = await supabase
+        .from('site_settings')
+        .select('setting_key, setting_value')
+        .in('setting_key', ['maze_enabled', 'maze_start_time', 'maze_end_time', 'maze_daily_limit']);
+
+      if (!settings) return;
+
+      const map = {};
+      settings.forEach(s => { map[s.setting_key] = s.setting_value; });
+
+      if (map['maze_enabled'] === 'false') {
+        setMazeBlocked(true);
+        setMazeBlockedReason('Wild Area is currently closed.');
+        return;
+      }
+
+      // Check time window (Vietnam timezone)
+      const now = new Date();
+      const vnTime = new Date(now.toLocaleString('en-US', { timeZone: 'Asia/Ho_Chi_Minh' }));
+      const startTime = map['maze_start_time'];
+      const endTime = map['maze_end_time'];
+
+      if (startTime && endTime) {
+        const currentMinutes = vnTime.getHours() * 60 + vnTime.getMinutes();
+        const [sh, sm] = startTime.split(':').map(Number);
+        const [eh, em] = endTime.split(':').map(Number);
+        const startMinutes = sh * 60 + sm;
+        const endMinutes = eh * 60 + em;
+
+        if (currentMinutes < startMinutes || currentMinutes >= endMinutes) {
+          setMazeBlocked(true);
+          setMazeBlockedReason(`Wild Area opens ${startTime}–${endTime}.`);
+          return;
+        }
+      }
+
+      // Check daily limit
+      const dailyLimit = parseInt(map['maze_daily_limit']) || 0;
+      if (dailyLimit > 0) {
+        const todayVN = vnTime.toISOString().split('T')[0];
+        const storageKey = `maze_count_${user.id}_${todayVN}`;
+        const todayCount = parseInt(localStorage.getItem(storageKey) || '0');
+
+        if (todayCount >= dailyLimit) {
+          setMazeBlocked(true);
+          setMazeBlockedReason(`Daily limit reached (${dailyLimit}/${dailyLimit}).`);
+          return;
+        }
+      }
+
+      setMazeBlocked(false);
+      setMazeBlockedReason('');
+    };
+
+    checkMazeEligibility();
   }, [user?.id]);
 
   // Fetch enabled training games
@@ -371,6 +435,12 @@ const PetDisplay = () => {
 
   // Wild Area handler — routes through maze adventure before encounter
   const handleWildAreaSearch = async () => {
+    // Check maze access (admins bypass)
+    if (mazeBlocked && !isAdmin()) {
+      setMessage({ type: 'error', text: mazeBlockedReason || 'Wild Area is not available right now.' })
+      return
+    }
+
     setWildAreaLoading(true)
     const result = await rollWildAreaEncounter()
     setWildAreaLoading(false)
@@ -382,6 +452,14 @@ const PetDisplay = () => {
       setWildAreaCooldown(result.cooldown_remaining)
     }
     if (result?.encountered) {
+      // Increment daily maze count
+      const now = new Date();
+      const vnTime = new Date(now.toLocaleString('en-US', { timeZone: 'Asia/Ho_Chi_Minh' }));
+      const todayVN = vnTime.toISOString().split('T')[0];
+      const storageKey = `maze_count_${user.id}_${todayVN}`;
+      const currentCount = parseInt(localStorage.getItem(storageKey) || '0');
+      localStorage.setItem(storageKey, String(currentCount + 1));
+
       fetchInventory() // refresh ticket count
       clearEncounter() // prevent WildEncounterModal from showing yet
       setShowWildArea(false)
@@ -2061,7 +2139,7 @@ const PetDisplay = () => {
                 className={`relative flex flex-col items-center gap-2 p-4 rounded-xl border-2 transition-all group ${competitionGame === 'fishing' ? 'border-yellow-400 bg-yellow-50 ring-2 ring-yellow-300' : 'border-cyan-200 hover:border-cyan-400 hover:bg-cyan-50'}`}
               >
                 {competitionGame === 'fishing' && <span className="absolute -top-2 -right-2 text-lg">🏆</span>}
-                <img src="https://xpclass.vn/xpclass/pet-display/game-logo/fish.jpg" alt="Fishing Frenzy" className="w-20 h-20 object-contain rounded-lg group-hover:scale-110 transition-transform" />
+                <img src="https://xpclass.vn/xpclass/pet-display/game-logo/fish.png" alt="Fishing Frenzy" className="w-20 h-20 object-contain rounded-lg group-hover:scale-110 transition-transform" />
                 <span className="font-bold text-gray-800 text-xs">Fishing Frenzy</span>
               </button>
               )}
@@ -2394,7 +2472,11 @@ const PetDisplay = () => {
               </div>
 
               <div className="mt-4">
-                {wildAreaCooldown > 0 ? (
+                {mazeBlocked && !isAdmin() ? (
+                  <div>
+                    <p className="text-red-400 text-sm font-medium">{mazeBlockedReason}</p>
+                  </div>
+                ) : wildAreaCooldown > 0 ? (
                   <div>
                     <div className="text-emerald-400 text-3xl font-mono font-bold">
                       {Math.floor(wildAreaCooldown / 60)}:{String(wildAreaCooldown % 60).padStart(2, '0')}
@@ -2423,6 +2505,28 @@ const PetDisplay = () => {
                   </button>
                 )}
               </div>
+
+              {/* Admin: Skip maze, go straight to encounter */}
+              {isAdmin() && (
+                <button
+                  onClick={async () => {
+                    setWildAreaLoading(true)
+                    const result = await rollWildAreaEncounter()
+                    setWildAreaLoading(false)
+                    if (result?.encountered) {
+                      fetchInventory()
+                      setShowWildArea(false)
+                      setEncounterPetAfterMaze(result.pet)
+                    } else {
+                      setMessage({ type: 'info', text: 'No wild pets found... try again!' })
+                    }
+                  }}
+                  disabled={wildAreaLoading}
+                  className="mt-3 px-6 py-2 bg-gradient-to-r from-amber-500 to-orange-600 hover:from-amber-400 hover:to-orange-500 text-white font-medium text-sm rounded-lg shadow hover:scale-105 active:scale-95 transition-all disabled:opacity-50"
+                >
+                  {wildAreaLoading ? 'Searching...' : 'Skip Maze (Admin)'}
+                </button>
+              )}
             </div>
           </div>
         </div>

@@ -184,9 +184,9 @@ const CatchAnimation = ({ result, ball, onClose, onNickname }) => {
                   {pet?.name}
                 </p>
 
-                {isDuplicate && result?.refund_gems > 0 && (
+                {isDuplicate && result?.refund_xp > 0 && (
                   <p className="text-yellow-400 mt-2 text-sm">
-                    Received {result.refund_gems} gems as refund
+                    Received {result.refund_xp} XP as refund
                   </p>
                 )}
 

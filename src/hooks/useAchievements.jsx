@@ -134,27 +134,78 @@ export const useAchievements = () => {
     if (!user) return { success: false, message: 'No user logged in' }
 
     try {
-      const { data, error } = await supabase.rpc('claim_achievement_xp', {
-        user_id_param: user.id,
-        achievement_id_param: achievementId
-      })
+      // Check if user_achievements record exists
+      const { data: existing } = await supabase
+        .from('user_achievements')
+        .select('id, claimed_at')
+        .eq('user_id', user.id)
+        .eq('achievement_id', achievementId)
+        .single()
 
-      if (error) throw error
-      
-      if (data && data.length > 0) {
-        const result = data[0]
-        if (result.success) {
-          // Refresh user achievements and profile
-          await fetchUserAchievements()
-          // Refresh user profile to show updated XP
-          await fetchUserProfile(user.id)
-          return { success: true, xpAwarded: result.xp_awarded, message: result.message }
-        } else {
-          return { success: false, message: result.message }
+      if (existing) {
+        // Record exists in DB, use the RPC as normal
+        const { data, error } = await supabase.rpc('claim_achievement_xp', {
+          user_id_param: user.id,
+          achievement_id_param: achievementId
+        })
+
+        if (error) throw error
+
+        if (data && data.length > 0) {
+          const result = data[0]
+          if (result.success) {
+            await fetchUserAchievements()
+            await fetchUserProfile(user.id)
+            return { success: true, xpAwarded: result.xp_awarded, message: result.message }
+          } else {
+            return { success: false, message: result.message }
+          }
         }
+
+        return { success: false, message: 'Unknown error' }
+      } else {
+        // Record doesn't exist in DB — achievement was unlocked via frontend calculation
+        // Manually insert record, award XP, and mark as claimed
+        const { data: achievement } = await supabase
+          .from('achievements')
+          .select('xp_reward')
+          .eq('id', achievementId)
+          .single()
+
+        const xpReward = achievement?.xp_reward || 0
+
+        // Insert user_achievements record with earned_at and claimed_at
+        const { error: insertError } = await supabase
+          .from('user_achievements')
+          .insert({
+            user_id: user.id,
+            achievement_id: achievementId,
+            earned_at: new Date().toISOString(),
+            claimed_at: new Date().toISOString()
+          })
+
+        if (insertError) throw insertError
+
+        // Award XP to user profile
+        if (xpReward > 0) {
+          const { data: userData } = await supabase
+            .from('users')
+            .select('xp')
+            .eq('id', user.id)
+            .single()
+
+          const { error: xpError } = await supabase
+            .from('users')
+            .update({ xp: (userData?.xp || 0) + xpReward })
+            .eq('id', user.id)
+
+          if (xpError) throw xpError
+        }
+
+        await fetchUserAchievements()
+        await fetchUserProfile(user.id)
+        return { success: true, xpAwarded: xpReward, message: 'XP awarded' }
       }
-      
-      return { success: false, message: 'Unknown error' }
     } catch (err) {
       console.error('Error claiming achievement XP:', err)
       setError(err.message)

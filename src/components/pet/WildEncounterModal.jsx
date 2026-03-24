@@ -2,7 +2,6 @@ import { useState, useRef, useCallback, useEffect, useMemo } from 'react'
 import { createPortal } from 'react-dom'
 import { useInventory } from '../../hooks/useInventory'
 import { usePet } from '../../hooks/usePet'
-import { assetUrl } from '../../hooks/useBranding'
 
 const rarityColors = {
   common: 'from-gray-300 to-gray-400',
@@ -156,6 +155,7 @@ const WildEncounterModal = ({ pet, onClose, onCatchComplete }) => {
   const [nickname, setNickname] = useState('')
   const [screenShake, setScreenShake] = useState(false)
   const [flashOpacity, setFlashOpacity] = useState(0)
+  const [attemptsLeft, setAttemptsLeft] = useState(2)
 
   // Drag state — use refs for smooth 60fps dragging (no React re-renders)
   const [isDragging, setIsDragging] = useState(false)
@@ -276,6 +276,7 @@ const WildEncounterModal = ({ pet, onClose, onCatchComplete }) => {
     dragPosRef.current = { x: 0, y: 0 }
     setIsDragging(false)
     setPhase('throwing')
+    setAttemptsLeft(prev => prev - 1)
 
     const result = await attemptCatch(pet.id, selectedBall.id)
     await fetchInventory()
@@ -344,10 +345,11 @@ const WildEncounterModal = ({ pet, onClose, onCatchComplete }) => {
   useEffect(() => {
     if (phase === 'result') {
       if (caught) {
-        try { new Audio(assetUrl('/sound/pet-reveal.mp3')).play() } catch {}
+        try { new Audio('https://xpclass.vn/xpclass/sound/pet-caught.mp3').play() } catch {}
         setFlashOpacity(0.4)
         setTimeout(() => setFlashOpacity(0), 300)
       } else {
+        try { new Audio('https://xpclass.vn/xpclass/sound/escape.mp3').play() } catch {}
         setScreenShake(true)
         setTimeout(() => setScreenShake(false), 300)
       }
@@ -779,9 +781,9 @@ const WildEncounterModal = ({ pet, onClose, onCatchComplete }) => {
                 {pet.name}
               </p>
 
-              {isDuplicate && catchResult?.refund_gems > 0 && (
+              {isDuplicate && catchResult?.refund_xp > 0 && (
                 <p className="text-yellow-400 mt-2 text-sm animate-[fadeSlideUp_0.5s_ease-out_0.6s_both]">
-                  +{catchResult.refund_gems} gems refund
+                  +{catchResult.refund_xp} XP refund
                 </p>
               )}
 
@@ -837,12 +839,30 @@ const WildEncounterModal = ({ pet, onClose, onCatchComplete }) => {
               <p className="text-gray-300 text-lg mt-2">The mystery pet broke free!</p>
               <p className="text-gray-600 text-xs mt-2">Catch rate was {catchResult?.catch_rate}%</p>
 
-              {phase === 'done' && (
+              {phase === 'done' && attemptsLeft > 0 && (
+                <div className="flex flex-col items-center">
+                  <p className="text-amber-400 text-sm mt-3">{attemptsLeft} throw{attemptsLeft !== 1 ? 's' : ''} left!</p>
+                  <button
+                    onClick={() => {
+                      setCatchResult(null)
+                      setShakeCount(0)
+                      totalShakesRef.current = null
+                      setThrowTrajectory(null)
+                      setPhase('encounter')
+                    }}
+                    className="mt-4 px-10 py-3 rounded-xl font-bold text-white bg-gradient-to-r from-amber-500 to-orange-600 hover:from-amber-400 hover:to-orange-500 transition-all hover:scale-105 active:scale-95 text-lg"
+                  >
+                    Try Again
+                  </button>
+                </div>
+              )}
+
+              {phase === 'done' && attemptsLeft <= 0 && (
                 <button
                   onClick={onClose}
                   className="mt-8 px-10 py-3 rounded-xl font-bold text-white bg-gray-700 hover:bg-gray-600 transition-all hover:scale-105 active:scale-95 text-lg"
                 >
-                  Try Again
+                  Leave
                 </button>
               )}
             </div>

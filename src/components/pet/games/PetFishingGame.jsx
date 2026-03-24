@@ -28,7 +28,7 @@ const POWERUPS = [
   { type: 'slow', img: 'https://xpclass.vn/xpclass/pet-game/fish/freeze.png', label: 'Slow', duration: 0 },
   { type: 'double', img: 'https://xpclass.vn/xpclass/pet-game/fish/double-fish.png', label: '2x', duration: 8000 },
   { type: 'heal', img: 'https://xpclass.vn/xpclass/pet-game/fish/heart.png', label: '+1 HP', duration: 0 },
-  { type: 'frenzy', img: 'https://xpclass.vn/xpclass/pet-game/fish/double-fish.png', label: '🎣 Frenzy!', duration: FRENZY_DURATION },
+  { type: 'frenzy', img: 'https://xpclass.vn/xpclass/pet-game/fish/frenzy.png', label: '🎣 Frenzy!', duration: FRENZY_DURATION },
 ]
 const POWERUP_CHANCE = 0.15 // 15% chance per round
 
@@ -639,7 +639,7 @@ const PetFishingGame = ({ petImageUrl, petName, onGameEnd, onClose, wordBank: wo
   const handlePowerupTap = useCallback((pu) => {
     if (phase !== 'playing') return
     setPowerups(prev => prev.filter(p => p.id !== pu.id))
-    playSound(assetUrl('/sound/scram-correct.mp3'), 0.3)
+    playSound('https://xpclass.vn/xpclass/sound/power-up.mp3', 0.3)
 
     if (pu.type === 'heal') {
       if (petHp >= PET_MAX_HP) {

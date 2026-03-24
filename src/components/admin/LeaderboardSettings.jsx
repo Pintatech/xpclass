@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { supabase } from '../../supabase/client';
-import { Save, RefreshCw, Play, Pause, Trophy, Settings, X, Gift } from 'lucide-react';
+import { Save, RefreshCw, Play, Pause, Trophy, Settings, X, Gift, Compass } from 'lucide-react';
 
 import { assetUrl } from '../../hooks/useBranding';
 const ALL_TABS = [
@@ -75,6 +75,12 @@ const LeaderboardSettings = () => {
   const [chestEndTime, setChestEndTime] = useState('');
   const [chestDailyLimit, setChestDailyLimit] = useState(3);
 
+  // Maze Adventure Settings
+  const [mazeEnabled, setMazeEnabled] = useState(true);
+  const [mazeStartTime, setMazeStartTime] = useState('');
+  const [mazeEndTime, setMazeEndTime] = useState('');
+  const [mazeDailyLimit, setMazeDailyLimit] = useState(5);
+
   // Collectible items for "most items" competition
   const [collectibleItems, setCollectibleItems] = useState([]);
   const [itemsLoading, setItemsLoading] = useState(false);
@@ -147,6 +153,10 @@ const LeaderboardSettings = () => {
           'chest_start_time',
           'chest_end_time',
           'chest_daily_limit',
+          'maze_enabled',
+          'maze_start_time',
+          'maze_end_time',
+          'maze_daily_limit',
         ]);
 
       if (error) throw error;
@@ -216,6 +226,18 @@ const LeaderboardSettings = () => {
           case 'chest_daily_limit':
             setChestDailyLimit(parseInt(row.setting_value) || 3);
             break;
+          case 'maze_enabled':
+            setMazeEnabled(row.setting_value !== 'false');
+            break;
+          case 'maze_start_time':
+            setMazeStartTime(row.setting_value || '');
+            break;
+          case 'maze_end_time':
+            setMazeEndTime(row.setting_value || '');
+            break;
+          case 'maze_daily_limit':
+            setMazeDailyLimit(parseInt(row.setting_value) || 5);
+            break;
         }
       });
     } catch (err) {
@@ -268,6 +290,10 @@ const LeaderboardSettings = () => {
         { setting_key: 'chest_start_time', setting_value: chestStartTime, description: 'Chest allowed start time (HH:MM)' },
         { setting_key: 'chest_end_time', setting_value: chestEndTime, description: 'Chest allowed end time (HH:MM)' },
         { setting_key: 'chest_daily_limit', setting_value: String(chestDailyLimit), description: 'Max chests per student per day' },
+        { setting_key: 'maze_enabled', setting_value: String(mazeEnabled), description: 'Whether maze adventure is enabled' },
+        { setting_key: 'maze_start_time', setting_value: mazeStartTime, description: 'Maze allowed start time (HH:MM)' },
+        { setting_key: 'maze_end_time', setting_value: mazeEndTime, description: 'Maze allowed end time (HH:MM)' },
+        { setting_key: 'maze_daily_limit', setting_value: String(mazeDailyLimit), description: 'Max maze adventures per student per day' },
       ];
 
       for (const s of settings) {
@@ -746,6 +772,103 @@ const LeaderboardSettings = () => {
                   className="w-20 p-1.5 border border-gray-300 rounded-lg text-gray-900 text-sm focus:ring-2 focus:ring-amber-500 focus:border-amber-500"
                 />
                 <span className="text-sm text-gray-500">chests per day</span>
+              </div>
+            </div>
+          </div>
+        )}
+      </div>
+
+      {/* Maze Adventure Settings */}
+      <div className="bg-white rounded-xl border border-gray-200 p-3">
+        <h3 className="text-sm font-semibold text-gray-700 uppercase tracking-wide mb-2">
+          Maze Adventure
+        </h3>
+
+        {/* Maze Toggle */}
+        <div className="flex items-center justify-between mb-3">
+          <div>
+            <p className="text-sm font-medium text-gray-900">Wild Area Status</p>
+            <p className="text-sm text-gray-500">
+              {mazeEnabled ? 'Students can enter the Wild Area.' : 'Wild Area disabled.'}
+            </p>
+          </div>
+          <button
+            onClick={() => setMazeEnabled(!mazeEnabled)}
+            className={`flex items-center gap-2 px-4 py-2 rounded-lg font-medium text-sm transition-all ${
+              mazeEnabled
+                ? 'bg-emerald-100 text-emerald-700 hover:bg-emerald-200'
+                : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+            }`}
+          >
+            {mazeEnabled ? (
+              <>
+                <Compass className="w-4 h-4" />
+                Enabled
+              </>
+            ) : (
+              <>
+                <Pause className="w-4 h-4" />
+                Disabled
+              </>
+            )}
+          </button>
+        </div>
+
+        {mazeEnabled && (
+          <div className="space-y-3 border-t border-gray-100 pt-2">
+            {/* Time Window */}
+            <div>
+              <p className="text-sm font-medium text-gray-900 mb-1.5">Allowed Hours (optional)</p>
+              <div className="flex items-center gap-3">
+                <div className="flex items-center gap-1.5">
+                  <label className="text-sm text-gray-500">From</label>
+                  <input
+                    type="time"
+                    value={mazeStartTime}
+                    onChange={(e) => setMazeStartTime(e.target.value)}
+                    className="p-1.5 border border-gray-300 rounded-lg text-gray-900 text-sm focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500"
+                  />
+                </div>
+                <div className="flex items-center gap-1.5">
+                  <label className="text-sm text-gray-500">To</label>
+                  <input
+                    type="time"
+                    value={mazeEndTime}
+                    onChange={(e) => setMazeEndTime(e.target.value)}
+                    className="p-1.5 border border-gray-300 rounded-lg text-gray-900 text-sm focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500"
+                  />
+                </div>
+                {(mazeStartTime || mazeEndTime) && (
+                  <button
+                    onClick={() => { setMazeStartTime(''); setMazeEndTime(''); }}
+                    className="text-sm text-red-500 hover:text-red-700"
+                  >
+                    Clear
+                  </button>
+                )}
+              </div>
+              <p className="text-sm text-gray-400 mt-1">
+                {mazeStartTime && mazeEndTime
+                  ? `Wild Area open ${mazeStartTime}–${mazeEndTime} only.`
+                  : (mazeStartTime || mazeEndTime)
+                    ? 'Set both times for schedule to work.'
+                    : 'No restriction — Wild Area open 24/7.'}
+              </p>
+            </div>
+
+            {/* Daily Limit */}
+            <div>
+              <p className="text-sm font-medium text-gray-900 mb-1.5">Daily Limit per Student</p>
+              <div className="flex items-center gap-3">
+                <input
+                  type="number"
+                  min="1"
+                  max="50"
+                  value={mazeDailyLimit}
+                  onChange={(e) => setMazeDailyLimit(parseInt(e.target.value) || 1)}
+                  className="w-20 p-1.5 border border-gray-300 rounded-lg text-gray-900 text-sm focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500"
+                />
+                <span className="text-sm text-gray-500">adventures per day</span>
               </div>
             </div>
           </div>

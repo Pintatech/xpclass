@@ -1,4 +1,4 @@
-import { useState, useMemo, useCallback, memo } from 'react'
+import { useState, useEffect, useRef, useMemo, useCallback } from 'react'
 import { createPortal } from 'react-dom'
 import PetCatchGame from './PetCatchGame'
 import PetFlappyGame from './PetFlappyGame'
@@ -39,12 +39,12 @@ const RC = {
 }
 
 const BIOMES = [
-  { name: 'Enchanted Forest',  bg: 'from-emerald-950 via-green-950 to-slate-950', emoji: '🌿', accent: '#22c55e' },
-  { name: 'Crystal Caves',     bg: 'from-blue-950 via-indigo-950 to-slate-950',   emoji: '💎', accent: '#6366f1' },
-  { name: 'Volcanic Ridge',    bg: 'from-red-950 via-orange-950 to-slate-950',    emoji: '🌋', accent: '#ef4444' },
-  { name: 'Mystic Swamp',      bg: 'from-teal-950 via-emerald-950 to-slate-950',  emoji: '🍄', accent: '#14b8a6' },
-  { name: 'Frozen Peaks',      bg: 'from-cyan-950 via-sky-950 to-slate-950',      emoji: '❄️', accent: '#22d3ee' },
-  { name: 'Shadow Ruins',      bg: 'from-violet-950 via-purple-950 to-slate-950', emoji: '🏚️', accent: '#a78bfa' },
+  { name: 'Enchanted Forest',  bg: 'from-emerald-950 via-green-950 to-slate-950', emoji: '🌿', accent: '#22c55e', bgMobile: 'https://xpclass.vn/xpclass/image/biome/enchanted-forest-mobile.jpg', bgDesktop: 'https://t3.ftcdn.net/jpg/06/31/00/94/360_F_631009499_iQtNkPoZQK7Z3QffB38iUYd5L7kHZC92.jpg' },
+  { name: 'Crystal Caves',     bg: 'from-blue-950 via-indigo-950 to-slate-950',   emoji: '💎', accent: '#6366f1', bgMobile: 'https://xpclass.vn/xpclass/image/biome/crystal-caves-mobile.jpg', bgDesktop: 'https://img.freepik.com/free-vector/dark-cave-with-blue-pink-shining-crystal-clusters-stone-walls-cartoon-vector-diamond-mine-dungeon-game-path-level-rocky-tunnel-with-glittering-treasure-mineral-resources-from-inside_107791-24532.jpg' },
+  { name: 'Volcanic Ridge',    bg: 'from-red-950 via-orange-950 to-slate-950',    emoji: '🌋', accent: '#ef4444', bgMobile: 'https://xpclass.vn/xpclass/image/biome/volcanic-ridge-mobile.jpg', bgDesktop: 'https://cdn.vectorstock.com/i/1000v/73/95/vibrant-cartoon-volcano-eruption-vector-58527395.jpg' },
+  { name: 'Mystic Swamp',      bg: 'from-teal-950 via-emerald-950 to-slate-950',  emoji: '🍄', accent: '#14b8a6', bgMobile: 'https://xpclass.vn/xpclass/image/biome/mystic-swamp-mobile.jpg', bgDesktop: 'https://thumbs.dreamstime.com/b/dark-swamp-landscape-dead-trees-fog-around-plants-terrible-mystical-place-swamp-bulrush-plants-twilight-disgusting-144587556.jpg' },
+  { name: 'Frozen Peaks',      bg: 'from-cyan-950 via-sky-950 to-slate-950',      emoji: '❄️', accent: '#22d3ee', bgMobile: 'https://xpclass.vn/xpclass/image/biome/frozen-peaks-mobile.jpg', bgDesktop: 'https://thumbs.dreamstime.com/b/frozen-lake-scenery-cartoon-illustration-icy-winter-landscape-snow-covered-ice-scenic-view-wilderness-cold-environment-wonderland-331693799.jpg' },
+  { name: 'Shadow Ruins',      bg: 'from-violet-950 via-purple-950 to-slate-950', emoji: '🏚️', accent: '#a78bfa', bgMobile: 'https://xpclass.vn/xpclass/image/biome/shadow-ruins-mobile.jpg', bgDesktop: 'https://thumbs.dreamstime.com/b/destroyed-abandoned-city-ruins-destroyed-abandoned-city-ruins-haunting-melancholy-sight-filled-broken-buildings-274793810.jpg' },
 ]
 
 /* ---- Generate adventure path ---- */
@@ -58,6 +58,7 @@ function buildAdventure(stopCount) {
       id: i,
       game: pool[idx],
       biome,
+      bossImage: BOSS_IMAGES[Math.floor(Math.random() * BOSS_IMAGES.length)],
       completed: false,
       score: 0,
     })
@@ -65,78 +66,13 @@ function buildAdventure(stopCount) {
   return stops
 }
 
-/* ---- Path Node ---- */
-const PathNode = memo(({ stop, index, current, completed, isLast, rarity, onClick }) => {
-  const rc = RC[rarity] || RC.common
-  const isCurrent = index === current
-  const isDone = completed
-  const isLocked = index > current
-
-  return (
-    <div className="flex flex-col items-center relative">
-      {/* Connector line to next node */}
-      {!isLast && (
-        <div
-          className="absolute top-full left-1/2 -translate-x-1/2 w-1 h-12"
-          style={{
-            background: isDone
-              ? `linear-gradient(to bottom, ${rc.solid}, ${rc.solid}80)`
-              : 'linear-gradient(to bottom, #374151, #1f2937)',
-          }}
-        />
-      )}
-
-      <button
-        onClick={() => !isLocked && onClick(index)}
-        disabled={isLocked}
-        className={`relative w-20 h-20 rounded-2xl flex flex-col items-center justify-center transition-all duration-300 border-2 ${
-          isCurrent
-            ? 'scale-110 shadow-2xl'
-            : isDone
-              ? 'scale-100 opacity-90'
-              : 'scale-90 opacity-40 cursor-not-allowed'
-        }`}
-        style={{
-          background: isDone
-            ? `linear-gradient(135deg, ${rc.trail}, #111827)`
-            : isCurrent
-              ? `linear-gradient(135deg, ${stop.biome.accent}30, #111827)`
-              : '#111827',
-          borderColor: isCurrent ? rc.solid : isDone ? `${rc.solid}60` : '#374151',
-          boxShadow: isCurrent ? `0 0 25px ${rc.glow}, 0 0 50px ${rc.glow}` : 'none',
-        }}
-      >
-        {/* Done checkmark */}
-        {isDone && (
-          <div className="absolute -top-1.5 -right-1.5 w-6 h-6 rounded-full flex items-center justify-center text-xs"
-            style={{ background: rc.solid, color: '#000' }}>
-            ✓
-          </div>
-        )}
-
-        {/* Game icon */}
-        {isDone ? (
-          <span className="text-2xl">✅</span>
-        ) : (
-          <img src={stop.game.img} alt={stop.game.name} className={`w-10 h-10 object-contain rounded-lg ${isCurrent ? 'animate-bounce' : ''}`} style={{ animationDuration: '2s' }} />
-        )}
-
-        {/* Score */}
-        {isDone && stop.score > 0 && (
-          <span className="text-[10px] font-bold mt-0.5" style={{ color: rc.solid }}>{stop.score}</span>
-        )}
-      </button>
-
-      {/* Label */}
-      <div className="mt-1 text-center">
-        <p className={`text-[11px] font-medium ${isCurrent ? 'text-white' : isDone ? 'text-gray-400' : 'text-gray-600'}`}>
-          {stop.game.name}
-        </p>
-        <p className="text-[9px] text-gray-600">{stop.biome.emoji} {stop.biome.name}</p>
-      </div>
-    </div>
-  )
-})
+const BOSS_IMAGES = [
+  'https://xpclass.vn/xpclass/pet-game/boss/boss1.png',
+  'https://xpclass.vn/xpclass/pet-game/boss/boss2.png',
+  'https://xpclass.vn/xpclass/pet-game/boss/boss3.png',
+  'https://xpclass.vn/xpclass/pet-game/boss/boss4.png',
+  'https://xpclass.vn/xpclass/pet-game/boss/boss5.png',
+]
 
 /* ---- Main Component ---- */
 const PetMazeAdventure = ({
@@ -159,12 +95,55 @@ const PetMazeAdventure = ({
   // Build adventure once
   const [stops, setStops] = useState(() => buildAdventure(config.stops))
   const [currentStop, setCurrentStop] = useState(0)
-  const [phase, setPhase] = useState('map') // map | playing | complete | failed
+  const [phase, setPhase] = useState('entrance') // entrance | map | playing | victory | complete | failed
+  const [entranceStep, setEntranceStep] = useState(0) // 0=wipe, 1=biome, 2=pet, 3=boss, 4=ready
   const [totalScore, setTotalScore] = useState(0)
   const [showConfirmClose, setShowConfirmClose] = useState(false)
+  const [victoryScore, setVictoryScore] = useState(0)
+  const entranceAudioRef = useRef(null)
 
   const completedCount = stops.filter(s => s.completed).length
   const currentBiome = stops[currentStop]?.biome || BIOMES[0]
+
+  // Entrance cinematic sequence
+  useEffect(() => {
+    if (phase !== 'entrance') return
+    const timers = [
+      setTimeout(() => setEntranceStep(1), 400),   // biome name
+      setTimeout(() => setEntranceStep(2), 1200),   // pet slides in
+      setTimeout(() => setEntranceStep(3), 2000),   // boss appears
+      setTimeout(() => setEntranceStep(4), 2800),   // ready text
+      setTimeout(() => { setPhase('map'); setEntranceStep(0) }, 3500), // go to map
+    ]
+    try {
+      entranceAudioRef.current = new Audio('https://xpclass.vn/xpclass/sound/adventure-start.mp3')
+      entranceAudioRef.current.volume = 0.4
+      entranceAudioRef.current.play().catch(() => {})
+    } catch { /* audio autoplay may be blocked */ }
+    return () => timers.forEach(clearTimeout)
+  }, [phase])
+
+  // Victory phase after winning a game
+  useEffect(() => {
+    if (phase !== 'victory') return
+    // Play laser sound at 1.7s (when laser fires)
+    const laserTimer = setTimeout(() => {
+      try {
+        const s = new Audio('https://xpclass.vn/xpclass/sound/laser.mp3')
+        s.volume = 0.3
+        s.play().catch(() => {})
+      } catch {}
+    }, 1700)
+    const timer = setTimeout(() => {
+      if (currentStop >= stops.length - 1) {
+        setPhase('complete')
+      } else {
+        setCurrentStop(prev => prev + 1)
+        setPhase('entrance')
+      }
+    }, 7000)
+    return () => { clearTimeout(laserTimer); clearTimeout(timer) }
+  }, [phase, currentStop, stops.length])
 
   // Pet image for games
   const petImageUrl = useMemo(() => {
@@ -179,32 +158,25 @@ const PetMazeAdventure = ({
 
   const petName = activePet?.nickname || activePet?.name || 'Pet'
 
-  const handleNodeClick = useCallback((index) => {
-    if (index !== currentStop) return
-    setPhase('playing')
-  }, [currentStop])
-
   const handleGameComplete = useCallback((score, extra) => {
     const game = stops[currentStop]?.game
     setTotalScore(prev => prev + score)
+    setVictoryScore(score)
     setStops(prev => prev.map((s, i) =>
       i === currentStop ? { ...s, completed: true, score } : s
     ))
 
     if (onGameEnd && game) onGameEnd(score, game.key, extra)
 
-    // Check if all done
-    if (currentStop >= stops.length - 1) {
-      setPhase('complete')
-    } else {
-      setCurrentStop(prev => prev + 1)
-      setPhase('map')
-    }
+    // Go to victory phase — it will auto-advance
+    setPhase('victory')
   }, [currentStop, stops, onGameEnd])
 
+  const [showQuitWarning, setShowQuitWarning] = useState(false)
+
   const handleGameClose = useCallback(() => {
-    // Losing or closing a game = adventure over
-    setPhase('failed')
+    // Show warning before quitting during maze
+    setShowQuitWarning(true)
   }, [])
 
   // Stars
@@ -246,10 +218,18 @@ const PetMazeAdventure = ({
     }
   }
 
-  return createPortal(
+  const isMobile = typeof window !== 'undefined' && window.innerWidth < 768
+  const biomeBg = isMobile ? currentBiome.bgMobile : currentBiome.bgDesktop
+
+  const portal = createPortal(
     <div
       className={`fixed inset-0 z-50 select-none overflow-hidden bg-gradient-to-b ${currentBiome.bg}`}
-      style={{ touchAction: 'none' }}
+      style={{
+        touchAction: 'none',
+        backgroundImage: biomeBg ? `url(${biomeBg})` : undefined,
+        backgroundSize: 'cover',
+        backgroundPosition: 'center',
+      }}
     >
       {/* Stars */}
       <div className="absolute inset-0 pointer-events-none">
@@ -282,7 +262,7 @@ const PetMazeAdventure = ({
       </div>
 
       {/* HUD */}
-      <div className="relative z-20 flex items-center justify-between px-4 py-3">
+      <div className="relative z-20 flex items-center justify-between px-4 py-3" style={{ opacity: phase === 'entrance' || phase === 'victory' ? 0 : 1, transition: 'opacity 0.3s' }}>
         <div className="flex items-center gap-3">
           <h1 className="text-white font-bold text-lg">
             {mode === 'encounter' ? '🗺️ Wild Adventure' : '🗺️ Adventure'}
@@ -304,99 +284,261 @@ const PetMazeAdventure = ({
         </div>
       </div>
 
-      {/* Progress bar */}
-      {phase === 'map' && (
-        <div className="relative z-10 mx-6 mb-2">
-          <div className="h-1.5 rounded-full bg-white/5 overflow-hidden">
-            <div className="h-full rounded-full transition-all duration-700 ease-out"
-              style={{
-                width: `${(completedCount / config.stops) * 100}%`,
-                background: `linear-gradient(90deg, ${rc.solid}, ${rc.solid}cc)`,
-                boxShadow: `0 0 10px ${rc.light}`,
-              }}
+      {/* Entrance cinematic */}
+      {phase === 'entrance' && (
+        <div className="absolute inset-0 z-30 flex flex-col items-center justify-center overflow-hidden">
+          {/* Dark overlay with fade */}
+          <div className="absolute inset-0 bg-black" style={{
+            animation: 'advFadeOut 3.5s ease-out forwards',
+            opacity: 0.7,
+          }} />
+
+          {/* Biome name reveal */}
+          <div className="relative z-10 flex flex-col items-center" style={{
+            opacity: entranceStep >= 1 ? 1 : 0,
+            transform: entranceStep >= 1 ? 'translateY(0)' : 'translateY(30px)',
+            transition: 'all 0.6s ease-out',
+          }}>
+            <p className="text-white/40 text-xs uppercase tracking-[0.3em] mb-2">
+              Stage {currentStop + 1}
+            </p>
+            <h2 className="text-white text-3xl sm:text-4xl font-black mb-1" style={{
+              textShadow: `0 0 40px ${currentBiome.accent}80`,
+            }}>
+              {currentBiome.emoji} {currentBiome.name}
+            </h2>
+            <div className="h-0.5 rounded-full mt-3" style={{
+              width: entranceStep >= 1 ? 120 : 0,
+              background: `linear-gradient(90deg, transparent, ${currentBiome.accent}, transparent)`,
+              transition: 'width 0.8s ease-out 0.2s',
+            }} />
+          </div>
+
+          {/* Pet slides in from left */}
+          <div className="absolute bottom-32 left-1/4 sm:left-1/3" style={{
+            transform: entranceStep >= 2 ? 'translateX(0)' : 'translateX(-200px)',
+            opacity: entranceStep >= 2 ? 1 : 0,
+            transition: 'all 0.5s cubic-bezier(0.34, 1.56, 0.64, 1)',
+          }}>
+            <img src={petImageUrl} alt={petName}
+              className="w-20 h-20 sm:w-28 sm:h-28 object-contain"
+              style={{ filter: `drop-shadow(0 0 15px ${rc.light})` }}
             />
           </div>
+
+          {/* Boss appears from right */}
+          <div className="absolute bottom-32 right-1/4 sm:right-1/3" style={{
+            transform: entranceStep >= 3 ? 'translateX(0) scale(1)' : 'translateX(200px) scale(0.5)',
+            opacity: entranceStep >= 3 ? 1 : 0,
+            transition: 'all 0.5s cubic-bezier(0.34, 1.56, 0.64, 1)',
+          }}>
+            <img src={stops[currentStop]?.bossImage} alt="Boss"
+              className="w-20 h-20 sm:w-28 sm:h-28 object-contain"
+              style={{ filter: `drop-shadow(0 0 15px ${currentBiome.accent})` }}
+            />
+          </div>
+
+          {/* READY text */}
+          {entranceStep >= 4 && (
+            <div className="absolute inset-0 flex items-center justify-center z-20">
+              <h1 className="text-white text-5xl sm:text-7xl font-black uppercase tracking-widest"
+                style={{
+                  animation: 'advReadyPulse 0.6s ease-out',
+                  textShadow: `0 0 60px ${rc.solid}, 0 0 120px ${rc.light}`,
+                }}>
+                READY!
+              </h1>
+            </div>
+          )}
         </div>
       )}
 
-      {/* Adventure path */}
-      {phase === 'map' && (
-        <div className="relative z-10 flex-1 overflow-y-auto px-6 pb-24"
-          style={{ height: 'calc(100vh - 100px)' }}>
+      {/* Victory phase */}
+      {phase === 'victory' && (
+        <div className="absolute inset-0 z-30">
 
-          {/* Biome title */}
-          <div className="text-center mt-4 mb-8">
-            <p className="text-gray-500 text-xs uppercase tracking-widest mb-1">
-              {currentBiome.emoji} {currentBiome.name}
-            </p>
-            <p className="text-white/60 text-sm">
-              Stop {currentStop + 1} of {stops.length}
-            </p>
+          {/* Impact flash — delayed to sync with hit */}
+          <div className="absolute inset-0 bg-white" style={{ opacity: 0, animation: 'advVictoryFlash 0.5s ease-out 1.7s forwards' }} />
+
+          {/* Pet charges from left toward monster */}
+          <div className="absolute bottom-32 left-1/4 sm:left-1/3" style={{
+            animation: 'advPetCharge 0.5s cubic-bezier(0.22, 1, 0.36, 1) 1.5s both',
+          }}>
+            <img src={petImageUrl} alt={petName}
+              className="w-20 h-20 sm:w-28 sm:h-28 object-contain"
+              style={{ filter: `drop-shadow(0 0 15px ${rc.light})` }}
+            />
           </div>
 
-          {/* Path nodes */}
-          <div className="flex flex-col items-center gap-14">
-            {stops.map((stop, i) => (
-              <PathNode
-                key={stop.id}
-                stop={stop}
-                index={i}
-                current={currentStop}
-                completed={stop.completed}
-                isLast={i === stops.length - 1}
-                rarity={rarity}
-                onClick={handleNodeClick}
-              />
-            ))}
+          {/* Laser beam — fires at peak of charge */}
+          <div className="absolute pointer-events-none z-30"
+            style={{
+              bottom: 'calc(8rem + 2.5rem)',
+              left: 'calc(25% + 15vw + 5rem)',
+              width: 'calc(50% - 15vw - 5rem)',
+              height: 10,
+              transformOrigin: '0 50%',
+              background: `linear-gradient(90deg, ${rc.solid}, white 40%, white 60%, ${rc.solid})`,
+              boxShadow: `0 0 20px 6px ${rc.light}, 0 0 50px 12px ${rc.glow}`,
+              borderRadius: 5,
+              opacity: 0,
+              animation: 'advLaserFire 0.4s ease-out 1.7s forwards',
+            }}
+          />
 
-            {/* Final destination */}
-            <div className="flex flex-col items-center mt-2">
-              <div
-                className={`w-24 h-24 rounded-full flex items-center justify-center border-3 transition-all duration-500 ${
-                  completedCount >= config.stops
-                    ? 'animate-pulse scale-110'
-                    : 'opacity-30 scale-90'
-                }`}
+          {/* Monster gets hit and flies off screen */}
+          <div className="absolute bottom-32 right-1/4 sm:right-1/3" style={{
+            animation: 'advMonsterKnockback 1s cubic-bezier(0.22, 1, 0.36, 1) 1.7s both',
+          }}>
+            <img src={stops[currentStop]?.bossImage} alt="Boss"
+              className="w-20 h-20 sm:w-28 sm:h-28 object-contain"
+            />
+          </div>
+
+          {/* Impact sparks at hit point */}
+          <div className="absolute bottom-36 left-1/2 -translate-x-1/2 pointer-events-none" style={{ animation: 'advScaleIn 0.3s ease-out 1.7s both' }}>
+            {[...Array(8)].map((_, i) => (
+              <div key={i} className="absolute text-yellow-400"
                 style={{
-                  background: completedCount >= config.stops
-                    ? `radial-gradient(circle, ${rc.glow}, #111827)`
-                    : '#111827',
-                  borderColor: completedCount >= config.stops ? rc.solid : '#374151',
-                  borderWidth: 3,
-                  borderStyle: 'solid',
-                  boxShadow: completedCount >= config.stops ? `0 0 30px ${rc.glow}, 0 0 60px ${rc.glow}` : 'none',
-                }}
-              >
-                {mode === 'encounter' && encounterPet ? (
-                  <img src={encounterPet.image_url} alt="?" className="w-14 h-14 object-contain"
-                    style={{ filter: completedCount >= config.stops ? 'none' : 'brightness(0)' }} />
-                ) : (
-                  <span className="text-4xl">{completedCount >= config.stops ? '🏆' : '🔒'}</span>
-                )}
+                  animation: `advStarBurst 1s ease-out ${1.7 + i * 0.05}s both`,
+                  '--star-x': `${Math.cos(i * 45 * Math.PI / 180) * 60}px`,
+                  '--star-y': `${Math.sin(i * 45 * Math.PI / 180) * 60}px`,
+                  opacity: 0,
+                  fontSize: '1.2rem',
+                }}>
+                ✦
               </div>
-              <p className={`mt-2 text-sm font-bold ${completedCount >= config.stops ? 'text-white' : 'text-gray-600'}`}>
-                {mode === 'encounter' ? 'Wild Pet!' : 'Treasure!'}
+            ))}
+          </div>
+
+          {/* Celebration — appears after hit */}
+          <div className="absolute inset-0 flex flex-col items-center justify-center z-10">
+            <div className="relative z-10 flex flex-col items-center" style={{ animation: 'advScaleIn 0.8s ease-out 2.8s both' }}>
+              {/* Pet celebrating */}
+              <div className="relative mb-4">
+                <div className="absolute -inset-12 rounded-full blur-2xl" style={{
+                  background: `radial-gradient(circle, ${rc.light}, transparent 60%)`,
+                  animation: 'advGlowPulse 1.5s ease-in-out 2.8s infinite',
+                }} />
+                <img src={petImageUrl} alt={petName}
+                  className="w-28 h-28 sm:w-36 sm:h-36 object-contain relative z-10"
+                  style={{
+                    animation: 'advVictoryBounce 0.8s ease-out 2.8s both',
+                    filter: `drop-shadow(0 0 20px ${rc.light})`,
+                  }}
+                />
+              </div>
+
+              {/* Victory stars burst */}
+              <div className="absolute inset-0 pointer-events-none">
+                {[...Array(12)].map((_, i) => (
+                  <div key={i} className="absolute left-1/2 top-1/2 text-yellow-400"
+                    style={{
+                      animation: `advStarBurst 1.2s ease-out ${3.0 + i * 0.08}s forwards`,
+                      '--star-x': `${Math.cos(i * 30 * Math.PI / 180) * (80 + Math.random() * 40)}px`,
+                      '--star-y': `${Math.sin(i * 30 * Math.PI / 180) * (80 + Math.random() * 40)}px`,
+                      opacity: 0,
+                    }}>
+                    ✦
+                  </div>
+                ))}
+              </div>
+
+              <h2 className="text-white text-3xl font-black" style={{
+                animation: 'advScaleIn 0.6s ease-out 3.2s both',
+                textShadow: `0 0 30px ${rc.light}`,
+              }}>
+                Victory!
+              </h2>
+              <p className="text-white/60 text-sm mt-2" style={{ animation: 'advScaleIn 0.6s ease-out 3.6s both' }}>
+                +{victoryScore} points
               </p>
-              {completedCount >= config.stops && (
-                <button onClick={() => setPhase('complete')}
-                  className={`mt-4 px-8 py-3 rounded-2xl font-bold text-white bg-gradient-to-r ${rc.gradient} hover:scale-105 active:scale-95 transition-all shadow-xl`}>
-                  {mode === 'encounter' ? 'Encounter Pet!' : 'Claim Reward!'}
-                </button>
+
+              {currentStop < stops.length - 1 && (
+                <p className="text-white/30 text-xs mt-4" style={{ animation: 'advScaleIn 0.6s ease-out 4.0s both' }}>
+                  Moving to next stage...
+                </p>
               )}
             </div>
           </div>
         </div>
       )}
 
-      {/* Current stop prompt — big CTA when on map */}
-      {phase === 'map' && !stops[currentStop]?.completed && currentStop < stops.length && (
-        <div className="absolute bottom-0 left-0 right-0 z-20 p-4"
-          style={{ background: 'linear-gradient(to top, rgba(0,0,0,0.9), transparent)' }}>
-          <button onClick={() => setPhase('playing')}
-            className={`w-full py-4 rounded-2xl font-bold text-white text-lg bg-gradient-to-r ${rc.gradient} hover:scale-[1.02] active:scale-95 transition-all shadow-xl flex items-center justify-center gap-3`}>
-            <img src={stops[currentStop].game.img} alt={stops[currentStop].game.name} className="w-8 h-8 object-contain rounded" />
-            Play {stops[currentStop].game.name}
-          </button>
+      {/* Map phase — single encounter view */}
+      {phase === 'map' && (
+        <div className="absolute inset-0 z-10 flex flex-col items-center px-6 pt-16" style={{ animation: 'advMapSlideIn 0.5s ease-out' }}>
+
+          {/* Biome name */}
+          <div className="text-center mt-6 mb-4">
+            <p className="text-white/50 text-xs uppercase tracking-widest">
+              {currentBiome.emoji} {currentBiome.name}
+            </p>
+            <p className="text-white/30 text-[10px] mt-1">
+              Stage {currentStop + 1} of {stops.length}
+            </p>
+          </div>
+
+          {/* Progress dots */}
+          <div className="flex items-center gap-2 mb-6">
+            {stops.map((s, i) => (
+              <div key={s.id} className="w-3 h-3 rounded-full transition-all duration-300"
+                style={{
+                  background: s.completed ? rc.solid : i === currentStop ? `${rc.solid}80` : '#374151',
+                  boxShadow: i === currentStop ? `0 0 8px ${rc.light}` : 'none',
+                }}
+              />
+            ))}
+          </div>
+
+          {/* spacer to push button down */}
+          <div className="flex-1" />
+
+          {/* Battle button */}
+          <div className="flex flex-col items-center mb-12">
+            <button onClick={() => setPhase('playing')}
+              className={`px-10 py-4 rounded-2xl font-bold text-white text-lg bg-gradient-to-r ${rc.gradient} hover:scale-105 active:scale-95 transition-all shadow-xl flex items-center justify-center gap-3`}
+              style={{ boxShadow: `0 0 30px ${rc.glow}` }}
+            >
+              ⚔️ Battle!
+            </button>
+
+            {/* Completed all — encounter button */}
+            {completedCount >= config.stops && (
+              <button onClick={() => setPhase('complete')}
+                className={`mt-4 px-10 py-4 rounded-2xl font-bold text-white text-lg bg-gradient-to-r ${rc.gradient} hover:scale-105 active:scale-95 transition-all shadow-xl animate-pulse`}
+                style={{ boxShadow: `0 0 30px ${rc.glow}` }}
+              >
+                {mode === 'encounter' ? '✨ Encounter Pet!' : '🏆 Claim Reward!'}
+              </button>
+            )}
+          </div>
+
+          {/* Pet & boss — same absolute positions as entrance */}
+          <div className="absolute bottom-32 left-1/4 sm:left-1/3 flex flex-col items-center z-10">
+            <div className="relative">
+              <div className="absolute -inset-4 rounded-full blur-xl animate-pulse" style={{ background: `${rc.glow}` }} />
+              <img src={petImageUrl} alt={petName}
+                className="w-20 h-20 sm:w-28 sm:h-28 object-contain relative z-10"
+                style={{ animation: 'advPetIdle 2s ease-in-out infinite', filter: `drop-shadow(0 0 15px ${rc.light})` }}
+              />
+            </div>
+            <p className="text-white text-sm font-bold mt-2">{petName}</p>
+          </div>
+
+          <div className="absolute bottom-36 left-1/2 -translate-x-1/2 text-2xl sm:text-3xl font-black text-white/30 z-10" style={{ textShadow: '0 0 20px rgba(255,255,255,0.1)' }}>
+            VS
+          </div>
+
+          <div className="absolute bottom-32 right-1/4 sm:right-1/3 flex flex-col items-center z-10">
+            <div className="relative">
+              <div className="absolute -inset-4 rounded-full blur-xl animate-pulse" style={{ background: `${currentBiome.accent}30` }} />
+              <img src={stops[currentStop]?.bossImage} alt={stops[currentStop]?.game?.name}
+                className="w-20 h-20 sm:w-28 sm:h-28 object-contain relative z-10"
+                style={{ animation: 'advMonsterIdle 1.5s ease-in-out infinite' }}
+              />
+            </div>
+            <p className="text-white/70 text-sm font-bold mt-2">{stops[currentStop]?.game?.name}</p>
+          </div>
         </div>
       )}
 
@@ -410,9 +552,7 @@ const PetMazeAdventure = ({
             <div className="relative mb-6">
               <div className="absolute -inset-16 rounded-full blur-3xl animate-pulse"
                 style={{ background: `radial-gradient(circle, ${rc.light}, transparent 60%)` }} />
-              <div className="text-7xl relative z-10">
-                {mode === 'encounter' ? '🎯' : '🏆'}
-              </div>
+
             </div>
 
             <h2 className="text-white text-3xl font-black mb-3">
@@ -507,9 +647,100 @@ const PetMazeAdventure = ({
           0% { opacity: 0; transform: scale(0.8); }
           100% { opacity: 1; transform: scale(1); }
         }
+        @keyframes advPetIdle {
+          0%, 100% { transform: translateY(0) scaleX(1); }
+          50% { transform: translateY(-8px) scaleX(1); }
+        }
+        @keyframes advMonsterIdle {
+          0%, 100% { transform: translateY(0); }
+          50% { transform: translateY(-6px); }
+        }
+        @keyframes advFadeOut {
+          0% { opacity: 0.9; }
+          70% { opacity: 0.6; }
+          100% { opacity: 0; }
+        }
+        @keyframes advReadyPulse {
+          0% { transform: scale(0.3); opacity: 0; }
+          50% { transform: scale(1.15); opacity: 1; }
+          100% { transform: scale(1); opacity: 1; }
+        }
+        @keyframes advPetCharge {
+          0% { transform: translateX(0); }
+          40% { transform: translateX(15vw); }
+          100% { transform: translateX(0); }
+        }
+        @keyframes advFadeIn {
+          0% { opacity: 0; }
+          100% { opacity: 1; }
+        }
+        @keyframes advLaserFire {
+          0% { opacity: 1; filter: brightness(2); }
+          30% { opacity: 0.9; filter: brightness(1.5); }
+          100% { opacity: 0; filter: brightness(1); }
+        }
+        @keyframes advMonsterKnockback {
+          0% { transform: translate(0, 0) rotate(0deg) scale(1); opacity: 1; }
+          8% { transform: translate(-10px, 5px) rotate(-10deg) scale(1.05); opacity: 1; }
+          100% { transform: translate(80vw, -80vh) rotate(1440deg) scale(0.2); opacity: 0; }
+        }
+        @keyframes advVictoryFlash {
+          0% { opacity: 0.9; }
+          100% { opacity: 0; }
+        }
+        @keyframes advVictoryBounce {
+          0% { transform: scale(0.5) translateY(40px); }
+          50% { transform: scale(1.15) translateY(-20px); }
+          70% { transform: scale(0.95) translateY(0); }
+          100% { transform: scale(1) translateY(0); }
+        }
+        @keyframes advGlowPulse {
+          0%, 100% { opacity: 0.4; transform: scale(1); }
+          50% { opacity: 0.8; transform: scale(1.2); }
+        }
+        @keyframes advStarBurst {
+          0% { transform: translate(-50%, -50%) scale(0); opacity: 1; }
+          100% { transform: translate(calc(-50% + var(--star-x)), calc(-50% + var(--star-y))) scale(1); opacity: 0; }
+        }
+        @keyframes advMapSlideIn {
+          0% { opacity: 0; transform: translateY(30px); }
+          100% { opacity: 1; transform: translateY(0); }
+        }
       `}</style>
     </div>,
     document.body
+  )
+
+  return (
+    <>
+      {portal}
+      {showQuitWarning && createPortal(
+        <div className="fixed inset-0 bg-black/70 flex items-center justify-center z-[9999] p-4">
+          <div className="bg-gray-900 border border-red-500/30 rounded-2xl p-6 max-w-sm w-full text-center shadow-2xl">
+            <div className="text-4xl mb-3">⚠️</div>
+            <h3 className="text-white text-lg font-bold mb-2">Quit Adventure?</h3>
+            <p className="text-gray-400 text-sm mb-5">
+              You will lose all progress and the wild pet will escape!
+            </p>
+            <div className="flex gap-3">
+              <button
+                onClick={() => setShowQuitWarning(false)}
+                className="flex-1 py-2.5 rounded-xl font-medium text-white bg-gray-700 hover:bg-gray-600 transition-colors"
+              >
+                Continue
+              </button>
+              <button
+                onClick={() => { setShowQuitWarning(false); setPhase('failed'); }}
+                className="flex-1 py-2.5 rounded-xl font-medium text-white bg-red-600 hover:bg-red-500 transition-colors"
+              >
+                Quit
+              </button>
+            </div>
+          </div>
+        </div>,
+        document.body
+      )}
+    </>
   )
 }
 
