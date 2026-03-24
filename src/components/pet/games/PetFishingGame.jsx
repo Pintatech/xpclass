@@ -92,6 +92,7 @@ const PetFishingGame = ({ petImageUrl, petName, onGameEnd, onClose, wordBank: wo
   const chestRoundRef = useRef(0)
   const uidRef = useRef(0)
   const uid = () => ++uidRef.current
+  const lastSpawnTimeRef = useRef(0)
 
   const playSound = useCallback((url, volume = 0.5) => {
     try {
@@ -220,6 +221,7 @@ const PetFishingGame = ({ petImageUrl, petName, onGameEnd, onClose, wordBank: wo
     setPowerups([])
     setActivePowerup(null)
     activePowerupRef.current = null
+    lastSpawnTimeRef.current = 0
     setPhase('playing')
 
     try {
@@ -258,8 +260,11 @@ const PetFishingGame = ({ petImageUrl, petName, onGameEnd, onClose, wordBank: wo
     return () => clearInterval(interval)
   }, [chestTimer])
 
-  // Spawn next round immediately
+  // Spawn next round immediately (with guard against double-spawn in the same frame)
   const scheduleNextRound = useCallback(() => {
+    const now = performance.now()
+    if (now - lastSpawnTimeRef.current < 50) return
+    lastSpawnTimeRef.current = now
     if (spawnTimerRef.current) clearTimeout(spawnTimerRef.current)
     spawnRound()
   }, [spawnRound])
@@ -477,6 +482,11 @@ const PetFishingGame = ({ petImageUrl, petName, onGameEnd, onClose, wordBank: wo
           activePowerupRef.current = null
           setActivePowerup(null)
           if (wasFrenzy) {
+            // Cancel hook if it's targeting a frenzy fish
+            if (hookRef.current && hookRef.current.fishId?.startsWith('frenzy-')) {
+              hookRef.current = null
+              setHook(null)
+            }
             setFish(prev => prev.filter(f => !f.isFrenzy))
             scheduleNextRound()
           }
@@ -574,16 +584,18 @@ const PetFishingGame = ({ petImageUrl, petName, onGameEnd, onClose, wordBank: wo
       setFeedback({ type: 'correct', word: fishObj.word, x: fishObj.x, y: splashY })
       setTimeout(() => setFeedback(null), 600)
       if (fishObj.isFrenzy) {
-        // End frenzy early if all frenzy fish caught
-        setFish(prev => {
-          const remaining = prev.filter(f => f.isFrenzy && !f.caught && f.id !== fishObj.id)
-          if (remaining.length === 0) {
-            activePowerupRef.current = null
-            setActivePowerup(null)
-            setTimeout(() => scheduleNextRound(), 300)
-          }
-          return prev
-        })
+        // End frenzy early if all frenzy fish caught (only if frenzy is still active)
+        if (activePowerupRef.current?.type === 'frenzy') {
+          setFish(prev => {
+            const remaining = prev.filter(f => f.isFrenzy && !f.caught && f.id !== fishObj.id)
+            if (remaining.length === 0) {
+              activePowerupRef.current = null
+              setActivePowerup(null)
+              setTimeout(() => scheduleNextRound(), 300)
+            }
+            return prev
+          })
+        }
       } else {
         scheduleNextRound()
       }

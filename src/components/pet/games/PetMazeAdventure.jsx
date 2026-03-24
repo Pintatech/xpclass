@@ -345,18 +345,37 @@ const PetMazeAdventure = ({
 
       // Floating letters physics (88px bubbles, bounded to ~320px centered zone)
       if (floatingLettersRef.current.length > 0 && !floatingDoneRef.current) {
-        floatingLettersRef.current = floatingLettersRef.current.map(l => {
-          if (l.captured) return l
-          let { x, y, vx, vy } = l
-          x += vx
-          y += vy
-          if (x < 50) { x = 50; vx = Math.abs(vx) }
-          if (x > 320) { x = 320; vx = -Math.abs(vx) }
-          if (y < 50) { y = 50; vy = Math.abs(vy) }
-          if (y > 230) { y = 230; vy = -Math.abs(vy) }
-          return { ...l, x, y, vx, vy }
-        })
-        setFloatingLetters([...floatingLettersRef.current])
+        const bubs = floatingLettersRef.current
+        for (const l of bubs) {
+          if (l.captured) continue
+          l.x += l.vx
+          l.y += l.vy
+          if (l.x < 50) { l.x = 50; l.vx = Math.abs(l.vx) }
+          if (l.x > 320) { l.x = 320; l.vx = -Math.abs(l.vx) }
+          if (l.y < 50) { l.y = 50; l.vy = Math.abs(l.vy) }
+          if (l.y > 230) { l.y = 230; l.vy = -Math.abs(l.vy) }
+        }
+        // Letter-to-letter collisions (same as PetWordScramble)
+        const minDist = 88
+        const active = bubs.filter(b => !b.captured)
+        for (let i = 0; i < active.length; i++) {
+          for (let j = i + 1; j < active.length; j++) {
+            const a = active[i], b = active[j]
+            const dx = b.x - a.x, dy = b.y - a.y
+            const dist = Math.sqrt(dx * dx + dy * dy)
+            if (dist < minDist && dist > 0.01) {
+              const nx = dx / dist, ny = dy / dist
+              const dvn = (a.vx - b.vx) * nx + (a.vy - b.vy) * ny
+              if (dvn <= 0) continue
+              a.vx -= dvn * nx; a.vy -= dvn * ny
+              b.vx += dvn * nx; b.vy += dvn * ny
+              const overlap = (minDist - dist) / 2
+              a.x -= nx * overlap; a.y -= ny * overlap
+              b.x += nx * overlap; b.y += ny * overlap
+            }
+          }
+        }
+        setFloatingLetters([...bubs])
       }
 
       animFrameRef.current = requestAnimationFrame(animate)
@@ -837,7 +856,7 @@ const PetMazeAdventure = ({
           <div className="absolute inset-0 bg-white" style={{ opacity: 0, animation: 'advVictoryFlash 0.5s ease-out 1.7s forwards' }} />
 
           <div className="absolute bottom-32 left-1/4 sm:left-1/3" style={{
-            animation: 'advPetCharge 0.5s cubic-bezier(0.22, 1, 0.36, 1) 1.5s both',
+            animation: 'advPetCharge 0.5s cubic-bezier(0.22, 1, 0.36, 1) 1.5s both, advFadeOut 0.3s ease-out 2.5s forwards',
           }}>
             <img src={petImageUrl} alt={petName}
               className="w-20 h-20 sm:w-28 sm:h-28 object-contain"
@@ -1088,10 +1107,15 @@ const PetMazeAdventure = ({
                           style={{ textShadow: `0 0 20px ${rc.light}` }}>
                           {currentChallenge.display}
                         </p>
-                        <p className="text-white/40 text-xs mt-1">Hint: {currentChallenge.prompt}</p>
+                        <div className="bg-white/90 backdrop-blur rounded-2xl px-5 py-3 mt-2 w-full max-w-xs mx-auto shadow-lg border-2 border-yellow-300">
+                          <p className="text-xs text-gray-500 font-semibold mb-0.5">Hint</p>
+                          <p className="text-2xl font-black text-gray-700">{currentChallenge.prompt}</p>
+                        </div>
                       </>
                     ) : (
-                      <p className="text-white text-lg sm:text-xl font-bold leading-snug">{currentChallenge.prompt}</p>
+                      <div className="bg-white/90 backdrop-blur rounded-2xl px-5 py-3 w-full max-w-xs mx-auto shadow-lg border-2 border-yellow-300">
+                        <p className="text-2xl font-black text-gray-700">{currentChallenge.prompt}</p>
+                      </div>
                     )}
                   </div>
                   <div className="grid grid-cols-2 gap-2.5 w-full max-w-sm">
@@ -1123,10 +1147,15 @@ const PetMazeAdventure = ({
                     {currentChallenge.type === 'word' ? (
                       <>
                         <p className="text-white/50 text-xs mb-1 uppercase tracking-wider">Slash the right word!</p>
-                        <p className="text-white/40 text-xs">Hint: {currentChallenge.prompt}</p>
+                        <div className="bg-white/90 backdrop-blur rounded-2xl px-5 py-3 mt-1 w-full max-w-xs mx-auto shadow-lg border-2 border-yellow-300">
+                          <p className="text-xs text-gray-500 font-semibold mb-0.5">Hint</p>
+                          <p className="text-2xl font-black text-gray-700">{currentChallenge.prompt}</p>
+                        </div>
                       </>
                     ) : (
-                      <p className="text-white text-base sm:text-lg font-bold leading-snug">{currentChallenge.prompt}</p>
+                      <div className="bg-white/90 backdrop-blur rounded-2xl px-5 py-3 w-full max-w-xs mx-auto shadow-lg border-2 border-yellow-300">
+                        <p className="text-2xl font-black text-gray-700">{currentChallenge.prompt}</p>
+                      </div>
                     )}
                   </div>
                   <div className="relative w-full max-w-sm mx-auto" style={{ height: 380, overflow: 'visible' }}>
@@ -1186,7 +1215,10 @@ const PetMazeAdventure = ({
                 <>
                   <div className="text-center mb-2 px-2">
                     <p className="text-white/50 text-xs mb-1 uppercase tracking-wider">Tap the letters in order!</p>
-                    <p className="text-white/40 text-xs">Hint: {currentChallenge.prompt}</p>
+                    <div className="bg-white/90 backdrop-blur rounded-2xl px-5 py-3 mt-1 w-full max-w-xs mx-auto shadow-lg border-2 border-yellow-300">
+                      <p className="text-xs text-gray-500 font-semibold mb-0.5">Hint</p>
+                      <p className="text-2xl font-black text-gray-700">{currentChallenge.prompt}</p>
+                    </div>
                   </div>
 
                   {/* Word progress slots — matches Word Scramble */}
@@ -1448,6 +1480,10 @@ const PetMazeAdventure = ({
           0% { transform: translate(0, 0) rotate(0deg) scale(1); opacity: 1; }
           8% { transform: translate(-10px, 5px) rotate(-10deg) scale(1.05); opacity: 1; }
           100% { transform: translate(80vw, -80vh) rotate(1440deg) scale(0.2); opacity: 0; }
+        }
+        @keyframes advFadeOut {
+          0% { opacity: 1; }
+          100% { opacity: 0; pointer-events: none; }
         }
         @keyframes advVictoryFlash {
           0% { opacity: 0.9; }
