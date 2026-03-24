@@ -6,7 +6,7 @@ import { useProgress } from '../../hooks/useProgress'
 import { supabase } from '../../supabase/client'
 import { saveRecentExercise } from '../../utils/recentExercise'
 import LoadingSpinner from '../ui/LoadingSpinner'
-import RichTextRenderer from '../ui/RichTextRenderer'
+import { RichTextWithAudio } from '../ui/RichTextRenderer'
 import { Mic, Square, ArrowRight, ArrowLeft, Star, RefreshCw, CheckCircle, MessageSquare } from 'lucide-react'
 import { assetUrl } from '../../hooks/useBranding'
 import TeacherExerciseNav from '../ui/TeacherExerciseNav'
@@ -524,7 +524,7 @@ const SpeakingAssessmentExercise = () => {
                 <div className="flex-1">
                   <p className="text-xs font-medium text-purple-600 uppercase tracking-wide mb-1">Speaking Prompt</p>
                   <div className="text-lg font-semibold text-gray-900 mb-2">
-                    <RichTextRenderer content={q.prompt} allowImages={true} />
+                    <RichTextWithAudio content={q.prompt} allowImages={true} />
                   </div>
                   {q.instructions && <p className="text-sm text-gray-600 mb-2">{q.instructions}</p>}
                   {q.key_points?.length > 0 && (
@@ -660,7 +660,7 @@ const SpeakingAssessmentExercise = () => {
                 {/* Prompt */}
                 <div className="p-4 bg-purple-50 rounded-lg border border-purple-100">
                   <div className="text-xl md:text-2xl font-bold text-gray-900 mb-2">
-                    <RichTextRenderer content={currentQuestion.prompt} />
+                    <RichTextWithAudio content={currentQuestion.prompt} allowImages={true} />
                   </div>
                   {currentQuestion.instructions && (
                     <p className="text-sm text-gray-600 mt-2">{currentQuestion.instructions}</p>
