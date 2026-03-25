@@ -2,8 +2,8 @@ import React, { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { supabase } from '../../supabase/client';
 import { useAuth } from '../../hooks/useAuth';
-import { ArrowLeft, Star, Flag, Users, X, ChevronDown, ChevronRight, ClipboardCheck, Download, CheckCircle2, Clock, XCircle } from 'lucide-react';
-import domtoimage from 'dom-to-image-more';
+import { ArrowLeft, Star, Flag, Users, X, ChevronDown, ChevronRight, ClipboardCheck, Download, CheckCircle2, Circle, XCircle } from 'lucide-react';
+import html2canvas from 'html2canvas';
 
 const ratingColor = {
   wow: 'bg-green-500',
@@ -122,12 +122,11 @@ const TeacherCourseOverview = () => {
     const navButtons = el.querySelector('[data-screenshot-nav]');
     if (navButtons) navButtons.style.display = 'none';
     try {
-      const blob = await domtoimage.toBlob(el, { scale: 2, bgcolor: '#ffffff' });
+      const canvas = await html2canvas(el, { scale: 2, useCORS: true, backgroundColor: '#ffffff' });
       const link = document.createElement('a');
       link.download = `bao-cao-${lessonModal?.lessonId || 'lesson'}.png`;
-      link.href = URL.createObjectURL(blob);
+      link.href = canvas.toDataURL('image/png');
       link.click();
-      URL.revokeObjectURL(link.href);
     } finally {
       Object.assign(el.style, origStyles);
       if (scrollBody) Object.assign(scrollBody.style, origBodyStyles);
@@ -207,7 +206,7 @@ const TeacherCourseOverview = () => {
       if (!e.student) return null;
       const s = e.student;
       return { ...s, full_name: s.real_name || s.full_name, avatar_url: s.real_avatar_url || s.avatar_url, assigned_at: e.assigned_at };
-    }).filter(Boolean);
+    }).filter(Boolean).sort((a, b) => a.full_name.localeCompare(b.full_name, 'vi'));
 
     // Fetch all lesson_info for this course
     const { data: lessons } = await supabase
@@ -239,13 +238,14 @@ const TeacherCourseOverview = () => {
     // Fetch teacher name for this course
     const { data: teacherData } = await supabase
       .from('course_teachers')
-      .select('teacher:users!teacher_id(full_name, real_name)')
+      .select('teacher:users!teacher_id(full_name, real_name, avatar_url, real_avatar_url)')
       .eq('course_id', courseId)
       .limit(1)
       .single();
     const teacherName = teacherData?.teacher?.real_name || teacherData?.teacher?.full_name || '';
+    const teacherAvatar = teacherData?.teacher?.real_avatar_url || teacherData?.teacher?.avatar_url || '';
 
-    return { students, lessons: lessonList, recordMap, teacherName };
+    return { students, lessons: lessonList, recordMap, teacherName, teacherAvatar };
   };
 
   const handleDotClick = (e, courseId, studentId, lessonId) => {
@@ -566,62 +566,75 @@ const TeacherCourseOverview = () => {
 
         return (
           <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4" onClick={() => setLessonModal(null)}>
-            <div ref={modalContentRef} className="bg-white rounded-xl shadow-xl max-w-2xl w-full max-h-[85vh] overflow-hidden flex flex-col" onClick={e => e.stopPropagation()}>
+            <div ref={modalContentRef} className="bg-white rounded-xl shadow-xl max-w-2xl w-full h-[95vh] overflow-hidden flex flex-col" onClick={e => e.stopPropagation()}>
+             
               {/* Report Header */}
-              <div className="px-5 py-4 border-b text-center relative">
-                <div className="flex items-center justify-between mb-2" data-screenshot-nav>
-                  <div className="flex items-center gap-1">
-                    <button
-                      onClick={() => prevLesson && setLessonModal({ ...lessonModal, lessonId: prevLesson.id })}
-                      disabled={!prevLesson}
-                      className="p-1 rounded hover:bg-gray-100 disabled:opacity-30 disabled:cursor-not-allowed"
-                    >
-                      <ArrowLeft className="w-4 h-4 text-gray-500" />
-                    </button>
-                    <button
-                      onClick={() => nextLesson && setLessonModal({ ...lessonModal, lessonId: nextLesson.id })}
-                      disabled={!nextLesson}
-                      className="p-1 rounded hover:bg-gray-100 disabled:opacity-30 disabled:cursor-not-allowed"
-                    >
-                      <ArrowLeft className="w-4 h-4 text-gray-500 rotate-180" />
-                    </button>
+              <div className="text-center relative">
+                <div className="bg-blue-800 px-5 pt-4 pb-8">
+                  <div className="flex items-center justify-between mb-2" data-screenshot-nav>
+                    <div className="flex items-center gap-1">
+                      <button
+                        onClick={() => prevLesson && setLessonModal({ ...lessonModal, lessonId: prevLesson.id })}
+                        disabled={!prevLesson}
+                        className="p-1 rounded hover:bg-blue-500 disabled:opacity-30 disabled:cursor-not-allowed"
+                      >
+                        <ArrowLeft className="w-4 h-4 text-blue-200" />
+                      </button>
+                      <button
+                        onClick={() => nextLesson && setLessonModal({ ...lessonModal, lessonId: nextLesson.id })}
+                        disabled={!nextLesson}
+                        className="p-1 rounded hover:bg-blue-500 disabled:opacity-30 disabled:cursor-not-allowed"
+                      >
+                        <ArrowLeft className="w-4 h-4 text-blue-200 rotate-180" />
+                      </button>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <button onClick={handleScreenshot} className="text-blue-200 hover:text-white p-1 rounded hover:bg-blue-500" title="Tải ảnh báo cáo">
+                        <Download className="w-5 h-5" />
+                      </button>
+                      <button onClick={() => setLessonModal(null)} className="text-blue-200 hover:text-white">
+                        <X className="w-5 h-5" />
+                      </button>
+                    </div>
                   </div>
-                  <div className="flex items-center gap-2">
-                    <button onClick={handleScreenshot} className="text-gray-400 hover:text-blue-600 p-1 rounded hover:bg-blue-50" title="Tải ảnh báo cáo">
-                      <Download className="w-5 h-5" />
-                    </button>
-                    <button onClick={() => setLessonModal(null)} className="text-gray-400 hover:text-gray-600">
-                      <X className="w-5 h-5" />
-                    </button>
-                  </div>
+                  <h2 className="text-xl font-bold text-white uppercase tracking-wide">Báo cáo học tập ngày</h2>
+                  <p className="text-sm text-blue-200 mt-0.5">Hệ thống quản lý Giáo dục thông minh</p>
                 </div>
-                <h2 className="text-xl font-bold text-gray-900 uppercase tracking-wide">Báo cáo học tập ngày</h2>
-                <p className="text-sm text-gray-500 mt-0.5">Hệ thống quản lý Giáo dục thông minh</p>
-                <div className="flex items-center justify-center gap-4 mt-3 text-sm text-gray-700 flex-wrap">
-                  <span><span className="text-gray-400">Ngày:</span> <span className="font-medium">{formattedDate}</span></span>
-                  <span className="text-gray-300">|</span>
-                  <span><span className="text-gray-400">Lớp:</span> <span className="font-medium">{courseInfo ? `Course ${courseInfo.level_number}: ${courseInfo.title}` : ''}</span></span>
-                  <span className="text-gray-300">|</span>
-                  <span><span className="text-gray-400">Giáo viên:</span> <span className="font-medium">{data.teacherName || ''}</span></span>
-                </div>
-                {(lesson.lesson_name || lesson.skill) && (
-                  <div className="flex items-center justify-center gap-3 mt-2 text-sm">
-                    {lesson.lesson_name && <span className="text-gray-600">{lesson.lesson_name}</span>}
-                    {lesson.skill && <span className="text-xs text-gray-400 capitalize bg-gray-100 px-2 py-0.5 rounded">{lesson.skill}</span>}
+
+                <div className="-mt-4 text-sm text-gray-700 bg-white rounded-lg px-6 py-2 mx-5 shadow-sm border">
+                  <div className="flex items-center justify-center gap-4 flex-wrap">
+                    <span><span className="text-gray-400">Ngày:</span> <span className="font-medium">{formattedDate}</span></span>
+                    <span className="text-gray-300">|</span>
+                    <span><span className="text-gray-400">Lớp:</span> <span className="font-medium">{courseInfo?.title || ''}</span></span>
+                    <span className="text-gray-300">|</span>
+                    <span><span className="text-gray-400">Giáo viên:</span> <span className="font-medium">{data.teacherName || ''}</span></span>
                   </div>
-                )}
+                  {(lesson.lesson_name || lesson.skill) && (
+                    <div className="flex items-center justify-center gap-3 mt-1.5 text-sm">
+                      {lesson.lesson_name && <span className="text-white bg-blue-800 px-2 py-0.5 rounded">{lesson.lesson_name}</span>}
+                      {lesson.skill && <span className="text-xs text-white capitalize bg-blue-800 px-2 py-0.5 rounded">{lesson.skill}</span>}
+                    </div>
+                  )}
+                </div>
               </div>
 
               {/* Body */}
-              <div className="overflow-y-auto" data-screenshot-body>
+              <div className="overflow-y-auto pt-3" data-screenshot-body>
+                {(() => {
+                  const hasClassScore = students.some(s => data.recordMap[`${lesson.id}_${s.id}`]?.score != null);
+                  const hasHWScore = students.some(s => { const r = data.recordMap[`${lesson.id}_${s.id}`]; return r?.homework_score != null || r?.vocab_score != null; });
+                  const totalCols = 4 + (hasClassScore ? 1 : 0) + (hasHWScore ? 1 : 0);
+                  return (
                 <table className="w-full text-sm">
-                  <thead className="bg-gray-50 sticky top-0">
+                  <thead className="bg-gray-100 sticky top-0">
                     <tr>
-                      <th className="text-left px-4 py-2 font-medium text-gray-600">Student</th>
-                      <th className="text-center px-2 py-2 font-medium text-gray-600">XP</th>
-                      <th className="text-center px-2 py-2 font-medium text-gray-600">Class</th>
-                      <th className="text-center px-2 py-2 font-medium text-gray-600">HW</th>
-                      <th className="text-left px-2 py-2 font-medium text-gray-600">Notes</th>
+                      <th className="text-left px-4 py-2 font-medium text-blue-800">Student</th>
+                      <th className="text-center px-2 py-2 font-medium text-blue-800">XP</th>
+                      <th className="text-center px-2 py-2 font-medium text-blue-800">Class</th>
+                      {hasClassScore && <th className="text-center px-2 py-2 font-medium text-blue-800">Score</th>}
+                      <th className="text-center px-2 py-2 font-medium text-blue-800">HW</th>
+                      {hasHWScore && <th className="text-center px-2 py-2 font-medium text-blue-800">Score</th>}
+                      <th className="text-left px-2 py-2 font-medium text-blue-800">Notes</th>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-gray-100">
@@ -637,7 +650,7 @@ const TeacherCourseOverview = () => {
                               <div className="w-7 h-7 rounded-full bg-gray-100 flex-shrink-0" />
                               <span className="truncate">{student.full_name}</span>
                             </td>
-                            <td colSpan={4} className="px-2 py-2.5 text-center text-xs italic">Not enrolled</td>
+                            <td colSpan={totalCols - 1} className="px-2 py-2.5 text-center text-xs italic">Not enrolled</td>
                           </tr>
                         );
                       }
@@ -666,7 +679,9 @@ const TeacherCourseOverview = () => {
                             <>
                               <td className="px-2 py-2.5 text-center text-xs text-gray-300">0</td>
                               <td className="px-2 py-2.5 text-center text-xs text-gray-300 italic">Vắng</td>
+                              {hasClassScore && <td className="px-2 py-2.5"></td>}
                               <td className="px-2 py-2.5"></td>
+                              {hasHWScore && <td className="px-2 py-2.5"></td>}
                               <td className="px-2 py-2.5"></td>
                             </>
                           ) : (
@@ -679,31 +694,36 @@ const TeacherCourseOverview = () => {
                                   return <span className={`text-sm font-semibold ${color}`}>+{xp}</span>;
                                 })()}
                               </td>
-                              <td className="px-2 py-2.5 text-center">
-                                <div className="flex flex-col items-center gap-0.5">
-                                  {rec?.performance_rating === 'wow' && <CheckCircle2 className="w-5 h-5 text-green-500 fill-green-500 stroke-white" />}
-                                  {rec?.performance_rating === 'good' && <Clock className="w-5 h-5 text-yellow-500 fill-yellow-500 stroke-white" />}
-                                  {rec?.performance_rating === 'ok' && <XCircle className="w-5 h-5 text-red-500 fill-red-500 stroke-white" />}
+                              <td className="px-2 py-2.5">
+                                <div className="flex justify-center">
+                                  {rec?.performance_rating === 'wow' && <CheckCircle2 className="w-6 h-6 text-green-500 fill-green-500 stroke-white" />}
+                                  {rec?.performance_rating === 'good' && <Circle className="w-6 h-6 text-yellow-500 fill-yellow-500 stroke-yellow-500" />}
+                                  {rec?.performance_rating === 'ok' && <XCircle className="w-6 h-6 text-red-500 fill-red-500 stroke-white" />}
                                   {!rec?.performance_rating && <span className="text-gray-300">—</span>}
-                                  {rec?.score != null && (
-                                    <span className="text-[10px] text-gray-500">{rec.score}/{rec.max_score ?? '?'}</span>
-                                  )}
                                 </div>
                               </td>
-                              <td className="px-2 py-2.5 text-center">
-                                <div className="flex flex-col items-center gap-0.5">
-                                  {rec?.homework_status === 'wow' && <CheckCircle2 className="w-5 h-5 text-green-500 fill-green-500 stroke-white" />}
-                                  {rec?.homework_status === 'good' && <Clock className="w-5 h-5 text-yellow-500 fill-yellow-500 stroke-white" />}
-                                  {rec?.homework_status === 'ok' && <XCircle className="w-5 h-5 text-red-500 fill-red-500 stroke-white" />}
+                              {hasClassScore && (
+                                <td className="px-2 py-2.5 text-center text-xs text-gray-600">
+                                  {rec?.score != null ? `${rec.score}/${rec.max_score ?? '?'}` : <span className="text-gray-300">—</span>}
+                                </td>
+                              )}
+                              <td className="px-2 py-2.5">
+                                <div className="flex justify-center">
+                                  {rec?.homework_status === 'wow' && <CheckCircle2 className="w-6 h-6 text-green-500 fill-green-500 stroke-white" />}
+                                  {rec?.homework_status === 'good' && <Circle className="w-6 h-6 text-yellow-500 fill-yellow-500 stroke-yellow-500" />}
+                                  {rec?.homework_status === 'ok' && <XCircle className="w-6 h-6 text-red-500 fill-red-500 stroke-white" />}
                                   {!rec?.homework_status && <span className="text-gray-300">—</span>}
-                                  {rec?.homework_score != null && (
-                                    <span className="text-[10px] text-gray-500">BT {rec.homework_score}/{rec.homework_max_score ?? '?'}</span>
-                                  )}
-                                  {rec?.vocab_score != null && (
-                                    <span className="text-[10px] text-gray-500">TV {rec.vocab_score}/{rec.vocab_max_score ?? '?'}</span>
-                                  )}
                                 </div>
                               </td>
+                              {hasHWScore && (
+                                <td className="px-2 py-2.5 text-center text-xs text-gray-600">
+                                  <div className="flex flex-col items-center gap-0.5">
+                                    {rec?.homework_score != null && <span>BT {rec.homework_score}/{rec.homework_max_score ?? '?'}</span>}
+                                    {rec?.vocab_score != null && <span>TV {rec.vocab_score}/{rec.vocab_max_score ?? '?'}</span>}
+                                    {rec?.homework_score == null && rec?.vocab_score == null && <span className="text-gray-300">—</span>}
+                                  </div>
+                                </td>
+                              )}
                               <td className="px-2 py-2.5 text-xs text-gray-600">
                                 <div className="space-y-0.5">
                                   {rec?.notes && <p>{rec.notes}</p>}
@@ -718,13 +738,31 @@ const TeacherCourseOverview = () => {
                     })}
                   </tbody>
                 </table>
+                  );
+                })()}
               </div>
 
               {/* Footer with lesson feedback */}
               {lesson.feedback && (
-                <div className="px-5 py-3 border-t bg-gray-50">
-                  <p className="text-xs text-gray-500 font-medium mb-1">Lesson Feedback</p>
-                  <p className="text-sm text-gray-700 whitespace-pre-line">{lesson.feedback}</p>
+                <div className="px-5 pt-3 pb-4">
+                  <div className="bg-blue-50 rounded-lg px-6 py-3 flex gap-4">
+                    <div className="flex flex-col items-center flex-shrink-0">
+                      <div className="w-12 h-12 rounded-full bg-blue-100 overflow-hidden">
+                        {data.teacherAvatar ? (
+                          <img src={data.teacherAvatar} alt="" className="w-12 h-12 rounded-full object-cover" />
+                        ) : (
+                          <div className="w-12 h-12 flex items-center justify-center text-blue-600 font-semibold text-lg">
+                            {data.teacherName?.charAt(0).toUpperCase() || 'T'}
+                          </div>
+                        )}
+                      </div>
+                      <p className="text-xs text-gray-600 font-medium mt-1 text-center">{data.teacherName}</p>
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <p className="text-sm font-bold text-gray-800 mb-1">Tổng kết buổi học</p>
+                      <p className="text-sm text-gray-700 whitespace-pre-line">{lesson.feedback}</p>
+                    </div>
+                  </div>
                 </div>
               )}
             </div>
