@@ -78,6 +78,7 @@ const UserManagement = () => {
         return {
           id: user.id,
           name: user.full_name || 'No Name',
+          realName: user.real_name || '',
           username: user.username || '',
           email: user.email,
           role: user.role || 'user',
@@ -150,6 +151,22 @@ const UserManagement = () => {
     } catch (err) {
       console.error('Error deleting user:', err)
       showNotification('Error deleting user: ' + err.message, 'error')
+    }
+  }
+
+  const handleUpdateRealName = async (userId, realName) => {
+    try {
+      const { error } = await supabase
+        .from('users')
+        .update({ real_name: realName || null })
+        .eq('id', userId)
+
+      if (error) throw error
+      showNotification('Real name updated')
+      fetchUsers()
+    } catch (err) {
+      console.error('Error updating real name:', err)
+      showNotification('Error updating real name: ' + err.message, 'error')
     }
   }
 
@@ -338,6 +355,7 @@ const UserManagement = () => {
               <thead className="bg-gray-50 border-b">
                 <tr>
                   <th className="text-left py-3 px-6 font-medium text-gray-500">Người dùng</th>
+                  <th className="text-left py-3 px-6 font-medium text-gray-500">Tên thật</th>
                   <th className="text-left py-3 px-6 font-medium text-gray-500">Username</th>
                   <th className="text-left py-3 px-6 font-medium text-gray-500">Cohorts</th>
                   <th className="text-left py-3 px-6 font-medium text-gray-500">Tiến độ</th>
@@ -356,6 +374,22 @@ const UserManagement = () => {
                           <div className="text-sm text-gray-600">{user.email.split("@")[0]}</div>
                         </div>
                       </div>
+                    </td>
+                    <td className="py-4 px-6">
+                      <input
+                        type="text"
+                        defaultValue={user.realName}
+                        placeholder="—"
+                        className="text-sm text-gray-700 border border-transparent hover:border-gray-300 focus:border-blue-500 focus:ring-1 focus:ring-blue-500 rounded px-2 py-1 w-32 bg-transparent"
+                        onBlur={(e) => {
+                          if (e.target.value !== user.realName) {
+                            handleUpdateRealName(user.id, e.target.value)
+                          }
+                        }}
+                        onKeyDown={(e) => {
+                          if (e.key === 'Enter') e.target.blur()
+                        }}
+                      />
                     </td>
                     <td className="py-4 px-6">
                       <span className="text-sm font-mono text-gray-700">

@@ -128,8 +128,10 @@ const TeacherClassReports = () => {
           student:users!student_id(
             id,
             full_name,
+            real_name,
             email,
-            avatar_url
+            avatar_url,
+            real_avatar_url
           )
         `)
         .eq('course_id', selectedCourse)
@@ -140,7 +142,12 @@ const TeacherClassReports = () => {
 
       const studentsList = enrollments
         .map(e => e.student)
-        .filter(s => s !== null);
+        .filter(s => s !== null)
+        .map(s => ({
+          ...s,
+          full_name: s.real_name || s.full_name,
+          avatar_url: s.real_avatar_url || s.avatar_url
+        }));
       setStudents(studentsList);
 
       const existingInfo = await fetchLessonInfo(selectedCourse, selectedDate);

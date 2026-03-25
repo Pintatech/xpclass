@@ -115,6 +115,7 @@ const StudentExerciseMatrix = ({ selectedCourse, initialSessionId }) => {
           student:users!student_id(
             id,
             full_name,
+            real_name,
             email
           )
         `)
@@ -123,7 +124,11 @@ const StudentExerciseMatrix = ({ selectedCourse, initialSessionId }) => {
 
       if (studentsError) throw studentsError;
 
-      const studentList = (enrollments || []).map(enrollment => enrollment.student ? { ...enrollment.student, assigned_at: enrollment.assigned_at } : null).filter(Boolean);
+      const studentList = (enrollments || []).map(enrollment => {
+        if (!enrollment.student) return null;
+        const s = enrollment.student;
+        return { ...s, full_name: s.real_name || s.full_name, assigned_at: enrollment.assigned_at };
+      }).filter(Boolean);
       setStudents(studentList);
 
       // Get units in this course (filter by selected unit if not 'all')

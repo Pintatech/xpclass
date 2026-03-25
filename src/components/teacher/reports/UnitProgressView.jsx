@@ -40,6 +40,7 @@ const UnitProgressView = ({ selectedCourse }) => {
           student:users!student_id(
             id,
             full_name,
+            real_name,
             email
           )
         `)
@@ -48,7 +49,11 @@ const UnitProgressView = ({ selectedCourse }) => {
 
       if (studentsError) throw studentsError;
 
-      const studentList = (enrollments || []).map(enrollment => enrollment.student ? { ...enrollment.student, assigned_at: enrollment.assigned_at } : null).filter(Boolean);
+      const studentList = (enrollments || []).map(enrollment => {
+        if (!enrollment.student) return null;
+        const s = enrollment.student;
+        return { ...s, full_name: s.real_name || s.full_name, assigned_at: enrollment.assigned_at };
+      }).filter(Boolean);
 
       // Fetch sessions for each unit
       const { data: sessionsData, error: sessionsError } = await supabase

@@ -1,17 +1,56 @@
-import React, { useState } from 'react'
+import React, { useState, useEffect } from 'react'
 import { supabase } from '../../../supabase/client'
-import { X, BookOpen, Plus } from 'lucide-react'
+import { X, BookOpen, Plus, User } from 'lucide-react'
+import { useAuth } from '../../../hooks/useAuth'
 
 const AddUnitModal = ({ levelId, onClose, onCreated }) => {
+  const { user } = useAuth()
   const [formData, setFormData] = useState({
     title: '',
     description: ''
   })
+  const [isPersonal, setIsPersonal] = useState(false)
+  const [selectedStudentId, setSelectedStudentId] = useState('')
+  const [students, setStudents] = useState([])
+  const [loadingStudents, setLoadingStudents] = useState(false)
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
 
+  useEffect(() => {
+    if (isPersonal) {
+      fetchEnrolledStudents()
+    }
+  }, [isPersonal])
+
+  const fetchEnrolledStudents = async () => {
+    setLoadingStudents(true)
+    try {
+      const { data, error: fetchError } = await supabase
+        .from('course_enrollments')
+        .select('student_id, student:users!student_id(id, full_name)')
+        .eq('course_id', levelId)
+        .eq('is_active', true)
+
+      if (fetchError) throw fetchError
+
+      const studentList = (data || []).map(e => ({
+        id: e.student?.id || e.student_id,
+        name: e.student?.full_name || 'Unknown'
+      }))
+      setStudents(studentList)
+    } catch (err) {
+      console.error('Error fetching students:', err)
+    } finally {
+      setLoadingStudents(false)
+    }
+  }
+
   const handleSubmit = async (e) => {
     e.preventDefault()
+    if (isPersonal && !selectedStudentId) {
+      setError('Please select a student')
+      return
+    }
     setLoading(true)
     setError('')
 
@@ -36,10 +75,11 @@ const AddUnitModal = ({ levelId, onClose, onCreated }) => {
           title: formData.title.trim(),
           description: formData.description.trim() || null,
           unit_number: nextUnitNumber,
-          color_theme: 'blue',
+          color_theme: isPersonal ? 'purple' : 'blue',
           unlock_requirement: 0,
           is_active: true,
-          estimated_duration: 60
+          estimated_duration: 60,
+          assigned_student_id: isPersonal ? selectedStudentId : null
         })
         .select()
         .single()
@@ -65,11 +105,15 @@ const AddUnitModal = ({ levelId, onClose, onCreated }) => {
         {/* Header */}
         <div className="flex items-center justify-between p-6 border-b border-gray-200">
           <div className="flex items-center space-x-3">
-            <div className="w-10 h-10 bg-blue-100 rounded-lg flex items-center justify-center">
-              <BookOpen className="w-5 h-5 text-blue-600" />
+            <div className={`w-10 h-10 ${isPersonal ? 'bg-purple-100' : 'bg-blue-100'} rounded-lg flex items-center justify-center`}>
+              {isPersonal ? (
+                <User className="w-5 h-5 text-purple-600" />
+              ) : (
+                <BookOpen className="w-5 h-5 text-blue-600" />
+              )}
             </div>
             <h2 className="text-lg font-semibold text-gray-900">
-              Create New Unit
+              {isPersonal ? 'Create Personal Unit' : 'Create New Unit'}
             </h2>
           </div>
           <button
@@ -85,6 +129,53 @@ const AddUnitModal = ({ levelId, onClose, onCreated }) => {
           {error && (
             <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-lg">
               {error}
+            </div>
+          )}
+
+          {/* Personal Toggle */}
+          <div className="flex items-center justify-between p-3 bg-purple-50 border border-purple-200 rounded-lg">
+            <div className="flex items-center gap-2">
+              <User className="w-4 h-4 text-purple-600" />
+              <span className="text-sm font-medium text-purple-900">Assign to a student</span>
+            </div>
+            <button
+              type="button"
+              onClick={() => {
+                setIsPersonal(!isPersonal)
+                if (isPersonal) setSelectedStudentId('')
+              }}
+              className={`relative w-11 h-6 rounded-full transition-colors ${isPersonal ? 'bg-purple-600' : 'bg-gray-300'}`}
+            >
+              <span className={`absolute top-0.5 left-0.5 w-5 h-5 bg-white rounded-full transition-transform ${isPersonal ? 'translate-x-5' : ''}`} />
+            </button>
+          </div>
+
+          {/* Student Picker */}
+          {isPersonal && (
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                Select Student *
+              </label>
+              {loadingStudents ? (
+                <div className="flex items-center gap-2 text-sm text-gray-500 py-2">
+                  <div className="w-4 h-4 border-2 border-purple-600 border-t-transparent rounded-full animate-spin" />
+                  Loading students...
+                </div>
+              ) : students.length === 0 ? (
+                <p className="text-sm text-gray-500">No students enrolled in this course</p>
+              ) : (
+                <select
+                  value={selectedStudentId}
+                  onChange={(e) => setSelectedStudentId(e.target.value)}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent"
+                  required={isPersonal}
+                >
+                  <option value="">-- Choose a student --</option>
+                  {students.map(s => (
+                    <option key={s.id} value={s.id}>{s.name}</option>
+                  ))}
+                </select>
+              )}
             </div>
           )}
 
@@ -128,15 +219,17 @@ const AddUnitModal = ({ levelId, onClose, onCreated }) => {
             </button>
             <button
               type="submit"
-              disabled={loading || !formData.title.trim()}
-              className="flex-1 px-4 py-2 bg-blue-600 text-white hover:bg-blue-700 disabled:bg-blue-300 rounded-lg transition-colors flex items-center justify-center space-x-2"
+              disabled={loading || !formData.title.trim() || (isPersonal && !selectedStudentId)}
+              className={`flex-1 px-4 py-2 text-white disabled:opacity-50 rounded-lg transition-colors flex items-center justify-center space-x-2 ${
+                isPersonal ? 'bg-purple-600 hover:bg-purple-700' : 'bg-blue-600 hover:bg-blue-700'
+              }`}
             >
               {loading ? (
                 <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
               ) : (
                 <Plus className="w-4 h-4" />
               )}
-              <span>{loading ? 'Creating...' : 'Create Unit'}</span>
+              <span>{loading ? 'Creating...' : isPersonal ? 'Create Personal Unit' : 'Create Unit'}</span>
             </button>
           </div>
         </form>

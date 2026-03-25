@@ -68,6 +68,7 @@ const LessonReportView = ({ selectedCourse }) => {
           student:users!student_id(
             id,
             full_name,
+            real_name,
             email
           )
         `)
@@ -75,7 +76,11 @@ const LessonReportView = ({ selectedCourse }) => {
         .eq('is_active', true);
 
       if (enrollmentsError) throw enrollmentsError;
-      setStudents(enrollmentsData || []);
+      const normalized = (enrollmentsData || []).map(e => ({
+        ...e,
+        student: e.student ? { ...e.student, full_name: e.student.real_name || e.student.full_name } : e.student
+      }));
+      setStudents(normalized);
 
       // Fetch progress for all students across all sessions
       if (sessionsData && sessionsData.length > 0 && enrollmentsData && enrollmentsData.length > 0) {

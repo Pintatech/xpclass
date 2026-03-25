@@ -74,6 +74,7 @@ const CourseReport = () => {
           student:users!student_id(
             id,
             full_name,
+            real_name,
             email,
             xp,
             current_level,
@@ -85,7 +86,11 @@ const CourseReport = () => {
         .eq('is_active', true);
 
       if (error) throw error;
-      setStudents(data || []);
+      const normalized = (data || []).map(e => ({
+        ...e,
+        student: e.student ? { ...e.student, full_name: e.student.real_name || e.student.full_name } : e.student
+      }));
+      setStudents(normalized);
 
       if (data?.length > 0) {
         const studentIds = data.map(enrollment => enrollment.student_id);

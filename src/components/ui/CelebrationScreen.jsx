@@ -70,9 +70,7 @@ const CelebrationScreen = ({
             full_name,
             email,
             avatar_url,
-            active_title,
-            active_frame_ratio,
-            hide_frame
+            user_equipment(active_title, active_frame_ratio, hide_frame)
           )
         `)
         .eq("exercise_id", exerciseId)
@@ -85,20 +83,24 @@ const CelebrationScreen = ({
 
       const formatted = (data || [])
         .filter((d) => d.users)
-        .map((d, i) => ({
-          rank: i + 1,
-          userId: d.user_id,
-          name: (() => {
-            const full = d.users.full_name || d.users.email?.split("@")[0] || "User";
-            const parts = full.trim().split(/\s+/);
-            return parts.length > 2 ? parts.slice(-2).join(" ") : full;
-          })(),
-          avatar: d.users.avatar_url,
-          frame: d.users.hide_frame ? null : d.users.active_title,
-          frameRatio: d.users.active_frame_ratio,
-          score: d.max_score ? Math.round((d.score / d.max_score) * 100) : d.score,
-          time: d.time_spent,
-        }));
+        .map((d, i) => {
+          const { user_equipment, ...userRest } = d.users;
+          const u = { ...userRest, ...user_equipment };
+          return {
+            rank: i + 1,
+            userId: d.user_id,
+            name: (() => {
+              const full = u.full_name || u.email?.split("@")[0] || "User";
+              const parts = full.trim().split(/\s+/);
+              return parts.length > 2 ? parts.slice(-2).join(" ") : full;
+            })(),
+            avatar: u.avatar_url,
+            frame: u.hide_frame ? null : u.active_title,
+            frameRatio: u.active_frame_ratio,
+            score: d.max_score ? Math.round((d.score / d.max_score) * 100) : d.score,
+            time: d.time_spent,
+          };
+        });
 
       setLeaderboard(formatted);
     } catch (err) {

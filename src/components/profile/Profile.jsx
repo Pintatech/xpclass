@@ -129,11 +129,10 @@ const Profile = () => {
       setLoading(true)
 
       // Fetch the other user's profile
-      const { data: userData, error: userError } = await supabase
-        .from('users')
-        .select('*')
-        .eq('id', userId)
-        .single()
+      const [{ data: userData, error: userError }, { data: equipData }] = await Promise.all([
+        supabase.from('users').select('*').eq('id', userId).single(),
+        supabase.from('user_equipment').select('*').eq('user_id', userId).single()
+      ])
 
       if (userError) {
         console.error('User not found:', userError)
@@ -141,8 +140,9 @@ const Profile = () => {
         return
       }
 
-      setViewedUser(userData)
-      setViewedProfile(userData)
+      const merged = { ...userData, ...(equipData || {}) }
+      setViewedUser(merged)
+      setViewedProfile(merged)
       setSelectedAvatar(userData.avatar_url || '👤')
 
       // Fetch stats for the viewed user

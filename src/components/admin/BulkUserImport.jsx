@@ -18,6 +18,7 @@ const BulkUserImport = ({ onClose, onSuccess }) => {
     password: '',
     username: '',
     full_name: '',
+    real_name: '',
     avatar_url: '',
     role: 'user',
     cohort: ''
@@ -148,6 +149,7 @@ const BulkUserImport = ({ onClose, onSuccess }) => {
           password: user.password,
           username: user.username,
           full_name: user.full_name,
+          real_name: user.real_name || '',
           avatar_url: user.avatar || user.avatar_url || '',
           role: user.role?.toLowerCase() || 'user',
           cohort: user.cohort || '',
@@ -194,7 +196,7 @@ const BulkUserImport = ({ onClose, onSuccess }) => {
   }
 
   const downloadTemplate = () => {
-    const template = 'email,password,username,full_name,avatar,role,cohort\nstudent@example.com,password123,johndoe,John Doe,https://example.com/avatar.jpg,user,Class A\nteacher@example.com,password123,janesmith,Jane Smith,,teacher,'
+    const template = 'email,password,username,full_name,real_name,avatar,role,cohort\nstudent@example.com,password123,johndoe,John Doe,Nguyen Van A,https://example.com/avatar.jpg,user,Class A\nteacher@example.com,password123,janesmith,Jane Smith,,,teacher,'
     const blob = new Blob([template], { type: 'text/csv' })
     const url = URL.createObjectURL(blob)
     const link = document.createElement('a')
@@ -296,6 +298,16 @@ const BulkUserImport = ({ onClose, onSuccess }) => {
                       />
                     </div>
                     <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">Real Name (for reports)</label>
+                      <input
+                        type="text"
+                        value={singleUser.real_name}
+                        onChange={(e) => handleSingleUserChange('real_name', e.target.value)}
+                        className="input w-full"
+                        placeholder="Real name shown in reports (optional)"
+                      />
+                    </div>
+                    <div>
                       <label className="block text-sm font-medium text-gray-700 mb-1">Role</label>
                       <select
                         value={singleUser.role}
@@ -368,6 +380,7 @@ const BulkUserImport = ({ onClose, onSuccess }) => {
                   <li><strong>password</strong> (required): Minimum 6 characters</li>
                   <li><strong>username</strong> (required): Unique username for login</li>
                   <li><strong>full_name</strong> (required): User's full/display name</li>
+                  <li><strong>real_name</strong> (optional): Real name shown in reports for parents</li>
                   <li><strong>avatar</strong> (optional): URL to user's avatar image</li>
                   <li><strong>role</strong> (optional): user, teacher, or admin (default: user)</li>
                   <li><strong>cohort</strong> (optional): Cohort name to assign user to</li>

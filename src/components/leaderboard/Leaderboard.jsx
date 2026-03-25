@@ -230,13 +230,18 @@ const Leaderboard = () => {
             earned_at,
             achievement_id,
             achievements (title, criteria_type),
-            users (full_name, avatar_url, active_title, active_frame_ratio, hide_frame)
+            users (full_name, avatar_url, user_equipment(active_title, active_frame_ratio, hide_frame))
           `)
           .in('achievement_id', achievementIds)
           .order('earned_at', { ascending: false })
           .limit(10)
 
-        setPreviousChampions(champions || [])
+        const flatChampions = (champions || []).map(c => {
+          if (!c.users) return c
+          const { user_equipment, ...userRest } = c.users
+          return { ...c, users: { ...userRest, ...user_equipment } }
+        })
+        setPreviousChampions(flatChampions)
       }
     }
     fetchChampionData()
@@ -465,13 +470,18 @@ const Leaderboard = () => {
 
         const { data: users } = await supabase
           .from('users')
-          .select('id, full_name, email, avatar_url, xp, active_title, active_frame_ratio, hide_frame')
+          .select('id, full_name, email, avatar_url, xp, user_equipment(active_title, active_frame_ratio, hide_frame)')
           .in('id', userIds)
           .eq('role', 'user')
 
         if (!users) { setTrainingData([]); return }
 
-        const sorted = users
+        const flatUsers = users.map(u => {
+          const { user_equipment, ...rest } = u
+          return { ...rest, ...user_equipment }
+        })
+
+        const sorted = flatUsers
           .map(u => ({ ...u, bestScore: quantityMap[u.id] || 0 }))
           .sort((a, b) => b.bestScore - a.bestScore)
           .slice(0, 50)
@@ -530,13 +540,18 @@ const Leaderboard = () => {
 
         const { data: users } = await supabase
           .from('users')
-          .select('id, full_name, email, avatar_url, xp, active_title, active_frame_ratio, hide_frame')
+          .select('id, full_name, email, avatar_url, xp, user_equipment(active_title, active_frame_ratio, hide_frame)')
           .in('id', userIds)
           .eq('role', 'user')
 
         if (!users) { setTrainingData([]); return }
 
-        const sorted = users
+        const flatUsers = users.map(u => {
+          const { user_equipment, ...rest } = u
+          return { ...rest, ...user_equipment }
+        })
+
+        const sorted = flatUsers
           .map(u => ({ ...u, bestScore: bestScores[u.id] || 0 }))
           .sort((a, b) => b.bestScore - a.bestScore)
           .slice(0, 50)
@@ -576,14 +591,19 @@ const Leaderboard = () => {
   const getAllTimeLeaderboard = async () => {
     const { data: users, error: usersError } = await supabase
       .from('users')
-      .select('id, email, full_name, xp, streak_count, avatar_url, active_title, active_frame_ratio, hide_frame')
+      .select('id, email, full_name, xp, streak_count, avatar_url, user_equipment(active_title, active_frame_ratio, hide_frame)')
       .eq('role', 'user')
       .order('xp', { ascending: false })
       .limit(10)
 
     if (usersError) throw usersError
 
-    const userIds = users.map(u => u.id)
+    const flatUsers = users.map(u => {
+      const { user_equipment, ...rest } = u
+      return { ...rest, ...user_equipment }
+    })
+
+    const userIds = flatUsers.map(u => u.id)
     const { data: progressData, error: progressError } = await supabase
       .from('user_progress')
       .select('user_id')
@@ -597,12 +617,12 @@ const Leaderboard = () => {
       return acc
     }, {})
 
-    const userXpCounts = users.reduce((acc, user) => {
+    const userXpCounts = flatUsers.reduce((acc, user) => {
       acc[user.id] = user.xp || 0
       return acc
     }, {})
 
-    return { users, userXpCounts, exerciseCounts }
+    return { users: flatUsers, userXpCounts, exerciseCounts }
   }
 
   // Get timeframe-based leaderboard
@@ -610,13 +630,18 @@ const Leaderboard = () => {
     // First get all users
     const { data: users, error: usersError } = await supabase
       .from('users')
-      .select('id, email, full_name, xp, streak_count, avatar_url, active_title, active_frame_ratio, hide_frame')
+      .select('id, email, full_name, xp, streak_count, avatar_url, user_equipment(active_title, active_frame_ratio, hide_frame)')
       .eq('role', 'user')
       .limit(500)
 
     if (usersError) throw usersError
 
-    const userIds = users.map(u => u.id)
+    const flatUsers = users.map(u => {
+      const { user_equipment, ...rest } = u
+      return { ...rest, ...user_equipment }
+    })
+
+    const userIds = flatUsers.map(u => u.id)
 
     // Get user progress in the timeframe (no FK join - fetch exercises separately for reliability)
     let progressQuery = supabase
@@ -726,7 +751,7 @@ const Leaderboard = () => {
     })
 
     // Sort users by timeframe XP
-    const filteredUsers = users
+    const filteredUsers = flatUsers
       .filter(user => userXpCounts[user.id] > 0) // Only show users with XP in timeframe
       .sort((a, b) => (userXpCounts[b.id] || 0) - (userXpCounts[a.id] || 0))
       .slice(0, 50)

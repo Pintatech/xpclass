@@ -25,9 +25,11 @@ import {
   Swords,
   ChevronUp,
   ChevronDown,
+  User,
 } from "lucide-react";
 import StudentStatsPopover from "../ui/StudentStatsPopover";
 import useClassStats from "../../hooks/useClassStats";
+import CoursePersonalAssignments from "./CoursePersonalAssignments";
 
 // Theme-based background images for unit cards
 const getThemeBackground = (colorTheme) => {
@@ -91,6 +93,9 @@ const UnitList = () => {
   const { user, profile } = useAuth();
   const { canCreateContent } = usePermissions();
   const { sessionStats: classStats } = useClassStats(currentId);
+  const [courseExerciseIdSet, setCourseExerciseIdSet] = useState(new Set());
+  const [studentNameMap, setStudentNameMap] = useState({});
+  const [personalFilter, setPersonalFilter] = useState('all');
 
   // Compute course-level stats: how many exercises each student has done (excluding test sessions)
   const courseStudentStats = (() => {
@@ -198,7 +203,7 @@ const UnitList = () => {
       }
 
       // Fetch units for this level
-      const { data: unitsData, error: unitsError } = await supabase
+      const { data: rawUnitsData, error: unitsError } = await supabase
         .from("units")
         .select("*")
         .eq("course_id", currentId)
@@ -207,8 +212,13 @@ const UnitList = () => {
 
       if (unitsError) throw unitsError;
 
+      // Students only see shared units + their own personal units
+      const unitsData = profile?.role === "user"
+        ? (rawUnitsData || []).filter(u => !u.assigned_student_id || u.assigned_student_id === user.id)
+        : rawUnitsData || [];
+
       // Fetch sessions for these units to calculate progress
-      const { data: sessionsData, error: sessionsError } = await supabase
+      const { data: rawSessionsData, error: sessionsError } = await supabase
         .from("sessions")
         .select("*")
         .in("unit_id", unitsData?.map((u) => u.id) || [])
@@ -216,6 +226,30 @@ const UnitList = () => {
         .order("session_number");
 
       if (sessionsError) throw sessionsError;
+
+      // Students only see shared sessions + their own personal sessions
+      const sessionsData = profile?.role === "user"
+        ? (rawSessionsData || []).filter(s => !s.assigned_student_id || s.assigned_student_id === user.id)
+        : rawSessionsData || [];
+
+      // Fetch student names for personal content badges (teachers only)
+      if (profile?.role !== "user") {
+        const personalStudentIds = [
+          ...new Set([
+            ...(unitsData || []).filter(u => u.assigned_student_id).map(u => u.assigned_student_id),
+            ...(sessionsData || []).filter(s => s.assigned_student_id).map(s => s.assigned_student_id),
+          ])
+        ];
+        if (personalStudentIds.length > 0) {
+          const { data: studentNames } = await supabase
+            .from("users")
+            .select("id, full_name")
+            .in("id", personalStudentIds);
+          const nameMap = {};
+          (studentNames || []).forEach(s => { nameMap[s.id] = s.full_name || "Unknown"; });
+          setStudentNameMap(nameMap);
+        }
+      }
 
       // Get all session IDs for these units
       const sessionIds = sessionsData?.map((s) => s.id) || [];
@@ -318,6 +352,8 @@ const UnitList = () => {
       const exerciseIds = (allAssignments || [])
         .map((a) => a.exercise?.id)
         .filter(Boolean);
+
+      setCourseExerciseIdSet(new Set(exerciseIds));
 
       // Fetch user's completed exercises among these
       const { data: userCompleted, error: userProgErr } = await supabase
@@ -653,6 +689,18 @@ const UnitList = () => {
               </div>
             )}
 
+            {/* Personal badge */}
+            {session.assigned_student_id && (
+              <div className={`absolute ${session.is_test ? 'top-1 right-1' : 'top-1 left-1'} z-40`}>
+                <div className="bg-purple-500 rounded px-1 py-0.5 flex items-center gap-0.5 shadow-sm">
+                  <User className="w-2.5 h-2.5 text-white" />
+                  <span className="text-white text-[7px] font-bold leading-none">
+                    {profile?.role === 'user' ? 'YOU' : '1:1'}
+                  </span>
+                </div>
+              </div>
+            )}
+
             {/* Session Title */}
             <div className="absolute inset-0 flex items-center justify-center px-2">
               <h3 className={`font-bold text-[11px] text-center leading-tight line-clamp-2 ${status === "completed" || progressPercentage > 0 ? "text-white" : "text-gray-700"
@@ -776,6 +824,48 @@ const UnitList = () => {
 
         {/* Content Area */}
         <div className="flex-1 overflow-y-auto p-6">
+          {/* Personal Assignments for Students */}
+          {profile?.role === 'user' && courseExerciseIdSet.size > 0 && (
+            <CoursePersonalAssignments courseExerciseIds={courseExerciseIdSet} />
+          )}
+
+          {/* Teacher filter for personal content */}
+          {canCreateContent() && Object.keys(studentNameMap).length > 0 && (
+            <div className="flex items-center gap-2 mb-4 flex-wrap">
+              <span className="text-sm text-gray-500">View:</span>
+              {[
+                { value: 'all', label: 'All' },
+                { value: 'shared', label: 'Shared' },
+                { value: 'personal', label: 'Personal' },
+              ].map(opt => (
+                <button
+                  key={opt.value}
+                  onClick={() => setPersonalFilter(opt.value)}
+                  className={`px-3 py-1 rounded-full text-xs font-medium transition-colors ${
+                    personalFilter === opt.value
+                      ? 'bg-purple-600 text-white'
+                      : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                  }`}
+                >
+                  {opt.label}
+                </button>
+              ))}
+              {Object.entries(studentNameMap).map(([id, name]) => (
+                <button
+                  key={id}
+                  onClick={() => setPersonalFilter(personalFilter === id ? 'all' : id)}
+                  className={`px-3 py-1 rounded-full text-xs font-medium transition-colors ${
+                    personalFilter === id
+                      ? 'bg-purple-600 text-white'
+                      : 'bg-purple-100 text-purple-700 hover:bg-purple-200'
+                  }`}
+                >
+                  {name}
+                </button>
+              ))}
+            </div>
+          )}
+
           <>
             {/* Units with Sessions */}
             {(() => {
@@ -806,6 +896,18 @@ const UnitList = () => {
                         </span>
                       </div>
                     </div>
+
+                    {/* Personal unit badge */}
+                    {unit.assigned_student_id && (
+                      <div className="absolute top-1 right-1 z-30">
+                        <div className="bg-purple-600 rounded-full px-2.5 py-1 flex items-center gap-1 shadow-sm">
+                          <User className="w-3 h-3 text-white" />
+                          <span className="text-white text-[10px] font-bold">
+                            {profile?.role === 'user' ? 'FOR YOU' : studentNameMap[unit.assigned_student_id] || '1:1'}
+                          </span>
+                        </div>
+                      </div>
+                    )}
 
                     <div className="relative mb-3 mt-6 flex items-center justify-end">
                       <div className="flex items-center space-x-3">
@@ -899,10 +1001,7 @@ const UnitList = () => {
                       <div className="relative text-center py-8 bg-gray-50 rounded-lg border-2 border-dashed border-gray-300">
                         {canCreateContent() ? (
                           <Button
-                            onClick={() => {
-                              const base = levelId ? `/study/level/${levelId}` : `/study/course/${currentId}`;
-                              navigate(`${base}/unit/${unit.id}`);
-                            }}
+                            onClick={() => setAddSessionUnitId(unit.id)}
                             className="bg-green-600 text-white hover:bg-green-700"
                           >
                             <Plus className="w-4 h-4 mr-2" />
@@ -934,8 +1033,23 @@ const UnitList = () => {
                 </div>
               ) : null;
 
+              // Apply teacher filter and sort personal units after regular ones
+              const filteredUnits = units.filter(u => {
+                if (personalFilter === 'all') return true;
+                if (personalFilter === 'shared') return !u.assigned_student_id;
+                if (personalFilter === 'personal') return !!u.assigned_student_id;
+                return u.assigned_student_id === personalFilter;
+              });
+
+              const sortedUnits = [...filteredUnits].sort((a, b) => {
+                const aPersonal = a.assigned_student_id ? 1 : 0;
+                const bPersonal = b.assigned_student_id ? 1 : 0;
+                if (aPersonal !== bPersonal) return aPersonal - bPersonal;
+                return (a.unit_number || 0) - (b.unit_number || 0);
+              });
+
               const allItems = [
-                ...units.map((u, i) => ({ type: 'unit', unit: u, unitIndex: i })),
+                ...sortedUnits.map((u, i) => ({ type: 'unit', unit: u, unitIndex: i })),
                 ...(addUnitCard ? [{ type: 'add' }] : []),
               ];
               const cols = [[], []];
@@ -992,6 +1106,8 @@ const UnitList = () => {
       {addSessionUnitId && (
         <AddSessionModal
           unitId={addSessionUnitId}
+          courseId={currentId}
+          parentAssignedStudentId={units.find(u => u.id === addSessionUnitId)?.assigned_student_id || null}
           onClose={() => setAddSessionUnitId(null)}
           onCreated={handleSessionCreated}
         />

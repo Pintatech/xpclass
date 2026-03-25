@@ -67,9 +67,7 @@ const RecentActivities = () => {
             id,
             full_name,
             avatar_url,
-            active_title,
-            active_frame_ratio,
-            hide_frame
+            user_equipment(active_title, active_frame_ratio, hide_frame)
           ),
           achievements:achievement_id (
             id,
@@ -96,10 +94,8 @@ const RecentActivities = () => {
             id,
             full_name,
             avatar_url,
-            active_title,
-            active_frame_ratio,
-            hide_frame,
-            role
+            role,
+            user_equipment(active_title, active_frame_ratio, hide_frame)
           ),
           missions:mission_id (
             id,
@@ -131,9 +127,7 @@ const RecentActivities = () => {
             id,
             full_name,
             avatar_url,
-            active_title,
-            active_frame_ratio,
-            hide_frame
+            user_equipment(active_title, active_frame_ratio, hide_frame)
           )
         `)
         .eq('type', 'competition_winner')
@@ -143,10 +137,17 @@ const RecentActivities = () => {
 
       if (competitionError) throw competitionError
 
+      // Flatten user_equipment into users object
+      const flattenUser = (item) => {
+        if (!item?.users) return item
+        const { user_equipment, ...userRest } = item.users
+        return { ...item, users: { ...userRest, ...user_equipment } }
+      }
+
       // Process achievement claims
       const achievementActivities = (achievementData || [])
         .filter(achievement => achievement.users && achievement.achievements)
-        .map(achievement => ({
+        .map(achievement => flattenUser({
           ...achievement,
           type: 'achievement',
           activity_date: achievement.claimed_at
@@ -155,7 +156,7 @@ const RecentActivities = () => {
       // Process mission claims (exclude admins)
       const missionActivities = (missionData || [])
         .filter(mission => mission.users && mission.missions && mission.users.role !== 'admin')
-        .map(mission => ({
+        .map(mission => flattenUser({
           ...mission,
           type: 'mission',
           activity_date: mission.updated_at
@@ -164,7 +165,7 @@ const RecentActivities = () => {
       // Process competition winners (top 1 only)
       const competitionActivities = (competitionData || [])
         .filter(n => n.users)
-        .map(n => ({
+        .map(n => flattenUser({
           ...n,
           type: 'competition',
           activity_date: n.created_at

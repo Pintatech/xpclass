@@ -79,7 +79,7 @@ const TestResultsView = ({ selectedCourse }) => {
           .from('test_attempts')
           .select(`
             *,
-            user:users!user_id (id, full_name, email),
+            user:users!user_id (id, full_name, real_name, email),
             test_question_attempts (*)
           `)
           .eq('session_id', selectedSession)
@@ -87,7 +87,11 @@ const TestResultsView = ({ selectedCourse }) => {
           .order('created_at', { ascending: false })
 
         if (error) throw error
-        setAttempts(data || [])
+        const normalized = (data || []).map(a => ({
+          ...a,
+          user: a.user ? { ...a.user, full_name: a.user.real_name || a.user.full_name } : a.user
+        }))
+        setAttempts(normalized)
       } catch (err) {
         console.error('Error fetching test attempts:', err)
       } finally {

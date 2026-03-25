@@ -60,13 +60,14 @@ const StudentLessonHistory = () => {
 
       // Fetch student, course, lessons, records in parallel
       const [studentRes, courseRes, lessonsRes] = await Promise.all([
-        supabase.from('users').select('id, full_name, avatar_url').eq('id', studentId).single(),
+        supabase.from('users').select('id, full_name, real_name, avatar_url, real_avatar_url').eq('id', studentId).single(),
         supabase.from('courses').select('id, title, level_number').eq('id', courseId).single(),
         supabase.from('lesson_info').select('id, session_date, lesson_name, skill, feedback')
           .eq('course_id', courseId).order('session_date', { ascending: false }),
       ]);
 
-      setStudent(studentRes.data);
+      const sd = studentRes.data;
+      setStudent(sd ? { ...sd, full_name: sd.real_name || sd.full_name, avatar_url: sd.real_avatar_url || sd.avatar_url } : sd);
       setCourse(courseRes.data);
 
       const lessonList = lessonsRes.data || [];

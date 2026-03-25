@@ -53,6 +53,7 @@ serve(async (req) => {
           email: user.email,
           username: user.username,
           full_name: user.full_name,
+          real_name: user.real_name || user.full_name,
           role: user.role || 'user'
         }
 

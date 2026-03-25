@@ -19,14 +19,18 @@ const OnlineUsers = () => {
         const twentyFourHoursAgo = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString()
         const { data, error } = await supabase
           .from('users')
-          .select('id, full_name, avatar_url, last_seen_at, active_title, active_frame_ratio, hide_frame')
+          .select('id, full_name, avatar_url, last_seen_at, user_equipment(active_title, active_frame_ratio, hide_frame)')
           .gte('last_seen_at', twentyFourHoursAgo)
           .order('last_seen_at', { ascending: false })
           .limit(40)
         if (!error && data) {
+          const flat = data.map(u => {
+            const { user_equipment, ...rest } = u
+            return { ...rest, ...user_equipment }
+          })
           const online = []
           const offline = []
-          data.forEach(u => {
+          flat.forEach(u => {
             if (u.last_seen_at >= fiveMinutesAgo) {
               online.push(u)
             } else {

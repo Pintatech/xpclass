@@ -167,12 +167,16 @@ const TeacherCourseOverview = () => {
       .select(`
         student_id,
         assigned_at,
-        student:users!student_id(id, full_name, avatar_url)
+        student:users!student_id(id, full_name, real_name, avatar_url, real_avatar_url)
       `)
       .eq('course_id', courseId)
       .eq('is_active', true);
 
-    const students = (enrollments || []).map(e => e.student ? { ...e.student, assigned_at: e.assigned_at } : null).filter(Boolean);
+    const students = (enrollments || []).map(e => {
+      if (!e.student) return null;
+      const s = e.student;
+      return { ...s, full_name: s.real_name || s.full_name, avatar_url: s.real_avatar_url || s.avatar_url, assigned_at: e.assigned_at };
+    }).filter(Boolean);
 
     // Fetch all lesson_info for this course
     const { data: lessons } = await supabase

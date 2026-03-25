@@ -3,6 +3,13 @@ import { supabase } from '../supabase/client'
 
 const AuthContext = createContext({})
 
+// Equipment columns that live in user_equipment table
+const EQUIPMENT_FIELDS = [
+  'active_title', 'active_frame_ratio', 'hide_frame',
+  'active_background_url', 'active_bowl_url',
+  'active_spaceship_url', 'active_spaceship_laser', 'active_hammer_url'
+]
+
 export const useAuth = () => {
   const context = useContext(AuthContext)
   if (!context) {
@@ -57,21 +64,29 @@ export const AuthProvider = ({ children }) => {
         setTimeout(() => reject(new Error('Profile fetch timeout after 5s')), 5000)
       )
 
-      const fetchPromise = supabase
-        .from('users')
-        .select('id, email, full_name, role, xp, gems, level, current_level, streak_count, last_activity_date, avatar_url, active_title, active_frame_ratio, hide_frame, active_background_url, active_bowl_url, active_spaceship_url, active_spaceship_laser, active_hammer_url, name_changed_at, is_banned')
-        .eq('id', userId)
-        .single()
+      const fetchPromise = Promise.all([
+        supabase
+          .from('users')
+          .select('id, email, full_name, role, xp, gems, level, current_level, streak_count, last_activity_date, avatar_url, name_changed_at, is_banned')
+          .eq('id', userId)
+          .single(),
+        supabase
+          .from('user_equipment')
+          .select('active_title, active_frame_ratio, hide_frame, active_background_url, active_bowl_url, active_spaceship_url, active_spaceship_laser, active_hammer_url')
+          .eq('user_id', userId)
+          .single()
+      ])
 
-      const { data, error } = await Promise.race([fetchPromise, timeoutPromise])
+      const [userResult, equipResult] = await Promise.race([fetchPromise, timeoutPromise])
 
-      if (error) {
-        console.error('❌ Error fetching user profile:', error)
-        console.error('❌ Error details:', JSON.stringify(error))
+      if (userResult.error) {
+        console.error('❌ Error fetching user profile:', userResult.error)
+        console.error('❌ Error details:', JSON.stringify(userResult.error))
         // Don't set profile to null - keep existing profile data
       } else {
-        console.log('✅ Profile fetched:', data)
-        setProfile(data)
+        const merged = { ...userResult.data, ...(equipResult.data || {}) }
+        console.log('✅ Profile fetched:', merged)
+        setProfile(merged)
       }
     } catch (error) {
       console.error('❌ Error in fetchUserProfile:', error)
@@ -142,16 +157,53 @@ export const AuthProvider = ({ children }) => {
     if (!user) return { error: 'No user logged in' }
 
     try {
-      const { data, error } = await supabase
-        .from('users')
-        .update(updates)
-        .eq('id', user.id)
-        .select('id, email, full_name, role, xp, gems, level, current_level, streak_count, last_activity_date, avatar_url, active_title, active_frame_ratio, hide_frame, active_background_url, active_bowl_url, active_spaceship_url, active_spaceship_laser, active_hammer_url, name_changed_at, is_banned')
-        .single()
+      // Split updates into user fields and equipment fields
+      const equipmentUpdates = {}
+      const userUpdates = {}
+      for (const [key, value] of Object.entries(updates)) {
+        if (EQUIPMENT_FIELDS.includes(key)) {
+          equipmentUpdates[key] = value
+        } else {
+          userUpdates[key] = value
+        }
+      }
 
-      if (error) throw error
-      setProfile(data)
-      return { data, error: null }
+      const promises = []
+
+      if (Object.keys(userUpdates).length > 0) {
+        promises.push(
+          supabase.from('users').update(userUpdates).eq('id', user.id)
+            .select('id, email, full_name, role, xp, gems, level, current_level, streak_count, last_activity_date, avatar_url, name_changed_at, is_banned')
+            .single()
+        )
+      } else {
+        promises.push(
+          supabase.from('users')
+            .select('id, email, full_name, role, xp, gems, level, current_level, streak_count, last_activity_date, avatar_url, name_changed_at, is_banned')
+            .eq('id', user.id).single()
+        )
+      }
+
+      if (Object.keys(equipmentUpdates).length > 0) {
+        promises.push(
+          supabase.from('user_equipment').upsert({ user_id: user.id, ...equipmentUpdates })
+            .select('active_title, active_frame_ratio, hide_frame, active_background_url, active_bowl_url, active_spaceship_url, active_spaceship_laser, active_hammer_url')
+            .single()
+        )
+      } else {
+        promises.push(
+          supabase.from('user_equipment')
+            .select('active_title, active_frame_ratio, hide_frame, active_background_url, active_bowl_url, active_spaceship_url, active_spaceship_laser, active_hammer_url')
+            .eq('user_id', user.id).single()
+        )
+      }
+
+      const [userResult, equipResult] = await Promise.all(promises)
+      if (userResult.error) throw userResult.error
+
+      const merged = { ...userResult.data, ...(equipResult.data || {}) }
+      setProfile(merged)
+      return { data: merged, error: null }
     } catch (error) {
       return { data: null, error }
     }
