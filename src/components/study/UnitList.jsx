@@ -802,6 +802,15 @@ const UnitList = () => {
                 <Button
                   variant="outline"
                   size="sm"
+                  onClick={() => navigate(`/teacher/unit-report/${currentId}`)}
+                  className="flex items-center space-x-2 bg-blue-50 border-blue-200 text-blue-700 hover:bg-blue-100"
+                >
+                  <FileText className="w-4 h-4" />
+                  <span>Unit Report</span>
+                </Button>
+                <Button
+                  variant="outline"
+                  size="sm"
                   onClick={() => navigate(`/teacher/course-report/${currentId}`)}
                   className="flex items-center space-x-2 bg-purple-50 border-purple-200 text-purple-700 hover:bg-purple-100"
                 >

@@ -1,0 +1,965 @@
+import { useState, useEffect, useMemo } from 'react';
+import { useParams, useNavigate } from 'react-router-dom';
+import { supabase } from '../../../supabase/client';
+import { useAuth } from '../../../hooks/useAuth';
+import {
+  ArrowLeft, ClipboardList, BookOpen, Check, ChevronDown, ChevronRight,
+  User, CheckSquare, Square, MinusSquare, Eye, EyeOff, Save, Star,
+  Award, MessageSquare, History, Zap, X
+} from 'lucide-react';
+
+// ─── Preview Card (screenshot-friendly, matches mockup) ────────────────
+const ReportPreview = ({ data }) => {
+  if (!data) return null;
+  const { studentName, studentAvatar, courseName, level, xp, attendance, performance, exercises, comment, createdAt } = data;
+
+  // Compute effort metrics
+  const effortAttendance = attendance
+    ? `${attendance.stats.present + attendance.stats.late}/${attendance.stats.present + attendance.stats.late + attendance.stats.absent}`
+    : '—';
+  const hwTotal = performance ? performance.homework.wow + performance.homework.good + performance.homework.ok : 0;
+  const effortHomework = hwTotal > 0 ? `${Math.round(((performance.homework.wow + performance.homework.good) / hwTotal) * 100)}%` : '—';
+  const effortStars = performance ? `${performance.stars}` : '0';
+  const allExItems = (exercises || []).flatMap(g => g.items);
+  const exDone = allExItems.filter(i => i.completed).length;
+  const effortExercises = allExItems.length > 0 ? `${exDone}/${allExItems.length}` : '—';
+  const exScored = allExItems.filter(i => i.score != null);
+  const avgScore = exScored.length > 0 ? Math.round(exScored.reduce((s, i) => s + i.score, 0) / exScored.length) : null;
+
+  // Structured comment (support both old string and new object format)
+  const cmtObj = typeof comment === 'object' && comment !== null
+    ? comment
+    : { achievements: comment || '', improvements: '', suggestions: '' };
+  const hasComment = cmtObj.achievements || cmtObj.improvements || cmtObj.suggestions;
+
+  return (
+    <div style={{ width: 480, fontFamily: "'Inter', 'Segoe UI', sans-serif" }} className="mx-auto rounded-[30px] overflow-hidden shadow-2xl bg-[#F4F7F9]">
+
+      {/* ─ HEADER ─ */}
+      <div className="text-white text-center relative" style={{ background: 'linear-gradient(180deg, #00AEEF 0%, #0081B1 100%)', padding: '36px 20px 56px' }}>
+        <h1 className="text-2xl font-extrabold uppercase tracking-widest m-0">REPORT</h1>
+        <p className="text-sm opacity-90 mt-1 mb-5">{courseName}</p>
+        <div className="relative w-[110px] h-[110px] mx-auto">
+          <div className="w-full h-full rounded-full border-4 border-white overflow-hidden bg-gray-200 flex items-center justify-center">
+            {studentAvatar ? (
+              <img src={studentAvatar} alt="" className="w-full h-full object-cover" />
+            ) : (
+              <span className="text-4xl font-bold text-gray-400">{studentName?.charAt(0)?.toUpperCase()}</span>
+            )}
+          </div>
+        </div>
+        <div className="text-lg font-bold mt-3">{studentName}</div>
+        <div className="flex justify-center gap-3 mt-3">
+          <span className="bg-white/20 px-3 py-1 rounded-full text-xs font-semibold">Level {level}</span>
+          <span className="bg-white/20 px-3 py-1 rounded-full text-xs font-semibold">{xp?.toLocaleString()} XP</span>
+        </div>
+      </div>
+
+      {/* ─ EFFORT GRID (overlapping header) ─ */}
+      <div className="grid grid-cols-4 gap-2.5 px-5 -mt-7 relative z-10">
+        {[
+          { icon: '📋', val: effortAttendance, label: 'Attendance' },
+          { icon: '📝', val: effortHomework, label: 'Homework' },
+          { icon: '⭐', val: effortStars, label: 'Stars' },
+          { icon: '📚', val: effortExercises, label: 'Exercises' },
+        ].map((e, i) => (
+          <div key={i} className="bg-white rounded-2xl py-3 px-1 text-center shadow-md">
+            <div className="text-lg">{e.icon}</div>
+            <div className="text-sm font-extrabold text-gray-800 mt-0.5">{e.val}</div>
+            <div className="text-[9px] text-gray-500 uppercase tracking-wide">{e.label}</div>
+          </div>
+        ))}
+      </div>
+
+      {/* ─ EXERCISES ─ */}
+      {exercises && exercises.length > 0 && (
+        <div className="mx-5 mt-5 bg-white rounded-2xl p-5 shadow-sm">
+          <div className="flex items-center justify-between mb-4">
+            <h3 className="text-sm font-extrabold text-gray-800 uppercase tracking-wide flex items-center gap-2">
+              <span className="text-base">📖</span> Exercises
+            </h3>
+            <div className="flex items-center gap-2 text-xs">
+              <span className="text-green-600 font-bold">{exDone}/{allExItems.length}</span>
+              {avgScore != null && (
+                <span className={`px-2 py-0.5 rounded text-white text-[10px] font-bold ${avgScore >= 80 ? 'bg-green-500' : avgScore >= 50 ? 'bg-yellow-500' : 'bg-red-500'}`}>
+                  Avg {avgScore}%
+                </span>
+              )}
+            </div>
+          </div>
+          {exercises.map((group, gi) => (
+            <div key={gi} className="mb-4 last:mb-0">
+              <div className="text-xs font-bold text-gray-600 mb-2">{group.unitTitle}</div>
+              {group.items.map((item, ii) => (
+                <div key={ii} className="flex items-center justify-between py-1.5 pl-3 border-b border-gray-50 last:border-0">
+                  <span className="text-[13px] text-gray-700">{item.title}</span>
+                  {item.completed ? (
+                    <span className={`px-2 py-0.5 rounded text-[11px] font-bold text-white min-w-[40px] text-center ${
+                      (item.score ?? 0) >= 80 ? 'bg-green-500' : (item.score ?? 0) >= 50 ? 'bg-yellow-500' : 'bg-red-500'
+                    }`}>
+                      {item.score != null ? `${item.score}%` : '✓'}
+                    </span>
+                  ) : (
+                    <span className="text-xs text-gray-300">—</span>
+                  )}
+                </div>
+              ))}
+            </div>
+          ))}
+        </div>
+      )}
+
+      {/* ─ PERFORMANCE DETAIL ─ */}
+      {performance && (
+        <div className="mx-5 mt-5 bg-white rounded-2xl p-5 shadow-sm">
+          <h3 className="text-sm font-extrabold text-gray-800 uppercase tracking-wide flex items-center gap-2 mb-4">
+            <span className="text-base">📊</span> Performance
+          </h3>
+          <div className="grid grid-cols-2 gap-3">
+            <div className="bg-gray-50 rounded-xl p-3">
+              <div className="text-[10px] text-gray-500 uppercase font-semibold mb-2">Homework</div>
+              <div className="flex flex-wrap gap-1.5">
+                {performance.homework.wow > 0 && <span className="px-2 py-0.5 bg-purple-100 text-purple-700 rounded-lg text-[11px] font-bold">Wow {performance.homework.wow}</span>}
+                {performance.homework.good > 0 && <span className="px-2 py-0.5 bg-blue-100 text-blue-700 rounded-lg text-[11px] font-bold">Good {performance.homework.good}</span>}
+                {performance.homework.ok > 0 && <span className="px-2 py-0.5 bg-gray-200 text-gray-600 rounded-lg text-[11px] font-bold">Ok {performance.homework.ok}</span>}
+              </div>
+            </div>
+            <div className="bg-gray-50 rounded-xl p-3">
+              <div className="text-[10px] text-gray-500 uppercase font-semibold mb-2">Classwork</div>
+              <div className="flex flex-wrap gap-1.5">
+                {performance.classwork.wow > 0 && <span className="px-2 py-0.5 bg-purple-100 text-purple-700 rounded-lg text-[11px] font-bold">Wow {performance.classwork.wow}</span>}
+                {performance.classwork.good > 0 && <span className="px-2 py-0.5 bg-blue-100 text-blue-700 rounded-lg text-[11px] font-bold">Good {performance.classwork.good}</span>}
+                {performance.classwork.ok > 0 && <span className="px-2 py-0.5 bg-gray-200 text-gray-600 rounded-lg text-[11px] font-bold">Ok {performance.classwork.ok}</span>}
+              </div>
+            </div>
+          </div>
+          {performance.stars > 0 && (
+            <div className="mt-3 flex items-center gap-1.5 text-xs text-yellow-600 font-bold">
+              ⭐ {performance.stars} star{performance.stars > 1 ? 's' : ''} earned
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* ─ TEACHER COMMENT ─ */}
+      {hasComment && (
+        <div className="mx-5 mt-5 bg-white rounded-2xl p-5 shadow-sm">
+          <h3 className="text-sm font-extrabold text-gray-800 uppercase tracking-wide flex items-center gap-2 mb-4">
+            <span className="text-base">💬</span> Teacher's Comment
+          </h3>
+          {cmtObj.achievements && (
+            <div className="mb-3">
+              <div className="text-xs font-extrabold text-gray-800 mb-1">1. Achievements</div>
+              <p className="text-[13px] text-gray-600 leading-relaxed italic whitespace-pre-wrap">{cmtObj.achievements}</p>
+            </div>
+          )}
+          {cmtObj.improvements && (
+            <div className="mb-3">
+              <div className="text-xs font-extrabold text-gray-800 mb-1">2. Areas to Improve</div>
+              <p className="text-[13px] text-gray-600 leading-relaxed italic whitespace-pre-wrap">{cmtObj.improvements}</p>
+            </div>
+          )}
+          {cmtObj.suggestions && (
+            <div>
+              <div className="text-xs font-extrabold text-gray-800 mb-1">3. Suggestions</div>
+              <p className="text-[13px] text-gray-600 leading-relaxed italic whitespace-pre-wrap">{cmtObj.suggestions}</p>
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* ─ FOOTER ─ */}
+      <div className="mx-5 mt-5 mb-6 bg-gray-800 text-white rounded-2xl p-4 text-center">
+        <div className="text-[10px] opacity-60 uppercase tracking-wider">
+          {new Date(createdAt || Date.now()).toLocaleDateString('en-GB', { day: 'numeric', month: 'long', year: 'numeric' })}
+        </div>
+        <div className="text-xs font-semibold mt-1 opacity-80">{courseName}</div>
+      </div>
+    </div>
+  );
+};
+
+// ─── Main Page ──────────────────────────────────────────────────────────
+const UnitReportPage = () => {
+  const { courseId } = useParams();
+  const navigate = useNavigate();
+  const { user } = useAuth();
+
+  const [courseName, setCourseName] = useState('');
+  const [loading, setLoading] = useState(true);
+  const [saving, setSaving] = useState(false);
+  const [previewMode, setPreviewMode] = useState(false);
+
+  // Students
+  const [students, setStudents] = useState([]);
+  const [selectedStudentId, setSelectedStudentId] = useState(null);
+
+  // Roll call
+  const [lessonDates, setLessonDates] = useState([]);
+  const [rollCallMap, setRollCallMap] = useState({});
+
+  // Performance
+  const [performanceData, setPerformanceData] = useState(null);
+
+  // XP / Level
+  const [studentXp, setStudentXp] = useState(0);
+
+  // Exercises
+  const [units, setUnits] = useState([]);
+  const [sessionsMap, setSessionsMap] = useState({});
+  const [exercisesMap, setExercisesMap] = useState({});
+  const [studentProgress, setStudentProgress] = useState({});
+  const [selectedSessions, setSelectedSessions] = useState(new Set());
+  const [expandedUnits, setExpandedUnits] = useState(new Set());
+
+  // Comment (structured)
+  const [comment, setComment] = useState({ achievements: '', improvements: '', suggestions: '' });
+
+  // Saved reports
+  const [savedReports, setSavedReports] = useState([]);
+  const [viewingReport, setViewingReport] = useState(null);
+  const [showHistory, setShowHistory] = useState(false);
+
+  // Fetch base data on mount
+  useEffect(() => {
+    if (user && courseId) {
+      fetchBaseData();
+      fetchSavedReports();
+    }
+  }, [user, courseId]);
+
+  // Fetch student-specific data when student changes
+  useEffect(() => {
+    if (selectedStudentId && courseId) {
+      setViewingReport(null);
+      setComment({ achievements: '', improvements: '', suggestions: '' });
+      setPreviewMode(false);
+      fetchStudentData(selectedStudentId);
+    }
+  }, [selectedStudentId]);
+
+  const fetchBaseData = async () => {
+    try {
+      setLoading(true);
+
+      const [courseRes, enrollRes, unitsRes, lessonInfoRes] = await Promise.all([
+        supabase.from('courses').select('title').eq('id', courseId).single(),
+        supabase.from('course_enrollments')
+          .select('student_id, student:users!student_id(id, full_name, real_name, email, avatar_url)')
+          .eq('course_id', courseId).eq('is_active', true),
+        supabase.from('units').select('id, title, unit_number')
+          .eq('course_id', courseId).eq('is_active', true).order('unit_number'),
+        supabase.from('lesson_info').select('id, session_date, lesson_name, lesson_mode')
+          .eq('course_id', courseId).order('session_date', { ascending: true }),
+      ]);
+
+      setCourseName(courseRes.data?.title || '');
+      setLessonDates(lessonInfoRes.data || []);
+
+      const studentList = (enrollRes.data || []).map(e => ({
+        ...e.student,
+        full_name: e.student?.real_name || e.student?.full_name,
+      }));
+      setStudents(studentList);
+
+      const unitsData = unitsRes.data || [];
+      setUnits(unitsData);
+
+      const unitIds = unitsData.map(u => u.id);
+      if (unitIds.length > 0) {
+        const { data: sessData } = await supabase
+          .from('sessions')
+          .select('id, title, session_number, unit_id, is_test')
+          .in('unit_id', unitIds)
+          .eq('is_active', true)
+          .is('assigned_student_id', null)
+          .order('session_number');
+
+        const sMap = {};
+        (sessData || []).forEach(s => {
+          if (!sMap[s.unit_id]) sMap[s.unit_id] = [];
+          sMap[s.unit_id].push(s);
+        });
+        setSessionsMap(sMap);
+
+        const sessionIds = (sessData || []).map(s => s.id);
+        if (sessionIds.length > 0) {
+          const { data: assignData } = await supabase
+            .from('exercise_assignments')
+            .select('session_id, exercise:exercises(id, title, exercise_type, is_active)')
+            .in('session_id', sessionIds);
+
+          const eMap = {};
+          (assignData || []).forEach(a => {
+            if (!a.exercise || !a.exercise.is_active) return;
+            if (!eMap[a.session_id]) eMap[a.session_id] = [];
+            eMap[a.session_id].push(a.exercise);
+          });
+          setExercisesMap(eMap);
+        }
+      }
+
+      setExpandedUnits(new Set(unitsData.map(u => u.id)));
+    } catch (err) {
+      console.error('Error fetching base data:', err);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const fetchStudentData = async (studentId) => {
+    try {
+      const lessonInfoIds = lessonDates.map(l => l.id);
+
+      // Fetch roll call + performance + XP in parallel
+      const promises = [];
+
+      // Roll call & performance from lesson_records
+      if (lessonInfoIds.length > 0) {
+        promises.push(
+          supabase.from('lesson_records')
+            .select('lesson_info_id, attendance_status, homework_status, performance_rating, star_flag')
+            .eq('student_id', studentId)
+            .in('lesson_info_id', lessonInfoIds)
+        );
+      } else {
+        promises.push(Promise.resolve({ data: [] }));
+      }
+
+      // XP
+      promises.push(
+        supabase.from('users').select('xp').eq('id', studentId).single()
+      );
+
+      // Exercise progress
+      const allExerciseIds = Object.values(exercisesMap).flat().map(e => e.id);
+      if (allExerciseIds.length > 0) {
+        promises.push(
+          supabase.from('user_progress')
+            .select('exercise_id, status, score, completed_at')
+            .eq('user_id', studentId)
+            .in('exercise_id', allExerciseIds)
+        );
+      } else {
+        promises.push(Promise.resolve({ data: [] }));
+      }
+
+      const [recordsRes, xpRes, progressRes] = await Promise.all(promises);
+
+      // Roll call map
+      const rcMap = {};
+      const records = recordsRes.data || [];
+      records.forEach(r => { rcMap[r.lesson_info_id] = r.attendance_status; });
+      setRollCallMap(rcMap);
+
+      // Performance aggregation
+      const perf = { homework: { wow: 0, good: 0, ok: 0 }, classwork: { wow: 0, good: 0, ok: 0 }, stars: 0 };
+      records.forEach(r => {
+        if (r.homework_status === 'wow') perf.homework.wow++;
+        else if (r.homework_status === 'good') perf.homework.good++;
+        else if (r.homework_status === 'ok') perf.homework.ok++;
+        if (r.performance_rating === 'wow') perf.classwork.wow++;
+        else if (r.performance_rating === 'good') perf.classwork.good++;
+        else if (r.performance_rating === 'ok') perf.classwork.ok++;
+        if (r.star_flag === 'star') perf.stars++;
+      });
+      setPerformanceData(perf);
+
+      // XP
+      setStudentXp(xpRes.data?.xp || 0);
+
+      // Exercise progress
+      const progMap = {};
+      (progressRes.data || []).forEach(p => { progMap[p.exercise_id] = p; });
+      setStudentProgress(progMap);
+    } catch (err) {
+      console.error('Error fetching student data:', err);
+    }
+  };
+
+  const fetchSavedReports = async () => {
+    try {
+      const { data } = await supabase
+        .from('student_reports')
+        .select('id, student_id, report_data, created_at')
+        .eq('course_id', courseId)
+        .order('created_at', { ascending: false });
+      setSavedReports(data || []);
+    } catch (err) {
+      console.error('Error fetching saved reports:', err);
+    }
+  };
+
+  // ─── Build snapshot ───────────────────────────────────────────
+  const buildReportSnapshot = () => {
+    const student = students.find(s => s.id === selectedStudentId);
+    if (!student) return null;
+
+    // Attendance snapshot
+    const attendanceDates = lessonDates.map(d => ({
+      date: d.session_date,
+      lessonName: d.lesson_name || '',
+      status: rollCallMap[d.id] || null,
+    }));
+    const stats = { present: 0, late: 0, absent: 0 };
+    attendanceDates.forEach(d => {
+      if (d.status === 'present') stats.present++;
+      else if (d.status === 'late') stats.late++;
+      else if (d.status === 'absent') stats.absent++;
+    });
+    const total = lessonDates.length;
+    stats.rate = total > 0 ? Math.round(((stats.present + stats.late) / total) * 100) : 0;
+
+    // Exercise snapshot (from selected sessions)
+    const exerciseGroups = [];
+    units.forEach(unit => {
+      const unitSessions = (sessionsMap[unit.id] || []).filter(s => selectedSessions.has(s.id));
+      const items = [];
+      unitSessions.forEach(session => {
+        (exercisesMap[session.id] || []).forEach(ex => {
+          const prog = studentProgress[ex.id];
+          items.push({
+            title: ex.title,
+            type: ex.exercise_type,
+            score: prog?.score ?? null,
+            completed: prog?.status === 'completed',
+          });
+        });
+      });
+      if (items.length > 0) {
+        exerciseGroups.push({ unitTitle: `Unit ${unit.unit_number}: ${unit.title}`, items });
+      }
+    });
+
+    const level = Math.floor(studentXp / 1000) + 1;
+
+    return {
+      studentName: student.full_name,
+      studentAvatar: student.avatar_url || null,
+      courseName,
+      level,
+      xp: studentXp,
+      attendance: { dates: attendanceDates, stats },
+      performance: performanceData,
+      exercises: exerciseGroups,
+      comment: (comment.achievements || comment.improvements || comment.suggestions) ? comment : null,
+      createdAt: new Date().toISOString(),
+    };
+  };
+
+  const handleSaveReport = async () => {
+    const snapshot = buildReportSnapshot();
+    if (!snapshot) return;
+
+    try {
+      setSaving(true);
+      const { error } = await supabase.from('student_reports').insert({
+        course_id: courseId,
+        student_id: selectedStudentId,
+        created_by: user.id,
+        report_data: snapshot,
+      });
+      if (error) throw error;
+      await fetchSavedReports();
+      setPreviewMode(true);
+      setViewingReport(snapshot);
+    } catch (err) {
+      console.error('Error saving report:', err);
+      alert('Failed to save report');
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  // ─── Helpers ──────────────────────────────────────────────────
+  const formatDate = (dateStr) => {
+    if (!dateStr) return '';
+    const d = new Date(dateStr);
+    return `${d.getDate()}/${d.getMonth() + 1}`;
+  };
+
+  const getAttendanceStyle = (status) => {
+    switch (status) {
+      case 'present': return 'bg-green-100 text-green-700 border-green-200';
+      case 'late': return 'bg-yellow-100 text-yellow-700 border-yellow-200';
+      case 'absent': return 'bg-red-100 text-red-700 border-red-200';
+      default: return 'bg-gray-50 text-gray-400 border-gray-200';
+    }
+  };
+
+  const getAttendanceLabel = (status) => {
+    switch (status) {
+      case 'present': return 'P';
+      case 'late': return 'L';
+      case 'absent': return 'A';
+      default: return '—';
+    }
+  };
+
+  const getScoreColor = (score) => {
+    if (score == null) return 'text-gray-400';
+    if (score >= 80) return 'text-green-600';
+    if (score >= 50) return 'text-yellow-600';
+    return 'text-red-600';
+  };
+
+  const attendanceStats = useMemo(() => {
+    if (lessonDates.length === 0) return null;
+    let present = 0, late = 0, absent = 0;
+    lessonDates.forEach(d => {
+      const status = rollCallMap[d.id];
+      if (status === 'present') present++;
+      else if (status === 'late') late++;
+      else if (status === 'absent') absent++;
+    });
+    const rate = Math.round(((present + late) / lessonDates.length) * 100);
+    return { present, late, absent, total: lessonDates.length, rate };
+  }, [lessonDates, rollCallMap]);
+
+  const exerciseStats = useMemo(() => {
+    if (selectedSessions.size === 0) return null;
+    const exIds = [];
+    selectedSessions.forEach(sid => { (exercisesMap[sid] || []).forEach(e => exIds.push(e.id)); });
+    if (exIds.length === 0) return null;
+    let completed = 0, totalScore = 0, scored = 0;
+    exIds.forEach(id => {
+      const prog = studentProgress[id];
+      if (prog?.status === 'completed') {
+        completed++;
+        if (prog.score != null) { totalScore += prog.score; scored++; }
+      }
+    });
+    return { completed, total: exIds.length, avgScore: scored > 0 ? Math.round(totalScore / scored) : null };
+  }, [selectedSessions, exercisesMap, studentProgress]);
+
+  const studentLevel = Math.floor(studentXp / 1000) + 1;
+
+  // ─── Session/Unit selection ──────────────────────────────────
+  const toggleSession = (sessionId) => {
+    setSelectedSessions(prev => { const n = new Set(prev); n.has(sessionId) ? n.delete(sessionId) : n.add(sessionId); return n; });
+  };
+  const toggleUnit = (unitId) => {
+    const sIds = (sessionsMap[unitId] || []).filter(s => (exercisesMap[s.id] || []).length > 0).map(s => s.id);
+    const all = sIds.length > 0 && sIds.every(id => selectedSessions.has(id));
+    setSelectedSessions(prev => { const n = new Set(prev); sIds.forEach(id => all ? n.delete(id) : n.add(id)); return n; });
+  };
+  const selectAll = () => {
+    const allSIds = Object.entries(exercisesMap).filter(([, exs]) => exs.length > 0).map(([sid]) => sid);
+    const all = allSIds.length > 0 && allSIds.every(id => selectedSessions.has(id));
+    setSelectedSessions(all ? new Set() : new Set(allSIds));
+  };
+  const toggleExpandUnit = (unitId) => {
+    setExpandedUnits(prev => { const n = new Set(prev); n.has(unitId) ? n.delete(unitId) : n.add(unitId); return n; });
+  };
+
+  // ─── Saved reports for selected student ───────────────────────
+  const studentSavedReports = savedReports.filter(r => r.student_id === selectedStudentId);
+
+  // ─── Render ───────────────────────────────────────────────────
+  if (loading) {
+    return (
+      <div className="p-6">
+        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mx-auto mt-12" />
+        <p className="mt-2 text-center text-gray-600">Loading...</p>
+      </div>
+    );
+  }
+
+  // Preview mode — show only the polished card
+  if (previewMode && (viewingReport || selectedStudentId)) {
+    const data = viewingReport || buildReportSnapshot();
+    return (
+      <div className="min-h-screen bg-gray-100 py-8 px-4">
+        <div className="max-w-lg mx-auto mb-4 flex items-center justify-between">
+          <button
+            onClick={() => { setPreviewMode(false); setViewingReport(null); }}
+            className="flex items-center gap-1.5 text-sm text-gray-600 hover:text-gray-900 bg-white px-3 py-1.5 rounded-lg shadow-sm border"
+          >
+            <EyeOff className="w-4 h-4" />
+            Exit Preview
+          </button>
+          {!viewingReport && (
+            <button
+              onClick={handleSaveReport}
+              disabled={saving}
+              className="flex items-center gap-1.5 text-sm text-white bg-blue-600 hover:bg-blue-700 px-3 py-1.5 rounded-lg shadow-sm disabled:opacity-50"
+            >
+              <Save className="w-4 h-4" />
+              {saving ? 'Saving...' : 'Save Report'}
+            </button>
+          )}
+        </div>
+        <ReportPreview data={data} />
+      </div>
+    );
+  }
+
+  return (
+    <div className="min-h-screen bg-gray-50">
+      {/* Header */}
+      <div className="bg-white border-b border-gray-200 px-6 py-4">
+        <div className="flex items-center justify-between">
+          <div className="flex items-center space-x-4">
+            <button onClick={() => navigate(-1)} className="flex items-center text-gray-600 hover:text-gray-900">
+              <ArrowLeft className="w-5 h-5 mr-1" /> Back
+            </button>
+            <h1 className="text-xl font-bold text-gray-900">Unit Report — {courseName}</h1>
+          </div>
+          {selectedStudentId && (
+            <div className="flex items-center gap-2">
+              <button
+                onClick={() => setPreviewMode(true)}
+                className="flex items-center gap-1.5 text-sm bg-indigo-50 text-indigo-700 border border-indigo-200 px-3 py-1.5 rounded-lg hover:bg-indigo-100"
+              >
+                <Eye className="w-4 h-4" /> Preview
+              </button>
+              <button
+                onClick={handleSaveReport}
+                disabled={saving}
+                className="flex items-center gap-1.5 text-sm bg-blue-600 text-white px-3 py-1.5 rounded-lg hover:bg-blue-700 disabled:opacity-50"
+              >
+                <Save className="w-4 h-4" /> {saving ? 'Saving...' : 'Save Report'}
+              </button>
+            </div>
+          )}
+        </div>
+      </div>
+
+      <div className="p-6">
+        {/* Student selector */}
+        <div className="bg-white rounded-lg shadow-sm border p-4 mb-6">
+          <div className="flex items-center justify-between mb-3">
+            <h2 className="text-sm font-medium text-gray-700">Select Student</h2>
+            {savedReports.length > 0 && (
+              <button
+                onClick={() => setShowHistory(!showHistory)}
+                className="flex items-center gap-1 text-xs text-gray-500 hover:text-gray-700"
+              >
+                <History className="w-3.5 h-3.5" />
+                {savedReports.length} saved report{savedReports.length > 1 ? 's' : ''}
+              </button>
+            )}
+          </div>
+          <div className="flex flex-wrap gap-2">
+            {students.map(s => (
+              <button
+                key={s.id}
+                onClick={() => setSelectedStudentId(s.id)}
+                className={`flex items-center gap-2 px-3 py-2 rounded-lg border text-sm font-medium transition-colors ${
+                  selectedStudentId === s.id
+                    ? 'bg-blue-50 border-blue-500 text-blue-700 ring-1 ring-blue-500'
+                    : 'border-gray-300 text-gray-600 hover:bg-gray-50'
+                }`}
+              >
+                <div className="w-6 h-6 rounded-full bg-blue-100 flex items-center justify-center flex-shrink-0 overflow-hidden">
+                  {s.avatar_url ? (
+                    <img src={s.avatar_url} alt="" className="w-6 h-6 rounded-full object-cover" />
+                  ) : (
+                    <span className="text-blue-600 font-semibold text-[10px]">{s.full_name?.charAt(0)?.toUpperCase() || '?'}</span>
+                  )}
+                </div>
+                {s.full_name}
+                {savedReports.some(r => r.student_id === s.id) && (
+                  <span className="w-2 h-2 rounded-full bg-green-400" title="Has saved reports" />
+                )}
+              </button>
+            ))}
+          </div>
+        </div>
+
+        {/* Saved reports history panel */}
+        {showHistory && (
+          <div className="bg-white rounded-lg shadow-sm border p-4 mb-6">
+            <div className="flex items-center justify-between mb-3">
+              <h2 className="text-sm font-medium text-gray-700">Saved Reports</h2>
+              <button onClick={() => setShowHistory(false)} className="text-gray-400 hover:text-gray-600">
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+            {savedReports.length === 0 ? (
+              <p className="text-sm text-gray-500">No saved reports yet.</p>
+            ) : (
+              <div className="space-y-1 max-h-60 overflow-y-auto">
+                {savedReports.map(r => (
+                  <button
+                    key={r.id}
+                    onClick={() => {
+                      setSelectedStudentId(r.student_id);
+                      setViewingReport(r.report_data);
+                      setPreviewMode(true);
+                      setShowHistory(false);
+                    }}
+                    className="w-full flex items-center justify-between px-3 py-2 rounded-lg hover:bg-gray-50 text-left"
+                  >
+                    <div className="flex items-center gap-2">
+                      <User className="w-4 h-4 text-gray-400" />
+                      <span className="text-sm font-medium text-gray-700">{r.report_data?.studentName}</span>
+                    </div>
+                    <span className="text-xs text-gray-400">
+                      {new Date(r.created_at).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' })}
+                    </span>
+                  </button>
+                ))}
+              </div>
+            )}
+          </div>
+        )}
+
+        {!selectedStudentId ? (
+          <div className="bg-white rounded-lg shadow-sm border p-12 text-center">
+            <User className="w-16 h-16 text-gray-300 mx-auto mb-4" />
+            <h3 className="text-lg font-medium text-gray-900 mb-2">Select a student</h3>
+            <p className="text-gray-500">Choose a student above to create their report.</p>
+          </div>
+        ) : (
+          <div className="space-y-6">
+            {/* XP & Level bar */}
+            <div className="bg-white rounded-lg shadow-sm border p-4 flex items-center justify-between">
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 rounded-full bg-indigo-100 flex items-center justify-center">
+                  <Award className="w-5 h-5 text-indigo-600" />
+                </div>
+                <div>
+                  <div className="text-sm font-bold text-gray-900">Level {studentLevel}</div>
+                  <div className="text-xs text-gray-500">{studentXp.toLocaleString()} XP total</div>
+                </div>
+              </div>
+              <div className="flex items-center gap-1.5 text-indigo-600">
+                <Zap className="w-4 h-4" />
+                <span className="text-sm font-bold">{studentXp % 1000}/1,000 to next level</span>
+              </div>
+            </div>
+
+            {/* Saved reports for this student */}
+            {studentSavedReports.length > 0 && (
+              <div className="bg-blue-50 rounded-lg border border-blue-200 p-3">
+                <div className="text-xs font-medium text-blue-700 mb-2">Previous reports for this student:</div>
+                <div className="flex flex-wrap gap-2">
+                  {studentSavedReports.map(r => (
+                    <button
+                      key={r.id}
+                      onClick={() => { setViewingReport(r.report_data); setPreviewMode(true); }}
+                      className="text-xs bg-white border border-blue-200 text-blue-700 px-2.5 py-1.5 rounded-lg hover:bg-blue-50"
+                    >
+                      {new Date(r.created_at).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' })}
+                    </button>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {/* Roll Call */}
+            <div className="bg-white rounded-lg shadow-sm border">
+              <div className="px-4 py-3 border-b border-gray-200 flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  <ClipboardList className="w-5 h-5 text-green-600" />
+                  <h2 className="text-base font-semibold text-gray-900">Attendance</h2>
+                </div>
+                {attendanceStats && (
+                  <span className={`px-2.5 py-1 rounded-full text-xs font-bold ${
+                    attendanceStats.rate >= 80 ? 'bg-green-100 text-green-700' :
+                    attendanceStats.rate >= 50 ? 'bg-yellow-100 text-yellow-700' :
+                    'bg-red-100 text-red-700'
+                  }`}>{attendanceStats.rate}%</span>
+                )}
+              </div>
+              {lessonDates.length === 0 ? (
+                <div className="p-6 text-center text-gray-500">No roll call data.</div>
+              ) : (
+                <div className="p-4">
+                  {attendanceStats && (
+                    <div className="flex gap-4 mb-3 text-sm">
+                      <span className="text-green-600 font-medium">Present: {attendanceStats.present}</span>
+                      <span className="text-yellow-600 font-medium">Late: {attendanceStats.late}</span>
+                      <span className="text-red-600 font-medium">Absent: {attendanceStats.absent}</span>
+                    </div>
+                  )}
+                  <div className="flex flex-wrap gap-1.5">
+                    {lessonDates.map(d => {
+                      const status = rollCallMap[d.id];
+                      return (
+                        <div key={d.id} className={`rounded-lg border p-2 text-center min-w-[52px] ${getAttendanceStyle(status)}`}>
+                          <div className="text-[10px] font-bold">{formatDate(d.session_date)}</div>
+                          <div className="text-xs font-bold mt-0.5">{getAttendanceLabel(status)}</div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
+              )}
+            </div>
+
+            {/* Performance */}
+            {performanceData && (
+              <div className="bg-white rounded-lg shadow-sm border">
+                <div className="px-4 py-3 border-b border-gray-200 flex items-center gap-2">
+                  <Star className="w-5 h-5 text-yellow-500" />
+                  <h2 className="text-base font-semibold text-gray-900">Performance</h2>
+                </div>
+                <div className="p-4 grid grid-cols-2 gap-4">
+                  <div>
+                    <div className="text-xs font-medium text-gray-500 mb-2">Homework</div>
+                    <div className="flex gap-2">
+                      <span className="px-2 py-1 bg-purple-100 text-purple-700 rounded text-xs font-bold">Wow {performanceData.homework.wow}</span>
+                      <span className="px-2 py-1 bg-blue-100 text-blue-700 rounded text-xs font-bold">Good {performanceData.homework.good}</span>
+                      <span className="px-2 py-1 bg-gray-100 text-gray-600 rounded text-xs font-bold">Ok {performanceData.homework.ok}</span>
+                    </div>
+                  </div>
+                  <div>
+                    <div className="text-xs font-medium text-gray-500 mb-2">Classwork</div>
+                    <div className="flex gap-2">
+                      <span className="px-2 py-1 bg-purple-100 text-purple-700 rounded text-xs font-bold">Wow {performanceData.classwork.wow}</span>
+                      <span className="px-2 py-1 bg-blue-100 text-blue-700 rounded text-xs font-bold">Good {performanceData.classwork.good}</span>
+                      <span className="px-2 py-1 bg-gray-100 text-gray-600 rounded text-xs font-bold">Ok {performanceData.classwork.ok}</span>
+                    </div>
+                  </div>
+                </div>
+                {performanceData.stars > 0 && (
+                  <div className="px-4 pb-4 flex items-center gap-1 text-xs text-yellow-600">
+                    <Star className="w-3.5 h-3.5 fill-yellow-400" />
+                    <span className="font-bold">{performanceData.stars} star{performanceData.stars > 1 ? 's' : ''}</span>
+                  </div>
+                )}
+              </div>
+            )}
+
+            {/* Exercises — pick units/sessions */}
+            <div className="bg-white rounded-lg shadow-sm border">
+              <div className="px-4 py-3 border-b border-gray-200 flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  <BookOpen className="w-5 h-5 text-blue-600" />
+                  <h2 className="text-base font-semibold text-gray-900">Exercises</h2>
+                  <span className="text-xs text-gray-400">({selectedSessions.size} session{selectedSessions.size !== 1 ? 's' : ''})</span>
+                </div>
+                <div className="flex items-center gap-3">
+                  {exerciseStats && (
+                    <div className="flex items-center gap-3 text-xs">
+                      <span className="text-green-600 font-medium">Done: {exerciseStats.completed}/{exerciseStats.total}</span>
+                      {exerciseStats.avgScore != null && (
+                        <span className={`font-medium ${getScoreColor(exerciseStats.avgScore)}`}>Avg: {exerciseStats.avgScore}%</span>
+                      )}
+                    </div>
+                  )}
+                  <button onClick={selectAll} className="text-xs text-blue-600 hover:text-blue-800 font-medium">
+                    {(() => {
+                      const allSIds = Object.entries(exercisesMap).filter(([, exs]) => exs.length > 0).map(([sid]) => sid);
+                      return allSIds.length > 0 && allSIds.every(id => selectedSessions.has(id)) ? 'Deselect All' : 'Select All';
+                    })()}
+                  </button>
+                </div>
+              </div>
+              <div className="divide-y divide-gray-100">
+                {units.map(unit => {
+                  const unitSessions = (sessionsMap[unit.id] || []).filter(s => (exercisesMap[s.id] || []).length > 0);
+                  if (unitSessions.length === 0) return null;
+                  const allUnitSel = unitSessions.every(s => selectedSessions.has(s.id));
+                  const someUnitSel = unitSessions.some(s => selectedSessions.has(s.id));
+                  const expanded = expandedUnits.has(unit.id);
+
+                  return (
+                    <div key={unit.id}>
+                      {/* Unit row */}
+                      <div className="flex items-center gap-2 px-4 py-2.5 bg-gray-50 cursor-pointer hover:bg-gray-100" onClick={() => toggleExpandUnit(unit.id)}>
+                        <button onClick={(e) => { e.stopPropagation(); toggleUnit(unit.id); }} className="text-gray-500 hover:text-blue-600">
+                          {allUnitSel ? <CheckSquare className="w-4 h-4 text-blue-600" /> : someUnitSel ? <MinusSquare className="w-4 h-4 text-blue-400" /> : <Square className="w-4 h-4" />}
+                        </button>
+                        {expanded ? <ChevronDown className="w-4 h-4 text-gray-400" /> : <ChevronRight className="w-4 h-4 text-gray-400" />}
+                        <span className="text-sm font-semibold text-gray-800">Unit {unit.unit_number}: {unit.title}</span>
+                        <span className="text-xs text-gray-400 ml-auto">
+                          {unitSessions.filter(s => selectedSessions.has(s.id)).length}/{unitSessions.length} sessions
+                        </span>
+                      </div>
+
+                      {expanded && unitSessions.map(session => {
+                        const exercises = exercisesMap[session.id] || [];
+                        const isSel = selectedSessions.has(session.id);
+                        return (
+                          <div key={session.id}>
+                            {/* Session row — clickable checkbox */}
+                            <div
+                              className={`flex items-center gap-2 px-4 py-2 pl-10 cursor-pointer transition-colors ${isSel ? 'bg-blue-50' : 'hover:bg-gray-50'}`}
+                              onClick={() => toggleSession(session.id)}
+                            >
+                              <button className="text-gray-400 hover:text-blue-600">
+                                {isSel ? <CheckSquare className="w-3.5 h-3.5 text-blue-600" /> : <Square className="w-3.5 h-3.5" />}
+                              </button>
+                              <span className="text-xs font-medium text-gray-700">{session.title}</span>
+                              <span className="text-[10px] text-gray-400 ml-auto">{exercises.length} exercise{exercises.length !== 1 ? 's' : ''}</span>
+                            </div>
+                            {/* Exercises — read-only list, shown when session is selected */}
+                            {isSel && exercises.map(ex => {
+                              const prog = studentProgress[ex.id];
+                              const done = prog?.status === 'completed';
+                              return (
+                                <div key={ex.id} className="flex items-center gap-3 px-4 py-1.5 pl-16 bg-blue-50/30">
+                                  <span className="text-sm text-gray-600 flex-1 truncate">{ex.title}</span>
+                                  <span className="text-[10px] text-gray-400 uppercase">{ex.exercise_type}</span>
+                                  {done ? (
+                                    <div className="flex items-center gap-1.5">
+                                      <Check className="w-3.5 h-3.5 text-green-500" />
+                                      <span className={`text-xs font-semibold ${getScoreColor(prog?.score)}`}>
+                                        {prog?.score != null ? `${prog.score}%` : 'Done'}
+                                      </span>
+                                    </div>
+                                  ) : (
+                                    <span className="text-xs text-gray-400">—</span>
+                                  )}
+                                </div>
+                              );
+                            })}
+                          </div>
+                        );
+                      })}
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+
+            {/* Teacher Comment — structured */}
+            <div className="bg-white rounded-lg shadow-sm border">
+              <div className="px-4 py-3 border-b border-gray-200 flex items-center gap-2">
+                <MessageSquare className="w-5 h-5 text-purple-600" />
+                <h2 className="text-base font-semibold text-gray-900">Teacher's Comment</h2>
+              </div>
+              <div className="p-4 space-y-4">
+                <div>
+                  <label className="block text-xs font-bold text-gray-700 mb-1">1. Achievements</label>
+                  <textarea
+                    value={comment.achievements}
+                    onChange={(e) => setComment(prev => ({ ...prev, achievements: e.target.value }))}
+                    placeholder="What did this student do well?"
+                    className="w-full border border-gray-300 rounded-lg p-3 text-sm resize-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none"
+                    rows={2}
+                  />
+                </div>
+                <div>
+                  <label className="block text-xs font-bold text-gray-700 mb-1">2. Areas to Improve</label>
+                  <textarea
+                    value={comment.improvements}
+                    onChange={(e) => setComment(prev => ({ ...prev, improvements: e.target.value }))}
+                    placeholder="What does this student need to work on?"
+                    className="w-full border border-gray-300 rounded-lg p-3 text-sm resize-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none"
+                    rows={2}
+                  />
+                </div>
+                <div>
+                  <label className="block text-xs font-bold text-gray-700 mb-1">3. Suggestions</label>
+                  <textarea
+                    value={comment.suggestions}
+                    onChange={(e) => setComment(prev => ({ ...prev, suggestions: e.target.value }))}
+                    placeholder="What actions have been taken or recommended?"
+                    className="w-full border border-gray-300 rounded-lg p-3 text-sm resize-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none"
+                    rows={2}
+                  />
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+};
+
+export default UnitReportPage;
