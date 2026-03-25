@@ -114,7 +114,9 @@ CREATE TABLE public.users (
   id uuid NOT NULL,
   email text NOT NULL,
   full_name text,
+  real_name text,
   avatar_url text,
+  real_avatar_url text,
   role text DEFAULT 'user'::text CHECK (role = ANY (ARRAY['user'::text, 'admin'::text, 'teacher'::text])),
   current_level integer DEFAULT 1,
   xp integer DEFAULT 0,
@@ -126,6 +128,15 @@ CREATE TABLE public.users (
   level integer DEFAULT 1,
   username text UNIQUE,
   gems integer DEFAULT 0,
+  name_changed_at timestamp with time zone,
+  energy integer DEFAULT 100 CHECK (energy >= 0 AND energy <= 100),
+  energy_last_reset date DEFAULT CURRENT_DATE,
+  CONSTRAINT users_pkey PRIMARY KEY (id),
+  CONSTRAINT users_id_fkey FOREIGN KEY (id) REFERENCES auth.users(id)
+);
+
+CREATE TABLE public.user_equipment (
+  user_id uuid NOT NULL,
   active_title text,
   active_frame_ratio text,
   hide_frame boolean DEFAULT false,
@@ -134,11 +145,9 @@ CREATE TABLE public.users (
   active_spaceship_url text,
   active_spaceship_laser text,
   active_hammer_url text,
-  name_changed_at timestamp with time zone,
-  energy integer DEFAULT 100 CHECK (energy >= 0 AND energy <= 100),
-  energy_last_reset date DEFAULT CURRENT_DATE,
-  CONSTRAINT users_pkey PRIMARY KEY (id),
-  CONSTRAINT users_id_fkey FOREIGN KEY (id) REFERENCES auth.users(id)
+  updated_at timestamp with time zone DEFAULT now(),
+  CONSTRAINT user_equipment_pkey PRIMARY KEY (user_id),
+  CONSTRAINT user_equipment_user_id_fkey FOREIGN KEY (user_id) REFERENCES public.users(id) ON DELETE CASCADE
 );
 CREATE TABLE public.cohorts (
   id uuid NOT NULL DEFAULT uuid_generate_v4(),
@@ -233,8 +242,10 @@ CREATE TABLE public.units (
   estimated_duration integer,
   created_at timestamp with time zone DEFAULT now(),
   updated_at timestamp with time zone DEFAULT now(),
+  assigned_student_id uuid,
   CONSTRAINT units_pkey PRIMARY KEY (id),
-  CONSTRAINT units_level_id_fkey FOREIGN KEY (course_id) REFERENCES public.courses(id)
+  CONSTRAINT units_level_id_fkey FOREIGN KEY (course_id) REFERENCES public.courses(id),
+  CONSTRAINT units_assigned_student_fkey FOREIGN KEY (assigned_student_id) REFERENCES public.users(id)
 );
 CREATE TABLE public.sessions (
   id uuid NOT NULL DEFAULT uuid_generate_v4(),
@@ -255,8 +266,10 @@ CREATE TABLE public.sessions (
   time_limit_minutes integer DEFAULT 30,
   passing_score integer DEFAULT 70,
   max_attempts integer DEFAULT 1,
+  assigned_student_id uuid,
   CONSTRAINT sessions_pkey PRIMARY KEY (id),
-  CONSTRAINT sessions_unit_id_fkey FOREIGN KEY (unit_id) REFERENCES public.units(id)
+  CONSTRAINT sessions_unit_id_fkey FOREIGN KEY (unit_id) REFERENCES public.units(id),
+  CONSTRAINT sessions_assigned_student_fkey FOREIGN KEY (assigned_student_id) REFERENCES public.users(id)
 );
 CREATE TABLE public.exercises (
   id uuid NOT NULL DEFAULT uuid_generate_v4(),
@@ -924,7 +937,7 @@ BEGIN
     u.id AS user_id,
     u.full_name,
     u.avatar_url,
-    u.active_frame_ratio,
+    ue.active_frame_ratio,
     dcp.score,
     dcp.time_spent,
     dcp.attempts,
@@ -932,6 +945,7 @@ BEGIN
     u.level
   FROM daily_challenge_participations dcp
   JOIN users u ON dcp.user_id = u.id
+  LEFT JOIN user_equipment ue ON ue.user_id = u.id
   WHERE dcp.challenge_id = p_challenge_id
     AND dcp.score >= 75
     AND u.role = 'user'
