@@ -63,7 +63,9 @@
       "Bash(npx -y acorn-jsx --ecma2020 src/components/pet/games/PetFishingGame.jsx)",
       "Bash(npx eslint:*)",
       "Bash(for file:*)",
-      "Bash(do echo:*)"
+      "Bash(do echo:*)",
+      "Bash(ls node_modules/lucide-react/dist/esm/icons/*check* node_modules/lucide-react/dist/esm/icons/*circle-x* node_modules/lucide-react/dist/esm/icons/*x-circle*)",
+      "Bash(npm uninstall:*)"
     ],
     "deny": [],
     "ask": []

@@ -2,7 +2,8 @@ import React, { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { supabase } from '../../supabase/client';
 import { useAuth } from '../../hooks/useAuth';
-import { ArrowLeft, Star, Flag, Users, X, ChevronDown, ChevronRight, ClipboardCheck } from 'lucide-react';
+import { ArrowLeft, Star, Flag, Users, X, ChevronDown, ChevronRight, ClipboardCheck, Download, CheckCircle2, Clock, XCircle } from 'lucide-react';
+import domtoimage from 'dom-to-image-more';
 
 const ratingColor = {
   wow: 'bg-green-500',
@@ -102,7 +103,37 @@ const TeacherCourseOverview = () => {
   const [loading, setLoading] = useState(true);
   const [popover, setPopover] = useState(null); // { courseId, studentId, lessonId, x, y }
   const [expandedStudent, setExpandedStudent] = useState(null); // "courseId_studentId"
+  const [lessonModal, setLessonModal] = useState(null); // { courseId, lessonId }
   const popoverRef = useRef(null);
+  const modalContentRef = useRef(null);
+
+  const handleScreenshot = async () => {
+    if (!modalContentRef.current) return;
+    const el = modalContentRef.current;
+    // Temporarily expand so full content is captured
+    const origStyles = { maxHeight: el.style.maxHeight, overflow: el.style.overflow, flex: el.style.flex };
+    el.style.maxHeight = 'none';
+    el.style.overflow = 'visible';
+    el.style.flex = 'none';
+    const scrollBody = el.querySelector('[data-screenshot-body]');
+    const origBodyStyles = { overflow: scrollBody?.style.overflow, maxHeight: scrollBody?.style.maxHeight };
+    if (scrollBody) { scrollBody.style.overflow = 'visible'; scrollBody.style.maxHeight = 'none'; }
+    // Hide nav buttons
+    const navButtons = el.querySelector('[data-screenshot-nav]');
+    if (navButtons) navButtons.style.display = 'none';
+    try {
+      const blob = await domtoimage.toBlob(el, { scale: 2, bgcolor: '#ffffff' });
+      const link = document.createElement('a');
+      link.download = `bao-cao-${lessonModal?.lessonId || 'lesson'}.png`;
+      link.href = URL.createObjectURL(blob);
+      link.click();
+      URL.revokeObjectURL(link.href);
+    } finally {
+      Object.assign(el.style, origStyles);
+      if (scrollBody) Object.assign(scrollBody.style, origBodyStyles);
+      if (navButtons) navButtons.style.display = '';
+    }
+  };
 
   useEffect(() => {
     if (user && !authLoading) {
@@ -205,7 +236,16 @@ const TeacherCourseOverview = () => {
       recordMap[key] = r;
     });
 
-    return { students, lessons: lessonList, recordMap };
+    // Fetch teacher name for this course
+    const { data: teacherData } = await supabase
+      .from('course_teachers')
+      .select('teacher:users!teacher_id(full_name, real_name)')
+      .eq('course_id', courseId)
+      .limit(1)
+      .single();
+    const teacherName = teacherData?.teacher?.real_name || teacherData?.teacher?.full_name || '';
+
+    return { students, lessons: lessonList, recordMap, teacherName };
   };
 
   const handleDotClick = (e, courseId, studentId, lessonId) => {
@@ -308,9 +348,12 @@ const TeacherCourseOverview = () => {
                       <div className="flex gap-3 flex-1 min-w-0">
                         {lessons.slice(-8).map(lesson => (
                           <div key={lesson.id} className="w-7 flex-shrink-0 text-center">
-                            <span className="text-[10px] text-gray-400 leading-none">
+                            <button
+                              onClick={() => setLessonModal({ courseId: course.id, lessonId: lesson.id })}
+                              className="text-[10px] text-gray-400 leading-none hover:text-blue-600 hover:underline cursor-pointer"
+                            >
                               {new Date(lesson.session_date + 'T00:00:00').toLocaleDateString('en', { day: 'numeric', month: 'short' })}
-                            </span>
+                            </button>
                           </div>
                         ))}
                       </div>
@@ -507,6 +550,187 @@ const TeacherCourseOverview = () => {
           })
         )}
       </div>
+
+      {/* Lesson Detail Modal */}
+      {lessonModal && (() => {
+        const data = courseData[lessonModal.courseId];
+        if (!data) return null;
+        const lesson = data.lessons.find(l => l.id === lessonModal.lessonId);
+        if (!lesson) return null;
+        const lessonIdx = data.lessons.indexOf(lesson);
+        const prevLesson = data.lessons[lessonIdx - 1];
+        const nextLesson = data.lessons[lessonIdx + 1];
+        const students = data.students || [];
+        const courseInfo = courses.find(c => c.id === lessonModal.courseId);
+        const formattedDate = new Date(lesson.session_date + 'T00:00:00').toLocaleDateString('vi-VN', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' });
+
+        return (
+          <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4" onClick={() => setLessonModal(null)}>
+            <div ref={modalContentRef} className="bg-white rounded-xl shadow-xl max-w-2xl w-full max-h-[85vh] overflow-hidden flex flex-col" onClick={e => e.stopPropagation()}>
+              {/* Report Header */}
+              <div className="px-5 py-4 border-b text-center relative">
+                <div className="flex items-center justify-between mb-2" data-screenshot-nav>
+                  <div className="flex items-center gap-1">
+                    <button
+                      onClick={() => prevLesson && setLessonModal({ ...lessonModal, lessonId: prevLesson.id })}
+                      disabled={!prevLesson}
+                      className="p-1 rounded hover:bg-gray-100 disabled:opacity-30 disabled:cursor-not-allowed"
+                    >
+                      <ArrowLeft className="w-4 h-4 text-gray-500" />
+                    </button>
+                    <button
+                      onClick={() => nextLesson && setLessonModal({ ...lessonModal, lessonId: nextLesson.id })}
+                      disabled={!nextLesson}
+                      className="p-1 rounded hover:bg-gray-100 disabled:opacity-30 disabled:cursor-not-allowed"
+                    >
+                      <ArrowLeft className="w-4 h-4 text-gray-500 rotate-180" />
+                    </button>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <button onClick={handleScreenshot} className="text-gray-400 hover:text-blue-600 p-1 rounded hover:bg-blue-50" title="Tải ảnh báo cáo">
+                      <Download className="w-5 h-5" />
+                    </button>
+                    <button onClick={() => setLessonModal(null)} className="text-gray-400 hover:text-gray-600">
+                      <X className="w-5 h-5" />
+                    </button>
+                  </div>
+                </div>
+                <h2 className="text-xl font-bold text-gray-900 uppercase tracking-wide">Báo cáo học tập ngày</h2>
+                <p className="text-sm text-gray-500 mt-0.5">Hệ thống quản lý Giáo dục thông minh</p>
+                <div className="flex items-center justify-center gap-4 mt-3 text-sm text-gray-700 flex-wrap">
+                  <span><span className="text-gray-400">Ngày:</span> <span className="font-medium">{formattedDate}</span></span>
+                  <span className="text-gray-300">|</span>
+                  <span><span className="text-gray-400">Lớp:</span> <span className="font-medium">{courseInfo ? `Course ${courseInfo.level_number}: ${courseInfo.title}` : ''}</span></span>
+                  <span className="text-gray-300">|</span>
+                  <span><span className="text-gray-400">Giáo viên:</span> <span className="font-medium">{data.teacherName || ''}</span></span>
+                </div>
+                {(lesson.lesson_name || lesson.skill) && (
+                  <div className="flex items-center justify-center gap-3 mt-2 text-sm">
+                    {lesson.lesson_name && <span className="text-gray-600">{lesson.lesson_name}</span>}
+                    {lesson.skill && <span className="text-xs text-gray-400 capitalize bg-gray-100 px-2 py-0.5 rounded">{lesson.skill}</span>}
+                  </div>
+                )}
+              </div>
+
+              {/* Body */}
+              <div className="overflow-y-auto" data-screenshot-body>
+                <table className="w-full text-sm">
+                  <thead className="bg-gray-50 sticky top-0">
+                    <tr>
+                      <th className="text-left px-4 py-2 font-medium text-gray-600">Student</th>
+                      <th className="text-center px-2 py-2 font-medium text-gray-600">XP</th>
+                      <th className="text-center px-2 py-2 font-medium text-gray-600">Class</th>
+                      <th className="text-center px-2 py-2 font-medium text-gray-600">HW</th>
+                      <th className="text-left px-2 py-2 font-medium text-gray-600">Notes</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-gray-100">
+                    {students.map(student => {
+                      const enrollDate = student.assigned_at ? student.assigned_at.split('T')[0] : null;
+                      const isBeforeEnrollment = enrollDate && lesson.session_date < enrollDate;
+                      const rec = data.recordMap[`${lesson.id}_${student.id}`];
+
+                      if (isBeforeEnrollment) {
+                        return (
+                          <tr key={student.id} className="text-gray-300">
+                            <td className="px-4 py-2.5 flex items-center gap-2">
+                              <div className="w-7 h-7 rounded-full bg-gray-100 flex-shrink-0" />
+                              <span className="truncate">{student.full_name}</span>
+                            </td>
+                            <td colSpan={4} className="px-2 py-2.5 text-center text-xs italic">Not enrolled</td>
+                          </tr>
+                        );
+                      }
+
+                      const isAbsent = rec?.attendance_status === 'absent';
+
+                      return (
+                        <tr key={student.id} className={isAbsent ? '' : 'hover:bg-gray-50'}>
+                          <td className="px-4 py-2.5">
+                            <div className="flex items-center gap-2">
+                              <div className="w-7 h-7 rounded-full bg-blue-100 flex-shrink-0 overflow-hidden">
+                                {student.avatar_url ? (
+                                  <img src={student.avatar_url} alt="" className="w-7 h-7 rounded-full object-cover" />
+                                ) : (
+                                  <div className="w-7 h-7 flex items-center justify-center text-blue-600 font-semibold text-xs">
+                                    {student.full_name?.charAt(0).toUpperCase() || 'S'}
+                                  </div>
+                                )}
+                              </div>
+                              <span className={`truncate max-w-[140px] ${isAbsent ? 'text-gray-400 italic font-normal' : 'font-medium text-gray-900'}`}>{student.full_name}</span>
+                              {!isAbsent && rec?.star_flag === 'star' && <Star className="w-3.5 h-3.5 fill-yellow-400 text-yellow-400 flex-shrink-0" />}
+                              {!isAbsent && rec?.star_flag === 'flag' && <Flag className="w-3.5 h-3.5 fill-red-500 text-red-500 flex-shrink-0" />}
+                            </div>
+                          </td>
+                          {isAbsent ? (
+                            <>
+                              <td className="px-2 py-2.5 text-center text-xs text-gray-300">0</td>
+                              <td className="px-2 py-2.5 text-center text-xs text-gray-300 italic">Vắng</td>
+                              <td className="px-2 py-2.5"></td>
+                              <td className="px-2 py-2.5"></td>
+                            </>
+                          ) : (
+                            <>
+                              <td className="px-2 py-2.5 text-center">
+                                {(() => {
+                                  const xp = calcXP(rec);
+                                  if (xp == null) return <span className="text-gray-300">—</span>;
+                                  const color = xp >= 105 ? 'text-green-600' : xp >= 60 ? 'text-yellow-600' : 'text-red-500';
+                                  return <span className={`text-sm font-semibold ${color}`}>+{xp}</span>;
+                                })()}
+                              </td>
+                              <td className="px-2 py-2.5 text-center">
+                                <div className="flex flex-col items-center gap-0.5">
+                                  {rec?.performance_rating === 'wow' && <CheckCircle2 className="w-5 h-5 text-green-500 fill-green-500 stroke-white" />}
+                                  {rec?.performance_rating === 'good' && <Clock className="w-5 h-5 text-yellow-500 fill-yellow-500 stroke-white" />}
+                                  {rec?.performance_rating === 'ok' && <XCircle className="w-5 h-5 text-red-500 fill-red-500 stroke-white" />}
+                                  {!rec?.performance_rating && <span className="text-gray-300">—</span>}
+                                  {rec?.score != null && (
+                                    <span className="text-[10px] text-gray-500">{rec.score}/{rec.max_score ?? '?'}</span>
+                                  )}
+                                </div>
+                              </td>
+                              <td className="px-2 py-2.5 text-center">
+                                <div className="flex flex-col items-center gap-0.5">
+                                  {rec?.homework_status === 'wow' && <CheckCircle2 className="w-5 h-5 text-green-500 fill-green-500 stroke-white" />}
+                                  {rec?.homework_status === 'good' && <Clock className="w-5 h-5 text-yellow-500 fill-yellow-500 stroke-white" />}
+                                  {rec?.homework_status === 'ok' && <XCircle className="w-5 h-5 text-red-500 fill-red-500 stroke-white" />}
+                                  {!rec?.homework_status && <span className="text-gray-300">—</span>}
+                                  {rec?.homework_score != null && (
+                                    <span className="text-[10px] text-gray-500">BT {rec.homework_score}/{rec.homework_max_score ?? '?'}</span>
+                                  )}
+                                  {rec?.vocab_score != null && (
+                                    <span className="text-[10px] text-gray-500">TV {rec.vocab_score}/{rec.vocab_max_score ?? '?'}</span>
+                                  )}
+                                </div>
+                              </td>
+                              <td className="px-2 py-2.5 text-xs text-gray-600">
+                                <div className="space-y-0.5">
+                                  {rec?.notes && <p>{rec.notes}</p>}
+                                  {rec?.homework_notes && <p className="text-gray-400">HW: {rec.homework_notes}</p>}
+                                  {!rec?.notes && !rec?.homework_notes && <span className="text-gray-300">—</span>}
+                                </div>
+                              </td>
+                            </>
+                          )}
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
+              </div>
+
+              {/* Footer with lesson feedback */}
+              {lesson.feedback && (
+                <div className="px-5 py-3 border-t bg-gray-50">
+                  <p className="text-xs text-gray-500 font-medium mb-1">Lesson Feedback</p>
+                  <p className="text-sm text-gray-700 whitespace-pre-line">{lesson.feedback}</p>
+                </div>
+              )}
+            </div>
+          </div>
+        );
+      })()}
 
       {/* Popover */}
       {popover && popoverData && (
