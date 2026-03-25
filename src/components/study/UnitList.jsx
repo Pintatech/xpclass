@@ -95,7 +95,7 @@ const UnitList = () => {
   const { sessionStats: classStats } = useClassStats(currentId);
   const [courseExerciseIdSet, setCourseExerciseIdSet] = useState(new Set());
   const [studentNameMap, setStudentNameMap] = useState({});
-  const [personalFilter, setPersonalFilter] = useState('all');
+  const [personalFilter, setPersonalFilter] = useState('shared');
 
   // Compute course-level stats: how many exercises each student has done (excluding test sessions)
   const courseStudentStats = (() => {
@@ -793,7 +793,7 @@ const UnitList = () => {
                 <Button
                   variant="outline"
                   size="sm"
-                  onClick={() => navigate(`/teacher/class-reports?course=${currentId}`)}
+                  onClick={() => navigate(`/teacher/class-reports?course=${currentId}&from=course`)}
                   className="flex items-center space-x-2 bg-green-50 border-green-200 text-green-700 hover:bg-green-100"
                 >
                   <ClipboardList className="w-4 h-4" />

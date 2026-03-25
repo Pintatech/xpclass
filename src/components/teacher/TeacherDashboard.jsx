@@ -126,11 +126,14 @@ const TeacherDashboard = () => {
           student:users!student_id(
             id,
             full_name,
+            real_name,
             email,
             xp,
             current_level,
             streak_count,
-            last_activity_date
+            last_activity_date,
+            avatar_url,
+            real_avatar_url
           )
         `)
         .eq('course_id', selectedCourse)
@@ -532,7 +535,8 @@ const TeacherDashboard = () => {
           ) : (
             <div className="divide-y divide-gray-200">
               {students.map((enrollment) => {
-                const student = enrollment.student;
+                const _s = enrollment.student;
+                const student = { ..._s, full_name: _s.real_name || _s.full_name, avatar_url: _s.real_avatar_url || _s.avatar_url };
                 const stats = getStudentStats(student.id);
                 const detailedProgress = getStudentDetailedProgress(student.id);
                 const isExpanded = expandedStudent === student.id;
@@ -545,11 +549,15 @@ const TeacherDashboard = () => {
                     >
                       <div className="flex items-center space-x-4">
                         <div className="flex-shrink-0">
-                          <div className="w-12 h-12 bg-blue-100 rounded-full flex items-center justify-center">
-                            <span className="text-blue-600 font-semibold">
-                              {student.full_name.charAt(0).toUpperCase()}
-                            </span>
-                          </div>
+                          {student.avatar_url ? (
+                            <img src={student.avatar_url} alt="" className="w-12 h-12 rounded-full object-cover" />
+                          ) : (
+                            <div className="w-12 h-12 bg-blue-100 rounded-full flex items-center justify-center">
+                              <span className="text-blue-600 font-semibold">
+                                {student.full_name.charAt(0).toUpperCase()}
+                              </span>
+                            </div>
+                          )}
                         </div>
                         <div>
                           <h3 className="text-lg font-medium text-gray-900">{student.full_name}</h3>

@@ -52,13 +52,13 @@ const useClassStats = (courseId) => {
       // 1. Enrolled students with names — single query
       const { data: enrollments } = await supabase
         .from('course_enrollments')
-        .select('student_id, student:users!student_id(id, full_name)')
+        .select('student_id, student:users!student_id(id, full_name, real_name)')
         .eq('course_id', courseId)
         .eq('is_active', true);
 
       const studentMap = {};
       (enrollments || []).forEach(e => {
-        studentMap[e.student_id] = e.student?.full_name || 'Unknown';
+        studentMap[e.student_id] = e.student?.real_name || e.student?.full_name || 'Unknown';
       });
       const studentIds = Object.keys(studentMap);
       const totalStudents = studentIds.length;

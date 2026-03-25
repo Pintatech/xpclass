@@ -62,6 +62,7 @@ const TeacherClassReports = () => {
   const [searchParams] = useSearchParams();
   const [activeTab, setActiveTab] = useState(searchParams.get('tab') || 'info');
   const initialCourse = searchParams.get('course');
+  const fromCourse = searchParams.get('from') === 'course';
   const [students, setStudents] = useState([]);
   const [records, setRecords] = useState({});
   const [lessonInfo, setLessonInfo] = useState({});
@@ -396,11 +397,11 @@ const TeacherClassReports = () => {
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-3">
                 <button
-                  onClick={() => navigate('/teacher/overview')}
+                  onClick={() => fromCourse && initialCourse ? navigate(`/study/course/${initialCourse}`) : navigate('/teacher/overview')}
                   className="flex items-center gap-1 text-blue-600 hover:text-blue-700 text-sm font-medium"
                 >
                   <ArrowLeft className="w-4 h-4" />
-                  <span className="hidden sm:inline">Back to Overview</span>
+                  <span className="hidden sm:inline">{fromCourse ? 'Back to Course' : 'Back to Overview'}</span>
                 </button>
                 <div>
                   <h1 className="text-lg md:text-xl font-bold text-gray-900">Lesson Report</h1>

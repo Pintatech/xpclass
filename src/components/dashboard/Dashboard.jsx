@@ -64,12 +64,12 @@ const CourseStatsSection = ({ courseId }) => {
       // 4. Enrolled students
       const { data: enrollments } = await supabase
         .from('course_enrollments')
-        .select('student_id, student:users!student_id(id, full_name)')
+        .select('student_id, student:users!student_id(id, full_name, real_name)')
         .eq('course_id', courseId)
         .eq('is_active', true);
       const studentMap = {};
       (enrollments || []).forEach(e => {
-        studentMap[e.student_id] = { id: e.student_id, name: e.student?.full_name || 'Unknown', completed: 0 };
+        studentMap[e.student_id] = { id: e.student_id, name: e.student?.real_name || e.student?.full_name || 'Unknown', completed: 0 };
       });
 
       // 5. Progress for these exercises

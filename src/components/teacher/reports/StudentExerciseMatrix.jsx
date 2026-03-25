@@ -116,7 +116,9 @@ const StudentExerciseMatrix = ({ selectedCourse, initialSessionId }) => {
             id,
             full_name,
             real_name,
-            email
+            email,
+            avatar_url,
+            real_avatar_url
           )
         `)
         .eq('course_id', selectedCourse)
@@ -127,7 +129,7 @@ const StudentExerciseMatrix = ({ selectedCourse, initialSessionId }) => {
       const studentList = (enrollments || []).map(enrollment => {
         if (!enrollment.student) return null;
         const s = enrollment.student;
-        return { ...s, full_name: s.real_name || s.full_name, assigned_at: enrollment.assigned_at };
+        return { ...s, full_name: s.real_name || s.full_name, avatar_url: s.real_avatar_url || s.avatar_url, assigned_at: enrollment.assigned_at };
       }).filter(Boolean);
       setStudents(studentList);
 
@@ -668,11 +670,15 @@ const StudentExerciseMatrix = ({ selectedCourse, initialSessionId }) => {
               <tr key={student.id} className="hover:bg-gray-50">
                 <td className="sticky left-0 bg-white px-4 py-3 border-r">
                   <div className="flex items-center">
-                    <div className="w-8 h-8 bg-blue-100 rounded-full flex items-center justify-center mr-3">
-                      <span className="text-blue-600 font-semibold text-sm">
-                        {student.full_name?.charAt(0).toUpperCase() || '?'}
-                      </span>
-                    </div>
+                    {student.avatar_url ? (
+                      <img src={student.avatar_url} alt="" className="w-8 h-8 rounded-full object-cover mr-3" />
+                    ) : (
+                      <div className="w-8 h-8 bg-blue-100 rounded-full flex items-center justify-center mr-3">
+                        <span className="text-blue-600 font-semibold text-sm">
+                          {student.full_name?.charAt(0).toUpperCase() || '?'}
+                        </span>
+                      </div>
+                    )}
                     <div>
                       <div className="text-sm font-medium text-gray-900">
                         {student.full_name || 'No name'}
