@@ -15,6 +15,9 @@ import { useNotifications } from '../../hooks/useNotifications'
 import NotificationPanel from '../notifications/NotificationPanel'
 
 import { assetUrl, useBranding } from '../../hooks/useBranding';
+
+const CLIP_CARD = 'polygon(8px 0, 100% 0, 100% calc(100% - 8px), calc(100% - 8px) 100%, 0 100%, 0 8px)'
+
 const LeftSidebar = ({ onOpenReport }) => {
   const { profile, signOut, isAdmin, isTeacher } = useAuth()
   const { branding } = useBranding()
@@ -59,7 +62,7 @@ const LeftSidebar = ({ onOpenReport }) => {
           <div className="flex items-center p-4">
             <Link to="/" className="flex items-center space-x-2">
               <img src={branding.logoUrl} alt="Logo" className="h-10 w-auto" />
-              <span className="text-lg font-bold text-gray-900">{branding.appName}</span>
+              <span className="text-lg font-semibold text-gray-900 tracking-wide">{branding.appName}</span>
             </Link>
           </div>
 
@@ -71,11 +74,12 @@ const LeftSidebar = ({ onOpenReport }) => {
                 <Link
                   key={path}
                   to={path}
-                  className={`flex items-center space-x-3 px-4 py-3 rounded-lg transition-all ${
+                  className={`flex items-center space-x-3 px-4 py-2.5 transition-all ${
                     isActive
-                      ? 'bg-primary-100 text-primary-700 font-medium shadow-sm'
-                      : 'text-gray-600 hover:text-primary-600 hover:bg-gray-100'
+                      ? 'bg-blue-50 text-blue-700 font-medium border border-blue-200'
+                      : 'text-gray-600 hover:text-blue-600 hover:bg-gray-50 border border-transparent'
                   }`}
+                  style={{ clipPath: CLIP_CARD }}
                 >
                   <div className="relative">
                     {imageSrc ? (
@@ -94,12 +98,14 @@ const LeftSidebar = ({ onOpenReport }) => {
                       <ShoppingBag size={22} className={isActive ? '' : 'opacity-70'} />
                     ) : null}
                     {badge > 0 && (
-                      <span className="absolute -top-1.5 -right-2 bg-red-500 text-white text-[10px] font-bold w-4 h-4 rounded-full flex items-center justify-center">
+                      <span className="absolute -top-1.5 -right-2 bg-red-500 text-white text-[10px] font-bold w-4 h-4 flex items-center justify-center"
+                        style={{ clipPath: 'polygon(50% 0%, 100% 25%, 100% 75%, 50% 100%, 0% 75%, 0% 25%)' }}
+                      >
                         {badge}
                       </span>
                     )}
                   </div>
-                  <span className="font-medium">{label}</span>
+                  <span className="font-medium text-sm">{label}</span>
                 </Link>
               )
             })}
@@ -108,14 +114,15 @@ const LeftSidebar = ({ onOpenReport }) => {
             {isAdmin() && (
               <Link
                 to="/admin"
-                className={`flex items-center space-x-3 px-4 py-3 rounded-lg transition-all ${
+                className={`flex items-center space-x-3 px-4 py-2.5 transition-all ${
                   location.pathname.startsWith('/admin')
-                    ? 'bg-purple-100 text-purple-700 font-medium shadow-sm'
-                    : 'text-purple-600 hover:bg-purple-50'
+                    ? 'bg-purple-50 text-purple-700 font-medium border border-purple-200'
+                    : 'text-purple-600 hover:bg-purple-50 border border-transparent'
                 }`}
+                style={{ clipPath: CLIP_CARD }}
               >
                 <Shield size={22} />
-                <span className="font-medium">Admin</span>
+                <span className="font-medium text-sm">Admin</span>
               </Link>
             )}
 
@@ -123,22 +130,25 @@ const LeftSidebar = ({ onOpenReport }) => {
             {(isTeacher() || isAdmin()) && (
               <Link
                 to="/teacher"
-                className={`flex items-center space-x-3 px-4 py-3 rounded-lg transition-all ${
+                className={`flex items-center space-x-3 px-4 py-2.5 transition-all ${
                   location.pathname.startsWith('/teacher')
-                    ? 'bg-blue-100 text-blue-700 font-medium shadow-sm'
-                    : 'text-blue-600 hover:bg-blue-50'
+                    ? 'bg-blue-50 text-blue-700 font-medium border border-blue-200'
+                    : 'text-blue-600 hover:bg-blue-50 border border-transparent'
                 }`}
+                style={{ clipPath: CLIP_CARD }}
               >
                 <GraduationCap size={22} />
-                <span className="font-medium">Teacher</span>
+                <span className="font-medium text-sm">Teacher</span>
               </Link>
             )}
           </nav>
 
           {/* User Badge & XP */}
           {profile && currentBadge && (
-            <div className="p-4 border-b border-gray-200">
-              <div className="flex items-center space-x-3 p-3 rounded-lg bg-gradient-to-r from-primary-50 to-purple-50">
+            <div className="px-4 py-3 border-b border-gray-200">
+              <div className="flex items-center space-x-3 p-3 bg-gradient-to-r from-blue-50 to-purple-50 border border-blue-100"
+                style={{ clipPath: CLIP_CARD }}
+              >
                 <div className="flex items-center justify-center">
                   {currentBadge.icon.startsWith('http') ? (
                     <img
@@ -177,23 +187,26 @@ const LeftSidebar = ({ onOpenReport }) => {
             <div className="relative" ref={notifRef}>
               <button
                 onClick={() => setShowNotifPanel(!showNotifPanel)}
-                className={`w-full flex items-center space-x-3 px-4 py-3 rounded-lg transition-all ${
+                className={`w-full flex items-center space-x-3 px-4 py-2.5 transition-all ${
                   showNotifPanel
-                    ? 'bg-primary-100 text-primary-700 font-medium shadow-sm'
-                    : 'text-gray-600 hover:text-primary-600 hover:bg-gray-100'
+                    ? 'bg-blue-50 text-blue-700 font-medium border border-blue-200'
+                    : 'text-gray-600 hover:text-blue-600 hover:bg-gray-50 border border-transparent'
                 }`}
+                style={{ clipPath: CLIP_CARD }}
               >
                 <div className="relative">
                   <img src={assetUrl('/icon/navigation/notification.svg')} alt="" width={22} height={22}
                     className={showNotifPanel ? '' : 'grayscale opacity-70'}
                   />
                   {unreadCount > 0 && (
-                    <span className="absolute -top-1.5 -right-2 bg-red-500 text-white text-[10px] font-bold w-4 h-4 rounded-full flex items-center justify-center">
+                    <span className="absolute -top-1.5 -right-2 bg-red-500 text-white text-[10px] font-bold w-4 h-4 flex items-center justify-center"
+                      style={{ clipPath: 'polygon(50% 0%, 100% 25%, 100% 75%, 50% 100%, 0% 75%, 0% 25%)' }}
+                    >
                       {unreadCount > 99 ? '99+' : unreadCount}
                     </span>
                   )}
                 </div>
-                <span className="font-medium">Thông báo</span>
+                <span className="font-medium text-sm">Thông báo</span>
               </button>
 
               {showNotifPanel && (
@@ -211,30 +224,33 @@ const LeftSidebar = ({ onOpenReport }) => {
 
             <button
               onClick={onOpenReport}
-              className="w-full flex items-center space-x-3 px-4 py-3 rounded-lg transition-all text-orange-600 hover:bg-orange-50"
+              className="w-full flex items-center space-x-3 px-4 py-2.5 transition-all text-orange-600 hover:bg-orange-50 border border-transparent"
+              style={{ clipPath: CLIP_CARD }}
             >
               <MessageSquarePlus size={22} />
-              <span className="font-medium">Báo cáo</span>
+              <span className="font-medium text-sm">Báo cáo</span>
             </button>
             <Link
               to="/profile"
-              className={`flex items-center space-x-3 px-4 py-3 rounded-lg transition-all ${
+              className={`flex items-center space-x-3 px-4 py-2.5 transition-all ${
                 location.pathname.startsWith('/profile')
-                  ? 'bg-gray-100 text-gray-900 font-medium'
-                  : 'text-gray-600 hover:text-gray-900 hover:bg-gray-100'
+                  ? 'bg-gray-100 text-gray-900 font-medium border border-gray-200'
+                  : 'text-gray-600 hover:text-gray-900 hover:bg-gray-50 border border-transparent'
               }`}
+              style={{ clipPath: CLIP_CARD }}
             >
               <img src={assetUrl('/icon/navigation/account.svg')} alt="" width={22} height={22}
                 className={location.pathname.startsWith('/profile') ? '' : 'grayscale opacity-70'}
               />
-              <span className="font-medium">Hồ sơ</span>
+              <span className="font-medium text-sm">Hồ sơ</span>
             </Link>
             <button
               onClick={handleSignOut}
-              className="w-full flex items-center space-x-3 px-4 py-3 rounded-lg text-red-600 hover:bg-red-50 transition-all"
+              className="w-full flex items-center space-x-3 px-4 py-2.5 text-red-600 hover:bg-red-50 transition-all border border-transparent"
+              style={{ clipPath: CLIP_CARD }}
             >
               <LogOut size={22} />
-              <span className="font-medium">Đăng xuất</span>
+              <span className="font-medium text-sm">Đăng xuất</span>
             </button>
           </div>
         </div>

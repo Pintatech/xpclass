@@ -6,6 +6,9 @@ import AvatarWithFrame from '../ui/AvatarWithFrame'
 
 import { assetUrl } from '../../hooks/useBranding';
 
+const CLIP_CARD = 'polygon(10px 0, 100% 0, 100% calc(100% - 10px), calc(100% - 10px) 100%, 0 100%, 0 10px)'
+const CLIP_SM = 'polygon(6px 0, 100% 0, 100% calc(100% - 6px), calc(100% - 6px) 100%, 0 100%, 0 6px)'
+
 const MISSION_IMAGE_MAP = {
   'target': '/icon/dashboard/wow.svg',
   'star': '/image/3_star.png',
@@ -36,6 +39,16 @@ const GAME_TYPE_LABELS = {
   catch: 'Hungry Pet',
   fishing: 'Fishing Frenzy',
 }
+
+/* Corner bracket decoration */
+const CornerBrackets = () => (
+  <>
+    <div className="absolute top-0 left-[10px] w-5 h-[1px] bg-gradient-to-r from-blue-300/40 to-transparent" />
+    <div className="absolute top-0 left-[10px] w-[1px] h-5 bg-gradient-to-b from-blue-300/40 to-transparent" />
+    <div className="absolute bottom-0 right-[10px] w-5 h-[1px] bg-gradient-to-l from-blue-300/40 to-transparent" />
+    <div className="absolute bottom-0 right-[10px] w-[1px] h-5 bg-gradient-to-t from-blue-300/40 to-transparent" />
+  </>
+)
 
 const RecentActivities = () => {
   const navigate = useNavigate()
@@ -205,17 +218,23 @@ const RecentActivities = () => {
 
   if (loading) {
     return (
-      <div className="bg-white rounded-lg border p-6 h-full">
-        <h3 className="text-lg font-semibold text-gray-900 mb-4">Hoạt động gần đây</h3>
+      <div className="relative bg-white border border-gray-200 p-6 h-full overflow-hidden shadow-sm"
+        style={{ clipPath: CLIP_CARD }}
+      >
+        <CornerBrackets />
+        <h3 className="text-lg font-semibold text-gray-900 mb-4 uppercase tracking-wide">Hoạt động gần đây</h3>
+        <div className="h-[2px] w-16 bg-gradient-to-r from-blue-400 to-transparent mb-4" />
         <div className="space-y-3">
           {[...Array(3)].map((_, i) => (
-            <div key={i} className="flex items-center space-x-3 animate-pulse">
+            <div key={i} className="flex items-center space-x-3 animate-pulse p-3"
+              style={{ clipPath: CLIP_SM }}
+            >
               <div className="w-8 h-8 bg-gray-200 rounded-full"></div>
               <div className="flex-1">
-                <div className="h-4 bg-gray-200 rounded w-3/4 mb-1"></div>
-                <div className="h-3 bg-gray-200 rounded w-1/2"></div>
+                <div className="h-4 bg-gray-200 w-3/4 mb-1" style={{ clipPath: CLIP_SM }}></div>
+                <div className="h-3 bg-gray-200 w-1/2" style={{ clipPath: CLIP_SM }}></div>
               </div>
-              <div className="w-12 h-6 bg-gray-200 rounded"></div>
+              <div className="w-12 h-6 bg-gray-200" style={{ clipPath: CLIP_SM }}></div>
             </div>
           ))}
         </div>
@@ -225,10 +244,14 @@ const RecentActivities = () => {
 
   if (activities.length === 0) {
     return (
-      <div className="bg-white rounded-lg border p-6 h-full">
-        <h3 className="text-lg font-semibold text-gray-900 mb-4">Hoạt động gần đây</h3>
+      <div className="relative bg-white border border-gray-200 p-6 h-full overflow-hidden shadow-sm"
+        style={{ clipPath: CLIP_CARD }}
+      >
+        <CornerBrackets />
+        <h3 className="text-lg font-semibold text-gray-900 mb-4 uppercase tracking-wide">Hoạt động gần đây</h3>
+        <div className="h-[2px] w-16 bg-gradient-to-r from-blue-400 to-transparent mb-4" />
         <div className="text-center py-8 text-gray-500">
-          <Trophy className="w-12 h-12 mx-auto mb-2 text-gray-400" />
+          <Trophy className="w-12 h-12 mx-auto mb-2 text-gray-300" />
           <p>Chưa có hoạt động nào gần đây</p>
         </div>
       </div>
@@ -236,26 +259,34 @@ const RecentActivities = () => {
   }
 
   return (
-    <div className="bg-white rounded-lg border p-6 h-full">
-      <div className="flex items-center justify-between mb-4">
-        <h3 className="text-lg font-semibold text-gray-900">Hoạt động gần đây</h3>
-        <div className="flex items-center text-sm text-gray-500">
-          <Clock className="w-4 h-4 mr-1" />
-          Cập nhật liên tục
+    <div className="relative bg-white border border-gray-200 p-6 h-full overflow-hidden shadow-sm"
+      style={{ clipPath: CLIP_CARD }}
+    >
+      <CornerBrackets />
+
+      <div className="flex items-center justify-between mb-1">
+        <h3 className="text-lg font-semibold text-gray-900 uppercase tracking-wide">Hoạt động gần đây</h3>
+        <div className="flex items-center text-xs text-gray-400 font-medium tracking-wider">
+          <Clock className="w-3.5 h-3.5 mr-1" />
+          LIVE
         </div>
       </div>
+      <div className="h-[2px] w-full bg-gradient-to-r from-blue-400 via-blue-200 to-transparent mb-4" />
 
-      <div className="space-y-3 max-h-96 overflow-y-auto">
+      <div className="space-y-2 max-h-96 overflow-y-auto" style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }}>
+        <style>{`.activity-scroll::-webkit-scrollbar { display: none; }`}</style>
         {activities.map((activity) => (
-          <div key={`${activity.type}-${activity.id}`} className={`flex items-center space-x-3 p-3 rounded-lg transition-colors ${
+          <div key={`${activity.type}-${activity.id}`} className={`relative flex items-center space-x-3 p-3 transition-all overflow-hidden ${
             activity.type === 'competition'
-              ? 'border border-amber-300 bg-amber-100'
+              ? 'border border-amber-300 bg-amber-50'
               : activity.type === 'achievement' && activity.achievements?.gem_reward > 0
-              ? 'border border-purple-200 bg-purple-100'
+              ? 'border border-purple-200 bg-purple-50'
               : activity.type === 'mission' && activity.missions?.reward_gems > 0
-              ? 'border border-blue-200 bg-blue-100'
-              : activity.type === 'mission' ? 'hover:bg-blue-50' : 'hover:bg-yellow-50'
-          }`}>
+              ? 'border border-blue-200 bg-blue-50'
+              : 'border border-gray-100 hover:bg-gray-50'
+          }`}
+            style={{ clipPath: CLIP_SM }}
+          >
             {/* User Avatar with Frame */}
             <AvatarWithFrame
               avatarUrl={activity.users.avatar_url}
@@ -278,7 +309,7 @@ const RecentActivities = () => {
                   <img src={assetUrl('/icon/profile/achievement.svg')} alt="achievement" className="w-4 h-4 flex-shrink-0" />
                 )}
                 <span
-                  className="text-sm font-medium text-gray-900 truncate cursor-pointer hover:text-yellow-600 transition-colors"
+                  className="text-sm font-medium text-gray-900 truncate cursor-pointer hover:text-blue-600 transition-colors"
                   onClick={() => handleUserClick(activity.users.id)}
                 >
                   {activity.users.full_name || 'Người dùng'}

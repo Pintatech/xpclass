@@ -5,43 +5,50 @@ import { useAuth } from '../../hooks/useAuth'
 import { useProgress } from '../../hooks/useProgress'
 import { usePet } from '../../hooks/usePet'
 import { useInventory } from '../../hooks/useInventory'
-import { ShoppingBag, Check, Lock, ChevronLeft, ChevronRight, Eye, EyeOff } from 'lucide-react'
+import { ShoppingBag, Check, Lock, ChevronLeft, ChevronRight, Eye, EyeOff, Sparkles } from 'lucide-react'
 
 import { assetUrl } from '../../hooks/useBranding';
 const rarityOrder = ['common', 'uncommon', 'rare', 'epic', 'legendary']
 
+/* ── clip-path constants ── */
+const CLIP_CARD = 'polygon(12px 0, 100% 0, 100% calc(100% - 12px), calc(100% - 12px) 100%, 0 100%, 0 12px)'
+const CLIP_BTN  = 'polygon(8px 0, 100% 0, 100% calc(100% - 8px), calc(100% - 8px) 100%, 0 100%, 0 8px)'
+const CLIP_TAB  = 'polygon(8px 0, 100% 0, 100% calc(100% - 8px), calc(100% - 8px) 100%, 0 100%, 0 8px)'
 
+/* ── rarity color maps ── */
 const rarityCardColors = {
-  common: 'border-gray-300 bg-gray-50',
-  uncommon: 'border-green-300 bg-green-50',
-  rare: 'border-blue-300 bg-blue-50',
-  epic: 'border-purple-300 bg-purple-50',
-  legendary: 'border-yellow-300 bg-yellow-50',
-}
-
-const rarityBadgeColors = {
-  common: 'text-gray-700 bg-gray-200',
-  uncommon: 'text-green-700 bg-green-200',
-  rare: 'text-blue-700 bg-blue-200',
-  epic: 'text-purple-700 bg-purple-200',
-  legendary: 'text-yellow-700 bg-yellow-200',
+  common:    { border: 'border-gray-200', bg: 'bg-white', badge: 'bg-gray-100 text-gray-600', glow: 'rgba(156,163,175,0.1)' },
+  uncommon:  { border: 'border-green-200', bg: 'bg-white', badge: 'bg-green-50 text-green-600', glow: 'rgba(74,222,128,0.15)' },
+  rare:      { border: 'border-blue-200', bg: 'bg-white', badge: 'bg-blue-50 text-blue-600', glow: 'rgba(96,165,250,0.2)' },
+  epic:      { border: 'border-purple-200', bg: 'bg-white', badge: 'bg-purple-50 text-purple-600', glow: 'rgba(192,132,252,0.25)' },
+  legendary: { border: 'border-yellow-200', bg: 'bg-white', badge: 'bg-yellow-50 text-yellow-600', glow: 'rgba(250,204,21,0.3)' },
 }
 
 const rarityEggGradient = {
-  common: 'from-gray-200 to-gray-400',
-  uncommon: 'from-green-200 to-green-400',
-  rare: 'from-blue-200 to-blue-400',
-  epic: 'from-purple-200 to-purple-500',
-  legendary: 'from-yellow-200 to-amber-400',
+  common: 'from-gray-100 to-gray-200',
+  uncommon: 'from-green-50 to-green-100',
+  rare: 'from-blue-50 to-blue-100',
+  epic: 'from-purple-50 to-purple-100',
+  legendary: 'from-yellow-50 to-amber-100',
 }
 
 const rarityButtonGradient = {
-  common: 'from-gray-400 to-gray-500 hover:from-gray-500 hover:to-gray-600',
-  uncommon: 'from-green-400 to-green-500 hover:from-green-500 hover:to-green-600',
-  rare: 'from-blue-400 to-blue-500 hover:from-blue-500 hover:to-blue-600',
-  epic: 'from-purple-400 to-purple-500 hover:from-purple-500 hover:to-purple-600',
-  legendary: 'from-yellow-400 to-amber-500 hover:from-yellow-500 hover:to-amber-600',
+  common:    'from-gray-400 to-gray-500 hover:from-gray-500 hover:to-gray-600',
+  uncommon:  'from-green-500 to-green-600 hover:from-green-600 hover:to-green-700',
+  rare:      'from-blue-500 to-blue-600 hover:from-blue-600 hover:to-blue-700',
+  epic:      'from-purple-500 to-purple-600 hover:from-purple-600 hover:to-purple-700',
+  legendary: 'from-yellow-500 to-amber-500 hover:from-yellow-600 hover:to-amber-600',
 }
+
+/* ── Corner bracket decoration ── */
+const CornerBrackets = () => (
+  <>
+    <div className="absolute top-0 left-[10px] w-5 h-[1px] bg-gradient-to-r from-blue-300/40 to-transparent" />
+    <div className="absolute top-0 left-[10px] w-[1px] h-5 bg-gradient-to-b from-blue-300/40 to-transparent" />
+    <div className="absolute bottom-0 right-[10px] w-5 h-[1px] bg-gradient-to-l from-blue-300/40 to-transparent" />
+    <div className="absolute bottom-0 right-[10px] w-[1px] h-5 bg-gradient-to-t from-blue-300/40 to-transparent" />
+  </>
+)
 
 const Shop = () => {
   const [searchParams] = useSearchParams()
@@ -374,32 +381,31 @@ const Shop = () => {
 
   if (loading) {
     return (
-      <div className="max-w-4xl mx-auto p-6">
-        <div className="animate-pulse space-y-4">
-          <div className="h-8 bg-gray-200 rounded w-1/3" />
-          <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-4">
-            {Array.from({ length: 8 }).map((_, i) => (
-              <div key={i} className="h-48 bg-gray-200 rounded-xl" />
-            ))}
+      <div className="max-w-4xl mx-auto p-4">
+        <div className="flex items-center justify-center py-20">
+          <div className="relative w-16 h-16">
+            <div className="absolute inset-0 border-2 border-blue-300/30 rounded-full animate-ping" />
+            <div className="absolute inset-2 border-2 border-t-blue-400 border-r-transparent border-b-transparent border-l-transparent rounded-full animate-spin" />
           </div>
+          <span className="ml-4 text-gray-400 font-mono text-sm tracking-widest uppercase">Loading shop...</span>
         </div>
       </div>
     )
   }
 
   return (
-    <div className="max-w-4xl mx-auto p-6">
+    <div className="max-w-4xl mx-auto p-4">
       {/* Message Toast */}
       {message && (
         <div
-          className={`fixed top-4 right-4 z-50 px-4 py-3 rounded-xl shadow-xl flex items-center gap-2 font-semibold text-sm ${
+          className={`fixed top-4 right-4 z-50 px-4 py-3 shadow-xl flex items-center gap-2 font-semibold text-sm tracking-wide ${
             message.type === 'success'
               ? 'bg-green-500 text-white'
               : 'bg-red-500 text-white'
           }`}
-          style={{ animation: 'slideInFromTop 0.3s ease-out' }}
+          style={{ clipPath: CLIP_BTN, animation: 'slideInFromTop 0.3s ease-out' }}
         >
-          <span>{message.type === 'success' ? '✨' : '❌'}</span>
+          <Sparkles className="w-4 h-4" />
           {message.text}
           <style>{`@keyframes slideInFromTop { from { opacity: 0; transform: translateY(-20px); } to { opacity: 1; transform: translateY(0); } }`}</style>
         </div>
@@ -409,14 +415,23 @@ const Shop = () => {
       <div className="flex items-center justify-between mb-6">
         <div className="flex items-center gap-3">
           <img src={assetUrl('/icon/navigation/shop.svg')} alt="Shop" className="w-8 h-8" />
-          <h1 className="text-2xl font-bold text-gray-900">Shop</h1>
+          <div>
+            <h1 className="text-2xl font-bold text-gray-900 tracking-tight uppercase">Shop</h1>
+            <div className="h-[2px] w-full bg-gradient-to-r from-blue-400 to-transparent mt-0.5" />
+          </div>
         </div>
         <div className="flex items-center gap-2">
-          <div className="bg-yellow-400 text-white rounded-full px-4 py-2 flex items-center gap-2 font-bold shadow-md">
+          <div
+            className="bg-gradient-to-r from-yellow-400 to-amber-500 text-white px-4 py-2 flex items-center gap-2 font-semibold shadow-md"
+            style={{ clipPath: CLIP_BTN }}
+          >
             <img src={assetUrl('/image/study/xp.png')} alt="XP" className="w-5 h-5" />
             {(profile?.xp || 0).toLocaleString()}
           </div>
-          <div className="bg-blue-400 text-white rounded-full px-4 py-2 flex items-center gap-2 font-bold shadow-md">
+          <div
+            className="bg-gradient-to-r from-blue-400 to-blue-500 text-white px-4 py-2 flex items-center gap-2 font-semibold shadow-md"
+            style={{ clipPath: CLIP_BTN }}
+          >
             <img src={assetUrl('/image/study/gem.png')} alt="Gems" className="w-5 h-5" />
             {profile?.gems || 0}
           </div>
@@ -424,15 +439,16 @@ const Shop = () => {
       </div>
 
       {/* Category Tabs */}
-      <div className="flex gap-2 mb-6 overflow-x-auto pb-2 scrollbar-hide" style={{ WebkitOverflowScrolling: 'touch' }}>
+      <div className="flex gap-1.5 mb-6 overflow-x-auto pb-2 scrollbar-hide" style={{ WebkitOverflowScrolling: 'touch' }}>
         {categories.map(cat => (
           <button
             key={cat.key}
             onClick={() => setActiveTab(cat.key)}
-            className={`px-5 py-2 rounded-full font-medium transition-all flex-shrink-0 ${activeTab === cat.key
-                ? 'bg-blue-500 text-white shadow-md'
-                : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+            className={`px-5 py-2 font-semibold text-sm transition-all flex-shrink-0 tracking-wide uppercase ${activeTab === cat.key
+                ? 'bg-gradient-to-r from-blue-500 to-blue-600 text-white shadow-md border border-blue-300'
+                : 'bg-white text-gray-500 hover:text-gray-700 border border-gray-200 hover:border-gray-300'
               }`}
+            style={{ clipPath: CLIP_TAB }}
           >
             {cat.label}
           </button>
@@ -444,11 +460,12 @@ const Shop = () => {
         <div className="flex gap-1.5 mb-4 overflow-x-auto pb-1 scrollbar-hide" style={{ WebkitOverflowScrolling: 'touch' }}>
           <button
             onClick={() => setActiveCollection('all')}
-            className={`px-3 py-1 rounded-full text-xs font-medium transition-all flex-shrink-0 ${
+            className={`px-3 py-1 text-xs font-medium transition-all flex-shrink-0 tracking-wide ${
               activeCollection === 'all'
-                ? 'bg-blue-100 text-blue-700 shadow-sm'
-                : 'bg-gray-50 text-gray-500 hover:bg-gray-100'
+                ? 'bg-blue-50 text-blue-600 border border-blue-200'
+                : 'bg-white text-gray-400 border border-gray-100 hover:border-gray-200'
             }`}
+            style={{ clipPath: CLIP_TAB }}
           >
             All
           </button>
@@ -456,11 +473,12 @@ const Shop = () => {
             <button
               key={col}
               onClick={() => setActiveCollection(col)}
-              className={`px-3 py-1 rounded-full text-xs font-medium transition-all flex-shrink-0 ${
+              className={`px-3 py-1 text-xs font-medium transition-all flex-shrink-0 tracking-wide ${
                 activeCollection === col
-                  ? 'bg-blue-100 text-blue-700 shadow-sm'
-                  : 'bg-gray-50 text-gray-500 hover:bg-gray-100'
+                  ? 'bg-blue-50 text-blue-600 border border-blue-200'
+                  : 'bg-white text-gray-400 border border-gray-100 hover:border-gray-200'
               }`}
+              style={{ clipPath: CLIP_TAB }}
             >
               {col}
             </button>
@@ -471,30 +489,45 @@ const Shop = () => {
       {/* Ball Grid */}
       {activeTab === 'ball' ? (
         sortedBalls.length === 0 ? (
-          <div className="text-center py-16 text-gray-400">
-            <ShoppingBag className="w-16 h-16 mx-auto mb-4 opacity-30" />
-            <p className="text-lg">No balls available</p>
-            <p className="text-sm mt-1">Check back later!</p>
+          <div
+            className="relative bg-white border border-gray-200 p-12 text-center overflow-hidden shadow-sm"
+            style={{ clipPath: CLIP_CARD }}
+          >
+            <CornerBrackets />
+            <ShoppingBag className="w-16 h-16 text-gray-300 mx-auto mb-4" />
+            <h3 className="text-lg font-semibold text-gray-800 mb-2">No balls available</h3>
+            <p className="text-gray-400 text-sm">Check back later!</p>
           </div>
         ) : (
           <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-5 gap-4">
             {sortedBalls.map(ball => {
+              const rc = rarityCardColors[ball.rarity] || rarityCardColors.common
               const canAffordGems = (profile?.gems || 0) >= ball.price_gems
 
               return (
                 <div
                   key={ball.id}
-                  className={`border-2 rounded-xl p-4 transition-all hover:shadow-lg ${rarityCardColors[ball.rarity]}`}
+                  className={`relative border-2 ${rc.border} ${rc.bg} p-4 transition-all hover:shadow-lg overflow-hidden`}
+                  style={{
+                    clipPath: CLIP_CARD,
+                    boxShadow: `0 0 15px ${rc.glow}`,
+                  }}
                 >
+                  <CornerBrackets />
+
                   {/* Rarity Badge */}
                   <div className="flex justify-between items-start mb-3">
-                    <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold ${rarityBadgeColors[ball.rarity]}`}>
+                    <span className={`px-2 py-0.5 text-[10px] font-semibold tracking-wider ${rc.badge}`}
+                      style={{ clipPath: CLIP_TAB }}
+                    >
                       {ball.rarity.toUpperCase()}
                     </span>
                   </div>
 
                   {/* Ball Image */}
-                  <div className={`w-full aspect-square rounded-xl bg-gradient-to-br ${rarityEggGradient[ball.rarity]} flex items-center justify-center mb-3 shadow-inner`}>
+                  <div className={`w-full aspect-square bg-gradient-to-br ${rarityEggGradient[ball.rarity]} flex items-center justify-center mb-3`}
+                    style={{ clipPath: CLIP_CARD }}
+                  >
                     {ball.image_url ? (
                       <img src={ball.image_url} alt={ball.name} className="w-3/4 h-3/4 object-contain" />
                     ) : (
@@ -505,7 +538,7 @@ const Shop = () => {
                   </div>
 
                   {/* Ball Name */}
-                  <h3 className="text-sm font-bold text-gray-800 mb-2 text-center">{ball.name}</h3>
+                  <h3 className="text-sm font-semibold text-gray-800 mb-2 text-center">{ball.name}</h3>
 
                   {/* Buy Buttons */}
                   <div className="space-y-2">
@@ -513,11 +546,12 @@ const Shop = () => {
                       <button
                         onClick={() => { setConfirmItem(ball); setConfirmEggCurrency('gems') }}
                         disabled={buyingEggId === ball.id || !canAffordGems}
-                        className={`w-full py-1.5 rounded-lg text-xs font-bold flex items-center justify-center gap-1 transition-colors ${
+                        className={`w-full py-1.5 text-xs font-semibold flex items-center justify-center gap-1 transition-colors ${
                           canAffordGems
                             ? `bg-gradient-to-r ${rarityButtonGradient[ball.rarity]} text-white`
                             : 'bg-gray-200 text-gray-400 cursor-not-allowed'
                         } disabled:opacity-50`}
+                        style={{ clipPath: CLIP_BTN }}
                       >
                         <img src={assetUrl('/image/study/gem.png')} alt="Gem" className="w-3.5 h-3.5" />
                         {buyingEggId === ball.id ? '...' : ball.price_gems}
@@ -528,11 +562,12 @@ const Shop = () => {
                       <button
                         onClick={() => { setConfirmItem(ball); setConfirmEggCurrency('xp') }}
                         disabled={buyingEggId === ball.id || (profile?.xp || 0) < ball.price_xp}
-                        className={`w-full py-1.5 rounded-lg text-xs font-bold flex items-center justify-center gap-1 transition-colors ${
+                        className={`w-full py-1.5 text-xs font-semibold flex items-center justify-center gap-1 transition-colors ${
                           (profile?.xp || 0) >= ball.price_xp
                             ? `bg-gradient-to-r ${rarityButtonGradient[ball.rarity]} text-white`
                             : 'bg-gray-200 text-gray-400 cursor-not-allowed'
                         } disabled:opacity-50`}
+                        style={{ clipPath: CLIP_BTN }}
                       >
                         <img src={assetUrl('/image/study/xp.png')} alt="XP" className="w-3.5 h-3.5" />
                         {buyingEggId === ball.id ? '...' : ball.price_xp}
@@ -553,30 +588,45 @@ const Shop = () => {
         )
       ) : activeTab === 'egg' ? (
         sortedEggs.length === 0 ? (
-          <div className="text-center py-16 text-gray-400">
-            <ShoppingBag className="w-16 h-16 mx-auto mb-4 opacity-30" />
-            <p className="text-lg">Chưa có trứng nào</p>
-            <p className="text-sm mt-1">Hãy quay lại sau nhé!</p>
+          <div
+            className="relative bg-white border border-gray-200 p-12 text-center overflow-hidden shadow-sm"
+            style={{ clipPath: CLIP_CARD }}
+          >
+            <CornerBrackets />
+            <ShoppingBag className="w-16 h-16 text-gray-300 mx-auto mb-4" />
+            <h3 className="text-lg font-semibold text-gray-800 mb-2">Chưa có trứng nào</h3>
+            <p className="text-gray-400 text-sm">Hãy quay lại sau nhé!</p>
           </div>
         ) : (
           <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-5 gap-4">
             {sortedEggs.map(egg => {
+              const rc = rarityCardColors[egg.rarity] || rarityCardColors.common
               const canAffordGems = (profile?.gems || 0) >= egg.price_gems
 
               return (
                 <div
                   key={egg.id}
-                  className={`border-2 rounded-xl p-4 transition-all hover:shadow-lg ${rarityCardColors[egg.rarity]}`}
+                  className={`relative border-2 ${rc.border} ${rc.bg} p-4 transition-all hover:shadow-lg overflow-hidden`}
+                  style={{
+                    clipPath: CLIP_CARD,
+                    boxShadow: `0 0 15px ${rc.glow}`,
+                  }}
                 >
+                  <CornerBrackets />
+
                   {/* Rarity Badge */}
                   <div className="flex justify-between items-start mb-3">
-                    <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold ${rarityBadgeColors[egg.rarity]}`}>
+                    <span className={`px-2 py-0.5 text-[10px] font-semibold tracking-wider ${rc.badge}`}
+                      style={{ clipPath: CLIP_TAB }}
+                    >
                       {egg.rarity.toUpperCase()}
                     </span>
                   </div>
 
                   {/* Egg Image */}
-                  <div className={`w-full aspect-square rounded-xl bg-gradient-to-br ${rarityEggGradient[egg.rarity]} flex items-center justify-center mb-3 shadow-inner`}>
+                  <div className={`w-full aspect-square bg-gradient-to-br ${rarityEggGradient[egg.rarity]} flex items-center justify-center mb-3`}
+                    style={{ clipPath: CLIP_CARD }}
+                  >
                     {egg.image_url ? (
                       <img src={egg.image_url} alt={egg.name} className="w-3/4 h-3/4 object-contain" />
                     ) : (
@@ -585,7 +635,7 @@ const Shop = () => {
                   </div>
 
                   {/* Egg Name */}
-                  <h3 className="text-sm font-bold text-gray-800 mb-2 text-center">{egg.name}</h3>
+                  <h3 className="text-sm font-semibold text-gray-800 mb-2 text-center">{egg.name}</h3>
 
                   {/* Buy Buttons */}
                   <div className="space-y-2">
@@ -593,11 +643,12 @@ const Shop = () => {
                       <button
                         onClick={() => { setConfirmItem(egg); setConfirmEggCurrency('gems') }}
                         disabled={buyingEggId === egg.id || !canAffordGems}
-                        className={`w-full py-1.5 rounded-lg text-xs font-bold flex items-center justify-center gap-1 transition-colors ${
+                        className={`w-full py-1.5 text-xs font-semibold flex items-center justify-center gap-1 transition-colors ${
                           canAffordGems
                             ? `bg-gradient-to-r ${rarityButtonGradient[egg.rarity]} text-white`
                             : 'bg-gray-200 text-gray-400 cursor-not-allowed'
                         } disabled:opacity-50`}
+                        style={{ clipPath: CLIP_BTN }}
                       >
                         <img src={assetUrl('/image/study/gem.png')} alt="Gem" className="w-3.5 h-3.5" />
                         {buyingEggId === egg.id ? '...' : egg.price_gems}
@@ -608,11 +659,12 @@ const Shop = () => {
                       <button
                         onClick={() => { setConfirmItem(egg); setConfirmEggCurrency('xp') }}
                         disabled={buyingEggId === egg.id || (profile?.xp || 0) < egg.price_xp}
-                        className={`w-full py-1.5 rounded-lg text-xs font-bold flex items-center justify-center gap-1 transition-colors ${
+                        className={`w-full py-1.5 text-xs font-semibold flex items-center justify-center gap-1 transition-colors ${
                           (profile?.xp || 0) >= egg.price_xp
                             ? `bg-gradient-to-r ${rarityButtonGradient[egg.rarity]} text-white`
                             : 'bg-gray-200 text-gray-400 cursor-not-allowed'
                         } disabled:opacity-50`}
+                        style={{ clipPath: CLIP_BTN }}
                       >
                         <img src={assetUrl('/image/study/xp.png')} alt="XP" className="w-3.5 h-3.5" />
                         {buyingEggId === egg.id ? '...' : egg.price_xp}
@@ -634,10 +686,14 @@ const Shop = () => {
       ) : (
         /* Regular Items Grid */
         groupedDisplayItems.length === 0 ? (
-          <div className="text-center py-16 text-gray-400">
-            <ShoppingBag className="w-16 h-16 mx-auto mb-4 opacity-30" />
-            <p className="text-lg">Chưa có vật phẩm nào</p>
-            <p className="text-sm mt-1">Hãy quay lại sau nhé!</p>
+          <div
+            className="relative bg-white border border-gray-200 p-12 text-center overflow-hidden shadow-sm"
+            style={{ clipPath: CLIP_CARD }}
+          >
+            <CornerBrackets />
+            <ShoppingBag className="w-16 h-16 text-gray-300 mx-auto mb-4" />
+            <h3 className="text-lg font-semibold text-gray-800 mb-2">Chưa có vật phẩm nào</h3>
+            <p className="text-gray-400 text-sm">Hãy quay lại sau nhé!</p>
           </div>
         ) : (
           <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-4">
@@ -650,15 +706,18 @@ const Shop = () => {
               return (
                 <div
                   key={group.groupKey || item.id}
-                  className={`relative bg-white rounded-xl border-2 overflow-hidden transition-all duration-200 ${
+                  className={`relative bg-white border-2 overflow-hidden transition-all duration-200 ${
                     !owned && !canAfford
                       ? 'border-gray-200 grayscale opacity-60'
-                      : `hover:shadow-xl hover:scale-[1.03] ${
+                      : `hover:shadow-xl ${
                           owned
-                            ? 'border-green-300 hover:border-green-400 hover:shadow-green-100'
-                            : 'border-gray-200 hover:border-blue-400 hover:shadow-blue-100'}`
+                            ? 'border-green-200 hover:border-green-300'
+                            : 'border-gray-200 hover:border-blue-300'}`
                     }`}
+                  style={{ clipPath: CLIP_CARD }}
                 >
+                  <CornerBrackets />
+
                   {/* Equipped badge */}
                   {isEquipped(item) && (
                     <div className="absolute top-2 right-2 bg-blue-500 text-white rounded-full p-1 z-10">
@@ -675,7 +734,9 @@ const Shop = () => {
 
                   {/* XP bonus badge */}
                   {item.item_data?.xp_bonus > 0 && (
-                    <div className="absolute top-2 left-2 bg-yellow-400 text-yellow-900 rounded-full px-1.5 py-0.5 text-[10px] font-bold z-10 shadow">
+                    <div className="absolute top-2 left-2 bg-yellow-400 text-yellow-900 px-1.5 py-0.5 text-[10px] font-semibold z-10 shadow"
+                      style={{ clipPath: CLIP_TAB }}
+                    >
                       +{item.item_data.xp_bonus}% XP
                     </div>
                   )}
@@ -690,14 +751,14 @@ const Shop = () => {
                     {item.image_url ? (
                       item.category === 'background' ? (
                         <div
-                          className="w-full h-full rounded-lg bg-cover bg-center"
-                          style={{ backgroundImage: `url(${item.item_data?.background_url || item.image_url})` }}
+                          className="w-full h-full bg-cover bg-center"
+                          style={{ backgroundImage: `url(${item.item_data?.background_url || item.image_url})`, clipPath: CLIP_CARD }}
                         />
                       ) : (
                         <img
                           src={item.image_url}
                           alt={item.name}
-                          className="w-full h-full object-contain rounded-lg"
+                          className="w-full h-full object-contain"
                           style={item.category === 'hammer' ? { transform: 'rotate(90deg)' } : undefined}
                         />
                       )
@@ -713,7 +774,7 @@ const Shop = () => {
                     {hasVariants && (
                       <button
                         onClick={(e) => { e.stopPropagation(); setVariantIndex(prev => ({ ...prev, [group.groupKey]: (idx - 1 + group.variants.length) % group.variants.length })) }}
-                        className="bg-white/80 hover:bg-white rounded-full p-0.5 shadow"
+                        className="bg-white hover:bg-gray-50 rounded-full p-0.5 shadow border border-gray-200"
                       >
                         <ChevronLeft className="w-4 h-4 text-gray-600" />
                       </button>
@@ -737,7 +798,7 @@ const Shop = () => {
                     {hasVariants && (
                       <button
                         onClick={(e) => { e.stopPropagation(); setVariantIndex(prev => ({ ...prev, [group.groupKey]: (idx + 1) % group.variants.length })) }}
-                        className="bg-white/80 hover:bg-white rounded-full p-0.5 shadow"
+                        className="bg-white hover:bg-gray-50 rounded-full p-0.5 shadow border border-gray-200"
                       >
                         <ChevronRight className="w-4 h-4 text-gray-600" />
                       </button>
@@ -748,7 +809,7 @@ const Shop = () => {
                   <div className="p-3">
                     <h3 className="font-semibold text-sm text-gray-800 truncate">{item.name}</h3>
                     {item.description && (
-                      <p className="text-xs text-gray-500 mt-0.5 truncate">{item.description}</p>
+                      <p className="text-xs text-gray-400 mt-0.5 truncate">{item.description}</p>
                     )}
 
                     {/* Price / Action */}
@@ -759,18 +820,20 @@ const Shop = () => {
                             <div className="space-y-1">
                               <button
                                 disabled
-                                className="w-full py-1.5 bg-blue-100 text-blue-700 rounded-lg text-sm font-medium opacity-60 cursor-not-allowed"
+                                className="w-full py-1.5 bg-blue-50 text-blue-600 text-sm font-semibold opacity-60 cursor-not-allowed tracking-wide"
+                                style={{ clipPath: CLIP_BTN }}
                               >
                                 Đã trang bị
                               </button>
                               {item.category === 'frame' && (
                                 <button
                                   onClick={handleToggleHideFrame}
-                                  className={`w-full py-1.5 rounded-lg text-xs font-medium flex items-center justify-center gap-1 transition-colors ${
+                                  className={`w-full py-1.5 text-xs font-semibold flex items-center justify-center gap-1 transition-colors ${
                                     profile?.hide_frame
                                       ? 'bg-gray-100 text-gray-500 hover:bg-gray-200'
                                       : 'bg-yellow-50 text-yellow-700 hover:bg-yellow-100'
                                   }`}
+                                  style={{ clipPath: CLIP_BTN }}
                                 >
                                   {profile?.hide_frame ? (
                                     <><Eye className="w-3 h-3" /> Hiện khung</>
@@ -783,13 +846,17 @@ const Shop = () => {
                           ) : (
                             <button
                               onClick={() => handleEquip(item)}
-                              className="w-full py-1.5 bg-blue-100 text-blue-700 rounded-lg text-sm font-medium hover:bg-blue-200 transition-colors"
+                              className="w-full py-1.5 bg-blue-50 text-blue-600 text-sm font-semibold hover:bg-blue-100 transition-colors tracking-wide"
+                              style={{ clipPath: CLIP_BTN }}
                             >
                               Trang bị
                             </button>
                           )
                         ) : (
-                          <div className="w-full py-1.5 bg-gray-100 text-gray-500 rounded-lg text-sm font-medium text-center">
+                          <div
+                            className="w-full py-1.5 bg-gray-100 text-gray-400 text-sm font-medium text-center tracking-wide"
+                            style={{ clipPath: CLIP_BTN }}
+                          >
                             Đã mua
                           </div>
                         )
@@ -797,10 +864,11 @@ const Shop = () => {
                         <button
                           onClick={() => handlePurchase(item)}
                           disabled={!canAfford || purchasing === item.id}
-                          className={`w-full py-2 rounded-xl text-sm font-bold flex items-center justify-center gap-1.5 transition-all duration-100 shadow-md ${canAfford
-                              ? 'bg-gradient-to-b from-blue-400 to-blue-600 text-white hover:from-blue-500 hover:to-blue-700 active:scale-95 active:shadow-inner active:translate-y-0.5'
+                          className={`w-full py-2 text-sm font-semibold flex items-center justify-center gap-1.5 transition-all duration-100 shadow-sm ${canAfford
+                              ? 'bg-gradient-to-r from-blue-500 to-blue-600 text-white hover:from-blue-600 hover:to-blue-700 active:scale-95'
                               : 'bg-gray-200 text-gray-400 cursor-not-allowed shadow-none'
                             }`}
+                          style={{ clipPath: CLIP_BTN }}
                         >
                           {purchasing === item.id ? (
                             <span className="animate-pulse">...</span>
@@ -828,12 +896,17 @@ const Shop = () => {
       {/* Confirm Modal */}
       {confirmItem && (
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50" onClick={() => { setConfirmItem(null); setConfirmEggCurrency(null) }}>
-          <div className="bg-white rounded-2xl p-6 mx-4 max-w-xs w-full shadow-xl" onClick={e => e.stopPropagation()}>
+          <div
+            className="relative bg-white p-6 mx-4 max-w-xs w-full shadow-xl border-2 border-blue-200 overflow-hidden"
+            style={{ clipPath: CLIP_CARD }}
+            onClick={e => e.stopPropagation()}
+          >
+            <CornerBrackets />
             <div className="flex flex-col items-center">
               {confirmItem.image_url && (
                 <img src={confirmItem.image_url} alt={confirmItem.name} className="w-24 h-24 object-contain mb-3" />
               )}
-              <h3 className="font-bold text-lg text-gray-800">{confirmItem.name}</h3>
+              <h3 className="font-semibold text-lg text-gray-800 tracking-wide">{confirmItem.name}</h3>
               <div className="flex items-center gap-1 mt-2 text-base font-semibold text-gray-600">
                 {confirmEggCurrency ? (
                   confirmEggCurrency === 'xp' ? (
@@ -862,13 +935,15 @@ const Shop = () => {
             <div className="flex gap-3 mt-5">
               <button
                 onClick={() => { setConfirmItem(null); setConfirmEggCurrency(null) }}
-                className="flex-1 py-2 rounded-xl bg-gray-100 text-gray-600 font-medium hover:bg-gray-200 transition-colors"
+                className="flex-1 py-2 bg-gray-100 text-gray-600 font-semibold hover:bg-gray-200 transition-colors tracking-wide"
+                style={{ clipPath: CLIP_BTN }}
               >
                 Hủy
               </button>
               <button
                 onClick={confirmEggCurrency ? (['ball', 'ticket'].includes(confirmItem?.item_type) ? handleConfirmBallPurchase : handleConfirmEggPurchase) : confirmPurchase}
-                className="flex-1 py-2 rounded-xl bg-blue-500 text-white font-medium hover:bg-blue-600 transition-colors"
+                className="flex-1 py-2 bg-gradient-to-r from-blue-500 to-blue-600 text-white font-semibold hover:from-blue-600 hover:to-blue-700 transition-colors tracking-wide"
+                style={{ clipPath: CLIP_BTN }}
               >
                 Mua
               </button>

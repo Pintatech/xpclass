@@ -2,8 +2,6 @@ import { useAuth } from '../../hooks/useAuth'
 import { supabase } from '../../supabase/client'
 import { useState, useEffect } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
-import Card from '../ui/Card'
-import Button from '../ui/Button'
 import { getRecentExercise } from '../../utils/recentExercise'
 import RecentActivities from './RecentActivities'
 import DailyChallenge from './DailyChallenge'
@@ -587,7 +585,15 @@ const Dashboard = () => {
       {/* Header with Blue Background */}
       <div className="relative -mx-4 md:-mx-6 lg:mx-0 -mt-6 md:-mt-6 lg:-mt-6 -mb-4 md:-mb-6 lg:mb-0">
         {/* Background Image */}
-        <div className="relative h-48 md:h-56 overflow-hidden lg:rounded-lg bg-gradient-to-r from-blue-600 to-purple-600">
+        <div className="relative h-48 md:h-56 overflow-hidden bg-gradient-to-r from-blue-600 to-purple-600"
+          style={{ clipPath: 'polygon(12px 0, 100% 0, 100% calc(100% - 12px), calc(100% - 12px) 100%, 0 100%, 0 12px)' }}
+        >
+          {/* Corner brackets */}
+          <div className="absolute top-0 left-[12px] w-5 h-[1px] bg-gradient-to-r from-white/40 to-transparent z-10" />
+          <div className="absolute top-0 left-[12px] w-[1px] h-5 bg-gradient-to-b from-white/40 to-transparent z-10" />
+          <div className="absolute bottom-0 right-[12px] w-5 h-[1px] bg-gradient-to-l from-white/40 to-transparent z-10" />
+          <div className="absolute bottom-0 right-[12px] w-[1px] h-5 bg-gradient-to-t from-white/40 to-transparent z-10" />
+
           {/* Background Image */}
           <div
             className="absolute inset-0 bg-cover bg-center bg-no-repeat"
@@ -595,28 +601,34 @@ const Dashboard = () => {
           />
           {/* Dark overlay for better text readability */}
           <div className="absolute inset-0 bg-black/30" />
-          
+
           {/* Content overlay */}
           <div className="absolute inset-0 flex flex-col justify-between p-6">
             {/* XP and Streak stats */}
             <div className="flex justify-between">
-              <div className="bg-white/90 backdrop-blur-sm rounded-full px-4 flex items-center space-x-2">
+              <div className="bg-white/90 backdrop-blur-sm px-4 py-1 flex items-center space-x-2"
+                style={{ clipPath: 'polygon(6px 0, 100% 0, calc(100% - 6px) 100%, 0 100%)' }}
+              >
                 <img src="https://xpclass.vn/xpclass/icon/profile/streak.svg" alt="Streak" className="w-5 h-5" />
-                <span className="font-bold text-red-500">{profile?.streak_count || 0}</span>
+                <span className="font-semibold text-red-500">{profile?.streak_count || 0}</span>
               </div>
               <div className="flex items-center gap-2">
-                <div className="bg-white/90 backdrop-blur-sm rounded-full px-4 py-3 flex items-center space-x-2 border-3 ">
+                <div className="bg-white/90 backdrop-blur-sm px-4 py-2 flex items-center space-x-2"
+                  style={{ clipPath: 'polygon(6px 0, 100% 0, calc(100% - 6px) 100%, 0 100%)' }}
+                >
                   <img src={assetUrl('/image/study/xp.png')} alt="XP" className="w-5 h-5" />
-                  <span className="font-bold text-gray-800">{profile?.xp || 0}</span>
+                  <span className="font-semibold text-gray-800">{profile?.xp || 0}</span>
                 </div>
-                <div className="bg-white/90 backdrop-blur-sm rounded-full px-4 py-3 flex items-center space-x-2 border-3 ">
+                <div className="bg-white/90 backdrop-blur-sm px-4 py-2 flex items-center space-x-2"
+                  style={{ clipPath: 'polygon(6px 0, 100% 0, calc(100% - 6px) 100%, 0 100%)' }}
+                >
                   <img src={assetUrl('/image/study/gem.png')} alt="Gems" className="w-5 h-5" />
-                  <span className="font-bold text-gray-800">{profile?.gems || 0}</span>
+                  <span className="font-semibold text-gray-800">{profile?.gems || 0}</span>
                 </div>
               </div>
             </div>
 
-            {/* Welcome text with avatar - moved closer to top */}
+            {/* Welcome text with avatar */}
             <div className="text-white mt-5">
               <div className="flex items-center space-x-4 mb-4">
                 <AvatarWithFrame
@@ -631,6 +643,7 @@ const Dashboard = () => {
                   <h5 className="text-2xl md:text-3xl font-bold drop-shadow-lg">
                     Chào {profile?.full_name || 'Học viên'}! 👋
                   </h5>
+                  <div className="h-[2px] w-20 bg-gradient-to-r from-white/50 to-transparent mt-1 mb-1" />
                   <p className="text-base md:text-lg opacity-90 drop-shadow-md max-w-2xl">
                     {getGreetingMessage()}
                   </p>
@@ -724,44 +737,53 @@ const Dashboard = () => {
 
       {/* Recent Exercise (Above Levels List) */}
       {recent && (
-        <Card className="bg-white">
-          <Card.Content className="p-4">
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-4">
-                <div className="w-14 h-14 rounded-lg bg-blue-100 overflow-hidden flex items-center justify-center">
-                  {recent.imageUrl ? (
-                    <img src={recent.imageUrl} alt={recent.title} className="w-full h-full object-cover" />
-                  ) : (
-                    <span className="text-2xl">📘</span>
-                  )}
-                </div>
-                <div>
-                  <div className="text-sm text-blue-600 font-bold">Bài gần nhất</div>
-                  <div className="font-semibold text-gray-500">{recent.title}</div>
-                </div>
-              </div>
-              <Button
-                className="!bg-blue-600 hover:!bg-blue-700 hover:scale-110 active:scale-95 shadow-lg hover:shadow-xl transition-transform will-change-transform"
-                style={{
-                  animation: 'scalePulse 2s ease-in-out infinite',
-                  backfaceVisibility: 'hidden',
-                  WebkitFontSmoothing: 'antialiased'
-                }}
-                onMouseEnter={(e) => e.currentTarget.style.animation = 'none'}
-                onMouseLeave={(e) => e.currentTarget.style.animation = 'scalePulse 2s ease-in-out infinite'}
-                onClick={() => navigate(recent.continuePath)}
+        <div className="relative bg-white border border-gray-200 p-4 shadow-sm overflow-hidden"
+          style={{ clipPath: 'polygon(10px 0, 100% 0, 100% calc(100% - 10px), calc(100% - 10px) 100%, 0 100%, 0 10px)' }}
+        >
+          {/* Corner brackets */}
+          <div className="absolute top-0 left-[10px] w-5 h-[1px] bg-gradient-to-r from-blue-300/40 to-transparent" />
+          <div className="absolute top-0 left-[10px] w-[1px] h-5 bg-gradient-to-b from-blue-300/40 to-transparent" />
+          <div className="absolute bottom-0 right-[10px] w-5 h-[1px] bg-gradient-to-l from-blue-300/40 to-transparent" />
+          <div className="absolute bottom-0 right-[10px] w-[1px] h-5 bg-gradient-to-t from-blue-300/40 to-transparent" />
+
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-4">
+              <div className="w-14 h-14 bg-blue-100 overflow-hidden flex items-center justify-center"
+                style={{ clipPath: 'polygon(6px 0, 100% 0, 100% calc(100% - 6px), calc(100% - 6px) 100%, 0 100%, 0 6px)' }}
               >
-                Tiếp tục✨
-              </Button>
-              <style>{`
-                @keyframes scalePulse {
-                  0%, 100% { transform: scale(1) translateZ(0); }
-                  50% { transform: scale(1.05) translateZ(0); }
-                }
-              `}</style>
+                {recent.imageUrl ? (
+                  <img src={recent.imageUrl} alt={recent.title} className="w-full h-full object-cover" />
+                ) : (
+                  <span className="text-2xl">📘</span>
+                )}
+              </div>
+              <div>
+                <div className="text-sm text-blue-600 font-semibold uppercase tracking-wide">Bài gần nhất</div>
+                <div className="font-medium text-gray-500">{recent.title}</div>
+              </div>
             </div>
-          </Card.Content>
-        </Card>
+            <button
+              className="bg-gradient-to-r from-blue-500 to-blue-600 hover:from-blue-600 hover:to-blue-700 text-white font-semibold px-5 py-2 shadow-md hover:shadow-lg transition-all active:scale-95"
+              style={{
+                clipPath: 'polygon(8px 0, 100% 0, calc(100% - 8px) 100%, 0 100%)',
+                animation: 'scalePulse 2s ease-in-out infinite',
+                backfaceVisibility: 'hidden',
+                WebkitFontSmoothing: 'antialiased'
+              }}
+              onMouseEnter={(e) => e.currentTarget.style.animation = 'none'}
+              onMouseLeave={(e) => e.currentTarget.style.animation = 'scalePulse 2s ease-in-out infinite'}
+              onClick={() => navigate(recent.continuePath)}
+            >
+              Tiếp tục✨
+            </button>
+            <style>{`
+              @keyframes scalePulse {
+                0%, 100% { transform: scale(1) translateZ(0); }
+                50% { transform: scale(1.05) translateZ(0); }
+              }
+            `}</style>
+          </div>
+        </div>
       )}
 
       {/* My Assignments Button - Only for students */}
@@ -827,11 +849,19 @@ const Dashboard = () => {
                 const isLocked = !course.is_active
 
                 const CourseCard = () => (
-                  <div className={`bg-white rounded-lg shadow-md transition-all duration-200 overflow-hidden ${
-                    isLocked 
-                      ? 'opacity-60 cursor-not-allowed' 
-                      : 'hover:shadow-lg group-hover:scale-105'
-                  }`}>
+                  <div className={`relative bg-white border border-gray-200 shadow-sm transition-all duration-200 overflow-hidden ${
+                    isLocked
+                      ? 'opacity-60 cursor-not-allowed'
+                      : 'hover:shadow-lg'
+                  }`}
+                    style={{ clipPath: 'polygon(10px 0, 100% 0, 100% calc(100% - 10px), calc(100% - 10px) 100%, 0 100%, 0 10px)' }}
+                  >
+                    {/* Corner brackets */}
+                    <div className="absolute top-0 left-[10px] w-5 h-[1px] bg-gradient-to-r from-blue-300/40 to-transparent z-10" />
+                    <div className="absolute top-0 left-[10px] w-[1px] h-5 bg-gradient-to-b from-blue-300/40 to-transparent z-10" />
+                    <div className="absolute bottom-0 right-[10px] w-5 h-[1px] bg-gradient-to-l from-blue-300/40 to-transparent z-10" />
+                    <div className="absolute bottom-0 right-[10px] w-[1px] h-5 bg-gradient-to-t from-blue-300/40 to-transparent z-10" />
+
                     {/* Course Image with Text Overlay */}
                     <div className="aspect-[1.8/1] bg-gradient-to-br from-blue-100 to-purple-100 flex items-center justify-center relative">
                       {course.thumbnail_url ? (
@@ -869,9 +899,11 @@ const Dashboard = () => {
                           <span>Tiến độ</span>
                           <span className="font-semibold">{courseProgress[course.id].percentage}%</span>
                         </div>
-                        <div className="w-full bg-gray-200 rounded-full h-2 overflow-hidden">
+                        <div className="w-full bg-gray-200 h-2 overflow-hidden"
+                          style={{ clipPath: 'polygon(2px 0, 100% 0, calc(100% - 2px) 100%, 0 100%)' }}
+                        >
                           <div
-                            className={`h-full rounded-full transition-all duration-500 ${
+                            className={`h-full transition-all duration-500 ${
                               courseProgress[course.id].percentage < 30
                                 ? 'bg-red-500'
                                 : courseProgress[course.id].percentage < 70

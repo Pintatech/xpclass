@@ -4,13 +4,23 @@ import { supabase } from '../../supabase/client'
 import { useAuth } from '../../hooks/useAuth'
 import { useStudentLevels } from '../../hooks/useStudentLevels'
 import { getVietnamDate, utcToVietnamDate } from '../../utils/vietnamTime'
-import Card from '../ui/Card'
-import Button from '../ui/Button'
 import { SimpleBadge } from '../ui/StudentBadge'
 import { Trophy, Medal, Award, Crown, Star, RefreshCw } from 'lucide-react'
 import AvatarWithFrame from '../ui/AvatarWithFrame'
 import { assetUrl } from '../../hooks/useBranding';
-// import DailyChallengeLeaderboard from './DailyChallengeLeaderboard' // temporarily hidden
+
+const CLIP_CARD = 'polygon(10px 0, 100% 0, 100% calc(100% - 10px), calc(100% - 10px) 100%, 0 100%, 0 10px)'
+const CLIP_SM = 'polygon(6px 0, 100% 0, 100% calc(100% - 6px), calc(100% - 6px) 100%, 0 100%, 0 6px)'
+const CLIP_BTN = 'polygon(5px 0, 100% 0, 100% calc(100% - 5px), calc(100% - 5px) 100%, 0 100%, 0 5px)'
+
+const CornerBrackets = () => (
+  <>
+    <div className="absolute top-0 left-[10px] w-5 h-[1px] bg-gradient-to-r from-blue-300/40 to-transparent" />
+    <div className="absolute top-0 left-[10px] w-[1px] h-5 bg-gradient-to-b from-blue-300/40 to-transparent" />
+    <div className="absolute bottom-0 right-[10px] w-5 h-[1px] bg-gradient-to-l from-blue-300/40 to-transparent" />
+    <div className="absolute bottom-0 right-[10px] w-[1px] h-5 bg-gradient-to-t from-blue-300/40 to-transparent" />
+  </>
+)
 
 const Leaderboard = () => {
   const navigate = useNavigate()
@@ -789,11 +799,15 @@ const Leaderboard = () => {
     return (
       <div className="space-y-8">
         <div className="text-center">
-          <h1 className="text-3xl font-bold text-gray-900 mb-2">Bảng xếp hạng</h1>
-          <p className="text-gray-600">Đang tải dữ liệu...</p>
+          <h1 className="text-2xl font-semibold text-gray-900 mb-1 uppercase tracking-wide">Bảng xếp hạng</h1>
+          <div className="h-[2px] w-20 mx-auto bg-gradient-to-r from-transparent via-blue-400 to-transparent mb-2" />
+          <p className="text-gray-500 text-sm">Đang tải dữ liệu...</p>
         </div>
         <div className="flex justify-center">
-          <RefreshCw className="w-8 h-8 animate-spin text-gray-600" />
+          <div className="relative w-10 h-10">
+            <div className="absolute inset-0 border-2 border-blue-200 rounded-full animate-ping opacity-30" />
+            <RefreshCw className="w-10 h-10 animate-spin text-blue-400" />
+          </div>
         </div>
       </div>
     )
@@ -803,12 +817,17 @@ const Leaderboard = () => {
     return (
       <div className="space-y-8">
         <div className="text-center">
-          <h1 className="text-3xl font-bold text-gray-900 mb-2">Bảng xếp hạng</h1>
-          <p className="text-red-600">{error}</p>
-          <Button onClick={fetchLeaderboardData} className="mt-4">
+          <h1 className="text-2xl font-semibold text-gray-900 mb-1 uppercase tracking-wide">Bảng xếp hạng</h1>
+          <div className="h-[2px] w-20 mx-auto bg-gradient-to-r from-transparent via-blue-400 to-transparent mb-2" />
+          <p className="text-red-600 text-sm">{error}</p>
+          <button
+            onClick={fetchLeaderboardData}
+            className="mt-4 inline-flex items-center px-4 py-2 bg-blue-600 text-white text-sm font-medium hover:bg-blue-700 transition-colors"
+            style={{ clipPath: CLIP_BTN }}
+          >
             <RefreshCw className="w-4 h-4 mr-2" />
             Thử lại
-          </Button>
+          </button>
         </div>
       </div>
     )
@@ -818,12 +837,13 @@ const Leaderboard = () => {
     <div className="space-y-8">
       {/* Header */}
       <div className="text-center">
-        <h1 className="text-3xl font-bold text-gray-900 mb-2">🏅 Bảng xếp hạng 🏅</h1>
+        <h1 className="text-2xl font-semibold text-gray-900 mb-1 uppercase tracking-wide">Bảng xếp hạng</h1>
+        <div className="h-[2px] w-20 mx-auto bg-gradient-to-r from-transparent via-blue-400 to-transparent" />
       </div>
 
       {/* Timeframe Filter */}
       <div className="flex justify-center">
-        <div className="bg-gray-100 p-1 rounded-lg">
+        <div className="flex gap-1 p-1 bg-gray-50 border border-gray-200" style={{ clipPath: CLIP_SM }}>
           {[
             { key: 'week', label: 'Tuần này' },
             { key: 'month', label: 'Tháng này' },
@@ -831,15 +851,18 @@ const Leaderboard = () => {
               ? competitionItemInfo.name
               : GAME_LABELS[competitionGameType] || 'Competition' }
           ].filter(option => visibleTabs.includes(option.key)).map((option) => (
-            <Button
+            <button
               key={option.key}
-              variant={timeframe === option.key ? 'primary' : 'ghost'}
-              size="sm"
               onClick={() => setTimeframe(option.key)}
-              className="mx-1"
+              className={`px-4 py-2 text-sm font-medium uppercase tracking-wide transition-all ${
+                timeframe === option.key
+                  ? 'bg-blue-600 text-white shadow-sm'
+                  : 'text-gray-500 hover:text-gray-900 hover:bg-gray-100'
+              }`}
+              style={{ clipPath: CLIP_BTN }}
             >
               {option.label}
-            </Button>
+            </button>
           ))}
         </div>
       </div>
@@ -848,7 +871,10 @@ const Leaderboard = () => {
       {timeframe === 'training' && (
         trainingLoading ? (
           <div className="flex justify-center py-8">
-            <RefreshCw className="w-8 h-8 animate-spin text-gray-600" />
+            <div className="relative w-10 h-10">
+              <div className="absolute inset-0 border-2 border-blue-200 rounded-full animate-ping opacity-30" />
+              <RefreshCw className="w-10 h-10 animate-spin text-blue-400" />
+            </div>
           </div>
         ) : (
           <>
@@ -860,14 +886,16 @@ const Leaderboard = () => {
                 const hasReward = reward.gems > 0 || totalXp > 0 || (reward.shop_items?.length > 0);
                 if (!hasReward) return null;
                 const rankStyles = [
-                  { icon: '🏆', gradient: 'bg-gradient-to-r from-yellow-100 to-amber-50', border: 'border-yellow-200', shadow: 'shadow-[0_0_8px_rgba(234,179,8,0.3)]', iconSize: 'text-base' },
-                  { icon: '🥈', gradient: 'bg-gradient-to-r from-slate-100 to-gray-50', border: 'border-gray-200', shadow: 'shadow-[0_0_8px_rgba(148,163,184,0.3)]', iconSize: 'text-base' },
-                  { icon: '🥉', gradient: 'bg-gradient-to-r from-orange-100 to-amber-50', border: 'border-orange-200', shadow: 'shadow-[0_0_8px_rgba(251,146,60,0.3)]', iconSize: 'text-base' },
+                  { icon: '🏆', bg: 'bg-yellow-50', border: 'border-yellow-200', shadow: 'shadow-[0_0_8px_rgba(234,179,8,0.2)]' },
+                  { icon: '🥈', bg: 'bg-gray-50', border: 'border-gray-200', shadow: 'shadow-[0_0_8px_rgba(148,163,184,0.2)]' },
+                  { icon: '🥉', bg: 'bg-orange-50', border: 'border-orange-200', shadow: 'shadow-[0_0_8px_rgba(251,146,60,0.2)]' },
                 ];
                 const rank = rankStyles[idx];
                 return (
-                  <div key={idx} className={`inline-flex items-center gap-1.5 ${rank.gradient} border ${rank.border} ${rank.shadow} rounded-xl px-3 py-1.5 transition-transform hover:scale-105`}>
-                    <span className={rank.iconSize}>{rank.icon}</span>
+                  <div key={idx} className={`inline-flex items-center gap-1.5 ${rank.bg} border ${rank.border} ${rank.shadow} px-3 py-1.5 transition-transform hover:scale-105`}
+                    style={{ clipPath: CLIP_BTN }}
+                  >
+                    <span className="text-base">{rank.icon}</span>
                     {reward.gems > 0 && (
                       <strong className="text-blue-600 inline-flex items-center gap-0.5">{reward.gems}<img src={assetUrl('/image/study/gem.png')} alt="Gem" className="w-3.5 h-3.5" /></strong>
                     )}
@@ -881,27 +909,33 @@ const Leaderboard = () => {
                 );
               })}
               {rewardThreshold > 0 && rewardXP > 0 && (
-                <div className="inline-flex items-center gap-1 bg-green-50 border border-green-200 rounded-lg px-2.5 py-1.5 text-green-700">
+                <div className="inline-flex items-center gap-1 bg-green-50 border border-green-200 px-2.5 py-1.5 text-green-700"
+                  style={{ clipPath: CLIP_BTN }}
+                >
                   {rewardThreshold}+ điểm: <strong className="inline-flex items-center gap-0.5">+{rewardXP}<img src={assetUrl('/image/study/xp.png')} alt="XP" className="w-3.5 h-3.5" /></strong>
                 </div>
               )}
               {maxAttempts > 0 && (
-                <div className={`inline-flex items-center gap-1 rounded-lg px-2.5 py-1.5 ${
+                <div className={`inline-flex items-center gap-1 px-2.5 py-1.5 ${
                   usedAttempts >= maxAttempts ? 'bg-red-50 border border-red-200 text-red-600' : 'bg-blue-50 border border-blue-200 text-blue-600'
-                }`}>
+                }`} style={{ clipPath: CLIP_BTN }}>
                   {usedAttempts >= maxAttempts ? `Hết lượt (${maxAttempts}/${maxAttempts})` : `${maxAttempts - usedAttempts}/${maxAttempts} lượt`}
                 </div>
               )}
               {countdownText && (
-                <div className="inline-flex items-center gap-1 bg-gray-50 border border-gray-200 rounded-lg px-2.5 py-1.5 text-gray-500">
+                <div className="inline-flex items-center gap-1 bg-gray-50 border border-gray-200 px-2.5 py-1.5 text-gray-500"
+                  style={{ clipPath: CLIP_BTN }}
+                >
                   {countdownText}
                 </div>
               )}
             </div>
 
             {trainingData.length === 0 ? (
-              <div className="text-center py-8 text-gray-500">
-                {competitionType === 'items' ? 'Chưa có ai sở hữu vật phẩm này' : 'Chưa có ai chơi tuần này'}
+              <div className="relative text-center py-8 text-gray-400 bg-white border border-gray-200" style={{ clipPath: CLIP_CARD }}>
+                <CornerBrackets />
+                <Trophy className="w-10 h-10 mx-auto mb-2 text-gray-300" />
+                <p className="text-sm">{competitionType === 'items' ? 'Chưa có ai sở hữu vật phẩm này' : 'Chưa có ai chơi tuần này'}</p>
               </div>
             ) : (
               <>
@@ -910,31 +944,37 @@ const Leaderboard = () => {
                   {/* 2nd Place */}
                   {trainingData[1] && (
                     <div className="order-1">
-                      <Card className="text-center p-2 md:p-6 bg-gradient-to-t from-gray-400/80 to-gray-100/80 border-white border-t-0 relative overflow-hidden">
+                      <div className="relative text-center p-2 md:p-6 bg-gradient-to-t from-gray-200/80 to-white border border-gray-200 overflow-hidden"
+                        style={{ clipPath: CLIP_CARD }}
+                      >
+                        <CornerBrackets />
                         <div className="mx-auto mb-2 md:mb-4 relative z-10">
                           <AvatarWithFrame avatarUrl={trainingData[1].avatar} frameUrl={trainingData[1].frame} frameRatio={trainingData[1].frameRatio} size={80} className="mx-auto" fallback={trainingData[1].name.charAt(0).toUpperCase()} />
                         </div>
-                        <div className="font-bold text-gray-900 text-xs md:text-base cursor-pointer hover:text-blue-600 transition-colors break-words text-center relative z-10" onClick={() => handleProfileClick(trainingData[1].id)}>
+                        <div className="font-semibold text-gray-900 text-xs md:text-base cursor-pointer hover:text-blue-600 transition-colors break-words text-center relative z-10" onClick={() => handleProfileClick(trainingData[1].id)}>
                           {trainingData[1].name}
                         </div>
-                        <div className="text-sm md:text-lg font-semibold text-gray-900 mt-1 md:mt-2 relative z-10">
+                        <div className="text-sm md:text-lg font-semibold text-gray-700 mt-1 md:mt-2 relative z-10">
                           {trainingData[1].xp}{competitionType !== 'items' && ' điểm'}
                         </div>
-                      </Card>
+                      </div>
                     </div>
                   )}
                   {/* 1st Place */}
                   {trainingData[0] && (
                     <div className="order-2">
-                      <Card className="text-center p-2 md:p-6 bg-gradient-to-t from-yellow-600/80 to-yellow-100/80 border-white border-t-0 md:transform md:scale-105 relative overflow-hidden">
+                      <div className="relative text-center p-2 md:p-6 bg-gradient-to-t from-yellow-100/80 to-white border border-yellow-200 md:transform md:scale-105 overflow-hidden"
+                        style={{ clipPath: CLIP_CARD }}
+                      >
+                        <CornerBrackets />
                         <Crown className="w-6 h-6 md:w-8 md:h-8 text-yellow-500 mx-auto mb-1 md:mb-2 relative z-10" />
                         <div className="mx-auto mb-2 md:mb-4 relative z-10">
                           <AvatarWithFrame avatarUrl={trainingData[0].avatar} frameUrl={trainingData[0].frame} frameRatio={trainingData[0].frameRatio} size={80} className="mx-auto" fallback={trainingData[0].name.charAt(0).toUpperCase()} />
                         </div>
-                        <div className="font-bold text-gray-900 text-xs md:text-lg cursor-pointer hover:text-blue-600 transition-colors break-words text-center relative z-10" onClick={() => handleProfileClick(trainingData[0].id)}>
+                        <div className="font-semibold text-gray-900 text-xs md:text-lg cursor-pointer hover:text-blue-600 transition-colors break-words text-center relative z-10" onClick={() => handleProfileClick(trainingData[0].id)}>
                           {trainingData[0].name}
                         </div>
-                        <div className="text-sm md:text-xl font-semibold text-white-900 mt-1 md:mt-2 relative z-10">
+                        <div className="text-sm md:text-xl font-semibold text-gray-900 mt-1 md:mt-2 relative z-10">
                           {trainingData[0].xp}{competitionType !== 'items' && ' điểm'}
                         </div>
                         <div className="hidden md:flex items-center justify-center mt-2 text-yellow-600 relative z-10">
@@ -943,69 +983,70 @@ const Leaderboard = () => {
                             ? `Vua ${competitionItemInfo.name}`
                             : `Vua ${GAME_LABELS[competitionGameType] || 'Competition'}`}</span>
                         </div>
-                      </Card>
+                      </div>
                     </div>
                   )}
                   {/* 3rd Place */}
                   {trainingData[2] && (
                     <div className="order-3">
-                      <Card className="text-center p-2 md:p-6 bg-gradient-to-t from-orange-600/80 to-orange-50/80 border-white border-t-0 relative overflow-hidden">
+                      <div className="relative text-center p-2 md:p-6 bg-gradient-to-t from-orange-100/80 to-white border border-orange-200 overflow-hidden"
+                        style={{ clipPath: CLIP_CARD }}
+                      >
+                        <CornerBrackets />
                         <div className="mx-auto mb-2 md:mb-4 relative z-10">
                           <AvatarWithFrame avatarUrl={trainingData[2].avatar} frameUrl={trainingData[2].frame} frameRatio={trainingData[2].frameRatio} size={56} className="mx-auto" fallback={trainingData[2].name.charAt(0).toUpperCase()} />
                         </div>
-                        <div className="font-bold text-gray-900 text-xs md:text-base cursor-pointer hover:text-blue-600 transition-colors break-words text-center relative z-10" onClick={() => handleProfileClick(trainingData[2].id)}>
+                        <div className="font-semibold text-gray-900 text-xs md:text-base cursor-pointer hover:text-blue-600 transition-colors break-words text-center relative z-10" onClick={() => handleProfileClick(trainingData[2].id)}>
                           {trainingData[2].name}
                         </div>
-                        <div className="text-sm md:text-lg font-semibold text-gray-900 mt-1 md:mt-2 relative z-10">
+                        <div className="text-sm md:text-lg font-semibold text-gray-700 mt-1 md:mt-2 relative z-10">
                           {trainingData[2].xp}{competitionType !== 'items' && ' điểm'}
                         </div>
-                      </Card>
+                      </div>
                     </div>
                   )}
                 </div>
 
                 {/* Full Ranked List */}
-                <Card>
-                  <Card.Content className="p-0">
-                    <div className="divide-y divide-gray-200">
-                      {trainingData.slice(3, 10).map((entry) => (
-                        <div key={entry.id} className={`py-2 md:py-4 md:px-4 ${getRankColor(entry.rank)} flex items-center justify-between`}>
-                          <div className="flex items-center space-x-2 md:space-x-4">
-                            <div className="flex items-center justify-center w-6 md:w-8 h-6 md:h-8">
-                              {getRankIcon(entry.rank)}
-                            </div>
-                            <AvatarWithFrame avatarUrl={entry.avatar} frameUrl={entry.frame} frameRatio={entry.frameRatio} size={48} fallback={entry.name.charAt(0).toUpperCase()} />
-                            <div>
-                              <div className="font-semibold text-gray-900 cursor-pointer hover:text-blue-600 transition-colors" onClick={() => handleProfileClick(entry.id)}>
-                                {entry.name}
-                              </div>
-                            </div>
+                <div className="relative bg-white border border-gray-200 overflow-hidden" style={{ clipPath: CLIP_CARD }}>
+                  <CornerBrackets />
+                  <div className="divide-y divide-gray-100">
+                    {trainingData.slice(3, 10).map((entry) => (
+                      <div key={entry.id} className={`py-2 md:py-4 px-3 md:px-4 ${getRankColor(entry.rank)} flex items-center justify-between`}>
+                        <div className="flex items-center space-x-2 md:space-x-4">
+                          <div className="flex items-center justify-center w-6 md:w-8 h-6 md:h-8">
+                            {getRankIcon(entry.rank)}
                           </div>
-                          <div className="text-right">
-                            <div className="font-bold text-sm text-gray-900">{entry.xp}{competitionType !== 'items' && ' điểm'}</div>
+                          <AvatarWithFrame avatarUrl={entry.avatar} frameUrl={entry.frame} frameRatio={entry.frameRatio} size={48} fallback={entry.name.charAt(0).toUpperCase()} />
+                          <div>
+                            <div className="font-medium text-gray-900 cursor-pointer hover:text-blue-600 transition-colors" onClick={() => handleProfileClick(entry.id)}>
+                              {entry.name}
+                            </div>
                           </div>
                         </div>
-                      ))}
-                    </div>
-                  </Card.Content>
-                </Card>
+                        <div className="text-right">
+                          <div className="font-semibold text-sm text-gray-900">{entry.xp}{competitionType !== 'items' && ' điểm'}</div>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
 
                 {/* Your Rank */}
                 {currentTrainingRank && (
-                  <Card className="bg-gradient-to-r from-purple-50 to-indigo-50 border-purple-200">
-                    <Card.Content>
-                      <div className="flex items-center justify-between p-4">
-                        <div className="flex items-center space-x-4">
-                          <AvatarWithFrame avatarUrl={currentTrainingRank.avatar} frameUrl={currentTrainingRank.frame} frameRatio={currentTrainingRank.frameRatio} size={48} fallback={currentTrainingRank.name.charAt(0).toUpperCase()} />
-                          <div>
-                            <div className="font-semibold text-gray-900">Bạn ({currentTrainingRank.name})</div>
-                            <span className="text-sm text-gray-600">Hạng #{currentTrainingRank.rank}</span>
-                          </div>
+                  <div className="relative bg-gradient-to-r from-purple-50 to-indigo-50 border border-purple-200 overflow-hidden" style={{ clipPath: CLIP_CARD }}>
+                    <CornerBrackets />
+                    <div className="flex items-center justify-between p-4">
+                      <div className="flex items-center space-x-4">
+                        <AvatarWithFrame avatarUrl={currentTrainingRank.avatar} frameUrl={currentTrainingRank.frame} frameRatio={currentTrainingRank.frameRatio} size={48} fallback={currentTrainingRank.name.charAt(0).toUpperCase()} />
+                        <div>
+                          <div className="font-semibold text-gray-900">Bạn ({currentTrainingRank.name})</div>
+                          <span className="text-sm text-gray-600">Hạng #{currentTrainingRank.rank}</span>
                         </div>
-                        <div className="font-bold text-lg text-gray-900">{currentTrainingRank.xp}{competitionType !== 'items' && ' điểm'}</div>
                       </div>
-                    </Card.Content>
-                  </Card>
+                      <div className="font-semibold text-lg text-gray-900">{currentTrainingRank.xp}{competitionType !== 'items' && ' điểm'}</div>
+                    </div>
+                  </div>
                 )}
               </>
             )}
@@ -1019,7 +1060,9 @@ const Leaderboard = () => {
       {/* Champion Reward Banner */}
       {timeframe === 'week' && weeklyChampionReward && (
         <div className="flex justify-center">
-          <div className="inline-flex items-center gap-2 bg-gradient-to-r from-yellow-50 to-amber-50 border border-yellow-200 rounded-lg px-4 py-3 text-sm">
+          <div className="inline-flex items-center gap-2 bg-gradient-to-r from-yellow-50 to-amber-50 border border-yellow-200 px-4 py-3 text-sm"
+            style={{ clipPath: CLIP_SM }}
+          >
             <Trophy className="w-5 h-5 text-yellow-500 flex-shrink-0" />
             <span className="text-gray-700">
               Top 1 cuối tuần này nhận{' '}
@@ -1035,7 +1078,9 @@ const Leaderboard = () => {
       )}
       {timeframe === 'month' && monthlyChampionReward && (
         <div className="flex justify-center">
-          <div className="inline-flex items-center gap-2 bg-gradient-to-r from-purple-50 to-pink-50 border border-purple-200 rounded-lg px-4 py-3 text-sm">
+          <div className="inline-flex items-center gap-2 bg-gradient-to-r from-purple-50 to-pink-50 border border-purple-200 px-4 py-3 text-sm"
+            style={{ clipPath: CLIP_SM }}
+          >
             <Crown className="w-5 h-5 text-purple-500 flex-shrink-0" />
             <span className="text-gray-700">
               Top 1 cuối tháng này nhận{' '}
@@ -1056,11 +1101,14 @@ const Leaderboard = () => {
           {/* 2nd Place */}
           {leaderboardData[1] && (
             <div className="order-1">
-              <Card className="text-center p-2 md:p-6 bg-gradient-to-t from-gray-400/80 to-gray-100/80 border-white border-t-0 relative overflow-hidden">
-                <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/30 to-transparent animate-shimmer" style={{
+              <div className="relative text-center p-2 md:p-6 bg-gradient-to-t from-gray-200/80 to-white border border-gray-200 overflow-hidden"
+                style={{ clipPath: CLIP_CARD }}
+              >
+                <CornerBrackets />
+                <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/30 to-transparent" style={{
                   backgroundSize: '200% 100%',
                   animation: 'shimmer 2s infinite'
-                }}></div>
+                }} />
                 <style>{`
                   @keyframes shimmer {
                     0% { background-position: 100% 0; }
@@ -1078,7 +1126,7 @@ const Leaderboard = () => {
                   />
                 </div>
                 <div
-                  className="font-bold text-gray-900 text-xs md:text-base cursor-pointer hover:text-blue-600 transition-colors break-words text-center relative z-10"
+                  className="font-semibold text-gray-900 text-xs md:text-base cursor-pointer hover:text-blue-600 transition-colors break-words text-center relative z-10"
                   onClick={() => handleProfileClick(leaderboardData[1].id)}
                 >
                   {leaderboardData[1].name}
@@ -1092,24 +1140,27 @@ const Leaderboard = () => {
                     <SimpleBadge badge={leaderboardData[1].badge} size="xs" showName={false} />
                   </div>
                 </div>
-                <div className="text-sm md:text-lg font-semibold text-gray-900 mt-1 md:mt-2 relative z-10">
+                <div className="text-sm md:text-lg font-semibold text-gray-700 mt-1 md:mt-2 relative z-10">
                   <div className="flex items-center justify-center gap-1">
                     {leaderboardData[1].xp.toLocaleString()}
                     <img src={assetUrl('/image/study/xp.png')} alt="XP" className="w-3 md:w-4 h-3 md:h-4" />
                   </div>
                 </div>
-              </Card>
+              </div>
             </div>
           )}
 
           {/* 1st Place */}
           {leaderboardData[0] && (
             <div className="order-2">
-              <Card className="text-center p-2 md:p-6 bg-gradient-to-t from-yellow-600/80 to-yellow-100/80 border-white border-t-0 md:transform md:scale-105 relative overflow-hidden">
+              <div className="relative text-center p-2 md:p-6 bg-gradient-to-t from-yellow-100/80 to-white border border-yellow-200 md:transform md:scale-105 overflow-hidden"
+                style={{ clipPath: CLIP_CARD }}
+              >
+                <CornerBrackets />
                 <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/40 to-transparent" style={{
                   backgroundSize: '200% 100%',
                   animation: 'shimmer 2s infinite'
-                }}></div>
+                }} />
                 <Crown className="w-6 h-6 md:w-8 md:h-8 text-yellow-500 mx-auto mb-1 md:mb-2 relative z-10" />
                 <div className="mx-auto mb-2 md:mb-4 relative z-10">
                   <AvatarWithFrame
@@ -1122,7 +1173,7 @@ const Leaderboard = () => {
                   />
                 </div>
                 <div
-                  className="font-bold text-gray-900 text-xs md:text-lg cursor-pointer hover:text-blue-600 transition-colors break-words text-center relative z-10"
+                  className="font-semibold text-gray-900 text-xs md:text-lg cursor-pointer hover:text-blue-600 transition-colors break-words text-center relative z-10"
                   onClick={() => handleProfileClick(leaderboardData[0].id)}
                 >
                   {leaderboardData[0].name}
@@ -1136,7 +1187,7 @@ const Leaderboard = () => {
                     <SimpleBadge badge={leaderboardData[0].badge} size="medium" showName={false} />
                   </div>
                 </div>
-                <div className="text-sm md:text-xl font-semibold text-white-900 mt-1 md:mt-2 relative z-10">
+                <div className="text-sm md:text-xl font-semibold text-gray-900 mt-1 md:mt-2 relative z-10">
                   <div className="flex items-center justify-center gap-1">
                     {leaderboardData[0].xp.toLocaleString()}
                     <img src={assetUrl('/image/study/xp.png')} alt="XP" className="w-3 md:w-5 h-3 md:h-5" />
@@ -1146,18 +1197,21 @@ const Leaderboard = () => {
                   <Star size={16} fill="currentColor" />
                   <span className="ml-1 text-sm">Vua học tập</span>
                 </div>
-              </Card>
+              </div>
             </div>
           )}
 
           {/* 3rd Place */}
           {leaderboardData[2] && (
             <div className="order-3">
-              <Card className="text-center p-2 md:p-6 bg-gradient-to-t from-orange-600/80 to-orange-50/80 border-white border-t-0 relative overflow-hidden">
+              <div className="relative text-center p-2 md:p-6 bg-gradient-to-t from-orange-100/80 to-white border border-orange-200 overflow-hidden"
+                style={{ clipPath: CLIP_CARD }}
+              >
+                <CornerBrackets />
                 <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/30 to-transparent" style={{
                   backgroundSize: '200% 100%',
                   animation: 'shimmer 2s infinite'
-                }}></div>
+                }} />
                 <div className="mx-auto mb-2 md:mb-4 relative z-10">
                   <AvatarWithFrame
                     avatarUrl={leaderboardData[2].avatar}
@@ -1169,7 +1223,7 @@ const Leaderboard = () => {
                   />
                 </div>
                 <div
-                  className="font-bold text-gray-900 text-xs md:text-base cursor-pointer hover:text-blue-600 transition-colors break-words text-center relative z-10"
+                  className="font-semibold text-gray-900 text-xs md:text-base cursor-pointer hover:text-blue-600 transition-colors break-words text-center relative z-10"
                   onClick={() => handleProfileClick(leaderboardData[2].id)}
                 >
                   {leaderboardData[2].name}
@@ -1183,226 +1237,223 @@ const Leaderboard = () => {
                     <SimpleBadge badge={leaderboardData[2].badge} size="small" showName={false} />
                   </div>
                 </div>
-                <div className="text-sm md:text-lg font-semibold text-gray-900 mt-1 md:mt-2 relative z-10">
+                <div className="text-sm md:text-lg font-semibold text-gray-700 mt-1 md:mt-2 relative z-10">
                   <div className="flex items-center justify-center gap-1">
                     {leaderboardData[2].xp.toLocaleString()}
                     <img src={assetUrl('/image/study/xp.png')} alt="XP" className="w-3 md:w-4 h-3 md:h-4" />
                   </div>
                 </div>
-              </Card>
+              </div>
             </div>
           )}
         </div>
       )}
 
       {/* Full Leaderboard */}
-      <Card>
+      <div className="relative bg-white border border-gray-200 overflow-hidden" style={{ clipPath: CLIP_CARD }}>
+        <CornerBrackets />
+        <div className="divide-y divide-gray-100">
+          {leaderboardData.slice(3, timeframe === 'week' || timeframe === 'month' ? 10 : undefined).map((user) => (
+            <div
+              key={user.id}
+              className={`py-2 md:py-4 px-3 md:px-4 ${getRankColor(user.rank)} flex items-center justify-between`}
+            >
+              <div className="flex items-center space-x-2 md:space-x-4">
+                <div className="flex items-center justify-center w-6 md:w-8 h-6 md:h-8">
+                  {getRankIcon(user.rank)}
+                </div>
 
-        <Card.Content className="p-0">
-          <div className="divide-y divide-gray-200">
-            {leaderboardData.slice(3, timeframe === 'week' || timeframe === 'month' ? 10 : undefined).map((user) => (
-              <div
-                key={user.id}
-                className={`py-2 md:py-4 md:px-4 ${getRankColor(user.rank)} flex items-center justify-between`}
-              >
-                <div className="flex items-center space-x-2 md:space-x-4">
-                  <div className="flex items-center justify-center w-6 md:w-8 h-6 md:h-8">
-                    {getRankIcon(user.rank)}
-                  </div>
-
-                  <div className="relative">
-                    <AvatarWithFrame
-                      avatarUrl={user.avatar}
-                      frameUrl={user.frame}
-                      frameRatio={user.frameRatio}
-                      size={48}
-                      fallback={user.name.charAt(0).toUpperCase()}
-                    />
-                    <div
-                      className="absolute -bottom-1 -right-1 cursor-pointer scale-75 md:scale-100"
-                      title={user.badge.name}
-                      onClick={() => handleBadgeClick(user.badge)}
-                    >
-                      <SimpleBadge badge={user.badge} size="xs" showName={false} />
-                    </div>
-                  </div>
-
-                  <div>
-                    <div
-                      className="font-semibold text-gray-900 cursor-pointer hover:text-blue-600 transition-colors"
-                      onClick={() => handleProfileClick(user.id)}
-                    >
-                      {user.name}
-                    </div>
-
+                <div className="relative">
+                  <AvatarWithFrame
+                    avatarUrl={user.avatar}
+                    frameUrl={user.frame}
+                    frameRatio={user.frameRatio}
+                    size={48}
+                    fallback={user.name.charAt(0).toUpperCase()}
+                  />
+                  <div
+                    className="absolute -bottom-1 -right-1 cursor-pointer scale-75 md:scale-100"
+                    title={user.badge.name}
+                    onClick={() => handleBadgeClick(user.badge)}
+                  >
+                    <SimpleBadge badge={user.badge} size="xs" showName={false} />
                   </div>
                 </div>
 
-                <div className="text-right">
-                  <div className="font-bold text-sm text-gray-900 flex items-center gap-2 justify-end">
-                    {user.xp.toLocaleString()}
-                    <img src={assetUrl('/image/study/xp.png')} alt="XP" className="w-5 h-5" />
-                  </div>
-                </div>
-              </div>
-            ))}
-          </div>
-        </Card.Content>
-      </Card>
-
-      {/* Your Rank */}
-      {currentUserRank && (
-        <Card className="bg-gradient-to-r from-primary-50 to-secondary-50 border-primary-200">
-          <Card.Content>
-            <div className="flex items-center justify-between p-4">
-              <div className="flex items-center space-x-4">
-                <AvatarWithFrame
-                  avatarUrl={currentUserRank.avatar}
-                  frameUrl={currentUserRank.frame}
-                  frameRatio={currentUserRank.frameRatio}
-                  size={48}
-                  fallback={currentUserRank.name.charAt(0).toUpperCase()}
-                />
                 <div>
-                  <div className="font-semibold text-gray-900">Bạn ({currentUserRank.name})</div>
-                  <div className="flex items-center space-x-2 mt-1">
-                    <span className="text-sm text-gray-600">Hạng #{currentUserRank.rank}</span>
-                    <div
-                      title={currentUserRank.badge.name}
-                      onClick={() => handleBadgeClick(currentUserRank.badge)}
-                      className="cursor-pointer"
-                    >
-                      <SimpleBadge badge={currentUserRank.badge} size="small" showName={false} />
-                    </div>
+                  <div
+                    className="font-medium text-gray-900 cursor-pointer hover:text-blue-600 transition-colors"
+                    onClick={() => handleProfileClick(user.id)}
+                  >
+                    {user.name}
                   </div>
                 </div>
               </div>
+
               <div className="text-right">
-                <div className="font-bold text-lg text-gray-900 flex items-center gap-2 justify-end">
-                  {currentUserRank.xp.toLocaleString()}
+                <div className="font-semibold text-sm text-gray-900 flex items-center gap-2 justify-end">
+                  {user.xp.toLocaleString()}
                   <img src={assetUrl('/image/study/xp.png')} alt="XP" className="w-5 h-5" />
                 </div>
               </div>
             </div>
-          </Card.Content>
-        </Card>
+          ))}
+        </div>
+      </div>
+
+      {/* Your Rank */}
+      {currentUserRank && (
+        <div className="relative bg-gradient-to-r from-purple-50 to-indigo-50 border border-purple-200 overflow-hidden" style={{ clipPath: CLIP_CARD }}>
+          <CornerBrackets />
+          <div className="flex items-center justify-between p-4">
+            <div className="flex items-center space-x-4">
+              <AvatarWithFrame
+                avatarUrl={currentUserRank.avatar}
+                frameUrl={currentUserRank.frame}
+                frameRatio={currentUserRank.frameRatio}
+                size={48}
+                fallback={currentUserRank.name.charAt(0).toUpperCase()}
+              />
+              <div>
+                <div className="font-semibold text-gray-900">Bạn ({currentUserRank.name})</div>
+                <div className="flex items-center space-x-2 mt-1">
+                  <span className="text-sm text-gray-600">Hạng #{currentUserRank.rank}</span>
+                  <div
+                    title={currentUserRank.badge.name}
+                    onClick={() => handleBadgeClick(currentUserRank.badge)}
+                    className="cursor-pointer"
+                  >
+                    <SimpleBadge badge={currentUserRank.badge} size="small" showName={false} />
+                  </div>
+                </div>
+              </div>
+            </div>
+            <div className="text-right">
+              <div className="font-semibold text-lg text-gray-900 flex items-center gap-2 justify-end">
+                {currentUserRank.xp.toLocaleString()}
+                <img src={assetUrl('/image/study/xp.png')} alt="XP" className="w-5 h-5" />
+              </div>
+            </div>
+          </div>
+        </div>
       )}
 
       {/* Achievement Goals */}
       {currentUserRank && (
-        <Card>
-          <Card.Header>
-            <h3 className="text-lg font-semibold text-gray-900">Mục tiêu tiếp theo</h3>
-          </Card.Header>
-          <Card.Content>
-            <div className="space-y-4">
-              {/* Next level goal */}
-              <div className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
+        <div className="relative bg-white border border-gray-200 overflow-hidden" style={{ clipPath: CLIP_CARD }}>
+          <CornerBrackets />
+          <div className="px-5 pt-4 pb-1">
+            <h3 className="text-base font-semibold text-gray-900 uppercase tracking-wide">Mục tiêu tiếp theo</h3>
+            <div className="h-[2px] w-12 bg-gradient-to-r from-blue-400 to-transparent mt-1" />
+          </div>
+          <div className="p-4 space-y-3">
+            {/* Next level goal */}
+            <div className="flex items-center justify-between p-3 bg-gray-50 border border-gray-100" style={{ clipPath: CLIP_SM }}>
+              <div className="flex items-center space-x-3">
+                <Award className="w-5 h-5 text-orange-600" />
+                <span className="text-sm text-gray-900">Lên cấp {getNextLevelNumber(currentUserRank.xp)}</span>
+              </div>
+              <span className="text-sm text-gray-600">
+                <div className="flex items-center gap-1">
+                  Cần thêm {getNextLevelXpRequired(currentUserRank.xp).toLocaleString()}
+                  <img src={assetUrl('/image/study/xp.png')} alt="XP" className="w-4 h-4" />
+                </div>
+              </span>
+            </div>
+
+            {/* Rank improvement goal */}
+            {currentUserRank.rank > 1 && leaderboardData[currentUserRank.rank - 2] && (
+              <div className="flex items-center justify-between p-3 bg-gray-50 border border-gray-100" style={{ clipPath: CLIP_SM }}>
                 <div className="flex items-center space-x-3">
-                  <Award className="w-5 h-5 text-orange-600" />
-                  <span className="text-gray-900">Lên cấp {getNextLevelNumber(currentUserRank.xp)}</span>
+                  <Medal className="w-5 h-5 text-gray-600" />
+                  <span className="text-sm text-gray-900">
+                    Vượt qua {leaderboardData[currentUserRank.rank - 2].name}
+                  </span>
                 </div>
                 <span className="text-sm text-gray-600">
                   <div className="flex items-center gap-1">
-                    Cần thêm {getNextLevelXpRequired(currentUserRank.xp).toLocaleString()}
+                    Cần thêm {(leaderboardData[currentUserRank.rank - 2].xp - currentUserRank.xp + 1).toLocaleString()}
                     <img src={assetUrl('/image/study/xp.png')} alt="XP" className="w-4 h-4" />
                   </div>
                 </span>
               </div>
+            )}
 
-              {/* Rank improvement goal */}
-              {currentUserRank.rank > 1 && leaderboardData[currentUserRank.rank - 2] && (
-                <div className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
-                  <div className="flex items-center space-x-3">
-                    <Medal className="w-5 h-5 text-gray-600" />
-                    <span className="text-gray-900">
-                      Vượt qua {leaderboardData[currentUserRank.rank - 2].name}
-                    </span>
-                  </div>
-                  <span className="text-sm text-gray-600">
-                    <div className="flex items-center gap-1">
-                      Cần thêm {(leaderboardData[currentUserRank.rank - 2].xp - currentUserRank.xp + 1).toLocaleString()}
+            {/* Top 10 goal */}
+            {currentUserRank.rank > 10 && (
+              <div className="flex items-center justify-between p-3 bg-gray-50 border border-gray-100" style={{ clipPath: CLIP_SM }}>
+                <div className="flex items-center space-x-3">
+                  <Trophy className="w-5 h-5 text-yellow-600" />
+                  <span className="text-sm text-gray-900">Vào top 10</span>
+                </div>
+                <div className="text-sm text-gray-600 flex items-center gap-1">
+                  {leaderboardData[9] ? (
+                    <>
+                      Cần thêm {Math.max(1, leaderboardData[9].xp - currentUserRank.xp + 1).toLocaleString()}
                       <img src={assetUrl('/image/study/xp.png')} alt="XP" className="w-4 h-4" />
-                    </div>
-                  </span>
+                    </>
+                  ) : (
+                    'Đang tính toán...'
+                  )}
                 </div>
-              )}
-
-              {/* Top 10 goal */}
-              {currentUserRank.rank > 10 && (
-                <div className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
-                  <div className="flex items-center space-x-3">
-                    <Trophy className="w-5 h-5 text-yellow-600" />
-                    <span className="text-gray-900">Vào top 10</span>
-                  </div>
-                  <div className="text-sm text-gray-600 flex items-center gap-1">
-                    {leaderboardData[9] ? (
-                      <>
-                        Cần thêm {Math.max(1, leaderboardData[9].xp - currentUserRank.xp + 1).toLocaleString()}
-                        <img src={assetUrl('/image/study/xp.png')} alt="XP" className="w-4 h-4" />
-                      </>
-                    ) : (
-                      'Đang tính toán...'
-                    )}
-                  </div>
-                </div>
-              )}
-            </div>
-          </Card.Content>
-        </Card>
+              </div>
+            )}
+          </div>
+        </div>
       )}
 
       {/* Previous Champions */}
       {previousChampions.length > 0 && (timeframe === 'week' || timeframe === 'month') && (
-        <Card>
-          <Card.Header>
-            <h3 className="text-lg font-semibold text-gray-900">
+        <div className="relative bg-white border border-gray-200 overflow-hidden" style={{ clipPath: CLIP_CARD }}>
+          <CornerBrackets />
+          <div className="px-5 pt-4 pb-1">
+            <h3 className="text-base font-semibold text-gray-900 uppercase tracking-wide">
               {timeframe === 'week' ? 'Nhà vô địch tuần trước' : 'Nhà vô địch tháng trước'}
             </h3>
-          </Card.Header>
-          <Card.Content className="p-0">
-            <div className="divide-y divide-gray-100">
-              {previousChampions
-                .filter(c => timeframe === 'week'
-                  ? c.achievements?.criteria_type === 'weekly_xp_leader'
-                  : c.achievements?.criteria_type === 'monthly_xp_leader'
-                )
-                .map((champion, index) => {
-                  const earnedDate = new Date(champion.earned_at)
-                  const dateStr = earnedDate.toLocaleDateString('vi-VN', { day: '2-digit', month: '2-digit', year: 'numeric', timeZone: 'Asia/Ho_Chi_Minh' })
-                  return (
-                    <div key={index} className="flex items-center justify-between px-4 py-3">
-                      <div className="flex items-center gap-3">
-                        <AvatarWithFrame
-                          avatarUrl={champion.users?.avatar_url}
-                          frameUrl={champion.users?.hide_frame ? null : champion.users?.active_title}
-                          frameRatio={champion.users?.active_frame_ratio}
-                          size={40}
-                          fallback={champion.users?.full_name?.charAt(0)?.toUpperCase() || '?'}
-                        />
-                        <div>
-                          <div className="font-medium text-gray-900">{champion.users?.full_name || 'Unknown'}</div>
-                          <div className="text-xs text-gray-400">{dateStr}</div>
-                        </div>
-                      </div>
-                      <div className="flex items-center gap-1 text-yellow-500">
-                        <Crown className="w-4 h-4" />
-                        <span className="text-xs font-medium">Champion</span>
+            <div className="h-[2px] w-12 bg-gradient-to-r from-yellow-400 to-transparent mt-1" />
+          </div>
+          <div className="divide-y divide-gray-100">
+            {previousChampions
+              .filter(c => timeframe === 'week'
+                ? c.achievements?.criteria_type === 'weekly_xp_leader'
+                : c.achievements?.criteria_type === 'monthly_xp_leader'
+              )
+              .map((champion, index) => {
+                const earnedDate = new Date(champion.earned_at)
+                const dateStr = earnedDate.toLocaleDateString('vi-VN', { day: '2-digit', month: '2-digit', year: 'numeric', timeZone: 'Asia/Ho_Chi_Minh' })
+                return (
+                  <div key={index} className="flex items-center justify-between px-4 py-3">
+                    <div className="flex items-center gap-3">
+                      <AvatarWithFrame
+                        avatarUrl={champion.users?.avatar_url}
+                        frameUrl={champion.users?.hide_frame ? null : champion.users?.active_title}
+                        frameRatio={champion.users?.active_frame_ratio}
+                        size={40}
+                        fallback={champion.users?.full_name?.charAt(0)?.toUpperCase() || '?'}
+                      />
+                      <div>
+                        <div className="font-medium text-gray-900">{champion.users?.full_name || 'Unknown'}</div>
+                        <div className="text-xs text-gray-400">{dateStr}</div>
                       </div>
                     </div>
-                  )
-                })}
-            </div>
-          </Card.Content>
-        </Card>
+                    <div className="flex items-center gap-1 text-yellow-500">
+                      <Crown className="w-4 h-4" />
+                      <span className="text-xs font-medium">Champion</span>
+                    </div>
+                  </div>
+                )
+              })}
+          </div>
+        </div>
       )}
       </>
       )}
 
       {/* Badge Info Modal for Mobile */}
       {showBadgeInfo && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 md:hidden">
-          <div className="bg-white rounded-lg p-6 mx-4 max-w-sm w-full">
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 md:hidden">
+          <div className="relative bg-white border border-gray-200 p-6 mx-4 max-w-sm w-full" style={{ clipPath: CLIP_CARD }}>
+            <CornerBrackets />
             <div className="text-center">
               <div className="mb-4">
                 <SimpleBadge badge={showBadgeInfo} size="large" showName={false} />
@@ -1413,13 +1464,13 @@ const Leaderboard = () => {
               <p className="text-sm text-gray-600">
                 Tier: {showBadgeInfo.tier.charAt(0).toUpperCase() + showBadgeInfo.tier.slice(1)}
               </p>
-              <Button
+              <button
                 onClick={() => setShowBadgeInfo(null)}
-                className="mt-4"
-                size="sm"
+                className="mt-4 px-6 py-2 bg-blue-600 text-white text-sm font-medium hover:bg-blue-700 transition-colors"
+                style={{ clipPath: CLIP_BTN }}
               >
                 Đóng
-              </Button>
+              </button>
             </div>
           </div>
         </div>

@@ -5,9 +5,6 @@ import { useStudentLevels } from '../../hooks/useStudentLevels'
 import { useAchievements } from '../../hooks/useAchievements'
 import { usePet } from '../../hooks/usePet'
 import { supabase } from '../../supabase/client'
-import Card from '../ui/Card'
-import Button from '../ui/Button'
-import LoadingSpinner from '../ui/LoadingSpinner'
 import AvatarWithFrame from '../ui/AvatarWithFrame'
 import { assetUrl } from '../../hooks/useBranding';
 import {
@@ -19,7 +16,6 @@ import {
   Mail,
   Edit3,
   Award,
-  Activity,
   Crown,
   Zap,
   Shield,
@@ -30,8 +26,22 @@ import {
   CheckCircle,
   XCircle,
   LogOut,
-  Gift
+  Gift,
+  RefreshCw
 } from 'lucide-react'
+
+const CLIP_CARD = 'polygon(10px 0, 100% 0, 100% calc(100% - 10px), calc(100% - 10px) 100%, 0 100%, 0 10px)'
+const CLIP_SM = 'polygon(6px 0, 100% 0, 100% calc(100% - 6px), calc(100% - 6px) 100%, 0 100%, 0 6px)'
+const CLIP_BTN = 'polygon(5px 0, 100% 0, 100% calc(100% - 5px), calc(100% - 5px) 100%, 0 100%, 0 5px)'
+
+const CornerBrackets = () => (
+  <>
+    <div className="absolute top-0 left-[10px] w-5 h-[1px] bg-gradient-to-r from-blue-300/40 to-transparent" />
+    <div className="absolute top-0 left-[10px] w-[1px] h-5 bg-gradient-to-b from-blue-300/40 to-transparent" />
+    <div className="absolute bottom-0 right-[10px] w-5 h-[1px] bg-gradient-to-l from-blue-300/40 to-transparent" />
+    <div className="absolute bottom-0 right-[10px] w-[1px] h-5 bg-gradient-to-t from-blue-300/40 to-transparent" />
+  </>
+)
 
 const Profile = () => {
   const { userId } = useParams()
@@ -799,7 +809,10 @@ const Profile = () => {
   if (loading) {
     return (
       <div className="flex justify-center items-center min-h-64">
-        <LoadingSpinner size="lg" />
+        <div className="relative w-10 h-10">
+          <div className="absolute inset-0 border-2 border-blue-200 rounded-full animate-ping opacity-30" />
+          <RefreshCw className="w-10 h-10 animate-spin text-blue-400" />
+        </div>
       </div>
     )
   }
@@ -807,7 +820,8 @@ const Profile = () => {
   return (
     <div className="max-w-4xl mx-auto space-y-6">
       {/* Profile Header */}
-      <Card className="!bg-gradient-to-r from-blue-600 to-purple-600 text-white relative overflow-hidden">
+      <div className="relative text-white overflow-hidden" style={{ clipPath: CLIP_CARD }}>
+        <CornerBrackets />
         {/* Background Image */}
         <div
           className="absolute inset-0 bg-cover bg-center bg-no-repeat"
@@ -815,7 +829,7 @@ const Profile = () => {
         />
         {/* Dark overlay for better text readability */}
         <div className="absolute inset-0 bg-black/30" />
-        <Card.Content className="p-6 relative z-10">
+        <div className="p-6 relative z-10">
           <div className="flex items-center justify-between">
             <div className="flex items-center space-x-4">
               <AvatarWithFrame
@@ -834,7 +848,8 @@ const Profile = () => {
                       placeholder="Tên đầy đủ"
                       value={editData.full_name}
                       onChange={(e) => setEditData(prev => ({ ...prev, full_name: e.target.value }))}
-                      className="px-3 py-1 rounded-lg text-gray-900 text-xl font-bold"
+                      className="px-3 py-1 text-gray-900 text-xl font-semibold border border-white/30"
+                      style={{ clipPath: CLIP_BTN }}
                     />
                     {(profile?.role === 'admin' || profile?.role === 'teacher') && (
                       <p className="text-blue-100 flex items-center space-x-2">
@@ -845,7 +860,7 @@ const Profile = () => {
                   </div>
                 ) : (
                   <div>
-                    <h1 className="text-3xl font-bold">
+                    <h1 className="text-3xl font-semibold">
                       {currentProfile?.full_name || 'Người dùng'}
                     </h1>
                     {(profile?.role === 'admin' || profile?.role === 'teacher') && (
@@ -863,19 +878,19 @@ const Profile = () => {
               <div className="text-right">
                 {isEditing ? (
                   <div className="space-x-2">
-                    <Button onClick={handleSaveProfile} variant="outline" className="text-white border-white">
+                    <button onClick={handleSaveProfile} className="px-4 py-2 text-sm font-medium text-white border border-white/50 hover:bg-white/20 transition-colors" style={{ clipPath: CLIP_BTN }}>
                       Lưu
-                    </Button>
-                    <Button onClick={handleEditToggle} variant="ghost" className="text-white">
+                    </button>
+                    <button onClick={handleEditToggle} className="px-4 py-2 text-sm font-medium text-white hover:bg-white/20 transition-colors" style={{ clipPath: CLIP_BTN }}>
                       Hủy
-                    </Button>
+                    </button>
                   </div>
                 ) : (
                   <div>
-                    <Button onClick={handleEditToggle} variant="ghost" className="text-white" disabled={!!nameChangeCooldownDays}>
-                      <Edit3 className="w-4 h-4 mr-2" />
+                    <button onClick={handleEditToggle} className="px-4 py-2 text-sm font-medium text-white hover:bg-white/20 transition-colors disabled:opacity-50" style={{ clipPath: CLIP_BTN }} disabled={!!nameChangeCooldownDays}>
+                      <Edit3 className="w-4 h-4 mr-2 inline" />
                       Edit
-                    </Button>
+                    </button>
                     {nameChangeCooldownDays && (
                       <p className="text-xs text-blue-200 mt-1">Đổi tên sau {nameChangeCooldownDays} ngày</p>
                     )}
@@ -894,9 +909,9 @@ const Profile = () => {
             
             {!isMaxLevel && nextLevel ? (
               <>
-                <div className="w-full bg-white/20 rounded-full h-3">
+                <div className="w-full bg-white/20 h-3" style={{ clipPath: CLIP_BTN }}>
                   <div
-                    className="bg-white h-3 rounded-full transition-all duration-300"
+                    className="bg-white h-3 transition-all duration-300"
                     style={{ width: `${levelProgress.progressPercentage}%` }}
                   />
                 </div>
@@ -905,8 +920,8 @@ const Profile = () => {
                 </div>
               </>
             ) : (
-              <div className="w-full bg-white/20 rounded-full h-3">
-                <div className="bg-white h-3 rounded-full w-full" />
+              <div className="w-full bg-white/20 h-3" style={{ clipPath: CLIP_BTN }}>
+                <div className="bg-white h-3 w-full" />
               </div>
             )}
             
@@ -916,30 +931,33 @@ const Profile = () => {
               </div>
             )}
           </div>
-        </Card.Content>
-      </Card>
+        </div>
+      </div>
 
 
 
       {/* Badge Collection */}
-      <Card>
-        <Card.Header>
+      <div className="relative bg-white border border-gray-200 overflow-hidden" style={{ clipPath: CLIP_CARD }}>
+        <CornerBrackets />
+        <div className="px-5 pt-4 pb-1">
           <div className="flex items-center justify-between">
-            <h3 className="text-xl font-semibold flex items-center space-x-2">
+            <h3 className="text-base font-semibold flex items-center space-x-2 uppercase tracking-wide">
               <Trophy className="w-5 h-5 text-yellow-600" />
               <span>Badges ({earnedBadges.length})</span>
             </h3>
             <button
               onClick={() => setShowBadgeModal(true)}
-              className="flex items-center space-x-1 px-3 py-1 text-sm text-blue-600 hover:text-blue-700 hover:bg-blue-50 rounded-lg transition-colors"
+              className="flex items-center space-x-1 px-3 py-1 text-sm text-blue-600 hover:text-blue-700 hover:bg-blue-50 transition-colors"
+              style={{ clipPath: CLIP_BTN }}
             >
               <Trophy className="w-4 h-4" />
               <span>View All</span>
             </button>
           </div>
-        </Card.Header>
-        
-        <Card.Content>
+          <div className="h-[2px] w-12 bg-gradient-to-r from-yellow-400 to-transparent mt-1" />
+        </div>
+
+        <div className="p-4">
           {earnedBadges.length > 0 ? (
             <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-4">
               {earnedBadges.slice(0, 6).map((badge) => (
@@ -983,28 +1001,31 @@ const Profile = () => {
               </button>
             </div>
           )}
-        </Card.Content>
-      </Card>
+        </div>
+      </div>
 
       {/* Achievements Collection */}
-      <Card>
-        <Card.Header>
+      <div className="relative bg-white border border-gray-200 overflow-hidden" style={{ clipPath: CLIP_CARD }}>
+        <CornerBrackets />
+        <div className="px-5 pt-4 pb-1">
           <div className="flex items-center justify-between">
-            <h3 className="text-xl font-semibold flex items-center space-x-2">
+            <h3 className="text-base font-semibold flex items-center space-x-2 uppercase tracking-wide">
               <Award className="w-5 h-5 text-purple-600" />
               <span>Achievements ({achievements.filter(a => a.isUnlocked).length})</span>
             </h3>
             <button
               onClick={() => setShowAchievementModal(true)}
-              className="flex items-center space-x-1 px-3 py-1 text-sm text-purple-600 hover:text-purple-700 hover:bg-purple-50 rounded-lg transition-colors"
+              className="flex items-center space-x-1 px-3 py-1 text-sm text-purple-600 hover:text-purple-700 hover:bg-purple-50 transition-colors"
+              style={{ clipPath: CLIP_BTN }}
             >
               <Award className="w-4 h-4" />
               <span>View All</span>
             </button>
           </div>
-        </Card.Header>
+          <div className="h-[2px] w-12 bg-gradient-to-r from-purple-400 to-transparent mt-1" />
+        </div>
 
-        <Card.Content>
+        <div className="p-4">
           {achievements.filter(a => a.isUnlocked).length > 0 ? (
             <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-4">
               {achievements.filter(a => a.isUnlocked).slice(0, 6).map((achievement) => {
@@ -1075,8 +1096,8 @@ const Profile = () => {
               <p>No achievements unlocked yet. Keep learning to unlock your first achievement!</p>
             </div>
           )}
-        </Card.Content>
-      </Card>
+        </div>
+      </div>
 
       {/* Pet Collection */}
       {(() => {
@@ -1087,25 +1108,28 @@ const Profile = () => {
         const displayPets = activePet ? [activePet, ...otherPets] : allUserPets.slice(0, 3)
 
         return (
-          <Card>
-            <Card.Header>
+          <div className="relative bg-white border border-gray-200 overflow-hidden" style={{ clipPath: CLIP_CARD }}>
+            <CornerBrackets />
+            <div className="px-5 pt-4 pb-1">
               <div className="flex items-center justify-between">
-                <h3 className="text-xl font-semibold flex items-center space-x-2">
+                <h3 className="text-base font-semibold flex items-center space-x-2 uppercase tracking-wide">
                   <span className="text-2xl">🐾</span>
                   <span>Pets ({allUserPets.length})</span>
                 </h3>
                 {isOwnProfile && (
                   <button
                     onClick={() => navigate('/pets')}
-                    className="flex items-center space-x-1 px-3 py-1 text-sm text-blue-600 hover:text-blue-700 hover:bg-blue-50 rounded-lg transition-colors"
+                    className="flex items-center space-x-1 px-3 py-1 text-sm text-blue-600 hover:text-blue-700 hover:bg-blue-50 transition-colors"
+                    style={{ clipPath: CLIP_BTN }}
                   >
                     <span>View All</span>
                   </button>
                 )}
               </div>
-            </Card.Header>
+              <div className="h-[2px] w-12 bg-gradient-to-r from-blue-400 to-transparent mt-1" />
+            </div>
 
-            <Card.Content>
+            <div className="p-4">
               {allUserPets.length > 0 ? (
                 <div className="grid grid-cols-3 md:grid-cols-5 lg:grid-cols-3 gap-4">
                   {displayPets.map((userPet) => {
@@ -1159,98 +1183,95 @@ const Profile = () => {
                   )}
                 </div>
               )}
-            </Card.Content>
-          </Card>
+            </div>
+          </div>
         )
       })()}
 
       {/* Stats Grid */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-        <Card className="text-center">
-          <Card.Content className="p-4">
-            <div className="w-12 h-12 rounded-full flex items-center justify-center mx-auto mb-2">
-              <img src={assetUrl('/icon/profile/XP.svg')} alt="XP" className="w-12 h-12" />
+        <div className="relative bg-white border border-gray-200 text-center p-4 overflow-hidden" style={{ clipPath: CLIP_SM }}>
+          <div className="w-12 h-12 flex items-center justify-center mx-auto mb-2">
+            <img src={assetUrl('/icon/profile/XP.svg')} alt="XP" className="w-12 h-12" />
+          </div>
+          <div className="text-2xl font-semibold text-gray-900">{stats.totalXP}</div>
+          <div className="text-sm text-gray-500">Total XP</div>
+          {currentBadge && (
+            <div className="text-xs text-gray-400 mt-1">
+              {currentBadge?.name}
             </div>
-            <div className="text-2xl font-bold text-gray-900">{stats.totalXP}</div>
-            <div className="text-sm text-gray-600">Total XP</div>
-            {currentBadge && (
-              <div className="text-xs text-gray-500 mt-1">
-                {currentBadge?.name}
-              </div>
-            )}
-          </Card.Content>
-        </Card>
+          )}
+        </div>
 
-        <Card className="text-center">
-          <Card.Content className="p-4">
-            <div className="w-12 h-12 rounded-full flex items-center justify-center mx-auto mb-2">
-              <img src={assetUrl('/icon/profile/paper.svg')} alt="Exercises" className="w-12 h-12" />
-            </div>
-            <div className="text-2xl font-bold text-gray-900">{stats.exercisesCompleted}</div>
-            <div className="text-sm text-gray-600">Bài tập hoàn thành</div>
-          </Card.Content>
-        </Card>
+        <div className="relative bg-white border border-gray-200 text-center p-4 overflow-hidden" style={{ clipPath: CLIP_SM }}>
+          <div className="w-12 h-12 flex items-center justify-center mx-auto mb-2">
+            <img src={assetUrl('/icon/profile/paper.svg')} alt="Exercises" className="w-12 h-12" />
+          </div>
+          <div className="text-2xl font-semibold text-gray-900">{stats.exercisesCompleted}</div>
+          <div className="text-sm text-gray-500">Bài tập hoàn thành</div>
+        </div>
 
-        <Card className="text-center">
-          <Card.Content className="p-4">
-            <div className="w-12 h-12 rounded-full flex items-center justify-center mx-auto mb-2">
-              <img src={assetUrl('/icon/profile/streak.svg')} alt="Streak" className="w-12 h-12" />
-            </div>
-            <div className="text-2xl font-bold text-gray-900">{stats.streakCount}</div>
-            <div className="text-sm text-gray-600">Chuỗi ngày học</div>
-          </Card.Content>
-        </Card>
+        <div className="relative bg-white border border-gray-200 text-center p-4 overflow-hidden" style={{ clipPath: CLIP_SM }}>
+          <div className="w-12 h-12 flex items-center justify-center mx-auto mb-2">
+            <img src={assetUrl('/icon/profile/streak.svg')} alt="Streak" className="w-12 h-12" />
+          </div>
+          <div className="text-2xl font-semibold text-gray-900">{stats.streakCount}</div>
+          <div className="text-sm text-gray-500">Chuỗi ngày học</div>
+        </div>
 
-        <Card className="text-center">
-          <Card.Content className="p-4">
-            <div className="w-12 h-12 rounded-full flex items-center justify-center mx-auto mb-2">
-              <img src={assetUrl('/icon/profile/score%20metric.svg')} alt="Score" className="w-12 h-12" />
-            </div>
-            <div className="text-2xl font-bold text-gray-900">{stats.averageScore}%</div>
-            <div className="text-sm text-gray-600">Điểm trung bình</div>
-          </Card.Content>
-        </Card>
+        <div className="relative bg-white border border-gray-200 text-center p-4 overflow-hidden" style={{ clipPath: CLIP_SM }}>
+          <div className="w-12 h-12 flex items-center justify-center mx-auto mb-2">
+            <img src={assetUrl('/icon/profile/score%20metric.svg')} alt="Score" className="w-12 h-12" />
+          </div>
+          <div className="text-2xl font-semibold text-gray-900">{stats.averageScore}%</div>
+          <div className="text-sm text-gray-500">Điểm trung bình</div>
+        </div>
       </div>
 
       {/* Recent Activity - moved to Progress page */}
 
       {/* Additional Stats */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-        <Card>
-          <Card.Header>
-            <h3 className="text-lg font-semibold flex items-center space-x-2">
+        <div className="relative bg-white border border-gray-200 overflow-hidden" style={{ clipPath: CLIP_CARD }}>
+          <CornerBrackets />
+          <div className="px-5 pt-4 pb-1">
+            <h3 className="text-base font-semibold flex items-center space-x-2 uppercase tracking-wide">
               <Clock className="w-5 h-5" />
               <span>Thời gian học tập</span>
             </h3>
-          </Card.Header>
-          <Card.Content>
-            <div className="text-3xl font-bold text-gray-900 mb-2">
+            <div className="h-[2px] w-12 bg-gradient-to-r from-blue-400 to-transparent mt-1" />
+          </div>
+          <div className="p-4">
+            <div className="text-3xl font-semibold text-gray-900 mb-2">
               {formatPracticeTime(stats.totalPracticeTime)}
             </div>
-            <p className="text-gray-600">Tổng thời gian luyện tập</p>
-          </Card.Content>
-        </Card>
+            <p className="text-gray-500 text-sm">Tổng thời gian luyện tập</p>
+          </div>
+        </div>
 
-        <Card>
-          <Card.Header>
-            <h3 className="text-lg font-semibold flex items-center space-x-2">
+        <div className="relative bg-white border border-gray-200 overflow-hidden" style={{ clipPath: CLIP_CARD }}>
+          <CornerBrackets />
+          <div className="px-5 pt-4 pb-1">
+            <h3 className="text-base font-semibold flex items-center space-x-2 uppercase tracking-wide">
               <Calendar className="w-5 h-5" />
               <span>Tham gia từ</span>
             </h3>
-          </Card.Header>
-          <Card.Content>
+            <div className="h-[2px] w-12 bg-gradient-to-r from-blue-400 to-transparent mt-1" />
+          </div>
+          <div className="p-4">
             <div className="text-lg font-medium text-gray-900 mb-2">
               {currentProfile?.created_at ? new Date(currentProfile.created_at).toLocaleDateString('vi-VN') : 'N/A'}
             </div>
-            <p className="text-gray-600">Ngày đăng ký tài khoản</p>
-          </Card.Content>
-        </Card>
+            <p className="text-gray-500 text-sm">Ngày đăng ký tài khoản</p>
+          </div>
+        </div>
       </div>
 
       {/* Avatar Selector Modal */}
       {showAvatarSelector && isOwnProfile && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-lg p-8 max-w-5xl w-full max-h-[90vh] overflow-y-auto">
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+          <div className="relative bg-white border border-gray-200 p-8 max-w-5xl w-full max-h-[90vh] overflow-y-auto" style={{ clipPath: CLIP_CARD }}>
+            <CornerBrackets />
             <div className="flex items-center justify-between mb-4">
               <h3 className="text-xl font-semibold">Chọn Avatar - Thu thập XP để mở khóa</h3>
               <button
@@ -1450,9 +1471,9 @@ const Profile = () => {
               )}
             </div>
 
-            <div className="mt-6 p-4 bg-blue-50 rounded-lg">
+            <div className="mt-6 p-4 bg-blue-50 border border-blue-200" style={{ clipPath: CLIP_SM }}>
               <div className="text-center">
-                <span className="text-lg font-bold text-blue-900">
+                <span className="text-lg font-semibold text-blue-900">
                   XP hiện tại: {stats.totalXP}
                 </span>
                 {currentLevel && (
@@ -1469,18 +1490,21 @@ const Profile = () => {
 
       {/* Badge Modal */}
       {showBadgeModal && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-lg max-w-4xl w-full max-h-[90vh] overflow-y-auto">
-            <div className="sticky top-0 bg-white border-b p-4">
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+          <div className="relative bg-white border border-gray-200 max-w-4xl w-full max-h-[90vh] overflow-y-auto" style={{ clipPath: CLIP_CARD }}>
+            <CornerBrackets />
+            <div className="sticky top-0 bg-white border-b border-gray-200 p-4 z-10">
               <div className="flex items-center justify-between">
-                <h2 className="text-2xl font-bold text-gray-900">Badge Collection</h2>
+                <h2 className="text-xl font-semibold text-gray-900 uppercase tracking-wide">Badge Collection</h2>
                 <button
                   onClick={() => setShowBadgeModal(false)}
-                  className="p-2 hover:bg-gray-100 rounded-full"
+                  className="p-2 hover:bg-gray-100 transition-colors"
+                  style={{ clipPath: CLIP_BTN }}
                 >
                   <X className="w-5 h-5" />
                 </button>
               </div>
+              <div className="h-[2px] w-16 bg-gradient-to-r from-yellow-400 to-transparent mt-1" />
             </div>
 
             <div className="p-6 space-y-8">
@@ -1566,28 +1590,31 @@ const Profile = () => {
 
       {/* Achievement Modal */}
       {showAchievementModal && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-lg max-w-4xl w-full max-h-[90vh] overflow-y-auto">
-            <div className="sticky top-0 bg-white border-b p-4">
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+          <div className="relative bg-white border border-gray-200 max-w-4xl w-full max-h-[90vh] overflow-y-auto" style={{ clipPath: CLIP_CARD }}>
+            <CornerBrackets />
+            <div className="sticky top-0 bg-white border-b border-gray-200 p-4 z-10">
               <div className="flex items-center justify-between">
-                <h2 className="text-2xl font-bold text-gray-900">Achievement Collection</h2>
+                <h2 className="text-xl font-semibold text-gray-900 uppercase tracking-wide">Achievement Collection</h2>
                 <button
                   onClick={() => setShowAchievementModal(false)}
-                  className="p-2 hover:bg-gray-100 rounded-full"
+                  className="p-2 hover:bg-gray-100 transition-colors"
+                  style={{ clipPath: CLIP_BTN }}
                 >
                   <X className="w-5 h-5" />
                 </button>
               </div>
+              <div className="h-[2px] w-16 bg-gradient-to-r from-purple-400 to-transparent mt-1" />
             </div>
 
             <div className="p-6">
               {/* Claim Message */}
               {claimMessage && (
-                <div className={`mb-4 p-3 rounded-lg ${
+                <div className={`mb-4 p-3 ${
                   claimMessage.includes('+')
                     ? 'bg-green-100 text-green-800 border border-green-200'
                     : 'bg-red-100 text-red-800 border border-red-200'
-                }`}>
+                }`} style={{ clipPath: CLIP_SM }}>
                   {claimMessage}
                 </div>
               )}
@@ -1649,7 +1676,8 @@ const Profile = () => {
         <div className="mt-6 mb-8 flex justify-center">
           <button
             onClick={async () => { await signOut(); navigate('/login'); }}
-            className="flex items-center gap-2 px-6 py-3 rounded-xl bg-red-50 text-red-600 font-semibold hover:bg-red-100 transition-colors border border-red-200"
+            className="flex items-center gap-2 px-6 py-3 bg-red-50 text-red-600 font-medium hover:bg-red-100 transition-colors border border-red-200"
+            style={{ clipPath: CLIP_SM }}
           >
             <LogOut className="w-5 h-5" />
             Log Out

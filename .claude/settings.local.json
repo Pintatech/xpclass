@@ -65,7 +65,8 @@
       "Bash(for file:*)",
       "Bash(do echo:*)",
       "Bash(ls node_modules/lucide-react/dist/esm/icons/*check* node_modules/lucide-react/dist/esm/icons/*circle-x* node_modules/lucide-react/dist/esm/icons/*x-circle*)",
-      "Bash(npm uninstall:*)"
+      "Bash(npm uninstall:*)",
+      "Bash(xargs -I {} basename {})"
     ],
     "deny": [],
     "ask": []

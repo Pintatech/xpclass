@@ -670,7 +670,7 @@ const TeacherCourseOverview = () => {
                                   </div>
                                 )}
                               </div>
-                              <span className={`truncate max-w-[140px] ${isAbsent ? 'text-gray-400 italic font-normal' : 'font-medium text-gray-900'}`}>{student.full_name}</span>
+                              <span className={`max-w-[140px] ${isAbsent ? 'text-gray-400 italic font-normal' : 'font-medium text-gray-900'}`}>{student.full_name}</span>
                               {!isAbsent && rec?.star_flag === 'star' && <Star className="w-3.5 h-3.5 fill-yellow-400 text-yellow-400 flex-shrink-0" />}
                               {!isAbsent && rec?.star_flag === 'flag' && <Flag className="w-3.5 h-3.5 fill-red-500 text-red-500 flex-shrink-0" />}
                             </div>

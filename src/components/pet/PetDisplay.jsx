@@ -474,10 +474,16 @@ const PetDisplay = () => {
 
   if (!activePet) {
     return (
-      <div className="bg-white rounded-xl shadow-lg p-6 text-center">
+      <div className="relative bg-white border border-gray-200 shadow-lg p-6 text-center overflow-hidden"
+        style={{ clipPath: 'polygon(12px 0, 100% 0, 100% calc(100% - 12px), calc(100% - 12px) 100%, 0 100%, 0 12px)' }}
+      >
+        <div className="absolute top-0 left-[12px] w-5 h-[1px] bg-gradient-to-r from-blue-300/40 to-transparent" />
+        <div className="absolute top-0 left-[12px] w-[1px] h-5 bg-gradient-to-b from-blue-300/40 to-transparent" />
+        <div className="absolute bottom-0 right-[12px] w-5 h-[1px] bg-gradient-to-l from-blue-300/40 to-transparent" />
+        <div className="absolute bottom-0 right-[12px] w-[1px] h-5 bg-gradient-to-t from-blue-300/40 to-transparent" />
         <div className="text-gray-400 mb-4">
           <Sparkles className="w-16 h-16 mx-auto mb-2" />
-          <h3 className="text-xl font-bold text-gray-600">No Active Pet</h3>
+          <h3 className="text-xl font-semibold text-gray-600">No Active Pet</h3>
           <p className="text-sm text-gray-500 mt-2">
             Pet gain you bonus XP and explain questions to you
           </p>
@@ -988,11 +994,17 @@ const PetDisplay = () => {
 
   return (
     <div
-      className="rounded-xl shadow-lg relative bg-cover bg-center bg-blue-200"
+      className="relative shadow-lg bg-cover bg-center bg-blue-200 overflow-hidden"
       style={{
         backgroundImage: `url(${assetUrl('/')}image/dashboard/2709577_14710.jpg)`,
+        clipPath: 'polygon(12px 0, 100% 0, 100% calc(100% - 12px), calc(100% - 12px) 100%, 0 100%, 0 12px)',
       }}
     >
+      {/* Corner brackets */}
+      <div className="absolute top-0 left-[12px] w-5 h-[1px] bg-gradient-to-r from-blue-300/40 to-transparent z-10" />
+      <div className="absolute top-0 left-[12px] w-[1px] h-5 bg-gradient-to-b from-blue-300/40 to-transparent z-10" />
+      <div className="absolute bottom-0 right-[12px] w-5 h-[1px] bg-gradient-to-l from-blue-300/40 to-transparent z-10" />
+      <div className="absolute bottom-0 right-[12px] w-[1px] h-5 bg-gradient-to-t from-blue-300/40 to-transparent z-10" />
       {/* Feed Animation Styles */}
       <style>{`
         .scrollbar-hide::-webkit-scrollbar {
@@ -1122,11 +1134,12 @@ const PetDisplay = () => {
       {/* Message Toast - Fixed Position */}
       {message && (
         <div
-          className={`fixed top-4 left-1/2 transform -translate-x-1/2 z-50 px-6 py-3 rounded-lg shadow-lg text-center font-medium animate-fade-in ${
+          className={`fixed top-4 left-1/2 transform -translate-x-1/2 z-50 px-6 py-3 shadow-lg text-center font-medium animate-fade-in ${
             message.type === "success"
               ? "bg-green-500 text-white"
               : "bg-red-500 text-white"
           }`}
+          style={{ clipPath: 'polygon(8px 0, 100% 0, calc(100% - 8px) 100%, 0 100%)' }}
         >
           {message.text}
         </div>
@@ -1136,7 +1149,8 @@ const PetDisplay = () => {
         {/* Pet Avatar */}
         <div className="flex-1">
           <div
-            className="bg-white rounded-xl p-4 text-center relative"
+            className="bg-white p-4 text-center relative"
+            style={{ clipPath: 'polygon(10px 0, 100% 0, 100% calc(100% - 10px), calc(100% - 10px) 100%, 0 100%, 0 10px)' }}
           >
             {/* Pet Status - top left */}
 
@@ -1188,7 +1202,9 @@ const PetDisplay = () => {
                   {showBonuses && (
                     <>
                       <div className="fixed inset-0 z-30" onClick={() => setShowBonuses(false)} />
-                      <div className="absolute top-0 left-full ml-2 bg-white rounded-lg shadow-xl p-3 z-40 border-2 border-yellow-200 min-w-[200px]">
+                      <div className="absolute top-0 left-full ml-2 bg-white shadow-xl p-3 z-40 border-2 border-yellow-200 min-w-[200px]"
+                        style={{ clipPath: 'polygon(8px 0, 100% 0, 100% calc(100% - 8px), calc(100% - 8px) 100%, 0 100%, 0 8px)' }}
+                      >
                         <div className="space-y-2">
                           {bonuses.map((bonus, idx) => (
                             <div key={idx}>
@@ -1548,7 +1564,9 @@ const PetDisplay = () => {
                     className="fixed inset-0 z-10"
                     onClick={() => setShowFeedMenu(false)}
                   />
-                  <div className="absolute top-full right-0 mt-2 bg-white rounded-lg shadow-xl p-4 z-20 border-2 border-orange-200 min-w-[200px]">
+                  <div className="absolute top-full right-0 mt-2 bg-white shadow-xl p-4 z-20 border-2 border-orange-200 min-w-[200px]"
+                    style={{ clipPath: 'polygon(8px 0, 100% 0, 100% calc(100% - 8px), calc(100% - 8px) 100%, 0 100%, 0 8px)' }}
+                  >
 
                   {petFoodItems.length === 0 ? (
                     <p className="text-xs text-gray-500 mb-2">
@@ -1603,12 +1621,12 @@ const PetDisplay = () => {
               </button>
             </div>
 
-            <div className="flex items-center justify-center gap-2">
+            <div className="flex flex-col items-center">
               <h2 className="text-2xl font-bold text-gray-800">
                 {activePet.nickname || activePet.name}
               </h2>
               <span
-                className={`px-3 py-1 rounded-full text-sm font-black uppercase tracking-wider ${getRarityColor(activePet.rarity)}`}
+                className={`px-3 py-0.5 rounded-full text-xs font-bold uppercase tracking-wider mt-1 ${getRarityColor(activePet.rarity)}`}
               >
                 {getRarityStars(activePet.rarity)} {activePet.rarity}
               </span>
@@ -1626,7 +1644,9 @@ const PetDisplay = () => {
                 </span>
               </div>
               {activePet.evolution_stage > 0 && (
-                <div className="flex items-center gap-1 bg-purple-100 px-3 py-1 rounded-full">
+                <div className="flex items-center gap-1 bg-purple-100 px-3 py-1 border border-purple-200"
+                  style={{ clipPath: 'polygon(6px 0, 100% 0, calc(100% - 6px) 100%, 0 100%)' }}
+                >
                   <Sparkles className="w-4 h-4 text-purple-600" />
                   <span className="text-sm font-semibold text-purple-600">
                     Stage {activePet.evolution_stage}
@@ -1642,9 +1662,11 @@ const PetDisplay = () => {
                   <span>Level Progress</span>
                   
                 </div>
-                <div className="w-full bg-gray-200 rounded-full h-2">
+                <div className="w-full bg-gray-200 h-2"
+                  style={{ clipPath: 'polygon(2px 0, 100% 0, calc(100% - 2px) 100%, 0 100%)' }}
+                >
                   <div
-                    className={`bg-gradient-to-r ${getRarityGradient(activePet.rarity)} h-2 rounded-full transition-all`}
+                    className={`bg-gradient-to-r ${getRarityGradient(activePet.rarity)} h-2 transition-all`}
                     style={{ width: `${activePet.xp % 100}%` }}
                   />
                 </div>
@@ -1667,9 +1689,11 @@ const PetDisplay = () => {
                         </span>
 
                       </div>
-                      <div className="w-full bg-purple-100 rounded-full h-2">
+                      <div className="w-full bg-purple-100 h-2"
+                        style={{ clipPath: 'polygon(2px 0, 100% 0, calc(100% - 2px) 100%, 0 100%)' }}
+                      >
                         <div
-                          className="bg-purple-500 h-2 rounded-full transition-all"
+                          className="bg-purple-500 h-2 transition-all"
                           style={{ width: `${progress}%` }}
                         />
                       </div>
@@ -1686,7 +1710,9 @@ const PetDisplay = () => {
         <div className="flex-1 p-4 space-y-4">
           {/* Chat Panel */}
           {showChat && (
-            <div className="bg-white rounded-xl p-4 border-2 border-pink-200">
+            <div className="bg-white p-4 border-2 border-pink-200"
+              style={{ clipPath: 'polygon(10px 0, 100% 0, 100% calc(100% - 10px), calc(100% - 10px) 100%, 0 100%, 0 10px)' }}
+            >
               <div className="flex items-center justify-between mb-3">
                 <h3 className="font-bold text-gray-800 flex items-center gap-2">
                   <MessageCircle className="w-5 h-5 text-pink-500" />
@@ -1703,7 +1729,8 @@ const PetDisplay = () => {
               {/* Chat Messages */}
               <div
                 ref={chatContainerRef}
-                className="h-48 overflow-y-auto mb-3 space-y-2 p-2 bg-gray-50 rounded-lg"
+                className="h-48 overflow-y-auto mb-3 space-y-2 p-2 bg-gray-50"
+                style={{ clipPath: 'polygon(6px 0, 100% 0, 100% calc(100% - 6px), calc(100% - 6px) 100%, 0 100%, 0 6px)' }}
               >
                 {chatMessages.length === 0 && (
                   <p className="text-center text-gray-400 text-sm py-4">
@@ -1748,7 +1775,8 @@ const PetDisplay = () => {
                         ? "Pet đang mệt..."
                         : `Message ${activePet.nickname || activePet.name}...`
                     }
-                    className="flex-1 px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-pink-500 text-sm"
+                    className="flex-1 px-3 py-2 border border-gray-300 focus:outline-none focus:ring-2 focus:ring-pink-500 text-sm"
+                    style={{ clipPath: 'polygon(6px 0, 100% 0, 100% calc(100% - 6px), calc(100% - 6px) 100%, 0 100%, 0 6px)' }}
                     disabled={chatLoading || (userEnergy ?? 100) < 10}
                   />
                   <button
@@ -1758,7 +1786,8 @@ const PetDisplay = () => {
                       !chatInput.trim() ||
                       (userEnergy ?? 100) < 10
                     }
-                    className="px-4 py-2 bg-pink-500 text-white rounded-lg hover:bg-pink-600 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                    className="px-4 py-2 bg-pink-500 text-white hover:bg-pink-600 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                    style={{ clipPath: 'polygon(6px 0, 100% 0, calc(100% - 6px) 100%, 0 100%)' }}
                   >
                     <Send className="w-4 h-4" />
                   </button>
@@ -1777,21 +1806,34 @@ const PetDisplay = () => {
       </div>
 
       {/* Pet Info Modal */}
-      {showPetInfo && (
-        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 p-4" onClick={() => setShowPetInfo(false)}>
+      {showPetInfo && createPortal(
+        <div className="fixed inset-0 bg-black/30 backdrop-blur-sm flex items-center justify-center z-50 px-4" onClick={() => setShowPetInfo(false)}>
           <div
-            className="bg-gradient-to-b from-white to-gray-50 rounded-2xl max-w-xl w-full max-h-[85vh] overflow-y-auto shadow-2xl border border-gray-100"
-            style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }}
+            className="relative bg-white border-2 border-blue-200 max-w-xl w-full max-h-[85vh] overflow-y-auto shadow-xl"
+            style={{
+              clipPath: 'polygon(12px 0, 100% 0, 100% calc(100% - 12px), calc(100% - 12px) 100%, 0 100%, 0 12px)',
+              scrollbarWidth: 'none', msOverflowStyle: 'none',
+            }}
             onClick={(e) => e.stopPropagation()}
           >
+            {/* Corner brackets */}
+            <div className="absolute top-0 left-[12px] w-5 h-[1px] bg-gradient-to-r from-blue-300/40 to-transparent" />
+            <div className="absolute top-0 left-[12px] w-[1px] h-5 bg-gradient-to-b from-blue-300/40 to-transparent" />
+            <div className="absolute bottom-0 right-[12px] w-5 h-[1px] bg-gradient-to-l from-blue-300/40 to-transparent" />
+            <div className="absolute bottom-0 right-[12px] w-[1px] h-5 bg-gradient-to-t from-blue-300/40 to-transparent" />
+
             {/* Header */}
-            <div className="sticky top-0 z-10 bg-blue-500 text-white px-6 py-5 rounded-t-2xl flex justify-between items-center">
+            <div className="sticky top-0 z-10 bg-gradient-to-r from-blue-500 to-blue-600 text-white px-6 py-4 flex justify-between items-center"
+              style={{ clipPath: 'polygon(0 0, 100% 0, 100% calc(100% - 8px), calc(100% - 8px) 100%, 0 100%)' }}
+            >
               <div>
-                <h2 className="text-xl font-bold tracking-tight">Pet System Guide</h2>
+                <h2 className="text-lg font-semibold tracking-wide uppercase">Pet System Guide</h2>
+                <div className="h-[1px] w-20 bg-white/30 mt-1" />
               </div>
               <button
                 onClick={() => setShowPetInfo(false)}
-                className="text-white/80 hover:text-white hover:bg-white/20 rounded-full p-1.5 transition-all"
+                className="text-white/80 hover:text-white hover:bg-white/20 p-1.5 transition-all"
+                style={{ clipPath: 'polygon(4px 0, 100% 0, 100% calc(100% - 4px), calc(100% - 4px) 100%, 0 100%, 0 4px)' }}
               >
                 <X className="w-5 h-5" />
               </button>
@@ -1799,8 +1841,10 @@ const PetDisplay = () => {
 
             <div className="p-5 space-y-4">
               {/* How Pets Work */}
-              <div className="bg-white rounded-xl p-4 border border-gray-100 shadow-sm">
-                <h3 className="text-sm font-bold text-gray-800 mb-1.5 flex items-center gap-2">
+              <div className="relative bg-white border border-gray-200 p-4 shadow-sm overflow-hidden"
+                style={{ clipPath: 'polygon(8px 0, 100% 0, 100% calc(100% - 8px), calc(100% - 8px) 100%, 0 100%, 0 8px)' }}
+              >
+                <h3 className="text-sm font-semibold text-gray-800 mb-1.5 flex items-center gap-2">
                   <Sparkles className="w-4 h-4 text-purple-500" />
                   How Pets Work
                 </h3>
@@ -1810,9 +1854,13 @@ const PetDisplay = () => {
               </div>
 
               {/* Evolution */}
-              <div className="bg-white rounded-xl p-4 border border-purple-100 shadow-sm">
-                <h3 className="text-sm font-bold text-purple-800 mb-3 flex items-center gap-2">
-                  <span className="w-6 h-6 bg-purple-100 rounded-lg flex items-center justify-center text-xs">✨</span>
+              <div className="relative bg-white border border-purple-200 p-4 shadow-sm overflow-hidden"
+                style={{ clipPath: 'polygon(8px 0, 100% 0, 100% calc(100% - 8px), calc(100% - 8px) 100%, 0 100%, 0 8px)' }}
+              >
+                <h3 className="text-sm font-semibold text-purple-800 mb-3 flex items-center gap-2">
+                  <span className="w-6 h-6 bg-purple-100 flex items-center justify-center text-xs"
+                    style={{ clipPath: 'polygon(4px 0, 100% 0, 100% calc(100% - 4px), calc(100% - 4px) 100%, 0 100%, 0 4px)' }}
+                  >✨</span>
                   Evolution
                 </h3>
                 {activePet?.evolution_stages && activePet.evolution_stages.length > 0 ? (
@@ -1820,18 +1868,22 @@ const PetDisplay = () => {
                     <p className="text-xs text-gray-500 mb-3">{activePet.nickname || activePet.name}&apos;s Evolution Path</p>
                     <div className="flex flex-wrap gap-2.5 justify-center">
                       {/* Base Stage */}
-                      <div className={`bg-gray-50 rounded-xl p-2.5 border-2 flex flex-col items-center w-24 transition-all ${
+                      <div className={`relative bg-gray-50 p-2.5 border-2 flex flex-col items-center w-24 transition-all overflow-hidden ${
                         activePet.evolution_stage === 0 ? 'border-purple-400 shadow-md shadow-purple-100' : 'border-gray-200'
-                      }`}>
+                      }`}
+                        style={{ clipPath: 'polygon(6px 0, 100% 0, 100% calc(100% - 6px), calc(100% - 6px) 100%, 0 100%, 0 6px)' }}
+                      >
                         {(activePet.base_image_url || activePet.image_url) && (
                           <div className="relative w-14 h-14 mb-1.5">
-                            <img src={activePet.base_image_url || activePet.image_url} alt="Base form" className="w-14 h-14 object-contain rounded-lg select-none pointer-events-none" onContextMenu={(e) => e.preventDefault()} draggable="false" />
+                            <img src={activePet.base_image_url || activePet.image_url} alt="Base form" className="w-14 h-14 object-contain select-none pointer-events-none" onContextMenu={(e) => e.preventDefault()} draggable="false" />
                             <div className="absolute inset-0 bg-transparent" onContextMenu={(e) => e.preventDefault()} />
                           </div>
                         )}
                         <span className="font-semibold text-gray-700 text-[10px]">Base</span>
                         {activePet.evolution_stage === 0 && (
-                          <span className="text-[9px] bg-purple-500 text-white px-1.5 py-0.5 rounded-full mt-1 font-medium">Current</span>
+                          <span className="text-[9px] bg-purple-500 text-white px-1.5 py-0.5 mt-1 font-medium"
+                            style={{ clipPath: 'polygon(3px 0, 100% 0, calc(100% - 3px) 100%, 0 100%)' }}
+                          >Current</span>
                         )}
                       </div>
 
@@ -1840,12 +1892,14 @@ const PetDisplay = () => {
                         const isUnlocked = activePet.evolution_stage >= stage.stage;
                         const isLocked = !isUnlocked;
                         return (
-                          <div key={stage.stage} className={`bg-gray-50 rounded-xl p-2.5 border-2 flex flex-col items-center w-24 transition-all ${
+                          <div key={stage.stage} className={`relative bg-gray-50 p-2.5 border-2 flex flex-col items-center w-24 transition-all overflow-hidden ${
                             isCurrent ? 'border-purple-400 shadow-md shadow-purple-100' : isUnlocked ? 'border-green-300' : 'border-gray-200 opacity-75'
-                          }`}>
+                          }`}
+                            style={{ clipPath: 'polygon(6px 0, 100% 0, 100% calc(100% - 6px), calc(100% - 6px) 100%, 0 100%, 0 6px)' }}
+                          >
                             {stage.image_url && (
                               <div className="relative w-14 h-14 mb-1.5">
-                                <img src={stage.image_url} alt={stage.name || `Stage ${stage.stage}`} className={`w-14 h-14 object-contain rounded-lg select-none pointer-events-none ${isLocked ? 'filter brightness-[0.2] contrast-[150%]' : ''}`} onContextMenu={(e) => e.preventDefault()} draggable="false" />
+                                <img src={stage.image_url} alt={stage.name || `Stage ${stage.stage}`} className={`w-14 h-14 object-contain select-none pointer-events-none ${isLocked ? 'filter brightness-[0.2] contrast-[150%]' : ''}`} onContextMenu={(e) => e.preventDefault()} draggable="false" />
                                 <div className="absolute inset-0 bg-transparent" onContextMenu={(e) => e.preventDefault()} />
                               </div>
                             )}
@@ -1856,10 +1910,14 @@ const PetDisplay = () => {
                               <p className="text-[9px] text-gray-400 mt-0.5">{stage.xp_required} XP</p>
                             )}
                             {isCurrent && (
-                              <span className="text-[9px] bg-purple-500 text-white px-1.5 py-0.5 rounded-full mt-1 font-medium">Current</span>
+                              <span className="text-[9px] bg-purple-500 text-white px-1.5 py-0.5 mt-1 font-medium"
+                                style={{ clipPath: 'polygon(3px 0, 100% 0, calc(100% - 3px) 100%, 0 100%)' }}
+                              >Current</span>
                             )}
                             {isUnlocked && !isCurrent && (
-                              <span className="text-[9px] bg-green-500 text-white px-1.5 py-0.5 rounded-full mt-1 font-medium">Unlocked</span>
+                              <span className="text-[9px] bg-green-500 text-white px-1.5 py-0.5 mt-1 font-medium"
+                                style={{ clipPath: 'polygon(3px 0, 100% 0, calc(100% - 3px) 100%, 0 100%)' }}
+                              >Unlocked</span>
                             )}
                           </div>
                         );
@@ -1874,13 +1932,17 @@ const PetDisplay = () => {
                         const xpReady = activePet.xp >= nextStage.xp_required;
                         const fruit = getEvolutionFruit();
                         return (
-                          <div className="mt-3 bg-gray-50 rounded-lg p-3">
+                          <div className="mt-3 bg-gray-50 p-3"
+                            style={{ clipPath: 'polygon(6px 0, 100% 0, 100% calc(100% - 6px), calc(100% - 6px) 100%, 0 100%, 0 6px)' }}
+                          >
                             <div className="flex justify-between text-[10px] text-gray-500 mb-1.5 font-medium">
                               <span>Next Evolution</span>
                               <span>{activePet.xp} / {nextStage.xp_required} XP</span>
                             </div>
-                            <div className="w-full bg-gray-200 rounded-full h-2 overflow-hidden">
-                              <div className="bg-gradient-to-r from-purple-500 to-pink-500 h-2 rounded-full transition-all duration-500" style={{ width: `${progress}%` }} />
+                            <div className="w-full bg-gray-200 h-2 overflow-hidden"
+                              style={{ clipPath: 'polygon(2px 0, 100% 0, calc(100% - 2px) 100%, 0 100%)' }}
+                            >
+                              <div className="bg-gradient-to-r from-purple-500 to-pink-500 h-2 transition-all duration-500" style={{ width: `${progress}%` }} />
                             </div>
                             {xpReady ? (
                               <div className="mt-2.5">
@@ -1888,7 +1950,8 @@ const PetDisplay = () => {
                                   <button
                                     onClick={handleEvolve}
                                     disabled={evolving}
-                                    className="w-full py-2 rounded-xl bg-gradient-to-r from-purple-500 to-pink-500 text-white text-xs font-bold hover:from-purple-600 hover:to-pink-600 transition disabled:opacity-50 flex items-center justify-center gap-2"
+                                    className="w-full py-2 bg-gradient-to-r from-purple-500 to-pink-500 text-white text-xs font-semibold hover:from-purple-600 hover:to-pink-600 transition disabled:opacity-50 flex items-center justify-center gap-2"
+                                    style={{ clipPath: 'polygon(8px 0, 100% 0, calc(100% - 8px) 100%, 0 100%)' }}
                                   >
                                     {evolving ? 'Evolving...' : (
                                       <>
@@ -1917,16 +1980,22 @@ const PetDisplay = () => {
                     })()}
                   </>
                 ) : (
-                  <p className="text-sm text-gray-500 bg-gray-50 rounded-lg p-3">
+                  <p className="text-sm text-gray-500 bg-gray-50 p-3"
+                    style={{ clipPath: 'polygon(6px 0, 100% 0, 100% calc(100% - 6px), calc(100% - 6px) 100%, 0 100%, 0 6px)' }}
+                  >
                     This pet doesn&apos;t have evolution stages, but it&apos;s still a great companion!
                   </p>
                 )}
               </div>
 
               {/* Bonuses */}
-              <div className="bg-white rounded-xl p-4 border border-yellow-100 shadow-sm">
-                <h3 className="text-sm font-bold text-gray-800 mb-3 flex items-center gap-2">
-                  <span className="w-6 h-6 bg-yellow-100 rounded-lg flex items-center justify-center text-xs">⭐</span>
+              <div className="relative bg-white border border-yellow-200 p-4 shadow-sm overflow-hidden"
+                style={{ clipPath: 'polygon(8px 0, 100% 0, 100% calc(100% - 8px), calc(100% - 8px) 100%, 0 100%, 0 8px)' }}
+              >
+                <h3 className="text-sm font-semibold text-gray-800 mb-3 flex items-center gap-2">
+                  <span className="w-6 h-6 bg-yellow-100 flex items-center justify-center text-xs"
+                    style={{ clipPath: 'polygon(4px 0, 100% 0, 100% calc(100% - 4px), calc(100% - 4px) 100%, 0 100%, 0 4px)' }}
+                  >⭐</span>
                   XP Bonuses
                 </h3>
                 <div className="grid grid-cols-5 gap-1.5 text-xs mb-2.5">
@@ -1937,16 +2006,20 @@ const PetDisplay = () => {
                     { label: 'Epic', bonus: '+20%', bg: 'bg-purple-50', text: 'text-purple-600', border: 'border-purple-200' },
                     { label: 'Legendary', bonus: '+25%', bg: 'bg-amber-50', text: 'text-amber-600', border: 'border-amber-200' },
                   ].map(({ label, bonus, bg, text, border }) => (
-                    <div key={label} className={`${bg} border ${border} px-1.5 py-2 rounded-lg text-center`}>
+                    <div key={label} className={`${bg} border ${border} px-1.5 py-2 text-center`}
+                      style={{ clipPath: 'polygon(4px 0, 100% 0, 100% calc(100% - 4px), calc(100% - 4px) 100%, 0 100%, 0 4px)' }}
+                    >
                       <div className="text-gray-500 text-[10px]">{label}</div>
-                      <div className={`font-bold ${text}`}>{bonus}</div>
+                      <div className={`font-semibold ${text}`}>{bonus}</div>
                     </div>
                   ))}
                 </div>
-                <div className="bg-purple-50 border border-purple-100 rounded-lg px-3 py-2.5">
+                <div className="bg-purple-50 border border-purple-100 px-3 py-2.5"
+                  style={{ clipPath: 'polygon(6px 0, 100% 0, 100% calc(100% - 6px), calc(100% - 6px) 100%, 0 100%, 0 6px)' }}
+                >
                   <div className="flex items-center justify-between">
                     <span className="font-semibold text-purple-800 text-xs">Evolution Bonus</span>
-                    <span className="font-bold text-purple-600 text-xs">+5% per stage</span>
+                    <span className="font-semibold text-purple-600 text-xs">+5% per stage</span>
                   </div>
                   <div className="text-[10px] text-purple-400 mt-1">
                     Stage 0: +0% &bull; Stage 1: +5% &bull; Stage 2: +10% &bull; Stage 3: +15%
@@ -1955,8 +2028,10 @@ const PetDisplay = () => {
               </div>
 
               {/* Energy */}
-              <div className="bg-white rounded-xl p-4 border border-orange-100 shadow-sm">
-                <h3 className="text-sm font-bold text-gray-800 mb-3 flex items-center gap-2">
+              <div className="relative bg-white border border-orange-200 p-4 shadow-sm overflow-hidden"
+                style={{ clipPath: 'polygon(8px 0, 100% 0, 100% calc(100% - 8px), calc(100% - 8px) 100%, 0 100%, 0 8px)' }}
+              >
+                <h3 className="text-sm font-semibold text-gray-800 mb-3 flex items-center gap-2">
                   <img src={assetUrl('/image/dashboard/energy.svg')} alt="energy" className="w-5 h-5" />
                   Energy System
                 </h3>
@@ -1966,15 +2041,19 @@ const PetDisplay = () => {
                     { action: 'Ask pet (in exercises)', cost: '-5 energy' },
                     { action: 'Chat message', cost: '-5 energy' },
                   ].map(({ action, cost }) => (
-                    <div key={action} className="flex justify-between items-center bg-gray-50 rounded-lg px-3 py-2">
+                    <div key={action} className="flex justify-between items-center bg-gray-50 px-3 py-2"
+                      style={{ clipPath: 'polygon(4px 0, 100% 0, calc(100% - 4px) 100%, 0 100%)' }}
+                    >
                       <span className="text-gray-600">{action}</span>
-                      <span className="font-bold text-orange-500 text-[11px]">{cost}</span>
+                      <span className="font-semibold text-orange-500 text-[11px]">{cost}</span>
                     </div>
                   ))}
                 </div>
-                <div className="bg-orange-50 border border-orange-100 rounded-lg px-3 py-2.5 mt-2.5 flex items-center justify-between">
+                <div className="bg-orange-50 border border-orange-100 px-3 py-2.5 mt-2.5 flex items-center justify-between"
+                  style={{ clipPath: 'polygon(6px 0, 100% 0, 100% calc(100% - 6px), calc(100% - 6px) 100%, 0 100%, 0 6px)' }}
+                >
                   <span className="font-semibold text-orange-800 text-xs">Auto Regen</span>
-                  <span className="font-bold text-orange-600 text-xs">+100 every day</span>
+                  <span className="font-semibold text-orange-600 text-xs">+100 every day</span>
                 </div>
                 <p className="text-[10px] text-gray-400 mt-2 text-center">
                   Feed your pet to restore energy instantly!
@@ -1983,27 +2062,37 @@ const PetDisplay = () => {
             </div>
 
             {/* Footer */}
-            <div className="sticky bottom-0 bg-white/80 backdrop-blur-sm p-4 rounded-b-2xl border-t border-gray-100">
+            <div className="sticky bottom-0 bg-white/80 backdrop-blur-sm p-4 border-t border-gray-100">
               <button
                 onClick={() => setShowPetInfo(false)}
-                className="w-full bg-blue-500 hover:bg-blue-600 text-white font-bold py-2.5 rounded-xl transition-all text-sm shadow-md shadow-blue-200"
+                className="w-full bg-gradient-to-r from-blue-500 to-blue-600 hover:from-blue-600 hover:to-blue-700 text-white font-semibold py-2.5 transition-all text-sm shadow-md"
+                style={{ clipPath: 'polygon(8px 0, 100% 0, calc(100% - 8px) 100%, 0 100%)' }}
               >
                 Got it!
               </button>
             </div>
           </div>
-        </div>
+        </div>,
+        document.body
       )}
 
       {/* Game Picker Modal */}
-      {showGame === 'picker' && (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4"
+      {showGame === 'picker' && createPortal(
+        <div className="fixed inset-0 bg-black/30 backdrop-blur-sm flex items-center justify-center z-50 px-4"
           onClick={() => setShowGame(null)}
         >
-          <div className={`bg-white rounded-2xl shadow-2xl w-full p-6 text-center ${isStaff() ? 'max-w-2xl' : 'max-w-sm'}`}
+          <div className={`relative bg-white border-2 border-blue-200 shadow-xl w-full p-6 text-center overflow-hidden ${isStaff() ? 'max-w-2xl' : 'max-w-sm'}`}
+            style={{ clipPath: 'polygon(12px 0, 100% 0, 100% calc(100% - 12px), calc(100% - 12px) 100%, 0 100%, 0 12px)' }}
             onClick={e => e.stopPropagation()}
           >
-            <h3 className="text-xl font-bold text-gray-800 mb-1">Choose Training Game</h3>
+            {/* Corner brackets */}
+            <div className="absolute top-0 left-[12px] w-5 h-[1px] bg-gradient-to-r from-blue-300/40 to-transparent" />
+            <div className="absolute top-0 left-[12px] w-[1px] h-5 bg-gradient-to-b from-blue-300/40 to-transparent" />
+            <div className="absolute bottom-0 right-[12px] w-5 h-[1px] bg-gradient-to-l from-blue-300/40 to-transparent" />
+            <div className="absolute bottom-0 right-[12px] w-[1px] h-5 bg-gradient-to-t from-blue-300/40 to-transparent" />
+
+            <h3 className="text-xl font-semibold text-gray-800 mb-1 uppercase tracking-wide">Choose Training Game</h3>
+            <div className="h-[2px] w-24 bg-gradient-to-r from-transparent via-blue-400 to-transparent mx-auto mb-1" />
             {trainingBlocked ? (
               <div className="py-8">
                 <div className="text-5xl mb-3">🚫</div>
@@ -2011,7 +2100,8 @@ const PetDisplay = () => {
                 <p className="text-sm text-gray-500 mb-4">{trainingBlockedReason}</p>
                 <button
                   onClick={() => setShowGame(null)}
-                  className="px-6 py-2 rounded-xl bg-gray-100 text-gray-600 font-medium hover:bg-gray-200 transition"
+                  className="px-6 py-2 bg-gray-100 text-gray-600 font-medium hover:bg-gray-200 transition"
+                  style={{ clipPath: 'polygon(8px 0, 100% 0, calc(100% - 8px) 100%, 0 100%)' }}
                 >
                   OK
                 </button>
@@ -2019,11 +2109,12 @@ const PetDisplay = () => {
             ) : (
             <>
             <p className="text-sm text-gray-500 mb-5">Earn +5 <img src={assetUrl('/image/study/xp.png')} alt="XP" className="w-4 h-4 inline" /> on success!</p>
-            <div className={`grid gap-3 ${isStaff() ? 'grid-cols-3 md:grid-cols-4' : 'grid-cols-2'}`}>
+            <style>{`.game-grid > button { clip-path: polygon(8px 0, 100% 0, 100% calc(100% - 8px), calc(100% - 8px) 100%, 0 100%, 0 8px); }`}</style>
+            <div className={`game-grid grid gap-3 ${isStaff() ? 'grid-cols-3 md:grid-cols-4' : 'grid-cols-2'}`}>
               {(isStaff() || enabledGames.includes('scramble')) && (
               <button
                 onClick={() => { drainPetEnergy(10); recordAttemptStart('scramble'); fetchGameLeaderboard('scramble'); setShowGame('scramble'); }}
-                className={`relative flex flex-col items-center gap-2 p-4 rounded-xl border-2 transition-all group ${competitionGame === 'scramble' ? 'border-yellow-400 bg-yellow-50 ring-2 ring-yellow-300' : 'border-purple-200 hover:border-purple-400 hover:bg-purple-50'}`}
+                className={`relative flex flex-col items-center gap-2 p-4 border-2 transition-all group overflow-hidden ${competitionGame === 'scramble' ? 'border-yellow-400 bg-yellow-50 ring-2 ring-yellow-300' : 'border-purple-200 hover:border-purple-400 hover:bg-purple-50'}`}
               >
                 {competitionGame === 'scramble' && <span className="absolute -top-2 -right-2 text-lg">🏆</span>}
                 <img src={assetUrl('/image/dashboard/pet-scramble.jpg')} alt="Word Scramble" className="w-20 h-20 object-cover rounded-lg group-hover:scale-110 transition-transform" />
@@ -2033,7 +2124,7 @@ const PetDisplay = () => {
               {(isStaff() || enabledGames.includes('whackmole')) && (
               <button
                 onClick={() => { drainPetEnergy(10); recordAttemptStart('whackmole'); fetchGameLeaderboard('whackmole'); setShowGame('whackmole'); }}
-                className={`relative flex flex-col items-center gap-2 p-4 rounded-xl border-2 transition-all group ${competitionGame === 'whackmole' ? 'border-yellow-400 bg-yellow-50 ring-2 ring-yellow-300' : 'border-green-200 hover:border-green-400 hover:bg-green-50'}`}
+                className={`relative flex flex-col items-center gap-2 p-4 border-2 transition-all group overflow-hidden ${competitionGame === 'whackmole' ? 'border-yellow-400 bg-yellow-50 ring-2 ring-yellow-300' : 'border-green-200 hover:border-green-400 hover:bg-green-50'}`}
               >
                 {competitionGame === 'whackmole' && <span className="absolute -top-2 -right-2 text-lg">🏆</span>}
                 <img src={assetUrl('/pet-game/whack/mole-normal.png')} alt="Whack-a-Mole" className="w-20 h-20 object-contain group-hover:scale-110 transition-transform" />
@@ -2043,7 +2134,7 @@ const PetDisplay = () => {
               {(isStaff() || enabledGames.includes('astroblast')) && (
               <button
                 onClick={() => { drainPetEnergy(10); recordAttemptStart('astroblast'); fetchGameLeaderboard('astroblast'); setShowGame('astroblast'); }}
-                className={`relative flex flex-col items-center gap-2 p-4 rounded-xl border-2 transition-all group ${competitionGame === 'astroblast' ? 'border-yellow-400 bg-yellow-50 ring-2 ring-yellow-300' : 'border-red-200 hover:border-red-400 hover:bg-red-50'}`}
+                className={`relative flex flex-col items-center gap-2 p-4 border-2 transition-all group overflow-hidden ${competitionGame === 'astroblast' ? 'border-yellow-400 bg-yellow-50 ring-2 ring-yellow-300' : 'border-red-200 hover:border-red-400 hover:bg-red-50'}`}
               >
                 {competitionGame === 'astroblast' && <span className="absolute -top-2 -right-2 text-lg">🏆</span>}
                 <img src="https://xpclass.vn/xpclass/image/inventory/spaceship/phantom-voyager.png" alt="Astro Blast" className="w-20 h-20 object-contain group-hover:scale-110 transition-transform" />
@@ -2053,7 +2144,7 @@ const PetDisplay = () => {
               {(isStaff() || enabledGames.includes('flappy')) && (
               <button
                 onClick={() => { drainPetEnergy(10); recordAttemptStart('flappy'); fetchGameLeaderboard('flappy'); setShowGame('flappy'); }}
-                className={`relative flex flex-col items-center gap-2 p-4 rounded-xl border-2 transition-all group ${competitionGame === 'flappy' ? 'border-yellow-400 bg-yellow-50 ring-2 ring-yellow-300' : 'border-sky-200 hover:border-sky-400 hover:bg-sky-50'}`}
+                className={`relative flex flex-col items-center gap-2 p-4 border-2 transition-all group overflow-hidden ${competitionGame === 'flappy' ? 'border-yellow-400 bg-yellow-50 ring-2 ring-yellow-300' : 'border-sky-200 hover:border-sky-400 hover:bg-sky-50'}`}
               >
                 {competitionGame === 'flappy' && <span className="absolute -top-2 -right-2 text-lg">🏆</span>}
                 <img src="https://xpclass.vn/xpclass/image/dashboard/flap.png" alt="Flappy Pet" className="w-20 h-20 object-contain group-hover:scale-110 transition-transform" />
@@ -2063,7 +2154,7 @@ const PetDisplay = () => {
               {(isStaff() || enabledGames.includes('matchgame')) && (
               <button
                 onClick={() => { drainPetEnergy(10); recordAttemptStart('matchgame'); fetchGameLeaderboard('matchgame'); setShowGame('matchgame'); }}
-                className={`relative flex flex-col items-center gap-2 p-4 rounded-xl border-2 transition-all group ${competitionGame === 'matchgame' ? 'border-yellow-400 bg-yellow-50 ring-2 ring-yellow-300' : 'border-indigo-200 hover:border-indigo-400 hover:bg-indigo-50'}`}
+                className={`relative flex flex-col items-center gap-2 p-4 border-2 transition-all group overflow-hidden ${competitionGame === 'matchgame' ? 'border-yellow-400 bg-yellow-50 ring-2 ring-yellow-300' : 'border-indigo-200 hover:border-indigo-400 hover:bg-indigo-50'}`}
               >
                 {competitionGame === 'matchgame' && <span className="absolute -top-2 -right-2 text-lg">🏆</span>}
                 <img src="https://xpclass.vn/xpclass/image/dashboard/match1.png" alt="Match Up" className="w-20 h-20 object-contain group-hover:scale-110 transition-transform" />
@@ -2073,7 +2164,7 @@ const PetDisplay = () => {
               {(isStaff() || enabledGames.includes('wordtype')) && (
               <button
                 onClick={() => { drainPetEnergy(10); recordAttemptStart('wordtype'); fetchGameLeaderboard('wordtype'); setShowGame('wordtype'); }}
-                className={`relative flex flex-col items-center gap-2 p-4 rounded-xl border-2 transition-all group ${competitionGame === 'wordtype' ? 'border-yellow-400 bg-yellow-50 ring-2 ring-yellow-300' : 'border-cyan-200 hover:border-cyan-400 hover:bg-cyan-50'}`}
+                className={`relative flex flex-col items-center gap-2 p-4 border-2 transition-all group overflow-hidden ${competitionGame === 'wordtype' ? 'border-yellow-400 bg-yellow-50 ring-2 ring-yellow-300' : 'border-cyan-200 hover:border-cyan-400 hover:bg-cyan-50'}`}
               >
                 {competitionGame === 'wordtype' && <span className="absolute -top-2 -right-2 text-lg">🏆</span>}
                 <img src="https://xpclass.vn/xpclass/image/dashboard/pet-type.webp" alt="Word Type" className="w-20 h-20 object-cover rounded-lg group-hover:scale-110 transition-transform" />
@@ -2083,7 +2174,7 @@ const PetDisplay = () => {
               {(isStaff() || enabledGames.includes('sayitright')) && (
               <button
                 onClick={() => { drainPetEnergy(10); recordAttemptStart('sayitright'); fetchGameLeaderboard('sayitright'); setShowGame('sayitright'); }}
-                className={`relative flex flex-col items-center gap-2 p-4 rounded-xl border-2 transition-all group ${competitionGame === 'sayitright' ? 'border-yellow-400 bg-yellow-50 ring-2 ring-yellow-300' : 'border-orange-200 hover:border-orange-400 hover:bg-orange-50'}`}
+                className={`relative flex flex-col items-center gap-2 p-4 border-2 transition-all group overflow-hidden ${competitionGame === 'sayitright' ? 'border-yellow-400 bg-yellow-50 ring-2 ring-yellow-300' : 'border-orange-200 hover:border-orange-400 hover:bg-orange-50'}`}
               >
                 {competitionGame === 'sayitright' && <span className="absolute -top-2 -right-2 text-lg">🏆</span>}
                 <img src="https://xpclass.vn/xpclass/pet-display/game-logo/say.png" alt="Say It Right" className="w-20 h-20 object-contain rounded-lg group-hover:scale-110 transition-transform" />
@@ -2093,7 +2184,7 @@ const PetDisplay = () => {
               {(isStaff() || enabledGames.includes('quizrush')) && (
               <button
                 onClick={() => { drainPetEnergy(10); recordAttemptStart('quizrush'); fetchGameLeaderboard('quizrush'); setShowGame('quizrush'); }}
-                className={`relative flex flex-col items-center gap-2 p-4 rounded-xl border-2 transition-all group ${competitionGame === 'quizrush' ? 'border-yellow-400 bg-yellow-50 ring-2 ring-yellow-300' : 'border-violet-200 hover:border-violet-400 hover:bg-violet-50'}`}
+                className={`relative flex flex-col items-center gap-2 p-4 border-2 transition-all group overflow-hidden ${competitionGame === 'quizrush' ? 'border-yellow-400 bg-yellow-50 ring-2 ring-yellow-300' : 'border-violet-200 hover:border-violet-400 hover:bg-violet-50'}`}
               >
                 {competitionGame === 'quizrush' && <span className="absolute -top-2 -right-2 text-lg">🏆</span>}
                 <img src="https://xpclass.vn/xpclass/pet-display/game-logo/quiz.png" alt="Quiz Rush" className="w-20 h-20 object-contain rounded-lg group-hover:scale-110 transition-transform" />
@@ -2103,7 +2194,7 @@ const PetDisplay = () => {
               {(isStaff() || enabledGames.includes('bossbattle')) && (
               <button
                 onClick={() => { drainPetEnergy(10); recordAttemptStart('bossbattle'); fetchGameLeaderboard('bossbattle'); setShowGame('bossbattle'); }}
-                className={`relative flex flex-col items-center gap-2 p-4 rounded-xl border-2 transition-all group ${competitionGame === 'bossbattle' ? 'border-yellow-400 bg-yellow-50 ring-2 ring-yellow-300' : 'border-red-200 hover:border-red-400 hover:bg-red-50'}`}
+                className={`relative flex flex-col items-center gap-2 p-4 border-2 transition-all group overflow-hidden ${competitionGame === 'bossbattle' ? 'border-yellow-400 bg-yellow-50 ring-2 ring-yellow-300' : 'border-red-200 hover:border-red-400 hover:bg-red-50'}`}
               >
                 {competitionGame === 'bossbattle' && <span className="absolute -top-2 -right-2 text-lg">🏆</span>}
                 <img src="https://xpclass.vn/xpclass/pet-game/boss/boss1.png" alt="Boss Battle" className="w-20 h-20 object-contain group-hover:scale-110 transition-transform" />
@@ -2114,7 +2205,7 @@ const PetDisplay = () => {
               {(isStaff() || enabledGames.includes('angrypet')) && (
               <button
                 onClick={() => { drainPetEnergy(10); recordAttemptStart('angrypet'); fetchGameLeaderboard('angrypet'); setShowGame('angrypet'); }}
-                className={`relative flex flex-col items-center gap-2 p-4 rounded-xl border-2 transition-all group ${competitionGame === 'angrypet' ? 'border-yellow-400 bg-yellow-50 ring-2 ring-yellow-300' : 'border-orange-200 hover:border-orange-400 hover:bg-orange-50'}`}
+                className={`relative flex flex-col items-center gap-2 p-4 border-2 transition-all group overflow-hidden ${competitionGame === 'angrypet' ? 'border-yellow-400 bg-yellow-50 ring-2 ring-yellow-300' : 'border-orange-200 hover:border-orange-400 hover:bg-orange-50'}`}
               >
                 {competitionGame === 'angrypet' && <span className="absolute -top-2 -right-2 text-lg">🏆</span>}
                 <img src="https://xpclass.vn/xpclass/pet-game/angry/Slingshot.png" alt="Angry Pet" className="w-20 h-20 object-contain group-hover:scale-110 transition-transform" />
@@ -2125,7 +2216,7 @@ const PetDisplay = () => {
               {(isStaff() || enabledGames.includes('catch')) && (
               <button
                 onClick={() => { drainPetEnergy(10); recordAttemptStart('catch'); setShowGame('catch'); }}
-                className={`relative flex flex-col items-center gap-2 p-4 rounded-xl border-2 transition-all group ${competitionGame === 'catch' ? 'border-yellow-400 bg-yellow-50 ring-2 ring-yellow-300' : 'border-teal-200 hover:border-teal-400 hover:bg-teal-50'}`}
+                className={`relative flex flex-col items-center gap-2 p-4 border-2 transition-all group overflow-hidden ${competitionGame === 'catch' ? 'border-yellow-400 bg-yellow-50 ring-2 ring-yellow-300' : 'border-teal-200 hover:border-teal-400 hover:bg-teal-50'}`}
               >
                 {competitionGame === 'catch' && <span className="absolute -top-2 -right-2 text-lg">🏆</span>}
                 <img src="https://xpclass.vn/xpclass/image/pet/catch-game.png" alt="Hungry Pet" className="w-20 h-20 object-contain group-hover:scale-110 transition-transform" />
@@ -2136,7 +2227,7 @@ const PetDisplay = () => {
               {(isStaff() || enabledGames.includes('fishing')) && (
               <button
                 onClick={() => { drainPetEnergy(10); recordAttemptStart('fishing'); fetchGameLeaderboard('fishing'); setShowGame('fishing'); }}
-                className={`relative flex flex-col items-center gap-2 p-4 rounded-xl border-2 transition-all group ${competitionGame === 'fishing' ? 'border-yellow-400 bg-yellow-50 ring-2 ring-yellow-300' : 'border-cyan-200 hover:border-cyan-400 hover:bg-cyan-50'}`}
+                className={`relative flex flex-col items-center gap-2 p-4 border-2 transition-all group overflow-hidden ${competitionGame === 'fishing' ? 'border-yellow-400 bg-yellow-50 ring-2 ring-yellow-300' : 'border-cyan-200 hover:border-cyan-400 hover:bg-cyan-50'}`}
               >
                 {competitionGame === 'fishing' && <span className="absolute -top-2 -right-2 text-lg">🏆</span>}
                 <img src="https://xpclass.vn/xpclass/pet-display/game-logo/fish.png" alt="Fishing Frenzy" className="w-20 h-20 object-contain rounded-lg group-hover:scale-110 transition-transform" />
@@ -2161,7 +2252,8 @@ const PetDisplay = () => {
             </div>
             <button
               onClick={() => setShowGame(null)}
-              className="mt-4 text-sm text-gray-400 hover:text-gray-600 transition-colors"
+              className="mt-4 px-6 py-1.5 text-sm text-gray-400 hover:text-gray-600 border border-gray-200 hover:border-gray-300 transition-colors font-medium tracking-wide"
+              style={{ clipPath: 'polygon(6px 0, 100% 0, calc(100% - 6px) 100%, 0 100%)' }}
             >
               Cancel
             </button>
@@ -2169,7 +2261,8 @@ const PetDisplay = () => {
             )}
           </div>
 
-        </div>
+        </div>,
+        document.body
       )}
 
       {/* Quick Match */}

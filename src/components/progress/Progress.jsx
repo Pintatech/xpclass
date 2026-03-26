@@ -4,25 +4,27 @@ import { useProgress } from '../../hooks/useProgress'
 import { useStudentLevels } from '../../hooks/useStudentLevels'
 import { useAchievements } from '../../hooks/useAchievements'
 import { supabase } from '../../supabase/client'
-import AchievementBadgeBar from './AchievementBadgeBar'
-import Card from '../ui/Card'
-import Button from '../ui/Button'
-import LoadingSpinner from '../ui/LoadingSpinner'
 import {
-  TrendingUp,
-  Target,
-  Clock,
-  Flame,
   Star,
   BookOpen,
   Trophy,
-  Calendar,
-  BarChart3,
-  Activity
+  Activity,
+  RefreshCw
 } from 'lucide-react'
-import { LevelProgressBar } from '../ui/StudentBadge'
 
 import { assetUrl } from '../../hooks/useBranding';
+
+const CLIP_CARD = 'polygon(10px 0, 100% 0, 100% calc(100% - 10px), calc(100% - 10px) 100%, 0 100%, 0 10px)'
+const CLIP_SM = 'polygon(6px 0, 100% 0, 100% calc(100% - 6px), calc(100% - 6px) 100%, 0 100%, 0 6px)'
+
+const CornerBrackets = () => (
+  <>
+    <div className="absolute top-0 left-[10px] w-5 h-[1px] bg-gradient-to-r from-blue-300/40 to-transparent" />
+    <div className="absolute top-0 left-[10px] w-[1px] h-5 bg-gradient-to-b from-blue-300/40 to-transparent" />
+    <div className="absolute bottom-0 right-[10px] w-5 h-[1px] bg-gradient-to-l from-blue-300/40 to-transparent" />
+    <div className="absolute bottom-0 right-[10px] w-[1px] h-5 bg-gradient-to-t from-blue-300/40 to-transparent" />
+  </>
+)
 const Progress = () => {
   const { user, profile, fetchUserProfile } = useAuth()
   const { getCompletedExercises, getTotalStudyTime, userProgress } = useProgress()
@@ -408,7 +410,10 @@ const Progress = () => {
   if (loading) {
     return (
       <div className="flex justify-center items-center min-h-64">
-        <LoadingSpinner size="lg" />
+        <div className="relative w-10 h-10">
+          <div className="absolute inset-0 border-2 border-blue-200 rounded-full animate-ping opacity-30" />
+          <RefreshCw className="w-10 h-10 animate-spin text-blue-400" />
+        </div>
       </div>
     )
   }
@@ -427,62 +432,62 @@ const Progress = () => {
     <div className="space-y-8">
       {/* Header */}
       <div>
-        <h1 className="text-3xl font-bold text-gray-900 mb-2">Tiến độ học tập</h1>
-        <p className="text-gray-600">Theo dõi quá trình học tập của bạn</p>
+        <h1 className="text-2xl font-semibold text-gray-900 mb-1 uppercase tracking-wide">Tiến độ học tập</h1>
+        <div className="h-[2px] w-20 bg-gradient-to-r from-blue-400 to-transparent" />
       </div>
 
       {/* Overview Stats */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-        <Card className="p-4">
+        <div className="relative bg-white border border-gray-200 p-4 overflow-hidden" style={{ clipPath: CLIP_SM }}>
           <div className="flex items-center space-x-3">
-            <div className="w-10 h-10 rounded-lg flex items-center justify-center">
+            <div className="w-10 h-10 flex items-center justify-center">
               <img src={assetUrl('/icon/profile/level.svg')} alt="Level" className="w-10 h-10" />
             </div>
             <div>
-              <div className="text-lg font-bold text-gray-900">{displayLevel}</div>
-              <div className="text-sm text-gray-600">Cấp độ</div>
+              <div className="text-lg font-semibold text-gray-900">{displayLevel}</div>
+              <div className="text-sm text-gray-500">Cấp độ</div>
             </div>
           </div>
-        </Card>
+        </div>
 
-        <Card className="p-4">
+        <div className="relative bg-white border border-gray-200 p-4 overflow-hidden" style={{ clipPath: CLIP_SM }}>
           <div className="flex items-center space-x-3">
-            <div className="w-10 h-10 rounded-lg flex items-center justify-center">
+            <div className="w-10 h-10 flex items-center justify-center">
               <img src={assetUrl('/icon/profile/XP.svg')} alt="XP" className="w-10 h-10" />
             </div>
             <div>
-              <div className="text-lg font-bold text-gray-900 flex items-center gap-2">
+              <div className="text-lg font-semibold text-gray-900 flex items-center gap-2">
                 {profile?.xp || 0}
                 <img src={assetUrl('/image/study/xp.png')} alt="XP" className="w-5 h-5" />
               </div>
-              <div className="text-sm text-gray-600">Tổng</div>
+              <div className="text-sm text-gray-500">Tổng</div>
             </div>
           </div>
-        </Card>
+        </div>
 
-        <Card className="p-4">
+        <div className="relative bg-white border border-gray-200 p-4 overflow-hidden" style={{ clipPath: CLIP_SM }}>
           <div className="flex items-center space-x-3">
-            <div className="w-10 h-10 rounded-lg flex items-center justify-center">
+            <div className="w-10 h-10 flex items-center justify-center">
               <img src={assetUrl('/icon/profile/streak.svg')} alt="Streak" className="w-10 h-10" />
             </div>
             <div>
-              <div className="text-lg font-bold text-gray-900">{profile?.streak_count || 0}</div>
-              <div className="text-sm text-gray-600">Chuỗi ngày</div>
+              <div className="text-lg font-semibold text-gray-900">{profile?.streak_count || 0}</div>
+              <div className="text-sm text-gray-500">Chuỗi ngày</div>
             </div>
           </div>
-        </Card>
+        </div>
 
-        <Card className="p-4">
+        <div className="relative bg-white border border-gray-200 p-4 overflow-hidden" style={{ clipPath: CLIP_SM }}>
           <div className="flex items-center space-x-3">
-            <div className="w-10 h-10 rounded-lg flex items-center justify-center">
+            <div className="w-10 h-10 flex items-center justify-center">
               <img src={assetUrl('/icon/profile/paper.svg')} alt="Exercises" className="w-10 h-10" />
             </div>
             <div>
-              <div className="text-lg font-bold text-gray-900">{completedExercises}</div>
-              <div className="text-sm text-gray-600">Bài tập</div>
+              <div className="text-lg font-semibold text-gray-900">{completedExercises}</div>
+              <div className="text-sm text-gray-500">Bài tập</div>
             </div>
           </div>
-        </Card>
+        </div>
       </div>
 
       {/* Level Progress - hidden for now */}
@@ -508,13 +513,13 @@ const Progress = () => {
           if (!value) return <span className="text-gray-300">-</span>
           const cls = value === 'wow' ? 'bg-green-100 text-green-700' : value === 'good' ? 'bg-yellow-100 text-yellow-700' : 'bg-red-100 text-red-700'
           const labels = { wow: 'Wow', good: 'Good', ok: 'Ok' }
-          return <span className={`inline-block px-2 py-0.5 rounded text-xs font-medium ${cls}`}>{labels[value] || value}</span>
+          return <span className={`inline-block px-2 py-0.5 text-xs font-medium ${cls}`} style={{ clipPath: 'polygon(4px 0, 100% 0, 100% calc(100% - 4px), calc(100% - 4px) 100%, 0 100%, 0 4px)' }}>{labels[value] || value}</span>
         }
         const attendBadge = (value) => {
           if (!value) return <span className="text-gray-300">-</span>
           const cls = value === 'present' ? 'bg-green-100 text-green-700' : value === 'late' ? 'bg-yellow-100 text-yellow-700' : value === 'absent' ? 'bg-red-100 text-red-700' : 'bg-gray-100 text-gray-600'
           const labels = { present: 'Đúng giờ', late: 'Muộn', absent: 'Vắng' }
-          return <span className={`inline-block px-2 py-0.5 rounded text-xs font-medium ${cls}`}>{labels[value] || value}</span>
+          return <span className={`inline-block px-2 py-0.5 text-xs font-medium ${cls}`} style={{ clipPath: 'polygon(4px 0, 100% 0, 100% calc(100% - 4px), calc(100% - 4px) 100%, 0 100%, 0 4px)' }}>{labels[value] || value}</span>
         }
         const dash = <span className="text-gray-300">-</span>
 
@@ -539,38 +544,41 @@ const Progress = () => {
 
         return (
           <div className="space-y-6">
-            <h3 className="text-lg font-semibold text-gray-900 flex items-center">
-              <BookOpen className="w-5 h-5 mr-2 text-purple-600" />
-              Kết quả buổi học
-            </h3>
+            <div>
+              <h3 className="text-base font-semibold text-gray-900 flex items-center uppercase tracking-wide">
+                <BookOpen className="w-5 h-5 mr-2 text-purple-600" />
+                Kết quả buổi học
+              </h3>
+              <div className="h-[2px] w-12 bg-gradient-to-r from-purple-400 to-transparent mt-1 ml-7" />
+            </div>
 
             {/* Summary Cards */}
             <div className="grid grid-cols-3 md:grid-cols-6 gap-3">
-              <div className="bg-white rounded-lg border p-3 text-center">
-                <p className="text-2xl font-bold text-gray-900">{totalLessons}</p>
+              <div className="bg-white border border-gray-200 p-3 text-center" style={{ clipPath: CLIP_SM }}>
+                <p className="text-2xl font-semibold text-gray-900">{totalLessons}</p>
                 <p className="text-xs text-gray-500">Tổng buổi</p>
               </div>
-              <div className="bg-white rounded-lg border p-3 text-center">
-                <p className="text-2xl font-bold text-green-600">{presentCount}</p>
+              <div className="bg-white border border-gray-200 p-3 text-center" style={{ clipPath: CLIP_SM }}>
+                <p className="text-2xl font-semibold text-green-600">{presentCount}</p>
                 <p className="text-xs text-gray-500">Có mặt</p>
               </div>
-              <div className="bg-white rounded-lg border p-3 text-center">
-                <p className="text-2xl font-bold text-green-600">{wowPerf}</p>
+              <div className="bg-white border border-gray-200 p-3 text-center" style={{ clipPath: CLIP_SM }}>
+                <p className="text-2xl font-semibold text-green-600">{wowPerf}</p>
                 <p className="text-xs text-gray-500">Wow</p>
               </div>
-              <div className="bg-white rounded-lg border p-3 text-center">
-                <p className="text-2xl font-bold text-yellow-500">{goodPerf}</p>
+              <div className="bg-white border border-gray-200 p-3 text-center" style={{ clipPath: CLIP_SM }}>
+                <p className="text-2xl font-semibold text-yellow-500">{goodPerf}</p>
                 <p className="text-xs text-gray-500">Good</p>
               </div>
-              <div className="bg-white rounded-lg border p-3 text-center">
-                <p className="text-2xl font-bold text-red-500">{okPerf}</p>
+              <div className="bg-white border border-gray-200 p-3 text-center" style={{ clipPath: CLIP_SM }}>
+                <p className="text-2xl font-semibold text-red-500">{okPerf}</p>
                 <p className="text-xs text-gray-500">Ok</p>
               </div>
-              <div className="bg-white rounded-lg border p-3 text-center">
+              <div className="bg-white border border-gray-200 p-3 text-center" style={{ clipPath: CLIP_SM }}>
                 <div className="flex items-center justify-center gap-2">
                   {starCount > 0 && <span className="flex items-center gap-1"><Star className="w-4 h-4 fill-yellow-400 text-yellow-400" />{starCount}</span>}
                   {flagCount > 0 && <span className="flex items-center gap-1 text-red-500">{flagCount}</span>}
-                  {starCount === 0 && flagCount === 0 && <span className="text-2xl font-bold text-gray-300">-</span>}
+                  {starCount === 0 && flagCount === 0 && <span className="text-2xl font-semibold text-gray-300">-</span>}
                 </div>
                 <p className="text-xs text-gray-500">Star / Flag</p>
               </div>
@@ -590,7 +598,8 @@ const Progress = () => {
               const areaPath = linePath + ` L${points[points.length - 1].x},${PY + plotH} L${points[0].x},${PY + plotH} Z`
 
               return (
-                <div className="bg-white rounded-lg border p-3 sm:p-5">
+                <div className="relative bg-white border border-gray-200 p-3 sm:p-5 overflow-hidden" style={{ clipPath: CLIP_CARD }}>
+                  <CornerBrackets />
                   <h4 className="text-sm font-semibold text-gray-700 mb-3">XP Rate</h4>
                   <div className="overflow-x-auto -mx-1">
                     <svg viewBox={`0 0 ${W} ${H}`} className="w-full" style={{ minWidth: W > 400 ? W * 0.6 : '100%', maxHeight: 220 }}>
@@ -632,7 +641,7 @@ const Progress = () => {
                 const xpColor = xp === null ? 'text-gray-300' : xp >= 70 ? 'text-green-600' : xp >= 40 ? 'text-yellow-600' : 'text-red-600'
 
                 return (
-                  <div key={idx} className="bg-white rounded-lg border p-3">
+                  <div key={idx} className="bg-white border border-gray-200 p-3" style={{ clipPath: CLIP_SM }}>
                     {/* Row 1: Date + Lesson name + XP */}
                     <div className="flex items-start justify-between gap-2 mb-2">
                       <div className="min-w-0">
@@ -685,9 +694,10 @@ const Progress = () => {
             </div>
 
             {/* Lesson Table (desktop) */}
-            <div className="hidden md:block bg-white rounded-lg border overflow-x-auto">
+            <div className="hidden md:block relative bg-white border border-gray-200 overflow-x-auto" style={{ clipPath: CLIP_CARD }}>
+              <CornerBrackets />
               <table className="w-full text-sm">
-                <thead className="bg-gray-100 text-gray-600">
+                <thead className="bg-gray-50 text-gray-600">
                   <tr>
                     <th className="px-4 py-3 text-left font-medium">Ngày</th>
                     <th className="px-4 py-3 text-left font-medium">Buổi học</th>
@@ -752,28 +762,30 @@ const Progress = () => {
       })()}
 
       {/* Recent Activity */}
-      <Card>
-        <Card.Header>
-          <h2 className="text-lg font-semibold flex items-center space-x-2">
+      <div className="relative bg-white border border-gray-200 overflow-hidden" style={{ clipPath: CLIP_CARD }}>
+        <CornerBrackets />
+        <div className="px-5 pt-4 pb-1">
+          <h2 className="text-base font-semibold flex items-center space-x-2 uppercase tracking-wide">
             <Activity className="w-5 h-5 text-blue-500" />
             <span>Hoạt động gần đây</span>
           </h2>
-        </Card.Header>
-        <Card.Content>
+          <div className="h-[2px] w-12 bg-gradient-to-r from-blue-400 to-transparent mt-1 ml-7" />
+        </div>
+        <div className="p-4">
           {recentActivity.length > 0 ? (
             <div className="space-y-3">
               {recentActivity.map((activity) => {
                 if (activity.type === 'achievement') {
                   return (
-                    <div key={`ach-${activity.id}`} className="flex items-center space-x-3 p-3 rounded-lg bg-yellow-50 border border-yellow-200">
-                      <div className="w-10 h-10 bg-yellow-100 rounded-full flex items-center justify-center shrink-0">
+                    <div key={`ach-${activity.id}`} className="flex items-center space-x-3 p-3 bg-yellow-50 border border-yellow-200" style={{ clipPath: CLIP_SM }}>
+                      <div className="w-10 h-10 bg-yellow-100 flex items-center justify-center shrink-0" style={{ clipPath: CLIP_SM }}>
                         <Trophy className="w-5 h-5 text-yellow-500" />
                       </div>
                       <div className="flex-1 min-w-0">
-                        <h4 className="font-medium text-gray-900 truncate">
+                        <h4 className="font-medium text-gray-900 truncate text-sm">
                           Nhận thành tích: {activity.achievements?.title}
                         </h4>
-                        <p className="text-sm text-gray-600">
+                        <p className="text-sm text-gray-500">
                           {formatTimeAgo(activity.claimed_at)}
                         </p>
                       </div>
@@ -784,15 +796,15 @@ const Progress = () => {
                   )
                 } else {
                   return (
-                    <div key={`ex-${activity.id}`} className="flex items-center space-x-3 p-3 rounded-lg bg-gray-50">
-                      <div className="w-10 h-10 bg-blue-100 rounded-full flex items-center justify-center shrink-0">
+                    <div key={`ex-${activity.id}`} className="flex items-center space-x-3 p-3 bg-gray-50 border border-gray-100" style={{ clipPath: CLIP_SM }}>
+                      <div className="w-10 h-10 bg-blue-100 flex items-center justify-center shrink-0" style={{ clipPath: CLIP_SM }}>
                         <BookOpen className="w-5 h-5 text-blue-600" />
                       </div>
                       <div className="flex-1 min-w-0">
-                        <h4 className="font-medium text-gray-900 truncate">
+                        <h4 className="font-medium text-gray-900 truncate text-sm">
                           {activity.exercises?.title || 'Bài tập'}
                         </h4>
-                        <p className="text-sm text-gray-600">
+                        <p className="text-sm text-gray-500">
                           Điểm: {activity.score}% • {formatTimeAgo(activity.completed_at)}
                         </p>
                       </div>
@@ -805,13 +817,13 @@ const Progress = () => {
               })}
             </div>
           ) : (
-            <div className="text-center py-8 text-gray-500">
+            <div className="text-center py-8 text-gray-400">
               <BookOpen className="w-12 h-12 mx-auto mb-3 opacity-50" />
-              <p>Chưa có hoạt động nào.</p>
+              <p className="text-sm">Chưa có hoạt động nào.</p>
             </div>
           )}
-        </Card.Content>
-      </Card>
+        </div>
+      </div>
 
       {/* Achievements - hidden for now */}
     </div>
