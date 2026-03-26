@@ -1067,7 +1067,7 @@ const UnitList = () => {
               return (
                 <div className="flex flex-col lg:flex-row gap-6 mt-4 items-start">
                   {cols.map((col, colIdx) => (
-                    <div key={colIdx} className="flex-1 flex flex-col gap-10 min-w-0">
+                    <div key={colIdx} className="w-full lg:flex-1 flex flex-col gap-10 min-w-0">
                       {col.map((item) =>
                         item.type === 'add' ? addUnitCard : renderUnitCard(item.unit, item.unitIndex)
                       )}

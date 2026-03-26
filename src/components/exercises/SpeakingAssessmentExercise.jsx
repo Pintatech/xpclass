@@ -196,6 +196,11 @@ const SpeakingAssessmentExercise = () => {
   const mediaRecorderRef = useRef(null)     // MediaRecorder (mobile)
   const audioChunksRef = useRef([])
   const finalTranscriptRef = useRef('')
+  // Background audio capture (for teacher review)
+  const bgRecorderRef = useRef(null)
+  const bgChunksRef = useRef([])
+  const bgStreamRef = useRef(null)
+  const lastAudioBlobRef = useRef(null)
 
   const isMobile = isMobileDevice()
 
@@ -285,6 +290,68 @@ const SpeakingAssessmentExercise = () => {
     }
   }
 
+  // ── Background audio capture (for teacher review) ─────────────────────────
+  const startBgRecorder = async () => {
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({ audio: true })
+      bgStreamRef.current = stream
+      bgChunksRef.current = []
+      let options = {}
+      if (MediaRecorder.isTypeSupported('audio/mp4')) options.mimeType = 'audio/mp4'
+      else if (MediaRecorder.isTypeSupported('audio/webm')) options.mimeType = 'audio/webm'
+      const recorder = new MediaRecorder(stream, options)
+      recorder.ondataavailable = (e) => { if (e.data.size > 0) bgChunksRef.current.push(e.data) }
+      recorder.onstop = () => {
+        stream.getTracks().forEach(t => t.stop())
+        const blob = new Blob(bgChunksRef.current, { type: options.mimeType || 'audio/webm' })
+        lastAudioBlobRef.current = blob
+      }
+      bgRecorderRef.current = recorder
+      recorder.start()
+    } catch (err) {
+      console.error('Background audio capture failed:', err)
+    }
+  }
+
+  const stopBgRecorder = () => {
+    if (bgRecorderRef.current && bgRecorderRef.current.state !== 'inactive') {
+      bgRecorderRef.current.stop()
+    }
+  }
+
+  const saveSubmission = async (spokenText, aiScoreResult) => {
+    if (!user || !exerciseId) return
+    try {
+      let audioUrl = null
+      const blob = lastAudioBlobRef.current
+      if (blob && blob.size > 1000) {
+        const ext = blob.type.includes('mp4') ? 'mp4' : 'webm'
+        const filePath = `speaking/${user.id}/${exerciseId}/${Date.now()}.${ext}`
+        const { error: uploadErr } = await supabase.storage
+          .from('exercise-videos')
+          .upload(filePath, blob, { contentType: blob.type })
+        if (!uploadErr) {
+          const { data: urlData } = supabase.storage.from('exercise-videos').getPublicUrl(filePath)
+          audioUrl = urlData?.publicUrl
+        }
+      }
+      await supabase.from('video_submissions').insert({
+        user_id: user.id,
+        exercise_id: exerciseId,
+        session_id: sessionId || null,
+        question_index: currentQuestionIndex,
+        video_url: audioUrl,
+        transcription: spokenText || null,
+        ai_result: aiScoreResult || null,
+        ai_score: Math.round(aiScoreResult?.overall_score || 0),
+        status: 'pending',
+      })
+      lastAudioBlobRef.current = null
+    } catch (err) {
+      console.error('Error saving speaking submission:', err)
+    }
+  }
+
   // ── Desktop recording: Web Speech API ─────────────────────────────────────
   const startWebSpeech = () => {
     const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition
@@ -350,6 +417,7 @@ const SpeakingAssessmentExercise = () => {
     recorder.onstop = async () => {
       stream.getTracks().forEach(t => t.stop())
       const blob = new Blob(audioChunksRef.current, { type: options.mimeType || 'audio/webm' })
+      lastAudioBlobRef.current = blob
       setIsTranscribing(true)
       try {
         const text = await transcribeWithAssembly(blob)
@@ -382,9 +450,10 @@ const SpeakingAssessmentExercise = () => {
     } else {
       started = startWebSpeech()
       if (!started) {
-        // Web Speech not supported — fallback to MediaRecorder + AssemblyAI
         started = await startMobileRecording()
       }
+      // Start background audio capture for teacher review (desktop)
+      if (started) startBgRecorder()
     }
     if (started) setIsRecording(true)
   }
@@ -402,6 +471,7 @@ const SpeakingAssessmentExercise = () => {
         recognitionRef.current = null
       }
     }
+    stopBgRecorder()
     setIsRecording(false)
   }
 
@@ -409,18 +479,22 @@ const SpeakingAssessmentExercise = () => {
     const q = questions[currentQuestionIndex]
     if (!spokenText || !q) return
     setIsAnalyzing(true)
+    let aiScoreResult
     try {
-      const result = await scoreSpeechWithLLM(
+      aiScoreResult = await scoreSpeechWithLLM(
         q.prompt, spokenText, q.key_points, q.evaluation_criteria,
         exercise?.content?.level
       )
-      setAiResult(result)
+      setAiResult(aiScoreResult)
     } catch (err) {
       console.error('AI scoring error:', err)
-      setAiResult(fallbackResult())
+      aiScoreResult = fallbackResult()
+      setAiResult(aiScoreResult)
     } finally {
       setIsAnalyzing(false)
       setShowResults(true)
+      // Save audio + submission for teacher review
+      saveSubmission(spokenText, aiScoreResult)
     }
   }
 
