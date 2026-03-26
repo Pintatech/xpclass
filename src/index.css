@@ -113,6 +113,59 @@
     animation: card-flash 0.4s ease-out;
   }
 
+  /* ── Solo Leveling System UI ── */
+  @keyframes sl-fade-in {
+    from { opacity: 0; transform: translateY(30px) scale(0.95); }
+    to   { opacity: 1; transform: translateY(0) scale(1); }
+  }
+  @keyframes sl-glow-pulse {
+    0%, 100% { box-shadow: 0 0 15px rgba(59,130,246,0.3), 0 0 40px rgba(59,130,246,0.1); }
+    50%      { box-shadow: 0 0 25px rgba(59,130,246,0.5), 0 0 60px rgba(59,130,246,0.2); }
+  }
+  @keyframes sl-border-glow {
+    0%, 100% { border-color: rgba(59,130,246,0.3); }
+    50%      { border-color: rgba(59,130,246,0.7); }
+  }
+  @keyframes sl-text-flicker {
+    0%, 100% { opacity: 1; }
+    92%      { opacity: 1; }
+    93%      { opacity: 0.4; }
+    94%      { opacity: 1; }
+    96%      { opacity: 0.6; }
+    97%      { opacity: 1; }
+  }
+  @keyframes sl-scan-line {
+    0%   { top: -10%; }
+    100% { top: 110%; }
+  }
+  @keyframes sl-particle-float {
+    0%   { transform: translateY(0) translateX(0); opacity: 0; }
+    20%  { opacity: 1; }
+    100% { transform: translateY(-80px) translateX(20px); opacity: 0; }
+  }
+  @keyframes sl-slide-right {
+    from { opacity: 0; transform: translateX(-40px); }
+    to   { opacity: 1; transform: translateX(0); }
+  }
+  @keyframes sl-reward-glow {
+    0%, 100% { text-shadow: 0 0 8px rgba(250,204,21,0.4); }
+    50%      { text-shadow: 0 0 16px rgba(250,204,21,0.8); }
+  }
+  @keyframes sl-complete-pulse {
+    0%, 100% { box-shadow: 0 0 10px rgba(250,204,21,0.2), inset 0 0 10px rgba(250,204,21,0.05); }
+    50%      { box-shadow: 0 0 25px rgba(250,204,21,0.4), inset 0 0 20px rgba(250,204,21,0.1); }
+  }
+  @keyframes sl-header-entrance {
+    from { opacity: 0; transform: translateY(-20px); letter-spacing: 0.5em; }
+    to   { opacity: 1; transform: translateY(0); letter-spacing: 0.15em; }
+  }
+  .sl-card-enter   { animation: sl-fade-in 0.5s ease-out both; }
+  .sl-glow         { animation: sl-glow-pulse 3s ease-in-out infinite; }
+  .sl-border-glow  { animation: sl-border-glow 3s ease-in-out infinite; }
+  .sl-flicker      { animation: sl-text-flicker 4s linear infinite; }
+  .sl-header-enter { animation: sl-header-entrance 0.8s ease-out both; }
+  .sl-slide-right  { animation: sl-slide-right 0.5s ease-out both; }
+
   /* Floating point number */
   @keyframes float-up {
     0% {
