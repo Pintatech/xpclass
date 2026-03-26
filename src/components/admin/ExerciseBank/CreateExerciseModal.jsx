@@ -20,6 +20,7 @@ const CreateExerciseModal = ({ folders, selectedFolder, onClose, onCreated, allo
     folder_id: selectedFolder?.id || '',
     difficulty_level: 1,
     xp_reward: 10,
+    score_boost: 0,
     category: '',
     tags: [],
     estimated_duration: 5,
@@ -61,6 +62,7 @@ const CreateExerciseModal = ({ folders, selectedFolder, onClose, onCreated, allo
           folder_id: formData.folder_id || null,
           difficulty_level: 1,
           xp_reward: formData.xp_reward,
+          score_boost: formData.score_boost || 0,
           category: null,
           tags: null,
           estimated_duration: 5,
@@ -218,6 +220,21 @@ const CreateExerciseModal = ({ folders, selectedFolder, onClose, onCreated, allo
                 max="100"
               />
             </div>
+
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                Score Boost
+              </label>
+              <select
+                value={formData.score_boost}
+                onChange={(e) => handleChange('score_boost', parseInt(e.target.value))}
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+              >
+                <option value={0}>Normal</option>
+                <option value={15}>Lenient (+15) - Young learners</option>
+                <option value={25}>Very Lenient (+25) - Kindergarten</option>
+              </select>
+            </div>
           </div>
 
           {/* Exercise Content Editors */}
@@ -357,8 +374,10 @@ const CreateExerciseModal = ({ folders, selectedFolder, onClose, onCreated, allo
               <VideoUploadEditor
                 questions={formData.content.questions || []}
                 level={formData.content.level || 'middle'}
+                skipScoring={formData.content.skip_scoring || false}
                 onQuestionsChange={(questions) => handleContentChange('questions', questions)}
                 onLevelChange={(level) => handleContentChange('level', level)}
+                onSkipScoringChange={(val) => handleContentChange('skip_scoring', val)}
               />
             )}
           </div>

@@ -20,6 +20,7 @@ const EditExerciseModal = ({ isOpen, onClose, exercise, onUpdate }) => {
     exercise_type: 'flashcard',
     difficulty_level: 1,
     xp_reward: 10,
+    score_boost: 0,
     estimated_duration: 5,
     tags: [],
     folder_id: null
@@ -38,6 +39,7 @@ const EditExerciseModal = ({ isOpen, onClose, exercise, onUpdate }) => {
         exercise_type: exercise.exercise_type || 'flashcard',
         difficulty_level: exercise.difficulty_level || 1,
         xp_reward: exercise.xp_reward || 10,
+        score_boost: exercise.score_boost || 0,
         estimated_duration: exercise.estimated_duration || 5,
         tags: exercise.tags || [],
         folder_id: exercise.folder_id || null
@@ -101,6 +103,7 @@ const EditExerciseModal = ({ isOpen, onClose, exercise, onUpdate }) => {
           exercise_type: formData.exercise_type,
           difficulty_level: 1,
           xp_reward: formData.xp_reward,
+          score_boost: formData.score_boost || 0,
           estimated_duration: 5,
           tags: [],
           folder_id: formData.folder_id,
@@ -246,8 +249,10 @@ const EditExerciseModal = ({ isOpen, onClose, exercise, onUpdate }) => {
           <VideoUploadEditor
             questions={content.questions || []}
             level={content.level || 'middle'}
+            skipScoring={content.skip_scoring || false}
             onQuestionsChange={(questions) => handleContentChange({ ...content, questions })}
             onLevelChange={(level) => handleContentChange({ ...content, level })}
+            onSkipScoringChange={(val) => handleContentChange({ ...content, skip_scoring: val })}
           />
         )
       default:
@@ -355,6 +360,21 @@ const EditExerciseModal = ({ isOpen, onClose, exercise, onUpdate }) => {
                   onChange={(e) => handleInputChange('xp_reward', parseInt(e.target.value))}
                   className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                 />
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Score Boost
+                </label>
+                <select
+                  value={formData.score_boost}
+                  onChange={(e) => handleInputChange('score_boost', parseInt(e.target.value))}
+                  className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                >
+                  <option value={0}>Normal</option>
+                  <option value={15}>Lenient (+15) - Young learners</option>
+                  <option value={25}>Very Lenient (+25) - Kindergarten</option>
+                </select>
               </div>
             </div>
 

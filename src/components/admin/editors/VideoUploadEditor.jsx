@@ -11,7 +11,7 @@ const emptyQuestion = (idx = 0) => ({
   max_file_size_mb: 50,
 })
 
-const VideoUploadEditor = ({ questions, level, onQuestionsChange, onLevelChange }) => {
+const VideoUploadEditor = ({ questions, level, skipScoring, onQuestionsChange, onLevelChange, onSkipScoringChange }) => {
   const [localQuestions, setLocalQuestions] = useState(
     (questions || []).length ? questions : [emptyQuestion(0)]
   )
@@ -91,6 +91,21 @@ const VideoUploadEditor = ({ questions, level, onQuestionsChange, onLevelChange 
         <p className="text-xs text-gray-500 mt-2">
           The AI will calibrate its scoring and feedback tone to match this level.
         </p>
+      </div>
+
+      {/* Skip scoring toggle */}
+      <div className="flex items-center justify-between p-3 bg-amber-50 border border-amber-200 rounded-lg">
+        <div>
+          <span className="text-sm font-medium text-gray-700">Upload Only (No AI Scoring)</span>
+          <p className="text-xs text-gray-500">Students just upload their video and move on — no transcription or feedback shown.</p>
+        </div>
+        <button
+          type="button"
+          onClick={() => onSkipScoringChange?.(!skipScoring)}
+          className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${skipScoring ? 'bg-amber-500' : 'bg-gray-300'}`}
+        >
+          <span className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${skipScoring ? 'translate-x-6' : 'translate-x-1'}`} />
+        </button>
       </div>
 
       <hr className="border-gray-200" />

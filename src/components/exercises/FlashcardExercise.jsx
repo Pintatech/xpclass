@@ -264,7 +264,7 @@ const FlashcardExercise = () => {
   const [speechSynth] = useState(window.speechSynthesis);
   const [isRecording, setIsRecording] = useState(false);
   const [pronunciationResult, setPronunciationResult] = useState(null);
-  const [mediaMode, setMediaMode] = useState("video"); // 'video' or 'image'
+  const [mediaMode, setMediaMode] = useState("image"); // 'video' or 'image'
   const [currentVideoIndex, setCurrentVideoIndex] = useState(0);
   const [videoRefs, setVideoRefs] = useState([]);
   const mediaRecorderRef = useRef(null);
@@ -573,8 +573,7 @@ const FlashcardExercise = () => {
     pauseAllVideos();
     // Reset flip state, video index, and pronunciation result
     setIsFlipped(false);
-    const nextCard = displayedCards[index];
-    setMediaMode(nextCard?.videoUrls?.length > 0 ? "video" : "image");
+    setMediaMode("image");
     setCurrentVideoIndex(0);
     setPronunciationResult(null);
     setCurrentCard(index);
@@ -854,6 +853,12 @@ const FlashcardExercise = () => {
                     ((maxLen - dist) / maxLen) * 100
                   );
                 }
+              }
+
+              // Apply score boost (for younger learners)
+              const scoreBoost = exercise?.score_boost || 0;
+              if (scoreBoost > 0) {
+                syllableScore = Math.min(100, syllableScore + scoreBoost);
               }
 
               // Update card scores
@@ -1697,13 +1702,16 @@ const FlashcardExercise = () => {
                     <Mic className="w-5 h-5 sm:w-6 sm:h-6" />
                   </button>
 
-                  <button
-                    onClick={flipCard}
-                    className="button-3d btn-green w-12 h-12 sm:w-14 sm:h-14 md:w-16 md:h-16 bg-green-600 text-white rounded-full flex items-center justify-center transition-colors duration-200 flex-shrink-0"
-                    title="Flip Card"
-                  >
-                    <div className="text-xs font-bold">FLIP</div>
-                  </button>
+                  {!(currentFlashcard?.front?.trim() === currentFlashcard?.back?.trim() &&
+                    !(currentFlashcard?.videoUrls?.length > 0)) && (
+                    <button
+                      onClick={flipCard}
+                      className="button-3d btn-green w-12 h-12 sm:w-14 sm:h-14 md:w-16 md:h-16 bg-green-600 text-white rounded-full flex items-center justify-center transition-colors duration-200 flex-shrink-0"
+                      title="Flip Card"
+                    >
+                      <div className="text-xs font-bold">FLIP</div>
+                    </button>
+                  )}
 
                   <button
                     onClick={() => setShowTutorial(true)}
@@ -1914,7 +1922,7 @@ const FlashcardExercise = () => {
                 </div>
                 <div>
                   <p className="font-semibold text-gray-800">Cách tính điểm</p>
-                  <p>Điểm của bài để nhận rương là điểm cao nhất của mỗi thẻ rồi cộng trung bình lại. Chỉ tính điểm lần đầu ấn hoàn thành để nhận rương. Các bạn có thể đọc một thẻ nhiều lần cho đến khi được điểm như ý nhé!</p>
+                  <p>Điểm của bài là trung bình cộng của các thẻ</p>
                 </div>
               </div>
 
@@ -1923,18 +1931,8 @@ const FlashcardExercise = () => {
                   <span className="text-red-500 text-lg">❤️</span>
                 </div>
                 <div>
-                  <p className="font-semibold text-gray-800">Video không phát được?</p>
-                  <p>Nhấn thả tim để xem trên Tiktok.</p>
-                </div>
-              </div>
-
-              <div className="flex items-start gap-3">
-                <div className="w-10 h-10 rounded-full bg-purple-100 flex items-center justify-center flex-shrink-0">
-                  <span className="text-purple-600 text-lg">🎁</span>
-                </div>
-                <div>
-                  <p className="font-semibold text-gray-800">Rương huyền thoại</p>
-                  <p>Tương tác video và follow page để có cơ hội nhận rương huyền thoại nhé các bạn!</p>
+                  <p className="font-semibold text-gray-800">Recorder không thu âm?</p>
+                  <p>Reset lại permission</p>
                 </div>
               </div>
             </div>

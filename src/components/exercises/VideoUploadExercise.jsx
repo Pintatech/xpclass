@@ -271,6 +271,49 @@ const VideoUploadExercise = () => {
       const publicUrl = urlData?.publicUrl
       if (!publicUrl) throw new Error('Failed to get video URL')
 
+      const skipScoring = exercise?.content?.skip_scoring
+
+      if (skipScoring) {
+        // Upload only — save submission without transcription/scoring
+        try {
+          await supabase.from('video_submissions').insert({
+            user_id: user.id,
+            exercise_id: exerciseId,
+            session_id: sessionId || null,
+            question_index: currentQuestionIndex,
+            video_url: publicUrl,
+            transcription: null,
+            ai_result: null,
+            ai_score: null,
+            status: 'pending',
+          })
+        } catch (err) {
+          console.error('Error saving submission:', err)
+        }
+
+        setHasSubmitted(true)
+        fetchClassVideos()
+
+        // Move to next question or finish
+        if (currentQuestionIndex < questions.length - 1) {
+          setQuestionResults(prev => [...prev, { questionIndex: currentQuestionIndex, transcription: '', overallScore: 0, aiResult: null }])
+          setUploadPhase('idle')
+          clearFile()
+          setCurrentQuestionIndex(prev => prev + 1)
+        } else {
+          // Last question — complete exercise
+          try {
+            const baseXP = exercise?.xp_reward || 10
+            const result = await completeExerciseWithXP(exerciseId, baseXP, { score: 100, max_score: 100, xp_earned: baseXP })
+            if (result?.xpAwarded > 0) setXpAwarded(result.xpAwarded)
+          } catch (e) {
+            console.error('Failed to complete exercise:', e)
+          }
+          setUploadPhase('done')
+        }
+        return
+      }
+
       // Phase 2: Transcribe via AssemblyAI
       setUploadPhase('transcribing')
 
@@ -785,6 +828,26 @@ const VideoUploadExercise = () => {
                           : <span>Finish</span>}
                       </button>
                     </div>
+                  </div>
+                )}
+
+                {/* Upload-only done state */}
+                {uploadPhase === 'done' && (
+                  <div className="flex flex-col items-center py-10 space-y-4">
+                    <CheckCircle className="w-16 h-16 text-green-500" />
+                    <h3 className="text-lg font-semibold text-gray-900">Video Submitted!</h3>
+                    <p className="text-sm text-gray-500 text-center">Your video has been uploaded. Your teacher will review it.</p>
+                    {xpAwarded > 0 && (
+                      <div className="flex items-center gap-1 px-3 py-1.5 bg-yellow-100 text-yellow-700 rounded-full text-sm font-medium">
+                        <Star className="w-4 h-4" /> +{xpAwarded} XP
+                      </div>
+                    )}
+                    <button
+                      onClick={() => navigate(-1)}
+                      className="flex items-center gap-2 px-6 py-2 bg-teal-600 hover:bg-teal-700 text-white rounded-lg font-medium mt-2"
+                    >
+                      <ArrowLeft className="w-4 h-4" /> Go Back
+                    </button>
                   </div>
                 )}
               </div>

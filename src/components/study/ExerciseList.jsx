@@ -1791,6 +1791,7 @@ const ExerciseList = () => {
       {showAssignExerciseModal && (
         <AssignExerciseModal
           sessionId={sessionId}
+          courseId={courseId}
           onClose={() => setShowAssignExerciseModal(false)}
           onAssigned={handleExercisesAssigned}
         />

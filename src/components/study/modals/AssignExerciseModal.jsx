@@ -3,10 +3,11 @@ import { supabase } from '../../../supabase/client'
 import { X, Search, BookOpen, Mic, Edit3, HelpCircle, Plus, Check, Copy, Brain, Image, FileText, Eye } from 'lucide-react'
 import FolderTree from '../../admin/ExerciseBank/FolderTree'
 
-const AssignExerciseModal = ({ sessionId, onClose, onAssigned }) => {
+const AssignExerciseModal = ({ sessionId, courseId, onClose, onAssigned }) => {
   const [exercises, setExercises] = useState([])
   const [filteredExercises, setFilteredExercises] = useState([])
   const [assignedExercises, setAssignedExercises] = useState([])
+  const [courseAssignedMap, setCourseAssignedMap] = useState({})
   const [loading, setLoading] = useState(false)
   const [assigning, setAssigning] = useState(false)
   const [error, setError] = useState('')
@@ -16,6 +17,7 @@ const AssignExerciseModal = ({ sessionId, onClose, onAssigned }) => {
   const [folders, setFolders] = useState([])
   const [folderCounts, setFolderCounts] = useState({})
   const [selectedExercises, setSelectedExercises] = useState(new Set())
+  const [previewUrl, setPreviewUrl] = useState(null)
 
   const exerciseTypes = [
     { value: 'all', label: 'All Types' },
@@ -33,7 +35,8 @@ const AssignExerciseModal = ({ sessionId, onClose, onAssigned }) => {
     fetchFolders()
     fetchFolderCounts()
     fetchAssignedExercises()
-  }, [sessionId])
+    if (courseId) fetchCourseAssignedExercises()
+  }, [sessionId, courseId])
 
   useEffect(() => {
     if (selectedFolder) {
@@ -130,10 +133,58 @@ const AssignExerciseModal = ({ sessionId, onClose, onAssigned }) => {
     }
   }
 
+  const fetchCourseAssignedExercises = async () => {
+    try {
+      // Get all units in this course
+      const { data: units, error: unitsError } = await supabase
+        .from('units')
+        .select('id')
+        .eq('course_id', courseId)
+
+      if (unitsError) throw unitsError
+
+      // Get all sessions in those units
+      const unitIds = units?.map(u => u.id) || []
+      if (unitIds.length === 0) return
+
+      const { data: sessions, error: sessionsError } = await supabase
+        .from('sessions')
+        .select('id, title, unit_id')
+        .in('unit_id', unitIds)
+
+      if (sessionsError) throw sessionsError
+
+      const sessionIds = sessions?.map(s => s.id).filter(id => id !== sessionId) || []
+      if (sessionIds.length === 0) return
+
+      // Get all assignments in other sessions of this course
+      const { data: assignments, error: assignError } = await supabase
+        .from('exercise_assignments')
+        .select('exercise_id, session_id')
+        .in('session_id', sessionIds)
+
+      if (assignError) throw assignError
+
+      // Build a map: exerciseId -> session title
+      const sessionMap = {}
+      sessions.forEach(s => { sessionMap[s.id] = s.title })
+
+      const map = {}
+      assignments?.forEach(a => {
+        if (!map[a.exercise_id]) map[a.exercise_id] = []
+        const sessionTitle = sessionMap[a.session_id]
+        if (sessionTitle && !map[a.exercise_id].includes(sessionTitle)) {
+          map[a.exercise_id].push(sessionTitle)
+        }
+      })
+      setCourseAssignedMap(map)
+    } catch (err) {
+      console.error('Error fetching course assigned exercises:', err)
+    }
+  }
+
   const filterExercises = () => {
-    let filtered = exercises.filter(exercise =>
-      !assignedExercises.includes(exercise.id)
-    )
+    let filtered = [...exercises]
 
     if (searchTerm) {
       filtered = filtered.filter(exercise =>
@@ -145,6 +196,14 @@ const AssignExerciseModal = ({ sessionId, onClose, onAssigned }) => {
     if (selectedType !== 'all') {
       filtered = filtered.filter(exercise => exercise.exercise_type === selectedType)
     }
+
+    // Sort: unassigned first, then assigned
+    filtered.sort((a, b) => {
+      const aAssigned = assignedExercises.includes(a.id)
+      const bAssigned = assignedExercises.includes(b.id)
+      if (aAssigned === bAssigned) return 0
+      return aAssigned ? 1 : -1
+    })
 
     setFilteredExercises(filtered)
   }
@@ -231,7 +290,7 @@ const AssignExerciseModal = ({ sessionId, onClose, onAssigned }) => {
     }
     const route = typeToRoute[exercise.exercise_type]
     if (route) {
-      window.open(`/study/${route}?exerciseId=${exercise.id}`, '_blank')
+      setPreviewUrl(`/study/${route}?exerciseId=${exercise.id}`)
     }
   }
 
@@ -344,35 +403,55 @@ const AssignExerciseModal = ({ sessionId, onClose, onAssigned }) => {
                   {filteredExercises.map((exercise) => {
                     const IconComponent = getExerciseIcon(exercise.exercise_type)
                     const isSelected = selectedExercises.has(exercise.id)
+                    const isAlreadyAssigned = assignedExercises.includes(exercise.id)
+                    const otherSessions = courseAssignedMap[exercise.id] || []
 
                     return (
                       <div
                         key={exercise.id}
-                        onClick={() => toggleExerciseSelection(exercise.id)}
-                        className={`flex items-center p-3 border rounded-lg cursor-pointer transition-all duration-150 ${
-                          isSelected
-                            ? 'border-green-500 bg-green-50'
-                            : 'border-gray-200 hover:border-gray-300 hover:bg-gray-50'
+                        onClick={() => !isAlreadyAssigned && toggleExerciseSelection(exercise.id)}
+                        className={`flex items-center p-3 border rounded-lg transition-all duration-150 ${
+                          isAlreadyAssigned
+                            ? 'border-gray-200 bg-gray-50 opacity-60 cursor-default'
+                            : isSelected
+                              ? 'border-green-500 bg-green-50 cursor-pointer'
+                              : 'border-gray-200 hover:border-gray-300 hover:bg-gray-50 cursor-pointer'
                         }`}
                       >
                         <div className={`w-5 h-5 rounded border-2 mr-3 flex items-center justify-center flex-shrink-0 ${
-                          isSelected
-                            ? 'bg-green-500 border-green-500'
-                            : 'border-gray-300'
+                          isAlreadyAssigned
+                            ? 'bg-blue-500 border-blue-500'
+                            : isSelected
+                              ? 'bg-green-500 border-green-500'
+                              : 'border-gray-300'
                         }`}>
-                          {isSelected && <Check className="w-3 h-3 text-white" />}
+                          {(isAlreadyAssigned || isSelected) && <Check className="w-3 h-3 text-white" />}
                         </div>
 
                         <div className="flex-shrink-0 w-10 h-10 mr-3">
-                          <div className="w-full h-full rounded-lg bg-blue-100 flex items-center justify-center">
-                            <IconComponent className="w-5 h-5 text-blue-600" />
+                          <div className={`w-full h-full rounded-lg flex items-center justify-center ${
+                            isAlreadyAssigned ? 'bg-gray-100' : 'bg-blue-100'
+                          }`}>
+                            <IconComponent className={`w-5 h-5 ${isAlreadyAssigned ? 'text-gray-400' : 'text-blue-600'}`} />
                           </div>
                         </div>
 
                         <div className="flex-1 min-w-0">
-                          <h4 className="text-sm font-medium text-gray-900 truncate">
-                            {exercise.title}
-                          </h4>
+                          <div className="flex items-center space-x-2">
+                            <h4 className={`text-sm font-medium truncate ${isAlreadyAssigned ? 'text-gray-500' : 'text-gray-900'}`}>
+                              {exercise.title}
+                            </h4>
+                            {isAlreadyAssigned && (
+                              <span className="inline-flex items-center px-1.5 py-0.5 rounded-full bg-blue-100 text-blue-700 text-xs font-medium flex-shrink-0">
+                                Assigned
+                              </span>
+                            )}
+                            {otherSessions.length > 0 && !isAlreadyAssigned && (
+                              <span className="inline-flex items-center px-1.5 py-0.5 rounded-full bg-amber-100 text-amber-700 text-xs font-medium flex-shrink-0" title={`Also in: ${otherSessions.join(', ')}`}>
+                                In {otherSessions.length} other session{otherSessions.length > 1 ? 's' : ''}
+                              </span>
+                            )}
+                          </div>
                           <div className="flex items-center space-x-3 mt-0.5 text-xs text-gray-500">
                             <span className="inline-flex items-center px-1.5 py-0.5 rounded-full bg-gray-100 text-gray-700">
                               {getExerciseTypeLabel(exercise.exercise_type)}
@@ -430,6 +509,25 @@ const AssignExerciseModal = ({ sessionId, onClose, onAssigned }) => {
           </div>
         </div>
       </div>
+
+      {/* Preview Modal */}
+      {previewUrl && (
+        <div className="fixed inset-0 bg-black bg-opacity-70 flex items-center justify-center z-[60]">
+          <div className="relative w-full max-w-5xl h-[90vh] mx-4 bg-white rounded-lg overflow-hidden shadow-2xl">
+            <button
+              onClick={() => setPreviewUrl(null)}
+              className="absolute top-3 right-3 z-10 bg-white shadow-md border border-gray-200 rounded-full p-2 hover:bg-gray-100 transition-colors"
+            >
+              <X className="w-5 h-5 text-gray-600" />
+            </button>
+            <iframe
+              src={previewUrl}
+              className="w-full h-full border-0"
+              title="Exercise Preview"
+            />
+          </div>
+        </div>
+      )}
     </div>
   )
 }
