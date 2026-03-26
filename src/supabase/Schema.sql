@@ -1448,7 +1448,8 @@ CREATE TABLE IF NOT EXISTS public.drop_config (
 -- Seed default drop config
 INSERT INTO public.drop_config (config_key, config_value, description) VALUES
 ('exercise_drop_rate', '{"base_chance": 0.30, "rarity_weights": {"common": 60, "uncommon": 25, "rare": 12, "epic": 3}}', 'Chance of item drop on exercise completion (score >= 75%). Rarity weights for which item drops.'),
-('milestone_chests', '{"session_complete": "common", "streak_7": "uncommon", "streak_30": "rare", "challenge_win_top3": "uncommon", "pet_game": "common"}', 'Which chest type to award for each milestone type.')
+('milestone_chests', '{"session_complete": "common", "streak_7": "uncommon", "streak_30": "rare", "challenge_win_top3": "uncommon", "pet_game": "common"}', 'Which chest type to award for each milestone type.'),
+('exercise_chest_drop_rate', '{"base_chance": 0.25, "rarity_weights": {"common": 60, "uncommon": 25, "rare": 12, "epic": 2, "legendary": 1}}', 'Chance of chest drop on exercise completion (score >= 75%). Rarity weights determine chest type.')
 ON CONFLICT (config_key) DO NOTHING;
 
 -- ====================================
@@ -1930,7 +1931,28 @@ DECLARE
   milestone_chests jsonb;
   chest_type_name text;
   chest_record record;
+  daily_limit int;
+  today_count int;
 BEGIN
+  -- Check daily limit for pet_game chests
+  IF p_milestone_type = 'pet_game' THEN
+    SELECT COALESCE(setting_value::int, 0) INTO daily_limit
+    FROM site_settings
+    WHERE setting_key = 'chest_daily_limit';
+
+    IF daily_limit > 0 THEN
+      SELECT COUNT(*) INTO today_count
+      FROM user_chests
+      WHERE user_id = p_user_id
+        AND source = 'pet_game'
+        AND created_at >= (now() AT TIME ZONE 'Asia/Ho_Chi_Minh')::date::timestamp AT TIME ZONE 'Asia/Ho_Chi_Minh';
+
+      IF today_count >= daily_limit THEN
+        RETURN json_build_object('success', false, 'error', 'Daily chest limit reached');
+      END IF;
+    END IF;
+  END IF;
+
   -- Get milestone chest config
   SELECT config_value INTO config_record
   FROM drop_config
@@ -1985,7 +2007,21 @@ DECLARE
   v_chest record;
   v_existing_chest uuid;
   v_chest_type text;
+  v_config record;
+  v_base_chance float;
+  v_rarity_weights jsonb;
+  v_roll float;
+  v_rarity_roll float;
+  v_total_weight integer;
+  v_cumulative_weight integer;
+  v_rarity_key text;
+  v_rarity_value integer;
 BEGIN
+  -- No drop if score below 75%
+  IF p_score < 75 THEN
+    RETURN json_build_object('success', false, 'reason', 'score_too_low');
+  END IF;
+
   -- Find the course for this exercise via exercise_assignments -> session -> unit -> course
   SELECT c.id AS course_id, c.chest_enabled
   INTO v_course
@@ -2016,14 +2052,44 @@ BEGIN
     RETURN json_build_object('success', false, 'reason', 'already_awarded');
   END IF;
 
-  -- Determine chest rarity based on score
-  IF p_score >= 90 THEN
-    v_chest_type := 'rare';
-  ELSIF p_score >= 80 THEN
-    v_chest_type := 'uncommon';
-  ELSE
-    v_chest_type := 'common';
+  -- Get chest drop config
+  SELECT config_value INTO v_config
+  FROM drop_config
+  WHERE config_key = 'exercise_chest_drop_rate';
+
+  IF v_config IS NULL THEN
+    RETURN json_build_object('success', false, 'reason', 'no_chest_drop_config');
   END IF;
+
+  v_base_chance := (v_config.config_value->>'base_chance')::float;
+  v_rarity_weights := v_config.config_value->'rarity_weights';
+
+  -- Roll for drop chance
+  v_roll := random();
+  IF v_roll > v_base_chance THEN
+    RETURN json_build_object('success', false, 'reason', 'no_drop');
+  END IF;
+
+  -- Calculate total weight
+  v_total_weight := 0;
+  FOR v_rarity_key, v_rarity_value IN SELECT * FROM jsonb_each_text(v_rarity_weights)
+  LOOP
+    v_total_weight := v_total_weight + v_rarity_value::integer;
+  END LOOP;
+
+  -- Roll for rarity
+  v_rarity_roll := random() * v_total_weight;
+  v_cumulative_weight := 0;
+  v_chest_type := 'common';
+
+  FOR v_rarity_key, v_rarity_value IN SELECT * FROM jsonb_each_text(v_rarity_weights)
+  LOOP
+    v_cumulative_weight := v_cumulative_weight + v_rarity_value::integer;
+    IF v_rarity_roll <= v_cumulative_weight THEN
+      v_chest_type := v_rarity_key;
+      EXIT;
+    END IF;
+  END LOOP;
 
   -- Find an active chest of the determined rarity
   SELECT * INTO v_chest
@@ -2033,7 +2099,16 @@ BEGIN
   LIMIT 1;
 
   IF v_chest IS NULL THEN
-    RETURN json_build_object('success', false, 'reason', 'no_active_chest');
+    -- Fallback to common if no chest of rolled rarity
+    SELECT * INTO v_chest
+    FROM chests
+    WHERE is_active = true
+    ORDER BY random()
+    LIMIT 1;
+
+    IF v_chest IS NULL THEN
+      RETURN json_build_object('success', false, 'reason', 'no_active_chest');
+    END IF;
   END IF;
 
   -- Award the chest

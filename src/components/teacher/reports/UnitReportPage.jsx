@@ -5,13 +5,13 @@ import { useAuth } from '../../../hooks/useAuth';
 import {
   ArrowLeft, ClipboardList, BookOpen, Check, ChevronDown, ChevronRight,
   User, CheckSquare, Square, MinusSquare, Eye, EyeOff, Save, Star,
-  Award, MessageSquare, History, Zap, X
+  Award, MessageSquare, History, Zap, X, GraduationCap
 } from 'lucide-react';
 
 // ─── Preview Card (screenshot-friendly, matches mockup) ────────────────
 const ReportPreview = ({ data }) => {
   if (!data) return null;
-  const { studentName, studentAvatar, courseName, level, xp, attendance, performance, exercises, comment, createdAt } = data;
+  const { studentName, studentAvatar, courseName, level, xp, attendance, performance, exercises, lessonRecords, curriculum, comment, createdAt } = data;
 
   // Compute effort metrics
   const effortAttendance = attendance
@@ -23,8 +23,6 @@ const ReportPreview = ({ data }) => {
   const allExItems = (exercises || []).flatMap(g => g.items);
   const exDone = allExItems.filter(i => i.completed).length;
   const effortExercises = allExItems.length > 0 ? `${exDone}/${allExItems.length}` : '—';
-  const exScored = allExItems.filter(i => i.score != null);
-  const avgScore = exScored.length > 0 ? Math.round(exScored.reduce((s, i) => s + i.score, 0) / exScored.length) : null;
 
   // Structured comment (support both old string and new object format)
   const cmtObj = typeof comment === 'object' && comment !== null
@@ -71,43 +69,132 @@ const ReportPreview = ({ data }) => {
         ))}
       </div>
 
-      {/* ─ EXERCISES ─ */}
-      {exercises && exercises.length > 0 && (
+      {/* ─ CURRICULUM ─ */}
+      {curriculum && (curriculum.objectives || curriculum.knowledge || curriculum.presentation) && (
         <div className="mx-5 mt-5 bg-white rounded-2xl p-5 shadow-sm">
-          <div className="flex items-center justify-between mb-4">
-            <h3 className="text-sm font-extrabold text-gray-800 uppercase tracking-wide flex items-center gap-2">
-              <span className="text-base">📖</span> Exercises
-            </h3>
-            <div className="flex items-center gap-2 text-xs">
-              <span className="text-green-600 font-bold">{exDone}/{allExItems.length}</span>
-              {avgScore != null && (
-                <span className={`px-2 py-0.5 rounded text-white text-[10px] font-bold ${avgScore >= 80 ? 'bg-green-500' : avgScore >= 50 ? 'bg-yellow-500' : 'bg-red-500'}`}>
-                  Avg {avgScore}%
-                </span>
-              )}
+          <h3 className="text-sm font-extrabold text-gray-800 uppercase tracking-wide flex items-center gap-2 mb-4">
+            <span className="text-base">📚</span> Chương Trình Học
+          </h3>
+          {curriculum.objectives && (
+            <div className="mb-3">
+              <div className="text-[10px] text-gray-500 uppercase font-semibold mb-1">1. Mục tiêu</div>
+              <p className="text-[13px] text-gray-700 leading-relaxed whitespace-pre-wrap">{curriculum.objectives}</p>
             </div>
-          </div>
-          {exercises.map((group, gi) => (
-            <div key={gi} className="mb-4 last:mb-0">
-              <div className="text-xs font-bold text-gray-600 mb-2">{group.unitTitle}</div>
-              {group.items.map((item, ii) => (
-                <div key={ii} className="flex items-center justify-between py-1.5 pl-3 border-b border-gray-50 last:border-0">
-                  <span className="text-[13px] text-gray-700">{item.title}</span>
-                  {item.completed ? (
-                    <span className={`px-2 py-0.5 rounded text-[11px] font-bold text-white min-w-[40px] text-center ${
-                      (item.score ?? 0) >= 80 ? 'bg-green-500' : (item.score ?? 0) >= 50 ? 'bg-yellow-500' : 'bg-red-500'
-                    }`}>
-                      {item.score != null ? `${item.score}%` : '✓'}
-                    </span>
-                  ) : (
-                    <span className="text-xs text-gray-300">—</span>
-                  )}
-                </div>
-              ))}
+          )}
+          {curriculum.knowledge && (
+            <div className="mb-3">
+              <div className="text-[10px] text-gray-500 uppercase font-semibold mb-1">2. Kiến thức</div>
+              <div className="flex flex-wrap gap-1.5">
+                {curriculum.knowledge.split('\n').filter(l => l.trim()).map((item, i) => (
+                  <span key={i} className="px-2.5 py-1 bg-teal-50 text-teal-700 rounded-lg text-[12px] font-semibold border border-teal-100">
+                    {item.trim()}
+                  </span>
+                ))}
+              </div>
             </div>
-          ))}
+          )}
+          {curriculum.presentation && (
+            <div>
+              <div className="text-[10px] text-gray-500 uppercase font-semibold mb-1">3. Thuyết trình</div>
+              <div className="bg-gradient-to-r from-teal-50 to-cyan-50 rounded-xl px-4 py-2.5 border border-teal-100">
+                <p className="text-[13px] text-teal-800 font-bold italic whitespace-pre-wrap">&ldquo;{curriculum.presentation}&rdquo;</p>
+              </div>
+            </div>
+          )}
         </div>
       )}
+
+      {/* ─ EXERCISES (shared) ─ */}
+      {(() => {
+        const shared = (exercises || []).filter(g => !g.personal);
+        if (shared.length === 0) return null;
+        const sharedItems = shared.flatMap(g => g.items);
+        const sDone = sharedItems.filter(i => i.completed).length;
+        const sScored = sharedItems.filter(i => i.score != null);
+        const sAvg = sScored.length > 0 ? Math.round(sScored.reduce((s, i) => s + i.score, 0) / sScored.length) : null;
+        return (
+          <div className="mx-5 mt-5 bg-white rounded-2xl p-5 shadow-sm">
+            <div className="flex items-center justify-between mb-4">
+              <h3 className="text-sm font-extrabold text-gray-800 uppercase tracking-wide flex items-center gap-2">
+                <span className="text-base">📖</span> Exercises
+              </h3>
+              <div className="flex items-center gap-2 text-xs">
+                <span className="text-green-600 font-bold">{sDone}/{sharedItems.length}</span>
+                {sAvg != null && (
+                  <span className={`px-2 py-0.5 rounded text-white text-[10px] font-bold ${sAvg >= 80 ? 'bg-green-500' : sAvg >= 50 ? 'bg-yellow-500' : 'bg-red-500'}`}>
+                    Avg {sAvg}%
+                  </span>
+                )}
+              </div>
+            </div>
+            {shared.map((group, gi) => (
+              <div key={gi} className="mb-4 last:mb-0">
+                <div className="text-xs font-bold text-gray-600 mb-2">{group.unitTitle}</div>
+                {group.items.map((item, ii) => (
+                  <div key={ii} className="flex items-center justify-between py-1.5 pl-3 border-b border-gray-50 last:border-0">
+                    <span className="text-[13px] text-gray-700">{item.title}</span>
+                    {item.completed ? (
+                      <span className={`px-2 py-0.5 rounded text-[11px] font-bold text-white min-w-[40px] text-center ${
+                        (item.score ?? 0) >= 80 ? 'bg-green-500' : (item.score ?? 0) >= 50 ? 'bg-yellow-500' : 'bg-red-500'
+                      }`}>
+                        {item.score != null ? `${item.score}%` : '✓'}
+                      </span>
+                    ) : (
+                      <span className="text-xs text-gray-300">—</span>
+                    )}
+                  </div>
+                ))}
+              </div>
+            ))}
+          </div>
+        );
+      })()}
+
+      {/* ─ PERSONAL EXERCISES ─ */}
+      {(() => {
+        const personal = (exercises || []).filter(g => g.personal);
+        if (personal.length === 0) return null;
+        const pItems = personal.flatMap(g => g.items);
+        const pDone = pItems.filter(i => i.completed).length;
+        const pScored = pItems.filter(i => i.score != null);
+        const pAvg = pScored.length > 0 ? Math.round(pScored.reduce((s, i) => s + i.score, 0) / pScored.length) : null;
+        return (
+          <div className="mx-5 mt-5 bg-white rounded-2xl p-5 shadow-sm border border-purple-100">
+            <div className="flex items-center justify-between mb-4">
+              <h3 className="text-sm font-extrabold text-gray-800 uppercase tracking-wide flex items-center gap-2">
+                <span className="text-base">🎯</span> Personal Exercises
+              </h3>
+              <div className="flex items-center gap-2 text-xs">
+                <span className="text-green-600 font-bold">{pDone}/{pItems.length}</span>
+                {pAvg != null && (
+                  <span className={`px-2 py-0.5 rounded text-white text-[10px] font-bold ${pAvg >= 80 ? 'bg-green-500' : pAvg >= 50 ? 'bg-yellow-500' : 'bg-red-500'}`}>
+                    Avg {pAvg}%
+                  </span>
+                )}
+              </div>
+            </div>
+            {personal.map((group, gi) => (
+              <div key={gi} className="mb-4 last:mb-0">
+                <div className="text-xs font-bold text-purple-600 mb-2">{group.unitTitle}</div>
+                {group.items.map((item, ii) => (
+                  <div key={ii} className="flex items-center justify-between py-1.5 pl-3 border-b border-gray-50 last:border-0">
+                    <span className="text-[13px] text-gray-700">{item.title}</span>
+                    {item.completed ? (
+                      <span className={`px-2 py-0.5 rounded text-[11px] font-bold text-white min-w-[40px] text-center ${
+                        (item.score ?? 0) >= 80 ? 'bg-green-500' : (item.score ?? 0) >= 50 ? 'bg-yellow-500' : 'bg-red-500'
+                      }`}>
+                        {item.score != null ? `${item.score}%` : '✓'}
+                      </span>
+                    ) : (
+                      <span className="text-xs text-gray-300">—</span>
+                    )}
+                  </div>
+                ))}
+              </div>
+            ))}
+          </div>
+        );
+      })()}
 
       {/* ─ PERFORMANCE DETAIL ─ */}
       {performance && (
@@ -140,6 +227,73 @@ const ReportPreview = ({ data }) => {
           )}
         </div>
       )}
+
+      {/* ─ XP RATE GRAPH ─ */}
+      {(() => {
+        const perfXPv = { ok: 30, good: 60, wow: 90 };
+        const hwXPv = { ok: 15, good: 30, wow: 45 };
+        const MXP = 135;
+        const calcLessonXP = (rec) => {
+          if (!rec || !rec.attendance_status) return null;
+          const isPresent = rec.attendance_status === 'present' || rec.attendance_status === 'late';
+          if (!isPresent) return 0;
+          const perf = perfXPv[rec.performance_rating] || 0;
+          const hw = hwXPv[rec.homework_status] || 0;
+          if (perf === 0 && hw === 0) return null;
+          return Math.max(perf + hw - (rec.attendance_status === 'late' ? 15 : 0), 0);
+        };
+
+        const dataPoints = (lessonRecords || []).map(rec => {
+          const xpVal = calcLessonXP(rec);
+          return {
+            date: new Date(rec.date + 'T00:00:00').toLocaleDateString('en', { day: 'numeric', month: 'short' }),
+            pct: xpVal !== null ? Math.round((xpVal / MXP) * 100) : null,
+          };
+        }).filter(d => d.pct !== null);
+
+        if (dataPoints.length < 2) return null;
+
+        const W = 440, H = 160, PX = 32, PY = 16;
+        const plotW = W - PX * 2, plotH = H - PY * 2;
+        const stepX = plotW / (dataPoints.length - 1);
+        const points = dataPoints.map((d, i) => ({ x: PX + i * stepX, y: PY + plotH - (d.pct / 100) * plotH, ...d }));
+        const linePath = points.map((p, i) => `${i === 0 ? 'M' : 'L'}${p.x},${p.y}`).join(' ');
+        const areaPath = linePath + ` L${points[points.length - 1].x},${PY + plotH} L${points[0].x},${PY + plotH} Z`;
+
+        return (
+          <div className="mx-5 mt-5 bg-white rounded-2xl p-5 shadow-sm">
+            <h3 className="text-sm font-extrabold text-gray-800 uppercase tracking-wide flex items-center gap-2 mb-3">
+              <span className="text-base">📈</span> XP Rate
+            </h3>
+            <svg viewBox={`0 0 ${W} ${H}`} className="w-full">
+              {[0, 25, 50, 75, 100].map(pct => {
+                const y = PY + plotH - (pct / 100) * plotH;
+                return (
+                  <g key={pct}>
+                    <line x1={PX} y1={y} x2={W - PX} y2={y} stroke="#e5e7eb" strokeWidth="1" />
+                    <text x={PX - 4} y={y + 3} textAnchor="end" fontSize="8" fill="#9ca3af">{pct}%</text>
+                  </g>
+                );
+              })}
+              <path d={areaPath} fill="url(#previewXpGrad)" opacity="0.3" />
+              <path d={linePath} fill="none" stroke="#0081B1" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+              {points.map((p, i) => (
+                <g key={i}>
+                  <circle cx={p.x} cy={p.y} r="3" fill="#0081B1" stroke="white" strokeWidth="1.5" />
+                  <text x={p.x} y={PY + plotH + 11} textAnchor="middle" fontSize="7" fill="#6b7280">{p.date}</text>
+                  <text x={p.x} y={p.y - 7} textAnchor="middle" fontSize="7" fill="#0081B1" fontWeight="600">{p.pct}%</text>
+                </g>
+              ))}
+              <defs>
+                <linearGradient id="previewXpGrad" x1="0" y1="0" x2="0" y2="1">
+                  <stop offset="0%" stopColor="#0081B1" />
+                  <stop offset="100%" stopColor="#0081B1" stopOpacity="0" />
+                </linearGradient>
+              </defs>
+            </svg>
+          </div>
+        );
+      })()}
 
       {/* ─ TEACHER COMMENT ─ */}
       {hasComment && (
@@ -197,6 +351,7 @@ const UnitReportPage = () => {
   // Roll call
   const [lessonDates, setLessonDates] = useState([]);
   const [rollCallMap, setRollCallMap] = useState({});
+  const [lessonRecordMap, setLessonRecordMap] = useState({});
 
   // Performance
   const [performanceData, setPerformanceData] = useState(null);
@@ -211,6 +366,9 @@ const UnitReportPage = () => {
   const [studentProgress, setStudentProgress] = useState({});
   const [selectedSessions, setSelectedSessions] = useState(new Set());
   const [expandedUnits, setExpandedUnits] = useState(new Set());
+
+  // Curriculum
+  const [curriculum, setCurriculum] = useState({ objectives: '', knowledge: '', presentation: '' });
 
   // Comment (structured)
   const [comment, setComment] = useState({ achievements: '', improvements: '', suggestions: '' });
@@ -233,6 +391,7 @@ const UnitReportPage = () => {
     if (selectedStudentId && courseId) {
       setViewingReport(null);
       setComment({ achievements: '', improvements: '', suggestions: '' });
+      setCurriculum({ objectives: '', knowledge: '', presentation: '' });
       setPreviewMode(false);
       fetchStudentData(selectedStudentId);
     }
@@ -247,7 +406,7 @@ const UnitReportPage = () => {
         supabase.from('course_enrollments')
           .select('student_id, student:users!student_id(id, full_name, real_name, email, avatar_url)')
           .eq('course_id', courseId).eq('is_active', true),
-        supabase.from('units').select('id, title, unit_number')
+        supabase.from('units').select('id, title, unit_number, assigned_student_id')
           .eq('course_id', courseId).eq('is_active', true).order('unit_number'),
         supabase.from('lesson_info').select('id, session_date, lesson_name, lesson_mode')
           .eq('course_id', courseId).order('session_date', { ascending: true }),
@@ -269,10 +428,9 @@ const UnitReportPage = () => {
       if (unitIds.length > 0) {
         const { data: sessData } = await supabase
           .from('sessions')
-          .select('id, title, session_number, unit_id, is_test')
+          .select('id, title, session_number, unit_id, is_test, assigned_student_id')
           .in('unit_id', unitIds)
           .eq('is_active', true)
-          .is('assigned_student_id', null)
           .order('session_number');
 
         const sMap = {};
@@ -346,11 +504,13 @@ const UnitReportPage = () => {
 
       const [recordsRes, xpRes, progressRes] = await Promise.all(promises);
 
-      // Roll call map
+      // Roll call map + full record map
       const rcMap = {};
+      const lrMap = {};
       const records = recordsRes.data || [];
-      records.forEach(r => { rcMap[r.lesson_info_id] = r.attendance_status; });
+      records.forEach(r => { rcMap[r.lesson_info_id] = r.attendance_status; lrMap[r.lesson_info_id] = r; });
       setRollCallMap(rcMap);
+      setLessonRecordMap(lrMap);
 
       // Performance aggregation
       const perf = { homework: { wow: 0, good: 0, ok: 0 }, classwork: { wow: 0, good: 0, ok: 0 }, stars: 0 };
@@ -412,8 +572,8 @@ const UnitReportPage = () => {
 
     // Exercise snapshot (from selected sessions)
     const exerciseGroups = [];
-    units.forEach(unit => {
-      const unitSessions = (sessionsMap[unit.id] || []).filter(s => selectedSessions.has(s.id));
+    visibleUnits.forEach(unit => {
+      const unitSessions = getVisibleSessions(unit.id).filter(s => selectedSessions.has(s.id));
       const items = [];
       unitSessions.forEach(session => {
         (exercisesMap[session.id] || []).forEach(ex => {
@@ -427,11 +587,23 @@ const UnitReportPage = () => {
         });
       });
       if (items.length > 0) {
-        exerciseGroups.push({ unitTitle: `Unit ${unit.unit_number}: ${unit.title}`, items });
+        const isPersonal = !!unit.assigned_student_id || unitSessions.some(s => s.assigned_student_id);
+        exerciseGroups.push({ unitTitle: `Unit ${unit.unit_number}: ${unit.title}`, items, personal: isPersonal });
       }
     });
 
     const level = Math.floor(studentXp / 1000) + 1;
+
+    // Per-lesson records for XP graph
+    const lessonRecordsSnapshot = lessonDates.map(d => {
+      const rec = lessonRecordMap[d.id];
+      return {
+        date: d.session_date,
+        attendance_status: rec?.attendance_status || null,
+        performance_rating: rec?.performance_rating || null,
+        homework_status: rec?.homework_status || null,
+      };
+    });
 
     return {
       studentName: student.full_name,
@@ -442,6 +614,8 @@ const UnitReportPage = () => {
       attendance: { dates: attendanceDates, stats },
       performance: performanceData,
       exercises: exerciseGroups,
+      lessonRecords: lessonRecordsSnapshot,
+      curriculum: (curriculum.objectives || curriculum.knowledge || curriculum.presentation) ? curriculum : null,
       comment: (comment.achievements || comment.improvements || comment.suggestions) ? comment : null,
       createdAt: new Date().toISOString(),
     };
@@ -534,17 +708,26 @@ const UnitReportPage = () => {
 
   const studentLevel = Math.floor(studentXp / 1000) + 1;
 
+  // Filter units & sessions to shared + selected student's personal content
+  const visibleUnits = useMemo(() =>
+    units.filter(u => !u.assigned_student_id || u.assigned_student_id === selectedStudentId),
+    [units, selectedStudentId]
+  );
+  const getVisibleSessions = (unitId) =>
+    (sessionsMap[unitId] || []).filter(s => !s.assigned_student_id || s.assigned_student_id === selectedStudentId);
+
+
   // ─── Session/Unit selection ──────────────────────────────────
   const toggleSession = (sessionId) => {
     setSelectedSessions(prev => { const n = new Set(prev); n.has(sessionId) ? n.delete(sessionId) : n.add(sessionId); return n; });
   };
   const toggleUnit = (unitId) => {
-    const sIds = (sessionsMap[unitId] || []).filter(s => (exercisesMap[s.id] || []).length > 0).map(s => s.id);
+    const sIds = getVisibleSessions(unitId).filter(s => (exercisesMap[s.id] || []).length > 0).map(s => s.id);
     const all = sIds.length > 0 && sIds.every(id => selectedSessions.has(id));
     setSelectedSessions(prev => { const n = new Set(prev); sIds.forEach(id => all ? n.delete(id) : n.add(id)); return n; });
   };
   const selectAll = () => {
-    const allSIds = Object.entries(exercisesMap).filter(([, exs]) => exs.length > 0).map(([sid]) => sid);
+    const allSIds = visibleUnits.flatMap(u => getVisibleSessions(u.id)).filter(s => (exercisesMap[s.id] || []).length > 0).map(s => s.id);
     const all = allSIds.length > 0 && allSIds.every(id => selectedSessions.has(id));
     setSelectedSessions(all ? new Set() : new Set(allSIds));
   };
@@ -842,15 +1025,15 @@ const UnitReportPage = () => {
                   )}
                   <button onClick={selectAll} className="text-xs text-blue-600 hover:text-blue-800 font-medium">
                     {(() => {
-                      const allSIds = Object.entries(exercisesMap).filter(([, exs]) => exs.length > 0).map(([sid]) => sid);
+                      const allSIds = visibleUnits.flatMap(u => getVisibleSessions(u.id)).filter(s => (exercisesMap[s.id] || []).length > 0).map(s => s.id);
                       return allSIds.length > 0 && allSIds.every(id => selectedSessions.has(id)) ? 'Deselect All' : 'Select All';
                     })()}
                   </button>
                 </div>
               </div>
               <div className="divide-y divide-gray-100">
-                {units.map(unit => {
-                  const unitSessions = (sessionsMap[unit.id] || []).filter(s => (exercisesMap[s.id] || []).length > 0);
+                {visibleUnits.map(unit => {
+                  const unitSessions = getVisibleSessions(unit.id).filter(s => (exercisesMap[s.id] || []).length > 0);
                   if (unitSessions.length === 0) return null;
                   const allUnitSel = unitSessions.every(s => selectedSessions.has(s.id));
                   const someUnitSel = unitSessions.some(s => selectedSessions.has(s.id));
@@ -865,6 +1048,7 @@ const UnitReportPage = () => {
                         </button>
                         {expanded ? <ChevronDown className="w-4 h-4 text-gray-400" /> : <ChevronRight className="w-4 h-4 text-gray-400" />}
                         <span className="text-sm font-semibold text-gray-800">Unit {unit.unit_number}: {unit.title}</span>
+                        {unit.assigned_student_id && <span className="px-1.5 py-0.5 bg-purple-100 text-purple-600 rounded text-[10px] font-bold">Personal</span>}
                         <span className="text-xs text-gray-400 ml-auto">
                           {unitSessions.filter(s => selectedSessions.has(s.id)).length}/{unitSessions.length} sessions
                         </span>
@@ -884,6 +1068,7 @@ const UnitReportPage = () => {
                                 {isSel ? <CheckSquare className="w-3.5 h-3.5 text-blue-600" /> : <Square className="w-3.5 h-3.5" />}
                               </button>
                               <span className="text-xs font-medium text-gray-700">{session.title}</span>
+                              {session.assigned_student_id && <span className="px-1 py-0.5 bg-purple-50 text-purple-500 rounded text-[9px] font-bold">1:1</span>}
                               <span className="text-[10px] text-gray-400 ml-auto">{exercises.length} exercise{exercises.length !== 1 ? 's' : ''}</span>
                             </div>
                             {/* Exercises — read-only list, shown when session is selected */}
@@ -913,6 +1098,46 @@ const UnitReportPage = () => {
                     </div>
                   );
                 })}
+              </div>
+            </div>
+
+            {/* Curriculum */}
+            <div className="bg-white rounded-lg shadow-sm border">
+              <div className="px-4 py-3 border-b border-gray-200 flex items-center gap-2">
+                <GraduationCap className="w-5 h-5 text-teal-600" />
+                <h2 className="text-base font-semibold text-gray-900">Chương trình học</h2>
+              </div>
+              <div className="p-4 space-y-4">
+                <div>
+                  <label className="block text-xs font-bold text-gray-700 mb-1">1. Mục tiêu</label>
+                  <textarea
+                    value={curriculum.objectives}
+                    onChange={(e) => setCurriculum(prev => ({ ...prev, objectives: e.target.value }))}
+                    placeholder="Mục tiêu bài học, ví dụ: Sử dụng thành thạo từ vựng về gia đình..."
+                    className="w-full border border-gray-300 rounded-lg p-3 text-sm resize-none focus:ring-2 focus:ring-teal-500 focus:border-teal-500 outline-none"
+                    rows={2}
+                  />
+                </div>
+                <div>
+                  <label className="block text-xs font-bold text-gray-700 mb-1">2. Kiến thức</label>
+                  <textarea
+                    value={curriculum.knowledge}
+                    onChange={(e) => setCurriculum(prev => ({ ...prev, knowledge: e.target.value }))}
+                    placeholder="Từ vựng, cấu trúc ngữ pháp... (mỗi dòng một mục)"
+                    className="w-full border border-gray-300 rounded-lg p-3 text-sm resize-none focus:ring-2 focus:ring-teal-500 focus:border-teal-500 outline-none"
+                    rows={3}
+                  />
+                </div>
+                <div>
+                  <label className="block text-xs font-bold text-gray-700 mb-1">3. Thuyết trình</label>
+                  <textarea
+                    value={curriculum.presentation}
+                    onChange={(e) => setCurriculum(prev => ({ ...prev, presentation: e.target.value }))}
+                    placeholder="Chủ đề thuyết trình, ví dụ: &quot;My Family Tree&quot;"
+                    className="w-full border border-gray-300 rounded-lg p-3 text-sm resize-none focus:ring-2 focus:ring-teal-500 focus:border-teal-500 outline-none"
+                    rows={2}
+                  />
+                </div>
               </div>
             </div>
 

@@ -881,6 +881,13 @@ const UnitList = () => {
               const renderUnitCard = (unit, unitIndex) => {
                 const unitSessions = sessions
                   .filter((session) => session.unit_id === unit.id)
+                  .filter((session) => {
+                    if (profile?.role === 'user') return true;
+                    if (personalFilter === 'all') return true;
+                    if (personalFilter === 'shared') return !session.assigned_student_id;
+                    if (personalFilter === 'personal') return !!session.assigned_student_id;
+                    return session.assigned_student_id === personalFilter;
+                  })
                   .sort((a, b) => (a.session_number || 0) - (b.session_number || 0));
 
                 const progress = unitProgress[unit.id];
@@ -1042,12 +1049,23 @@ const UnitList = () => {
                 </div>
               ) : null;
 
-              // Apply teacher filter and sort personal units after regular ones
+              // Apply teacher filter — also show shared units that contain matching personal sessions
               const filteredUnits = units.filter(u => {
                 if (personalFilter === 'all') return true;
                 if (personalFilter === 'shared') return !u.assigned_student_id;
-                if (personalFilter === 'personal') return !!u.assigned_student_id;
-                return u.assigned_student_id === personalFilter;
+                // For 'personal' or specific student: show unit if the unit itself matches OR it contains matching sessions
+                const unitMatches = personalFilter === 'personal'
+                  ? !!u.assigned_student_id
+                  : u.assigned_student_id === personalFilter;
+                if (unitMatches) return true;
+                // Check if this unit has any sessions that match the filter
+                const hasMatchingSessions = sessions.some(s => {
+                  if (s.unit_id !== u.id) return false;
+                  return personalFilter === 'personal'
+                    ? !!s.assigned_student_id
+                    : s.assigned_student_id === personalFilter;
+                });
+                return hasMatchingSessions;
               });
 
               const sortedUnits = [...filteredUnits].sort((a, b) => {

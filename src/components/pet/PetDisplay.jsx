@@ -138,6 +138,7 @@ const PetDisplay = () => {
   }, [profile?.active_title, profile?.active_background_url, profile?.active_bowl_url])
 
   // Fetch chest settings and determine eligibility
+  const [chestCheckTrigger, setChestCheckTrigger] = useState(0);
   useEffect(() => {
     const checkChestEligibility = async () => {
       if (!user?.id) return;
@@ -161,21 +162,31 @@ const PetDisplay = () => {
 
       // Check time window (Vietnam timezone)
       const now = new Date();
-      const vnTime = new Date(now.toLocaleString('en-US', { timeZone: 'Asia/Ho_Chi_Minh' }));
-      const currentHour = vnTime.getHours();
-      const startHour = parseInt(map['chest_start_time']) || 0;
-      const endHour = parseInt(map['chest_end_time']) || 24;
+      const vnFormatter = new Intl.DateTimeFormat('en-CA', { timeZone: 'Asia/Ho_Chi_Minh', year: 'numeric', month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit', hour12: false });
+      const vnParts = {};
+      vnFormatter.formatToParts(now).forEach(p => { vnParts[p.type] = p.value; });
+      const currentMinutes = parseInt(vnParts.hour) * 60 + parseInt(vnParts.minute);
 
-      if (currentHour < startHour || currentHour >= endHour) {
-        setChestEnabled(false);
-        return;
+      const startTime = map['chest_start_time'] || '';
+      const endTime = map['chest_end_time'] || '';
+
+      if (startTime && endTime) {
+        const [sh, sm] = startTime.split(':').map(Number);
+        const [eh, em] = endTime.split(':').map(Number);
+        const startMinutes = sh * 60 + (sm || 0);
+        const endMinutes = eh * 60 + (em || 0);
+
+        if (currentMinutes < startMinutes || currentMinutes >= endMinutes) {
+          setChestEnabled(false);
+          return;
+        }
       }
 
       // Check daily limit
       const dailyLimit = parseInt(map['chest_daily_limit']) || 0;
       if (dailyLimit > 0) {
         // Get today's date in Vietnam timezone
-        const todayVN = vnTime.toISOString().split('T')[0];
+        const todayVN = `${vnParts.year}-${vnParts.month}-${vnParts.day}`;
         const todayStart = todayVN + 'T00:00:00+07:00';
         const todayEnd = todayVN + 'T23:59:59+07:00';
 
@@ -197,7 +208,7 @@ const PetDisplay = () => {
     };
 
     checkChestEligibility();
-  }, [user?.id]);
+  }, [user?.id, chestCheckTrigger]);
 
   // Fetch maze adventure settings and determine eligibility
   useEffect(() => {
@@ -859,6 +870,7 @@ const PetDisplay = () => {
       }).then(({ data }) => {
         if (data?.success) {
           window.dispatchEvent(new CustomEvent('chest-earned', { detail: data }))
+          setChestCheckTrigger(prev => prev + 1)
         }
       }, () => {})
     }
