@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { supabase } from '../../../supabase/client';
 import { useAuth } from '../../../hooks/useAuth';
 import { CheckCircle, XCircle, Clock, Minus, RotateCcw, Eye, X, ChevronDown, RefreshCw, Video, Send, Star } from 'lucide-react';
+import SingleExerciseReview from './SingleExerciseReview';
 
 const VIDEO_TYPES = ['video', 'video_upload', 'speaking', 'speaking_assessment'];
 
@@ -1168,108 +1169,12 @@ const StudentExerciseMatrix = ({ selectedCourse, initialSessionId }) => {
                     </span>
                   </div>
 
-                  {/* Questions List */}
-                  <div className="space-y-2">
-                    {questionAttempts.map((attempt, index) => (
-                      <div
-                        key={attempt.id}
-                        className={`border rounded-lg px-3 py-2 ${
-                          attempt.is_correct
-                            ? 'bg-green-50 border-green-200'
-                            : 'bg-red-50 border-red-200'
-                        }`}
-                      >
-                        <div className="flex items-center justify-between gap-2">
-                          <div className="flex items-start gap-2 flex-1">
-                            {attempt.is_correct ? (
-                              <CheckCircle className="w-4 h-4 text-green-600 flex-shrink-0" />
-                            ) : (
-                              <XCircle className="w-4 h-4 text-red-600 flex-shrink-0" />
-                            )}
-                            <span className="text-sm font-medium text-gray-900 flex-shrink-0">Q{index + 1}.</span>
-                            <span className="text-sm text-gray-800">{attempt.questionText}</span>
-                            {attempt.manually_overridden && (
-                              <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-blue-100 text-blue-700 flex-shrink-0">
-                                Overridden
-                              </span>
-                            )}
-                          </div>
-                          <button
-                            onClick={() => handleOverrideCorrectness(attempt.id, attempt.is_correct)}
-                            disabled={overriding === attempt.id}
-                            className={`flex-shrink-0 p-1.5 rounded transition-colors ${
-                              overriding === attempt.id
-                                ? 'text-gray-400 cursor-not-allowed'
-                                : attempt.is_correct
-                                ? 'text-red-500 hover:bg-red-100'
-                                : 'text-green-500 hover:bg-green-100'
-                            }`}
-                            title={attempt.is_correct ? 'Mark as incorrect' : 'Mark as correct'}
-                          >
-                            {overriding === attempt.id ? (
-                              <RefreshCw className="w-4 h-4 animate-spin" />
-                            ) : attempt.is_correct ? (
-                              <XCircle className="w-4 h-4" />
-                            ) : (
-                              <CheckCircle className="w-4 h-4" />
-                            )}
-                          </button>
-                        </div>
-                        <div className="ml-6 mt-1">
-                          {attempt.exercise_type === 'fill_blank' && attempt.selected_answer?.includes(', ') ? (
-                            <div className="flex flex-wrap items-baseline gap-x-3 gap-y-1 text-sm">
-                              {attempt.selected_answer.split(', ').map((ans, i) => {
-                                const correctParts = attempt.correct_answer?.split(', ') || [];
-                                const correctAns = correctParts[i] || '';
-                                // Check if answer matches (handle | alternatives)
-                                const isBlankCorrect = correctAns.split('|').some(
-                                  alt => alt.trim().toLowerCase() === ans.trim().toLowerCase()
-                                );
-                                return (
-                                  <span key={i} className="inline-flex items-baseline gap-1">
-                                    <span className="text-gray-400 text-xs">#{i + 1}</span>
-                                    <span className={isBlankCorrect ? 'text-green-700' : 'text-red-600 line-through'}>
-                                      {ans || '(empty)'}
-                                    </span>
-                                    {!isBlankCorrect && (
-                                      <>
-                                        <span className="text-gray-400">→</span>
-                                        <span className="text-green-700">{correctAns}</span>
-                                      </>
-                                    )}
-                                  </span>
-                                );
-                              })}
-                            </div>
-                          ) : (
-                            <div className="flex items-baseline gap-1 text-sm">
-                              <span className="text-gray-500">Ans:</span>
-                              <span className={attempt.is_correct ? 'text-green-700' : 'text-red-700'}>
-                                {attempt.selected_answer || 'No answer'}
-                              </span>
-                              {!attempt.is_correct && attempt.correct_answer && (
-                                <>
-                                  <span className="text-gray-400 mx-1">→</span>
-                                  <span className="text-green-700">{attempt.correct_answer}</span>
-                                </>
-                              )}
-                            </div>
-                          )}
-                          <div className="flex items-center gap-3 text-[11px] text-gray-400 mt-0.5">
-                            {attempt.response_time && (
-                              <span>{(attempt.response_time / 1000).toFixed(1)}s</span>
-                            )}
-                            {attempt.attempt_number && (
-                              <span>Attempt #{attempt.attempt_number}</span>
-                            )}
-                            {attempt.created_at && (
-                              <span>{new Date(attempt.created_at).toLocaleString()}</span>
-                            )}
-                          </div>
-                        </div>
-                      </div>
-                    ))}
-                  </div>
+                  <SingleExerciseReview
+                    exercise={exerciseDetail}
+                    questionAttempts={questionAttempts}
+                    onOverride={handleOverrideCorrectness}
+                    overriding={overriding}
+                  />
                 </div>
               )}
             </div>
