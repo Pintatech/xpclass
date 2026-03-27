@@ -353,8 +353,7 @@ const UnitReportPage = () => {
   const [rollCallMap, setRollCallMap] = useState({});
   const [lessonRecordMap, setLessonRecordMap] = useState({});
 
-  // Performance
-  const [performanceData, setPerformanceData] = useState(null);
+  // Performance (computed from selected lessons)
 
   // XP / Level
   const [studentXp, setStudentXp] = useState(0);
@@ -365,6 +364,7 @@ const UnitReportPage = () => {
   const [exercisesMap, setExercisesMap] = useState({});
   const [studentProgress, setStudentProgress] = useState({});
   const [selectedSessions, setSelectedSessions] = useState(new Set());
+  const [selectedLessons, setSelectedLessons] = useState(new Set());
   const [expandedUnits, setExpandedUnits] = useState(new Set());
 
   // Curriculum
@@ -512,18 +512,7 @@ const UnitReportPage = () => {
       setRollCallMap(rcMap);
       setLessonRecordMap(lrMap);
 
-      // Performance aggregation
-      const perf = { homework: { wow: 0, good: 0, ok: 0 }, classwork: { wow: 0, good: 0, ok: 0 }, stars: 0 };
-      records.forEach(r => {
-        if (r.homework_status === 'wow') perf.homework.wow++;
-        else if (r.homework_status === 'good') perf.homework.good++;
-        else if (r.homework_status === 'ok') perf.homework.ok++;
-        if (r.performance_rating === 'wow') perf.classwork.wow++;
-        else if (r.performance_rating === 'good') perf.classwork.good++;
-        else if (r.performance_rating === 'ok') perf.classwork.ok++;
-        if (r.star_flag === 'star') perf.stars++;
-      });
-      setPerformanceData(perf);
+      // Performance is now computed via useMemo from lessonRecordMap + selectedLessons
 
       // XP
       setStudentXp(xpRes.data?.xp || 0);
@@ -555,8 +544,9 @@ const UnitReportPage = () => {
     const student = students.find(s => s.id === selectedStudentId);
     if (!student) return null;
 
-    // Attendance snapshot
-    const attendanceDates = lessonDates.map(d => ({
+    // Attendance snapshot (only selected lessons)
+    const selectedLessonDates = lessonDates.filter(d => selectedLessons.has(d.id));
+    const attendanceDates = selectedLessonDates.map(d => ({
       date: d.session_date,
       lessonName: d.lesson_name || '',
       status: rollCallMap[d.id] || null,
@@ -567,7 +557,7 @@ const UnitReportPage = () => {
       else if (d.status === 'late') stats.late++;
       else if (d.status === 'absent') stats.absent++;
     });
-    const total = lessonDates.length;
+    const total = selectedLessonDates.length;
     stats.rate = total > 0 ? Math.round(((stats.present + stats.late) / total) * 100) : 0;
 
     // Exercise snapshot (from selected sessions)
@@ -594,8 +584,8 @@ const UnitReportPage = () => {
 
     const level = Math.floor(studentXp / 1000) + 1;
 
-    // Per-lesson records for XP graph
-    const lessonRecordsSnapshot = lessonDates.map(d => {
+    // Per-lesson records for XP graph (only selected lessons)
+    const lessonRecordsSnapshot = selectedLessonDates.map(d => {
       const rec = lessonRecordMap[d.id];
       return {
         date: d.session_date,
@@ -678,17 +668,36 @@ const UnitReportPage = () => {
   };
 
   const attendanceStats = useMemo(() => {
-    if (lessonDates.length === 0) return null;
+    const selected = lessonDates.filter(d => selectedLessons.has(d.id));
+    if (selected.length === 0) return null;
     let present = 0, late = 0, absent = 0;
-    lessonDates.forEach(d => {
+    selected.forEach(d => {
       const status = rollCallMap[d.id];
       if (status === 'present') present++;
       else if (status === 'late') late++;
       else if (status === 'absent') absent++;
     });
-    const rate = Math.round(((present + late) / lessonDates.length) * 100);
-    return { present, late, absent, total: lessonDates.length, rate };
-  }, [lessonDates, rollCallMap]);
+    const rate = Math.round(((present + late) / selected.length) * 100);
+    return { present, late, absent, total: selected.length, rate };
+  }, [lessonDates, rollCallMap, selectedLessons]);
+
+  const performanceData = useMemo(() => {
+    const selected = lessonDates.filter(d => selectedLessons.has(d.id));
+    if (selected.length === 0) return null;
+    const perf = { homework: { wow: 0, good: 0, ok: 0 }, classwork: { wow: 0, good: 0, ok: 0 }, stars: 0 };
+    selected.forEach(d => {
+      const r = lessonRecordMap[d.id];
+      if (!r) return;
+      if (r.homework_status === 'wow') perf.homework.wow++;
+      else if (r.homework_status === 'good') perf.homework.good++;
+      else if (r.homework_status === 'ok') perf.homework.ok++;
+      if (r.performance_rating === 'wow') perf.classwork.wow++;
+      else if (r.performance_rating === 'good') perf.classwork.good++;
+      else if (r.performance_rating === 'ok') perf.classwork.ok++;
+      if (r.star_flag === 'star') perf.stars++;
+    });
+    return perf;
+  }, [lessonDates, lessonRecordMap, selectedLessons]);
 
   const exerciseStats = useMemo(() => {
     if (selectedSessions.size === 0) return null;
@@ -733,6 +742,14 @@ const UnitReportPage = () => {
   };
   const toggleExpandUnit = (unitId) => {
     setExpandedUnits(prev => { const n = new Set(prev); n.has(unitId) ? n.delete(unitId) : n.add(unitId); return n; });
+  };
+  const toggleLesson = (lessonId) => {
+    setSelectedLessons(prev => { const n = new Set(prev); n.has(lessonId) ? n.delete(lessonId) : n.add(lessonId); return n; });
+  };
+  const selectAllLessons = () => {
+    const allIds = lessonDates.map(d => d.id);
+    const all = allIds.length > 0 && allIds.every(id => selectedLessons.has(id));
+    setSelectedLessons(all ? new Set() : new Set(allIds));
   };
 
   // ─── Saved reports for selected student ───────────────────────
@@ -937,14 +954,20 @@ const UnitReportPage = () => {
                 <div className="flex items-center gap-2">
                   <ClipboardList className="w-5 h-5 text-green-600" />
                   <h2 className="text-base font-semibold text-gray-900">Attendance</h2>
+                  <span className="text-xs text-gray-400">({selectedLessons.size}/{lessonDates.length})</span>
                 </div>
-                {attendanceStats && (
-                  <span className={`px-2.5 py-1 rounded-full text-xs font-bold ${
-                    attendanceStats.rate >= 80 ? 'bg-green-100 text-green-700' :
-                    attendanceStats.rate >= 50 ? 'bg-yellow-100 text-yellow-700' :
-                    'bg-red-100 text-red-700'
-                  }`}>{attendanceStats.rate}%</span>
-                )}
+                <div className="flex items-center gap-3">
+                  {attendanceStats && (
+                    <span className={`px-2.5 py-1 rounded-full text-xs font-bold ${
+                      attendanceStats.rate >= 80 ? 'bg-green-100 text-green-700' :
+                      attendanceStats.rate >= 50 ? 'bg-yellow-100 text-yellow-700' :
+                      'bg-red-100 text-red-700'
+                    }`}>{attendanceStats.rate}%</span>
+                  )}
+                  <button onClick={selectAllLessons} className="text-xs text-blue-600 hover:text-blue-800 font-medium">
+                    {lessonDates.length > 0 && lessonDates.every(d => selectedLessons.has(d.id)) ? 'Deselect All' : 'Select All'}
+                  </button>
+                </div>
               </div>
               {lessonDates.length === 0 ? (
                 <div className="p-6 text-center text-gray-500">No roll call data.</div>
@@ -960,8 +983,17 @@ const UnitReportPage = () => {
                   <div className="flex flex-wrap gap-1.5">
                     {lessonDates.map(d => {
                       const status = rollCallMap[d.id];
+                      const isSelected = selectedLessons.has(d.id);
                       return (
-                        <div key={d.id} className={`rounded-lg border p-2 text-center min-w-[52px] ${getAttendanceStyle(status)}`}>
+                        <div
+                          key={d.id}
+                          onClick={() => toggleLesson(d.id)}
+                          className={`rounded-lg border p-2 text-center min-w-[52px] cursor-pointer transition-all ${
+                            isSelected
+                              ? getAttendanceStyle(status)
+                              : 'bg-gray-50 border-gray-200 opacity-40'
+                          }`}
+                        >
                           <div className="text-[10px] font-bold">{formatDate(d.session_date)}</div>
                           <div className="text-xs font-bold mt-0.5">{getAttendanceLabel(status)}</div>
                         </div>
@@ -1031,7 +1063,7 @@ const UnitReportPage = () => {
                   </button>
                 </div>
               </div>
-              <div className="divide-y divide-gray-100">
+              <div className="divide-y divide-gray-100 max-h-[400px] overflow-y-auto">
                 {visibleUnits.map(unit => {
                   const unitSessions = getVisibleSessions(unit.id).filter(s => (exercisesMap[s.id] || []).length > 0);
                   if (unitSessions.length === 0) return null;

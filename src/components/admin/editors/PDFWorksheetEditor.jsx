@@ -27,11 +27,13 @@ const FIELD_TYPES = [
 
 const PDFWorksheetEditor = ({ content, onContentChange }) => {
   const [pdfUrl, setPdfUrl] = useState(() => content?.pdf_url || '')
+  const [passagePdfUrl, setPassagePdfUrl] = useState(() => content?.passage_pdf_url || '')
   const [imageUrls, setImageUrls] = useState(() => content?.image_urls || [])
   const [pages, setPages] = useState(() => content?.pages || [])
   const [numPages, setNumPages] = useState(null)
   const [currentPage, setCurrentPage] = useState(1)
   const [uploading, setUploading] = useState(false)
+  const [uploadingPassage, setUploadingPassage] = useState(false)
   const [selectedFieldId, setSelectedFieldId] = useState(null)
   const [placementTool, setPlacementTool] = useState('text')
   const [previewMode, setPreviewMode] = useState(false)
@@ -50,10 +52,10 @@ const PDFWorksheetEditor = ({ content, onContentChange }) => {
   onContentChangeRef.current = onContentChange
   useEffect(() => {
     const timer = setTimeout(() => {
-      onContentChangeRef.current({ pdf_url: pdfUrl, image_urls: imageUrls, pages, settings: content?.settings || {} })
+      onContentChangeRef.current({ pdf_url: pdfUrl, passage_pdf_url: passagePdfUrl, image_urls: imageUrls, pages, settings: content?.settings || {} })
     }, 300)
     return () => clearTimeout(timer)
-  }, [pdfUrl, imageUrls, pages])
+  }, [pdfUrl, passagePdfUrl, imageUrls, pages])
 
   // Measure container width for responsive PDF rendering
   useEffect(() => {
@@ -143,6 +145,30 @@ const PDFWorksheetEditor = ({ content, onContentChange }) => {
       alert('Failed to upload PDF.')
     } finally {
       setUploading(false)
+    }
+  }
+
+  // Passage PDF upload (reading material for split view)
+  const handlePassagePdfUpload = async (e) => {
+    const file = e.target.files?.[0]
+    if (!file || file.type !== 'application/pdf') return
+
+    setUploadingPassage(true)
+    try {
+      const path = `pdf/${Date.now()}_${Math.random().toString(36).slice(2)}_passage.pdf`
+      const { error: uploadError } = await supabase.storage
+        .from('exercise-files')
+        .upload(path, file, { cacheControl: '3600', upsert: true })
+      if (uploadError) throw uploadError
+      const { data: publicData } = supabase.storage
+        .from('exercise-files')
+        .getPublicUrl(path)
+      setPassagePdfUrl(publicData.publicUrl)
+    } catch (err) {
+      console.error('Passage PDF upload failed:', err)
+      alert('Failed to upload passage PDF.')
+    } finally {
+      setUploadingPassage(false)
     }
   }
 
@@ -359,6 +385,45 @@ const PDFWorksheetEditor = ({ content, onContentChange }) => {
               </div>
             ))}
           </div>
+        )}
+      </div>
+
+      {/* Passage PDF (optional - for split reading view) */}
+      <div className="space-y-2">
+        <label className="block text-sm font-medium text-gray-700">
+          Reading Passage PDF <span className="text-gray-400 font-normal">(optional — enables split view: passage left, questions right)</span>
+        </label>
+        <div className="flex gap-2 flex-wrap">
+          <input
+            type="text"
+            value={passagePdfUrl}
+            onChange={(e) => setPassagePdfUrl(e.target.value)}
+            placeholder="Passage PDF URL (or upload)"
+            className="flex-1 min-w-[200px] px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm"
+          />
+          <label className={`px-3 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 flex items-center gap-2 cursor-pointer text-sm ${uploadingPassage ? 'opacity-50' : ''}`}>
+            <Upload className="w-4 h-4" />
+            {uploadingPassage ? 'Uploading...' : 'Upload Passage'}
+            <input
+              type="file"
+              accept=".pdf"
+              onChange={handlePassagePdfUpload}
+              className="hidden"
+              disabled={uploadingPassage}
+            />
+          </label>
+          {passagePdfUrl && (
+            <button
+              type="button"
+              onClick={() => setPassagePdfUrl('')}
+              className="px-3 py-2 bg-red-50 text-red-600 rounded-lg hover:bg-red-100 text-sm"
+            >
+              Remove
+            </button>
+          )}
+        </div>
+        {passagePdfUrl && (
+          <p className="text-xs text-green-600">Split view enabled — students will see this passage on the left and questions on the right.</p>
         )}
       </div>
 

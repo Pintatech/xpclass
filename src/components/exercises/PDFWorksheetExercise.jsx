@@ -45,6 +45,13 @@ const themeSideImages = {
   }
 }
 
+// Memoized so it never re-renders when answer state changes
+const PassagePDFRenderer = React.memo(({ url, pageNumber, width, onLoadSuccess }) => (
+  <Document file={url} onLoadSuccess={onLoadSuccess}>
+    <Page pageNumber={pageNumber} width={width} renderTextLayer={false} renderAnnotationLayer={false} />
+  </Document>
+))
+
 const PDFWorksheetExercise = ({ testMode = false, exerciseData = null, onAnswersCollected = null, initialAnswers = null }) => {
   const location = useLocation()
   const navigate = useNavigate()
@@ -86,9 +93,14 @@ const PDFWorksheetExercise = ({ testMode = false, exerciseData = null, onAnswers
   const pageContainerRef = useRef(null)
 
   const pdfFile = useMemo(() => exercise?.content?.pdf_url, [exercise?.content?.pdf_url])
+  const passagePdfUrl = useMemo(() => exercise?.content?.passage_pdf_url, [exercise?.content?.passage_pdf_url])
+  const isSplitView = !!passagePdfUrl
   const imageUrls = useMemo(() => exercise?.content?.image_urls || [], [exercise?.content?.image_urls])
   const isImageMode = imageUrls.length > 0
   const onDocumentLoadSuccess = useCallback(({ numPages: n }) => setNumPages(n), [])
+  const [passageNumPages, setPassageNumPages] = useState(null)
+  const [passagePage, setPassagePage] = useState(1)
+  const onPassageLoadSuccess = useCallback(({ numPages: n }) => setPassageNumPages(n), [])
 
   // Set numPages for image mode
   useEffect(() => {
@@ -103,10 +115,11 @@ const PDFWorksheetExercise = ({ testMode = false, exerciseData = null, onAnswers
         setPageWidth(Math.min(w, 900))
       }
     }
-    updateWidth()
+    // Delay slightly for split view so the grid has rendered
+    const timer = setTimeout(updateWidth, 50)
     window.addEventListener('resize', updateWidth)
-    return () => window.removeEventListener('resize', updateWidth)
-  }, [exercise])
+    return () => { clearTimeout(timer); window.removeEventListener('resize', updateWidth) }
+  }, [exercise, isSplitView])
 
   // Play celebration only on pass
   useEffect(() => {
@@ -354,7 +367,7 @@ const PDFWorksheetExercise = ({ testMode = false, exerciseData = null, onAnswers
             onChange={(e) => updateAnswer(field.id, e.target.value === '' ? '' : parseInt(e.target.value))}
             disabled={isSubmitted}
           >
-            <option value="">-- Select --</option>
+            <option value="">{field.label || '-- Select --'}</option>
             {(field.options || []).map((opt, i) => (
               <option key={i} value={i}>{opt}</option>
             ))}
@@ -451,27 +464,46 @@ const PDFWorksheetExercise = ({ testMode = false, exerciseData = null, onAnswers
     </div>
   ) : null
 
-  // PDF page with field overlays
-  const PDFPageWithFields = () => (
-    <div ref={containerRef} className="bg-white rounded-lg shadow-md p-1 sm:p-4 border border-gray-200">
-      {PageNav()}
-      <div className="relative" ref={pageContainerRef}>
-        {isImageMode ? (
-          <img src={imageUrls[currentPage - 1]} alt={`Page ${currentPage}`} style={{ width: pageWidth }} className="block" />
-        ) : (
-          <Document file={pdfFile} onLoadSuccess={onDocumentLoadSuccess}>
-            <Page
-              pageNumber={currentPage}
-              width={pageWidth}
-              renderTextLayer={false}
-              renderAnnotationLayer={false}
-            />
-          </Document>
-        )}
-        {getCurrentPageFields().map(renderField)}
-      </div>
+  // Passage page navigation
+  const PassageNav = () => passageNumPages > 1 ? (
+    <div className="flex items-center justify-center gap-1 mb-3">
+      {Array.from({ length: passageNumPages }, (_, i) => i + 1).map(pageNum => (
+        <button
+          key={pageNum}
+          onClick={() => setPassagePage(pageNum)}
+          className={`px-3 py-1 rounded-lg text-sm font-medium ${
+            passagePage === pageNum
+              ? 'bg-blue-600 text-white'
+              : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+          }`}
+        >
+          {pageNum}
+        </button>
+      ))}
     </div>
-  )
+  ) : null
+
+  // PDF page with field overlays (non-split)
+  const PDFPageWithFields = () => (
+      <div ref={containerRef} className="bg-white rounded-lg shadow-md p-1 sm:p-4 border border-gray-200">
+        {PageNav()}
+        <div className="relative" ref={pageContainerRef}>
+          {isImageMode ? (
+            <img src={imageUrls[currentPage - 1]} alt={`Page ${currentPage}`} style={{ width: pageWidth }} className="block" />
+          ) : (
+            <Document file={pdfFile} onLoadSuccess={onDocumentLoadSuccess}>
+              <Page
+                pageNumber={currentPage}
+                width={pageWidth}
+                renderTextLayer={false}
+                renderAnnotationLayer={false}
+              />
+            </Document>
+          )}
+          {getCurrentPageFields().map(renderField)}
+        </div>
+      </div>
+    )
 
   // Teacher review mode
   if (!testMode && isTeacherView && teacherMode === 'review') {
@@ -535,6 +567,115 @@ const PDFWorksheetExercise = ({ testMode = false, exerciseData = null, onAnswers
   }
 
   const sideImages = themeSideImages[colorTheme] || themeSideImages.blue
+
+  // Full-screen split view for reading passage + questions
+  if (isSplitView) {
+    return (
+      <div className="fixed inset-0 z-30 flex flex-col bg-gray-100" style={{ width: '100vw', height: '100vh' }}>
+        {/* Top bar: header + submit */}
+        <div className="flex-shrink-0 bg-white border-b border-gray-200 px-4 py-2 flex items-center justify-between gap-4">
+          <div className="flex-1 min-w-0">
+            <ExerciseHeader
+              title={exercise.title}
+              progressPercentage={progress}
+              isBatmanMoving={isBatmanMoving}
+              showProgressLabel={false}
+              showQuestionCounter={false}
+              colorTheme={colorTheme}
+            />
+          </div>
+          <div className="flex items-center gap-2 flex-shrink-0">
+            {!exerciseComplete && !isSubmitted && (
+              <Button3D
+                onClick={handleSubmit}
+                color="blue"
+                size="sm"
+                className="flex items-center gap-1"
+                disabled={filledFields < totalFields}
+              >
+                <CheckCircle className="w-4 h-4" />
+                Submit
+              </Button3D>
+            )}
+            {!exerciseComplete && (
+              <Button3D onClick={resetExercise} color="gray" size="sm" className="flex items-center gap-1">
+                <RotateCcw className="w-4 h-4" />
+                Reset
+              </Button3D>
+            )}
+          </div>
+        </div>
+
+        {/* Split panes */}
+        <div className="flex-1 grid grid-cols-1 lg:grid-cols-2 min-h-0">
+          {/* Left: Reading passage (memoized - won't re-render on answer changes) */}
+          <div className="bg-white border-r border-gray-300 overflow-y-auto p-2 sm:p-4">
+            <div className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-2 text-center">Reading Passage</div>
+            {PassageNav()}
+            <PassagePDFRenderer
+              url={passagePdfUrl}
+              pageNumber={passagePage}
+              width={typeof window !== 'undefined' ? Math.min(window.innerWidth / 2 - 40, 800) : 500}
+              onLoadSuccess={onPassageLoadSuccess}
+            />
+          </div>
+          {/* Right: Questions PDF with field overlays */}
+          <div ref={containerRef} className="bg-white overflow-y-auto p-2 sm:p-4">
+            <div className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-2 text-center">Questions</div>
+            {PageNav()}
+            <div className="relative" ref={pageContainerRef}>
+              {isImageMode ? (
+                <img src={imageUrls[currentPage - 1]} alt={`Page ${currentPage}`} style={{ width: '100%' }} className="block" />
+              ) : (
+                <Document file={pdfFile} onLoadSuccess={onDocumentLoadSuccess}>
+                  <Page
+                    pageNumber={currentPage}
+                    width={typeof window !== 'undefined' ? Math.min(window.innerWidth / 2 - 40, 800) : 500}
+                    renderTextLayer={false}
+                    renderAnnotationLayer={false}
+                  />
+                </Document>
+              )}
+              {getCurrentPageFields().map(renderField)}
+            </div>
+          </div>
+        </div>
+
+        {/* Meme Overlay */}
+        {showMeme && currentMeme && (
+          <div className="fixed inset-0 flex items-center justify-center z-50 pointer-events-none">
+            <img src={currentMeme} alt="Reaction meme" className="rounded-lg shadow-2xl" style={{ width: '200px', height: 'auto' }} />
+          </div>
+        )}
+
+        {/* Completion Modal */}
+        {exerciseComplete && (
+          <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+            <CelebrationScreen
+              score={Math.round((correctFields / totalFields) * 100)}
+              correctAnswers={correctFields}
+              totalQuestions={totalFields}
+              passThreshold={80}
+              xpAwarded={xpEarned}
+              passGif={passGif}
+              isRetryMode={false}
+              wrongQuestionsCount={totalFields - correctFields}
+              onBackToList={() => {
+                const courseId = session?.units?.course_id
+                const unitId = session?.unit_id
+                if (sessionId && unitId && courseId) {
+                  navigate(`/study/course/${courseId}/unit/${unitId}/session/${sessionId}`)
+                } else {
+                  navigate(-1)
+                }
+              }}
+              exerciseId={exerciseId}
+            />
+          </div>
+        )}
+      </div>
+    )
+  }
 
   return (
     <>
