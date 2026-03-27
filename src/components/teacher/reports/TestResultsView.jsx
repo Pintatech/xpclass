@@ -2,15 +2,15 @@ import React, { useState, useEffect } from 'react'
 import { supabase } from '../../../supabase/client'
 import {
   CheckCircle,
-  XCircle,
   Clock,
   ChevronDown,
   ChevronRight,
   Trophy,
   Users,
   FileText,
-  Edit3
+  Eye
 } from 'lucide-react'
+import ExerciseReviewMode from './ExerciseReviewMode'
 
 const TestResultsView = ({ selectedCourse }) => {
   const [testSessions, setTestSessions] = useState([])
@@ -18,8 +18,144 @@ const TestResultsView = ({ selectedCourse }) => {
   const [attempts, setAttempts] = useState([])
   const [loading, setLoading] = useState(false)
   const [expandedStudent, setExpandedStudent] = useState(null)
-  const [expandedAttempt, setExpandedAttempt] = useState(null)
-  const [savingOverride, setSavingOverride] = useState(null) // question attempt id being saved
+  const [reviewAttempt, setReviewAttempt] = useState(null)
+  const [recalculating, setRecalculating] = useState(false)
+
+  const regradeQA = (qa, exercise) => {
+    const type = qa.exercise_type
+    const content = exercise?.content
+    const decode = (idx) => {
+      if (type === 'fill_blank' || type === 'dropdown') return { qi: Math.floor(idx / 100), sub: idx % 100 }
+      if (type === 'pdf_worksheet') return { qi: Math.floor(idx / 1000), sub: idx % 1000 }
+      return { qi: idx, sub: 0 }
+    }
+    const { qi, sub } = decode(qa.question_index || 0)
+    const questions = content?.questions || []
+
+    switch (type) {
+      case 'multiple_choice': {
+        const q = questions[qi]
+        if (!q) return null
+        return { is_correct: qa.selected_answer === q.correct_answer, correct_answer: q.correct_answer }
+      }
+      case 'fill_blank': {
+        const blank = questions[qi]?.blanks?.[sub]
+        if (!blank) return null
+        const correct = (blank.answer || '').split(',').map(a => a.trim()).filter(Boolean)
+        const typed = (qa.selected_answer || '').trim()
+        const isCorrect = blank.case_sensitive
+          ? correct.some(a => typed === a)
+          : correct.some(a => typed.toLowerCase() === a.toLowerCase())
+        return { is_correct: isCorrect, correct_answer: blank.answer }
+      }
+      case 'dropdown': {
+        const dd = questions[qi]?.dropdowns?.[sub]
+        if (!dd) return null
+        return {
+          is_correct: (qa.selected_answer || '').trim() === (dd.correct_answer || '').trim(),
+          correct_answer: dd.correct_answer
+        }
+      }
+      case 'drag_drop': {
+        const q = questions[qi]
+        if (!q) return null
+        const items = q.items || []
+        const dropZones = q.drop_zones || []
+        const correctOrder = q.correct_order || []
+        const userPlacements = qa.selected_answer || {}
+        const userOrder = dropZones.map(z => items.find(it => it.id === userPlacements[z.id])?.text || null)
+        const correctTexts = correctOrder.map(id => items.find(it => it.id === id)?.text || null)
+        return { is_correct: JSON.stringify(userOrder) === JSON.stringify(correctTexts), correct_answer: correctOrder }
+      }
+      case 'ai_fill_blank': {
+        const q = questions[qi]
+        if (!q) return null
+        const expected = q.expected_answers || []
+        const userAnswer = (qa.selected_answer || '').trim().toLowerCase()
+        return {
+          is_correct: expected.some(ea => userAnswer.includes(ea.trim().toLowerCase())),
+          correct_answer: expected.join(', ')
+        }
+      }
+      case 'image_hotspot': {
+        const hotspots = content?.hotspots || []
+        const labels = content?.labels || []
+        const hotspot = hotspots[qi]
+        if (!hotspot) return null
+        const selectedLabel = labels.find(l => l.id === qa.selected_answer)
+        const correctLabel = labels.find(l => l.hotspot_id === hotspot.id && l.type !== 'distractor')
+        return {
+          is_correct: !!selectedLabel && selectedLabel.type !== 'distractor' && selectedLabel.hotspot_id === hotspot.id,
+          correct_answer: correctLabel?.id || null
+        }
+      }
+      default:
+        return null
+    }
+  }
+
+  const handleRecalculate = async () => {
+    if (!selectedSession) return
+    if (!window.confirm('Re-grade all attempts using current exercise content?\n\nNote: questions with teacher overrides will be skipped.')) return
+    setRecalculating(true)
+    try {
+      const { data: assignments } = await supabase
+        .from('exercise_assignments')
+        .select('exercise_id, exercise:exercises(id, exercise_type, content)')
+        .eq('session_id', selectedSession)
+      const exerciseMap = {}
+      ;(assignments || []).forEach(a => { exerciseMap[a.exercise_id] = a.exercise })
+
+      const { data: sessionAttempts } = await supabase
+        .from('test_attempts')
+        .select('id, test_question_attempts(*)')
+        .eq('session_id', selectedSession)
+        .in('status', ['completed', 'timed_out'])
+
+      const qaUpdates = []
+      const attemptScores = []
+
+      for (const attempt of (sessionAttempts || [])) {
+        const qas = attempt.test_question_attempts || []
+        const updatedQAs = qas.map(qa => {
+          if (qa.teacher_override) return qa // skip overridden
+          const exercise = exerciseMap[qa.exercise_id]
+          const result = exercise ? regradeQA(qa, exercise) : null
+          if (!result) return qa
+          qaUpdates.push({ id: qa.id, ...result })
+          return { ...qa, ...result }
+        })
+        const total = updatedQAs.length
+        const correct = updatedQAs.filter(q => q.is_correct).length
+        const newScore = total > 0 ? Math.round((correct / total) * 100) : 0
+        attemptScores.push({ id: attempt.id, score: newScore, passed: newScore >= passingScore })
+      }
+
+      await Promise.all([
+        ...qaUpdates.map(u => supabase.from('test_question_attempts').update({ is_correct: u.is_correct, correct_answer: u.correct_answer }).eq('id', u.id)),
+        ...attemptScores.map(u => supabase.from('test_attempts').update({ score: u.score, passed: u.passed }).eq('id', u.id))
+      ])
+
+      // Refresh attempts
+      const { data, error } = await supabase
+        .from('test_attempts')
+        .select('*, user:users!user_id (id, full_name, real_name, email), test_question_attempts (*)')
+        .eq('session_id', selectedSession)
+        .in('status', ['completed', 'timed_out'])
+        .order('created_at', { ascending: false })
+      if (!error) {
+        setAttempts((data || []).map(a => ({
+          ...a,
+          user: a.user ? { ...a.user, full_name: a.user.real_name || a.user.full_name } : a.user
+        })))
+      }
+    } catch (err) {
+      console.error('Recalculate error:', err)
+      alert('Failed to recalculate scores')
+    } finally {
+      setRecalculating(false)
+    }
+  }
 
   // Fetch test sessions for this course
   useEffect(() => {
@@ -143,55 +279,6 @@ const TestResultsView = ({ selectedCourse }) => {
     return 'text-red-600 bg-red-100'
   }
 
-  // Teacher override: toggle a question's correctness and recalculate attempt score
-  const handleOverride = async (attempt, qa, newIsCorrect) => {
-    setSavingOverride(qa.id)
-    try {
-      // Update the question attempt with override
-      const { error: qaErr } = await supabase
-        .from('test_question_attempts')
-        .update({
-          is_correct: newIsCorrect,
-          teacher_override: true,
-          teacher_is_correct: newIsCorrect,
-          overridden_at: new Date().toISOString()
-        })
-        .eq('id', qa.id)
-
-      if (qaErr) throw qaErr
-
-      // Recalculate attempt score
-      const allQAs = attempt.test_question_attempts || []
-      const updatedQAs = allQAs.map(q => q.id === qa.id ? { ...q, is_correct: newIsCorrect, teacher_override: true } : q)
-      const totalQ = updatedQAs.length
-      const correctQ = updatedQAs.filter(q => q.is_correct).length
-      const newScore = totalQ > 0 ? Math.round((correctQ / totalQ) * 100) : 0
-      const newPassed = newScore >= passingScore
-
-      const { error: attErr } = await supabase
-        .from('test_attempts')
-        .update({ score: newScore, passed: newPassed })
-        .eq('id', attempt.id)
-
-      if (attErr) throw attErr
-
-      // Update local state
-      setAttempts(prev => prev.map(a => {
-        if (a.id !== attempt.id) return a
-        return {
-          ...a,
-          score: newScore,
-          passed: newPassed,
-          test_question_attempts: updatedQAs
-        }
-      }))
-    } catch (err) {
-      console.error('Error saving override:', err)
-      alert('Failed to save override')
-    } finally {
-      setSavingOverride(null)
-    }
-  }
 
   if (testSessions.length === 0) {
     return (
@@ -204,6 +291,17 @@ const TestResultsView = ({ selectedCourse }) => {
 
   return (
     <div className="space-y-4">
+      {reviewAttempt && (
+        <ExerciseReviewMode
+          attempt={reviewAttempt}
+          passingScore={passingScore}
+          onAttemptUpdate={(updated) => {
+            setAttempts(prev => prev.map(a => a.id === updated.id ? updated : a))
+            setReviewAttempt(updated)
+          }}
+          onClose={() => setReviewAttempt(null)}
+        />
+      )}
       {/* Test selector */}
       <div className="bg-white rounded-lg shadow-sm border p-4">
         <label className="block text-sm font-medium text-gray-700 mb-2">Select Test</label>
@@ -248,7 +346,16 @@ const TestResultsView = ({ selectedCourse }) => {
       <div className="bg-white rounded-lg shadow-sm border">
         <div className="p-4 border-b border-gray-200 flex items-center justify-between">
           <h3 className="text-lg font-semibold text-gray-900">Student Results</h3>
-          <span className="text-sm text-gray-500">Pass: {passingScore}%</span>
+          <div className="flex items-center gap-3">
+            <span className="text-sm text-gray-500">Pass: {passingScore}%</span>
+            <button
+              onClick={handleRecalculate}
+              disabled={recalculating}
+              className="flex items-center gap-1.5 text-xs px-3 py-1.5 bg-orange-50 text-orange-600 hover:bg-orange-100 border border-orange-200 rounded-lg disabled:opacity-50 transition-colors"
+            >
+              {recalculating ? 'Recalculating...' : 'Recalculate Scores'}
+            </button>
+          </div>
         </div>
 
         {loading ? (
@@ -304,102 +411,32 @@ const TestResultsView = ({ selectedCourse }) => {
                   {/* Expanded: attempt list */}
                   {isExpanded && (
                     <div className="bg-gray-50 px-4 py-3 border-t border-gray-100 space-y-2">
-                      {studentAttempts.map((attempt, ai) => {
-                        const isAttemptExpanded = expandedAttempt === attempt.id
-                        return (
-                          <div key={attempt.id} className="bg-white rounded-lg border border-gray-200">
-                            {/* Attempt summary row */}
-                            <div
-                              className="flex items-center justify-between px-3 py-2 cursor-pointer hover:bg-gray-50 transition-colors"
-                              onClick={() => setExpandedAttempt(isAttemptExpanded ? null : attempt.id)}
-                            >
-                              <div className="flex items-center gap-3">
-                                {isAttemptExpanded ? <ChevronDown className="w-3.5 h-3.5 text-gray-400" /> : <ChevronRight className="w-3.5 h-3.5 text-gray-400" />}
-                                <span className="text-xs font-medium text-gray-700">
-                                  Attempt {studentAttempts.length - ai}
-                                </span>
-                                <span className={`text-xs font-bold px-2 py-0.5 rounded-full ${getScoreColor(attempt.score, attempt.passed)}`}>
-                                  {attempt.score}%
-                                </span>
-                                {attempt.status === 'timed_out' && (
-                                  <span className="text-xs text-orange-600 flex items-center gap-1">
-                                    <Clock size={10} /> Timed out
-                                  </span>
-                                )}
-                              </div>
-                              <div className="flex items-center gap-3">
-                                <span className="text-xs text-gray-400">{formatTime(attempt.time_used_seconds)}</span>
-                                <span className="text-xs text-gray-400">
-                                  {new Date(attempt.completed_at || attempt.created_at).toLocaleDateString()}
-                                </span>
-                                <span className="text-xs text-gray-400">
-                                  {attempt.test_question_attempts?.filter(q => q.is_correct).length || 0}/{attempt.test_question_attempts?.length || 0} correct
-                                </span>
-                              </div>
-                            </div>
-
-                            {/* Question details (toggled) */}
-                            {isAttemptExpanded && attempt.test_question_attempts?.length > 0 && (
-                              <div className="border-t border-gray-100 px-3 py-2 space-y-1.5">
-                                {attempt.test_question_attempts
-                                  .sort((a, b) => a.question_index - b.question_index)
-                                  .map((qa, qi) => {
-                                    const formatAnswer = (val) => {
-                                      if (val === null || val === undefined) return '-'
-                                      if (typeof val === 'object') return JSON.stringify(val)
-                                      return String(val)
-                                    }
-                                    const isSaving = savingOverride === qa.id
-                                    return (
-                                      <div
-                                        key={qi}
-                                        className={`flex items-center gap-2 px-3 py-1.5 rounded-lg text-xs ${
-                                          qa.is_correct ? 'bg-green-50' : 'bg-red-50'
-                                        }`}
-                                      >
-                                        <div className={`w-5 h-5 rounded-full flex items-center justify-center shrink-0 ${
-                                          qa.is_correct ? 'bg-green-500' : 'bg-red-500'
-                                        }`}>
-                                          {qa.is_correct ? <CheckCircle size={12} className="text-white" /> : <XCircle size={12} className="text-white" />}
-                                        </div>
-                                        <span className="text-gray-500 w-8 shrink-0">Q{qi + 1}</span>
-                                        <span className="text-gray-400 w-20 shrink-0 capitalize">{qa.exercise_type?.replace('_', ' ')}</span>
-                                        {!qa.is_correct && (
-                                          <>
-                                            <span className="text-red-600 truncate max-w-[150px]" title={formatAnswer(qa.selected_answer)}>
-                                              {formatAnswer(qa.selected_answer)}
-                                            </span>
-                                            <span className="text-gray-400">→</span>
-                                            <span className="text-green-700 font-medium truncate max-w-[150px]" title={formatAnswer(qa.correct_answer)}>
-                                              {formatAnswer(qa.correct_answer)}
-                                            </span>
-                                          </>
-                                        )}
-                                        {qa.teacher_override && (
-                                          <span className="text-orange-500 text-[10px] font-medium px-1.5 py-0.5 bg-orange-50 rounded-full shrink-0">overridden</span>
-                                        )}
-                                        {/* Override toggle button */}
-                                        <button
-                                          onClick={(e) => { e.stopPropagation(); handleOverride(attempt, qa, !qa.is_correct) }}
-                                          disabled={isSaving}
-                                          className="ml-auto shrink-0 p-1 rounded hover:bg-gray-200 transition-colors text-gray-400 hover:text-blue-600 disabled:opacity-50"
-                                          title={qa.is_correct ? 'Mark as incorrect' : 'Mark as correct'}
-                                        >
-                                          {isSaving ? (
-                                            <div className="w-3.5 h-3.5 border-2 border-blue-500 border-t-transparent rounded-full animate-spin" />
-                                          ) : (
-                                            <Edit3 size={14} />
-                                          )}
-                                        </button>
-                                      </div>
-                                    )
-                                  })
-                                }
-                              </div>
+                      {studentAttempts.map((attempt, ai) => (
+                        <div key={attempt.id} className="bg-white rounded-lg border border-gray-200 flex items-center justify-between px-3 py-2">
+                          <div className="flex items-center gap-3">
+                            <span className="text-xs font-medium text-gray-700">Attempt {studentAttempts.length - ai}</span>
+                            <span className={`text-xs font-bold px-2 py-0.5 rounded-full ${getScoreColor(attempt.score, attempt.passed)}`}>
+                              {attempt.score}%
+                            </span>
+                            {attempt.status === 'timed_out' && (
+                              <span className="text-xs text-orange-600 flex items-center gap-1"><Clock size={10} /> Timed out</span>
                             )}
                           </div>
-                        )
-                      })}
+                          <div className="flex items-center gap-3">
+                            <span className="text-xs text-gray-400">{formatTime(attempt.time_used_seconds)}</span>
+                            <span className="text-xs text-gray-400">{new Date(attempt.completed_at || attempt.created_at).toLocaleDateString()}</span>
+                            <span className="text-xs text-gray-400">
+                              {attempt.test_question_attempts?.filter(q => q.is_correct).length || 0}/{attempt.test_question_attempts?.length || 0} correct
+                            </span>
+                            <button
+                              onClick={() => setReviewAttempt(attempt)}
+                              className="flex items-center gap-1 text-xs text-blue-600 hover:text-blue-700 hover:bg-blue-50 px-2 py-0.5 rounded transition-colors"
+                            >
+                              <Eye size={12} /> Review
+                            </button>
+                          </div>
+                        </div>
+                      ))}
                     </div>
                   )}
                 </div>
