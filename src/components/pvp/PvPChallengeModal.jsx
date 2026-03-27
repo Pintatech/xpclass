@@ -471,7 +471,7 @@ const PvPChallengeModal = ({ opponent, onClose }) => {
       case 'angrypet':
         return <PetAngryPet {...commonProps} onGameEnd={(s) => handleGameEnd(s)} questionBank={questionBank} />
       case 'fishing':
-        return <PetFishingGame {...commonProps} onGameEnd={(s) => handleGameEnd(s)} wordBank={wordBank} />
+        return <PetFishingGame {...commonProps} onGameEnd={(s) => handleGameEnd(s)} wordBank={wordBank} boatSkinUrl={profile?.active_boat_url} />
       default:
         return null
     }

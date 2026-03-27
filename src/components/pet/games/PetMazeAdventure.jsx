@@ -21,12 +21,20 @@ const RC = {
 }
 
 const BIOMES = [
-  { name: 'Enchanted Forest',  bg: 'from-emerald-950 via-green-950 to-slate-950', emoji: '🌿', accent: '#22c55e', bgMobile: 'https://xpclass.vn/xpclass/image/biome/enchanted-forest-mobile.jpg', bgDesktop: 'https://t3.ftcdn.net/jpg/06/31/00/94/360_F_631009499_iQtNkPoZQK7Z3QffB38iUYd5L7kHZC92.jpg' },
-  { name: 'Crystal Caves',     bg: 'from-blue-950 via-indigo-950 to-slate-950',   emoji: '💎', accent: '#6366f1', bgMobile: 'https://xpclass.vn/xpclass/image/biome/crystal-caves-mobile.jpg', bgDesktop: 'https://img.freepik.com/free-vector/dark-cave-with-blue-pink-shining-crystal-clusters-stone-walls-cartoon-vector-diamond-mine-dungeon-game-path-level-rocky-tunnel-with-glittering-treasure-mineral-resources-from-inside_107791-24532.jpg' },
-  { name: 'Volcanic Ridge',    bg: 'from-red-950 via-orange-950 to-slate-950',    emoji: '🌋', accent: '#ef4444', bgMobile: 'https://xpclass.vn/xpclass/image/biome/volcanic-ridge-mobile.jpg', bgDesktop: 'https://cdn.vectorstock.com/i/1000v/73/95/vibrant-cartoon-volcano-eruption-vector-58527395.jpg' },
-  { name: 'Mystic Swamp',      bg: 'from-teal-950 via-emerald-950 to-slate-950',  emoji: '🍄', accent: '#14b8a6', bgMobile: 'https://xpclass.vn/xpclass/image/biome/mystic-swamp-mobile.jpg', bgDesktop: 'https://thumbs.dreamstime.com/b/dark-swamp-landscape-dead-trees-fog-around-plants-terrible-mystical-place-swamp-bulrush-plants-twilight-disgusting-144587556.jpg' },
-  { name: 'Frozen Peaks',      bg: 'from-cyan-950 via-sky-950 to-slate-950',      emoji: '❄️', accent: '#22d3ee', bgMobile: 'https://xpclass.vn/xpclass/image/biome/frozen-peaks-mobile.jpg', bgDesktop: 'https://thumbs.dreamstime.com/b/frozen-lake-scenery-cartoon-illustration-icy-winter-landscape-snow-covered-ice-scenic-view-wilderness-cold-environment-wonderland-331693799.jpg' },
-  { name: 'Shadow Ruins',      bg: 'from-violet-950 via-purple-950 to-slate-950', emoji: '🏚️', accent: '#a78bfa', bgMobile: 'https://xpclass.vn/xpclass/image/biome/shadow-ruins-mobile.jpg', bgDesktop: 'https://thumbs.dreamstime.com/b/destroyed-abandoned-city-ruins-destroyed-abandoned-city-ruins-haunting-melancholy-sight-filled-broken-buildings-274793810.jpg' },
+  { name: 'Enchanted Forest',  bg: 'from-emerald-950 via-green-950 to-slate-950', emoji: '🌿', accent: '#22c55e', bgMobile: 'https://xpclass.vn/xpclass/adventure/forest-mb.jpg', bgDesktop: 'https://xpclass.vn/xpclass/adventure/forest.jpg' },
+  { name: 'Crystal Caves',     bg: 'from-blue-950 via-indigo-950 to-slate-950',   emoji: '💎', accent: '#6366f1', bgMobile: 'https://xpclass.vn/xpclass/adventure/cave-mb.jpg', bgDesktop: 'https://xpclass.vn/xpclass/adventure/cave.jpg' },
+  { name: 'Volcanic Ridge',    bg: 'from-red-950 via-orange-950 to-slate-950',    emoji: '🌋', accent: '#ef4444', bgMobile: 'https://xpclass.vn/xpclass/adventure/volcano-mb.jpg', bgDesktop: 'https://xpclass.vn/xpclass/adventure/volcano.jpg' },
+  { name: 'Mystic Swamp',      bg: 'from-teal-950 via-emerald-950 to-slate-950',  emoji: '🍄', accent: '#14b8a6', bgMobile: 'https://xpclass.vn/xpclass/adventure/swamp-mb.jpg', bgDesktop: 'https://xpclass.vn/xpclass/adventure/swamp.jpg' },
+  { name: 'Frozen Peaks',      bg: 'from-cyan-950 via-sky-950 to-slate-950',      emoji: '❄️', accent: '#22d3ee', bgMobile: 'https://xpclass.vn/xpclass/adventure/frozen-mb.jpg', bgDesktop: 'https://xpclass.vn/xpclass/adventure/frozen.jpg' },
+  { name: 'Shadow Ruins',      bg: 'from-violet-950 via-purple-950 to-slate-950', emoji: '🏚️', accent: '#a78bfa', bgMobile: 'https://xpclass.vn/xpclass/adventure/shadow-mb.jpg', bgDesktop: 'https://xpclass.vn/xpclass/adventure/shadown%20ruin.jpg' },
+]
+
+const MONSTER_IMAGES = [
+  'https://xpclass.vn/xpclass/pet-game/astro/alien1.png',
+  'https://xpclass.vn/xpclass/pet-game/astro/alien2.png',
+  'https://xpclass.vn/xpclass/pet-game/astro/alien3.png',
+  'https://xpclass.vn/xpclass/pet-game/astro/alien4.png',
+  'https://xpclass.vn/xpclass/pet-game/astro/alien5.png',
 ]
 
 const BOSS_IMAGES = [
@@ -49,7 +57,7 @@ const SPEED_BONUS_MEDIUM = 3
 const SPEED_BONUS_SLOW = 1
 const STREAK_BONUS_3 = 5
 const STREAK_BONUS_5 = 8
-const INTERACTION_MODES = ['grid', 'falling', 'letters']
+const INTERACTION_MODES = ['grid', 'falling', 'letters', 'matchup']
 const FALLING_SPEED_BASE = 1.8
 const FALLING_SPEED_VARIANCE = 0.8
 const LETTER_BOUNCE_SPEED = 1.5
@@ -94,18 +102,50 @@ function generateWrongSpellings(word, count) {
 }
 
 function pickInteractionMode(type) {
-  // words can use all 3 modes, questions only grid or falling
+  // words can use all 4 modes, questions only grid or falling
   const pool = type === 'word' ? INTERACTION_MODES : ['grid', 'falling']
   return pool[Math.floor(Math.random() * pool.length)]
 }
 
+function buildMatchupChallenge(wordBank, count = 4) {
+  const pairs = shuffle(wordBank).slice(0, count)
+  if (pairs.length < 2) return null
+  const words = pairs.map(p => p.word)
+  const hints = shuffle(pairs.map(p => ({ word: p.word, hint: p.hint || p.word })))
+  return {
+    type: 'word',
+    interactionMode: 'matchup',
+    matchupPairs: pairs.map(p => ({ word: p.word, hint: p.hint || p.word })),
+    shuffledWords: shuffle([...words]),
+    shuffledHints: hints,
+    word: null,
+    prompt: 'Match the words!',
+    display: null,
+    choices: [],
+    correctIndex: 0,
+  }
+}
+
 function wordsToChallenges(wordBank, count = 6) {
   const words = shuffle(wordBank).slice(0, count)
-  return words.map(w => {
-    const mode = pickInteractionMode('word')
+  const results = []
+  let usedMatchup = false
+  for (const w of words) {
+    let mode = pickInteractionMode('word')
+    // Only one matchup per batch, and need enough words
+    if (mode === 'matchup') {
+      if (usedMatchup || wordBank.length < 3) {
+        mode = 'grid'
+      } else {
+        usedMatchup = true
+        const mc = buildMatchupChallenge(wordBank, Math.min(4, wordBank.length))
+        if (mc) { results.push(mc); continue }
+        mode = 'grid'
+      }
+    }
     const wrongChoices = generateWrongSpellings(w.word, 3)
     const choices = shuffle([w.word, ...wrongChoices])
-    return {
+    results.push({
       type: 'word',
       interactionMode: mode,
       word: w.word,
@@ -113,8 +153,9 @@ function wordsToChallenges(wordBank, count = 6) {
       display: scrambleWord(w.word),
       choices,
       correctIndex: choices.indexOf(w.word),
-    }
-  })
+    })
+  }
+  return results
 }
 
 function questionsToChallenges(questionBank, count = 6) {
@@ -232,6 +273,12 @@ const PetMazeAdventure = ({
   const [placedLetters, setPlacedLetters] = useState([])
   const floatingDoneRef = useRef(false)
 
+  // Matchup state (interactionMode === 'matchup')
+  const [matchupSelected, setMatchupSelected] = useState(null) // { side: 'word'|'hint', index }
+  const [matchupMatched, setMatchupMatched] = useState([]) // array of matched word strings
+  const [matchupWrong, setMatchupWrong] = useState(null) // { word, hint } — flash wrong pair
+  const matchupDoneRef = useRef(false)
+
   const streakRef = useRef(0)
   const scoreRef = useRef(0)
   const qStartRef = useRef(Date.now())
@@ -284,6 +331,7 @@ const PetMazeAdventure = ({
       vx: (Math.random() - 0.5) * 1.2,
       vy: FALLING_SPEED_BASE + Math.random() * FALLING_SPEED_VARIANCE,
       hit: false,
+      skinIdx: Math.floor(Math.random() * MONSTER_IMAGES.length),
     }))
     fallingOrbsRef.current = orbs
     fallingDoneRef.current = false
@@ -521,6 +569,10 @@ const PetMazeAdventure = ({
     setFloatingLetters([])
     setPlacedLetters([])
     floatingDoneRef.current = false
+    setMatchupSelected(null)
+    setMatchupMatched([])
+    setMatchupWrong(null)
+    matchupDoneRef.current = false
 
     if (challenge.interactionMode === 'falling') {
       // Small delay so containerRef dimensions are ready
@@ -706,6 +758,104 @@ const PetMazeAdventure = ({
       handleAnswer(wrongIdx >= 0 ? wrongIdx : 0)
     }
   }, [feedback, battleChallenges, challengeIndex, placedLetters, handleAnswer, playSound])
+
+  // Handle tapping a matchup item (word or hint)
+  const handleMatchupTap = useCallback((side, index, value) => {
+    if (feedback || matchupDoneRef.current) return
+    const challenge = battleChallenges[challengeIndex]
+    if (!challenge?.matchupPairs) return
+
+    if (!matchupSelected) {
+      // First tap — select it
+      setMatchupSelected({ side, index, value })
+      playSound(assetUrl('/sound/scram-correct.mp3'), 0.2)
+      return
+    }
+
+    // Second tap — must be opposite side
+    if (matchupSelected.side === side) {
+      // Same side, just re-select
+      setMatchupSelected({ side, index, value })
+      return
+    }
+
+    const wordVal = side === 'word' ? value : matchupSelected.value
+    const hintVal = side === 'hint' ? value : matchupSelected.value
+    const pair = challenge.matchupPairs.find(p => p.word === wordVal && p.hint === hintVal)
+
+    if (pair) {
+      // Correct match
+      const newMatched = [...matchupMatched, wordVal]
+      setMatchupMatched(newMatched)
+      setMatchupSelected(null)
+      playSound(assetUrl('/sound/scram-correct.mp3'), 0.4)
+
+      // Boss takes damage for each correct match
+      const dmg = 1
+      const newBossHp = Math.max(0, bossHp - dmg)
+      setBossHp(newBossHp)
+      const newStreak = streakRef.current + 1
+      streakRef.current = newStreak
+      setStreak(newStreak)
+      const points = POINTS_PER_HIT + (newStreak >= 5 ? STREAK_BONUS_5 : newStreak >= 3 ? STREAK_BONUS_3 : 0)
+      scoreRef.current += points
+      setStopScore(scoreRef.current)
+
+      setPetAnim('attack')
+      setTimeout(() => setPetAnim('idle'), 600)
+      setSlashEffect(true)
+      setTimeout(() => setSlashEffect(false), 400)
+      setBossAnim('hit')
+      setTimeout(() => setBossAnim('idle'), 500)
+      setDamagePopup({ dmg, isCritical: false, points })
+      setTimeout(() => setDamagePopup(null), 1200)
+      shakeRef.current = 6
+      setScreenShake(6)
+
+      if (newStreak >= 3) {
+        setComboAnim(true)
+        setTimeout(() => setComboAnim(false), 600)
+      }
+
+      const cw = containerRef.current?.clientWidth || 400
+      const ch = containerRef.current?.clientHeight || 700
+      spawnParticles(cw / 2, ch * 0.22, ['#a78bfa', '#f472b6', '#34d399', '#60a5fa'], 10)
+
+      if (newBossHp <= 0) {
+        matchupDoneRef.current = true
+        setBossAnim('defeated')
+        setTimeout(() => handleGameComplete(scoreRef.current, { bossDefeated: true }), 700)
+      } else if (newMatched.length >= challenge.matchupPairs.length) {
+        // All pairs matched — advance
+        matchupDoneRef.current = true
+        setTimeout(() => advanceChallenge(), 600)
+      }
+    } else {
+      // Wrong match
+      setMatchupWrong({ word: wordVal, hint: hintVal })
+      setTimeout(() => setMatchupWrong(null), 600)
+      setMatchupSelected(null)
+      streakRef.current = 0
+      setStreak(0)
+
+      const newPetHp = petHp - 1
+      setPetHp(newPetHp)
+      setBossAnim('attack')
+      setTimeout(() => setBossAnim('idle'), 600)
+      setPetAnim('hit')
+      setTimeout(() => setPetAnim('idle'), 600)
+      setPetDamagePopup({ text: stops[currentStop]?.bossAttack || 'Attack' })
+      setTimeout(() => setPetDamagePopup(null), 1200)
+      shakeRef.current = 10
+      setScreenShake(10)
+      playSound(assetUrl('/sound/flappy-hit.mp3'), 0.4)
+
+      if (newPetHp <= 0) {
+        matchupDoneRef.current = true
+        setTimeout(() => { clearInterval(qTimerRef.current); setPhase('failed') }, 800)
+      }
+    }
+  }, [feedback, battleChallenges, challengeIndex, matchupSelected, matchupMatched, bossHp, petHp, stops, currentStop, advanceChallenge, handleGameComplete, playSound, spawnParticles])
 
   // Timeout: boss attacks when timer expires
   useEffect(() => {
@@ -1220,26 +1370,20 @@ const PetMazeAdventure = ({
                           pointerEvents: orb.hit ? 'none' : 'auto',
                           zIndex: orb.hit ? 10 : 1,
                         }}>
-                        <div className="relative" style={{ minWidth: 90, animation: !orb.hit ? 'advAsteroidEntry 0.4s ease-out' : 'none' }}>
-                          {/* Rock shape */}
-                          <div style={{
-                            position: 'absolute', inset: 0, borderRadius: '30% 50% 40% 55%',
-                            background: orb.hit
-                              ? orb.choiceIndex === currentChallenge.correctIndex
-                                ? 'radial-gradient(ellipse at 35% 30%, #4ade80 0%, #166534 100%)'
-                                : 'radial-gradient(ellipse at 35% 30%, #7f1d1d 0%, #450a0a 100%)'
-                              : 'radial-gradient(ellipse at 25% 20%, #a8a29e 0%, #78716c 20%, #57534e 45%, #44403c 70%, #1c1917 100%)',
-                          }} />
-                          {/* Highlights */}
-                          {!orb.hit && (
-                            <>
-                              <div style={{ position: 'absolute', inset: 0, borderRadius: '30% 50% 40% 55%', background: 'radial-gradient(circle at 20% 25%, rgba(255,255,255,0.15) 0%, transparent 40%)' }} />
-                              <div style={{ position: 'absolute', inset: 0, borderRadius: '30% 50% 40% 55%', background: 'linear-gradient(135deg, rgba(255,255,255,0.12) 0%, transparent 40%)' }} />
-                              <div style={{ position: 'absolute', inset: -2, borderRadius: '30% 50% 40% 55%', boxShadow: 'inset 0 0 12px 2px rgba(251,146,60,0.25), 0 0 20px 4px rgba(251,146,60,0.2)', pointerEvents: 'none' }} />
-                            </>
-                          )}
-                          {/* Text */}
-                          <div className={`relative px-5 py-3.5 font-bold text-base uppercase tracking-wide whitespace-nowrap text-center ${
+                        <div className="relative flex flex-col items-center" style={{ minWidth: 90, animation: !orb.hit ? 'advAsteroidEntry 0.4s ease-out' : 'none' }}>
+                          <img
+                            src={MONSTER_IMAGES[orb.skinIdx % MONSTER_IMAGES.length]}
+                            alt=""
+                            className="w-16 h-16 object-contain pointer-events-none"
+                            style={{
+                              filter: orb.hit
+                                ? orb.choiceIndex === currentChallenge.correctIndex
+                                  ? 'brightness(1.5) hue-rotate(90deg)'
+                                  : 'brightness(0.5) saturate(2) hue-rotate(-30deg)'
+                                : 'drop-shadow(0 0 8px rgba(251,146,60,0.3))',
+                            }}
+                          />
+                          <div className={`px-3 py-1 font-bold text-base uppercase tracking-wide whitespace-nowrap text-center ${
                             orb.hit && orb.choiceIndex === currentChallenge.correctIndex ? 'text-green-200' :
                             orb.hit ? 'text-red-300/50 line-through' : 'text-white'
                           }`} style={{ textShadow: '0 1px 3px rgba(0,0,0,0.9), 0 0 10px rgba(0,0,0,0.5)' }}>
@@ -1312,6 +1456,95 @@ const PetMazeAdventure = ({
                         </button>
                       )
                     })}
+                  </div>
+                </>
+              )}
+
+              {/* === MATCHUP MODE — Match words to hints === */}
+              {currentChallenge.interactionMode === 'matchup' && currentChallenge.matchupPairs && (
+                <>
+                  <div className="text-center mb-3 px-2">
+                    <p className="text-white/50 text-xs mb-1 uppercase tracking-wider">Match the words to their meanings!</p>
+                  </div>
+                  <div className="flex gap-3 w-full max-w-sm mx-auto">
+                    {/* Words column */}
+                    <div className="flex-1 flex flex-col gap-2.5">
+                      {currentChallenge.shuffledWords.map((word, i) => {
+                        const isMatched = matchupMatched.includes(word)
+                        const isSelected = matchupSelected?.side === 'word' && matchupSelected?.value === word
+                        const isWrong = matchupWrong?.word === word
+                        return (
+                          <button key={`w-${i}`}
+                            onClick={() => !isMatched && handleMatchupTap('word', i, word)}
+                            disabled={isMatched || matchupDoneRef.current}
+                            className="rounded-2xl px-2 py-2 font-bold text-sm text-white text-center transition-all select-none"
+                            style={{
+                              height: 64,
+                              display: 'flex', alignItems: 'center', justifyContent: 'center',
+                              textShadow: '0 1px 3px rgba(0,0,0,0.4)',
+                              borderTop: isMatched ? '2px solid rgba(74,222,128,0.5)' : isSelected ? '2px solid #fef08a' : '2px solid rgba(255,255,255,0.15)',
+                              borderLeft: isMatched ? '2px solid rgba(74,222,128,0.5)' : isSelected ? '2px solid #fef08a' : '2px solid rgba(255,255,255,0.15)',
+                              borderRight: isMatched ? '2px solid rgba(74,222,128,0.5)' : isSelected ? '2px solid #fef08a' : '2px solid rgba(255,255,255,0.15)',
+                              borderBottom: 'none',
+                              background: isMatched
+                                ? 'linear-gradient(to bottom, #4ade80 0%, #22c55e 40%, #16a34a 100%)'
+                                : isSelected
+                                  ? 'linear-gradient(to bottom, #fde047 0%, #facc15 40%, #eab308 100%)'
+                                  : 'linear-gradient(to bottom, #60a5fa 0%, #3b82f6 40%, #2563eb 100%)',
+                              boxShadow: isMatched
+                                ? '0 4px 0 #166534, 0 6px 12px rgba(0,0,0,0.2)'
+                                : isSelected
+                                  ? '0 4px 0 #92400e, 0 0 16px rgba(250,204,21,0.4), inset 0 1px 0 rgba(255,255,255,0.4)'
+                                  : '0 4px 0 #1e40af, 0 6px 12px rgba(0,0,0,0.25), inset 0 1px 0 rgba(255,255,255,0.3)',
+                              transform: isMatched ? 'scale(0.9)' : isSelected ? 'translateY(-2px)' : 'translateY(0)',
+                              opacity: isMatched ? 0.6 : 1,
+                              animation: isMatched ? 'advMatchCorrect 0.4s ease-out' : isWrong ? 'advMatchWrong 0.4s ease-out' : `advMatchTileIn 0.3s ease-out ${i * 0.05}s both`,
+                            }}
+                          >
+                            {word}
+                          </button>
+                        )
+                      })}
+                    </div>
+                    {/* Hints column */}
+                    <div className="flex-1 flex flex-col gap-2.5">
+                      {currentChallenge.shuffledHints.map((h, i) => {
+                        const isMatched = matchupMatched.includes(h.word)
+                        const isSelected = matchupSelected?.side === 'hint' && matchupSelected?.value === h.hint
+                        const isWrong = matchupWrong?.hint === h.hint
+                        return (
+                          <button key={`h-${i}`}
+                            onClick={() => !isMatched && handleMatchupTap('hint', i, h.hint)}
+                            disabled={isMatched || matchupDoneRef.current}
+                            className="rounded-2xl px-2 py-2 font-semibold text-sm text-white text-center transition-all select-none"
+                            style={{
+                              height: 64,
+                              display: 'flex', alignItems: 'center', justifyContent: 'center',
+                              textShadow: '0 1px 3px rgba(0,0,0,0.4)',
+                              borderTop: isMatched ? '2px solid rgba(74,222,128,0.5)' : isSelected ? '2px solid #fef08a' : '2px solid rgba(255,255,255,0.15)',
+                              borderLeft: isMatched ? '2px solid rgba(74,222,128,0.5)' : isSelected ? '2px solid #fef08a' : '2px solid rgba(255,255,255,0.15)',
+                              borderRight: isMatched ? '2px solid rgba(74,222,128,0.5)' : isSelected ? '2px solid #fef08a' : '2px solid rgba(255,255,255,0.15)',
+                              borderBottom: 'none',
+                              background: isMatched
+                                ? 'linear-gradient(to bottom, #4ade80 0%, #22c55e 40%, #16a34a 100%)'
+                                : isSelected
+                                  ? 'linear-gradient(to bottom, #fde047 0%, #facc15 40%, #eab308 100%)'
+                                  : 'linear-gradient(to bottom, #60a5fa 0%, #3b82f6 40%, #2563eb 100%)',
+                              boxShadow: isMatched
+                                ? '0 4px 0 #166534, 0 6px 12px rgba(0,0,0,0.2)'
+                                : isSelected
+                                  ? '0 4px 0 #92400e, 0 0 16px rgba(250,204,21,0.4), inset 0 1px 0 rgba(255,255,255,0.4)'
+                                  : '0 4px 0 #1e40af, 0 6px 12px rgba(0,0,0,0.25), inset 0 1px 0 rgba(255,255,255,0.3)',
+                              transform: isMatched ? 'scale(0.9)' : isSelected ? 'translateY(-2px)' : 'translateY(0)',
+                              opacity: isMatched ? 0.6 : 1,
+                              animation: isMatched ? 'advMatchCorrect 0.4s ease-out' : isWrong ? 'advMatchWrong 0.4s ease-out' : `advMatchTileIn 0.3s ease-out ${i * 0.05}s both`,
+                            }}
+                          >
+                            {h.hint}
+                          </button>
+                        )
+                      })}
+                    </div>
                   </div>
                 </>
               )}
@@ -1615,6 +1848,24 @@ const PetMazeAdventure = ({
           0% { transform: scale(0) rotate(-10deg); }
           60% { transform: scale(1.15) rotate(3deg); }
           100% { transform: scale(1) rotate(0deg); }
+        }
+        @keyframes advMatchTileIn {
+          0% { transform: scale(0) rotate(-10deg); opacity: 0; }
+          60% { transform: scale(1.1) rotate(2deg); }
+          100% { transform: scale(1) rotate(0deg); opacity: 1; }
+        }
+        @keyframes advMatchCorrect {
+          0% { transform: scale(1); }
+          30% { transform: scale(1.15); }
+          60% { transform: scale(0.9); opacity: 0.7; }
+          100% { transform: scale(0.9); opacity: 0.6; }
+        }
+        @keyframes advMatchWrong {
+          0%, 100% { transform: translateX(0); }
+          20% { transform: translateX(-5px); }
+          40% { transform: translateX(5px); }
+          60% { transform: translateX(-3px); }
+          80% { transform: translateX(3px); }
         }
       `}</style>
     </div>,

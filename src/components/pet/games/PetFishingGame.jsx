@@ -41,7 +41,7 @@ const shuffle = (arr) => {
   return a
 }
 
-const PetFishingGame = ({ petImageUrl, petName, onGameEnd, onClose, wordBank: wordBankProp = [], hideClose = false, scoreToBeat = null, leaderboard = [], chestEnabled = false, pvpOpponentPetUrl = null, currentLevel = 1 }) => {
+const PetFishingGame = ({ petImageUrl, petName, onGameEnd, onClose, wordBank: wordBankProp = [], hideClose = false, scoreToBeat = null, leaderboard = [], chestEnabled = false, pvpOpponentPetUrl = null, currentLevel = 1, boatSkinUrl = null }) => {
   const thresholds = STAR_THRESHOLDS[currentLevel] || [10, 14, 18]
   const [star1Goal, star2Goal, star3Goal] = thresholds
   const passGoal = star1Goal
@@ -1290,7 +1290,11 @@ const PetFishingGame = ({ petImageUrl, petName, onGameEnd, onClose, wordBank: wo
 
           {/* Boat on water surface */}
           <div className="absolute left-1/2 z-[3] pointer-events-none" style={{ top: '32%', transform: 'translateX(-50%)', animation: 'boatRock 4s ease-in-out infinite' }}>
-            <span style={{ fontSize: 42, filter: 'drop-shadow(0 3px 6px rgba(0,0,0,0.4))' }}>⛵</span>
+            {boatSkinUrl ? (
+              <img src={boatSkinUrl} alt="boat" className="w-[56px] h-[56px] object-contain" style={{ filter: 'drop-shadow(0 3px 6px rgba(0,0,0,0.4))' }} />
+            ) : (
+              <span style={{ fontSize: 42, filter: 'drop-shadow(0 3px 6px rgba(0,0,0,0.4))' }}>⛵</span>
+            )}
             {activePowerup && (
               <div className="absolute -right-10 top-1/2 -translate-y-1/2" style={{ width: 40, height: 40 }}>
                 {activePowerup.expiresAt ? (() => {

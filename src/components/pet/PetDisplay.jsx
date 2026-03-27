@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef } from "react";
 import { createPortal } from "react-dom";
 import { supabase } from "../../supabase/client";
-import { usePet } from "../../hooks/usePet";
+import { usePet, getPetLevelFromXp } from "../../hooks/usePet";
 import { useInventory } from "../../hooks/useInventory";
 import { useAuth } from "../../hooks/useAuth";
 import { useProgress } from "../../hooks/useProgress";
@@ -841,6 +841,7 @@ const PetDisplay = () => {
         quizrush: extra?.wordsCompleted && { goal_type: 'answer_questions', increment: extra.wordsCompleted },
         bossbattle: extra?.wordsCompleted && { goal_type: 'answer_questions', increment: extra.wordsCompleted },
         angrypet: extra?.wordsCompleted && { goal_type: 'answer_questions', increment: extra.wordsCompleted },
+        fishing: extra?.wordsCompleted && { goal_type: 'catch_fish', increment: extra.wordsCompleted },
       }
       const gameGoal = gameGoalMap[gameType]
       if (gameGoal) {
@@ -1143,8 +1144,8 @@ const PetDisplay = () => {
         }
       `}</style>
 
-      {/* Message Toast - Fixed Position */}
-      {message && (
+      {/* Message Toast - portaled to body to escape clipPath containing block */}
+      {message && createPortal(
         <div
           className={`fixed top-4 left-1/2 transform -translate-x-1/2 z-50 px-6 py-3 shadow-lg text-center font-medium animate-fade-in ${
             message.type === "success"
@@ -1154,7 +1155,8 @@ const PetDisplay = () => {
           style={{ clipPath: 'polygon(8px 0, 100% 0, calc(100% - 8px) 100%, 0 100%)' }}
         >
           {message.text}
-        </div>
+        </div>,
+        document.body
       )}
 
       <div className="flex flex-col md:flex-row gap-6">
@@ -1669,20 +1671,25 @@ const PetDisplay = () => {
 
             {/* XP Progress */}
             <div className="space-y-2">
-              <div>
-                <div className="flex justify-between text-xs text-gray-600 mb-1">
-                  <span>Level Progress</span>
-                  
-                </div>
-                <div className="w-full bg-gray-200 h-2"
-                  style={{ clipPath: 'polygon(2px 0, 100% 0, calc(100% - 2px) 100%, 0 100%)' }}
-                >
-                  <div
-                    className={`bg-gradient-to-r ${getRarityGradient(activePet.rarity)} h-2 transition-all`}
-                    style={{ width: `${activePet.xp % 100}%` }}
-                  />
-                </div>
-              </div>
+              {(() => {
+                const petLvl = getPetLevelFromXp(activePet.xp);
+                return (
+                  <div>
+                    <div className="flex justify-between text-xs text-gray-600 mb-1">
+                      <span>Level Progress</span>
+                      <span>{petLvl.xpInLevel} / {petLvl.xpForLevel} XP</span>
+                    </div>
+                    <div className="w-full bg-gray-200 h-2"
+                      style={{ clipPath: 'polygon(2px 0, 100% 0, calc(100% - 2px) 100%, 0 100%)' }}
+                    >
+                      <div
+                        className={`bg-gradient-to-r ${getRarityGradient(activePet.rarity)} h-2 transition-all`}
+                        style={{ width: `${petLvl.progress}%` }}
+                      />
+                    </div>
+                  </div>
+                );
+              })()}
 
               {/* Evolution Progress */}
               {(() => {
@@ -2297,6 +2304,7 @@ const PetDisplay = () => {
           wordBank={wordBank}
           leaderboard={gameLeaderboards.fishing}
           chestEnabled={chestEnabled}
+          boatSkinUrl={profile?.active_boat_url}
           currentLevel={profile?.current_level || 1}
           onGameEnd={(score, extra) => handleGameEnd(score, 'fishing', extra)}
           onClose={() => setShowGame(null)}
@@ -2553,8 +2561,8 @@ const PetDisplay = () => {
         />
       )}
 
-      {/* Wild Area Overlay */}
-      {showWildArea && (
+      {/* Wild Area Overlay - portaled to body to escape clipPath containing block */}
+      {showWildArea && createPortal(
         <div className="fixed inset-0 bg-black/70 flex items-center justify-center z-40 p-4">
           <div className="relative bg-gradient-to-b from-emerald-900 to-green-950 rounded-2xl max-w-sm w-full p-6 border border-emerald-700 shadow-2xl">
             {/* Close button */}
@@ -2634,7 +2642,8 @@ const PetDisplay = () => {
               )}
             </div>
           </div>
-        </div>
+        </div>,
+        document.body
       )}
 
       {/* Maze Adventure */}

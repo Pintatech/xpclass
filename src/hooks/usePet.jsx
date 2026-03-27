@@ -4,6 +4,33 @@ import { supabase } from '../supabase/client'
 
 const PetContext = createContext(null)
 
+// XP required for a given pet level: 100 for levels 1-10, then scales up
+export const getPetXpForLevel = (level) => {
+  if (level <= 10) return 100
+  return 100 + (level - 10) * 20
+}
+
+// Total XP needed to reach a given level (sum of all previous levels)
+export const getTotalXpForLevel = (level) => {
+  let total = 0
+  for (let i = 1; i < level; i++) {
+    total += getPetXpForLevel(i)
+  }
+  return total
+}
+
+// Get pet level and progress from total XP
+export const getPetLevelFromXp = (xp) => {
+  let level = 1
+  let remaining = xp
+  while (remaining >= getPetXpForLevel(level)) {
+    remaining -= getPetXpForLevel(level)
+    level++
+  }
+  const xpForCurrent = getPetXpForLevel(level)
+  return { level, xpInLevel: remaining, xpForLevel: xpForCurrent, progress: (remaining / xpForCurrent) * 100 }
+}
+
 export const usePet = () => {
   const context = useContext(PetContext)
   if (!context) {

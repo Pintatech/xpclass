@@ -7,7 +7,7 @@ const AuthContext = createContext({})
 const EQUIPMENT_FIELDS = [
   'active_title', 'active_frame_ratio', 'hide_frame',
   'active_background_url', 'active_bowl_url',
-  'active_spaceship_url', 'active_spaceship_laser', 'active_hammer_url'
+  'active_spaceship_url', 'active_spaceship_laser', 'active_boat_url', 'active_hammer_url'
 ]
 
 export const useAuth = () => {
@@ -72,7 +72,7 @@ export const AuthProvider = ({ children }) => {
           .single(),
         supabase
           .from('user_equipment')
-          .select('active_title, active_frame_ratio, hide_frame, active_background_url, active_bowl_url, active_spaceship_url, active_spaceship_laser, active_hammer_url')
+          .select('active_title, active_frame_ratio, hide_frame, active_background_url, active_bowl_url, active_spaceship_url, active_spaceship_laser, active_boat_url, active_hammer_url')
           .eq('user_id', userId)
           .single()
       ])
@@ -187,13 +187,13 @@ export const AuthProvider = ({ children }) => {
       if (Object.keys(equipmentUpdates).length > 0) {
         promises.push(
           supabase.from('user_equipment').upsert({ user_id: user.id, ...equipmentUpdates })
-            .select('active_title, active_frame_ratio, hide_frame, active_background_url, active_bowl_url, active_spaceship_url, active_spaceship_laser, active_hammer_url')
+            .select('active_title, active_frame_ratio, hide_frame, active_background_url, active_bowl_url, active_spaceship_url, active_spaceship_laser, active_boat_url, active_hammer_url')
             .single()
         )
       } else {
         promises.push(
           supabase.from('user_equipment')
-            .select('active_title, active_frame_ratio, hide_frame, active_background_url, active_bowl_url, active_spaceship_url, active_spaceship_laser, active_hammer_url')
+            .select('active_title, active_frame_ratio, hide_frame, active_background_url, active_bowl_url, active_spaceship_url, active_spaceship_laser, active_boat_url, active_hammer_url')
             .eq('user_id', user.id).single()
         )
       }

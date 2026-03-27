@@ -904,6 +904,7 @@ const PvPResponseModal = ({ challenge, onClose }) => {
             {...commonProps}
             onGameEnd={handleGameEnd}
             wordBank={wordBank}
+            boatSkinUrl={profile?.active_boat_url}
           />
         );
       default:

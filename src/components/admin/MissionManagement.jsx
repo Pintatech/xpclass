@@ -13,13 +13,14 @@ const MISSION_IMAGE_MAP = {
   'swords': '/icon/dashboard/pvp.png',
   'gamepad-2': '/image/dashboard/pet-type.webp',
   'book-open': '/image/dashboard/match1.png',
-  'graduation-cap': '/pet-game/mole-whacked.png',
+  'graduation-cap': '/pet-game/whack/mole-whacked.png',
   'zap': '/image/chest/legendary-chest.png',
   'gem': '/pet-game/astro/alien1.png',
   'medal': '/image/dashboard/pet-train.svg',
   'gift': '/image/dashboard/pet-scramble.jpg',
   'package-open': '/image/inventory/spaceship/phantom-voyager.png',
   'joystick': '/image/pet/game-win.png',
+  'fish': '/image/dashboard/pet-type.webp',
 }
 
 const DEFAULT_MISSION_IMAGE = '/icon/dashboard/wow.svg'
@@ -50,6 +51,7 @@ const GOAL_TYPES = [
   { value: 'match_pairs', label: 'Ghép cặp (Match Game)' },
   { value: 'pronounce_words', label: 'Phát âm (Say It Right)' },
   { value: 'earn_3_stars', label: 'Đạt 3 sao trong game' },
+  { value: 'catch_fish', label: 'Câu cá (Fishing Game)' },
 ]
 
 const MISSION_TYPES = [

@@ -144,6 +144,7 @@ CREATE TABLE public.user_equipment (
   active_bowl_url text,
   active_spaceship_url text,
   active_spaceship_laser text,
+  active_boat_url text,
   active_hammer_url text,
   updated_at timestamp with time zone DEFAULT now(),
   CONSTRAINT user_equipment_pkey PRIMARY KEY (user_id),
@@ -2964,7 +2965,7 @@ CREATE TABLE IF NOT EXISTS public.missions (
     'open_chests', 'collect_items', 'all_green_lesson',
     'blast_words', 'whack_moles', 'scramble_words',
     'type_words', 'match_pairs', 'pronounce_words',
-    'earn_3_stars'
+    'earn_3_stars', 'catch_fish'
   )),
   goal_value integer NOT NULL DEFAULT 1,
   reward_xp integer DEFAULT 0,

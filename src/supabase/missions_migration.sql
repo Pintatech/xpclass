@@ -27,7 +27,8 @@ CREATE TABLE IF NOT EXISTS public.missions (
     'type_words',           -- Type X words in Word Type
     'match_pairs',          -- Match X pairs in Match Game
     'pronounce_words',      -- Pronounce X words in Say It Right
-    'earn_3_stars'          -- Earn 3 stars in X pet games
+    'earn_3_stars',         -- Earn 3 stars in X pet games
+    'catch_fish'            -- Catch X fish in Fishing Game
   )),
   goal_value integer NOT NULL DEFAULT 1,
   reward_xp integer DEFAULT 0,
