@@ -136,8 +136,9 @@ const PetAstroBlast = ({ petImageUrl, petName, onGameEnd, onClose, shipSkinUrl, 
         // Each word drops from a different horizontal zone
         const zoneWidth = containerW / allWords.length
         const launchX = zoneWidth * i + zoneWidth / 2 + (Math.random() - 0.5) * 20
-        // Slow downward speed
-        const vy = 2.5 + Math.random() * 1.0
+        // Level 5+ gets original speed; lower levels get slower (−0.3 per level below 5, min 1.0)
+        const levelScale = Math.min(currentLevel - 5, 0) * 0.3
+        const vy = 2.5 + levelScale + Math.random() * 1.0
         // Slight horizontal drift
         const vx = (Math.random() - 0.5) * 1.2
 
@@ -183,7 +184,7 @@ const PetAstroBlast = ({ petImageUrl, petName, onGameEnd, onClose, shipSkinUrl, 
         opacity: 1,
       }])
     }
-  }, [wordBankProp])
+  }, [wordBankProp, currentLevel, chestEnabled, asteroidSkinUrls?.length])
 
   // Start game
   const startGame = useCallback(() => {

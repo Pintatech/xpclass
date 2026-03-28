@@ -41,10 +41,10 @@ const pickGameWords = (source, level = 1) => {
 }
 
 const STAR_THRESHOLDS = {
-  1: [15, 20, 25],
-  2: [20, 25, 30],
-  3: [25, 30, 35],
-  4: [30, 35, 40],
+  1: [15, 17, 20],
+  2: [20, 22, 25],
+  3: [23, 25, 28],
+  4: [25, 28, 30],
 }
 
 const PetWordType = ({ petImageUrl, petName, onGameEnd, onClose, wordBank: wordBankProp = [], hideClose = false, scoreToBeat = null, leaderboard = [], chestEnabled = false, pvpOpponentPetUrl = null, initialWords = null, onProgressUpdate = null, opponentProgress = null, isRealtimePvP = false, currentLevel = 1 }) => {

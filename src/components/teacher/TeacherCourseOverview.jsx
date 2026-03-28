@@ -111,7 +111,8 @@ const TeacherCourseOverview = () => {
     if (!modalContentRef.current) return;
     const el = modalContentRef.current;
     // Temporarily expand so full content is captured
-    const origStyles = { maxHeight: el.style.maxHeight, overflow: el.style.overflow, flex: el.style.flex };
+    const origStyles = { height: el.style.height, maxHeight: el.style.maxHeight, overflow: el.style.overflow, flex: el.style.flex };
+    el.style.height = 'auto';
     el.style.maxHeight = 'none';
     el.style.overflow = 'visible';
     el.style.flex = 'none';
@@ -124,7 +125,11 @@ const TeacherCourseOverview = () => {
     try {
       const canvas = await html2canvas(el, { scale: 2, useCORS: true, backgroundColor: '#ffffff' });
       const link = document.createElement('a');
-      link.download = `bao-cao-${lessonModal?.lessonId || 'lesson'}.png`;
+      const _lesson = courseData[lessonModal?.courseId]?.lessons?.find(l => l.id === lessonModal?.lessonId)
+      const _course = courses.find(c => c.id === lessonModal?.courseId)
+      const _className = (_course?.title || 'class').replace(/\s+/g, '-')
+      const _date = _lesson?.session_date || new Date().toISOString().slice(0, 10)
+      link.download = `${_className}-${_date}.png`;
       link.href = canvas.toDataURL('image/png');
       link.click();
     } finally {
@@ -611,8 +616,8 @@ const TeacherCourseOverview = () => {
                   </div>
                   {(lesson.lesson_name || lesson.skill) && (
                     <div className="flex items-center justify-center gap-3 mt-1.5 text-sm">
-                      {lesson.lesson_name && <span className="text-white bg-blue-800 px-2 py-0.5 rounded">{lesson.lesson_name}</span>}
-                      {lesson.skill && <span className="text-xs text-white capitalize bg-blue-800 px-2 py-0.5 rounded">{lesson.skill}</span>}
+                      {lesson.lesson_name && <span className="font-bold text-blue-800">{lesson.lesson_name}</span>}
+                      {lesson.skill && <span className="font-bold text-blue-800 capitalize">{lesson.skill}</span>}
                     </div>
                   )}
                 </div>
