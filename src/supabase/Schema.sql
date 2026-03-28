@@ -2923,6 +2923,45 @@ $$;
 -- (17:10 UTC on 1st = 00:10 on 1st VN time)
 
 -- ============================================================
+-- Student weakness analysis by exercise tags
+-- Returns per-student per-tag accuracy for a given course
+-- ============================================================
+CREATE OR REPLACE FUNCTION get_student_weakness_by_course(p_course_id uuid)
+RETURNS TABLE (
+  user_id uuid,
+  full_name text,
+  avatar_url text,
+  tag text,
+  total_questions bigint,
+  correct bigint,
+  accuracy numeric
+)
+LANGUAGE sql
+SECURITY DEFINER
+SET search_path = public
+AS $$
+  SELECT
+    qa.user_id,
+    u.full_name,
+    u.avatar_url,
+    unnest(e.tags) AS tag,
+    COUNT(*) AS total_questions,
+    COUNT(*) FILTER (WHERE qa.is_correct) AS correct,
+    ROUND(100.0 * COUNT(*) FILTER (WHERE qa.is_correct) / COUNT(*)) AS accuracy
+  FROM question_attempts qa
+  JOIN exercises e ON e.id = qa.exercise_id
+  JOIN exercise_assignments ea ON ea.exercise_id = e.id
+  JOIN sessions s ON s.id = ea.session_id
+  JOIN units un ON un.id = s.unit_id
+  JOIN users u ON u.id = qa.user_id AND u.role = 'user'
+  WHERE un.course_id = p_course_id
+    AND e.tags IS NOT NULL
+    AND array_length(e.tags, 1) > 0
+  GROUP BY qa.user_id, u.full_name, u.avatar_url, unnest(e.tags)
+  ORDER BY qa.user_id, accuracy ASC;
+$$;
+
+-- ============================================================
 -- AVATAR UPLOADS - User-submitted avatars with admin approval
 -- ============================================================
 CREATE TABLE IF NOT EXISTS avatar_uploads (

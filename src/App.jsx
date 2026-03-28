@@ -30,6 +30,7 @@ import { MissionsProvider } from './hooks/useMissions'
 import MissionBoard from './components/missions/MissionBoard'
 import LiveBattlePage from './components/livebattle/LiveBattlePage'
 import UnitReportPage from './components/teacher/reports/UnitReportPage'
+import WeaknessAnalysis from './components/teacher/WeaknessAnalysis'
 
 
 function App() {
@@ -72,6 +73,7 @@ function App() {
                 <Route path="teacher/live-battle/:courseId" element={<LiveBattlePage />} />
                 <Route path="teacher/course-report/:courseId" element={<CourseReport />} />
                 <Route path="teacher/unit-report/:courseId" element={<UnitReportPage />} />
+                <Route path="teacher/weakness-analysis" element={<WeaknessAnalysis />} />
                 <Route path="teacher/class-reports" element={
                   <TeacherCourseProvider>
                     <TeacherClassReports />

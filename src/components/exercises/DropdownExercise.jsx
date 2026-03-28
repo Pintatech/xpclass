@@ -91,6 +91,7 @@ const DropdownExercise = ({ testMode = false, exerciseData = null, onAnswersColl
   const [challengeStartTime, setChallengeStartTime] = useState(null)
   const shuffledOptionsRef = useRef({})
   const [teacherMode, setTeacherMode] = useState('review') // 'review' or 'do'
+  const [attemptNumber, setAttemptNumber] = useState(1)
 
   const questions = exercise?.content?.questions || []
   const currentQuestion = questions[currentQuestionIndex]
@@ -181,6 +182,28 @@ const DropdownExercise = ({ testMode = false, exerciseData = null, onAnswersColl
 
     initExercise()
   }, [user])
+
+  // Fetch max attempt number for question_attempts tracking
+  useEffect(() => {
+    const fetchMaxAttemptNumber = async () => {
+      if (!exerciseId || !user) return
+      try {
+        const { data } = await supabase
+          .from('question_attempts')
+          .select('attempt_number')
+          .eq('user_id', user.id)
+          .eq('exercise_id', exerciseId)
+          .order('attempt_number', { ascending: false })
+          .limit(1)
+        if (data && data.length > 0) {
+          setAttemptNumber(data[0].attempt_number + 1)
+        }
+      } catch (err) {
+        console.log('Could not fetch attempt number:', err.message)
+      }
+    }
+    fetchMaxAttemptNumber()
+  }, [exerciseId, user])
 
   useEffect(() => {
     // Initialize user answers when questions change
@@ -288,6 +311,31 @@ const DropdownExercise = ({ testMode = false, exerciseData = null, onAnswersColl
     ).length
     const questionScore = (correctAnswers / currentQuestion.dropdowns.length) * 100
     setScore(questionScore)
+
+    // Save question attempt
+    if (user && exerciseId) {
+      try {
+        const selectedAnswers = currentQuestion.dropdowns.map((_, i) =>
+          (userAnswers[currentQuestionIndex]?.[i] || '').trim()
+        ).join(', ')
+        const correctAnswersList = currentQuestion.dropdowns.map(d =>
+          (d.correct_answer || '').trim()
+        ).join(', ')
+
+        supabase.from('question_attempts').insert({
+          user_id: user.id,
+          exercise_id: exerciseId,
+          exercise_type: 'dropdown',
+          question_id: currentQuestion.id || `q${currentQuestionIndex}`,
+          selected_answer: selectedAnswers,
+          correct_answer: correctAnswersList,
+          is_correct: questionScore === 100,
+          attempt_number: attemptNumber,
+        }).then(() => {})
+      } catch (err) {
+        console.log('Could not save question attempt:', err.message)
+      }
+    }
   }
 
   const handleRecheck = () => {

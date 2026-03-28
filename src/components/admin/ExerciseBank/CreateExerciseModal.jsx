@@ -1,6 +1,7 @@
 import React, { useState } from 'react'
 import { supabase } from '../../../supabase/client'
-import { X, BookOpen, Edit3, Mic, HelpCircle, Tag, Copy, Brain, ChevronDown, Image, FileText, Video } from 'lucide-react'
+import { X, BookOpen, Edit3, Mic, HelpCircle, Tag, Copy, Brain, ChevronDown, Image, FileText, Video, Plus } from 'lucide-react'
+import { EXERCISE_CATEGORIES, EXERCISE_TAGS, ALL_TAGS } from '../../../constants/exerciseTags'
 import FlashcardEditor from '../editors/FlashcardEditor'
 import MultipleChoiceEditor from '../editors/MultipleChoiceEditor'
 import FillBlankEditor from '../editors/FillBlankEditor'
@@ -28,7 +29,6 @@ const CreateExerciseModal = ({ folders, selectedFolder, onClose, onCreated, allo
   })
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
-  const [tagInput, setTagInput] = useState('')
 
   const allExerciseTypes = [
     { value: 'flashcard', label: 'Flashcard', icon: BookOpen },
@@ -63,8 +63,8 @@ const CreateExerciseModal = ({ folders, selectedFolder, onClose, onCreated, allo
           difficulty_level: 1,
           xp_reward: formData.xp_reward,
           score_boost: formData.score_boost || 0,
-          category: null,
-          tags: null,
+          category: formData.category || null,
+          tags: formData.tags.length > 0 ? formData.tags : null,
           estimated_duration: 5,
           is_in_bank: true,
           is_active: true,
@@ -97,29 +97,18 @@ const CreateExerciseModal = ({ folders, selectedFolder, onClose, onCreated, allo
     }))
   }
 
-  const addTag = () => {
-    if (tagInput.trim() && !formData.tags.includes(tagInput.trim())) {
-      setFormData(prev => ({
-        ...prev,
-        tags: [...prev.tags, tagInput.trim()]
-      }))
-      setTagInput('')
-    }
-  }
-
-  const removeTag = (index) => {
+  const toggleTag = (tag) => {
     setFormData(prev => ({
       ...prev,
-      tags: prev.tags.filter((_, i) => i !== index)
+      tags: prev.tags.includes(tag)
+        ? prev.tags.filter(t => t !== tag)
+        : [...prev.tags, tag]
     }))
   }
 
-  const handleTagKeyPress = (e) => {
-    if (e.key === 'Enter') {
-      e.preventDefault()
-      addTag()
-    }
-  }
+  const availableTags = formData.category
+    ? (EXERCISE_TAGS[formData.category] || [])
+    : ALL_TAGS
 
   // Build folder options
   const buildFolderOptions = (folders, parentId = null, level = 0) => {
@@ -234,6 +223,42 @@ const CreateExerciseModal = ({ folders, selectedFolder, onClose, onCreated, allo
                 <option value={15}>Lenient (+15) - Young learners</option>
                 <option value={25}>Very Lenient (+25) - Kindergarten</option>
               </select>
+            </div>
+          </div>
+
+          {/* Category & Tags */}
+          <div className="space-y-3">
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                <Tag className="w-4 h-4 inline mr-1" />
+                Category & Tags
+              </label>
+              <select
+                value={formData.category}
+                onChange={(e) => handleChange('category', e.target.value)}
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+              >
+                <option value="">All categories</option>
+                {EXERCISE_CATEGORIES.map(cat => (
+                  <option key={cat.value} value={cat.value}>{cat.label}</option>
+                ))}
+              </select>
+            </div>
+            <div className="flex flex-wrap gap-1.5">
+              {availableTags.map(tag => (
+                <button
+                  key={tag}
+                  type="button"
+                  onClick={() => toggleTag(tag)}
+                  className={`px-2.5 py-1 text-xs rounded-full border transition-colors ${
+                    formData.tags.includes(tag)
+                      ? 'bg-blue-100 border-blue-300 text-blue-700'
+                      : 'bg-gray-50 border-gray-200 text-gray-600 hover:bg-gray-100'
+                  }`}
+                >
+                  {formData.tags.includes(tag) && '✓ '}{tag}
+                </button>
+              ))}
             </div>
           </div>
 

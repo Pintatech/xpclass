@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react'
 import { supabase } from '../../../supabase/client'
-import { X, Save, AlertCircle } from 'lucide-react'
+import { X, Save, AlertCircle, Tag } from 'lucide-react'
+import { EXERCISE_CATEGORIES, EXERCISE_TAGS, ALL_TAGS } from '../../../constants/exerciseTags'
 import FlashcardEditor from '../editors/FlashcardEditor'
 import MultipleChoiceEditor from '../editors/MultipleChoiceEditor'
 import FillBlankEditor from '../editors/FillBlankEditor'
@@ -23,6 +24,7 @@ const EditExerciseModal = ({ isOpen, onClose, exercise, onUpdate }) => {
     score_boost: 0,
     estimated_duration: 5,
     tags: [],
+    category: '',
     folder_id: null
   })
   const [content, setContent] = useState({})
@@ -42,6 +44,7 @@ const EditExerciseModal = ({ isOpen, onClose, exercise, onUpdate }) => {
         score_boost: exercise.score_boost || 0,
         estimated_duration: exercise.estimated_duration || 5,
         tags: exercise.tags || [],
+        category: exercise.category || '',
         folder_id: exercise.folder_id || null
       })
       setContent(exercise.content || {})
@@ -105,7 +108,8 @@ const EditExerciseModal = ({ isOpen, onClose, exercise, onUpdate }) => {
           xp_reward: formData.xp_reward,
           score_boost: formData.score_boost || 0,
           estimated_duration: 5,
-          tags: [],
+          category: formData.category || null,
+          tags: formData.tags.length > 0 ? formData.tags : null,
           folder_id: formData.folder_id,
           content: content,
           updated_at: new Date().toISOString()
@@ -129,14 +133,18 @@ const EditExerciseModal = ({ isOpen, onClose, exercise, onUpdate }) => {
     }
   }
 
-  const handleTagChange = (e) => {
-    const value = e.target.value
-    const tags = value.split(',').map(tag => tag.trim()).filter(tag => tag)
+  const toggleTag = (tag) => {
     setFormData(prev => ({
       ...prev,
-      tags
+      tags: prev.tags.includes(tag)
+        ? prev.tags.filter(t => t !== tag)
+        : [...prev.tags, tag]
     }))
   }
+
+  const availableTags = formData.category
+    ? (EXERCISE_TAGS[formData.category] || [])
+    : ALL_TAGS
 
   const renderContentEditor = () => {
     switch (formData.exercise_type) {
@@ -375,6 +383,42 @@ const EditExerciseModal = ({ isOpen, onClose, exercise, onUpdate }) => {
                   <option value={15}>Lenient (+15) - Young learners</option>
                   <option value={25}>Very Lenient (+25) - Kindergarten</option>
                 </select>
+              </div>
+            </div>
+
+            {/* Category & Tags */}
+            <div className="mb-6 space-y-3">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  <Tag className="w-4 h-4 inline mr-1" />
+                  Category & Tags
+                </label>
+                <select
+                  value={formData.category}
+                  onChange={(e) => handleInputChange('category', e.target.value)}
+                  className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                >
+                  <option value="">All categories</option>
+                  {EXERCISE_CATEGORIES.map(cat => (
+                    <option key={cat.value} value={cat.value}>{cat.label}</option>
+                  ))}
+                </select>
+              </div>
+              <div className="flex flex-wrap gap-1.5">
+                {availableTags.map(tag => (
+                  <button
+                    key={tag}
+                    type="button"
+                    onClick={() => toggleTag(tag)}
+                    className={`px-2.5 py-1 text-xs rounded-full border transition-colors ${
+                      formData.tags.includes(tag)
+                        ? 'bg-blue-100 border-blue-300 text-blue-700'
+                        : 'bg-gray-50 border-gray-200 text-gray-600 hover:bg-gray-100'
+                    }`}
+                  >
+                    {formData.tags.includes(tag) && '✓ '}{tag}
+                  </button>
+                ))}
               </div>
             </div>
 

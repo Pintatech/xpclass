@@ -16,7 +16,8 @@ import {
   Eye,
   BarChart3,
   FileText,
-  Video
+  Video,
+  TrendingDown
 } from 'lucide-react';
 import VideoSubmissionReview from './VideoSubmissionReview';
 
@@ -356,6 +357,17 @@ const TeacherDashboard = () => {
               <h3 className="font-semibold text-gray-800">Exercise Bank</h3>
             </div>
             <p className="text-sm text-gray-600">Browse and preview all exercises</p>
+          </div>
+
+          <div
+            onClick={() => navigate('/teacher/weakness-analysis')}
+            className="bg-gradient-to-br from-red-50 to-orange-100 p-6 rounded-lg shadow-sm hover:shadow-md cursor-pointer transition-all border border-red-200"
+          >
+            <div className="flex items-center space-x-3 mb-2">
+              <TrendingDown className="w-8 h-8 text-red-600" />
+              <h3 className="font-semibold text-gray-800">Weakness Analysis</h3>
+            </div>
+            <p className="text-sm text-gray-600">Per-student accuracy breakdown by skill tag</p>
           </div>
         </div>
 
