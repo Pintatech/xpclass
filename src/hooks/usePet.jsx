@@ -474,15 +474,17 @@ export const PetProvider = ({ children }) => {
     return () => window.removeEventListener('pet-encounter', handleEncounter)
   }, [])
 
-  const renamePet = async (newNickname) => {
-    if (!activePet) return
+  const renamePet = async (newNickname, petId) => {
+    const targetId = petId || activePet?.id
+    if (!targetId) return
     try {
       const { error } = await supabase
         .from('user_pets')
         .update({ nickname: newNickname.trim() || null })
-        .eq('id', activePet.id)
+        .eq('id', targetId)
       if (error) throw error
       await fetchActivePet()
+      await fetchUserPets()
     } catch (error) {
       console.error('Error renaming pet:', error)
       throw error

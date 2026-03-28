@@ -146,9 +146,11 @@ const PetWhackMole = ({ petImageUrl, petName, onGameEnd, onClose, hammerSkinUrl,
       }
     }
 
-    // Auto-hide moles after a delay (slower if power-up active)
+    // Auto-hide moles after a delay (slower if power-up active, longer at lower levels)
     const slowMul = activePowerupRef.current?.type === 'slow' ? 2.5 : 1
-    const showTime = (MOLE_SHOW_MIN + Math.random() * (MOLE_SHOW_MAX - MOLE_SHOW_MIN)) * slowMul
+    // Level 4 = original speed; each level below adds 20% more show time
+    const levelMul = 1 + (4 - Math.min(currentLevel, 4)) * 0.2
+    const showTime = (MOLE_SHOW_MIN + Math.random() * (MOLE_SHOW_MAX - MOLE_SHOW_MIN)) * slowMul * levelMul + 1000
     const hideTimer = setTimeout(() => {
       // If chest mole is still visible and not hit, chest is lost
       setHoles(prev => {
@@ -184,7 +186,7 @@ const PetWhackMole = ({ petImageUrl, petName, onGameEnd, onClose, hammerSkinUrl,
       moleTimersRef.current.push(removeTimer)
     }, showTime)
     moleTimersRef.current.push(hideTimer)
-  }, [])
+  }, [currentLevel, chestEnabled, wordBankProp])
 
   const startGame = useCallback(() => {
     scoreRef.current = 0

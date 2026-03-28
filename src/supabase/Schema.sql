@@ -2676,9 +2676,9 @@ $$;
 -- (17:05 UTC = 00:05 Monday VN time)
 
 -- ============================================================
--- Award weekly XP champion (cron: every Monday 00:10 VN time)
--- Finds the user who earned the most XP last week (exercises + chests)
--- and awards them the achievement reward from 'weekly_xp_leader'
+-- Award weekly XP top 3 (cron: every Monday 00:10 VN time)
+-- Finds the top 3 users who earned the most XP last week (exercises + chests)
+-- and awards them achievement rewards from 'weekly_xp_leader', 'weekly_xp_leader_2', 'weekly_xp_leader_3'
 -- ============================================================
 CREATE OR REPLACE FUNCTION award_weekly_xp_champion()
 RETURNS json
@@ -2689,101 +2689,107 @@ AS $$
 DECLARE
   week_start timestamptz;
   week_end timestamptz;
-  champion_id uuid;
-  champion_xp integer;
-  ach_id uuid;
-  ach_xp integer;
-  ach_gems integer;
+  rec RECORD;
+  ach RECORD;
+  rank_labels text[] := ARRAY['weekly_xp_leader', 'weekly_xp_leader_2', 'weekly_xp_leader_3'];
+  rank_titles text[] := ARRAY['Vô địch XP tuần!', 'Top 2 XP tuần!', 'Top 3 XP tuần!'];
+  rank_messages text[] := ARRAY['Bạn đạt nhiều XP nhất tuần', 'Bạn đạt Top 2 XP tuần', 'Bạn đạt Top 3 XP tuần'];
+  awarded json[] := ARRAY[]::json[];
+  cur_rank integer := 0;
 BEGIN
   -- Last week boundaries (Vietnam time)
   week_end := (date_trunc('day', NOW() AT TIME ZONE 'Asia/Ho_Chi_Minh') AT TIME ZONE 'Asia/Ho_Chi_Minh');
   week_start := week_end - INTERVAL '7 days';
 
-  -- Get achievement rewards
-  SELECT id, COALESCE(xp_reward, 0), COALESCE(gem_reward, 0)
-  INTO ach_id, ach_xp, ach_gems
-  FROM achievements
-  WHERE criteria_type = 'weekly_xp_leader' AND is_active = true
-  LIMIT 1;
-
-  IF ach_id IS NULL THEN
-    RETURN json_build_object('status', 'no_achievement_configured');
-  END IF;
-
-  -- Check if already awarded for this week
+  -- Check if already awarded for this week (check rank 1 achievement)
   IF EXISTS(
-    SELECT 1 FROM user_achievements
-    WHERE achievement_id = ach_id
-      AND earned_at >= week_end AND earned_at < week_end + INTERVAL '1 day'
+    SELECT 1 FROM user_achievements ua
+    JOIN achievements a ON a.id = ua.achievement_id
+    WHERE a.criteria_type = 'weekly_xp_leader' AND a.is_active = true
+      AND ua.earned_at >= week_end AND ua.earned_at < week_end + INTERVAL '1 day'
   ) THEN
     RETURN json_build_object('status', 'already_awarded', 'week_start', week_start);
   END IF;
 
-  -- Calculate XP from exercises (with score bonuses) + chest rewards
-  WITH exercise_xp AS (
-    SELECT up.user_id,
-      SUM(
-        CASE
-          WHEN up.max_score > 0 AND (up.score::float / up.max_score) >= 0.95 THEN ROUND(COALESCE(e.xp_reward, 10) * 1.5)
-          WHEN up.max_score > 0 AND (up.score::float / up.max_score) >= 0.90 THEN ROUND(COALESCE(e.xp_reward, 10) * 1.3)
-          ELSE COALESCE(e.xp_reward, 10)
-        END
-      ) AS total_xp
-    FROM user_progress up
-    LEFT JOIN exercises e ON e.id = up.exercise_id
-    WHERE up.status = 'completed'
-      AND up.completed_at >= week_start
-      AND up.completed_at < week_end
-    GROUP BY up.user_id
-  ),
-  chest_xp AS (
-    SELECT user_id, SUM(xp_awarded) AS total_xp
-    FROM session_reward_claims
-    WHERE xp_awarded > 0
-      AND claimed_at >= week_start
-      AND claimed_at < week_end
-    GROUP BY user_id
-  ),
-  combined AS (
-    SELECT COALESCE(ex.user_id, ch.user_id) AS user_id,
-           COALESCE(ex.total_xp, 0) + COALESCE(ch.total_xp, 0) AS total_xp
-    FROM exercise_xp ex
-    FULL OUTER JOIN chest_xp ch ON ex.user_id = ch.user_id
-  )
-  SELECT c.user_id, c.total_xp
-  INTO champion_id, champion_xp
-  FROM combined c
-  JOIN users u ON u.id = c.user_id AND u.role = 'user'
-  ORDER BY c.total_xp DESC
-  LIMIT 1;
+  -- Calculate XP from exercises (with score bonuses) + chest rewards, get top 3
+  FOR rec IN
+    WITH exercise_xp AS (
+      SELECT up.user_id,
+        SUM(
+          CASE
+            WHEN up.max_score > 0 AND (up.score::float / up.max_score) >= 0.95 THEN ROUND(COALESCE(e.xp_reward, 10) * 1.5)
+            WHEN up.max_score > 0 AND (up.score::float / up.max_score) >= 0.90 THEN ROUND(COALESCE(e.xp_reward, 10) * 1.3)
+            ELSE COALESCE(e.xp_reward, 10)
+          END
+        ) AS total_xp
+      FROM user_progress up
+      LEFT JOIN exercises e ON e.id = up.exercise_id
+      WHERE up.status = 'completed'
+        AND up.completed_at >= week_start
+        AND up.completed_at < week_end
+      GROUP BY up.user_id
+    ),
+    chest_xp AS (
+      SELECT user_id, SUM(xp_awarded) AS total_xp
+      FROM session_reward_claims
+      WHERE xp_awarded > 0
+        AND claimed_at >= week_start
+        AND claimed_at < week_end
+      GROUP BY user_id
+    ),
+    combined AS (
+      SELECT COALESCE(ex.user_id, ch.user_id) AS user_id,
+             COALESCE(ex.total_xp, 0) + COALESCE(ch.total_xp, 0) AS total_xp
+      FROM exercise_xp ex
+      FULL OUTER JOIN chest_xp ch ON ex.user_id = ch.user_id
+    )
+    SELECT c.user_id, c.total_xp
+    FROM combined c
+    JOIN users u ON u.id = c.user_id AND u.role = 'user'
+    ORDER BY c.total_xp DESC
+    LIMIT 3
+  LOOP
+    cur_rank := cur_rank + 1;
 
-  IF champion_id IS NULL THEN
+    -- Get achievement for this rank
+    SELECT id, COALESCE(xp_reward, 0) AS xp_reward, COALESCE(gem_reward, 0) AS gem_reward
+    INTO ach
+    FROM achievements
+    WHERE criteria_type = rank_labels[cur_rank] AND is_active = true
+    LIMIT 1;
+
+    -- Skip if no achievement configured for this rank
+    IF ach.id IS NULL THEN
+      CONTINUE;
+    END IF;
+
+    -- Record achievement
+    INSERT INTO user_achievements (user_id, achievement_id, earned_at, claimed_at, xp_claimed)
+    VALUES (rec.user_id, ach.id, NOW(), NOW(), ach.xp_reward);
+
+    -- Award XP and gems
+    UPDATE users
+    SET xp = xp + ach.xp_reward,
+        gems = gems + ach.gem_reward,
+        updated_at = NOW()
+    WHERE id = rec.user_id;
+
+    -- Notify winner
+    INSERT INTO notifications (user_id, type, title, message, icon, data)
+    VALUES (rec.user_id, 'competition_winner', rank_titles[cur_rank],
+      'Chúc mừng! ' || rank_messages[cur_rank] || ' (' || rec.total_xp || ' XP). +' || ach.xp_reward || ' XP, +' || ach.gem_reward || ' gems',
+      'Trophy', json_build_object('competition', 'weekly_xp', 'weekly_xp', rec.total_xp, 'xp_awarded', ach.xp_reward, 'gems_awarded', ach.gem_reward, 'rank', cur_rank)::jsonb);
+
+    awarded := awarded || json_build_object('rank', cur_rank, 'user_id', rec.user_id, 'weekly_xp', rec.total_xp, 'xp_awarded', ach.xp_reward, 'gems_awarded', ach.gem_reward);
+  END LOOP;
+
+  IF cur_rank = 0 THEN
     RETURN json_build_object('status', 'no_activity', 'week_start', week_start);
   END IF;
 
-  -- Record achievement
-  INSERT INTO user_achievements (user_id, achievement_id, earned_at, claimed_at, xp_claimed)
-  VALUES (champion_id, ach_id, NOW(), NOW(), ach_xp);
-
-  -- Award XP and gems
-  UPDATE users
-  SET xp = xp + ach_xp,
-      gems = gems + ach_gems,
-      updated_at = NOW()
-  WHERE id = champion_id;
-
-  -- Notify champion
-  INSERT INTO notifications (user_id, type, title, message, icon, data)
-  VALUES (champion_id, 'competition_winner', 'Vô địch XP tuần!',
-    'Chúc mừng! Bạn đạt nhiều XP nhất tuần (' || champion_xp || ' XP). +' || ach_xp || ' XP, +' || ach_gems || ' gems',
-    'Trophy', json_build_object('competition', 'weekly_xp', 'weekly_xp', champion_xp, 'xp_awarded', ach_xp, 'gems_awarded', ach_gems)::jsonb);
-
   RETURN json_build_object(
     'status', 'awarded',
-    'user_id', champion_id,
-    'weekly_xp', champion_xp,
-    'xp_awarded', ach_xp,
-    'gems_awarded', ach_gems,
+    'winners', array_to_json(awarded),
     'week_start', week_start,
     'week_end', week_end
   );
@@ -2794,8 +2800,8 @@ $$;
 -- (17:10 UTC = 00:10 Monday VN time)
 
 -- ============================================================
--- Award monthly XP champion (cron: 1st of each month 00:10 VN time)
--- Same logic but for the previous month
+-- Award monthly XP top 3 (cron: 1st of each month 00:10 VN time)
+-- Same logic but for the previous month, awards top 3
 -- ============================================================
 CREATE OR REPLACE FUNCTION award_monthly_xp_champion()
 RETURNS json
@@ -2806,101 +2812,107 @@ AS $$
 DECLARE
   month_start timestamptz;
   month_end timestamptz;
-  champion_id uuid;
-  champion_xp integer;
-  ach_id uuid;
-  ach_xp integer;
-  ach_gems integer;
+  rec RECORD;
+  ach RECORD;
+  rank_labels text[] := ARRAY['monthly_xp_leader', 'monthly_xp_leader_2', 'monthly_xp_leader_3'];
+  rank_titles text[] := ARRAY['Vô địch XP tháng!', 'Top 2 XP tháng!', 'Top 3 XP tháng!'];
+  rank_messages text[] := ARRAY['Bạn đạt nhiều XP nhất tháng', 'Bạn đạt Top 2 XP tháng', 'Bạn đạt Top 3 XP tháng'];
+  awarded json[] := ARRAY[]::json[];
+  cur_rank integer := 0;
 BEGIN
   -- Last month boundaries (Vietnam time)
   month_end := (date_trunc('month', NOW() AT TIME ZONE 'Asia/Ho_Chi_Minh') AT TIME ZONE 'Asia/Ho_Chi_Minh');
   month_start := (date_trunc('month', NOW() AT TIME ZONE 'Asia/Ho_Chi_Minh') - INTERVAL '1 month') AT TIME ZONE 'Asia/Ho_Chi_Minh';
 
-  -- Get achievement rewards
-  SELECT id, COALESCE(xp_reward, 0), COALESCE(gem_reward, 0)
-  INTO ach_id, ach_xp, ach_gems
-  FROM achievements
-  WHERE criteria_type = 'monthly_xp_leader' AND is_active = true
-  LIMIT 1;
-
-  IF ach_id IS NULL THEN
-    RETURN json_build_object('status', 'no_achievement_configured');
-  END IF;
-
-  -- Check if already awarded for this month
+  -- Check if already awarded for this month (check rank 1 achievement)
   IF EXISTS(
-    SELECT 1 FROM user_achievements
-    WHERE achievement_id = ach_id
-      AND earned_at >= month_start AND earned_at < month_end + INTERVAL '1 day'
+    SELECT 1 FROM user_achievements ua
+    JOIN achievements a ON a.id = ua.achievement_id
+    WHERE a.criteria_type = 'monthly_xp_leader' AND a.is_active = true
+      AND ua.earned_at >= month_start AND ua.earned_at < month_end + INTERVAL '1 day'
   ) THEN
     RETURN json_build_object('status', 'already_awarded', 'month_start', month_start);
   END IF;
 
-  -- Calculate XP from exercises (with score bonuses) + chest rewards
-  WITH exercise_xp AS (
-    SELECT up.user_id,
-      SUM(
-        CASE
-          WHEN up.max_score > 0 AND (up.score::float / up.max_score) >= 0.95 THEN ROUND(COALESCE(e.xp_reward, 10) * 1.5)
-          WHEN up.max_score > 0 AND (up.score::float / up.max_score) >= 0.90 THEN ROUND(COALESCE(e.xp_reward, 10) * 1.3)
-          ELSE COALESCE(e.xp_reward, 10)
-        END
-      ) AS total_xp
-    FROM user_progress up
-    LEFT JOIN exercises e ON e.id = up.exercise_id
-    WHERE up.status = 'completed'
-      AND up.completed_at >= month_start
-      AND up.completed_at < month_end
-    GROUP BY up.user_id
-  ),
-  chest_xp AS (
-    SELECT user_id, SUM(xp_awarded) AS total_xp
-    FROM session_reward_claims
-    WHERE xp_awarded > 0
-      AND claimed_at >= month_start
-      AND claimed_at < month_end
-    GROUP BY user_id
-  ),
-  combined AS (
-    SELECT COALESCE(ex.user_id, ch.user_id) AS user_id,
-           COALESCE(ex.total_xp, 0) + COALESCE(ch.total_xp, 0) AS total_xp
-    FROM exercise_xp ex
-    FULL OUTER JOIN chest_xp ch ON ex.user_id = ch.user_id
-  )
-  SELECT c.user_id, c.total_xp
-  INTO champion_id, champion_xp
-  FROM combined c
-  JOIN users u ON u.id = c.user_id AND u.role = 'user'
-  ORDER BY c.total_xp DESC
-  LIMIT 1;
+  -- Calculate XP from exercises (with score bonuses) + chest rewards, get top 3
+  FOR rec IN
+    WITH exercise_xp AS (
+      SELECT up.user_id,
+        SUM(
+          CASE
+            WHEN up.max_score > 0 AND (up.score::float / up.max_score) >= 0.95 THEN ROUND(COALESCE(e.xp_reward, 10) * 1.5)
+            WHEN up.max_score > 0 AND (up.score::float / up.max_score) >= 0.90 THEN ROUND(COALESCE(e.xp_reward, 10) * 1.3)
+            ELSE COALESCE(e.xp_reward, 10)
+          END
+        ) AS total_xp
+      FROM user_progress up
+      LEFT JOIN exercises e ON e.id = up.exercise_id
+      WHERE up.status = 'completed'
+        AND up.completed_at >= month_start
+        AND up.completed_at < month_end
+      GROUP BY up.user_id
+    ),
+    chest_xp AS (
+      SELECT user_id, SUM(xp_awarded) AS total_xp
+      FROM session_reward_claims
+      WHERE xp_awarded > 0
+        AND claimed_at >= month_start
+        AND claimed_at < month_end
+      GROUP BY user_id
+    ),
+    combined AS (
+      SELECT COALESCE(ex.user_id, ch.user_id) AS user_id,
+             COALESCE(ex.total_xp, 0) + COALESCE(ch.total_xp, 0) AS total_xp
+      FROM exercise_xp ex
+      FULL OUTER JOIN chest_xp ch ON ex.user_id = ch.user_id
+    )
+    SELECT c.user_id, c.total_xp
+    FROM combined c
+    JOIN users u ON u.id = c.user_id AND u.role = 'user'
+    ORDER BY c.total_xp DESC
+    LIMIT 3
+  LOOP
+    cur_rank := cur_rank + 1;
 
-  IF champion_id IS NULL THEN
+    -- Get achievement for this rank
+    SELECT id, COALESCE(xp_reward, 0) AS xp_reward, COALESCE(gem_reward, 0) AS gem_reward
+    INTO ach
+    FROM achievements
+    WHERE criteria_type = rank_labels[cur_rank] AND is_active = true
+    LIMIT 1;
+
+    -- Skip if no achievement configured for this rank
+    IF ach.id IS NULL THEN
+      CONTINUE;
+    END IF;
+
+    -- Record achievement
+    INSERT INTO user_achievements (user_id, achievement_id, earned_at, claimed_at, xp_claimed)
+    VALUES (rec.user_id, ach.id, NOW(), NOW(), ach.xp_reward);
+
+    -- Award XP and gems
+    UPDATE users
+    SET xp = xp + ach.xp_reward,
+        gems = gems + ach.gem_reward,
+        updated_at = NOW()
+    WHERE id = rec.user_id;
+
+    -- Notify winner
+    INSERT INTO notifications (user_id, type, title, message, icon, data)
+    VALUES (rec.user_id, 'competition_winner', rank_titles[cur_rank],
+      'Chúc mừng! ' || rank_messages[cur_rank] || ' (' || rec.total_xp || ' XP). +' || ach.xp_reward || ' XP, +' || ach.gem_reward || ' gems',
+      'Crown', json_build_object('competition', 'monthly_xp', 'monthly_xp', rec.total_xp, 'xp_awarded', ach.xp_reward, 'gems_awarded', ach.gem_reward, 'rank', cur_rank)::jsonb);
+
+    awarded := awarded || json_build_object('rank', cur_rank, 'user_id', rec.user_id, 'monthly_xp', rec.total_xp, 'xp_awarded', ach.xp_reward, 'gems_awarded', ach.gem_reward);
+  END LOOP;
+
+  IF cur_rank = 0 THEN
     RETURN json_build_object('status', 'no_activity', 'month_start', month_start);
   END IF;
 
-  -- Record achievement
-  INSERT INTO user_achievements (user_id, achievement_id, earned_at, claimed_at, xp_claimed)
-  VALUES (champion_id, ach_id, NOW(), NOW(), ach_xp);
-
-  -- Award XP and gems
-  UPDATE users
-  SET xp = xp + ach_xp,
-      gems = gems + ach_gems,
-      updated_at = NOW()
-  WHERE id = champion_id;
-
-  -- Notify champion
-  INSERT INTO notifications (user_id, type, title, message, icon, data)
-  VALUES (champion_id, 'competition_winner', 'Vô địch XP tháng!',
-    'Chúc mừng! Bạn đạt nhiều XP nhất tháng (' || champion_xp || ' XP). +' || ach_xp || ' XP, +' || ach_gems || ' gems',
-    'Crown', json_build_object('competition', 'monthly_xp', 'monthly_xp', champion_xp, 'xp_awarded', ach_xp, 'gems_awarded', ach_gems)::jsonb);
-
   RETURN json_build_object(
     'status', 'awarded',
-    'user_id', champion_id,
-    'monthly_xp', champion_xp,
-    'xp_awarded', ach_xp,
-    'gems_awarded', ach_gems,
+    'winners', array_to_json(awarded),
     'month_start', month_start,
     'month_end', month_end
   );

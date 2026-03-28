@@ -565,7 +565,8 @@ const PetInventory = () => {
               {isRenaming ? (
                 <form className="flex items-center gap-2 flex-1" onSubmit={async (e) => {
                   e.preventDefault()
-                  await renamePet(nicknameInput)
+                  await renamePet(nicknameInput, selectedPet.id)
+                  setSelectedPet(prev => ({ ...prev, nickname: nicknameInput.trim() || null }))
                   setIsRenaming(false)
                 }}>
                   <input

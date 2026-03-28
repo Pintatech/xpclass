@@ -1051,6 +1051,7 @@ const UnitList = () => {
 
               // Apply teacher filter — also show shared units that contain matching personal sessions
               const filteredUnits = units.filter(u => {
+                if (profile?.role === 'user') return true;
                 if (personalFilter === 'all') return true;
                 if (personalFilter === 'shared') return !u.assigned_student_id;
                 // For 'personal' or specific student: show unit if the unit itself matches OR it contains matching sessions

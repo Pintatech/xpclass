@@ -67,8 +67,12 @@ const AchievementManagement = () => {
     { value: 'pronunciation_completed', label: 'Bài phát âm hoàn thành' },
     { value: 'vocabulary_learned', label: 'Từ vựng đã học' },
     { value: 'level_completed', label: 'Level hoàn thành' },
-    { value: 'weekly_xp_leader', label: 'Nhà vô địch XP tuần (tự động)' },
-    { value: 'monthly_xp_leader', label: 'Nhà vô địch XP tháng (tự động)' }
+    { value: 'weekly_xp_leader', label: 'Top 1 XP tuần (tự động)' },
+    { value: 'weekly_xp_leader_2', label: 'Top 2 XP tuần (tự động)' },
+    { value: 'weekly_xp_leader_3', label: 'Top 3 XP tuần (tự động)' },
+    { value: 'monthly_xp_leader', label: 'Top 1 XP tháng (tự động)' },
+    { value: 'monthly_xp_leader_2', label: 'Top 2 XP tháng (tự động)' },
+    { value: 'monthly_xp_leader_3', label: 'Top 3 XP tháng (tự động)' }
   ]
 
   const badgeColors = [

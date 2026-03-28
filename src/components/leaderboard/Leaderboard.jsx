@@ -31,8 +31,8 @@ const Leaderboard = () => {
   const [error, setError] = useState(null)
   const [showBadgeInfo, setShowBadgeInfo] = useState(null)
   const [countdownText, setCountdownText] = useState('')
-  const [weeklyChampionReward, setWeeklyChampionReward] = useState(null)
-  const [monthlyChampionReward, setMonthlyChampionReward] = useState(null)
+  const [weeklyChampionRewards, setWeeklyChampionRewards] = useState([]) // top 1/2/3
+  const [monthlyChampionRewards, setMonthlyChampionRewards] = useState([]) // top 1/2/3
   const [previousChampions, setPreviousChampions] = useState([])
   const [trainingData, setTrainingData] = useState([])
   const [trainingLoading, setTrainingLoading] = useState(false)
@@ -224,13 +224,26 @@ const Leaderboard = () => {
       const { data: achievements } = await supabase
         .from('achievements')
         .select('id, xp_reward, gem_reward, title, criteria_type')
-        .in('criteria_type', ['weekly_xp_leader', 'monthly_xp_leader'])
+        .in('criteria_type', [
+          'weekly_xp_leader', 'weekly_xp_leader_2', 'weekly_xp_leader_3',
+          'monthly_xp_leader', 'monthly_xp_leader_2', 'monthly_xp_leader_3',
+        ])
         .eq('is_active', true)
 
-      achievements?.forEach(a => {
-        if (a.criteria_type === 'weekly_xp_leader') setWeeklyChampionReward(a)
-        if (a.criteria_type === 'monthly_xp_leader') setMonthlyChampionReward(a)
+      const weeklyRewards = []
+      const monthlyRewards = []
+      const weeklyOrder = ['weekly_xp_leader', 'weekly_xp_leader_2', 'weekly_xp_leader_3']
+      const monthlyOrder = ['monthly_xp_leader', 'monthly_xp_leader_2', 'monthly_xp_leader_3']
+      weeklyOrder.forEach(ct => {
+        const a = achievements?.find(x => x.criteria_type === ct)
+        if (a) weeklyRewards.push(a)
       })
+      monthlyOrder.forEach(ct => {
+        const a = achievements?.find(x => x.criteria_type === ct)
+        if (a) monthlyRewards.push(a)
+      })
+      setWeeklyChampionRewards(weeklyRewards)
+      setMonthlyChampionRewards(monthlyRewards)
 
       if (achievements && achievements.length > 0) {
         const achievementIds = achievements.map(a => a.id)
@@ -670,7 +683,7 @@ const Leaderboard = () => {
       progressQuery = progressQuery.gte('completed_at', startOfPeriod)
     }
 
-    const { data: progressData, error: progressError } = await progressQuery
+    const { data: progressData, error: progressError } = await progressQuery.limit(10000)
 
     if (progressError) throw progressError
 
@@ -703,7 +716,7 @@ const Leaderboard = () => {
       chestQuery = chestQuery.gte('claimed_at', startOfPeriod)
     }
 
-    const { data: chestData, error: chestError } = await chestQuery
+    const { data: chestData, error: chestError } = await chestQuery.limit(10000)
 
     if (chestError) throw chestError
 
@@ -1058,40 +1071,60 @@ const Leaderboard = () => {
       {timeframe !== 'daily_challenge' && timeframe !== 'training' && (
         <>
       {/* Champion Reward Banner */}
-      {timeframe === 'week' && weeklyChampionReward && (
-        <div className="flex justify-center">
-          <div className="inline-flex items-center gap-2 bg-gradient-to-r from-yellow-50 to-amber-50 border border-yellow-200 px-4 py-3 text-sm"
-            style={{ clipPath: CLIP_SM }}
-          >
-            <Trophy className="w-5 h-5 text-yellow-500 flex-shrink-0" />
-            <span className="text-gray-700">
-              Top 1 cuối tuần này nhận{' '}
-              {weeklyChampionReward.xp_reward > 0 && <strong className="text-yellow-600 inline-flex items-center gap-1">{weeklyChampionReward.xp_reward} <img src={assetUrl('/image/study/xp.png')} alt="XP" className="w-4 h-4" /></strong>}
-              {weeklyChampionReward.xp_reward > 0 && weeklyChampionReward.gem_reward > 0 && ' + '}
-              {weeklyChampionReward.gem_reward > 0 && <strong className="text-blue-500 inline-flex items-center gap-1">{weeklyChampionReward.gem_reward} <img src={assetUrl('/image/study/gem.png')} alt="Gem" className="w-4 h-4" /></strong>}
-            </span>
-            {countdownText && (
-              <span className="text-gray-400 ml-1">({countdownText})</span>
-            )}
-          </div>
+      {timeframe === 'week' && weeklyChampionRewards.length > 0 && (
+        <div className="flex flex-wrap justify-center gap-2">
+          {weeklyChampionRewards.map((reward, idx) => {
+            const rankIcons = ['🏆', '🥈', '🥉']
+            const rankLabels = ['Top 1', 'Top 2', 'Top 3']
+            return (
+              <div key={idx} className="inline-flex items-center gap-2 bg-gradient-to-r from-yellow-50 to-amber-50 border border-yellow-200 px-4 py-3 text-sm"
+                style={{ clipPath: CLIP_SM }}
+              >
+                <span className="text-base">{rankIcons[idx]}</span>
+                <span className="text-gray-700">
+                  {rankLabels[idx]}:{' '}
+                  {reward.xp_reward > 0 && <strong className="text-yellow-600 inline-flex items-center gap-1">{reward.xp_reward} <img src={assetUrl('/image/study/xp.png')} alt="XP" className="w-4 h-4" /></strong>}
+                  {reward.xp_reward > 0 && reward.gem_reward > 0 && ' + '}
+                  {reward.gem_reward > 0 && <strong className="text-blue-500 inline-flex items-center gap-1">{reward.gem_reward} <img src={assetUrl('/image/study/gem.png')} alt="Gem" className="w-4 h-4" /></strong>}
+                </span>
+              </div>
+            )
+          })}
+          {countdownText && (
+            <div className="inline-flex items-center gap-1 bg-gray-50 border border-gray-200 px-3 py-3 text-sm text-gray-400"
+              style={{ clipPath: CLIP_SM }}
+            >
+              {countdownText}
+            </div>
+          )}
         </div>
       )}
-      {timeframe === 'month' && monthlyChampionReward && (
-        <div className="flex justify-center">
-          <div className="inline-flex items-center gap-2 bg-gradient-to-r from-purple-50 to-pink-50 border border-purple-200 px-4 py-3 text-sm"
-            style={{ clipPath: CLIP_SM }}
-          >
-            <Crown className="w-5 h-5 text-purple-500 flex-shrink-0" />
-            <span className="text-gray-700">
-              Top 1 cuối tháng này nhận{' '}
-              {monthlyChampionReward.xp_reward > 0 && <strong className="text-purple-600 inline-flex items-center gap-1">{monthlyChampionReward.xp_reward} <img src={assetUrl('/image/study/xp.png')} alt="XP" className="w-4 h-4" /></strong>}
-              {monthlyChampionReward.xp_reward > 0 && monthlyChampionReward.gem_reward > 0 && ' + '}
-              {monthlyChampionReward.gem_reward > 0 && <strong className="text-blue-500 inline-flex items-center gap-1">{monthlyChampionReward.gem_reward} <img src={assetUrl('/image/study/gem.png')} alt="Gem" className="w-4 h-4" /></strong>}
-            </span>
-            {countdownText && (
-              <span className="text-gray-400 ml-1">({countdownText})</span>
-            )}
-          </div>
+      {timeframe === 'month' && monthlyChampionRewards.length > 0 && (
+        <div className="flex flex-wrap justify-center gap-2">
+          {monthlyChampionRewards.map((reward, idx) => {
+            const rankIcons = ['🏆', '🥈', '🥉']
+            const rankLabels = ['Top 1', 'Top 2', 'Top 3']
+            return (
+              <div key={idx} className="inline-flex items-center gap-2 bg-gradient-to-r from-purple-50 to-pink-50 border border-purple-200 px-4 py-3 text-sm"
+                style={{ clipPath: CLIP_SM }}
+              >
+                <span className="text-base">{rankIcons[idx]}</span>
+                <span className="text-gray-700">
+                  {rankLabels[idx]}:{' '}
+                  {reward.xp_reward > 0 && <strong className="text-purple-600 inline-flex items-center gap-1">{reward.xp_reward} <img src={assetUrl('/image/study/xp.png')} alt="XP" className="w-4 h-4" /></strong>}
+                  {reward.xp_reward > 0 && reward.gem_reward > 0 && ' + '}
+                  {reward.gem_reward > 0 && <strong className="text-blue-500 inline-flex items-center gap-1">{reward.gem_reward} <img src={assetUrl('/image/study/gem.png')} alt="Gem" className="w-4 h-4" /></strong>}
+                </span>
+              </div>
+            )
+          })}
+          {countdownText && (
+            <div className="inline-flex items-center gap-1 bg-gray-50 border border-gray-200 px-3 py-3 text-sm text-gray-400"
+              style={{ clipPath: CLIP_SM }}
+            >
+              {countdownText}
+            </div>
+          )}
         </div>
       )}
 
@@ -1408,19 +1441,23 @@ const Leaderboard = () => {
           <CornerBrackets />
           <div className="px-5 pt-4 pb-1">
             <h3 className="text-base font-semibold text-gray-900 uppercase tracking-wide">
-              {timeframe === 'week' ? 'Nhà vô địch tuần trước' : 'Nhà vô địch tháng trước'}
+              {timeframe === 'week' ? 'Top tuần trước' : 'Top tháng trước'}
             </h3>
             <div className="h-[2px] w-12 bg-gradient-to-r from-yellow-400 to-transparent mt-1" />
           </div>
           <div className="divide-y divide-gray-100">
             {previousChampions
-              .filter(c => timeframe === 'week'
-                ? c.achievements?.criteria_type === 'weekly_xp_leader'
-                : c.achievements?.criteria_type === 'monthly_xp_leader'
-              )
+              .filter(c => {
+                const ct = c.achievements?.criteria_type
+                if (timeframe === 'week') return ct === 'weekly_xp_leader' || ct === 'weekly_xp_leader_2' || ct === 'weekly_xp_leader_3'
+                return ct === 'monthly_xp_leader' || ct === 'monthly_xp_leader_2' || ct === 'monthly_xp_leader_3'
+              })
               .map((champion, index) => {
                 const earnedDate = new Date(champion.earned_at)
                 const dateStr = earnedDate.toLocaleDateString('vi-VN', { day: '2-digit', month: '2-digit', year: 'numeric', timeZone: 'Asia/Ho_Chi_Minh' })
+                const ct = champion.achievements?.criteria_type
+                const rankIcon = ct?.endsWith('_3') ? '🥉' : ct?.endsWith('_2') ? '🥈' : '🏆'
+                const rankLabel = ct?.endsWith('_3') ? 'Top 3' : ct?.endsWith('_2') ? 'Top 2' : 'Top 1'
                 return (
                   <div key={index} className="flex items-center justify-between px-4 py-3">
                     <div className="flex items-center gap-3">
@@ -1437,8 +1474,8 @@ const Leaderboard = () => {
                       </div>
                     </div>
                     <div className="flex items-center gap-1 text-yellow-500">
-                      <Crown className="w-4 h-4" />
-                      <span className="text-xs font-medium">Champion</span>
+                      <span className="text-base">{rankIcon}</span>
+                      <span className="text-xs font-medium">{rankLabel}</span>
                     </div>
                   </div>
                 )
