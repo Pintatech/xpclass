@@ -114,14 +114,14 @@ const LeaderboardSettings = () => {
   const fetchShopItems = async () => {
     try {
       const { data } = await supabase
-        .from('shop_items')
-        .select('id, name, image_url, category, price')
+        .from('collectible_items')
+        .select('id, name, image_url, item_type, rarity')
         .eq('is_active', true)
-        .order('category')
+        .order('item_type')
         .order('name');
       setShopItems(data || []);
     } catch (err) {
-      console.error('Error fetching shop items:', err);
+      console.error('Error fetching inventory items:', err);
     }
   };
 
@@ -378,13 +378,27 @@ const LeaderboardSettings = () => {
             await supabase.from('users').update({ xp: (userData?.xp || 0) + reward.xp }).eq('id', userId);
           }
 
-          // Award shop items
+          // Award inventory items
           if (reward.shop_items.length > 0) {
             for (const itemId of reward.shop_items) {
-              await supabase.from('user_purchases').upsert({
-                user_id: userId,
-                item_id: itemId,
-              }, { onConflict: 'user_id,item_id', ignoreDuplicates: true });
+              const itemName = shopItems.find(s => s.id === itemId)?.name || '';
+              const { data: userData } = await supabase.from('users').select('full_name').eq('id', userId).single();
+              const { data: existing } = await supabase.from('user_inventory')
+                .select('id, quantity')
+                .eq('user_id', userId).eq('item_id', itemId).maybeSingle();
+              if (existing) {
+                await supabase.from('user_inventory')
+                  .update({ quantity: existing.quantity + 1, updated_at: new Date().toISOString() })
+                  .eq('id', existing.id);
+              } else {
+                await supabase.from('user_inventory').insert({
+                  user_id: userId,
+                  user_name: userData?.full_name || '',
+                  item_id: itemId,
+                  item_name: itemName,
+                  quantity: 1,
+                });
+              }
             }
           }
 
@@ -1125,7 +1139,7 @@ const LeaderboardSettings = () => {
                       {shopItems
                         .filter(s => !reward.shop_items.includes(s.id))
                         .map(s => (
-                          <option key={s.id} value={s.id}>{s.name} ({s.category})</option>
+                          <option key={s.id} value={s.id}>{s.name} ({s.rarity} {s.item_type})</option>
                         ))
                       }
                     </select>

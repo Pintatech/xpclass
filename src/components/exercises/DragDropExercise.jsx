@@ -696,6 +696,27 @@ const DragDropExercise = ({ testMode = false, exerciseData = null, onAnswersColl
       const scorePercentage = maxScore > 0 ? Math.round((correctAnswers / maxScore) * 100) : 0
       const score = allQuestionsCompleted ? scorePercentage : 0
 
+      // Save question attempt for this question
+      if (exerciseId) {
+        try {
+          const q = exercise.content.questions[questionIndex]
+          const userAnswer = userAnswers[questionIndex] || {}
+          await supabase.from('question_attempts').insert({
+            user_id: user.id,
+            exercise_id: exerciseId,
+            exercise_type: 'drag_drop',
+            question_id: q.id || `q${questionIndex}`,
+            selected_answer: JSON.stringify(userAnswer),
+            correct_answer: JSON.stringify(q.correct_order || []),
+            is_correct: isCorrect,
+            attempt_number: 1,
+            response_time: totalTimeSpent
+          })
+        } catch (err) {
+          console.log('⚠️ Could not save question attempt:', err.message)
+        }
+      }
+
       // If exercise is completed, use proper XP awarding system
       if (allQuestionsCompleted && !isTeacherView) {
         const result = await completeExerciseWithXP(

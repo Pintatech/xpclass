@@ -4,7 +4,7 @@ import { Document, Page, pdfjs } from 'react-pdf'
 import 'react-pdf/dist/Page/AnnotationLayer.css'
 import 'react-pdf/dist/Page/TextLayer.css'
 import { supabase } from '../../supabase/client'
-import { CheckCircle, XCircle, RotateCcw, ArrowLeft } from 'lucide-react'
+import { CheckCircle, XCircle, RotateCcw, ArrowLeft, Highlighter, Trash2 } from 'lucide-react'
 import LoadingSpinner from '../ui/LoadingSpinner'
 import Button3D from '../ui/Button3D'
 import CelebrationScreen from '../ui/CelebrationScreen'
@@ -89,8 +89,14 @@ const PDFWorksheetExercise = ({ testMode = false, exerciseData = null, onAnswers
   const [currentPage, setCurrentPage] = useState(1)
   const [pageWidth, setPageWidth] = useState(700)
 
+  const [highlights, setHighlights] = useState([])
+  const [isHighlightMode, setIsHighlightMode] = useState(false)
+  const [highlightColor, setHighlightColor] = useState('yellow')
+  const [drawingHighlight, setDrawingHighlight] = useState(null)
+
   const containerRef = useRef(null)
   const pageContainerRef = useRef(null)
+  const passageContainerRef = useRef(null)
 
   const pdfFile = useMemo(() => exercise?.content?.pdf_url, [exercise?.content?.pdf_url])
   const passagePdfUrl = useMemo(() => exercise?.content?.passage_pdf_url, [exercise?.content?.passage_pdf_url])
@@ -231,6 +237,147 @@ const PDFWorksheetExercise = ({ testMode = false, exerciseData = null, onAnswers
       setLoading(false)
     }
   }
+
+  const highlightColors = {
+    yellow: 'rgba(250, 204, 21, 0.35)',
+    green: 'rgba(74, 222, 128, 0.35)',
+    blue: 'rgba(96, 165, 250, 0.35)',
+    pink: 'rgba(244, 114, 182, 0.35)',
+    orange: 'rgba(251, 146, 60, 0.35)',
+  }
+
+  const getRelativePos = (e, container) => {
+    const rect = container.getBoundingClientRect()
+    return {
+      x: ((e.clientX - rect.left) / rect.width) * 100,
+      y: ((e.clientY - rect.top) / rect.height) * 100,
+    }
+  }
+
+  const handleHighlightMouseDown = (e, target) => {
+    if (!isHighlightMode) return
+    e.preventDefault()
+    const container = target === 'passage' ? passageContainerRef.current : pageContainerRef.current
+    if (!container) return
+    const pos = getRelativePos(e, container)
+    setDrawingHighlight({ startX: pos.x, startY: pos.y, x: pos.x, y: pos.y, w: 0, h: 0, target })
+  }
+
+  const handleHighlightMouseMove = (e, target) => {
+    if (!drawingHighlight || drawingHighlight.target !== target) return
+    const container = target === 'passage' ? passageContainerRef.current : pageContainerRef.current
+    if (!container) return
+    const pos = getRelativePos(e, container)
+    setDrawingHighlight(prev => ({
+      ...prev,
+      x: Math.min(prev.startX, pos.x),
+      y: Math.min(prev.startY, pos.y),
+      w: Math.abs(pos.x - prev.startX),
+      h: Math.abs(pos.y - prev.startY),
+    }))
+  }
+
+  const handleHighlightMouseUp = () => {
+    if (!drawingHighlight) return
+    if (drawingHighlight.w > 0.5 && drawingHighlight.h > 0.5) {
+      setHighlights(prev => [...prev, {
+        id: Date.now(),
+        x: drawingHighlight.x,
+        y: drawingHighlight.y,
+        w: drawingHighlight.w,
+        h: drawingHighlight.h,
+        color: highlightColor,
+        page: drawingHighlight.target === 'passage' ? passagePage : currentPage,
+        target: drawingHighlight.target,
+      }])
+    }
+    setDrawingHighlight(null)
+  }
+
+  const removeHighlight = (id) => {
+    setHighlights(prev => prev.filter(h => h.id !== id))
+  }
+
+  const clearHighlights = (target) => {
+    setHighlights(prev => prev.filter(h => h.target !== target))
+  }
+
+  const renderHighlights = (target, page) => {
+    const pageHighlights = highlights.filter(h => h.target === target && h.page === page)
+    return (
+      <>
+        {pageHighlights.map(h => (
+          <div
+            key={h.id}
+            style={{
+              position: 'absolute',
+              left: `${h.x}%`,
+              top: `${h.y}%`,
+              width: `${h.w}%`,
+              height: `${h.h}%`,
+              backgroundColor: highlightColors[h.color],
+              borderRadius: 3,
+              zIndex: 4,
+              cursor: isHighlightMode ? 'pointer' : 'default',
+              pointerEvents: isHighlightMode ? 'auto' : 'none',
+            }}
+            onClick={(e) => { if (isHighlightMode) { e.stopPropagation(); removeHighlight(h.id) } }}
+            title={isHighlightMode ? 'Click to remove' : ''}
+          />
+        ))}
+        {drawingHighlight && drawingHighlight.target === target && (
+          <div
+            style={{
+              position: 'absolute',
+              left: `${drawingHighlight.x}%`,
+              top: `${drawingHighlight.y}%`,
+              width: `${drawingHighlight.w}%`,
+              height: `${drawingHighlight.h}%`,
+              backgroundColor: highlightColors[highlightColor],
+              borderRadius: 3,
+              zIndex: 4,
+              pointerEvents: 'none',
+            }}
+          />
+        )}
+      </>
+    )
+  }
+
+  const HighlightToolbar = ({ target }) => (
+    <div className="flex items-center gap-2 mb-2 justify-center flex-wrap">
+      <button
+        onClick={() => setIsHighlightMode(prev => !prev)}
+        className={`flex items-center gap-1 px-2 py-1 rounded-lg text-xs font-medium transition-colors ${
+          isHighlightMode ? 'bg-yellow-100 text-yellow-800 ring-2 ring-yellow-400' : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+        }`}
+      >
+        <Highlighter className="w-3.5 h-3.5" />
+        Highlight
+      </button>
+      {isHighlightMode && (
+        <>
+          {Object.keys(highlightColors).map(c => (
+            <button
+              key={c}
+              onClick={() => setHighlightColor(c)}
+              className={`w-5 h-5 rounded-full border-2 transition-transform ${
+                highlightColor === c ? 'border-gray-800 scale-125' : 'border-gray-300'
+              }`}
+              style={{ backgroundColor: highlightColors[c].replace('0.35', '0.7') }}
+            />
+          ))}
+          <button
+            onClick={() => clearHighlights(target)}
+            className="flex items-center gap-1 px-2 py-1 rounded-lg text-xs font-medium bg-red-50 text-red-600 hover:bg-red-100"
+          >
+            <Trash2 className="w-3 h-3" />
+            Clear
+          </button>
+        </>
+      )}
+    </div>
+  )
 
   const getAllFields = () => {
     if (!exercise?.content?.pages) return []
@@ -486,10 +633,19 @@ const PDFWorksheetExercise = ({ testMode = false, exerciseData = null, onAnswers
   // PDF page with field overlays (non-split)
   const PDFPageWithFields = () => (
       <div ref={containerRef} className="bg-white rounded-lg shadow-md p-1 sm:p-4 border border-gray-200">
+        <HighlightToolbar target="questions" />
         {PageNav()}
-        <div className="relative" ref={pageContainerRef}>
+        <div
+          className="relative"
+          ref={pageContainerRef}
+          style={{ cursor: isHighlightMode ? 'crosshair' : 'default' }}
+          onMouseDown={(e) => handleHighlightMouseDown(e, 'questions')}
+          onMouseMove={(e) => handleHighlightMouseMove(e, 'questions')}
+          onMouseUp={handleHighlightMouseUp}
+          onMouseLeave={handleHighlightMouseUp}
+        >
           {isImageMode ? (
-            <img src={imageUrls[currentPage - 1]} alt={`Page ${currentPage}`} style={{ width: pageWidth }} className="block" />
+            <img src={imageUrls[currentPage - 1]} alt={`Page ${currentPage}`} style={{ width: pageWidth }} className="block" draggable={false} />
           ) : (
             <Document file={pdfFile} onLoadSuccess={onDocumentLoadSuccess}>
               <Page
@@ -500,6 +656,7 @@ const PDFWorksheetExercise = ({ testMode = false, exerciseData = null, onAnswers
               />
             </Document>
           )}
+          {renderHighlights('questions', currentPage)}
           {getCurrentPageFields().map(renderField)}
         </div>
       </div>
@@ -608,16 +765,28 @@ const PDFWorksheetExercise = ({ testMode = false, exerciseData = null, onAnswers
 
         {/* Split panes */}
         <div className="flex-1 grid grid-cols-1 lg:grid-cols-2 min-h-0">
-          {/* Left: Reading passage (memoized - won't re-render on answer changes) */}
+          {/* Left: Reading passage */}
           <div className="bg-white border-r border-gray-300 overflow-y-auto p-2 sm:p-4">
             <div className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-2 text-center">Reading Passage</div>
+            <HighlightToolbar target="passage" />
             {PassageNav()}
-            <PassagePDFRenderer
-              url={passagePdfUrl}
-              pageNumber={passagePage}
-              width={typeof window !== 'undefined' ? Math.min(window.innerWidth / 2 - 40, 800) : 500}
-              onLoadSuccess={onPassageLoadSuccess}
-            />
+            <div
+              className="relative"
+              ref={passageContainerRef}
+              style={{ cursor: isHighlightMode ? 'crosshair' : 'default' }}
+              onMouseDown={(e) => handleHighlightMouseDown(e, 'passage')}
+              onMouseMove={(e) => handleHighlightMouseMove(e, 'passage')}
+              onMouseUp={handleHighlightMouseUp}
+              onMouseLeave={handleHighlightMouseUp}
+            >
+              <PassagePDFRenderer
+                url={passagePdfUrl}
+                pageNumber={passagePage}
+                width={typeof window !== 'undefined' ? Math.min(window.innerWidth / 2 - 40, 800) : 500}
+                onLoadSuccess={onPassageLoadSuccess}
+              />
+              {renderHighlights('passage', passagePage)}
+            </div>
           </div>
           {/* Right: Questions PDF with field overlays */}
           <div ref={containerRef} className="bg-white overflow-y-auto p-2 sm:p-4">

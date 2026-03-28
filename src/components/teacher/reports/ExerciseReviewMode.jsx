@@ -727,6 +727,11 @@ const ExerciseReviewMode = ({ attempt, passingScore = 70, onAttemptUpdate, onClo
                     }`}>
                       {qa.is_correct ? 'Correct' : 'Incorrect'}
                     </span>
+                    {qa.selected_answer != null && (
+                      <span className="text-xs text-gray-400 truncate max-w-[160px]" title={String(qa.selected_answer)}>
+                        &ldquo;{typeof qa.selected_answer === 'object' ? JSON.stringify(qa.selected_answer) : String(qa.selected_answer)}&rdquo;
+                      </span>
+                    )}
                     {qa.teacher_override && (
                       <span className="text-xs text-orange-500 italic">overridden</span>
                     )}

@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { supabase } from '../../../supabase/client';
 import { useAuth } from '../../../hooks/useAuth';
-import { CheckCircle, XCircle, Clock, Minus, RotateCcw, Eye, X, ChevronDown, RefreshCw, Video, Send, Star } from 'lucide-react';
+import { CheckCircle, XCircle, Clock, Minus, RotateCcw, Eye, X, ChevronDown, ChevronLeft, ChevronRight, RefreshCw, Video, Send, Star } from 'lucide-react';
 import SingleExerciseReview from './SingleExerciseReview';
 
 const VIDEO_TYPES = ['video', 'video_upload', 'speaking', 'speaking_assessment'];
@@ -959,12 +959,40 @@ const StudentExerciseMatrix = ({ selectedCourse, initialSessionId }) => {
                     Student: <span className="font-medium text-gray-900">{selectedCell.studentName}</span>
                   </p>
                 </div>
-                <button
-                  onClick={closeModal}
-                  className="text-gray-400 hover:text-gray-600 transition-colors"
-                >
-                  <X className="w-6 h-6" />
-                </button>
+                <div className="flex items-center gap-2">
+                  {(() => {
+                    const exIdx = exercises.findIndex(e => e.id === selectedCell.exerciseId)
+                    const prevEx = exercises[exIdx - 1]
+                    const nextEx = exercises[exIdx + 1]
+                    return (
+                      <>
+                        <button
+                          onClick={() => fetchQuestionAttempts(selectedCell.studentId, selectedCell.studentName, prevEx.id, prevEx.title)}
+                          disabled={!prevEx}
+                          className="p-1.5 rounded-lg hover:bg-gray-100 disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
+                          title={prevEx ? prevEx.title : ''}
+                        >
+                          <ChevronLeft className="w-5 h-5 text-gray-600" />
+                        </button>
+                        <span className="text-xs text-gray-400">{exIdx + 1} / {exercises.length}</span>
+                        <button
+                          onClick={() => fetchQuestionAttempts(selectedCell.studentId, selectedCell.studentName, nextEx.id, nextEx.title)}
+                          disabled={!nextEx}
+                          className="p-1.5 rounded-lg hover:bg-gray-100 disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
+                          title={nextEx ? nextEx.title : ''}
+                        >
+                          <ChevronRight className="w-5 h-5 text-gray-600" />
+                        </button>
+                      </>
+                    )
+                  })()}
+                  <button
+                    onClick={closeModal}
+                    className="text-gray-400 hover:text-gray-600 transition-colors ml-2"
+                  >
+                    <X className="w-6 h-6" />
+                  </button>
+                </div>
               </div>
 
             </div>
