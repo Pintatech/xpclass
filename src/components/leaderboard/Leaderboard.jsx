@@ -416,9 +416,9 @@ const Leaderboard = () => {
         weekStart.setDate(weekStart.getDate() - daysFromMonday)
         leaderboardQuery = await getTimeframeLeaderboard('week', weekStart.toISOString().split('T')[0])
       } else if (timeframe === 'month') {
-        // Get current month
-        const monthStart = new Date(currentDate.getFullYear(), currentDate.getMonth(), 1)
-        leaderboardQuery = await getTimeframeLeaderboard('month', monthStart.toISOString().split('T')[0])
+        // Get current month using Vietnam date to avoid UTC timezone rollback
+        const monthStart = vietnamToday.substring(0, 7) + '-01'
+        leaderboardQuery = await getTimeframeLeaderboard('month', monthStart)
       } else {
         // All time - use existing logic
         leaderboardQuery = await getAllTimeLeaderboard()
@@ -683,9 +683,19 @@ const Leaderboard = () => {
       progressQuery = progressQuery.gte('completed_at', startOfPeriod)
     }
 
-    const { data: progressData, error: progressError } = await progressQuery.limit(10000)
-
-    if (progressError) throw progressError
+    // Paginate to avoid Supabase 1000-row default limit
+    let progressData = []
+    let page = 0
+    const PAGE_SIZE = 1000
+    while (true) {
+      const { data: batch, error: batchError } = await progressQuery
+        .range(page * PAGE_SIZE, (page + 1) * PAGE_SIZE - 1)
+        .order('completed_at', { ascending: true })
+      if (batchError) throw batchError
+      progressData = progressData.concat(batch)
+      if (batch.length < PAGE_SIZE) break
+      page++
+    }
 
     // Fetch xp_reward for all exercises referenced in progress data
     const exerciseIds = [...new Set(progressData.map(p => p.exercise_id).filter(Boolean))]

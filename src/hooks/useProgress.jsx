@@ -289,6 +289,9 @@ export const ProgressProvider = ({ children }) => {
       console.log('📋 Existing progress data:', existingProgressData)
       console.log('📋 Fetch error:', fetchError)
 
+      // Use DB data as source of truth (local state may be stale after reload)
+      const isAlreadyCompletedDB = existingProgressData?.status === 'completed'
+
       const currentAttempts = existingProgressData?.attempts || 0
       const newAttempts = currentAttempts + 1
       console.log(`🔄 Attempt tracking: current=${currentAttempts}, new=${newAttempts}`)
@@ -399,7 +402,7 @@ export const ProgressProvider = ({ children }) => {
       // Check if the course has chest_enabled (allows XP on repeat attempts up to 3)
       // Only check on repeat attempts (2nd/3rd) to avoid unnecessary queries on first completion
       let courseChestEnabled = false
-      if (isAlreadyCompleted && newAttempts <= 3) {
+      if (isAlreadyCompletedDB && newAttempts <= 3) {
         try {
           const { data: assignRow } = await supabase
             .from('exercise_assignments')
@@ -426,7 +429,7 @@ export const ProgressProvider = ({ children }) => {
         // Allow full XP on repeat attempts (up to 3) for chest_enabled courses
         const allowRepeatXP = courseChestEnabled && newAttempts <= 3
 
-        if (!isAlreadyCompleted || allowRepeatXP) {
+        if (!isAlreadyCompletedDB || allowRepeatXP) {
           // First completion OR repeat attempt in chest_enabled course (up to 3 attempts)
           const bonusXP = totalBonusPercent > 0 ? Math.round(xpReward * totalBonusPercent / 100) : 0
           const totalWithBonus = xpReward + bonusXP
@@ -438,7 +441,7 @@ export const ProgressProvider = ({ children }) => {
           if (itemBonusResult.total > 0) {
             console.log(`🎨 Item bonus: +${itemBonusResult.total}% (${itemBonusResult.items.map(i => i.name).join(', ')})`)
           }
-          if (allowRepeatXP && isAlreadyCompleted) {
+          if (allowRepeatXP && isAlreadyCompletedDB) {
             console.log(`💎 Awarded XP for repeat attempt ${newAttempts}/3 (chest_enabled course):`, totalWithBonus)
           } else {
             console.log('💎 Awarded XP for first completion:', totalWithBonus)
