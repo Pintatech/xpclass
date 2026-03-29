@@ -166,6 +166,21 @@
   .sl-header-enter { animation: sl-header-entrance 0.8s ease-out both; }
   .sl-slide-right  { animation: sl-slide-right 0.5s ease-out both; }
 
+  /* Mission claim confetti */
+  @keyframes confetti {
+    0% {
+      opacity: 1;
+      transform: translate(0, 0) rotate(0deg) scale(1);
+    }
+    20% {
+      opacity: 1;
+    }
+    100% {
+      opacity: 0;
+      transform: translate(var(--confetti-x), var(--confetti-y)) rotate(var(--confetti-r)) scale(0.3);
+    }
+  }
+
   /* Floating point number */
   @keyframes float-up {
     0% {

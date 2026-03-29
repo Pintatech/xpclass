@@ -87,13 +87,15 @@ export const useNotifications = () => {
         }))
       ]
 
-      // Sort by created_at DESC and deduplicate
+      // Sort by created_at DESC, deduplicate, and filter out mission claim notifications
+      // (mission rewards already show a celebration overlay on claim)
       const seen = new Set()
       const merged = allNotifs
         .sort((a, b) => new Date(b.created_at) - new Date(a.created_at))
         .filter(n => {
           if (seen.has(n.id)) return false
           seen.add(n.id)
+          if (n.type === 'mission_reward') return false
           return true
         })
         .slice(0, 50)

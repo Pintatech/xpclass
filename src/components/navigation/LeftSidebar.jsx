@@ -88,7 +88,7 @@ const LeftSidebar = ({ onOpenReport }) => {
                         alt=""
                         width={22}
                         height={22}
-                        className={`${isActive ? '' : 'grayscale opacity-70 group-hover:opacity-100 group-hover:grayscale-0'}`}
+                        className={`${isActive ? '' : 'grayscale opacity-70 group-hover:opacity-100 group-hover:grayscale-0'} ${badge > 0 ? 'animate-[pulse_1.5s_ease-in-out_infinite]' : ''}`}
                       />
                     ) : emoji ? (
                       <span className="text-2xl">{emoji}</span>

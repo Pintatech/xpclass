@@ -98,7 +98,7 @@ const BottomNavigation = ({ onOpenReport }) => {
                     alt=""
                     width={20}
                     height={20}
-                    className={`mb-1 transition ${active ? '' : 'grayscale opacity-60 hover:opacity-100 hover:grayscale-0'}`}
+                    className={`mb-1 transition ${active ? '' : 'grayscale opacity-60 hover:opacity-100 hover:grayscale-0'} ${badge > 0 ? 'animate-[pulse_1.5s_ease-in-out_infinite]' : ''}`}
                   />
                 ) : emoji ? (
                   <span className="text-lg mb-1 block">{emoji}</span>
