@@ -300,29 +300,25 @@ const EditExerciseModal = ({ isOpen, onClose, exercise, onUpdate }) => {
             )}
 
             {/* Basic Information */}
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Title *
-                </label>
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-4">
+              <div className="col-span-2">
+                <label className="block text-xs font-medium text-gray-700 mb-1">Title *</label>
                 <input
                   type="text"
                   value={formData.title}
                   onChange={(e) => handleInputChange('title', e.target.value)}
-                  className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                  className="w-full px-2 py-1.5 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                   placeholder="Enter exercise title"
                   required
                 />
               </div>
 
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Exercise Type
-                </label>
+                <label className="block text-xs font-medium text-gray-700 mb-1">Type</label>
                 <select
                   value={formData.exercise_type}
                   disabled
-                  className="w-full p-3 border border-gray-300 rounded-lg bg-gray-100 cursor-not-allowed"
+                  className="w-full px-2 py-1.5 text-sm border border-gray-300 rounded-lg bg-gray-100 cursor-not-allowed"
                 >
                   <option value="flashcard">Flashcard</option>
                   <option value="multiple_choice">Multiple Choice</option>
@@ -335,17 +331,14 @@ const EditExerciseModal = ({ isOpen, onClose, exercise, onUpdate }) => {
                   <option value="pdf_worksheet">PDF Worksheet</option>
                   <option value="speaking_assessment">Speaking Assessment</option>
                 </select>
-                <p className="text-xs text-gray-500 mt-1">Exercise type cannot be changed after creation</p>
               </div>
 
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Folder
-                </label>
+                <label className="block text-xs font-medium text-gray-700 mb-1">Folder</label>
                 <select
                   value={formData.folder_id || ''}
                   onChange={(e) => handleInputChange('folder_id', e.target.value || null)}
-                  className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                  className="w-full px-2 py-1.5 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                 >
                   <option value="">No folder</option>
                   {folders.map(folder => (
@@ -357,46 +350,42 @@ const EditExerciseModal = ({ isOpen, onClose, exercise, onUpdate }) => {
               </div>
 
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                  XP Reward
-                </label>
+                <label className="block text-xs font-medium text-gray-700 mb-1">XP Reward</label>
                 <input
                   type="number"
                   min="1"
                   max="100"
                   value={formData.xp_reward}
                   onChange={(e) => handleInputChange('xp_reward', parseInt(e.target.value))}
-                  className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                  className="w-full px-2 py-1.5 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                 />
               </div>
 
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Score Boost
-                </label>
+                <label className="block text-xs font-medium text-gray-700 mb-1">Score Boost</label>
                 <select
                   value={formData.score_boost}
                   onChange={(e) => handleInputChange('score_boost', parseInt(e.target.value))}
-                  className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                  className="w-full px-2 py-1.5 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                 >
                   <option value={0}>Normal</option>
-                  <option value={15}>Lenient (+15) - Young learners</option>
-                  <option value={25}>Very Lenient (+25) - Kindergarten</option>
+                  <option value={15}>Lenient (+15)</option>
+                  <option value={25}>Very Lenient (+25)</option>
                 </select>
               </div>
             </div>
 
             {/* Category & Tags */}
-            <div className="mb-6 space-y-3">
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                  <Tag className="w-4 h-4 inline mr-1" />
-                  Category & Tags
+            <div className="mb-4 flex items-start gap-3">
+              <div className="shrink-0">
+                <label className="block text-xs font-medium text-gray-700 mb-1">
+                  <Tag className="w-3 h-3 inline mr-0.5" />
+                  Category
                 </label>
                 <select
                   value={formData.category}
                   onChange={(e) => handleInputChange('category', e.target.value)}
-                  className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                  className="px-2 py-1.5 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                 >
                   <option value="">All categories</option>
                   {EXERCISE_CATEGORIES.map(cat => (
@@ -404,29 +393,29 @@ const EditExerciseModal = ({ isOpen, onClose, exercise, onUpdate }) => {
                   ))}
                 </select>
               </div>
-              <div className="flex flex-wrap gap-1.5">
-                {availableTags.map(tag => (
-                  <button
-                    key={tag}
-                    type="button"
-                    onClick={() => toggleTag(tag)}
-                    className={`px-2.5 py-1 text-xs rounded-full border transition-colors ${
-                      formData.tags.includes(tag)
-                        ? 'bg-blue-100 border-blue-300 text-blue-700'
-                        : 'bg-gray-50 border-gray-200 text-gray-600 hover:bg-gray-100'
-                    }`}
-                  >
-                    {formData.tags.includes(tag) && '✓ '}{tag}
-                  </button>
-                ))}
+              <div className="flex-1">
+                <label className="block text-xs font-medium text-gray-700 mb-1">Tags</label>
+                <div className="flex flex-wrap gap-1">
+                  {availableTags.map(tag => (
+                    <button
+                      key={tag}
+                      type="button"
+                      onClick={() => toggleTag(tag)}
+                      className={`px-2 py-0.5 text-xs rounded-full border transition-colors ${
+                        formData.tags.includes(tag)
+                          ? 'bg-blue-100 border-blue-300 text-blue-700'
+                          : 'bg-gray-50 border-gray-200 text-gray-600 hover:bg-gray-100'
+                      }`}
+                    >
+                      {formData.tags.includes(tag) && '✓ '}{tag}
+                    </button>
+                  ))}
+                </div>
               </div>
             </div>
 
             {/* Content Editor */}
-            <div className="border-t border-gray-200 pt-6">
-              <h3 className="text-lg font-medium text-gray-900 mb-4">Exercise Content</h3>
-              {renderContentEditor()}
-            </div>
+            {renderContentEditor()}
           </div>
 
           {/* Footer */}

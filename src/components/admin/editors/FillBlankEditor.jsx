@@ -534,7 +534,7 @@ const FillBlankEditor = ({ questions, onQuestionsChange, settings, onSettingsCha
 
   return (
     <>
-    <div className="space-y-4 p-4 border border-gray-200 rounded-lg">
+    <div className="space-y-4">
       <div className="flex justify-between items-center">
         <h3 className="text-lg font-medium text-gray-900">Fill in the Blank Questions</h3>
         <div className="flex gap-2">
@@ -568,9 +568,10 @@ const FillBlankEditor = ({ questions, onQuestionsChange, settings, onSettingsCha
       </div>
 
       {/* Global Intro Section */}
-      <div className="bg-white p-4 border border-gray-200 rounded-lg">
-        <label className="block text-sm font-medium text-gray-700 mb-1">
-          Exercise Intro (Optional)
+      <div className="bg-white p-4 border-l-4 border-l-blue-400 border border-gray-200 rounded-lg">
+        <label className="block text-sm font-semibold text-blue-700 mb-1">
+          Intro
+          <span className="text-xs font-normal text-gray-400 ml-1">(Optional)</span>
         </label>
         <textarea
           ref={introTextareaRef}
@@ -702,8 +703,8 @@ const FillBlankEditor = ({ questions, onQuestionsChange, settings, onSettingsCha
       </div>
 
       {/* Display Settings */}
-      <div className="p-4 bg-blue-50 border border-blue-200 rounded-lg">
-        <h4 className="font-medium text-blue-900 mb-3">Display Settings</h4>
+      <div className="p-4 bg-gray-50 border border-l-4 border-l-green-400 rounded-lg">
+        <label className="block text-sm font-semibold text-green-700 mb-3">Settings</label>
         <label className="flex items-center gap-3">
           <input
             type="checkbox"
@@ -780,7 +781,11 @@ B. Fill in the blanks with the correct form.
       )}
 
       {/* Questions List */}
-      <div className="space-y-6">
+      <div className="space-y-4">
+        <label className="block text-sm font-semibold text-orange-700">
+          Questions
+          <span className="text-xs font-normal text-gray-400 ml-1">({localQuestions.length})</span>
+        </label>
         {localQuestions.map((question, index) => (
           <div key={question.id || index} className="border border-gray-200 rounded-lg p-4 bg-gray-50">
             <div className="flex justify-between items-center mb-3">

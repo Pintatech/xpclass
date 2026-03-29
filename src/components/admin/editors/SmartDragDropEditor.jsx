@@ -652,9 +652,6 @@ const SmartDragDropEditor = ({ questions, onQuestionsChange, intro, onIntroChang
       <div className="flex items-center justify-between">
         <div>
           <h3 className="text-lg font-semibold text-gray-800">Smart Drag & Drop Editor</h3>
-          <p className="text-sm text-gray-600">
-            Enter a phrase with words in [brackets] to make them dragable
-          </p>
         </div>
         <div className="flex gap-2">
           <button

@@ -73,6 +73,7 @@ const MultipleChoiceEditor = ({ questions, onQuestionsChange, settings, onSettin
   const [audioControls, setAudioControls] = useState(true)
   const [audioAutoplay, setAudioAutoplay] = useState(false)
   const [audioLoop, setAudioLoop] = useState(false)
+  const [audioMaxPlays, setAudioMaxPlays] = useState(0)
   const [collapsedQuestions, setCollapsedQuestions] = useState({})
   const [undoHistory, setUndoHistory] = useState({})
   const [redoHistory, setRedoHistory] = useState({})
@@ -174,6 +175,18 @@ const MultipleChoiceEditor = ({ questions, onQuestionsChange, settings, onSettin
       const caret = start + textToInsert.length
       textarea.setSelectionRange(caret, caret)
     }, 0)
+  }
+
+  const applyIntroAlignment = (alignment) => {
+    const textarea = questionInputRefs.current[-1]
+    if (!textarea) return
+    const start = textarea.selectionStart || 0
+    const end = textarea.selectionEnd || 0
+    const value = intro || ''
+    const selected = value.slice(start, end)
+    const wrapped = `<div style="text-align: ${alignment}">${selected || 'text here'}</div>`
+    const newValue = value.slice(0, start) + wrapped + value.slice(end)
+    onIntroChange && onIntroChange(newValue)
   }
 
   const applyAlignment = (index, alignment) => {
@@ -423,6 +436,7 @@ const MultipleChoiceEditor = ({ questions, onQuestionsChange, settings, onSettin
     if (audioControls) attributes.push('controls')
     if (audioAutoplay) attributes.push('autoplay')
     if (audioLoop) attributes.push('loop')
+    if (audioMaxPlays > 0) attributes.push(`data-max-plays="${audioMaxPlays}"`)
     return attributes.join(' ')
   }
 
@@ -487,6 +501,7 @@ const MultipleChoiceEditor = ({ questions, onQuestionsChange, settings, onSettin
       setAudioControls(true)
       setAudioAutoplay(false)
       setAudioLoop(false)
+      setAudioMaxPlays(0)
     } catch (error) {
       alert('Vui lòng nhập URL hợp lệ (bắt đầu bằng http:// hoặc https://)')
     }
@@ -502,6 +517,7 @@ const MultipleChoiceEditor = ({ questions, onQuestionsChange, settings, onSettin
     setAudioControls(true)
     setAudioAutoplay(false)
     setAudioLoop(false)
+    setAudioMaxPlays(0)
   }
 
   const markdownToHtml = (text) => {
@@ -609,28 +625,74 @@ const MultipleChoiceEditor = ({ questions, onQuestionsChange, settings, onSettin
       // Remove block comments /* */ from the text
       const textWithoutComments = bulkText.replace(/\/\*[\s\S]*?\*\//g, '')
 
-      // Original simple format processing
-      const lines = textWithoutComments.split('\n').filter(line => line.trim())
+      // Pre-process: split lines that have multiple options on one line
+      // e.g. "A. cat   B. dog   C. bird   D. fish" or "(A) cat  (B) dog  (C) bird"
+      const expandedLines = []
+      textWithoutComments.split('\n').forEach(line => {
+        const trimmed = line.trim()
+        if (!trimmed) return
+        // Check if line has multiple options: letter prefix repeated with 2+ spaces or tabs between
+        const multiOptionMatch = trimmed.match(/(?:^|\s{2,}|\t+)(?:\(?[A-Da-d]\)?[\s]*[.):]\s*\S)/g)
+        if (multiOptionMatch && multiOptionMatch.length >= 2) {
+          // Split on 2+ spaces or tabs before a letter prefix
+          const parts = trimmed.split(/\s{2,}|\t+/).filter(p => p.trim())
+          parts.forEach(p => expandedLines.push(p.trim()))
+        } else {
+          expandedLines.push(trimmed)
+        }
+      })
+
+      const lines = expandedLines.filter(line => line.trim())
       const newQuestions = []
 
       let currentQuestion = null
       let optionCounter = 0
       const introLines = []
 
+      // Regex for question prefixes: Q:, Question 1, Quest 1, Câu 1, Câu hỏi 1, or just number with . ) : -
+      const questionRegex = /^(Q\s*[.:)\u002D]|Question\s*\d+|Quest\s*\d+|Câu\s*(hỏi\s*)?\d+|C\d+\s*[.:)\u002D]|\d+[.:)\u002D])/i
+      // Regex for option prefixes: A. A: A) (A) (a) or numbered options
+      const optionRegex = /^\(?[A-Za-z]\)?[\s]*[.):\u002D]\s*|^\(?[A-Za-z]\)\s+|^\d+[.)\u002D]\s*/
+      // Regex for answer/correct line: "Answer: A", "Đáp án: A", "Correct: B"
+      const answerLineRegex = /^(Answer|Ans|Correct|Đáp\s*án|Dap\s*an)\s*[.:\u002D]\s*(.+)/i
+
+      const parseOption = (trimmedLine) => {
+        const startsWithEquals = trimmedLine.startsWith('=')
+
+        let optionText = trimmedLine
+          .replace(/^=\s*/, '')
+          .replace(/^\(?([A-Za-z])\)?\s*[.:)\u002D]\s*/, '')  // (A) A. A: A) A-
+          .replace(/^\d+\s*[.:)\u002D]\s*/, '')
+        let optionExplanation = ''
+
+        if (optionText.includes('#')) {
+          const [before, after] = optionText.split('#')
+          optionText = before.trim()
+          optionExplanation = (after || '').trim()
+        }
+
+        // Correct markers: *, bold **text**, or = prefix
+        const isCorrect = optionText.includes('*') || startsWithEquals
+        optionText = optionText.replace(/\*+/g, '').trim()
+
+        return { optionText, optionExplanation, isCorrect }
+      }
+
       lines.forEach((line, index) => {
         const trimmedLine = line.trim()
 
-        // Question line (starts with Q: or number.)
-        if (trimmedLine.match(/^(Q:|Question\s*\d+|Quest\s*\d+|\d+[\.):])/i)) {
+        // Question line
+        if (trimmedLine.match(questionRegex)) {
           if (currentQuestion) {
             newQuestions.push(currentQuestion)
           }
           currentQuestion = {
             id: `q${Date.now()}_${index}`,
-            question: trimmedLine.replace(/^(Q:|Question|\d+[\.):])\s*/i, ''),
+            question: trimmedLine.replace(/^(Q\s*[.:)\u002D]|Question\s*\d+\s*[.:)\u002D]?\s*|Quest\s*\d+\s*[.:)\u002D]?\s*|Câu\s*(hỏi\s*)?\d+\s*[.:)\u002D]?\s*|C\d+\s*[.:)\u002D]\s*|\d+[.:)\u002D]\s*)/i, ''),
             options: [],
             correct_answer: 0,
-            explanation: ''
+            explanation: '',
+            option_explanations: []
           }
           optionCounter = 0
         }
@@ -645,58 +707,37 @@ const MultipleChoiceEditor = ({ questions, onQuestionsChange, settings, onSettin
             ? currentQuestion.explanation + '\n' + expl
             : expl
         }
-        // Continue question text (if not an option or explanation)
-        else if (currentQuestion && !trimmedLine.match(/^[A-Za-z][\.):]|^\d+[\.)]|^(Explanation|Answer):|^(True|False|Yes|No)|^=/i) && trimmedLine) {
-          // Add line break if question already has content
-          if (currentQuestion.question) {
-            currentQuestion.question += '\n' + line
-          } else {
-            currentQuestion.question = line
+        // Answer/correct line: "Answer: A" or "Đáp án: B"
+        else if (currentQuestion && trimmedLine.match(answerLineRegex)) {
+          const match = trimmedLine.match(answerLineRegex)
+          const answerValue = match[2].trim().toUpperCase()
+          // If it's a single letter, map to option index
+          if (answerValue.length === 1 && answerValue >= 'A' && answerValue <= 'Z') {
+            currentQuestion.correct_answer = answerValue.charCodeAt(0) - 65
           }
         }
-        // Answer options (A:, B:, C:, D: or 1., 2., 3., 4. or True/False or =)
-        else if (trimmedLine.match(/^[A-Za-z][\.):]|^\d+[\.)]|^(True|False|Yes|No)|^=/i)) {
-          if (currentQuestion) {
-            // Remove prefix: A., B:, a., b., 1., 2), or =
-            // Check if line starts with = (correct answer in Moodle format)
-            const startsWithEquals = trimmedLine.startsWith('=')
-
-            // Remove all possible prefixes
-            let optionText = trimmedLine
-              .replace(/^=\s*/, '')                   // Remove = prefix first (Moodle format)
-              .replace(/^[A-Za-z]\s*[.:)]\s*/i, '')   // Remove single letter prefix like "a.", "A:", "B)"
-              .replace(/^\d+\s*[.:)]\s*/, '')         // Remove number prefixes like "1.", "2)"
-            let optionExplanation = ''
-
-            // Check for per-option explanation after #
-            if (optionText.includes('#')) {
-              const [before, after] = optionText.split('#')
-              optionText = before.trim()
-              optionExplanation = (after || '').trim()
-            }
-
-            // Check if this is marked as correct (contains * or started with =)
-            const isCorrect = optionText.includes('*') || startsWithEquals
-            optionText = optionText.replace('*', '').trim()
-
+        // Explanation line (starts with Explanation:)
+        else if (currentQuestion && trimmedLine.match(/^(Explanation|Giải\s*thích)\s*[.:\u002D]/i)) {
+          currentQuestion.explanation = trimmedLine.replace(/^(Explanation|Giải\s*thích)\s*[.:\u002D]\s*/i, '')
+        }
+        // Answer options
+        else if (currentQuestion && (trimmedLine.match(optionRegex) || trimmedLine.match(/^\(?[A-Za-z]\)\s+/) || trimmedLine.match(/^(True|False|Yes|No)/i) || trimmedLine.startsWith('='))) {
+          const { optionText, optionExplanation, isCorrect } = parseOption(trimmedLine)
+          if (optionText) {
             if (isCorrect) {
               currentQuestion.correct_answer = optionCounter
             }
-
-            // Initialize option_explanations array if not exists
-            if (!currentQuestion.option_explanations) {
-              currentQuestion.option_explanations = []
-            }
-
             currentQuestion.options.push(optionText)
             currentQuestion.option_explanations.push(optionExplanation)
             optionCounter++
           }
         }
-        // Explanation line (starts with Explanation:)
-        else if (trimmedLine.match(/^(Explanation|Answer):/i)) {
-          if (currentQuestion) {
-            currentQuestion.explanation = trimmedLine.replace(/^(Explanation|Answer):\s*/i, '')
+        // Continue question text
+        else if (currentQuestion && trimmedLine) {
+          if (currentQuestion.question) {
+            currentQuestion.question += '\n' + line
+          } else {
+            currentQuestion.question = line
           }
         }
       })
@@ -897,7 +938,7 @@ const MultipleChoiceEditor = ({ questions, onQuestionsChange, settings, onSettin
   }
 
   return (
-    <div className="space-y-4 p-4 border border-gray-200 rounded-lg">
+    <div className="space-y-4">
       <div className="flex justify-between items-center">
         <h3 className="text-lg font-medium text-gray-900">Multiple Choice Questions</h3>
         <div className="flex gap-2">
@@ -943,10 +984,10 @@ const MultipleChoiceEditor = ({ questions, onQuestionsChange, settings, onSettin
       </div>
 
     {/* Global Intro Section */}
-    <div className="bg-white p-4 border border-gray-200 rounded-lg">
-      <label className="block text-sm font-medium text-gray-700 mb-1">
-        Exercise Intro (Optional)
-        
+    <div className="bg-white p-4 border-l-4 border-l-blue-400 border border-gray-200 rounded-lg">
+      <label className="block text-sm font-semibold text-blue-700 mb-1">
+        Intro
+        <span className="text-xs font-normal text-gray-400 ml-1">(Optional)</span>
       </label>
       <textarea
         ref={(el) => (questionInputRefs.current[-1] = el)}
@@ -1078,24 +1119,43 @@ const MultipleChoiceEditor = ({ questions, onQuestionsChange, settings, onSettin
         >
           <Table className="w-4 h-4" /> Insert table
         </button>
-        
+        <div className="flex gap-1 ml-2 border-l pl-2 border-gray-300">
+          <button
+            type="button"
+            onClick={() => applyIntroAlignment('left')}
+            className="p-2 bg-gray-100 text-gray-700 rounded hover:bg-gray-200"
+            title="Align left"
+          >
+            <AlignLeft className="w-4 h-4" />
+          </button>
+          <button
+            type="button"
+            onClick={() => applyIntroAlignment('center')}
+            className="p-2 bg-gray-100 text-gray-700 rounded hover:bg-gray-200"
+            title="Align center"
+          >
+            <AlignCenter className="w-4 h-4" />
+          </button>
+          <button
+            type="button"
+            onClick={() => applyIntroAlignment('right')}
+            className="p-2 bg-gray-100 text-gray-700 rounded hover:bg-gray-200"
+            title="Align right"
+          >
+            <AlignRight className="w-4 h-4" />
+          </button>
+        </div>
       </div>
 
-      {intro && intro.trim() && (
-        <div className="mt-3 p-3 bg-white border rounded-lg">
-          <div className="text-xs text-gray-500 mb-2">Intro Preview</div>
-          <RichTextRenderer content={markdownToHtml(intro)} allowImages allowLinks className="prose max-w-none" />
-        </div>
-      )}
     </div>
 
       {/* Settings Section */}
-      <div className="bg-gray-50 p-4 rounded-lg border">
+      <div className="bg-gray-50 p-4 rounded-lg border border-l-4 border-l-green-400">
         
         <div className="space-y-3">
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">
-              Question Display Mode
+            <label className="block text-sm font-semibold text-green-700 mb-2">
+              Settings
             </label>
             <div className="flex gap-4">
               <label className="flex items-center">
@@ -1134,19 +1194,14 @@ const MultipleChoiceEditor = ({ questions, onQuestionsChange, settings, onSettin
       {bulkImportMode && (
         <div className="p-4 bg-blue-50 border border-blue-200 rounded-lg">
           <h4 className="font-medium text-blue-900 mb-2">Bulk Import Questions</h4>
-          <p className="text-sm text-blue-700 mb-3">
-            <strong>Simple format:</strong> Q1: Question text / A: Option 1 * / B: Option 2 / C: Option 3 / D: Option 4
-            <br />
-            - Đáp án đúng: đánh dấu <code>*</code> sau option
-            <br />
-            - Giải thích cho câu hỏi: bắt đầu dòng bằng <code>#</code> hoặc dùng <code>Explanation:</code>
-            <br />
-            <strong>Moodle Cloze:</strong> ví dụ {`{1:MC:=Option A#Giải thích A~Option B#Giải thích B~Option C}`}
-            <br />
-            - Phần sau dấu <code>#</code> trong mỗi option sẽ hiển thị khi người học chọn option đó
-            <br />
-            - Có thể thêm nhiều dòng giải thích cho cả câu hỏi với <code>#</code>
-          </p>
+          <div className="text-sm text-blue-700 mb-3 space-y-1">
+            <p><strong>Supported formats:</strong></p>
+            <p>• Question: <code>Q1.</code> <code>Câu 1:</code> <code>Question 1)</code> <code>1.</code> <code>1-</code></p>
+            <p>• Options: <code>A.</code> <code>A)</code> <code>(A)</code> <code>a:</code> — on separate lines or one line with 2+ spaces</p>
+            <p>• Correct: <code>*</code> after option, or <code>Answer: A</code> / <code>Đáp án: B</code> on its own line</p>
+            <p>• Explanation: <code>#</code> or <code>Explanation:</code> or <code>Giải thích:</code></p>
+            <p>• Also supports <strong>Moodle Cloze</strong>: {`{1:MC:=Correct~Wrong~Wrong}`}</p>
+          </div>
           <textarea
             value={bulkText}
             onChange={(e) => setBulkText(e.target.value)}
@@ -1194,7 +1249,11 @@ Good morning in Vietnamese is {1:MC:=Chào buổi sáng#Correct explanation~Chà
       )}
 
       {/* Questions List */}
-      <div className="space-y-6">
+      <div className="space-y-4">
+        <label className="block text-sm font-semibold text-orange-700">
+          Questions
+          <span className="text-xs font-normal text-gray-400 ml-1">({localQuestions.length})</span>
+        </label>
         {localQuestions.map((question, index) => {
           const isCollapsed = collapsedQuestions[index]
           return (
@@ -1263,12 +1322,13 @@ Good morning in Vietnamese is {1:MC:=Chào buổi sáng#Correct explanation~Chà
 
             {/* Question Text */}
             <div className="mb-4">
-              <label className="block text-sm font-medium text-gray-700 mb-1">
-                Question
-                <span className="ml-2 text-xs text-gray-500">
-                  (Ctrl+B: Bold, Ctrl+I: Italic, Ctrl+U: Underline, Ctrl+Z: Undo)
-                </span>
-              </label>
+              <div className="flex items-center justify-between mb-1">
+                <label className="text-sm font-medium text-gray-700">Question</label>
+                <label className="flex items-center gap-1 text-xs text-gray-500 cursor-pointer">
+                  <input type="checkbox" checked={question.shuffle_options !== false} onChange={(e) => updateQuestion(index, 'shuffle_options', e.target.checked)} className="w-3 h-3 text-blue-600 rounded" />
+                  Randomize
+                </label>
+              </div>
               <textarea
                 ref={(el) => (questionInputRefs.current[index] = el)}
                 value={question.question || ''}
@@ -1353,24 +1413,19 @@ Good morning in Vietnamese is {1:MC:=Chào buổi sáng#Correct explanation~Chà
                   <AlignRight className="w-4 h-4" />
                 </button>
               </div>
-            </div>
-
-            {/* Preview toggle */}
-            <div className="mb-4">
               <button
                 type="button"
                 onClick={() => setPreviewOpen(prev => ({ ...prev, [index]: !prev[index] }))}
-                className="px-3 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 text-sm"
+                className="px-2 py-1 bg-purple-600 text-white rounded hover:bg-purple-700 text-xs ml-auto"
               >
-                {previewOpen[index] ? 'Hide Preview' : 'Preview'}
+                {previewOpen[index] ? 'Hide' : 'Preview'}
               </button>
-              {previewOpen[index] && (
-                <div className="mt-3 p-3 bg-white border rounded-lg">
-                  <div className="text-xs text-gray-500 mb-2">Preview</div>
-                  <RichTextRenderer content={markdownToHtml(question.question || '')} allowImages allowLinks className="prose max-w-none" />
-                </div>
-              )}
             </div>
+            {previewOpen[index] && (
+              <div className="mb-2 p-2 bg-white border rounded text-sm">
+                <RichTextRenderer content={markdownToHtml(question.question || '')} allowImages allowLinks className="prose max-w-none" />
+              </div>
+            )}
 
             {/* Options */}
             <div className="mb-4">
@@ -1387,80 +1442,67 @@ Good morning in Vietnamese is {1:MC:=Chào buổi sáng#Correct explanation~Chà
                   Add Option
                 </button>
               </div>
-              <div className="space-y-2">
+              {/* Options row */}
+              <div className="flex gap-1.5 items-center">
                 {(question.options || []).map((option, optionIndex) => (
-                  <div key={optionIndex} className="flex items-start gap-2">
+                  <div key={optionIndex} className="flex-1 flex items-center gap-1 min-w-0">
                     <button
                       type="button"
                       onClick={() => updateQuestion(index, 'correct_answer', optionIndex)}
-                      className={`p-2 rounded border-2 transition-colors ${
+                      className={`p-1 rounded border-2 transition-colors shrink-0 ${
                         question.correct_answer === optionIndex
                           ? 'border-green-500 bg-green-50 text-green-700'
                           : 'border-gray-300 hover:border-green-300'
                       }`}
                       title={question.correct_answer === optionIndex ? 'Correct answer' : 'Click to mark as correct'}
                     >
-                      <Check className="w-4 h-4" />
+                      <Check className="w-3 h-3" />
                     </button>
-                    <span className="text-sm font-medium text-gray-500 w-8">
-                      {String.fromCharCode(65 + optionIndex)}:
-                    </span>
+                    <span className="text-xs font-medium text-gray-500 shrink-0">{String.fromCharCode(65 + optionIndex)}</span>
                     <input
                       type="text"
                       value={option}
                       onChange={(e) => updateOption(index, optionIndex, e.target.value)}
-                      className="flex-1 p-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
-                      placeholder={`Option ${String.fromCharCode(65 + optionIndex)}`}
-                    />
-                    <input
-                      type="text"
-                      value={(question.option_explanations && question.option_explanations[optionIndex]) || ''}
-                      onChange={(e) => {
-                        const value = e.target.value
-                        const updated = localQuestions.map((q, qi) =>
-                          qi === index
-                            ? {
-                                ...q,
-                                option_explanations: (q.option_explanations || Array(q.options.length).fill('')).map((exp, ei) =>
-                                  ei === optionIndex ? value : exp
-                                )
-                              }
-                            : q
-                        )
-                        setLocalQuestions(updated)
-                        onQuestionsChange(updated)
-                      }}
-                      className="w-64 p-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
-                      placeholder={`Explanation ${String.fromCharCode(65 + optionIndex)}`}
+                      className="w-full min-w-0 px-2 py-1 text-sm border border-gray-300 rounded focus:ring-2 focus:ring-blue-500"
+                      placeholder={String.fromCharCode(65 + optionIndex)}
                     />
                     {question.options.length > 2 && (
-                      <button
-                        type="button"
-                        onClick={() => removeOption(index, optionIndex)}
-                        className="p-2 text-red-600 hover:text-red-800"
-                        title="Remove option"
-                      >
-                        <Trash2 className="w-4 h-4" />
+                      <button type="button" onClick={() => removeOption(index, optionIndex)} className="p-0.5 text-red-400 hover:text-red-600 shrink-0" title="Remove">
+                        <X className="w-3 h-3" />
                       </button>
                     )}
                   </div>
                 ))}
               </div>
+              {/* Explanations row */}
+              <div className="flex gap-1.5">
+                {(question.options || []).map((_, optionIndex) => (
+                  <input
+                    key={optionIndex}
+                    type="text"
+                    value={(question.option_explanations && question.option_explanations[optionIndex]) || ''}
+                    onChange={(e) => {
+                      const value = e.target.value
+                      const updated = localQuestions.map((q, qi) =>
+                        qi === index
+                          ? {
+                              ...q,
+                              option_explanations: (q.option_explanations || Array(q.options.length).fill('')).map((exp, ei) =>
+                                ei === optionIndex ? value : exp
+                              )
+                            }
+                          : q
+                      )
+                      setLocalQuestions(updated)
+                      onQuestionsChange(updated)
+                    }}
+                    className="flex-1 min-w-0 px-2 py-1 text-xs border border-gray-200 rounded focus:ring-2 focus:ring-blue-500 bg-gray-50"
+                    placeholder={`${String.fromCharCode(65 + optionIndex)} explanation`}
+                  />
+                ))}
+              </div>
             </div>
 
-            {/* Shuffle Options Toggle */}
-            <div className="mb-4 flex items-center gap-2 p-3 bg-gray-100 rounded-lg">
-              <input
-                type="checkbox"
-                id={`shuffle-${index}`}
-                checked={question.shuffle_options !== false}
-                onChange={(e) => updateQuestion(index, 'shuffle_options', e.target.checked)}
-                className="w-4 h-4 text-blue-600 rounded"
-              />
-              <label htmlFor={`shuffle-${index}`} className="text-sm font-medium text-gray-700 cursor-pointer">
-                Randomize answer order (shuffle options when displayed to students)
-              </label>
-            </div>
 
             {/* Original Import Text */}
             {question.original_text && (
@@ -1472,44 +1514,6 @@ Good morning in Vietnamese is {1:MC:=Chào buổi sáng#Correct explanation~Chà
               </div>
             )}
 
-            {/* Audio URL */}
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
-                Question Audio URL (Optional)
-              </label>
-              <input
-                type="text"
-                value={question.audio_url || ''}
-                onChange={(e) => updateQuestion(index, 'audio_url', e.target.value)}
-                className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
-                placeholder="https://example.com/audio.mp3"
-              />
-            </div>
-
-            {/* Max Audio Plays */}
-            {question.audio_url && (
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Audio Play Limit
-                </label>
-                <div className="flex items-center gap-3">
-                  <input
-                    type="number"
-                    min="0"
-                    max="10"
-                    value={question.max_audio_plays || 0}
-                    onChange={(e) => updateQuestion(index, 'max_audio_plays', parseInt(e.target.value) || 0)}
-                    className="w-24 p-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
-                  />
-                  <span className="text-sm text-gray-600">
-                    {question.max_audio_plays === 0 ? 'Unlimited plays' : `Max ${question.max_audio_plays} play${question.max_audio_plays !== 1 ? 's' : ''}`}
-                  </span>
-                </div>
-                <p className="text-xs text-gray-500 mt-1">
-                  Set to 0 for unlimited plays, or limit how many times students can listen
-                </p>
-              </div>
-            )}
               </div>
             )}
           </div>
@@ -1837,6 +1841,24 @@ Good morning in Vietnamese is {1:MC:=Chào buổi sáng#Correct explanation~Chà
                       <label htmlFor="audioLoop" className="text-sm text-gray-700">
                         Lặp lại (loop)
                       </label>
+                    </div>
+
+                    <div>
+                      <label className="block text-sm text-gray-700 mb-1">
+                        Giới hạn phát: {audioMaxPlays === 0 ? 'Không giới hạn' : `${audioMaxPlays} lần`}
+                      </label>
+                      <input
+                        type="range"
+                        min="0"
+                        max="10"
+                        value={audioMaxPlays}
+                        onChange={(e) => setAudioMaxPlays(parseInt(e.target.value))}
+                        className="w-full"
+                      />
+                      <div className="flex justify-between text-xs text-gray-400">
+                        <span>0 (∞)</span>
+                        <span>10</span>
+                      </div>
                     </div>
                   </div>
                 </div>

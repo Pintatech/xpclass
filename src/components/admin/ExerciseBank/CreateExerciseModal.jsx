@@ -124,7 +124,7 @@ const CreateExerciseModal = ({ folders, selectedFolder, onClose, onCreated, allo
 
   return (
     <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-      <div className={`bg-white rounded-lg shadow-xl w-full mx-4 max-h-[90vh] overflow-y-auto ${formData.exercise_type === 'pdf_worksheet' || formData.exercise_type === 'image_hotspot' ? 'max-w-6xl' : 'max-w-2xl'}`}>
+      <div className={`bg-white rounded-lg shadow-xl w-full mx-4 max-h-[90vh] overflow-y-auto ${formData.exercise_type === 'pdf_worksheet' || formData.exercise_type === 'image_hotspot' ? 'max-w-6xl' : 'max-w-4xl'}`}>
         {/* Header */}
         <div className="flex items-center justify-between p-6 border-b border-gray-200">
           <h2 className="text-lg font-semibold text-gray-900">
@@ -146,30 +146,26 @@ const CreateExerciseModal = ({ folders, selectedFolder, onClose, onCreated, allo
             </div>
           )}
 
-          {/* Title and Type */}
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
-                Exercise Title *
-              </label>
+          {/* Basic Information */}
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+            <div className="col-span-2">
+              <label className="block text-xs font-medium text-gray-700 mb-1">Title *</label>
               <input
                 type="text"
                 value={formData.title}
                 onChange={(e) => handleChange('title', e.target.value)}
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                className="w-full px-2 py-1.5 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                 placeholder="Enter exercise title"
                 required
               />
             </div>
 
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
-                Exercise Type *
-              </label>
+              <label className="block text-xs font-medium text-gray-700 mb-1">Type *</label>
               <select
                 value={formData.exercise_type}
                 onChange={(e) => handleChange('exercise_type', e.target.value)}
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                className="w-full px-2 py-1.5 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
               >
                 {exerciseTypes.map(type => (
                   <option key={type.value} value={type.value}>
@@ -178,18 +174,13 @@ const CreateExerciseModal = ({ folders, selectedFolder, onClose, onCreated, allo
                 ))}
               </select>
             </div>
-          </div>
 
-          {/* Folder and XP Reward */}
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
-                Folder
-              </label>
+              <label className="block text-xs font-medium text-gray-700 mb-1">Folder</label>
               <select
                 value={formData.folder_id}
                 onChange={(e) => handleChange('folder_id', e.target.value)}
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                className="w-full px-2 py-1.5 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
               >
                 <option value="">No Folder</option>
                 {buildFolderOptions(folders)}
@@ -197,46 +188,42 @@ const CreateExerciseModal = ({ folders, selectedFolder, onClose, onCreated, allo
             </div>
 
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
-                XP Reward
-              </label>
+              <label className="block text-xs font-medium text-gray-700 mb-1">XP Reward</label>
               <input
                 type="number"
                 value={formData.xp_reward}
                 onChange={(e) => handleChange('xp_reward', parseInt(e.target.value))}
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                className="w-full px-2 py-1.5 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                 min="1"
                 max="100"
               />
             </div>
 
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
-                Score Boost
-              </label>
+              <label className="block text-xs font-medium text-gray-700 mb-1">Score Boost</label>
               <select
                 value={formData.score_boost}
                 onChange={(e) => handleChange('score_boost', parseInt(e.target.value))}
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                className="w-full px-2 py-1.5 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
               >
                 <option value={0}>Normal</option>
-                <option value={15}>Lenient (+15) - Young learners</option>
-                <option value={25}>Very Lenient (+25) - Kindergarten</option>
+                <option value={15}>Lenient (+15)</option>
+                <option value={25}>Very Lenient (+25)</option>
               </select>
             </div>
           </div>
 
           {/* Category & Tags */}
-          <div className="space-y-3">
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
-                <Tag className="w-4 h-4 inline mr-1" />
-                Category & Tags
+          <div className="flex items-start gap-3">
+            <div className="shrink-0">
+              <label className="block text-xs font-medium text-gray-700 mb-1">
+                <Tag className="w-3 h-3 inline mr-0.5" />
+                Category
               </label>
               <select
                 value={formData.category}
                 onChange={(e) => handleChange('category', e.target.value)}
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                className="px-2 py-1.5 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
               >
                 <option value="">All categories</option>
                 {EXERCISE_CATEGORIES.map(cat => (
@@ -244,21 +231,24 @@ const CreateExerciseModal = ({ folders, selectedFolder, onClose, onCreated, allo
                 ))}
               </select>
             </div>
-            <div className="flex flex-wrap gap-1.5">
-              {availableTags.map(tag => (
-                <button
-                  key={tag}
-                  type="button"
-                  onClick={() => toggleTag(tag)}
-                  className={`px-2.5 py-1 text-xs rounded-full border transition-colors ${
-                    formData.tags.includes(tag)
-                      ? 'bg-blue-100 border-blue-300 text-blue-700'
-                      : 'bg-gray-50 border-gray-200 text-gray-600 hover:bg-gray-100'
-                  }`}
-                >
-                  {formData.tags.includes(tag) && '✓ '}{tag}
-                </button>
-              ))}
+            <div className="flex-1">
+              <label className="block text-xs font-medium text-gray-700 mb-1">Tags</label>
+              <div className="flex flex-wrap gap-1">
+                {availableTags.map(tag => (
+                  <button
+                    key={tag}
+                    type="button"
+                    onClick={() => toggleTag(tag)}
+                    className={`px-2 py-0.5 text-xs rounded-full border transition-colors ${
+                      formData.tags.includes(tag)
+                        ? 'bg-blue-100 border-blue-300 text-blue-700'
+                        : 'bg-gray-50 border-gray-200 text-gray-600 hover:bg-gray-100'
+                    }`}
+                  >
+                    {formData.tags.includes(tag) && '✓ '}{tag}
+                  </button>
+                ))}
+              </div>
             </div>
           </div>
 
