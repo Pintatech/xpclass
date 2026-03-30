@@ -685,6 +685,12 @@ const Profile = () => {
   }
 
   const handleClaimAchievementXP = async (achievementId) => {
+    // Verify the achievement is actually unlocked before claiming
+    const achievement = achievements.find(a => a.id === achievementId)
+    if (!achievement?.isUnlocked || achievement?.isClaimed) {
+      return
+    }
+
     setClaimingAchievement(prev => ({ ...prev, [achievementId]: true }))
     setClaimMessage('')
     try {

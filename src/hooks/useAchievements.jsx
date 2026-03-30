@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { supabase } from '../supabase/client'
 import { useAuth } from './useAuth'
 
@@ -129,9 +129,18 @@ export const useAchievements = () => {
     }
   }
 
+  // Track in-flight claims to prevent duplicate requests
+  const claimingSet = useRef(new Set())
+
   // Claim achievement XP
   const claimAchievementXP = async (achievementId) => {
     if (!user) return { success: false, message: 'No user logged in' }
+
+    // Prevent concurrent claims for the same achievement
+    if (claimingSet.current.has(achievementId)) {
+      return { success: false, message: 'Đang xử lý, vui lòng đợi...' }
+    }
+    claimingSet.current.add(achievementId)
 
     try {
       // Check if user_achievements record exists
@@ -143,6 +152,11 @@ export const useAchievements = () => {
         .single()
 
       if (existing) {
+        // Already claimed — block duplicate
+        if (existing.claimed_at) {
+          return { success: false, message: 'Thành tựu này đã được nhận rồi' }
+        }
+
         // Record exists in DB, use the RPC as normal
         const { data, error } = await supabase.rpc('claim_achievement_xp', {
           user_id_param: user.id,
@@ -174,6 +188,18 @@ export const useAchievements = () => {
 
         const xpReward = achievement?.xp_reward || 0
 
+        // Double-check no record was inserted between our first check and now
+        const { data: recheck } = await supabase
+          .from('user_achievements')
+          .select('id, claimed_at')
+          .eq('user_id', user.id)
+          .eq('achievement_id', achievementId)
+          .single()
+
+        if (recheck) {
+          return { success: false, message: 'Thành tựu này đã được nhận rồi' }
+        }
+
         // Insert user_achievements record with earned_at and claimed_at
         const { error: insertError } = await supabase
           .from('user_achievements')
@@ -181,7 +207,8 @@ export const useAchievements = () => {
             user_id: user.id,
             achievement_id: achievementId,
             earned_at: new Date().toISOString(),
-            claimed_at: new Date().toISOString()
+            claimed_at: new Date().toISOString(),
+            xp_claimed: xpReward
           })
 
         if (insertError) throw insertError
@@ -210,6 +237,8 @@ export const useAchievements = () => {
       console.error('Error claiming achievement XP:', err)
       setError(err.message)
       return { success: false, message: err.message }
+    } finally {
+      claimingSet.current.delete(achievementId)
     }
   }
 
