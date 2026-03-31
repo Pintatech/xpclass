@@ -157,7 +157,7 @@ const WildEncounterModal = ({ pet, onClose, onCatchComplete }) => {
   const [flashOpacity, setFlashOpacity] = useState(0)
   const [attemptsLeft, setAttemptsLeft] = useState(2)
 
-  // Drag state — use refs for smooth 60fps dragging (no React re-renders)
+  // Drag state — use refs for smooth rAF dragging (no React re-renders)
   const [isDragging, setIsDragging] = useState(false)
   const [throwTrajectory, setThrowTrajectory] = useState(null)
   const ballRef = useRef(null)

@@ -362,15 +362,21 @@ const PetMazeAdventure = ({
     setPlacedLetters([])
   }, [])
 
-  // Particle + shake + falling/floating animation loop
+  // Particle + shake + falling/floating animation loop (delta-time based)
   useEffect(() => {
     if (phase !== 'playing' && phase !== 'victory') return
 
-    const animate = () => {
-      shakeRef.current = Math.max(0, shakeRef.current - 0.5)
+    let lastTime = performance.now()
+
+    const animate = (now) => {
+      const rawDt = (now - lastTime) / 16.667 // normalize to 60fps (1.0 = one 60fps frame)
+      const dt = Math.min(rawDt, 3) // cap to prevent huge jumps on tab switch
+      lastTime = now
+
+      shakeRef.current = Math.max(0, shakeRef.current - 0.5 * dt)
       setScreenShake(shakeRef.current)
       setParticles(prev => prev
-        .map(p => ({ ...p, x: p.x + p.vx, y: p.y + p.vy, vy: p.vy + 0.18, opacity: p.opacity - 0.018 }))
+        .map(p => ({ ...p, x: p.x + p.vx * dt, y: p.y + p.vy * dt, vy: p.vy + 0.18 * dt, opacity: p.opacity - 0.018 * dt }))
         .filter(p => p.opacity > 0)
       )
 
@@ -380,8 +386,8 @@ const PetMazeAdventure = ({
         const orbs = fallingOrbsRef.current
         for (const o of orbs) {
           if (o.hit) continue
-          o.x += o.vx || 0
-          o.y += o.vy
+          o.x += (o.vx || 0) * dt
+          o.y += o.vy * dt
           // Bounce off side walls
           if (o.x < 30) { o.x = 30; o.vx = Math.abs(o.vx || 0) * 0.8 }
           if (o.x > 290) { o.x = 290; o.vx = -Math.abs(o.vx || 0) * 0.8 }
@@ -426,8 +432,8 @@ const PetMazeAdventure = ({
         const bubs = floatingLettersRef.current
         for (const l of bubs) {
           if (l.captured) continue
-          l.x += l.vx
-          l.y += l.vy
+          l.x += l.vx * dt
+          l.y += l.vy * dt
           if (l.x < 50) { l.x = 50; l.vx = Math.abs(l.vx) }
           if (l.x > 320) { l.x = 320; l.vx = -Math.abs(l.vx) }
           if (l.y < 50) { l.y = 50; l.vy = Math.abs(l.vy) }
