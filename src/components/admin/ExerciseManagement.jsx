@@ -732,12 +732,6 @@ const ExerciseForm = ({ exercise, sessions, exerciseTypes, onSave, onCancel }) =
 
               {formData.exercise_type === 'ai_fill_blank' && (
                 <div className="space-y-4">
-                  <div className="p-4 bg-purple-50 border border-purple-200 rounded-lg">
-                    <h4 className="font-medium text-purple-900 mb-2">🤖 AI Fill-in-the-Blank Exercise Editor</h4>
-                    <p className="text-sm text-purple-700">
-                      Create questions that use AI to intelligently score student answers.
-                    </p>
-                  </div>
                   
                   <AIFillBlankEditor
                     questions={formData.content.questions || []}

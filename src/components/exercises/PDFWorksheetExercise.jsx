@@ -5,6 +5,7 @@ import 'react-pdf/dist/Page/AnnotationLayer.css'
 import 'react-pdf/dist/Page/TextLayer.css'
 import { supabase } from '../../supabase/client'
 import { CheckCircle, XCircle, RotateCcw, ArrowLeft, Highlighter, Trash2 } from 'lucide-react'
+import AudioPlayer from '../ui/AudioPlayer'
 import LoadingSpinner from '../ui/LoadingSpinner'
 import Button3D from '../ui/Button3D'
 import CelebrationScreen from '../ui/CelebrationScreen'
@@ -630,11 +631,24 @@ const PDFWorksheetExercise = ({ testMode = false, exerciseData = null, onAnswers
     </div>
   ) : null
 
+  // Per-page audio player
+  const PageAudio = () => {
+    const pageData = exercise?.content?.pages?.find(p => p.page_number === currentPage)
+    const audioUrl = pageData?.audio_url
+    if (!audioUrl) return null
+    return (
+      <div className="mb-3">
+        <AudioPlayer audioUrl={audioUrl} seekable />
+      </div>
+    )
+  }
+
   // PDF page with field overlays (non-split)
   const PDFPageWithFields = () => (
       <div ref={containerRef} className="bg-white rounded-lg shadow-md p-1 sm:p-4 border border-gray-200">
         <HighlightToolbar target="questions" />
         {PageNav()}
+        {PageAudio()}
         <div
           className="relative"
           ref={pageContainerRef}
@@ -792,6 +806,7 @@ const PDFWorksheetExercise = ({ testMode = false, exerciseData = null, onAnswers
           <div ref={containerRef} className="bg-white overflow-y-auto p-2 sm:p-4">
             <div className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-2 text-center">Questions</div>
             {PageNav()}
+            {PageAudio()}
             <div className="relative" ref={pageContainerRef}>
               {isImageMode ? (
                 <img src={imageUrls[currentPage - 1]} alt={`Page ${currentPage}`} style={{ width: '100%' }} className="block" />

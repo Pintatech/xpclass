@@ -10,6 +10,9 @@ import {
   AlignLeft,
   AlignCenter,
   AlignRight,
+  ChevronUp,
+  ChevronDown,
+  Copy,
 } from 'lucide-react'
 import { handleRichTextShortcut } from '../../../hooks/useRichTextShortcuts'
 
@@ -74,6 +77,25 @@ const FlashcardEditor = ({ cards, onCardsChange }) => {
 
   const removeCard = (index) => {
     const updatedCards = localCards.filter((_, i) => i !== index)
+    setLocalCards(updatedCards)
+    onCardsChange(updatedCards)
+  }
+
+  const duplicateCard = (index) => {
+    const cardToDuplicate = { ...localCards[index], id: Date.now() }
+    const updatedCards = [...localCards]
+    updatedCards.splice(index + 1, 0, cardToDuplicate)
+    setLocalCards(updatedCards)
+    onCardsChange(updatedCards)
+  }
+
+  const moveCard = (index, direction) => {
+    const newIndex = direction === 'up' ? index - 1 : index + 1
+    if (newIndex < 0 || newIndex >= localCards.length) return
+    const updatedCards = [...localCards]
+    const temp = updatedCards[index]
+    updatedCards[index] = updatedCards[newIndex]
+    updatedCards[newIndex] = temp
     setLocalCards(updatedCards)
     onCardsChange(updatedCards)
   }
@@ -248,14 +270,42 @@ const FlashcardEditor = ({ cards, onCardsChange }) => {
           <div key={card.id || index} className="border border-gray-200 rounded-lg p-4 bg-gray-50">
             <div className="flex justify-between items-center mb-3">
               <span className="text-sm font-medium text-gray-700">Card {index + 1}</span>
-              <button
-                type="button"
-                onClick={() => removeCard(index)}
-                className="text-red-600 hover:text-red-800"
-                title="Remove card"
-              >
-                <Trash2 className="w-4 h-4" />
-              </button>
+              <div className="flex gap-1">
+                <button
+                  type="button"
+                  onClick={() => moveCard(index, 'up')}
+                  disabled={index === 0}
+                  className="p-1 text-gray-500 hover:text-gray-700 disabled:opacity-50"
+                  title="Move up"
+                >
+                  <ChevronUp className="w-4 h-4" />
+                </button>
+                <button
+                  type="button"
+                  onClick={() => moveCard(index, 'down')}
+                  disabled={index === localCards.length - 1}
+                  className="p-1 text-gray-500 hover:text-gray-700 disabled:opacity-50"
+                  title="Move down"
+                >
+                  <ChevronDown className="w-4 h-4" />
+                </button>
+                <button
+                  type="button"
+                  onClick={() => duplicateCard(index)}
+                  className="p-1 text-blue-600 hover:text-blue-800"
+                  title="Duplicate"
+                >
+                  <Copy className="w-4 h-4" />
+                </button>
+                <button
+                  type="button"
+                  onClick={() => removeCard(index)}
+                  className="p-1 text-red-600 hover:text-red-800"
+                  title="Remove card"
+                >
+                  <Trash2 className="w-4 h-4" />
+                </button>
+              </div>
             </div>
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">

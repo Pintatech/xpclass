@@ -14,6 +14,7 @@ import {
   Table,
   Link,
   Image,
+  Music,
   AlignLeft,
   AlignCenter,
   AlignRight
@@ -953,6 +954,13 @@ const MultipleChoiceEditor = ({ questions, onQuestionsChange, settings, onSettin
             <Plus className="w-4 h-4" />
             Bulk
           </button>
+          <button
+            type="button"
+            onClick={() => updateSetting('view_mode', localSettings.view_mode === 'one-by-one' ? 'all-at-once' : 'one-by-one')}
+            className="flex items-center gap-2 px-3 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 text-sm"
+          >
+            {localSettings.view_mode === 'one-by-one' ? 'One by One' : 'All at Once'}
+          </button>
           {localQuestions.length > 0 && (
             <button
               type="button"
@@ -985,22 +993,11 @@ const MultipleChoiceEditor = ({ questions, onQuestionsChange, settings, onSettin
 
     {/* Global Intro Section */}
     <div className="bg-white p-4 border-l-4 border-l-blue-400 border border-gray-200 rounded-lg">
-      <label className="block text-sm font-semibold text-blue-700 mb-1">
-        Intro
-        <span className="text-xs font-normal text-gray-400 ml-1">(Optional)</span>
-      </label>
-      <textarea
-        ref={(el) => (questionInputRefs.current[-1] = el)}
-        value={intro || ''}
-        onChange={(e) => onIntroChange && onIntroChange(e.target.value)}
-        onKeyDown={(e) => handleRichTextShortcut(e, questionInputRefs.current[-1], intro || '', (v) => onIntroChange && onIntroChange(v))}
-        className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
-        rows={2}
-        placeholder="Nhập nội dung giới thiệu chung cho bài trắc nghiệm..."
-      />
-
-      {/* Insert Media Buttons for Intro */}
-      <div className="mt-2 flex flex-wrap gap-2">
+      <div className="flex items-center gap-2 mb-1">
+        <label className="text-sm font-semibold text-blue-700 mr-auto">
+          Intro
+          <span className="text-xs font-normal text-gray-400 ml-1">(Optional)</span>
+        </label>
         <input
           ref={(el) => (fileInputRefs.current[-1] = el)}
           type="file"
@@ -1009,7 +1006,6 @@ const MultipleChoiceEditor = ({ questions, onQuestionsChange, settings, onSettin
           onChange={(e) => {
             const file = e.target.files?.[0]
             if (!file) return
-            // Upload image for intro
             const uploadImageForIntro = async () => {
               try {
                 const path = `multiple_choice/${Date.now()}_${Math.random().toString(36).slice(2)}_${file.name}`
@@ -1025,7 +1021,6 @@ const MultipleChoiceEditor = ({ questions, onQuestionsChange, settings, onSettin
                 const publicUrl = publicData?.publicUrl
                 if (!publicUrl) throw new Error('Cannot get public URL')
 
-                // Insert at cursor position in intro
                 const textarea = questionInputRefs.current[-1]
                 const current = intro || ''
                 if (!textarea) {
@@ -1051,144 +1046,38 @@ const MultipleChoiceEditor = ({ questions, onQuestionsChange, settings, onSettin
             uploadImageForIntro()
           }}
         />
-        <button
-          type="button"
-          onClick={() => {
-            const input = fileInputRefs.current[-1]
-            if (input) input.click()
-          }}
-          className="px-3 py-2 bg-gray-700 text-white rounded-lg hover:bg-gray-800 text-sm flex items-center gap-2"
-        >
-          <Upload className="w-4 h-4" /> Upload
+        <button type="button" onClick={() => { const input = fileInputRefs.current[-1]; if (input) input.click() }} className="px-2 py-1 text-xs bg-gray-100 hover:bg-gray-200 rounded inline-flex items-center gap-1">
+          <Upload className="w-3 h-3" /> Upload
         </button>
-        <button
-          type="button"
-          onClick={() => {
-            setUrlModal({ isOpen: true, type: 'image', questionIndex: -1 })
-            setUrlInput('')
-            setLinkText('')
-            setImageSize('medium')
-            setCustomWidth('')
-            setCustomHeight('')
-          }}
-          className="px-3 py-2 bg-gray-100 text-gray-800 rounded-lg hover:bg-gray-200 text-sm flex items-center gap-2"
-          title="Insert image"
-        >
-          <Image className="w-4 h-4" />
-          Insert image
+        <button type="button" onClick={() => { setUrlModal({ isOpen: true, type: 'image', questionIndex: -1 }); setUrlInput(''); setLinkText(''); setImageSize('medium'); setCustomWidth(''); setCustomHeight('') }} className="px-2 py-1 text-xs bg-gray-100 hover:bg-gray-200 rounded inline-flex items-center gap-1">
+          <Image className="w-3 h-3" /> Image
         </button>
-        <button
-          type="button"
-          onClick={() => {
-            setUrlModal({ isOpen: true, type: 'link', questionIndex: -1 })
-            setUrlInput('')
-            setLinkText('Reference')
-          }}
-          className="px-3 py-2 bg-gray-100 text-gray-800 rounded-lg hover:bg-gray-200 text-sm flex items-center gap-2"
-          title="Insert link"
-        >
-          <Link className="w-4 h-4" />
+        <button type="button" onClick={() => { setUrlModal({ isOpen: true, type: 'audio', questionIndex: -1 }); setUrlInput(''); setLinkText(''); setImageSize('medium'); setCustomWidth(''); setCustomHeight(''); setAudioControls(true); setAudioAutoplay(false); setAudioLoop(false) }} className="px-2 py-1 text-xs bg-gray-100 hover:bg-gray-200 rounded inline-flex items-center gap-1">
+          <Music className="w-3 h-3" /> Audio
         </button>
-        <button
-          type="button"
-          onClick={() => {
-            setUrlModal({ isOpen: true, type: 'audio', questionIndex: -1 })
-            setUrlInput('')
-            setLinkText('')
-            setImageSize('medium')
-            setCustomWidth('')
-            setCustomHeight('')
-            setAudioControls(true)
-            setAudioAutoplay(false)
-            setAudioLoop(false)
-          }}
-          className="px-3 py-2 bg-purple-100 text-purple-800 rounded-lg hover:bg-purple-200 text-sm"
-        >
-          🎵 Insert audio
+        <button type="button" onClick={() => { setUrlModal({ isOpen: true, type: 'link', questionIndex: -1 }); setUrlInput(''); setLinkText('Reference') }} className="px-2 py-1 text-xs bg-gray-100 hover:bg-gray-200 rounded inline-flex items-center gap-1">
+          <Link className="w-3 h-3" /> Link
         </button>
-        <button
-          type="button"
-          onClick={() => {
-            setTableModal({ isOpen: true, questionIndex: -1 })
-            setTableRows(2)
-            setTableColumns(2)
-            setTableWidth('100%')
-            setTableBorder(true)
-          }}
-          className="px-3 py-2 bg-blue-100 text-blue-800 rounded-lg hover:bg-blue-200 text-sm flex items-center gap-2"
-        >
-          <Table className="w-4 h-4" /> Insert table
+        <button type="button" onClick={() => { setTableModal({ isOpen: true, questionIndex: -1 }); setTableRows(2); setTableColumns(2); setTableWidth('100%'); setTableBorder(true) }} className="px-2 py-1 text-xs bg-gray-100 hover:bg-gray-200 rounded inline-flex items-center gap-1">
+          <Table className="w-3 h-3" /> Table
         </button>
         <div className="flex gap-1 ml-2 border-l pl-2 border-gray-300">
-          <button
-            type="button"
-            onClick={() => applyIntroAlignment('left')}
-            className="p-2 bg-gray-100 text-gray-700 rounded hover:bg-gray-200"
-            title="Align left"
-          >
-            <AlignLeft className="w-4 h-4" />
-          </button>
-          <button
-            type="button"
-            onClick={() => applyIntroAlignment('center')}
-            className="p-2 bg-gray-100 text-gray-700 rounded hover:bg-gray-200"
-            title="Align center"
-          >
-            <AlignCenter className="w-4 h-4" />
-          </button>
-          <button
-            type="button"
-            onClick={() => applyIntroAlignment('right')}
-            className="p-2 bg-gray-100 text-gray-700 rounded hover:bg-gray-200"
-            title="Align right"
-          >
-            <AlignRight className="w-4 h-4" />
-          </button>
+          <button type="button" onClick={() => applyIntroAlignment('left')} className="p-1 bg-gray-100 text-gray-700 rounded hover:bg-gray-200" title="Align left"><AlignLeft className="w-3 h-3" /></button>
+          <button type="button" onClick={() => applyIntroAlignment('center')} className="p-1 bg-gray-100 text-gray-700 rounded hover:bg-gray-200" title="Align center"><AlignCenter className="w-3 h-3" /></button>
+          <button type="button" onClick={() => applyIntroAlignment('right')} className="p-1 bg-gray-100 text-gray-700 rounded hover:bg-gray-200" title="Align right"><AlignRight className="w-3 h-3" /></button>
         </div>
       </div>
-
+      <textarea
+        ref={(el) => (questionInputRefs.current[-1] = el)}
+        value={intro || ''}
+        onChange={(e) => onIntroChange && onIntroChange(e.target.value)}
+        onKeyDown={(e) => handleRichTextShortcut(e, questionInputRefs.current[-1], intro || '', (v) => onIntroChange && onIntroChange(v))}
+        className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
+        rows={2}
+        placeholder="Nhập nội dung giới thiệu chung cho bài trắc nghiệm..."
+      />
     </div>
 
-      {/* Settings Section */}
-      <div className="bg-gray-50 p-4 rounded-lg border border-l-4 border-l-green-400">
-        
-        <div className="space-y-3">
-          <div>
-            <label className="block text-sm font-semibold text-green-700 mb-2">
-              Settings
-            </label>
-            <div className="flex gap-4">
-              <label className="flex items-center">
-                <input
-                  type="radio"
-                  name="view_mode"
-                  value="one-by-one"
-                  checked={localSettings.view_mode === 'one-by-one'}
-                  onChange={(e) => updateSetting('view_mode', e.target.value)}
-                  className="w-4 h-4 text-blue-600 border-gray-300 focus:ring-blue-500"
-                />
-                <span className="ml-2 text-sm text-gray-700">
-                  One by One 
-                </span>
-              </label>
-              <label className="flex items-center">
-                <input
-                  type="radio"
-                  name="view_mode"
-                  value="all-at-once"
-                  checked={localSettings.view_mode === 'all-at-once'}
-                  onChange={(e) => updateSetting('view_mode', e.target.value)}
-                  className="w-4 h-4 text-blue-600 border-gray-300 focus:ring-blue-500"
-                />
-                <span className="ml-2 text-sm text-gray-700">
-                  All at Once 
-                </span>
-              </label>
-            </div>
-            
-          </div>
-        </div>
-      </div>
 
       {/* Bulk Import Mode */}
       {bulkImportMode && (
@@ -1322,12 +1211,45 @@ Good morning in Vietnamese is {1:MC:=Chào buổi sáng#Correct explanation~Chà
 
             {/* Question Text */}
             <div className="mb-4">
-              <div className="flex items-center justify-between mb-1">
-                <label className="text-sm font-medium text-gray-700">Question</label>
+              <div className="flex items-center gap-2 mb-1">
+                <input
+                  ref={(el) => (fileInputRefs.current[index] = el)}
+                  type="file"
+                  accept="image/*"
+                  className="hidden"
+                  onChange={(e) => handleImageUpload(index, e.target.files?.[0])}
+                />
+                <button type="button" onClick={() => handleSelectFile(index)} className="px-2 py-1 text-xs bg-gray-100 hover:bg-gray-200 rounded inline-flex items-center gap-1">
+                  <Upload className="w-3 h-3" /> Upload
+                </button>
+                <button type="button" onClick={() => handlePasteImageUrl(index)} className="px-2 py-1 text-xs bg-gray-100 hover:bg-gray-200 rounded inline-flex items-center gap-1">
+                  <Image className="w-3 h-3" /> Image
+                </button>
+                <button type="button" onClick={() => handleInsertAudio(index)} className="px-2 py-1 text-xs bg-gray-100 hover:bg-gray-200 rounded inline-flex items-center gap-1">
+                  <Music className="w-3 h-3" /> Audio
+                </button>
+                <button type="button" onClick={() => handleInsertLink(index)} className="px-2 py-1 text-xs bg-gray-100 hover:bg-gray-200 rounded inline-flex items-center gap-1">
+                  <Link className="w-3 h-3" /> Link
+                </button>
+                <button type="button" onClick={() => handleInsertTable(index)} className="px-2 py-1 text-xs bg-gray-100 hover:bg-gray-200 rounded inline-flex items-center gap-1">
+                  <Table className="w-3 h-3" /> Table
+                </button>
+                <div className="flex gap-1 ml-2 border-l pl-2 border-gray-300">
+                  <button type="button" onClick={() => applyAlignment(index, 'left')} className="p-1 bg-gray-100 text-gray-700 rounded hover:bg-gray-200" title="Align left"><AlignLeft className="w-3 h-3" /></button>
+                  <button type="button" onClick={() => applyAlignment(index, 'center')} className="p-1 bg-gray-100 text-gray-700 rounded hover:bg-gray-200" title="Align center"><AlignCenter className="w-3 h-3" /></button>
+                  <button type="button" onClick={() => applyAlignment(index, 'right')} className="p-1 bg-gray-100 text-gray-700 rounded hover:bg-gray-200" title="Align right"><AlignRight className="w-3 h-3" /></button>
+                </div>
                 <label className="flex items-center gap-1 text-xs text-gray-500 cursor-pointer">
                   <input type="checkbox" checked={question.shuffle_options !== false} onChange={(e) => updateQuestion(index, 'shuffle_options', e.target.checked)} className="w-3 h-3 text-blue-600 rounded" />
                   Randomize
                 </label>
+                <button
+                  type="button"
+                  onClick={() => setPreviewOpen(prev => ({ ...prev, [index]: !prev[index] }))}
+                  className="px-2 py-1 bg-purple-600 text-white rounded hover:bg-purple-700 text-xs"
+                >
+                  {previewOpen[index] ? 'Hide' : 'Preview'}
+                </button>
               </div>
               <textarea
                 ref={(el) => (questionInputRefs.current[index] = el)}
@@ -1338,88 +1260,6 @@ Good morning in Vietnamese is {1:MC:=Chào buổi sáng#Correct explanation~Chà
                 rows={2}
                 placeholder="Enter your question here..."
               />
-            </div>
-
-            {/* Insert Image/Link Buttons */}
-            <div className="mb-4 flex flex-wrap gap-2">
-              <input
-                ref={(el) => (fileInputRefs.current[index] = el)}
-                type="file"
-                accept="image/*"
-                className="hidden"
-                onChange={(e) => handleImageUpload(index, e.target.files?.[0])}
-              />
-              <button
-                type="button"
-                onClick={() => handleSelectFile(index)}
-                className="px-3 py-2 bg-gray-700 text-white rounded-lg hover:bg-gray-800 text-sm flex items-center gap-2"
-              >
-                <Upload className="w-4 h-4" /> Upload
-              </button>
-              <button
-                type="button"
-                onClick={() => handlePasteImageUrl(index)}
-                className="px-3 py-2 bg-gray-100 text-gray-800 rounded-lg hover:bg-gray-200 text-sm flex items-center gap-2"
-                title="Insert image"
-              >
-                <Image className="w-4 h-4" />
-                Insert image
-              </button>
-              <button
-                type="button"
-                onClick={() => handleInsertLink(index)}
-                className="px-3 py-2 bg-gray-100 text-gray-800 rounded-lg hover:bg-gray-200 text-sm flex items-center gap-2"
-                title="Insert link"
-              >
-                <Link className="w-4 h-4" />
-              </button>
-              <button
-                type="button"
-                onClick={() => handleInsertAudio(index)}
-                className="px-3 py-2 bg-purple-100 text-purple-800 rounded-lg hover:bg-purple-200 text-sm"
-              >
-                🎵 Insert audio
-              </button>
-              <button
-                type="button"
-                onClick={() => handleInsertTable(index)}
-                className="px-3 py-2 bg-blue-100 text-blue-800 rounded-lg hover:bg-blue-200 text-sm flex items-center gap-2"
-              >
-                <Table className="w-4 h-4" /> Insert table
-              </button>
-              <div className="flex gap-1 ml-2 border-l pl-2 border-gray-300">
-                <button
-                  type="button"
-                  onClick={() => applyAlignment(index, 'left')}
-                  className="p-2 bg-gray-100 text-gray-700 rounded hover:bg-gray-200"
-                  title="Align left"
-                >
-                  <AlignLeft className="w-4 h-4" />
-                </button>
-                <button
-                  type="button"
-                  onClick={() => applyAlignment(index, 'center')}
-                  className="p-2 bg-gray-100 text-gray-700 rounded hover:bg-gray-200"
-                  title="Align center"
-                >
-                  <AlignCenter className="w-4 h-4" />
-                </button>
-                <button
-                  type="button"
-                  onClick={() => applyAlignment(index, 'right')}
-                  className="p-2 bg-gray-100 text-gray-700 rounded hover:bg-gray-200"
-                  title="Align right"
-                >
-                  <AlignRight className="w-4 h-4" />
-                </button>
-              </div>
-              <button
-                type="button"
-                onClick={() => setPreviewOpen(prev => ({ ...prev, [index]: !prev[index] }))}
-                className="px-2 py-1 bg-purple-600 text-white rounded hover:bg-purple-700 text-xs ml-auto"
-              >
-                {previewOpen[index] ? 'Hide' : 'Preview'}
-              </button>
             </div>
             {previewOpen[index] && (
               <div className="mb-2 p-2 bg-white border rounded text-sm">
@@ -1843,23 +1683,18 @@ Good morning in Vietnamese is {1:MC:=Chào buổi sáng#Correct explanation~Chà
                       </label>
                     </div>
 
-                    <div>
-                      <label className="block text-sm text-gray-700 mb-1">
-                        Giới hạn phát: {audioMaxPlays === 0 ? 'Không giới hạn' : `${audioMaxPlays} lần`}
-                      </label>
+                    <label className="flex items-center gap-2 text-sm">
+                      Giới hạn phát:
                       <input
-                        type="range"
+                        type="number"
                         min="0"
-                        max="10"
+                        max="99"
                         value={audioMaxPlays}
-                        onChange={(e) => setAudioMaxPlays(parseInt(e.target.value))}
-                        className="w-full"
+                        onChange={(e) => setAudioMaxPlays(parseInt(e.target.value) || 0)}
+                        className="w-16 px-2 py-1 border border-gray-300 rounded text-sm"
                       />
-                      <div className="flex justify-between text-xs text-gray-400">
-                        <span>0 (∞)</span>
-                        <span>10</span>
-                      </div>
-                    </div>
+                      <span className="text-gray-500">{audioMaxPlays === 0 ? '(không giới hạn)' : 'lần'}</span>
+                    </label>
                   </div>
                 </div>
               )}

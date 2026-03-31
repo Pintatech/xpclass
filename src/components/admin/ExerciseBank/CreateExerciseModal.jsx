@@ -1,6 +1,6 @@
 import React, { useState } from 'react'
 import { supabase } from '../../../supabase/client'
-import { X, BookOpen, Edit3, Mic, HelpCircle, Tag, Copy, Brain, ChevronDown, Image, FileText, Video, Plus } from 'lucide-react'
+import { BookOpen, Edit3, Mic, HelpCircle, Tag, Copy, Brain, ChevronDown, Image, FileText, Video, Plus } from 'lucide-react'
 import { EXERCISE_CATEGORIES, EXERCISE_TAGS, ALL_TAGS } from '../../../constants/exerciseTags'
 import FlashcardEditor from '../editors/FlashcardEditor'
 import MultipleChoiceEditor from '../editors/MultipleChoiceEditor'
@@ -125,21 +125,29 @@ const CreateExerciseModal = ({ folders, selectedFolder, onClose, onCreated, allo
   return (
     <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
       <div className={`bg-white rounded-lg shadow-xl w-full mx-4 max-h-[90vh] overflow-y-auto ${formData.exercise_type === 'pdf_worksheet' || formData.exercise_type === 'image_hotspot' ? 'max-w-6xl' : 'max-w-4xl'}`}>
-        {/* Header */}
-        <div className="flex items-center justify-between p-6 border-b border-gray-200">
-          <h2 className="text-lg font-semibold text-gray-900">
-            Create New Exercise
-          </h2>
-          <button
-            onClick={onClose}
-            className="text-gray-400 hover:text-gray-600 transition-colors"
-          >
-            <X className="w-5 h-5" />
-          </button>
-        </div>
-
         {/* Form */}
         <form onSubmit={handleSubmit} className="p-6 space-y-6">
+          {/* Header with actions */}
+          <div className="flex items-center justify-between -m-6 mb-0 p-4 border-b border-gray-200 bg-gray-50 rounded-t-lg">
+            <h2 className="text-lg font-semibold text-gray-900">Create New Exercise</h2>
+            <div className="flex items-center gap-2">
+              <button
+                type="button"
+                onClick={onClose}
+                className="px-3 py-1.5 text-sm text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors"
+              >
+                Cancel
+              </button>
+              <button
+                type="submit"
+                disabled={loading || !formData.title.trim()}
+                className="px-4 py-1.5 text-sm bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:bg-blue-300 disabled:cursor-not-allowed transition-colors flex items-center gap-1.5"
+              >
+                <Plus className="w-3.5 h-3.5" />
+                {loading ? 'Creating...' : 'Create'}
+              </button>
+            </div>
+          </div>
           {error && (
             <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-lg">
               {error}
@@ -147,7 +155,7 @@ const CreateExerciseModal = ({ folders, selectedFolder, onClose, onCreated, allo
           )}
 
           {/* Basic Information */}
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+          <div className="grid grid-cols-2 md:grid-cols-6 gap-3">
             <div className="col-span-2">
               <label className="block text-xs font-medium text-gray-700 mb-1">Title *</label>
               <input
@@ -165,7 +173,8 @@ const CreateExerciseModal = ({ folders, selectedFolder, onClose, onCreated, allo
               <select
                 value={formData.exercise_type}
                 onChange={(e) => handleChange('exercise_type', e.target.value)}
-                className="w-full px-2 py-1.5 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                disabled={Object.values(formData.content).some(v => Array.isArray(v) ? v.length > 0 : v !== '' && v !== undefined && v !== null)}
+                className={`w-full px-2 py-1.5 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent ${Object.values(formData.content).some(v => Array.isArray(v) ? v.length > 0 : v !== '' && v !== undefined && v !== null) ? 'bg-gray-100 cursor-not-allowed' : ''}`}
               >
                 {exerciseTypes.map(type => (
                   <option key={type.value} value={type.value}>
@@ -254,9 +263,6 @@ const CreateExerciseModal = ({ folders, selectedFolder, onClose, onCreated, allo
 
           {/* Exercise Content Editors */}
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-3">
-              Exercise Content
-            </label>
 
             {formData.exercise_type === 'flashcard' && (
               <FlashcardEditor
@@ -314,50 +320,19 @@ const CreateExerciseModal = ({ folders, selectedFolder, onClose, onCreated, allo
               />
             )}
 
-            {formData.exercise_type === 'pronunciation' && (
-              <div className="p-4 border border-gray-200 rounded-lg bg-gray-50">
-                <p className="text-sm text-gray-600 text-center">
-                  Pronunciation exercises can be configured after creation
-                </p>
-              </div>
-            )}
 
             {formData.exercise_type === 'ai_fill_blank' && (
               <div className="space-y-4">
-                <div className="p-4 bg-purple-50 border border-purple-200 rounded-lg">
-                  <h4 className="font-medium text-purple-900 mb-2">🤖 AI Fill-in-the-Blank Exercise Editor</h4>
-                  <p className="text-sm text-purple-700">
-                    Create questions that use AI to intelligently score student answers.
-                  </p>
-                </div>
-                {/* Language toggle for AI explanation */}
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">
-                      AI Explanation Language
-                    </label>
-                    <select
-                      value={formData?.content?.settings?.language || 'en'}
-                      onChange={(e) => {
-                        const currentSettings = formData?.content?.settings || {}
-                        handleContentChange('settings', {
-                          ...currentSettings,
-                          language: e.target.value
-                        })
-                      }}
-                      className="w-full p-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-purple-500"
-                    >
-                      <option value="en">English</option>
-                      <option value="vi">Tiếng Việt</option>
-                    </select>
-                    <p className="text-xs text-gray-500 mt-1">Chọn ngôn ngữ giải thích của AI cho bài này.</p>
-                  </div>
-                </div>
                 <AIFillBlankEditor
                   questions={formData.content.questions || []}
                   onQuestionsChange={(questions) => handleContentChange('questions', questions)}
                   intro={formData.content.intro || ''}
                   onIntroChange={(intro) => handleContentChange('intro', intro)}
+                  language={formData?.content?.settings?.language || 'en'}
+                  onLanguageChange={(lang) => {
+                    const currentSettings = formData?.content?.settings || {}
+                    handleContentChange('settings', { ...currentSettings, language: lang })
+                  }}
                 />
               </div>
             )}
@@ -397,23 +372,6 @@ const CreateExerciseModal = ({ folders, selectedFolder, onClose, onCreated, allo
             )}
           </div>
 
-          {/* Actions */}
-          <div className="flex space-x-3 pt-4">
-            <button
-              type="button"
-              onClick={onClose}
-              className="flex-1 px-4 py-2 text-gray-700 bg-gray-100 hover:bg-gray-200 rounded-lg transition-colors"
-            >
-              Cancel
-            </button>
-            <button
-              type="submit"
-              disabled={loading || !formData.title.trim()}
-              className="flex-1 px-4 py-2 bg-blue-600 text-white hover:bg-blue-700 disabled:bg-blue-300 rounded-lg transition-colors"
-            >
-              {loading ? 'Creating...' : 'Create Exercise'}
-            </button>
-          </div>
         </form>
       </div>
     </div>

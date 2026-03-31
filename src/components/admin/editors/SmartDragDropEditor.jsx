@@ -55,6 +55,7 @@ const SmartDragDropEditor = ({ questions, onQuestionsChange, intro, onIntroChang
   const [audioControls, setAudioControls] = useState(true)
   const [audioAutoplay, setAudioAutoplay] = useState(false)
   const [audioLoop, setAudioLoop] = useState(false)
+  const [audioMaxPlays, setAudioMaxPlays] = useState(0)
   const questionTextareasRef = useRef({})
   const explanationTextareasRef = useRef({})
   const introTextareaRef = useRef(null)
@@ -543,6 +544,7 @@ const SmartDragDropEditor = ({ questions, onQuestionsChange, intro, onIntroChang
     setAudioControls(true)
     setAudioAutoplay(false)
     setAudioLoop(false)
+    setAudioMaxPlays(0)
   }
 
   const handleInsertLink = (index) => {
@@ -566,6 +568,7 @@ const SmartDragDropEditor = ({ questions, onQuestionsChange, intro, onIntroChang
     if (audioControls) attributes.push('controls')
     if (audioAutoplay) attributes.push('autoplay')
     if (audioLoop) attributes.push('loop')
+    if (audioMaxPlays > 0) attributes.push(`data-max-plays="${audioMaxPlays}"`)
     return attributes.join(' ')
   }
 
@@ -644,6 +647,7 @@ const SmartDragDropEditor = ({ questions, onQuestionsChange, intro, onIntroChang
     setAudioControls(true)
     setAudioAutoplay(false)
     setAudioLoop(false)
+    setAudioMaxPlays(0)
   }
 
   return (
@@ -694,20 +698,10 @@ const SmartDragDropEditor = ({ questions, onQuestionsChange, intro, onIntroChang
 
       {/* Global Intro Section */}
       <div className="bg-white p-4 border border-gray-200 rounded-lg">
-        <label className="block text-sm font-medium text-gray-700 mb-1">
-          Exercise Intro (Optional)
-        </label>
-        <textarea
-          ref={introTextareaRef}
-          value={intro || ''}
-          onChange={(e) => onIntroChange && onIntroChange(e.target.value)}
-          onKeyDown={(e) => handleRichTextShortcut(e, introTextareaRef.current, intro || '', (v) => onIntroChange && onIntroChange(v))}
-          className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
-          rows={2}
-          placeholder="Enter introductory text for the drag & drop exercise..."
-        />
-
-        <div className="mt-2 flex flex-wrap gap-2">
+        <div className="flex items-center gap-2 mb-1">
+          <label className="text-sm font-medium text-gray-700 mr-auto">
+            Exercise Intro (Optional)
+          </label>
           <input
             ref={introFileInputRef}
             type="file"
@@ -753,40 +747,33 @@ const SmartDragDropEditor = ({ questions, onQuestionsChange, intro, onIntroChang
               }
             }}
           />
-          <button
-            type="button"
-            onClick={() => { const input = introFileInputRef.current; if (input) input.click() }}
-            className="px-3 py-2 bg-gray-700 text-white rounded-lg hover:bg-gray-800 text-sm flex items-center gap-2"
-          >
-            <Upload className="w-4 h-4" /> Upload
+          <button type="button" onClick={() => { const input = introFileInputRef.current; if (input) input.click() }} className="px-2 py-1 text-xs bg-gray-100 hover:bg-gray-200 rounded inline-flex items-center gap-1">
+            <Upload className="w-3 h-3" /> Upload
           </button>
-          <button
-            type="button"
-            onClick={() => { setUrlModal({ isOpen: true, type: 'image', questionIndex: -1 }); setUrlInput(''); setLinkText(''); setImageSize('medium'); setCustomWidth(''); setCustomHeight('') }}
-            className="px-3 py-2 bg-gray-100 text-gray-800 rounded-lg hover:bg-gray-200 text-sm flex items-center gap-2"
-          >
-            <ImageIcon className="w-4 h-4" /> Insert image
+          <button type="button" onClick={() => { setUrlModal({ isOpen: true, type: 'image', questionIndex: -1 }); setUrlInput(''); setLinkText(''); setImageSize('medium'); setCustomWidth(''); setCustomHeight('') }} className="px-2 py-1 text-xs bg-gray-100 hover:bg-gray-200 rounded inline-flex items-center gap-1">
+            <ImageIcon className="w-3 h-3" /> Image
           </button>
-          <button
-            type="button"
-            onClick={() => { setUrlModal({ isOpen: true, type: 'link', questionIndex: -1 }); setUrlInput(''); setLinkText('Reference') }}
-            className="px-3 py-2 bg-gray-100 text-gray-800 rounded-lg hover:bg-gray-200 text-sm flex items-center gap-2"
-          >
-            <LinkIcon className="w-4 h-4" />
+          <button type="button" onClick={() => { setUrlModal({ isOpen: true, type: 'audio', questionIndex: -1 }); setUrlInput(''); setLinkText(''); setImageSize('medium'); setCustomWidth(''); setCustomHeight(''); setAudioControls(true); setAudioAutoplay(false); setAudioLoop(false); setAudioMaxPlays(0) }} className="px-2 py-1 text-xs bg-gray-100 hover:bg-gray-200 rounded inline-flex items-center gap-1">
+            <Music className="w-3 h-3" /> Audio
           </button>
-          <button
-            type="button"
-            onClick={() => { setUrlModal({ isOpen: true, type: 'audio', questionIndex: -1 }); setUrlInput(''); setLinkText(''); setImageSize('medium'); setCustomWidth(''); setCustomHeight(''); setAudioControls(true); setAudioAutoplay(false); setAudioLoop(false) }}
-            className="px-3 py-2 bg-purple-100 text-purple-800 rounded-lg hover:bg-purple-200 text-sm"
-          >
-            <Music className="w-4 h-4 inline mr-1" /> Insert audio
+          <button type="button" onClick={() => { setUrlModal({ isOpen: true, type: 'link', questionIndex: -1 }); setUrlInput(''); setLinkText('Reference') }} className="px-2 py-1 text-xs bg-gray-100 hover:bg-gray-200 rounded inline-flex items-center gap-1">
+            <LinkIcon className="w-3 h-3" /> Link
           </button>
           <div className="flex gap-1 ml-2 border-l pl-2 border-gray-300">
-            <button type="button" onClick={() => applyAlignment(-1, 'intro', 'left')} className="p-2 bg-gray-100 text-gray-700 rounded hover:bg-gray-200" title="Align left"><AlignLeft className="w-4 h-4" /></button>
-            <button type="button" onClick={() => applyAlignment(-1, 'intro', 'center')} className="p-2 bg-gray-100 text-gray-700 rounded hover:bg-gray-200" title="Align center"><AlignCenter className="w-4 h-4" /></button>
-            <button type="button" onClick={() => applyAlignment(-1, 'intro', 'right')} className="p-2 bg-gray-100 text-gray-700 rounded hover:bg-gray-200" title="Align right"><AlignRight className="w-4 h-4" /></button>
+            <button type="button" onClick={() => applyAlignment(-1, 'intro', 'left')} className="p-1 bg-gray-100 text-gray-700 rounded hover:bg-gray-200" title="Align left"><AlignLeft className="w-3 h-3" /></button>
+            <button type="button" onClick={() => applyAlignment(-1, 'intro', 'center')} className="p-1 bg-gray-100 text-gray-700 rounded hover:bg-gray-200" title="Align center"><AlignCenter className="w-3 h-3" /></button>
+            <button type="button" onClick={() => applyAlignment(-1, 'intro', 'right')} className="p-1 bg-gray-100 text-gray-700 rounded hover:bg-gray-200" title="Align right"><AlignRight className="w-3 h-3" /></button>
           </div>
         </div>
+        <textarea
+          ref={introTextareaRef}
+          value={intro || ''}
+          onChange={(e) => onIntroChange && onIntroChange(e.target.value)}
+          onKeyDown={(e) => handleRichTextShortcut(e, introTextareaRef.current, intro || '', (v) => onIntroChange && onIntroChange(v))}
+          className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 mt-1"
+          rows={2}
+          placeholder="Enter introductory text for the drag & drop exercise..."
+        />
 
         {intro && intro.trim() && (
           <div className="mt-3 p-3 bg-white border rounded-lg">
@@ -869,10 +856,30 @@ She [has] [been] [studying] English for 3 years`}
             <div key={question.id} className="bg-white border border-gray-200 rounded-lg p-4">
               <div className="flex items-start justify-between mb-4">
                 <div className="flex-1">
-                  <h4 className="font-medium text-gray-800 mb-2">
-                    Question {index + 1}
-                  </h4>
-                  
+                  <div className="flex items-center gap-2 mb-2">
+                    <h4 className="font-medium text-gray-800 mr-auto">
+                      Question {index + 1}
+                    </h4>
+                    {!previewMode && (
+                      <>
+                        <button type="button" onClick={() => handlePasteImageUrl(index)} className="px-2 py-1 text-xs bg-gray-100 hover:bg-gray-200 rounded inline-flex items-center gap-1">
+                          <ImageIcon className="w-3 h-3" /> Image
+                        </button>
+                        <button type="button" onClick={() => handleInsertAudio(index)} className="px-2 py-1 text-xs bg-gray-100 hover:bg-gray-200 rounded inline-flex items-center gap-1">
+                          <Music className="w-3 h-3" /> Audio
+                        </button>
+                        <button type="button" onClick={() => handleInsertLink(index)} className="px-2 py-1 text-xs bg-gray-100 hover:bg-gray-200 rounded inline-flex items-center gap-1">
+                          <LinkIcon className="w-3 h-3" /> Link
+                        </button>
+                        <div className="flex gap-1 ml-2 border-l pl-2 border-gray-300">
+                          <button type="button" onClick={() => applyAlignment(index, 'questionText', 'left')} className="p-1 bg-gray-100 text-gray-700 rounded hover:bg-gray-200" title="Align left"><AlignLeft className="w-3 h-3" /></button>
+                          <button type="button" onClick={() => applyAlignment(index, 'questionText', 'center')} className="p-1 bg-gray-100 text-gray-700 rounded hover:bg-gray-200" title="Align center"><AlignCenter className="w-3 h-3" /></button>
+                          <button type="button" onClick={() => applyAlignment(index, 'questionText', 'right')} className="p-1 bg-gray-100 text-gray-700 rounded hover:bg-gray-200" title="Align right"><AlignRight className="w-3 h-3" /></button>
+                        </div>
+                      </>
+                    )}
+                  </div>
+
                   {previewMode ? (
                     <div className="bg-gray-50 p-3 rounded-lg">
                       {/* Inline question with drop zones */}
@@ -917,25 +924,6 @@ She [has] [been] [studying] English for 3 years`}
                   ) : (
                     <div className="space-y-4">
                       <div>
-                        <label className="block text-sm font-medium text-gray-700 mb-1">
-                          Question Text
-                        </label>
-                        <div className="flex items-center gap-2 mb-2">
-                          <button type="button" onClick={() => handlePasteImageUrl(index)} className="px-2 py-1 text-xs bg-gray-100 hover:bg-gray-200 rounded inline-flex items-center gap-1">
-                            <ImageIcon className="w-3 h-3" /> Image
-                          </button>
-                          <button type="button" onClick={() => handleInsertAudio(index)} className="px-2 py-1 text-xs bg-gray-100 hover:bg-gray-200 rounded inline-flex items-center gap-1">
-                            <Music className="w-3 h-3" /> Audio
-                          </button>
-                          <button type="button" onClick={() => handleInsertLink(index)} className="px-2 py-1 text-xs bg-gray-100 hover:bg-gray-200 rounded inline-flex items-center gap-1">
-                            <LinkIcon className="w-3 h-3" /> Link
-                          </button>
-                          <div className="flex gap-1 ml-2 border-l pl-2 border-gray-300">
-                            <button type="button" onClick={() => applyAlignment(index, 'questionText', 'left')} className="p-2 bg-gray-100 text-gray-700 rounded hover:bg-gray-200" title="Align left"><AlignLeft className="w-4 h-4" /></button>
-                            <button type="button" onClick={() => applyAlignment(index, 'questionText', 'center')} className="p-2 bg-gray-100 text-gray-700 rounded hover:bg-gray-200" title="Align center"><AlignCenter className="w-4 h-4" /></button>
-                            <button type="button" onClick={() => applyAlignment(index, 'questionText', 'right')} className="p-2 bg-gray-100 text-gray-700 rounded hover:bg-gray-200" title="Align right"><AlignRight className="w-4 h-4" /></button>
-                          </div>
-                        </div>
                         <textarea
                           value={toEditableText(question)}
                           onChange={(e) => updateQuestionText(question.id, e.target.value)}
@@ -1084,6 +1072,18 @@ She [has] [been] [studying] English for 3 years`}
                   <label className="flex items-center gap-2 text-sm"><input type="checkbox" checked={audioControls} onChange={(e) => setAudioControls(e.target.checked)} /> Show controls</label>
                   <label className="flex items-center gap-2 text-sm"><input type="checkbox" checked={audioAutoplay} onChange={(e) => setAudioAutoplay(e.target.checked)} /> Autoplay</label>
                   <label className="flex items-center gap-2 text-sm"><input type="checkbox" checked={audioLoop} onChange={(e) => setAudioLoop(e.target.checked)} /> Loop</label>
+                  <label className="flex items-center gap-2 text-sm">
+                    Giới hạn phát:
+                    <input
+                      type="number"
+                      min="0"
+                      max="99"
+                      value={audioMaxPlays}
+                      onChange={(e) => setAudioMaxPlays(parseInt(e.target.value) || 0)}
+                      className="w-16 px-2 py-1 border border-gray-300 rounded text-sm"
+                    />
+                    <span className="text-gray-500">{audioMaxPlays === 0 ? '(không giới hạn)' : 'lần'}</span>
+                  </label>
                 </div>
               )}
               {urlInput && (

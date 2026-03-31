@@ -2333,6 +2333,37 @@ BEGIN
 END;
 $$;
 
+-- Function: Award competition items to a user (bypasses RLS)
+CREATE OR REPLACE FUNCTION award_competition_items(
+  p_user_id uuid,
+  p_item_ids text[]
+)
+RETURNS json
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = public
+AS $$
+DECLARE
+  v_item_id uuid;
+  v_item_name text;
+  v_user_name text;
+BEGIN
+  SELECT full_name INTO v_user_name FROM users WHERE id = p_user_id;
+
+  FOREACH v_item_id IN ARRAY p_item_ids::uuid[]
+  LOOP
+    SELECT name INTO v_item_name FROM collectible_items WHERE id = v_item_id;
+
+    INSERT INTO user_inventory (user_id, user_name, item_id, item_name, quantity)
+    VALUES (p_user_id, v_user_name, v_item_id, v_item_name, 1)
+    ON CONFLICT (user_id, item_id)
+    DO UPDATE SET quantity = user_inventory.quantity + 1, updated_at = now();
+  END LOOP;
+
+  RETURN json_build_object('success', true);
+END;
+$$;
+
 -- Function: Award winners for a single challenge (admin trigger)
 CREATE OR REPLACE FUNCTION award_single_challenge_winners(p_challenge_id uuid)
 RETURNS json

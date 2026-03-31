@@ -33,6 +33,7 @@ const FillBlankEditor = ({ questions, onQuestionsChange, settings, onSettingsCha
   const [audioControls, setAudioControls] = useState(true)
   const [audioAutoplay, setAudioAutoplay] = useState(false)
   const [audioLoop, setAudioLoop] = useState(false)
+  const [audioMaxPlays, setAudioMaxPlays] = useState(0)
   const questionTextareasRef = useRef({})
   const introTextareaRef = useRef(null)
   const introFileInputRef = useRef(null)
@@ -240,6 +241,7 @@ const FillBlankEditor = ({ questions, onQuestionsChange, settings, onSettingsCha
     setAudioControls(true)
     setAudioAutoplay(false)
     setAudioLoop(false)
+    setAudioMaxPlays(0)
   }
 
   const handleInsertLink = (index) => {
@@ -263,6 +265,7 @@ const FillBlankEditor = ({ questions, onQuestionsChange, settings, onSettingsCha
     if (audioControls) attributes.push('controls')
     if (audioAutoplay) attributes.push('autoplay')
     if (audioLoop) attributes.push('loop')
+    if (audioMaxPlays > 0) attributes.push(`data-max-plays="${audioMaxPlays}"`)
     return attributes.join(' ')
   }
 
@@ -298,6 +301,7 @@ const FillBlankEditor = ({ questions, onQuestionsChange, settings, onSettingsCha
     setAudioControls(true)
     setAudioAutoplay(false)
     setAudioLoop(false)
+    setAudioMaxPlays(0)
   }
 
 
@@ -540,6 +544,13 @@ const FillBlankEditor = ({ questions, onQuestionsChange, settings, onSettingsCha
         <div className="flex gap-2">
           <button
             type="button"
+            onClick={() => onSettingsChange?.({ ...settings, show_all_questions: !settings?.show_all_questions })}
+            className={`flex items-center gap-2 px-3 py-2 rounded-lg text-sm ${settings?.show_all_questions ? 'bg-green-600 text-white hover:bg-green-700' : 'bg-gray-200 text-gray-700 hover:bg-gray-300'}`}
+          >
+            {settings?.show_all_questions ? 'All at Once' : 'One by One'}
+          </button>
+          <button
+            type="button"
             onClick={() => setBulkImportMode(!bulkImportMode)}
             className="flex items-center gap-2 px-3 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 text-sm"
           >
@@ -569,22 +580,11 @@ const FillBlankEditor = ({ questions, onQuestionsChange, settings, onSettingsCha
 
       {/* Global Intro Section */}
       <div className="bg-white p-4 border-l-4 border-l-blue-400 border border-gray-200 rounded-lg">
-        <label className="block text-sm font-semibold text-blue-700 mb-1">
-          Intro
-          <span className="text-xs font-normal text-gray-400 ml-1">(Optional)</span>
-        </label>
-        <textarea
-          ref={introTextareaRef}
-          value={intro || ''}
-          onChange={(e) => onIntroChange && onIntroChange(e.target.value)}
-          onKeyDown={(e) => handleRichTextShortcut(e, introTextareaRef.current, intro || '', (v) => onIntroChange && onIntroChange(v))}
-          className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
-          rows={2}
-          placeholder="Enter introductory text for the fill-in-the-blank exercise..."
-        />
-
-        {/* Insert Media Buttons for Intro */}
-        <div className="mt-2 flex flex-wrap gap-2">
+        <div className="flex items-center gap-2 mb-1">
+          <label className="text-sm font-semibold text-blue-700 mr-auto">
+            Intro
+            <span className="text-xs font-normal text-gray-400 ml-1">(Optional)</span>
+          </label>
           <input
             ref={introFileInputRef}
             type="file"
@@ -607,7 +607,6 @@ const FillBlankEditor = ({ questions, onQuestionsChange, settings, onSettingsCha
                 const publicUrl = publicData?.publicUrl
                 if (!publicUrl) throw new Error('Cannot get public URL')
 
-                // Insert at cursor position in intro
                 const textarea = introTextareaRef.current
                 const current = intro || ''
                 if (!textarea) {
@@ -631,62 +630,28 @@ const FillBlankEditor = ({ questions, onQuestionsChange, settings, onSettingsCha
               }
             }}
           />
-          <button
-            type="button"
-            onClick={() => {
-              const input = introFileInputRef.current
-              if (input) input.click()
-            }}
-            className="px-3 py-2 bg-gray-700 text-white rounded-lg hover:bg-gray-800 text-sm flex items-center gap-2"
-          >
-            <Upload className="w-4 h-4" /> Upload
+          <button type="button" onClick={() => { const input = introFileInputRef.current; if (input) input.click() }} className="px-2 py-1 text-xs bg-gray-100 hover:bg-gray-200 rounded inline-flex items-center gap-1">
+            <Upload className="w-3 h-3" /> Upload
           </button>
-          <button
-            type="button"
-            onClick={() => {
-              setUrlModal({ isOpen: true, type: 'image', questionIndex: -1 })
-              setUrlInput('')
-              setLinkText('')
-              setImageSize('medium')
-              setCustomWidth('')
-              setCustomHeight('')
-            }}
-            className="px-3 py-2 bg-gray-100 text-gray-800 rounded-lg hover:bg-gray-200 text-sm flex items-center gap-2"
-            title="Insert image"
-          >
-            <ImageIcon className="w-4 h-4" />
-            Insert image
+          <button type="button" onClick={() => { setUrlModal({ isOpen: true, type: 'image', questionIndex: -1 }); setUrlInput(''); setLinkText(''); setImageSize('medium'); setCustomWidth(''); setCustomHeight('') }} className="px-2 py-1 text-xs bg-gray-100 hover:bg-gray-200 rounded inline-flex items-center gap-1">
+            <ImageIcon className="w-3 h-3" /> Image
           </button>
-          <button
-            type="button"
-            onClick={() => {
-              setUrlModal({ isOpen: true, type: 'link', questionIndex: -1 })
-              setUrlInput('')
-              setLinkText('Reference')
-            }}
-            className="px-3 py-2 bg-gray-100 text-gray-800 rounded-lg hover:bg-gray-200 text-sm flex items-center gap-2"
-            title="Insert link"
-          >
-            <LinkIcon className="w-4 h-4" />
+          <button type="button" onClick={() => { setUrlModal({ isOpen: true, type: 'audio', questionIndex: -1 }); setUrlInput(''); setLinkText(''); setImageSize('medium'); setCustomWidth(''); setCustomHeight(''); setAudioControls(true); setAudioAutoplay(false); setAudioLoop(false); setAudioMaxPlays(0) }} className="px-2 py-1 text-xs bg-gray-100 hover:bg-gray-200 rounded inline-flex items-center gap-1">
+            <Music className="w-3 h-3" /> Audio
           </button>
-          <button
-            type="button"
-            onClick={() => {
-              setUrlModal({ isOpen: true, type: 'audio', questionIndex: -1 })
-              setUrlInput('')
-              setLinkText('')
-              setImageSize('medium')
-              setCustomWidth('')
-              setCustomHeight('')
-              setAudioControls(true)
-              setAudioAutoplay(false)
-              setAudioLoop(false)
-            }}
-            className="px-3 py-2 bg-purple-100 text-purple-800 rounded-lg hover:bg-purple-200 text-sm"
-          >
-            🎵 Insert audio
+          <button type="button" onClick={() => { setUrlModal({ isOpen: true, type: 'link', questionIndex: -1 }); setUrlInput(''); setLinkText('Reference') }} className="px-2 py-1 text-xs bg-gray-100 hover:bg-gray-200 rounded inline-flex items-center gap-1">
+            <LinkIcon className="w-3 h-3" /> Link
           </button>
         </div>
+        <textarea
+          ref={introTextareaRef}
+          value={intro || ''}
+          onChange={(e) => onIntroChange && onIntroChange(e.target.value)}
+          onKeyDown={(e) => handleRichTextShortcut(e, introTextareaRef.current, intro || '', (v) => onIntroChange && onIntroChange(v))}
+          className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
+          rows={2}
+          placeholder="Enter introductory text for the fill-in-the-blank exercise..."
+        />
 
         {intro && intro.trim() && (
           <div className="mt-3 p-3 bg-white border rounded-lg">
@@ -702,22 +667,6 @@ const FillBlankEditor = ({ questions, onQuestionsChange, settings, onSettingsCha
         )}
       </div>
 
-      {/* Display Settings */}
-      <div className="p-4 bg-gray-50 border border-l-4 border-l-green-400 rounded-lg">
-        <label className="block text-sm font-semibold text-green-700 mb-3">Settings</label>
-        <label className="flex items-center gap-3">
-          <input
-            type="checkbox"
-            checked={settings?.show_all_questions || false}
-            onChange={(e) => onSettingsChange?.({ ...settings, show_all_questions: e.target.checked })}
-            className="w-4 h-4 text-blue-600 rounded focus:ring-blue-500"
-          />
-          <div>
-            <span className="text-sm font-medium text-gray-900">Show all questions on one page</span>
-            <p className="text-xs text-gray-600 mt-0.5">Students will see all questions at once and submit together (instead of one question at a time)</p>
-          </div>
-        </label>
-      </div>
 
       {/* Bulk Import Mode */}
       {bulkImportMode && (
@@ -790,7 +739,22 @@ B. Fill in the blanks with the correct form.
           <div key={question.id || index} className="border border-gray-200 rounded-lg p-4 bg-gray-50">
             <div className="flex justify-between items-center mb-3">
               <span className="text-sm font-medium text-gray-700">Question {index + 1}</span>
-              <div className="flex gap-1">
+              <div className="flex items-center gap-2">
+                <button type="button" onClick={() => handlePasteImageUrl(index)} className="px-2 py-1 text-xs bg-gray-100 hover:bg-gray-200 rounded inline-flex items-center gap-1">
+                  <ImageIcon className="w-3 h-3" /> Image
+                </button>
+                <button type="button" onClick={() => handleInsertAudio(index)} className="px-2 py-1 text-xs bg-gray-100 hover:bg-gray-200 rounded inline-flex items-center gap-1">
+                  <Music className="w-3 h-3" /> Audio
+                </button>
+                <button type="button" onClick={() => handleInsertLink(index)} className="px-2 py-1 text-xs bg-gray-100 hover:bg-gray-200 rounded inline-flex items-center gap-1">
+                  <LinkIcon className="w-3 h-3" /> Link
+                </button>
+                <div className="flex gap-1 ml-1 border-l pl-2 border-gray-300">
+                  <button type="button" onClick={() => applyAlignment(index, 'left')} className="p-1 bg-gray-100 text-gray-700 rounded hover:bg-gray-200" title="Align left"><AlignLeft className="w-3 h-3" /></button>
+                  <button type="button" onClick={() => applyAlignment(index, 'center')} className="p-1 bg-gray-100 text-gray-700 rounded hover:bg-gray-200" title="Align center"><AlignCenter className="w-3 h-3" /></button>
+                  <button type="button" onClick={() => applyAlignment(index, 'right')} className="p-1 bg-gray-100 text-gray-700 rounded hover:bg-gray-200" title="Align right"><AlignRight className="w-3 h-3" /></button>
+                </div>
+                <div className="flex gap-1 ml-1 border-l pl-2 border-gray-300">
                 <button
                   type="button"
                   onClick={() => moveQuestion(index, 'up')}
@@ -825,36 +789,12 @@ B. Fill in the blanks with the correct form.
                 >
                   <Trash2 className="w-4 h-4" />
                 </button>
+                </div>
               </div>
             </div>
 
             {/* Question Text */}
             <div className="mb-4">
-              <label className="block text-sm font-medium text-gray-700 mb-1">
-                Question
-              </label>
-              <div className="flex items-center gap-2 mb-2">
-                <button type="button" onClick={() => handlePasteImageUrl(index)} className="px-2 py-1 text-xs bg-gray-100 hover:bg-gray-200 rounded inline-flex items-center gap-1">
-                  <ImageIcon className="w-3 h-3" /> Image
-                </button>
-                <button type="button" onClick={() => handleInsertAudio(index)} className="px-2 py-1 text-xs bg-gray-100 hover:bg-gray-200 rounded inline-flex items-center gap-1">
-                  <Music className="w-3 h-3" /> Audio
-                </button>
-                <button type="button" onClick={() => handleInsertLink(index)} className="px-2 py-1 text-xs bg-gray-100 hover:bg-gray-200 rounded inline-flex items-center gap-1">
-                  <LinkIcon className="w-3 h-3" /> Link
-                </button>
-                <div className="flex gap-1 ml-2 border-l pl-2 border-gray-300">
-                  <button type="button" onClick={() => applyAlignment(index, 'left')} className="p-2 bg-gray-100 text-gray-700 rounded hover:bg-gray-200" title="Align left">
-                    <AlignLeft className="w-4 h-4" />
-                  </button>
-                  <button type="button" onClick={() => applyAlignment(index, 'center')} className="p-2 bg-gray-100 text-gray-700 rounded hover:bg-gray-200" title="Align center">
-                    <AlignCenter className="w-4 h-4" />
-                  </button>
-                  <button type="button" onClick={() => applyAlignment(index, 'right')} className="p-2 bg-gray-100 text-gray-700 rounded hover:bg-gray-200" title="Align right">
-                    <AlignRight className="w-4 h-4" />
-                  </button>
-                </div>
-              </div>
               <textarea
                 value={question.question || ''}
                 onChange={(e) => updateQuestion(index, 'question', e.target.value)}
@@ -1002,6 +942,18 @@ B. Fill in the blanks with the correct form.
                 <label className="flex items-center gap-2 text-sm"><input type="checkbox" checked={audioControls} onChange={(e) => setAudioControls(e.target.checked)} /> Hiển thị controls</label>
                 <label className="flex items-center gap-2 text-sm"><input type="checkbox" checked={audioAutoplay} onChange={(e) => setAudioAutoplay(e.target.checked)} /> Autoplay</label>
                 <label className="flex items-center gap-2 text-sm"><input type="checkbox" checked={audioLoop} onChange={(e) => setAudioLoop(e.target.checked)} /> Loop</label>
+                <label className="flex items-center gap-2 text-sm">
+                  Giới hạn phát:
+                  <input
+                    type="number"
+                    min="0"
+                    max="99"
+                    value={audioMaxPlays}
+                    onChange={(e) => setAudioMaxPlays(parseInt(e.target.value) || 0)}
+                    className="w-16 px-2 py-1 border border-gray-300 rounded text-sm"
+                  />
+                  <span className="text-gray-500">{audioMaxPlays === 0 ? '(không giới hạn)' : 'lần'}</span>
+                </label>
               </div>
             )}
             {urlInput && (

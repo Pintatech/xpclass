@@ -328,18 +328,6 @@ const SimpleDropdownEditor = ({ questions, onQuestionsChange, intro, onIntroChan
       <div className="flex items-start justify-between gap-4">
         <div className="flex-1">
           <h3 className="text-lg font-medium text-gray-900 mb-2">Dropdown Questions</h3>
-          <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
-            <div className="flex items-start gap-2">
-              <Info className="w-5 h-5 text-blue-600 flex-shrink-0 mt-0.5" />
-              <div className="text-sm text-blue-800">
-                <p className="font-medium mb-1">How to create dropdown questions:</p>
-                <p className="font-mono text-xs bg-white p-2 rounded border border-blue-200 mb-1">
-                  The cat [sat, =sits, sitting] on the mat.
-                </p>
-                <p className="text-xs text-blue-600">The option with = will be the correct answer</p>
-              </div>
-            </div>
-          </div>
         </div>
         <button
           type="button"
@@ -353,21 +341,8 @@ const SimpleDropdownEditor = ({ questions, onQuestionsChange, intro, onIntroChan
 
       {/* Global Intro Section */}
       <div className="bg-white p-4 border border-gray-200 rounded-lg">
-        <label className="block text-sm font-medium text-gray-700 mb-1">
-          Exercise Intro (Optional)
-        </label>
-        <textarea
-          ref={introTextareaRef}
-          value={intro || ''}
-          onChange={(e) => onIntroChange && onIntroChange(e.target.value)}
-          onKeyDown={(e) => handleRichTextShortcut(e, introTextareaRef.current, intro || '', (v) => onIntroChange && onIntroChange(v))}
-          className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
-          rows={2}
-          placeholder="Enter introductory text for the dropdown exercise..."
-        />
-
-        {/* Insert Media Buttons for Intro */}
-        <div className="mt-2 flex flex-wrap gap-2">
+        <div className="flex items-center gap-2 mb-1">
+          <label className="text-sm font-medium text-gray-700 mr-auto">Exercise Intro (Optional)</label>
           <input
             ref={introFileInputRef}
             type="file"
@@ -413,68 +388,33 @@ const SimpleDropdownEditor = ({ questions, onQuestionsChange, intro, onIntroChan
               }
             }}
           />
-          <button
-            type="button"
-            onClick={() => {
-              const input = introFileInputRef.current
-              if (input) input.click()
-            }}
-            className="px-3 py-2 bg-gray-700 text-white rounded-lg hover:bg-gray-800 text-sm flex items-center gap-2"
-          >
-            <Upload className="w-4 h-4" /> Upload
+          <button type="button" onClick={() => { const input = introFileInputRef.current; if (input) input.click() }} className="px-2 py-1 text-xs bg-gray-100 hover:bg-gray-200 rounded inline-flex items-center gap-1">
+            <Upload className="w-3 h-3" /> Upload
           </button>
-          <button
-            type="button"
-            onClick={() => {
-              setUrlModal({ isOpen: true, type: 'image', questionIndex: -1 })
-              setUrlInput('')
-              setLinkText('')
-              setImageSize('medium')
-              setCustomWidth('')
-              setCustomHeight('')
-            }}
-            className="px-3 py-2 bg-gray-100 text-gray-800 rounded-lg hover:bg-gray-200 text-sm flex items-center gap-2"
-            title="Insert image"
-          >
-            <ImageIcon className="w-4 h-4" />
-            Insert image
+          <button type="button" onClick={() => { setUrlModal({ isOpen: true, type: 'image', questionIndex: -1 }); setUrlInput(''); setLinkText(''); setImageSize('medium'); setCustomWidth(''); setCustomHeight('') }} className="px-2 py-1 text-xs bg-gray-100 hover:bg-gray-200 rounded inline-flex items-center gap-1">
+            <ImageIcon className="w-3 h-3" /> Image
           </button>
-          <button
-            type="button"
-            onClick={() => {
-              setUrlModal({ isOpen: true, type: 'link', questionIndex: -1 })
-              setUrlInput('')
-              setLinkText('Reference')
-            }}
-            className="px-3 py-2 bg-gray-100 text-gray-800 rounded-lg hover:bg-gray-200 text-sm flex items-center gap-2"
-            title="Insert link"
-          >
-            <LinkIcon className="w-4 h-4" />
+          <button type="button" onClick={() => { setUrlModal({ isOpen: true, type: 'audio', questionIndex: -1 }); setUrlInput(''); setLinkText(''); setImageSize('medium'); setCustomWidth(''); setCustomHeight(''); setAudioControls(true); setAudioAutoplay(false); setAudioLoop(false) }} className="px-2 py-1 text-xs bg-gray-100 hover:bg-gray-200 rounded inline-flex items-center gap-1">
+            <Music className="w-3 h-3" /> Audio
           </button>
-          <button
-            type="button"
-            onClick={() => {
-              setUrlModal({ isOpen: true, type: 'audio', questionIndex: -1 })
-              setUrlInput('')
-              setLinkText('')
-              setImageSize('medium')
-              setCustomWidth('')
-              setCustomHeight('')
-              setAudioControls(true)
-              setAudioAutoplay(false)
-              setAudioLoop(false)
-            }}
-            className="px-3 py-2 bg-purple-100 text-purple-800 rounded-lg hover:bg-purple-200 text-sm"
-          >
-            <Music className="w-4 h-4 inline mr-1" />
-            Insert audio
+          <button type="button" onClick={() => { setUrlModal({ isOpen: true, type: 'link', questionIndex: -1 }); setUrlInput(''); setLinkText('Reference') }} className="px-2 py-1 text-xs bg-gray-100 hover:bg-gray-200 rounded inline-flex items-center gap-1">
+            <LinkIcon className="w-3 h-3" /> Link
           </button>
           <div className="flex gap-1 ml-2 border-l pl-2 border-gray-300">
-            <button type="button" onClick={() => applyAlignment(-1, 'intro', 'left')} className="p-2 bg-gray-100 text-gray-700 rounded hover:bg-gray-200" title="Align left"><AlignLeft className="w-4 h-4" /></button>
-            <button type="button" onClick={() => applyAlignment(-1, 'intro', 'center')} className="p-2 bg-gray-100 text-gray-700 rounded hover:bg-gray-200" title="Align center"><AlignCenter className="w-4 h-4" /></button>
-            <button type="button" onClick={() => applyAlignment(-1, 'intro', 'right')} className="p-2 bg-gray-100 text-gray-700 rounded hover:bg-gray-200" title="Align right"><AlignRight className="w-4 h-4" /></button>
+            <button type="button" onClick={() => applyAlignment(-1, 'intro', 'left')} className="p-1 bg-gray-100 text-gray-700 rounded hover:bg-gray-200" title="Align left"><AlignLeft className="w-3 h-3" /></button>
+            <button type="button" onClick={() => applyAlignment(-1, 'intro', 'center')} className="p-1 bg-gray-100 text-gray-700 rounded hover:bg-gray-200" title="Align center"><AlignCenter className="w-3 h-3" /></button>
+            <button type="button" onClick={() => applyAlignment(-1, 'intro', 'right')} className="p-1 bg-gray-100 text-gray-700 rounded hover:bg-gray-200" title="Align right"><AlignRight className="w-3 h-3" /></button>
           </div>
         </div>
+        <textarea
+          ref={introTextareaRef}
+          value={intro || ''}
+          onChange={(e) => onIntroChange && onIntroChange(e.target.value)}
+          onKeyDown={(e) => handleRichTextShortcut(e, introTextareaRef.current, intro || '', (v) => onIntroChange && onIntroChange(v))}
+          className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
+          rows={2}
+          placeholder="Enter introductory text for the dropdown exercise..."
+        />
 
         {intro && intro.trim() && (
           <div className="mt-3 p-3 bg-white border rounded-lg">
@@ -499,67 +439,32 @@ const SimpleDropdownEditor = ({ questions, onQuestionsChange, intro, onIntroChan
         localQuestions.map((question, qIndex) => (
           <div key={question.id} className="bg-white border border-gray-200 rounded-lg p-6 space-y-4">
             {/* Question Header */}
-            <div className="flex items-center justify-between">
-              <h4 className="text-md font-medium text-gray-800">Question {qIndex + 1}</h4>
-              <div className="flex items-center gap-2">
-                <button
-                  type="button"
-                  onClick={() => moveQuestion(qIndex, 'up')}
-                  disabled={qIndex === 0}
-                  className="p-1 text-gray-400 hover:text-gray-600 disabled:opacity-30 disabled:cursor-not-allowed"
-                  title="Move up"
-                >
-                  <ChevronUp className="w-5 h-5" />
-                </button>
-                <button
-                  type="button"
-                  onClick={() => moveQuestion(qIndex, 'down')}
-                  disabled={qIndex === localQuestions.length - 1}
-                  className="p-1 text-gray-400 hover:text-gray-600 disabled:opacity-30 disabled:cursor-not-allowed"
-                  title="Move down"
-                >
-                  <ChevronDown className="w-5 h-5" />
-                </button>
-                <button
-                  type="button"
-                  onClick={() => duplicateQuestion(qIndex)}
-                  className="p-1 text-gray-400 hover:text-blue-600"
-                  title="Duplicate question"
-                >
-                  <Copy className="w-5 h-5" />
-                </button>
-                <button
-                  type="button"
-                  onClick={() => removeQuestion(qIndex)}
-                  className="p-1 text-gray-400 hover:text-red-600"
-                  title="Delete question"
-                >
-                  <Trash2 className="w-5 h-5" />
-                </button>
+            <div className="flex items-center gap-2">
+              <h4 className="text-md font-medium text-gray-800 mr-auto">Question {qIndex + 1}</h4>
+              <button type="button" onClick={() => handlePasteImageUrl(qIndex)} className="px-2 py-1 text-xs bg-gray-100 hover:bg-gray-200 rounded inline-flex items-center gap-1">
+                <ImageIcon className="w-3 h-3" /> Image
+              </button>
+              <button type="button" onClick={() => handleInsertAudio(qIndex)} className="px-2 py-1 text-xs bg-gray-100 hover:bg-gray-200 rounded inline-flex items-center gap-1">
+                <Music className="w-3 h-3" /> Audio
+              </button>
+              <button type="button" onClick={() => handleInsertLink(qIndex)} className="px-2 py-1 text-xs bg-gray-100 hover:bg-gray-200 rounded inline-flex items-center gap-1">
+                <LinkIcon className="w-3 h-3" /> Link
+              </button>
+              <div className="flex gap-1 ml-2 border-l pl-2 border-gray-300">
+                <button type="button" onClick={() => applyAlignment(qIndex, 'question', 'left')} className="p-1 bg-gray-100 text-gray-700 rounded hover:bg-gray-200" title="Align left"><AlignLeft className="w-3 h-3" /></button>
+                <button type="button" onClick={() => applyAlignment(qIndex, 'question', 'center')} className="p-1 bg-gray-100 text-gray-700 rounded hover:bg-gray-200" title="Align center"><AlignCenter className="w-3 h-3" /></button>
+                <button type="button" onClick={() => applyAlignment(qIndex, 'question', 'right')} className="p-1 bg-gray-100 text-gray-700 rounded hover:bg-gray-200" title="Align right"><AlignRight className="w-3 h-3" /></button>
+              </div>
+              <div className="flex gap-1 ml-2 border-l pl-2 border-gray-300">
+                <button type="button" onClick={() => moveQuestion(qIndex, 'up')} disabled={qIndex === 0} className="p-1 text-gray-400 hover:text-gray-600 disabled:opacity-30" title="Move up"><ChevronUp className="w-4 h-4" /></button>
+                <button type="button" onClick={() => moveQuestion(qIndex, 'down')} disabled={qIndex === localQuestions.length - 1} className="p-1 text-gray-400 hover:text-gray-600 disabled:opacity-30" title="Move down"><ChevronDown className="w-4 h-4" /></button>
+                <button type="button" onClick={() => duplicateQuestion(qIndex)} className="p-1 text-gray-400 hover:text-blue-600" title="Duplicate"><Copy className="w-4 h-4" /></button>
+                <button type="button" onClick={() => removeQuestion(qIndex)} className="p-1 text-gray-400 hover:text-red-600" title="Delete"><Trash2 className="w-4 h-4" /></button>
               </div>
             </div>
 
             {/* Question Text */}
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
-                Question Text
-              </label>
-              <div className="flex items-center gap-2 mb-2">
-                <button type="button" onClick={() => handlePasteImageUrl(qIndex)} className="px-2 py-1 text-xs bg-gray-100 hover:bg-gray-200 rounded inline-flex items-center gap-1">
-                  <ImageIcon className="w-3 h-3" /> Image
-                </button>
-                <button type="button" onClick={() => handleInsertAudio(qIndex)} className="px-2 py-1 text-xs bg-gray-100 hover:bg-gray-200 rounded inline-flex items-center gap-1">
-                  <Music className="w-3 h-3" /> Audio
-                </button>
-                <button type="button" onClick={() => handleInsertLink(qIndex)} className="px-2 py-1 text-xs bg-gray-100 hover:bg-gray-200 rounded inline-flex items-center gap-1">
-                  <LinkIcon className="w-3 h-3" /> Link
-                </button>
-                <div className="flex gap-1 ml-2 border-l pl-2 border-gray-300">
-                  <button type="button" onClick={() => applyAlignment(qIndex, 'question', 'left')} className="p-2 bg-gray-100 text-gray-700 rounded hover:bg-gray-200" title="Align left"><AlignLeft className="w-4 h-4" /></button>
-                  <button type="button" onClick={() => applyAlignment(qIndex, 'question', 'center')} className="p-2 bg-gray-100 text-gray-700 rounded hover:bg-gray-200" title="Align center"><AlignCenter className="w-4 h-4" /></button>
-                  <button type="button" onClick={() => applyAlignment(qIndex, 'question', 'right')} className="p-2 bg-gray-100 text-gray-700 rounded hover:bg-gray-200" title="Align right"><AlignRight className="w-4 h-4" /></button>
-                </div>
-              </div>
               <textarea
                 ref={(el) => { questionTextareasRef.current[qIndex] = el }}
                 value={question.question}
@@ -569,9 +474,6 @@ const SimpleDropdownEditor = ({ questions, onQuestionsChange, intro, onIntroChan
                 rows={4}
                 placeholder="Example: The cat [sat, =sits, sitting] on the mat."
               />
-              <p className="text-xs text-gray-500 mt-1">
-                Use [option1, =correctOption, option3] format. The = marks the correct answer.
-              </p>
             </div>
 
             {/* Preview Detected Dropdowns */}

@@ -4,7 +4,7 @@ import RichTextRenderer from '../../ui/RichTextRenderer'
 import { handleRichTextShortcut } from '../../../hooks/useRichTextShortcuts'
 import { supabase } from '../../../supabase/client'
 
-const AIFillBlankEditor = ({ questions, onQuestionsChange, intro, onIntroChange }) => {
+const AIFillBlankEditor = ({ questions, onQuestionsChange, intro, onIntroChange, language, onLanguageChange }) => {
   const [localQuestions, setLocalQuestions] = useState([])
   const introTextareaRef = useRef(null)
   const introFileInputRef = useRef(null)
@@ -365,8 +365,19 @@ Trả lời bằng tiếng Việt với giải thích chi tiết, khuyến khíc
     <div className="space-y-6">
       {/* Header */}
       <div className="flex items-center justify-between">
-        <div className="flex items-center gap-3">
-        </div>
+        {onLanguageChange && (
+          <div className="flex items-center gap-2">
+            <label className="text-sm font-medium text-gray-700 whitespace-nowrap">AI Language</label>
+            <select
+              value={language || 'en'}
+              onChange={(e) => onLanguageChange(e.target.value)}
+              className="px-2 py-1.5 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-purple-500"
+            >
+              <option value="en">English</option>
+              <option value="vi">Tiếng Việt</option>
+            </select>
+          </div>
+        )}
         <div className="flex gap-2">
           <button
             type="button"
@@ -389,21 +400,8 @@ Trả lời bằng tiếng Việt với giải thích chi tiết, khuyến khíc
 
       {/* Exercise Intro Section */}
       <div className="bg-white p-4 border border-gray-200 rounded-lg">
-        <label className="block text-sm font-medium text-gray-700 mb-1">
-          Exercise Intro (Optional)
-        </label>
-        <textarea
-          ref={introTextareaRef}
-          value={intro || ''}
-          onChange={(e) => onIntroChange && onIntroChange(e.target.value)}
-          onKeyDown={(e) => handleRichTextShortcut(e, introTextareaRef.current, intro || '', (v) => onIntroChange && onIntroChange(v))}
-          className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500"
-          rows={2}
-          placeholder="Enter introductory text for the AI fill-in-the-blank exercise..."
-        />
-
-        {/* Insert Media Buttons for Intro */}
-        <div className="mt-2 flex flex-wrap gap-2">
+        <div className="flex items-center gap-2 mb-1">
+          <label className="text-sm font-medium text-gray-700 mr-auto">Exercise Intro (Optional)</label>
           <input
             ref={introFileInputRef}
             type="file"
@@ -449,40 +447,33 @@ Trả lời bằng tiếng Việt với giải thích chi tiết, khuyến khíc
               }
             }}
           />
-          <button
-            type="button"
-            onClick={() => { const input = introFileInputRef.current; if (input) input.click() }}
-            className="px-3 py-2 bg-gray-700 text-white rounded-lg hover:bg-gray-800 text-sm flex items-center gap-2"
-          >
-            <Upload className="w-4 h-4" /> Upload
+          <button type="button" onClick={() => { const input = introFileInputRef.current; if (input) input.click() }} className="px-2 py-1 text-xs bg-gray-100 hover:bg-gray-200 rounded inline-flex items-center gap-1">
+            <Upload className="w-3 h-3" /> Upload
           </button>
-          <button
-            type="button"
-            onClick={() => openUrlModal(-1, 'image')}
-            className="px-3 py-2 bg-gray-100 text-gray-800 rounded-lg hover:bg-gray-200 text-sm flex items-center gap-2"
-          >
-            <ImageIcon className="w-4 h-4" /> Insert image
+          <button type="button" onClick={() => openUrlModal(-1, 'image')} className="px-2 py-1 text-xs bg-gray-100 hover:bg-gray-200 rounded inline-flex items-center gap-1">
+            <ImageIcon className="w-3 h-3" /> Image
           </button>
-          <button
-            type="button"
-            onClick={() => openUrlModal(-1, 'link')}
-            className="px-3 py-2 bg-gray-100 text-gray-800 rounded-lg hover:bg-gray-200 text-sm flex items-center gap-2"
-          >
-            <LinkIcon className="w-4 h-4" />
+          <button type="button" onClick={() => openUrlModal(-1, 'audio')} className="px-2 py-1 text-xs bg-gray-100 hover:bg-gray-200 rounded inline-flex items-center gap-1">
+            <Music className="w-3 h-3" /> Audio
           </button>
-          <button
-            type="button"
-            onClick={() => openUrlModal(-1, 'audio')}
-            className="px-3 py-2 bg-purple-100 text-purple-800 rounded-lg hover:bg-purple-200 text-sm"
-          >
-            <Music className="w-4 h-4 inline mr-1" /> Insert audio
+          <button type="button" onClick={() => openUrlModal(-1, 'link')} className="px-2 py-1 text-xs bg-gray-100 hover:bg-gray-200 rounded inline-flex items-center gap-1">
+            <LinkIcon className="w-3 h-3" /> Link
           </button>
           <div className="flex gap-1 ml-2 border-l pl-2 border-gray-300">
-            <button type="button" onClick={() => applyAlignment(-1, 'question', 'left')} className="p-2 bg-gray-100 text-gray-700 rounded hover:bg-gray-200" title="Align left"><AlignLeft className="w-4 h-4" /></button>
-            <button type="button" onClick={() => applyAlignment(-1, 'question', 'center')} className="p-2 bg-gray-100 text-gray-700 rounded hover:bg-gray-200" title="Align center"><AlignCenter className="w-4 h-4" /></button>
-            <button type="button" onClick={() => applyAlignment(-1, 'question', 'right')} className="p-2 bg-gray-100 text-gray-700 rounded hover:bg-gray-200" title="Align right"><AlignRight className="w-4 h-4" /></button>
+            <button type="button" onClick={() => applyAlignment(-1, 'question', 'left')} className="p-1 bg-gray-100 text-gray-700 rounded hover:bg-gray-200" title="Align left"><AlignLeft className="w-3 h-3" /></button>
+            <button type="button" onClick={() => applyAlignment(-1, 'question', 'center')} className="p-1 bg-gray-100 text-gray-700 rounded hover:bg-gray-200" title="Align center"><AlignCenter className="w-3 h-3" /></button>
+            <button type="button" onClick={() => applyAlignment(-1, 'question', 'right')} className="p-1 bg-gray-100 text-gray-700 rounded hover:bg-gray-200" title="Align right"><AlignRight className="w-3 h-3" /></button>
           </div>
         </div>
+        <textarea
+          ref={introTextareaRef}
+          value={intro || ''}
+          onChange={(e) => onIntroChange && onIntroChange(e.target.value)}
+          onKeyDown={(e) => handleRichTextShortcut(e, introTextareaRef.current, intro || '', (v) => onIntroChange && onIntroChange(v))}
+          className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500"
+          rows={2}
+          placeholder="Enter introductory text for the AI fill-in-the-blank exercise..."
+        />
 
         {intro && intro.trim() && (
           <div className="mt-3 p-3 bg-white border rounded-lg">
@@ -550,27 +541,43 @@ B. Combine these sentences using a relative clause.
         ) : localQuestions.length > 0 ? (
           localQuestions.map((question, index) => (
             <div key={question.id} className="bg-white border border-gray-200 rounded-lg p-6">
-              <div className="flex items-center justify-between mb-4">
-                <h4 className="text-lg font-medium text-gray-900">
+              <div className="flex items-center gap-2 mb-4">
+                <h4 className="text-lg font-medium text-gray-900 mr-auto">
                   Question {index + 1}
                 </h4>
-                <div className="flex items-center gap-2">
-                  <button
-                    type="button"
-                    onClick={() => togglePreview(index)}
-                    className="flex items-center gap-1 px-3 py-1 text-sm text-gray-600 hover:text-gray-800"
-                  >
-                    {previewMode[index] ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
-                    {previewMode[index] ? 'Hide Preview' : 'Preview'}
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => removeQuestion(index)}
-                    className="p-1 text-red-600 hover:text-red-800"
-                  >
-                    <Trash2 className="w-4 h-4" />
-                  </button>
-                </div>
+                {!previewMode[index] && (
+                  <>
+                    <button type="button" onClick={() => handleInsertImage(index)} className="px-2 py-1 text-xs bg-gray-100 hover:bg-gray-200 rounded inline-flex items-center gap-1">
+                      <ImageIcon className="w-3 h-3" /> Image
+                    </button>
+                    <button type="button" onClick={() => handleInsertAudio(index)} className="px-2 py-1 text-xs bg-gray-100 hover:bg-gray-200 rounded inline-flex items-center gap-1">
+                      <Music className="w-3 h-3" /> Audio
+                    </button>
+                    <button type="button" onClick={() => handleInsertLink(index)} className="px-2 py-1 text-xs bg-gray-100 hover:bg-gray-200 rounded inline-flex items-center gap-1">
+                      <LinkIcon className="w-3 h-3" /> Link
+                    </button>
+                    <div className="flex gap-1 ml-2 border-l pl-2 border-gray-300">
+                      <button type="button" onClick={() => applyAlignment(index, 'question', 'left')} className="p-1 bg-gray-100 text-gray-700 rounded hover:bg-gray-200" title="Align left"><AlignLeft className="w-3 h-3" /></button>
+                      <button type="button" onClick={() => applyAlignment(index, 'question', 'center')} className="p-1 bg-gray-100 text-gray-700 rounded hover:bg-gray-200" title="Align center"><AlignCenter className="w-3 h-3" /></button>
+                      <button type="button" onClick={() => applyAlignment(index, 'question', 'right')} className="p-1 bg-gray-100 text-gray-700 rounded hover:bg-gray-200" title="Align right"><AlignRight className="w-3 h-3" /></button>
+                    </div>
+                  </>
+                )}
+                <button
+                  type="button"
+                  onClick={() => togglePreview(index)}
+                  className="flex items-center gap-1 px-2 py-1 text-xs text-gray-600 hover:text-gray-800"
+                >
+                  {previewMode[index] ? <EyeOff className="w-3 h-3" /> : <Eye className="w-3 h-3" />}
+                  {previewMode[index] ? 'Hide' : 'Preview'}
+                </button>
+                <button
+                  type="button"
+                  onClick={() => removeQuestion(index)}
+                  className="p-1 text-red-600 hover:text-red-800"
+                >
+                  <Trash2 className="w-4 h-4" />
+                </button>
               </div>
 
               {previewMode[index] ? (
@@ -598,25 +605,6 @@ B. Combine these sentences using a relative clause.
                 <div className="space-y-4">
                   {/* Question Text */}
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">
-                      Question Text
-                    </label>
-                    <div className="flex items-center gap-2 mb-2">
-                    <button type="button" onClick={() => handleInsertImage(index)} className="px-2 py-1 text-xs bg-gray-100 hover:bg-gray-200 rounded inline-flex items-center gap-1">
-                        <ImageIcon className="w-3 h-3" /> Image
-                      </button>
-                      <button type="button" onClick={() => handleInsertAudio(index)} className="px-2 py-1 text-xs bg-gray-100 hover:bg-gray-200 rounded inline-flex items-center gap-1">
-                        <Music className="w-3 h-3" /> Audio
-                      </button>
-                      <button type="button" onClick={() => handleInsertLink(index)} className="px-2 py-1 text-xs bg-gray-100 hover:bg-gray-200 rounded inline-flex items-center gap-1">
-                        <LinkIcon className="w-3 h-3" /> Link
-                      </button>
-                      <div className="flex gap-1 ml-2 border-l pl-2 border-gray-300">
-                        <button type="button" onClick={() => applyAlignment(index, 'question', 'left')} className="p-2 bg-gray-100 text-gray-700 rounded hover:bg-gray-200" title="Align left"><AlignLeft className="w-4 h-4" /></button>
-                        <button type="button" onClick={() => applyAlignment(index, 'question', 'center')} className="p-2 bg-gray-100 text-gray-700 rounded hover:bg-gray-200" title="Align center"><AlignCenter className="w-4 h-4" /></button>
-                        <button type="button" onClick={() => applyAlignment(index, 'question', 'right')} className="p-2 bg-gray-100 text-gray-700 rounded hover:bg-gray-200" title="Align right"><AlignRight className="w-4 h-4" /></button>
-                      </div>
-                    </div>
                     <textarea
                       ref={(el) => { questionTextareasRef.current[index] = el }}
                       value={question.question}

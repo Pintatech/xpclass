@@ -3,7 +3,7 @@ import { Document, Page, pdfjs } from 'react-pdf'
 import 'react-pdf/dist/Page/AnnotationLayer.css'
 import 'react-pdf/dist/Page/TextLayer.css'
 import { supabase } from '../../../supabase/client'
-import { Trash2, Upload, Eye, EyeOff, Type, ChevronDown, CheckSquare, GripVertical, AlertCircle, Copy, Image as ImageIcon } from 'lucide-react'
+import { Trash2, Upload, Eye, EyeOff, Type, ChevronDown, CheckSquare, GripVertical, AlertCircle, Copy, Image as ImageIcon, Music, X } from 'lucide-react'
 
 pdfjs.GlobalWorkerOptions.workerSrc = `//unpkg.com/pdfjs-dist@${pdfjs.version}/build/pdf.worker.min.mjs`
 
@@ -41,6 +41,7 @@ const PDFWorksheetEditor = ({ content, onContentChange }) => {
   const [dragOffset, setDragOffset] = useState({ x: 0, y: 0 })
   const [dragFieldId, setDragFieldId] = useState(null)
   const [pageWidth, setPageWidth] = useState(600)
+  const [uploadingAudio, setUploadingAudio] = useState(false)
 
   const pageContainerRef = useRef(null)
   const containerWrapperRef = useRef(null)
@@ -223,6 +224,35 @@ const PDFWorksheetEditor = ({ content, onContentChange }) => {
       if (currentPage > newUrls.length) setCurrentPage(Math.max(1, newUrls.length))
       return newUrls
     })
+  }
+
+  const updatePageAudio = (pageNumber, audioUrl) => {
+    updatePages(prev => prev.map(p =>
+      p.page_number === pageNumber ? { ...p, audio_url: audioUrl } : p
+    ))
+  }
+
+  const handleAudioUpload = async (e) => {
+    const file = e.target.files?.[0]
+    if (!file) return
+    setUploadingAudio(true)
+    try {
+      const ext = file.name.split('.').pop()
+      const path = `audio/${Date.now()}_${Math.random().toString(36).slice(2)}.${ext}`
+      const { error: uploadError } = await supabase.storage
+        .from('exercise-files')
+        .upload(path, file, { cacheControl: '3600', upsert: true })
+      if (uploadError) throw uploadError
+      const { data: publicData } = supabase.storage
+        .from('exercise-files')
+        .getPublicUrl(path)
+      updatePageAudio(currentPage, publicData.publicUrl)
+    } catch (err) {
+      console.error('Audio upload failed:', err)
+      alert('Failed to upload audio.')
+    } finally {
+      setUploadingAudio(false)
+    }
   }
 
   const onDocumentLoadSuccess = useCallback(({ numPages: total }) => {
@@ -498,6 +528,50 @@ const PDFWorksheetEditor = ({ content, onContentChange }) => {
               ))}
             </div>
           )}
+
+          {/* Per-page audio */}
+          <div className="flex items-center gap-2 flex-wrap">
+            <Music className="w-4 h-4 text-gray-500" />
+            <span className="text-sm text-gray-600">Page {currentPage} Audio:</span>
+            {(() => {
+              const currentPageData = pages.find(p => p.page_number === currentPage)
+              const audioUrl = currentPageData?.audio_url || ''
+              return audioUrl ? (
+                <>
+                  <audio controls src={audioUrl} className="h-8" />
+                  <button
+                    type="button"
+                    onClick={() => updatePageAudio(currentPage, '')}
+                    className="p-1 text-red-500 hover:bg-red-50 rounded"
+                    title="Remove audio"
+                  >
+                    <X className="w-4 h-4" />
+                  </button>
+                </>
+              ) : (
+                <>
+                  <input
+                    type="text"
+                    placeholder="Paste audio URL"
+                    className="flex-1 min-w-[150px] px-2 py-1 border border-gray-300 rounded text-sm"
+                    onBlur={(e) => { if (e.target.value.trim()) updatePageAudio(currentPage, e.target.value.trim()) }}
+                    onKeyDown={(e) => { if (e.key === 'Enter' && e.target.value.trim()) { updatePageAudio(currentPage, e.target.value.trim()); e.target.value = '' } }}
+                  />
+                  <label className={`px-2 py-1 bg-purple-600 text-white rounded hover:bg-purple-700 flex items-center gap-1 cursor-pointer text-xs ${uploadingAudio ? 'opacity-50' : ''}`}>
+                    <Upload className="w-3 h-3" />
+                    {uploadingAudio ? 'Uploading...' : 'Upload'}
+                    <input
+                      type="file"
+                      accept="audio/*"
+                      onChange={handleAudioUpload}
+                      className="hidden"
+                      disabled={uploadingAudio}
+                    />
+                  </label>
+                </>
+              )
+            })()}
+          </div>
 
           {/* Main layout: PDF + Properties */}
           <div className="grid grid-cols-1 xl:grid-cols-3 gap-4">

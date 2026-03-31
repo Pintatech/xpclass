@@ -85,13 +85,10 @@ const LeaderboardSettings = () => {
   const [collectibleItems, setCollectibleItems] = useState([]);
   const [itemsLoading, setItemsLoading] = useState(false);
 
-  // Shop items for reward picker
-  const [shopItems, setShopItems] = useState([]);
 
   useEffect(() => {
     fetchSettings();
     fetchCollectibleItems();
-    fetchShopItems();
   }, []);
 
   const fetchCollectibleItems = async () => {
@@ -111,19 +108,6 @@ const LeaderboardSettings = () => {
     }
   };
 
-  const fetchShopItems = async () => {
-    try {
-      const { data } = await supabase
-        .from('collectible_items')
-        .select('id, name, image_url, item_type, rarity')
-        .eq('is_active', true)
-        .order('item_type')
-        .order('name');
-      setShopItems(data || []);
-    } catch (err) {
-      console.error('Error fetching inventory items:', err);
-    }
-  };
 
   const fetchSettings = async () => {
     try {
@@ -380,26 +364,10 @@ const LeaderboardSettings = () => {
 
           // Award inventory items
           if (reward.shop_items.length > 0) {
-            for (const itemId of reward.shop_items) {
-              const itemName = shopItems.find(s => s.id === itemId)?.name || '';
-              const { data: userData } = await supabase.from('users').select('full_name').eq('id', userId).single();
-              const { data: existing } = await supabase.from('user_inventory')
-                .select('id, quantity')
-                .eq('user_id', userId).eq('item_id', itemId).maybeSingle();
-              if (existing) {
-                await supabase.from('user_inventory')
-                  .update({ quantity: existing.quantity + 1, updated_at: new Date().toISOString() })
-                  .eq('id', existing.id);
-              } else {
-                await supabase.from('user_inventory').insert({
-                  user_id: userId,
-                  user_name: userData?.full_name || '',
-                  item_id: itemId,
-                  item_name: itemName,
-                  quantity: 1,
-                });
-              }
-            }
+            await supabase.rpc('award_competition_items', {
+              p_user_id: userId,
+              p_item_ids: reward.shop_items,
+            });
           }
 
           // Build reward message
@@ -409,7 +377,7 @@ const LeaderboardSettings = () => {
           if (totalXpAwarded > 0) parts.push(`+${totalXpAwarded} XP`);
           if (reward.shop_items.length > 0) {
             const itemNames = reward.shop_items
-              .map(id => shopItems.find(s => s.id === id)?.name || 'item')
+              .map(id => collectibleItems.find(s => s.id === id)?.name || 'item')
               .join(', ');
             parts.push(itemNames);
           }
@@ -1113,7 +1081,7 @@ const LeaderboardSettings = () => {
                   {/* Shop Items */}
                   <div className="flex flex-wrap items-center gap-1.5">
                     {reward.shop_items.map((itemId) => {
-                      const item = shopItems.find(s => s.id === itemId);
+                      const item = collectibleItems.find(s => s.id === itemId);
                       return (
                         <div key={itemId} className="flex items-center gap-1 bg-white border border-gray-200 rounded px-1.5 py-0.5 text-sm">
                           {item?.image_url && <img src={assetUrl(item.image_url)} alt="" className="w-4 h-4 rounded" />}
@@ -1136,7 +1104,7 @@ const LeaderboardSettings = () => {
                       className="p-1 border border-gray-300 rounded text-sm text-gray-500 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 w-full mt-1"
                     >
                       <option value="">+ item</option>
-                      {shopItems
+                      {collectibleItems
                         .filter(s => !reward.shop_items.includes(s.id))
                         .map(s => (
                           <option key={s.id} value={s.id}>{s.name} ({s.rarity} {s.item_type})</option>
