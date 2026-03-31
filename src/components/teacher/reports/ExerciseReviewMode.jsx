@@ -8,6 +8,7 @@ const decodeIndex = (type, idx) => {
   switch (type) {
     case 'fill_blank':
     case 'dropdown':
+    case 'drag_drop':
       return { qi: Math.floor(idx / 100), sub: idx % 100 }
     case 'pdf_worksheet':
       return { qi: Math.floor(idx / 1000), sub: idx % 1000 }
@@ -228,11 +229,9 @@ const DropdownExerciseReview = ({ exercise, qas }) => {
   )
 }
 
-const DragDropSentence = ({ question, qa }) => {
+const DragDropSentence = ({ question, zoneQAs }) => {
   const items = question.items || []
   const dropZones = question.drop_zones || []
-  const correctOrder = qa.correct_answer  // array of item IDs
-  const userPlacements = qa.selected_answer  // { zoneId: itemId }
 
   const getItemText = (itemId) => items.find(it => it.id === itemId)?.text || null
 
@@ -247,11 +246,12 @@ const DragDropSentence = ({ question, qa }) => {
         }
         const zoneId = part
         const zoneIndex = dropZones.findIndex(z => z.id === zoneId)
-        const studentItemId = userPlacements?.[zoneId]
-        const correctItemId = Array.isArray(correctOrder) ? correctOrder[zoneIndex] : null
+        const qa = zoneQAs[zoneIndex]
+        const studentItemId = qa?.selected_answer
+        const correctItemId = qa?.correct_answer
         const studentText = studentItemId ? getItemText(studentItemId) : null
         const correctText = correctItemId ? getItemText(correctItemId) : null
-        const isCorrect = studentItemId === correctItemId
+        const isCorrect = qa?.is_correct
 
         return (
           <span key={i} className={`inline-flex items-center gap-1 px-2 py-0.5 mx-0.5 rounded font-medium ${
@@ -279,8 +279,9 @@ const DragDropExerciseReview = ({ exercise, qas }) => {
   return (
     <div className="space-y-5">
       {questions.map((q, qi) => {
-        const qa = byQI[qi]?.[0]
-        if (!qa) return null
+        const zoneQAs = byQI[qi] || {}
+        // Check if any zone has data
+        if (Object.keys(zoneQAs).length === 0) return null
         const hasDropZonePlaceholders = q.question?.includes('[DROP_ZONE_')
 
         return (
@@ -289,7 +290,7 @@ const DragDropExerciseReview = ({ exercise, qas }) => {
               <p className="text-xs font-semibold text-gray-400 uppercase tracking-wide">Question {qi + 1}</p>
             )}
             {hasDropZonePlaceholders
-              ? <DragDropSentence question={q} qa={qa} />
+              ? <DragDropSentence question={q} zoneQAs={zoneQAs} />
               : (
                 <>
                   {q.question && <p className="text-sm text-gray-800">{q.question}</p>}
@@ -297,14 +298,15 @@ const DragDropExerciseReview = ({ exercise, qas }) => {
                     {(q.drop_zones || []).map((zone, i) => {
                       const items = q.items || []
                       const getItemText = (id) => items.find(it => it.id === id)?.text || id
-                      const studentId = qa.selected_answer?.[zone.id]
-                      const correctId = Array.isArray(qa.correct_answer) ? qa.correct_answer[i] : null
-                      const isCorrect = studentId === correctId
+                      const qa = zoneQAs[i]
+                      const studentId = qa?.selected_answer
+                      const correctId = qa?.correct_answer
+                      const isCorrect = qa?.is_correct
                       return (
                         <div key={zone.id} className={`flex items-center gap-3 px-3 py-2 rounded-lg border text-sm ${
                           isCorrect ? 'border-green-200 bg-green-50' : 'border-red-200 bg-red-50'
                         }`}>
-                          {isCorrect ? <CheckCircle className="w-4 h-4 text-green-500 shrink-0" /> : <XCircle className="w-4 h-4 text-red-500 shrink-0" />}
+                          {isCorrect ? <CheckCircle className="w-4 h-4 text-green-500 shrink-0" /> : <XCircle className="w-4 h-4 text-red-500" /> }
                           <span className="text-gray-500 shrink-0">{zone.label || `Zone ${i + 1}`}:</span>
                           <span className={`font-medium ${isCorrect ? 'text-green-800' : 'text-red-800'}`}>{studentId ? getItemText(studentId) : '(empty)'}</span>
                           {!isCorrect && correctId && <><span className="text-gray-400">→</span><span className="font-medium text-green-800">{getItemText(correctId)}</span></>}
@@ -560,10 +562,43 @@ const ExerciseReviewMode = ({ attempt, passingScore = 70, onAttemptUpdate, onClo
 
     return Object.values(groups)
       .sort((a, b) => a.order - b.order)
-      .map(g => ({
-        ...g,
-        qas: g.qas.sort((a, b) => (a.question_index || 0) - (b.question_index || 0))
-      }))
+      .map(g => {
+        const exType = g.exercise?.exercise_type || g.qas[0]?.exercise_type
+        let sortedQAs = g.qas.sort((a, b) => (a.question_index || 0) - (b.question_index || 0))
+
+        // Expand old drag_drop QAs (1 row per question) into per-zone rows
+        if (exType === 'drag_drop') {
+          const questions = g.exercise?.content?.questions || []
+          const expanded = []
+          sortedQAs.forEach(qa => {
+            if (typeof qa.selected_answer === 'object' && qa.selected_answer !== null && !Array.isArray(qa.selected_answer)) {
+              // Old format: expand into per-zone virtual rows
+              const qiOld = qa.question_index || 0
+              const question = questions[qiOld]
+              if (question) {
+                ;(question.drop_zones || []).forEach((zone, zi) => {
+                  const studentItemId = qa.selected_answer?.[zone.id]
+                  const correctItemId = Array.isArray(qa.correct_answer) ? qa.correct_answer[zi] : null
+                  expanded.push({
+                    ...qa,
+                    question_index: qiOld * 100 + zi,
+                    selected_answer: studentItemId || null,
+                    correct_answer: correctItemId || null,
+                    is_correct: !!(studentItemId && studentItemId === correctItemId)
+                  })
+                })
+              } else {
+                expanded.push(qa)
+              }
+            } else {
+              expanded.push(qa)
+            }
+          })
+          sortedQAs = expanded
+        }
+
+        return { ...g, qas: sortedQAs }
+      })
   }, [assignments, localQAs])
 
   const renderExercise = (group) => {
@@ -599,6 +634,11 @@ const ExerciseReviewMode = ({ attempt, passingScore = 70, onAttemptUpdate, onClo
     return `${Math.floor(s / 60)}:${(s % 60).toString().padStart(2, '0')}`
   }
 
+  // Use expanded groups for counting (handles old drag_drop format)
+  const allExpandedQAs = exerciseGroups.flatMap(g => g.qas)
+  const correctCount = allExpandedQAs.filter(q => q.is_correct).length
+  const totalCount = allExpandedQAs.length
+
   if (loading) {
     return (
       <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
@@ -611,8 +651,6 @@ const ExerciseReviewMode = ({ attempt, passingScore = 70, onAttemptUpdate, onClo
   }
 
   const current = exerciseGroups[currentIdx]
-  const correctCount = localQAs.filter(q => q.is_correct).length
-  const totalCount = localQAs.length
   const hasOverride = current?.qas.some(q => q.teacher_override)
 
   return (

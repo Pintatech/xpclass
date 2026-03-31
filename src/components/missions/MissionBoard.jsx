@@ -517,6 +517,22 @@ const MissionCard = ({ mission, tabConfig, onClaim, claiming, index, entered }) 
                     </span>
                   </div>
                 )}
+                {mission.reward_item_name && (
+                  <div className={`flex flex-col items-center ${isClaimed ? 'opacity-30' : ''}`}>
+                    <img src={mission.reward_item_image || assetUrl('/image/study/gem.png')} alt={mission.reward_item_name} className="w-6 h-6 object-contain" />
+                    <span className={`text-[10px] font-bold ${isClaimed ? 'text-gray-400' : 'text-green-600'}`}>
+                      {mission.reward_item_quantity > 1 ? `x${mission.reward_item_quantity}` : mission.reward_item_name}
+                    </span>
+                  </div>
+                )}
+                {mission.reward_chest_name && (
+                  <div className={`flex flex-col items-center ${isClaimed ? 'opacity-30' : ''}`}>
+                    <img src={mission.reward_chest_image || assetUrl('/image/chest/legendary-chest.png')} alt={mission.reward_chest_name} className="w-6 h-6 object-contain" />
+                    <span className={`text-[10px] font-bold ${isClaimed ? 'text-gray-400' : 'text-yellow-600'}`}>
+                      {mission.reward_chest_name}
+                    </span>
+                  </div>
+                )}
               </div>
             </div>
 

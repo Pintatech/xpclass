@@ -329,31 +329,25 @@ const TestRunner = () => {
             break
           }
           case 'drag_drop': {
-            totalQuestions++
             const dropZones = q.drop_zones || []
             const correctOrder = q.correct_order || []
             const items = q.items || []
-            // exerciseAnswers is userAnswers: { questionIndex: { zoneId: itemId } }
             const userPlacements = exerciseAnswers?.[qi] || {}
 
-            const userOrder = dropZones.map(zone => {
-              const itemId = userPlacements[zone.id]
-              const item = items.find(it => it.id === itemId)
-              return item ? item.text : null
-            })
-            const correctTexts = correctOrder.map(itemId => {
-              const item = items.find(it => it.id === itemId)
-              return item ? item.text : null
-            })
-            const isCorrect = JSON.stringify(userOrder) === JSON.stringify(correctTexts)
-            if (isCorrect) totalCorrect++
-            questionAttempts.push({
-              exercise_id: ex.id,
-              question_index: qi,
-              exercise_type: ex.exercise_type,
-              selected_answer: userPlacements,
-              correct_answer: correctOrder,
-              is_correct: isCorrect
+            dropZones.forEach((zone, zi) => {
+              totalQuestions++
+              const studentItemId = userPlacements[zone.id]
+              const correctItemId = correctOrder[zi]
+              const isCorrect = !!(studentItemId && studentItemId === correctItemId)
+              if (isCorrect) totalCorrect++
+              questionAttempts.push({
+                exercise_id: ex.id,
+                question_index: qi * 100 + zi,
+                exercise_type: ex.exercise_type,
+                selected_answer: studentItemId || null,
+                correct_answer: correctItemId || null,
+                is_correct: isCorrect
+              })
             })
             break
           }

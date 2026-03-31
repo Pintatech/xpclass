@@ -60,6 +60,7 @@ const SmartDragDropEditor = ({ questions, onQuestionsChange, intro, onIntroChang
   const explanationTextareasRef = useRef({})
   const introTextareaRef = useRef(null)
   const introFileInputRef = useRef(null)
+  const savedCursorPos = useRef({ start: 0, end: 0 })
 
   useEffect(() => {
     try {
@@ -99,13 +100,13 @@ const SmartDragDropEditor = ({ questions, onQuestionsChange, intro, onIntroChang
 
     // Create items (dragable words + distractors)
     const items = [
-      ...dragableWords.map((word, index) => ({
-        id: `item_${index + 1}`,
+      ...dragableWords.map((word) => ({
+        id: `item_${Date.now()}_${Math.random().toString(36).slice(2, 7)}`,
         text: word.word,
         type: 'correct'
       })),
-      ...distractorWords.map((word, index) => ({
-        id: `distractor_${index + 1}`,
+      ...distractorWords.map((word) => ({
+        id: `distractor_${Date.now()}_${Math.random().toString(36).slice(2, 7)}`,
         text: word,
         type: 'distractor'
       }))
@@ -228,10 +229,10 @@ const SmartDragDropEditor = ({ questions, onQuestionsChange, intro, onIntroChang
 
     // Build correct items from bracket words, reuse existing IDs where possible
     const existingCorrectItems = question.items.filter(i => i.type === 'correct')
-    const correctItems = bracketWords.map((word, idx) => {
+    const correctItems = bracketWords.map((word) => {
       const existing = existingCorrectItems.find(i => i.text === word)
       return existing || {
-        id: `item_${idx + 1}`,
+        id: `item_${Date.now()}_${Math.random().toString(36).slice(2, 7)}`,
         text: word,
         type: 'correct'
       }
@@ -324,14 +325,14 @@ const SmartDragDropEditor = ({ questions, onQuestionsChange, intro, onIntroChang
         const trimmedLine = line.trim()
 
         // Check if this is a new question (starts with Q: or number.)
-        if (trimmedLine.match(/^(Q:|Question|\d+[\.):])/i)) {
+        if (trimmedLine.match(/^(Q:|Quest(ion)?\s*\d+\s*:|Question|\d+[).:])/i)) {
           // Save previous question if exists
           if (currentQuestion) {
             newQuestions.push(currentQuestion)
           }
 
           // Start new question - extract the question title
-          const questionTitle = trimmedLine.replace(/^(Q:|Question|\d+[\.):])\s*/i, '')
+          const questionTitle = trimmedLine.replace(/^(Q:|Quest(ion)?\s*\d+\s*:|Question|\d+[).:])\s*/i, '')
           currentQuestion = {
             id: `q${Date.now()}_${questionCounter++}`,
             question: '',
@@ -525,7 +526,18 @@ const SmartDragDropEditor = ({ questions, onQuestionsChange, intro, onIntroChang
     }
   }
 
+  const saveCursorPosition = (index) => {
+    const textarea = questionTextareasRef.current[index]
+    if (textarea && typeof textarea.selectionStart === 'number') {
+      savedCursorPos.current = { start: textarea.selectionStart, end: textarea.selectionEnd }
+    } else {
+      const current = localQuestions[index]?.question || ''
+      savedCursorPos.current = { start: current.length, end: current.length }
+    }
+  }
+
   const handlePasteImageUrl = (index) => {
+    saveCursorPosition(index)
     setUrlModal({ isOpen: true, type: 'image', questionIndex: index })
     setUrlInput('')
     setLinkText('')
@@ -535,6 +547,7 @@ const SmartDragDropEditor = ({ questions, onQuestionsChange, intro, onIntroChang
   }
 
   const handleInsertAudio = (index) => {
+    saveCursorPosition(index)
     setUrlModal({ isOpen: true, type: 'audio', questionIndex: index })
     setUrlInput('')
     setLinkText('')
@@ -548,6 +561,7 @@ const SmartDragDropEditor = ({ questions, onQuestionsChange, intro, onIntroChang
   }
 
   const handleInsertLink = (index) => {
+    saveCursorPosition(index)
     setUrlModal({ isOpen: true, type: 'link', questionIndex: index })
     setUrlInput('')
     setLinkText('Reference')
@@ -604,20 +618,18 @@ const SmartDragDropEditor = ({ questions, onQuestionsChange, intro, onIntroChang
         return
       }
 
-      // Update question directly
+      // Update question directly using saved cursor position
       const currentQuestion = localQuestions[questionIndex]
       const textarea = questionTextareasRef.current[questionIndex]
+      const { start, end } = savedCursorPos.current
+      const current = currentQuestion.question || ''
+      const before = current.slice(0, start)
+      const after = current.slice(end)
+      const newValue = `${before}${snippet}${after}`
 
-      if (textarea && typeof textarea.selectionStart === 'number') {
-        const start = textarea.selectionStart
-        const end = textarea.selectionEnd
-        const current = currentQuestion.question || ''
-        const before = current.slice(0, start)
-        const after = current.slice(end)
-        const newValue = `${before}${snippet}${after}`
+      updateQuestion(questionId, 'question', newValue)
 
-        updateQuestion(questionId, 'question', newValue)
-
+      if (textarea) {
         setTimeout(() => {
           try {
             const pos = start + snippet.length
@@ -625,10 +637,6 @@ const SmartDragDropEditor = ({ questions, onQuestionsChange, intro, onIntroChang
             textarea.setSelectionRange(pos, pos)
           } catch {}
         }, 0)
-      } else {
-        const current = currentQuestion.question || ''
-        const newValue = current + (current ? '\n' : '') + snippet
-        updateQuestion(questionId, 'question', newValue)
       }
 
       handleUrlCancel()

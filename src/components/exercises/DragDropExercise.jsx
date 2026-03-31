@@ -268,9 +268,9 @@ const DragDropExercise = ({ testMode = false, exerciseData = null, onAnswersColl
   useEffect(() => {
     if (testMode) return
     if (showResultScreen && !hasPlayedPassAudio && questionResults.length > 0) {
-      const correctAnswers = questionResults.filter(r => r.isCorrect).length
-      const totalQuestions = questionResults.length
-      const score = Math.round((correctAnswers / totalQuestions) * 100)
+      const totalCorrectZones = questionResults.reduce((sum, r) => sum + (r.correctZones || 0), 0)
+      const totalAllZones = questionResults.reduce((sum, r) => sum + (r.totalZones || 1), 0)
+      const score = Math.round((totalCorrectZones / totalAllZones) * 100)
       const passed = score >= 75
 
       if (passed) {
@@ -626,6 +626,10 @@ const DragDropExercise = ({ testMode = false, exerciseData = null, onAnswersColl
       [questionIndex]: true
     }))
 
+    // Count correct drop zones for this question
+    const correctZones = Object.values(feedback).filter(f => f === 'correct').length
+    const totalZones = question.drop_zones.length
+
     // Track question result
     setQuestionResults(prev => {
       // Remove any existing result for this question index
@@ -633,7 +637,9 @@ const DragDropExercise = ({ testMode = false, exerciseData = null, onAnswersColl
       return [...filtered, {
         questionIndex,
         questionId: question.id,
-        isCorrect: isAnswerCorrect
+        isCorrect: isAnswerCorrect,
+        correctZones,
+        totalZones
       }]
     })
 
@@ -674,44 +680,51 @@ const DragDropExercise = ({ testMode = false, exerciseData = null, onAnswersColl
         return JSON.stringify(userOrder) === JSON.stringify(correctOrder)
       })
 
-      // Calculate score based on correct answers (compare by text values)
-      const correctAnswers = exercise.content.questions.filter((_, index) => {
+      // Calculate score based on correct drop zones (each blank counts individually)
+      let totalCorrectZones = 0
+      let totalAllZones = 0
+      exercise.content.questions.forEach((question, index) => {
         const userAnswer = userAnswers[index] || {}
-        const question = exercise.content.questions[index]
-        const userOrder = question.drop_zones.map(zone => {
-          const itemId = userAnswer[zone.id]
-          if (!itemId) return null
-          const item = question.items.find(i => i.id === itemId)
-          return item ? item.text : null
+        question.drop_zones.forEach((zone, zIdx) => {
+          totalAllZones++
+          const userItemId = userAnswer[zone.id]
+          const correctItemId = question.correct_order[zIdx]
+          if (userItemId && correctItemId) {
+            const userItem = question.items.find(i => i.id === userItemId)
+            const correctItem = question.items.find(i => i.id === correctItemId)
+            if (userItem?.text === correctItem?.text) {
+              totalCorrectZones++
+            }
+          }
         })
-        const correctOrder = question.correct_order.map(itemId => {
-          if (!itemId) return null
-          const item = question.items.find(i => i.id === itemId)
-          return item ? item.text : null
-        })
-        return JSON.stringify(userOrder) === JSON.stringify(correctOrder)
-      }).length
+      })
 
-      const maxScore = exercise.content.questions.length
-      const scorePercentage = maxScore > 0 ? Math.round((correctAnswers / maxScore) * 100) : 0
+      const scorePercentage = totalAllZones > 0 ? Math.round((totalCorrectZones / totalAllZones) * 100) : 0
       const score = allQuestionsCompleted ? scorePercentage : 0
 
-      // Save question attempt for this question
+      // Save question attempt per drop zone
       if (exerciseId) {
         try {
           const q = exercise.content.questions[questionIndex]
           const userAnswer = userAnswers[questionIndex] || {}
-          await supabase.from('question_attempts').insert({
-            user_id: user.id,
-            exercise_id: exerciseId,
-            exercise_type: 'drag_drop',
-            question_id: q.id || `q${questionIndex}`,
-            selected_answer: JSON.stringify(userAnswer),
-            correct_answer: JSON.stringify(q.correct_order || []),
-            is_correct: isCorrect,
-            attempt_number: 1,
-            response_time: totalTimeSpent
+          const rows = (q.drop_zones || []).map((zone, zi) => {
+            const studentItemId = userAnswer[zone.id]
+            const correctItemId = (q.correct_order || [])[zi]
+            return {
+              user_id: user.id,
+              exercise_id: exerciseId,
+              exercise_type: 'drag_drop',
+              question_id: `${q.id || `q${questionIndex}`}_zone${zi}`,
+              selected_answer: studentItemId || null,
+              correct_answer: correctItemId || null,
+              is_correct: !!(studentItemId && studentItemId === correctItemId),
+              attempt_number: 1,
+              response_time: totalTimeSpent
+            }
           })
+          if (rows.length > 0) {
+            await supabase.from('question_attempts').insert(rows)
+          }
         } catch (err) {
           console.log('⚠️ Could not save question attempt:', err.message)
         }
@@ -872,7 +885,7 @@ const DragDropExercise = ({ testMode = false, exerciseData = null, onAnswersColl
     exercise: !!exercise,
     currentQuestion: !!currentQuestion,
     currentQuestionIndex,
-    totalQuestions: exercise?.content?.questions?.length || 0
+    totalQuestions: exercise?.content?.questions?.reduce((sum, q) => sum + (q.drop_zones?.length || 1), 0) || 0
   })
 
   // testMode: render all questions without gamification
@@ -946,11 +959,16 @@ const DragDropExercise = ({ testMode = false, exerciseData = null, onAnswersColl
               <div className="mb-4">
                 <h3 className="text-lg font-medium text-gray-700 mb-3">Items to drag:</h3>
                 <div className="flex flex-wrap gap-2">
-                  {qItems.map((item) => {
-                    const isUsed = placedItemIds.includes(item.id)
+                  {(() => {
+                    const placedCountsTest = {}
+                    placedItemIds.forEach(id => { if (id) placedCountsTest[id] = (placedCountsTest[id] || 0) + 1 })
+                    const seenCountsTest = {}
+                    return qItems.map((item, itemIdx) => {
+                    seenCountsTest[item.id] = (seenCountsTest[item.id] || 0) + 1
+                    const isUsed = seenCountsTest[item.id] <= (placedCountsTest[item.id] || 0)
                     return (
                       <div
-                        key={item.id}
+                        key={`${item.id}_${itemIdx}`}
                         draggable={!isUsed}
                         onDragStart={(e) => {
                           setDraggedItem({ itemId: item.id, questionIndex: qIndex })
@@ -979,7 +997,8 @@ const DragDropExercise = ({ testMode = false, exerciseData = null, onAnswersColl
                         </div>
                       </div>
                     )
-                  })}
+                  })
+                  })()}
                 </div>
               </div>
             </div>
@@ -1048,8 +1067,8 @@ const DragDropExercise = ({ testMode = false, exerciseData = null, onAnswersColl
                   </h3>
                 </div>
                 <div className="ml-11 flex flex-wrap gap-2">
-                  {(question.items || []).map((item) => (
-                    <span key={item.id} className="px-2 py-1 rounded text-sm bg-gray-100 text-gray-600">
+                  {(question.items || []).map((item, itemIdx) => (
+                    <span key={`${item.id}_${itemIdx}`} className="px-2 py-1 rounded text-sm bg-gray-100 text-gray-600">
                       {item.text}
                     </span>
                   ))}
@@ -1135,9 +1154,13 @@ const DragDropExercise = ({ testMode = false, exerciseData = null, onAnswersColl
         {showResultScreen && (
           <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
             <CelebrationScreen
-              score={Math.round((questionResults.filter(r => r.isCorrect).length / exercise.content.questions.length) * 100)}
-              correctAnswers={questionResults.filter(r => r.isCorrect).length}
-              totalQuestions={exercise.content.questions.length}
+              score={(() => {
+                const cz = questionResults.reduce((sum, r) => sum + (r.correctZones || 0), 0)
+                const tz = questionResults.reduce((sum, r) => sum + (r.totalZones || 1), 0)
+                return Math.round((cz / tz) * 100)
+              })()}
+              correctAnswers={questionResults.reduce((sum, r) => sum + (r.correctZones || 0), 0)}
+              totalQuestions={questionResults.reduce((sum, r) => sum + (r.totalZones || 1), 0)}
               passThreshold={75}
               xpAwarded={xpEarnedThisSession}
               passGif={passGif}
@@ -1227,8 +1250,17 @@ const DragDropExercise = ({ testMode = false, exerciseData = null, onAnswersColl
               <h3 className="text-lg font-medium text-gray-700">Items to drag:</h3>
             </div>
             <div className="flex flex-wrap gap-2">
-              {randomizedItems.map((item) => {
-                const isUsed = Object.values(userAnswer).includes(item.id)
+              {(() => {
+                // Count how many times each item ID is placed in zones
+                const placedCounts = {}
+                Object.values(userAnswer).forEach(id => {
+                  if (id) placedCounts[id] = (placedCounts[id] || 0) + 1
+                })
+                // Track how many instances of each ID we've rendered so far
+                const seenCounts = {}
+                return randomizedItems.map((item, itemIdx) => {
+                seenCounts[item.id] = (seenCounts[item.id] || 0) + 1
+                const isUsed = seenCounts[item.id] <= (placedCounts[item.id] || 0)
                 const isDisabled = isUsed || questionsChecked[currentQuestionIndex]
 
                 // Determine shadow color based on state
@@ -1239,7 +1271,7 @@ const DragDropExercise = ({ testMode = false, exerciseData = null, onAnswersColl
 
                 return (
                   <div
-                    key={item.id}
+                    key={`${item.id}_${itemIdx}`}
                     data-item-id={item.id}
                     draggable={!isUsed && !questionsChecked[currentQuestionIndex]}
                     onDragStart={(e) => !questionsChecked[currentQuestionIndex] && handleDragStart(e, item.id, currentQuestionIndex)}
@@ -1340,7 +1372,8 @@ const DragDropExercise = ({ testMode = false, exerciseData = null, onAnswersColl
                     </div>
                   </div>
                 )
-              })}
+              })
+              })()}
             </div>
           </div>
 

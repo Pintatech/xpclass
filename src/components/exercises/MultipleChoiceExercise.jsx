@@ -1120,15 +1120,17 @@ const MultipleChoiceExercise = ({ testMode = false, exerciseData = null, onAnswe
                 {/* Explanation and Next Button */}
                 {showExplanation && selectedAnswer !== null && (
                   <div className="space-y-4">
+                    {(currentQuestion.option_explanations?.[selectedAnswer] || currentQuestion.explanation) && (
                     <div className="p-4 md:p-5 bg-blue-50 border border-blue-200 rounded-lg">
                       <h3 className="font-semibold text-blue-900 mb-2 text-sm md:text-base">Giải thích:</h3>
                       <RichTextRenderer
-                        content={currentQuestion.option_explanations?.[selectedAnswer] || currentQuestion.explanation || 'No explanation available.'}
+                        content={currentQuestion.option_explanations?.[selectedAnswer] || currentQuestion.explanation}
                         className="text-blue-800 text-sm md:text-base leading-relaxed"
                         allowImages={true}
                         allowLinks={false}
                       />
                     </div>
+                    )}
 
                     {/* Pet Tutor - Ask Pet button (only for wrong answers) */}
                     {selectedAnswer !== currentQuestion.correct_answer && activePet && (
@@ -1360,11 +1362,11 @@ const MultipleChoiceExercise = ({ testMode = false, exerciseData = null, onAnswe
                     </div>
 
                     {/* Explanation for this question */}
-                    {showAllResults && allAnswers[questionIndex] !== undefined && (
+                    {showAllResults && allAnswers[questionIndex] !== undefined && (question.option_explanations?.[allAnswers[questionIndex]] || question.explanation) && (
                       <div className="mt-4 p-4 md:p-5 bg-blue-50 border border-blue-200 rounded-lg">
                         <h4 className="font-semibold text-blue-900 mb-2 text-sm md:text-base">Giải thích:</h4>
                         <RichTextRenderer
-                          content={question.option_explanations?.[allAnswers[questionIndex]] || question.explanation || 'No explanation available.'}
+                          content={question.option_explanations?.[allAnswers[questionIndex]] || question.explanation}
                           className="text-blue-800 text-sm md:text-base leading-relaxed"
                           allowImages={true}
                           allowLinks={false}

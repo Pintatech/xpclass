@@ -196,6 +196,31 @@ const DragDropReview = ({ question, attempt }) => {
   )
 }
 
+const DragDropZoneReview = ({ question, attempt, zoneIndex }) => {
+  const items = question.items || []
+  const dropZones = question.drop_zones || []
+  const zone = dropZones[zoneIndex]
+  const getItemText = (itemId) => items.find(it => it.id === itemId)?.text || itemId
+  const studentItemId = attempt.selected_answer
+  const correctItemId = attempt.correct_answer
+  const isCorrect = attempt.is_correct
+
+  return (
+    <div className={`flex items-center gap-3 px-3 py-2 rounded-lg border text-sm ${
+      isCorrect ? 'border-green-200 bg-green-50' : 'border-red-200 bg-red-50'
+    }`}>
+      {isCorrect ? <CheckCircle className="w-4 h-4 text-green-500 shrink-0" /> : <XCircle className="w-4 h-4 text-red-500 shrink-0" />}
+      <span className="text-gray-500 shrink-0">{zone?.label || `Blank ${zoneIndex + 1}`}:</span>
+      <span className={`font-medium ${isCorrect ? 'text-green-800' : 'text-red-800'}`}>
+        {studentItemId ? getItemText(studentItemId) : '(empty)'}
+      </span>
+      {!isCorrect && correctItemId && (
+        <><span className="text-gray-400">→</span><span className="font-medium text-green-800">{getItemText(correctItemId)}</span></>
+      )}
+    </div>
+  )
+}
+
 const DropdownReview = ({ question, attempt }) => {
   const boldBrackets = (text) => text.replace(/(\[[^\]]+\])/g, '<strong>$1</strong>')
   const selectedParts = (attempt.selected_answer || '').split(', ')
@@ -253,16 +278,75 @@ const SingleExerciseReview = ({ exercise, questionAttempts, onOverride, overridi
   const questions = exercise?.content?.questions || []
   const type = exercise?.exercise_type
 
-  const reviewItems = questions
-    .map(q => ({ question: q, attempt: questionAttempts.find(a => a.question_id === q.id) }))
-    .filter(item => item.attempt)
+  const reviewItems = []
+  questions.forEach(q => {
+    if (type === 'drag_drop') {
+      const dropZones = q.drop_zones || []
+      // Check for per-zone attempts (new format: {q.id}_zone0, _zone1, ...)
+      const zoneAttempts = dropZones.map((zone, zi) =>
+        questionAttempts.find(a => a.question_id === `${q.id}_zone${zi}`)
+      )
+      if (zoneAttempts.some(a => a)) {
+        // New format: one attempt per zone
+        zoneAttempts.forEach((attempt, zi) => {
+          if (attempt) {
+            reviewItems.push({ question: q, attempt, zoneIndex: zi })
+          }
+        })
+      } else {
+        // Old format: one attempt per question
+        const attempt = questionAttempts.find(a => a.question_id === q.id)
+        if (attempt) {
+          // Expand old attempt into per-zone virtual items
+          let userPlacements = {}
+          try {
+            userPlacements = typeof attempt.selected_answer === 'object'
+              ? attempt.selected_answer
+              : JSON.parse(attempt.selected_answer || '{}')
+          } catch { userPlacements = {} }
+          let correctOrder = []
+          try {
+            correctOrder = typeof attempt.correct_answer === 'object'
+              ? attempt.correct_answer
+              : JSON.parse(attempt.correct_answer || '[]')
+          } catch { correctOrder = [] }
 
-  const renderQuestion = (question, attempt) => {
+          if (typeof userPlacements === 'object' && !Array.isArray(userPlacements)) {
+            dropZones.forEach((zone, zi) => {
+              const studentItemId = userPlacements[zone.id]
+              const correctItemId = Array.isArray(correctOrder) ? correctOrder[zi] : null
+              reviewItems.push({
+                question: q,
+                attempt: {
+                  ...attempt,
+                  selected_answer: studentItemId || null,
+                  correct_answer: correctItemId || null,
+                  is_correct: !!(studentItemId && studentItemId === correctItemId)
+                },
+                zoneIndex: zi
+              })
+            })
+          } else {
+            reviewItems.push({ question: q, attempt })
+          }
+        }
+      }
+    } else {
+      const attempt = questionAttempts.find(a => a.question_id === q.id)
+      if (attempt) reviewItems.push({ question: q, attempt })
+    }
+  })
+
+  const renderQuestion = (question, attempt, zoneIndex) => {
     switch (type) {
       case 'multiple_choice': return <MultipleChoiceReview question={question} attempt={attempt} />
       case 'fill_blank': return <FillBlankReview question={question} attempt={attempt} />
       case 'dropdown': return <DropdownReview question={question} attempt={attempt} />
-      case 'drag_drop': return <DragDropReview question={question} attempt={attempt} />
+      case 'drag_drop':
+        if (zoneIndex !== undefined) {
+          return <DragDropZoneReview question={question} attempt={attempt} zoneIndex={zoneIndex} />
+        }
+        return <DragDropReview question={question} attempt={attempt} />
       default: return <GenericReview attempt={attempt} />
     }
   }
@@ -274,10 +358,15 @@ const SingleExerciseReview = ({ exercise, questionAttempts, onOverride, overridi
   return (
     <div className="space-y-6">
       {reviewItems.map((item, i) => (
-        <div key={item.attempt.id}>
+        <div key={`${item.attempt.id}_${item.zoneIndex ?? ''}`}>
           <div className="flex items-center justify-between gap-2 mb-3">
             {reviewItems.length > 1
-              ? <span className="text-base font-semibold text-gray-700">Question {i + 1}</span>
+              ? <span className="text-base font-semibold text-gray-700">
+                  {item.zoneIndex !== undefined
+                    ? `Blank ${i + 1}`
+                    : `Question ${i + 1}`
+                  }
+                </span>
               : <span />
             }
             <div className="flex items-center gap-2">
@@ -300,7 +389,7 @@ const SingleExerciseReview = ({ exercise, questionAttempts, onOverride, overridi
             </div>
           </div>
 
-          {renderQuestion(item.question, item.attempt)}
+          {renderQuestion(item.question, item.attempt, item.zoneIndex)}
 
           {i < reviewItems.length - 1 && <hr className="border-gray-100 mt-4" />}
         </div>
