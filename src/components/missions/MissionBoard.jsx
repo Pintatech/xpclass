@@ -34,6 +34,8 @@ const TAB_CONFIG = {
     glowColor: 'rgba(59,130,246,0.3)',
     textColor: 'text-blue-600',
     borderColor: 'border-blue-300',
+    cornerColor: 'from-blue-300/40',
+    sideAccent: 'from-blue-400/50 via-blue-300/25',
     bgAccent: 'bg-blue-50',
     icon: Flame,
     emptyText: 'Không có nhiệm vụ hàng ngày',
@@ -46,6 +48,8 @@ const TAB_CONFIG = {
     glowColor: 'rgba(147,51,234,0.3)',
     textColor: 'text-purple-600',
     borderColor: 'border-purple-300',
+    cornerColor: 'from-purple-300/40',
+    sideAccent: 'from-purple-400/50 via-purple-300/25',
     bgAccent: 'bg-purple-50',
     icon: Star,
     emptyText: 'Không có nhiệm vụ hàng tuần',
@@ -58,6 +62,8 @@ const TAB_CONFIG = {
     glowColor: 'rgba(245,158,11,0.3)',
     textColor: 'text-amber-600',
     borderColor: 'border-amber-300',
+    cornerColor: 'from-amber-300/40',
+    sideAccent: 'from-amber-400/50 via-amber-300/25',
     bgAccent: 'bg-amber-50',
     icon: Crown,
     emptyText: 'Không có nhiệm vụ đặc biệt',
@@ -451,10 +457,10 @@ const MissionCard = ({ mission, tabConfig, onClaim, claiming, index, entered }) 
       {/* Corner brackets */}
       {!isClaimed && (
         <>
-          <div className="absolute top-0 left-[10px] w-5 h-[1px] bg-gradient-to-r from-blue-300/40 to-transparent" />
-          <div className="absolute top-0 left-[10px] w-[1px] h-5 bg-gradient-to-b from-blue-300/40 to-transparent" />
-          <div className="absolute bottom-0 right-[10px] w-5 h-[1px] bg-gradient-to-l from-blue-300/40 to-transparent" />
-          <div className="absolute bottom-0 right-[10px] w-[1px] h-5 bg-gradient-to-t from-blue-300/40 to-transparent" />
+          <div className={`absolute top-0 left-[10px] w-5 h-[1px] bg-gradient-to-r ${tabConfig.cornerColor} to-transparent`} />
+          <div className={`absolute top-0 left-[10px] w-[1px] h-5 bg-gradient-to-b ${tabConfig.cornerColor} to-transparent`} />
+          <div className={`absolute bottom-0 right-[10px] w-5 h-[1px] bg-gradient-to-l ${tabConfig.cornerColor} to-transparent`} />
+          <div className={`absolute bottom-0 right-[10px] w-[1px] h-5 bg-gradient-to-t ${tabConfig.cornerColor} to-transparent`} />
         </>
       )}
 
@@ -465,7 +471,7 @@ const MissionCard = ({ mission, tabConfig, onClaim, claiming, index, entered }) 
 
       {/* Active side accent */}
       {isActive && (
-        <div className="absolute top-[10px] left-0 w-[2px] h-[calc(100%-10px)] bg-gradient-to-b from-blue-400/50 via-blue-300/25 to-transparent" />
+        <div className={`absolute top-[10px] left-0 w-[2px] h-[calc(100%-10px)] bg-gradient-to-b ${tabConfig.sideAccent} to-transparent`} />
       )}
 
       <div className="p-4 relative">

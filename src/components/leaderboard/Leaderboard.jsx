@@ -1085,15 +1085,19 @@ const Leaderboard = () => {
         <div className="flex flex-wrap justify-center gap-2">
           {weeklyChampionRewards.map((reward, idx) => {
             const rankIcons = ['🏆', '🥈', '🥉']
-            const rankLabels = ['Top 1', 'Top 2', 'Top 3']
+            const rankStyles = [
+              { bg: 'bg-gradient-to-r from-yellow-50 to-amber-50', border: 'border-yellow-200', xpColor: 'text-yellow-600' },
+              { bg: 'bg-gradient-to-r from-gray-50 to-slate-50', border: 'border-gray-300', xpColor: 'text-gray-600' },
+              { bg: 'bg-gradient-to-r from-orange-50 to-amber-50', border: 'border-orange-200', xpColor: 'text-orange-600' },
+            ]
+            const rank = rankStyles[idx]
             return (
-              <div key={idx} className="inline-flex items-center gap-2 bg-gradient-to-r from-yellow-50 to-amber-50 border border-yellow-200 px-4 py-3 text-sm"
+              <div key={idx} className={`inline-flex items-center gap-2 ${rank.bg} border ${rank.border} px-4 py-3 text-sm`}
                 style={{ clipPath: CLIP_SM }}
               >
                 <span className="text-base">{rankIcons[idx]}</span>
                 <span className="text-gray-700">
-                  {rankLabels[idx]}:{' '}
-                  {reward.xp_reward > 0 && <strong className="text-yellow-600 inline-flex items-center gap-1">{reward.xp_reward} <img src={assetUrl('/image/study/xp.png')} alt="XP" className="w-4 h-4" /></strong>}
+                  {reward.xp_reward > 0 && <strong className={`${rank.xpColor} inline-flex items-center gap-1`}>{reward.xp_reward} <img src={assetUrl('/image/study/xp.png')} alt="XP" className="w-4 h-4" /></strong>}
                   {reward.xp_reward > 0 && reward.gem_reward > 0 && ' + '}
                   {reward.gem_reward > 0 && <strong className="text-blue-500 inline-flex items-center gap-1">{reward.gem_reward} <img src={assetUrl('/image/study/gem.png')} alt="Gem" className="w-4 h-4" /></strong>}
                 </span>
@@ -1113,15 +1117,19 @@ const Leaderboard = () => {
         <div className="flex flex-wrap justify-center gap-2">
           {monthlyChampionRewards.map((reward, idx) => {
             const rankIcons = ['🏆', '🥈', '🥉']
-            const rankLabels = ['Top 1', 'Top 2', 'Top 3']
+            const rankStyles = [
+              { bg: 'bg-gradient-to-r from-yellow-50 to-amber-50', border: 'border-yellow-200', xpColor: 'text-yellow-600' },
+              { bg: 'bg-gradient-to-r from-gray-50 to-slate-50', border: 'border-gray-300', xpColor: 'text-gray-600' },
+              { bg: 'bg-gradient-to-r from-orange-50 to-amber-50', border: 'border-orange-200', xpColor: 'text-orange-600' },
+            ]
+            const rank = rankStyles[idx]
             return (
-              <div key={idx} className="inline-flex items-center gap-2 bg-gradient-to-r from-purple-50 to-pink-50 border border-purple-200 px-4 py-3 text-sm"
+              <div key={idx} className={`inline-flex items-center gap-2 ${rank.bg} border ${rank.border} px-4 py-3 text-sm`}
                 style={{ clipPath: CLIP_SM }}
               >
                 <span className="text-base">{rankIcons[idx]}</span>
                 <span className="text-gray-700">
-                  {rankLabels[idx]}:{' '}
-                  {reward.xp_reward > 0 && <strong className="text-purple-600 inline-flex items-center gap-1">{reward.xp_reward} <img src={assetUrl('/image/study/xp.png')} alt="XP" className="w-4 h-4" /></strong>}
+                  {reward.xp_reward > 0 && <strong className={`${rank.xpColor} inline-flex items-center gap-1`}>{reward.xp_reward} <img src={assetUrl('/image/study/xp.png')} alt="XP" className="w-4 h-4" /></strong>}
                   {reward.xp_reward > 0 && reward.gem_reward > 0 && ' + '}
                   {reward.gem_reward > 0 && <strong className="text-blue-500 inline-flex items-center gap-1">{reward.gem_reward} <img src={assetUrl('/image/study/gem.png')} alt="Gem" className="w-4 h-4" /></strong>}
                 </span>
