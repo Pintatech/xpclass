@@ -125,10 +125,13 @@ const MissionBoard = () => {
     }
   }
 
-  const currentMissions = [...(missions[activeTab] || [])].sort((a, b) => {
+  const allTabMissions = missions[activeTab] || []
+  const regularMissions = [...allTabMissions.filter(m => m.goal_type !== 'complete_all_missions')].sort((a, b) => {
     const order = { active: 0, completed: 1, claimed: 2 }
     return (order[a.status] ?? 0) - (order[b.status] ?? 0)
   })
+  const tabCompletionMission = allTabMissions.find(m => m.goal_type === 'complete_all_missions')
+  const currentMissions = regularMissions
   const tabConfig = TAB_CONFIG[activeTab]
 
   const totalMissions = currentMissions.length
@@ -245,6 +248,18 @@ const MissionBoard = () => {
           ))
         )}
       </div>
+
+      {/* Tab completion bonus mission */}
+      {tabCompletionMission && (
+        <TabCompletionCard
+          mission={tabCompletionMission}
+          tabConfig={tabConfig}
+          onClaim={handleClaim}
+          claiming={claimingId === tabCompletionMission.user_mission_id}
+          entered={entered}
+          totalRegular={regularMissions.length}
+        />
+      )}
 
       {/* Reset timer */}
       <ResetTimer activeTab={activeTab} entered={entered} />
@@ -591,6 +606,139 @@ const MissionCard = ({ mission, tabConfig, onClaim, claiming, index, entered }) 
               <>
                 <Sparkles className="w-4 h-4" />
                 Nhận thưởng
+              </>
+            )}
+          </button>
+        )}
+
+        {isClaimed && (
+          <div className="mt-3 w-full py-2 text-center text-xs text-gray-400 font-medium flex items-center justify-center gap-1.5 tracking-wider uppercase">
+            <CheckCircle className="w-3.5 h-3.5" />
+            Đã nhận thưởng
+          </div>
+        )}
+      </div>
+    </div>
+  )
+}
+
+const TabCompletionCard = ({ mission, tabConfig, onClaim, claiming, entered, totalRegular }) => {
+  const progress = mission.progress || 0
+  const goal = mission.goal_value || totalRegular
+  const percentage = Math.min((progress / goal) * 100, 100)
+  const isClaimed = mission.status === 'claimed'
+  const isCompleted = mission.status === 'completed'
+  const chestImage = mission.reward_chest_image || assetUrl('/image/chest/legendary-chest.png')
+
+  return (
+    <div
+      className={`mt-4 relative overflow-hidden border-2 transition-all duration-500 ${
+        entered ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-2'
+      } ${
+        isClaimed
+          ? 'bg-gray-50 border-gray-200 opacity-50'
+          : isCompleted
+            ? `bg-gradient-to-r from-amber-50 to-yellow-50 border-amber-400 shadow-lg shadow-amber-100`
+            : `bg-gradient-to-r from-gray-50 to-white ${tabConfig.borderColor} shadow-sm`
+      }`}
+      style={{
+        transitionDelay: '0.4s',
+        clipPath: 'polygon(12px 0, 100% 0, 100% calc(100% - 12px), calc(100% - 12px) 100%, 0 100%, 0 12px)',
+      }}
+    >
+      {/* Shimmer bg for completed */}
+      {isCompleted && !isClaimed && (
+        <div className="absolute inset-0 bg-gradient-to-r from-transparent via-amber-200/20 to-transparent animate-[shimmer_3s_infinite]" />
+      )}
+
+      <div className="p-4 relative">
+        <div className="flex items-center gap-4">
+          {/* Chest icon */}
+          <div className={`flex-shrink-0 w-14 h-14 rounded-xl flex items-center justify-center ${
+            isClaimed ? 'bg-gray-100' : isCompleted ? 'bg-amber-100' : 'bg-gray-100'
+          }`}>
+            {isClaimed ? (
+              <CheckCircle className="w-8 h-8 text-gray-400" />
+            ) : (
+              <img src={chestImage} alt="" className={`w-11 h-11 object-contain ${!isCompleted && progress === 0 ? 'grayscale opacity-50' : ''}`} />
+            )}
+          </div>
+
+          {/* Content */}
+          <div className="flex-1 min-w-0">
+            <div className="flex items-center gap-2">
+              <h3 className={`font-bold ${isClaimed ? 'text-gray-400' : 'text-gray-900'}`}>
+                {mission.title}
+              </h3>
+              {!isClaimed && (
+                <span className="text-[10px] px-2 py-0.5 rounded-full font-bold bg-amber-100 text-amber-600 uppercase tracking-wider">
+                  Bonus
+                </span>
+              )}
+            </div>
+            <p className={`text-sm mt-0.5 ${isClaimed ? 'text-gray-300' : 'text-gray-500'}`}>
+              {mission.description}
+            </p>
+
+            {/* Rewards row */}
+            <div className="flex items-center gap-3 mt-1.5">
+              {mission.reward_chest_name && (
+                <span className={`text-xs font-semibold ${isClaimed ? 'text-gray-400' : 'text-amber-600'}`}>
+                  +1 {mission.reward_chest_name}
+                </span>
+              )}
+              {mission.reward_xp > 0 && (
+                <span className={`text-xs ${isClaimed ? 'text-gray-400' : 'text-amber-500'}`}>+{mission.reward_xp} XP</span>
+              )}
+              {mission.reward_gems > 0 && (
+                <span className={`text-xs ${isClaimed ? 'text-gray-400' : 'text-purple-500'}`}>+{mission.reward_gems} Gems</span>
+              )}
+            </div>
+          </div>
+        </div>
+
+        {/* Progress bar */}
+        {!isCompleted && !isClaimed && (
+          <div className="mt-3">
+            <div className="relative h-6 overflow-hidden bg-gray-100 border border-gray-200 rounded-lg">
+              <div
+                className="h-full transition-all duration-700 bg-gradient-to-r from-amber-400 to-yellow-400"
+                style={{ width: `${percentage}%` }}
+              >
+                {percentage > 0 && (
+                  <div className="absolute inset-0 bg-white/20 animate-[shimmer_2s_infinite]" />
+                )}
+              </div>
+              <div className="absolute inset-0 flex items-center justify-center text-xs">
+                <span className="font-mono font-bold text-gray-600">
+                  {progress}/{goal}
+                </span>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Claim button */}
+        {isCompleted && (
+          <button
+            onClick={() => onClaim(mission.user_mission_id)}
+            disabled={claiming}
+            className="mt-3 w-full py-3 font-bold text-sm transition-all
+              bg-gradient-to-r from-amber-500 to-yellow-400 text-white
+              hover:brightness-110 active:brightness-90
+              disabled:opacity-50 disabled:cursor-not-allowed
+              flex items-center justify-center gap-2 tracking-wider uppercase
+              shadow-md shadow-amber-200/50 rounded-lg"
+          >
+            {claiming ? (
+              <>
+                <div className="animate-spin rounded-full h-4 w-4 border-2 border-white/30 border-t-white" />
+                Đang nhận...
+              </>
+            ) : (
+              <>
+                <Sparkles className="w-4 h-4" />
+                Nhận rương thưởng
               </>
             )}
           </button>

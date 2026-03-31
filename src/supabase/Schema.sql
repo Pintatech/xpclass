@@ -3145,11 +3145,14 @@ BEGIN
                m.mission_type, m.goal_type, m.goal_value,
                m.reward_xp, m.reward_gems, m.reward_item_id, m.reward_item_quantity,
                ci.name AS reward_item_name, ci.image_url AS reward_item_image,
+               ch.name AS reward_chest_name, ch.image_url AS reward_chest_image,
+               m.reward_chest_id,
                m.sort_order,
                um.id AS user_mission_id, um.progress, um.status
         FROM missions m
         JOIN user_missions um ON um.mission_id = m.id AND um.user_id = p_user_id
         LEFT JOIN collectible_items ci ON ci.id = m.reward_item_id
+        LEFT JOIN chests ch ON ch.id = m.reward_chest_id
         WHERE m.is_active = true AND m.mission_type = 'daily' AND um.period_start = today
       ) d
     ), '[]'::json),
@@ -3159,11 +3162,14 @@ BEGIN
                m.mission_type, m.goal_type, m.goal_value,
                m.reward_xp, m.reward_gems, m.reward_item_id, m.reward_item_quantity,
                ci.name AS reward_item_name, ci.image_url AS reward_item_image,
+               ch.name AS reward_chest_name, ch.image_url AS reward_chest_image,
+               m.reward_chest_id,
                m.sort_order,
                um.id AS user_mission_id, um.progress, um.status
         FROM missions m
         JOIN user_missions um ON um.mission_id = m.id AND um.user_id = p_user_id
         LEFT JOIN collectible_items ci ON ci.id = m.reward_item_id
+        LEFT JOIN chests ch ON ch.id = m.reward_chest_id
         WHERE m.is_active = true AND m.mission_type = 'weekly' AND um.period_start = week_start
       ) w
     ), '[]'::json),
@@ -3173,12 +3179,15 @@ BEGIN
                m.mission_type, m.goal_type, m.goal_value,
                m.reward_xp, m.reward_gems, m.reward_item_id, m.reward_item_quantity,
                ci.name AS reward_item_name, ci.image_url AS reward_item_image,
+               ch.name AS reward_chest_name, ch.image_url AS reward_chest_image,
+               m.reward_chest_id,
                m.sort_order,
                m.start_date, m.end_date,
                um.id AS user_mission_id, um.progress, um.status
         FROM missions m
         JOIN user_missions um ON um.mission_id = m.id AND um.user_id = p_user_id
         LEFT JOIN collectible_items ci ON ci.id = m.reward_item_id
+        LEFT JOIN chests ch ON ch.id = m.reward_chest_id
         WHERE m.is_active = true AND m.mission_type = 'special'
           AND (m.start_date IS NULL OR m.start_date <= today)
           AND (m.end_date IS NULL OR m.end_date >= today)
@@ -3247,10 +3256,19 @@ RETURNS json LANGUAGE plpgsql SECURITY DEFINER SET search_path = public AS $$
 DECLARE
   v_mission_id uuid; v_status text; v_reward_xp integer; v_reward_gems integer;
   v_mission_title text; v_reward_item_id uuid; v_reward_item_qty integer;
-  v_item_name text; v_user_name text;
+  v_reward_chest_id uuid;
+  v_item_name text; v_user_name text; v_mission_type text; v_goal_type text;
+  today date; week_start date;
 BEGIN
-  SELECT um.status, m.id, m.reward_xp, m.reward_gems, m.title, m.reward_item_id, m.reward_item_quantity
-  INTO v_status, v_mission_id, v_reward_xp, v_reward_gems, v_mission_title, v_reward_item_id, v_reward_item_qty
+  today := (NOW() AT TIME ZONE 'Asia/Ho_Chi_Minh')::date;
+  week_start := today - (EXTRACT(ISODOW FROM today)::int - 1);
+
+  SELECT um.status, m.id, m.reward_xp, m.reward_gems, m.title,
+         m.reward_item_id, m.reward_item_quantity, m.reward_chest_id,
+         m.mission_type, m.goal_type
+  INTO v_status, v_mission_id, v_reward_xp, v_reward_gems, v_mission_title,
+       v_reward_item_id, v_reward_item_qty, v_reward_chest_id,
+       v_mission_type, v_goal_type
   FROM user_missions um JOIN missions m ON m.id = um.mission_id
   WHERE um.id = p_user_mission_id AND um.user_id = p_user_id;
 
@@ -3281,6 +3299,30 @@ BEGIN
     SET quantity = user_inventory.quantity + COALESCE(v_reward_item_qty, 1), updated_at = NOW();
   END IF;
 
+  -- Award chest reward
+  IF v_reward_chest_id IS NOT NULL THEN
+    INSERT INTO user_chests (user_id, chest_id, source, source_ref)
+    VALUES (p_user_id, v_reward_chest_id, 'mission', v_mission_id::text);
+  END IF;
+
+  -- Increment complete_all_missions progress for same tab
+  IF v_goal_type != 'complete_all_missions' THEN
+    UPDATE user_missions um
+    SET progress = LEAST(um.progress + 1, m.goal_value),
+        status = CASE
+          WHEN LEAST(um.progress + 1, m.goal_value) >= m.goal_value AND um.status = 'active'
+          THEN 'completed' ELSE um.status END,
+        updated_at = NOW()
+    FROM missions m
+    WHERE um.mission_id = m.id AND um.user_id = p_user_id AND um.status = 'active'
+      AND m.goal_type = 'complete_all_missions' AND m.mission_type = v_mission_type AND m.is_active = true
+      AND (
+        (m.mission_type = 'daily' AND um.period_start = today)
+        OR (m.mission_type = 'weekly' AND um.period_start = week_start)
+        OR (m.mission_type = 'special' AND um.period_start = COALESCE(m.start_date, today))
+      );
+  END IF;
+
   INSERT INTO notifications (user_id, type, title, message, icon, data)
   VALUES (p_user_id, 'mission_reward', 'Mission Complete!',
     'You completed "' || v_mission_title || '"! ' ||
@@ -3300,13 +3342,18 @@ CREATE OR REPLACE FUNCTION claim_all_mission_rewards(p_user_id uuid)
 RETURNS json LANGUAGE plpgsql SECURITY DEFINER SET search_path = public AS $$
 DECLARE
   total_xp integer := 0; total_gems integer := 0; claimed_count integer := 0;
-  items_granted integer := 0; rec RECORD; v_user_name text; v_item_name text;
+  items_granted integer := 0; chests_granted integer := 0;
+  rec RECORD; v_user_name text; v_item_name text;
+  today date; week_start date;
 BEGIN
+  today := (NOW() AT TIME ZONE 'Asia/Ho_Chi_Minh')::date;
+  week_start := today - (EXTRACT(ISODOW FROM today)::int - 1);
   SELECT name INTO v_user_name FROM users WHERE id = p_user_id;
 
   FOR rec IN
     SELECT um.id AS user_mission_id, m.reward_xp, m.reward_gems, m.title,
-           m.reward_item_id, m.reward_item_quantity
+           m.reward_item_id, m.reward_item_quantity, m.reward_chest_id,
+           m.mission_type, m.goal_type, m.id AS mission_id
     FROM user_missions um JOIN missions m ON m.id = um.mission_id
     WHERE um.user_id = p_user_id AND um.status = 'completed'
   LOOP
@@ -3323,6 +3370,31 @@ BEGIN
       ON CONFLICT (user_id, item_id) DO UPDATE
       SET quantity = user_inventory.quantity + COALESCE(rec.reward_item_quantity, 1), updated_at = NOW();
       items_granted := items_granted + 1;
+    END IF;
+
+    -- Grant chest reward
+    IF rec.reward_chest_id IS NOT NULL THEN
+      INSERT INTO user_chests (user_id, chest_id, source, source_ref)
+      VALUES (p_user_id, rec.reward_chest_id, 'mission', rec.mission_id::text);
+      chests_granted := chests_granted + 1;
+    END IF;
+
+    -- Increment complete_all_missions progress for same tab
+    IF rec.goal_type != 'complete_all_missions' THEN
+      UPDATE user_missions um2
+      SET progress = LEAST(um2.progress + 1, m2.goal_value),
+          status = CASE
+            WHEN LEAST(um2.progress + 1, m2.goal_value) >= m2.goal_value AND um2.status = 'active'
+            THEN 'completed' ELSE um2.status END,
+          updated_at = NOW()
+      FROM missions m2
+      WHERE um2.mission_id = m2.id AND um2.user_id = p_user_id AND um2.status = 'active'
+        AND m2.goal_type = 'complete_all_missions' AND m2.mission_type = rec.mission_type AND m2.is_active = true
+        AND (
+          (m2.mission_type = 'daily' AND um2.period_start = today)
+          OR (m2.mission_type = 'weekly' AND um2.period_start = week_start)
+          OR (m2.mission_type = 'special' AND um2.period_start = COALESCE(m2.start_date, today))
+        );
     END IF;
   END LOOP;
 

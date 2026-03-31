@@ -14,7 +14,9 @@ import {
   CheckCircle,
   Users,
   Trash2,
-  AlertCircle
+  AlertCircle,
+  Gift,
+  X
 } from 'lucide-react'
 import BulkUserImport from './BulkUserImport'
 
@@ -29,6 +31,22 @@ const UserManagement = () => {
   const [editingUser, setEditingUser] = useState(null)
   const [showEditModal, setShowEditModal] = useState(false)
   const [showBulkImport, setShowBulkImport] = useState(false)
+  const [giftUser, setGiftUser] = useState(null)
+  const [giftXP, setGiftXP] = useState('')
+  const [giftGems, setGiftGems] = useState('')
+  const [giftLoading, setGiftLoading] = useState(false)
+  const [shopItems, setShopItems] = useState([])
+  const [collectibleItems, setCollectibleItems] = useState([])
+  const [selectedShopItem, setSelectedShopItem] = useState('')
+  const [selectedCollectibleItem, setSelectedCollectibleItem] = useState('')
+  const [collectibleQty, setCollectibleQty] = useState(1)
+  const [chests, setChests] = useState([])
+  const [selectedChest, setSelectedChest] = useState('')
+  const [giftMessage, setGiftMessage] = useState('')
+  const [userInventory, setUserInventory] = useState([])
+  const [userPurchases, setUserPurchases] = useState([])
+  const [userChests, setUserChests] = useState([])
+  const [giftTab, setGiftTab] = useState('gift') // 'gift' | 'inventory'
 
   useEffect(() => {
     fetchUsers()
@@ -84,6 +102,7 @@ const UserManagement = () => {
           role: user.role || 'user',
           level: user.current_level || 1,
           xp: user.xp || 0,
+          gems: user.gems || 0,
           is_banned: user.is_banned || false,
           status: user.is_banned ? 'banned' : daysSinceActivity > 7 ? 'inactive' : 'active',
           lastActive: lastActivityDate,
@@ -194,6 +213,138 @@ const UserManagement = () => {
     } catch (err) {
       console.error('Error toggling ban:', err)
       showNotification('Error updating ban status: ' + err.message, 'error')
+    }
+  }
+
+  const openGiftModal = async (user) => {
+    setGiftUser(user)
+    const [{ data: shop }, { data: collectibles }, { data: chestData }] = await Promise.all([
+      supabase.from('shop_items').select('id, name, category').eq('is_active', true).order('category').order('name'),
+      supabase.from('collectible_items').select('id, name, item_type, rarity').eq('is_active', true).order('item_type').order('name'),
+      supabase.from('chests').select('id, name, chest_type').eq('is_active', true).order('chest_type').order('name'),
+    ])
+    setShopItems(shop || [])
+    setCollectibleItems(collectibles || [])
+    setChests(chestData || [])
+    // Also fetch user's current items
+    fetchUserItems(user.id)
+  }
+
+  const closeGiftModal = () => {
+    setGiftUser(null)
+    setGiftXP('')
+    setGiftGems('')
+    setSelectedShopItem('')
+    setSelectedCollectibleItem('')
+    setCollectibleQty(1)
+    setSelectedChest('')
+    setGiftMessage('')
+    setGiftTab('gift')
+    setUserInventory([])
+    setUserPurchases([])
+    setUserChests([])
+  }
+
+  const fetchUserItems = async (userId) => {
+    const [{ data: inv }, { data: purch }, { data: uchests }] = await Promise.all([
+      supabase.from('user_inventory').select('quantity, collectible_items(name, rarity, image_url)').eq('user_id', userId).gt('quantity', 0),
+      supabase.from('user_purchases').select('shop_items(name, category, image_url)').eq('user_id', userId),
+      supabase.from('user_chests').select('chests(name, chest_type, image_url), earned_at, opened_at').eq('user_id', userId).is('opened_at', null),
+    ])
+    setUserInventory(inv || [])
+    setUserPurchases(purch || [])
+    setUserChests(uchests || [])
+  }
+
+  const handleGift = async () => {
+    const xp = parseInt(giftXP) || 0
+    const gems = parseInt(giftGems) || 0
+    if (xp === 0 && gems === 0 && !selectedShopItem && !selectedCollectibleItem && !selectedChest) {
+      showNotification('Nhập số XP, Gems hoặc chọn item/chest', 'error')
+      return
+    }
+    try {
+      setGiftLoading(true)
+      const parts = []
+
+      // Update XP/Gems
+      if (xp !== 0 || gems !== 0) {
+        const updates = { updated_at: new Date().toISOString() }
+        if (xp !== 0) updates.xp = (giftUser.xp || 0) + xp
+        if (gems !== 0) updates.gems = (giftUser.gems || 0) + gems
+        const { error } = await supabase.from('users').update(updates).eq('id', giftUser.id)
+        if (error) throw error
+        if (xp !== 0) parts.push(`${xp > 0 ? '+' : ''}${xp} XP`)
+        if (gems !== 0) parts.push(`${gems > 0 ? '+' : ''}${gems} Gems`)
+      }
+
+      // Grant shop item
+      if (selectedShopItem) {
+        const { error } = await supabase.from('user_purchases').upsert({
+          user_id: giftUser.id,
+          item_id: selectedShopItem,
+          purchased_at: new Date().toISOString()
+        }, { onConflict: 'user_id,item_id' })
+        if (error) throw error
+        const item = shopItems.find(i => i.id === selectedShopItem)
+        parts.push(`Shop: ${item?.name}`)
+      }
+
+      // Grant collectible item
+      if (selectedCollectibleItem) {
+        const qty = parseInt(collectibleQty) || 1
+        const { data: existing } = await supabase
+          .from('user_inventory')
+          .select('id, quantity')
+          .eq('user_id', giftUser.id)
+          .eq('item_id', selectedCollectibleItem)
+          .single()
+
+        if (existing) {
+          const { error } = await supabase.from('user_inventory')
+            .update({ quantity: existing.quantity + qty, updated_at: new Date().toISOString() })
+            .eq('id', existing.id)
+          if (error) throw error
+        } else {
+          const { error } = await supabase.from('user_inventory')
+            .insert({ user_id: giftUser.id, item_id: selectedCollectibleItem, quantity: qty })
+          if (error) throw error
+        }
+        const item = collectibleItems.find(i => i.id === selectedCollectibleItem)
+        parts.push(`${item?.name} x${qty}`)
+      }
+
+      // Grant chest
+      if (selectedChest) {
+        const { error } = await supabase.from('user_chests').insert({
+          user_id: giftUser.id,
+          chest_id: selectedChest,
+          source: 'admin_gift',
+        })
+        if (error) throw error
+        const chest = chests.find(c => c.id === selectedChest)
+        parts.push(`Chest: ${chest?.name}`)
+      }
+
+      // Send notification to user
+      if (parts.length > 0) {
+        await supabase.from('notifications').insert({
+          user_id: giftUser.id,
+          type: 'admin_announcement',
+          title: giftMessage || 'Bạn nhận được quà!',
+          message: parts.join(', '),
+          icon: 'Gift',
+        })
+      }
+
+      showNotification(`${parts.join(', ')} cho ${giftUser.name}`)
+      closeGiftModal()
+      fetchUsers()
+    } catch (err) {
+      console.error('Error gifting:', err)
+      showNotification('Lỗi: ' + err.message, 'error')
+    } finally {
+      setGiftLoading(false)
     }
   }
 
@@ -358,8 +509,6 @@ const UserManagement = () => {
                   <th className="text-left py-3 px-6 font-medium text-gray-500">Tên thật</th>
                   <th className="text-left py-3 px-6 font-medium text-gray-500">Username</th>
                   <th className="text-left py-3 px-6 font-medium text-gray-500">Cohorts</th>
-                  <th className="text-left py-3 px-6 font-medium text-gray-500">Tiến độ</th>
-                  <th className="text-left py-3 px-6 font-medium text-gray-500">Trạng thái</th>
                   <th className="text-left py-3 px-6 font-medium text-gray-500">Hoạt động cuối</th>
                   <th className="text-center py-3 px-6 font-medium text-gray-500">Vai trò</th>
                 </tr>
@@ -408,20 +557,6 @@ const UserManagement = () => {
                         </div>
                       )}
                     </td>
-                    <td className="py-4 px-6">
-                      <div className="text-sm">
-                        <div className="font-medium text-gray-900">Cấp {user.level}</div>
-                        <div className="text-gray-600">{user.xp.toLocaleString()} XP</div>
-                      </div>
-                    </td>
-                    <td className="py-4 px-6">
-                      <span className={`inline-flex items-center px-2 py-1 rounded-full text-xs ${getStatusColor(user.status)}`}>
-                        {user.status === 'active' && <CheckCircle className="w-3 h-3 mr-1" />}
-                        {user.status === 'banned' && <Ban className="w-3 h-3 mr-1" />}
-                        {user.status === 'active' ? 'Active' : 
-                         user.status === 'banned' ? 'Bị khóa' : 'Inactive'}
-                      </span>
-                    </td>
                     <td className="py-4 px-6 text-sm text-gray-600">
                       {getRelativeTime(user.lastActive)}
                     </td>
@@ -439,6 +574,15 @@ const UserManagement = () => {
                           <option value="teacher">Giáo viên</option>
                           <option value="admin">Quản trị</option>
                         </select>
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => openGiftModal(user)}
+                          className="text-amber-600 hover:text-amber-800"
+                          title="Tặng XP/Gems"
+                        >
+                          <Gift className="w-4 h-4" />
+                        </Button>
                         <Button
                           variant="ghost"
                           size="sm"
@@ -533,6 +677,198 @@ const UserManagement = () => {
               <CheckCircle className="w-5 h-5" />
             )}
             <span>{notification.message}</span>
+          </div>
+        </div>
+      )}
+
+      {/* Gift Modal */}
+      {giftUser && (
+        <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center">
+          <div className="bg-white rounded-lg shadow-xl w-full max-w-md mx-4 max-h-[90vh] overflow-y-auto">
+            <div className="flex items-center justify-between p-4 border-b">
+              <h3 className="text-lg font-semibold">Tặng cho {giftUser.name}</h3>
+              <button onClick={closeGiftModal}>
+                <X className="w-5 h-5 text-gray-400 hover:text-gray-600" />
+              </button>
+            </div>
+            {/* Tabs */}
+            <div className="flex border-b">
+              <button
+                onClick={() => setGiftTab('gift')}
+                className={`flex-1 py-2.5 text-sm font-medium transition-colors ${
+                  giftTab === 'gift' ? 'text-blue-600 border-b-2 border-blue-600' : 'text-gray-400 hover:text-gray-600'
+                }`}
+              >
+                Tặng
+              </button>
+              <button
+                onClick={() => setGiftTab('inventory')}
+                className={`flex-1 py-2.5 text-sm font-medium transition-colors ${
+                  giftTab === 'inventory' ? 'text-blue-600 border-b-2 border-blue-600' : 'text-gray-400 hover:text-gray-600'
+                }`}
+              >
+                Xem đồ ({userPurchases.length + userInventory.length + userChests.length})
+              </button>
+            </div>
+
+            {giftTab === 'inventory' ? (
+              <div className="p-4 space-y-3 max-h-[60vh] overflow-y-auto">
+                <div className="text-sm text-gray-500">
+                  {giftUser.xp.toLocaleString()} XP, {giftUser.gems.toLocaleString()} Gems
+                </div>
+                {userPurchases.length > 0 && (
+                  <div>
+                    <div className="text-xs font-medium text-gray-500 mb-2">Shop Items</div>
+                    <div className="grid grid-cols-3 gap-2">
+                      {userPurchases.map((p, i) => (
+                        <div key={i} className="flex flex-col items-center gap-1 bg-gray-50 border rounded-lg p-2">
+                          {p.shop_items?.image_url ? (
+                            <img src={p.shop_items.image_url} alt="" className="w-10 h-10 object-contain" />
+                          ) : (
+                            <div className="w-10 h-10 bg-gray-200 rounded flex items-center justify-center text-gray-400 text-xs">?</div>
+                          )}
+                          <span className="text-xs text-center text-gray-700 leading-tight">{p.shop_items?.name}</span>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+                {userInventory.length > 0 && (
+                  <div>
+                    <div className="text-xs font-medium text-gray-500 mb-2">Collectibles</div>
+                    <div className="grid grid-cols-3 gap-2">
+                      {userInventory.map((inv, i) => (
+                        <div key={i} className="flex flex-col items-center gap-1 bg-gray-50 border rounded-lg p-2 relative">
+                          {inv.collectible_items?.image_url ? (
+                            <img src={inv.collectible_items.image_url} alt="" className="w-10 h-10 object-contain" />
+                          ) : (
+                            <div className="w-10 h-10 bg-gray-200 rounded flex items-center justify-center text-gray-400 text-xs">?</div>
+                          )}
+                          <span className="text-xs text-center text-gray-700 leading-tight">{inv.collectible_items?.name}</span>
+                          <span className="absolute top-1 right-1 bg-blue-600 text-white text-[10px] rounded-full w-4 h-4 flex items-center justify-center">{inv.quantity}</span>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+                {userChests.length > 0 && (
+                  <div>
+                    <div className="text-xs font-medium text-gray-500 mb-2">Chests (chưa mở)</div>
+                    <div className="grid grid-cols-3 gap-2">
+                      {userChests.map((c, i) => (
+                        <div key={i} className="flex flex-col items-center gap-1 bg-gray-50 border rounded-lg p-2">
+                          {c.chests?.image_url ? (
+                            <img src={c.chests.image_url} alt="" className="w-10 h-10 object-contain" />
+                          ) : (
+                            <div className="w-10 h-10 bg-gray-200 rounded flex items-center justify-center text-gray-400 text-xs">?</div>
+                          )}
+                          <span className="text-xs text-center text-gray-700 leading-tight">{c.chests?.name}</span>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+                {userPurchases.length === 0 && userInventory.length === 0 && userChests.length === 0 && (
+                  <div className="text-center text-gray-400 py-8">Không có gì</div>
+                )}
+              </div>
+            ) : (
+            <div className="p-4 space-y-4">
+              <div className="text-sm text-gray-500">
+                Hiện tại: {giftUser.xp.toLocaleString()} XP, {giftUser.gems.toLocaleString()} Gems
+              </div>
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">XP</label>
+                  <input
+                    type="number"
+                    value={giftXP}
+                    onChange={(e) => setGiftXP(e.target.value)}
+                    placeholder="VD: 100 hoặc -50"
+                    className="input w-full"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Gems</label>
+                  <input
+                    type="number"
+                    value={giftGems}
+                    onChange={(e) => setGiftGems(e.target.value)}
+                    placeholder="VD: 10 hoặc -5"
+                    className="input w-full"
+                  />
+                </div>
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Shop Item</label>
+                <select
+                  value={selectedShopItem}
+                  onChange={(e) => setSelectedShopItem(e.target.value)}
+                  className="input w-full"
+                >
+                  <option value="">-- Không chọn --</option>
+                  {shopItems.map(item => (
+                    <option key={item.id} value={item.id}>[{item.category}] {item.name}</option>
+                  ))}
+                </select>
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Collectible Item</label>
+                <div className="flex gap-2">
+                  <select
+                    value={selectedCollectibleItem}
+                    onChange={(e) => setSelectedCollectibleItem(e.target.value)}
+                    className="input flex-1"
+                  >
+                    <option value="">-- Không chọn --</option>
+                    {collectibleItems.map(item => (
+                      <option key={item.id} value={item.id}>[{item.rarity}] {item.name}</option>
+                    ))}
+                  </select>
+                  <input
+                    type="number"
+                    min="1"
+                    value={collectibleQty}
+                    onChange={(e) => setCollectibleQty(e.target.value)}
+                    className="input w-16 text-center"
+                  />
+                </div>
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Chest</label>
+                <select
+                  value={selectedChest}
+                  onChange={(e) => setSelectedChest(e.target.value)}
+                  className="input w-full"
+                >
+                  <option value="">-- Không chọn --</option>
+                  {chests.map(chest => (
+                    <option key={chest.id} value={chest.id}>[{chest.chest_type}] {chest.name}</option>
+                  ))}
+                </select>
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Lời nhắn</label>
+                <input
+                  type="text"
+                  value={giftMessage}
+                  onChange={(e) => setGiftMessage(e.target.value)}
+                  placeholder="Mặc định: Bạn nhận được quà!"
+                  className="input w-full"
+                />
+              </div>
+            </div>
+            )}
+            {giftTab === 'gift' && (
+              <div className="flex justify-end gap-2 p-4 border-t">
+                <Button variant="ghost" onClick={closeGiftModal}>
+                  Hủy
+                </Button>
+                <Button onClick={handleGift} disabled={giftLoading}>
+                  {giftLoading ? 'Đang xử lý...' : 'Xác nhận'}
+                </Button>
+              </div>
+            )}
           </div>
         </div>
       )}

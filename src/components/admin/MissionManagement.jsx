@@ -52,6 +52,7 @@ const GOAL_TYPES = [
   { value: 'pronounce_words', label: 'Phát âm (Say It Right)' },
   { value: 'earn_3_stars', label: 'Đạt 3 sao trong game' },
   { value: 'catch_fish', label: 'Câu cá (Fishing Game)' },
+  { value: 'complete_all_missions', label: '⭐ Hoàn thành tất cả nhiệm vụ trong tab' },
 ]
 
 const MISSION_TYPES = [
