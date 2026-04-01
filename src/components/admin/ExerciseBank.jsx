@@ -35,6 +35,8 @@ const ExerciseBank = ({ readOnly = false, allowedTypes = null }) => {
   const [editingExercise, setEditingExercise] = useState(null)
   const [selectedExercises, setSelectedExercises] = useState([])
   const [foldersLoaded, setFoldersLoaded] = useState(false)
+  const [currentPage, setCurrentPage] = useState(0)
+  const PAGE_SIZE = 20
 
   useEffect(() => {
     fetchFolders()
@@ -43,9 +45,14 @@ const ExerciseBank = ({ readOnly = false, allowedTypes = null }) => {
 
   useEffect(() => {
     if (!foldersLoaded) return
+    setCurrentPage(0)
+  }, [selectedFolder, searchTerm, filterType])
+
+  useEffect(() => {
+    if (!foldersLoaded) return
     fetchExercises()
     fetchFolderCounts()
-  }, [selectedFolder, searchTerm, filterType])
+  }, [selectedFolder, searchTerm, filterType, currentPage])
 
   const fetchFolders = async () => {
     try {
@@ -71,28 +78,36 @@ const ExerciseBank = ({ readOnly = false, allowedTypes = null }) => {
 
   const fetchFolderCounts = async () => {
     try {
-      // Get exercise counts for each folder
-      const { data, error } = await supabase
+      // Get total count
+      const { count: totalCount, error: totalError } = await supabase
         .from('exercises')
-        .select('folder_id')
+        .select('*', { count: 'exact', head: true })
         .eq('is_in_bank', true)
         .eq('is_active', true)
 
-      if (error) throw error
+      if (totalError) throw totalError
 
-      // Count exercises per folder
       const counts = {}
-      let totalCount = 0
+      if (totalCount) counts['all'] = totalCount
 
-      data?.forEach(exercise => {
-        totalCount++
-        if (exercise.folder_id) {
-          counts[exercise.folder_id] = (counts[exercise.folder_id] || 0) + 1
-        }
-      })
-
-      // Add total count for "All Exercises"
-      counts['all'] = totalCount
+      // Batch folder count queries (5 at a time to avoid 503)
+      for (let i = 0; i < folders.length; i += 5) {
+        const batch = folders.slice(i, i + 5)
+        const results = await Promise.all(
+          batch.map(folder =>
+            supabase
+              .from('exercises')
+              .select('*', { count: 'exact', head: true })
+              .eq('is_in_bank', true)
+              .eq('is_active', true)
+              .eq('folder_id', folder.id)
+              .then(({ count }) => ({ id: folder.id, count }))
+          )
+        )
+        results.forEach(({ id, count }) => {
+          if (count) counts[id] = count
+        })
+      }
 
       setFolderCounts(counts)
     } catch (error) {
@@ -124,6 +139,10 @@ const ExerciseBank = ({ readOnly = false, allowedTypes = null }) => {
       }
 
       query = query.order('created_at', { ascending: false })
+
+      const from = currentPage * PAGE_SIZE
+      const to = from + PAGE_SIZE - 1
+      query = query.range(from, to)
 
       const { data, error } = await query
 
@@ -345,23 +364,55 @@ const ExerciseBank = ({ readOnly = false, allowedTypes = null }) => {
                 </button>
               </div>
             ) : (
-              <div className={
-                viewMode === 'grid'
-                  ? 'grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4'
-                  : 'space-y-2'
-              }>
-                {exercises.map(exercise => (
-                  <ExerciseBankCard
-                    key={exercise.id}
-                    exercise={exercise}
-                    viewMode={viewMode}
-                    onUpdate={fetchExercises}
-                    onEdit={handleEditExercise}
-                    readOnly={readOnly && !allowedTypes}
-                    allowedTypes={allowedTypes}
-                  />
-                ))}
-              </div>
+              <>
+                <div className={
+                  viewMode === 'grid'
+                    ? 'grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4'
+                    : 'space-y-2'
+                }>
+                  {exercises.map(exercise => (
+                    <ExerciseBankCard
+                      key={exercise.id}
+                      exercise={exercise}
+                      viewMode={viewMode}
+                      onUpdate={fetchExercises}
+                      onEdit={handleEditExercise}
+                      readOnly={readOnly && !allowedTypes}
+                      allowedTypes={allowedTypes}
+                    />
+                  ))}
+                </div>
+
+                {/* Pagination */}
+                {(() => {
+                  const totalForFolder = selectedFolder
+                    ? (folderCounts[selectedFolder.id] || 0)
+                    : (folderCounts['all'] || 0)
+                  const totalPages = Math.ceil(totalForFolder / PAGE_SIZE)
+                  if (totalPages <= 1) return null
+                  return (
+                    <div className="flex items-center justify-center space-x-4 mt-6 pb-4">
+                      <button
+                        onClick={() => setCurrentPage(p => Math.max(0, p - 1))}
+                        disabled={currentPage === 0}
+                        className="px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
+                      >
+                        Previous
+                      </button>
+                      <span className="text-sm text-gray-600">
+                        Page {currentPage + 1} of {totalPages}
+                      </span>
+                      <button
+                        onClick={() => setCurrentPage(p => Math.min(totalPages - 1, p + 1))}
+                        disabled={currentPage >= totalPages - 1}
+                        className="px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
+                      >
+                        Next
+                      </button>
+                    </div>
+                  )
+                })()}
+              </>
             )}
           </div>
         </div>

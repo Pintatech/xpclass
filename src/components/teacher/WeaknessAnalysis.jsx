@@ -4,8 +4,6 @@ import { supabase } from '../../supabase/client'
 import { useAuth } from '../../hooks/useAuth'
 import { ArrowLeft, ChevronDown, ChevronRight, AlertTriangle, Target, Brain, Sparkles } from 'lucide-react'
 
-const MEGALLM_API_KEY = import.meta.env.VITE_MEGALLM_API_KEY || 'sk-mega-90798a7547487b440a37b054ffbb33cbc57d85cf86929b52bb894def833d784e'
-
 const WeaknessAnalysis = () => {
   const { user, isAdmin } = useAuth()
   const navigate = useNavigate()
@@ -159,43 +157,20 @@ const WeaknessAnalysis = () => {
         `${i + 1}. Student wrote "${a.selected_answer}" but correct answer is "${a.correct_answer}"`
       ).join('\n')
 
-      const response = await fetch('https://ai.megallm.io/v1/chat/completions', {
+      const messages = [
+        { role: 'system', content: 'Bạn là giáo viên tiếng Anh chuyên phân tích lỗi sai của học sinh. Trả lời ngắn gọn bằng tiếng Việt, dùng bullet points.' },
+        { role: 'user', content: `Phân tích ${Math.min(filtered.length, 20)} câu trả lời sai dưới đây. Tìm 3-5 pattern lỗi chính. Mỗi pattern: tên lỗi, 2 ví dụ, số lần mắc. Ngắn gọn.\n\n${wrongList}` }
+      ]
+      const response = await fetch('/api/ai-analyze', {
         method: 'POST',
-        headers: {
-          'Authorization': `Bearer ${MEGALLM_API_KEY}`,
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          model: 'openai-gpt-oss-20b',
-          messages: [
-            {
-              role: 'system',
-              content: 'Bạn là giáo viên tiếng Anh chuyên phân tích lỗi sai của học sinh. Trả lời ngắn gọn bằng tiếng Việt, dùng bullet points.'
-            },
-            {
-              role: 'user',
-              content: `Phân tích ${Math.min(filtered.length, 20)} câu trả lời sai dưới đây. Tìm 3-5 pattern lỗi chính. Mỗi pattern: tên lỗi, 2 ví dụ, số lần mắc. Ngắn gọn.\n\n${wrongList}`
-            }
-          ],
-          max_tokens: 2000,
-          temperature: 0.3
-        })
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ messages })
       })
-
-      if (!response.ok) {
-        const errText = await response.text()
-        throw new Error(`API error: ${response.status} - ${errText}`)
-      }
-
       const resData = await response.json()
-      console.log('MegaLLM response:', JSON.stringify(resData, null, 2))
-      const resultText = resData.choices?.[0]?.message?.content
+      if (!response.ok) throw new Error(resData.error || `API error: ${response.status}`)
+      if (!resData.result) throw new Error('No response from AI. Please try again.')
 
-      if (!resultText) {
-        throw new Error('No response from AI. Please try again.')
-      }
-
-      setAiResults(prev => ({ ...prev, [studentId]: { loading: false, result: resultText, error: null } }))
+      setAiResults(prev => ({ ...prev, [studentId]: { loading: false, result: resData.result, error: null } }))
     } catch (err) {
       console.error('AI analysis error:', err)
       setAiResults(prev => ({ ...prev, [studentId]: { loading: false, result: null, error: err.message } }))

@@ -9,7 +9,6 @@ import {
   AlertTriangle, Brain, Sparkles, Target
 } from 'lucide-react';
 
-const MEGALLM_API_KEY = import.meta.env.VITE_MEGALLM_API_KEY || 'sk-mega-90798a7547487b440a37b054ffbb33cbc57d85cf86929b52bb894def833d784e';
 
 // ─── Preview Card (screenshot-friendly, matches mockup) ────────────────
 const ReportPreview = ({ data }) => {
@@ -385,6 +384,8 @@ const UnitReportPage = () => {
   // Weakness analysis
   const [weaknessTags, setWeaknessTags] = useState([]);
   const [weaknessLoading, setWeaknessLoading] = useState(false);
+  const [wrongAnswers, setWrongAnswers] = useState([]);
+  const [wrongAnswersLoading, setWrongAnswersLoading] = useState(false);
   const [aiAnalysis, setAiAnalysis] = useState({ loading: false, result: null, error: null });
 
   // Fetch base data on mount
@@ -416,57 +417,53 @@ const UnitReportPage = () => {
     }
   };
 
-  const analyzeStudentAI = async () => {
-    if (!selectedStudentId) return;
-    setAiAnalysis({ loading: true, result: null, error: null });
+  const fetchWrongAnswers = async () => {
+    if (!selectedStudentId || selectedExercises.size === 0) {
+      setWrongAnswers([]);
+      return;
+    }
+    setWrongAnswersLoading(true);
     try {
       const exerciseIds = [...selectedExercises];
-      if (exerciseIds.length === 0) {
-        setAiAnalysis({ loading: false, result: 'No exercises found in this course.', error: null });
-        return;
-      }
-      const { data: filtered, error } = await supabase
+      const { data, error } = await supabase
         .from('question_attempts')
-        .select('exercise_id, exercise_type, question_id, selected_answer, correct_answer')
+        .select('exercise_id, exercise_type, question_id, selected_answer, correct_answer, exercise:exercises(title)')
         .eq('user_id', selectedStudentId)
         .eq('is_correct', false)
         .in('exercise_id', exerciseIds)
         .order('created_at', { ascending: false })
         .limit(50);
       if (error) throw error;
-      if (!filtered || filtered.length === 0) {
-        setAiAnalysis({ loading: false, result: 'No wrong answers in this course.', error: null });
-        return;
-      }
-      console.log('🔍 AI Analysis — exerciseIds:', exerciseIds, 'wrong answers found:', filtered.length);
-      const wrongList = filtered.slice(0, 20).map((a, i) =>
-        `${i + 1}. Student wrote "${a.selected_answer}" but correct answer is "${a.correct_answer}"`
+      setWrongAnswers(data || []);
+    } catch (err) {
+      console.error('Error fetching wrong answers:', err);
+      setWrongAnswers([]);
+    } finally {
+      setWrongAnswersLoading(false);
+    }
+  };
+
+  const analyzeStudentAI = async () => {
+    if (wrongAnswers.length === 0) return;
+    setAiAnalysis({ loading: true, result: null, error: null });
+    try {
+      const wrongList = wrongAnswers.slice(0, 20).map((a, i) =>
+        `${i + 1}. [${a.exercise?.title || a.exercise_type}] Student wrote "${a.selected_answer}" but correct answer is "${a.correct_answer}"`
       ).join('\n');
-      console.log('📤 Sending to MegaLLM:\n', wrongList);
-      const response = await fetch('https://ai.megallm.io/v1/chat/completions', {
+      console.log('📤 Sending to AI proxy:\n', wrongList);
+      const messages = [
+        { role: 'system', content: 'Bạn là giáo viên tiếng Anh chuyên phân tích lỗi sai của học sinh. Trả lời ngắn gọn bằng tiếng Việt, dùng bullet points.' },
+        { role: 'user', content: `Phân tích ${Math.min(wrongAnswers.length, 20)} câu trả lời sai dưới đây. Tìm 3-5 pattern lỗi chính. Mỗi pattern: tên lỗi, 2 ví dụ, số lần mắc. Ngắn gọn.\n\n${wrongList}` }
+      ];
+      const response = await fetch('/api/ai-analyze', {
         method: 'POST',
-        headers: {
-          'Authorization': `Bearer ${MEGALLM_API_KEY}`,
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          model: 'openai-gpt-oss-20b',
-          messages: [
-            { role: 'system', content: 'Bạn là giáo viên tiếng Anh chuyên phân tích lỗi sai của học sinh. Trả lời ngắn gọn bằng tiếng Việt, dùng bullet points.' },
-            { role: 'user', content: `Phân tích ${Math.min(filtered.length, 20)} câu trả lời sai dưới đây. Tìm 3-5 pattern lỗi chính. Mỗi pattern: tên lỗi, 2 ví dụ, số lần mắc. Ngắn gọn.\n\n${wrongList}` }
-          ],
-          max_tokens: 2000,
-          temperature: 0.3
-        })
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ messages })
       });
-      if (!response.ok) {
-        const errText = await response.text();
-        throw new Error(`API error: ${response.status} - ${errText}`);
-      }
       const resData = await response.json();
-      const resultText = resData.choices?.[0]?.message?.content;
-      if (!resultText) throw new Error('No response from AI. Please try again.');
-      setAiAnalysis({ loading: false, result: resultText, error: null });
+      if (!response.ok) throw new Error(resData.error || `API error: ${response.status}`);
+      if (!resData.result) throw new Error('No response from AI. Please try again.');
+      setAiAnalysis({ loading: false, result: resData.result, error: null });
     } catch (err) {
       console.error('AI analysis error:', err);
       setAiAnalysis({ loading: false, result: null, error: err.message });
@@ -1191,48 +1188,96 @@ const UnitReportPage = () => {
                     ))}
                   </div>
                 )}
-                {/* AI Analysis */}
+                {/* Wrong Answers */}
                 <div>
-                  {!aiAnalysis.loading && !aiAnalysis.result && !aiAnalysis.error && (
+                  {wrongAnswers.length === 0 && !wrongAnswersLoading && (
                     <button
-                      onClick={analyzeStudentAI}
-                      className="inline-flex items-center gap-2 px-3 py-1.5 text-xs bg-purple-50 text-purple-700 border border-purple-200 rounded-lg hover:bg-purple-100 transition-colors"
+                      onClick={fetchWrongAnswers}
+                      disabled={selectedExercises.size === 0}
+                      className="inline-flex items-center gap-2 px-3 py-1.5 text-xs bg-red-50 text-red-700 border border-red-200 rounded-lg hover:bg-red-100 transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
                     >
-                      <Brain className="w-3.5 h-3.5" />
-                      Analyze with AI
+                      <AlertTriangle className="w-3.5 h-3.5" />
+                      {selectedExercises.size === 0 ? 'Select exercises first' : 'Load Wrong Answers'}
                     </button>
                   )}
-                  {aiAnalysis.loading && (
-                    <div className="flex items-center gap-2 text-sm text-purple-600">
-                      <div className="w-4 h-4 border-2 border-purple-300 border-t-purple-600 rounded-full animate-spin" />
-                      Analyzing wrong answers...
+                  {wrongAnswersLoading && (
+                    <div className="flex items-center gap-2 text-sm text-gray-500">
+                      <div className="w-4 h-4 border-2 border-gray-300 border-t-red-500 rounded-full animate-spin" />
+                      Loading wrong answers...
                     </div>
                   )}
-                  {aiAnalysis.error && (
-                    <div className="text-sm text-red-600 bg-red-50 border border-red-200 rounded-lg p-3">
-                      Error: {aiAnalysis.error}
-                      <button onClick={analyzeStudentAI} className="ml-2 text-red-700 underline">Retry</button>
-                    </div>
-                  )}
-                  {aiAnalysis.result && (
-                    <div className="bg-purple-50 border border-purple-200 rounded-lg p-3">
-                      <div className="flex items-center justify-between mb-2">
-                        <div className="flex items-center gap-1.5 text-xs font-medium text-purple-700">
-                          <Sparkles className="w-3.5 h-3.5" />
-                          AI Analysis
+                  {wrongAnswers.length > 0 && (
+                    <div className="space-y-3">
+                      <div className="flex items-center justify-between">
+                        <div className="text-xs font-medium text-gray-500 uppercase tracking-wide">
+                          Wrong Answers ({wrongAnswers.length})
                         </div>
                         <button
-                          onClick={analyzeStudentAI}
-                          className="inline-flex items-center gap-1 px-2 py-0.5 text-[10px] text-purple-600 hover:bg-purple-100 rounded transition-colors"
+                          onClick={() => { setWrongAnswers([]); setAiAnalysis({ loading: false, result: null, error: null }); }}
+                          className="text-[10px] text-gray-400 hover:text-gray-600"
                         >
-                          <Brain className="w-3 h-3" />
-                          Re-analyze
+                          Clear
                         </button>
                       </div>
-                      <div className="text-sm text-gray-700 whitespace-pre-wrap leading-relaxed">{aiAnalysis.result}</div>
+                      <div className="max-h-[300px] overflow-y-auto space-y-1.5">
+                        {wrongAnswers.map((a, i) => (
+                          <div key={i} className="bg-gray-50 rounded-lg px-3 py-2 text-xs">
+                            <div className="text-[10px] text-gray-400 mb-1">{a.exercise?.title || a.exercise_type}</div>
+                            <div className="flex gap-2">
+                              <span className="text-red-600 flex-1"><span className="font-medium text-gray-500">Wrote:</span> {a.selected_answer}</span>
+                              <span className="text-green-600 flex-1"><span className="font-medium text-gray-500">Correct:</span> {a.correct_answer}</span>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
                     </div>
                   )}
                 </div>
+
+                {/* AI Analysis */}
+                {wrongAnswers.length > 0 && (
+                  <div>
+                    {!aiAnalysis.loading && !aiAnalysis.result && !aiAnalysis.error && (
+                      <button
+                        onClick={analyzeStudentAI}
+                        className="inline-flex items-center gap-2 px-3 py-1.5 text-xs bg-purple-50 text-purple-700 border border-purple-200 rounded-lg hover:bg-purple-100 transition-colors"
+                      >
+                        <Brain className="w-3.5 h-3.5" />
+                        Analyze with AI
+                      </button>
+                    )}
+                    {aiAnalysis.loading && (
+                      <div className="flex items-center gap-2 text-sm text-purple-600">
+                        <div className="w-4 h-4 border-2 border-purple-300 border-t-purple-600 rounded-full animate-spin" />
+                        Analyzing wrong answers...
+                      </div>
+                    )}
+                    {aiAnalysis.error && (
+                      <div className="text-sm text-red-600 bg-red-50 border border-red-200 rounded-lg p-3">
+                        Error: {aiAnalysis.error}
+                        <button onClick={analyzeStudentAI} className="ml-2 text-red-700 underline">Retry</button>
+                      </div>
+                    )}
+                    {aiAnalysis.result && (
+                      <div className="bg-purple-50 border border-purple-200 rounded-lg p-3">
+                        <div className="flex items-center justify-between mb-2">
+                          <div className="flex items-center gap-1.5 text-xs font-medium text-purple-700">
+                            <Sparkles className="w-3.5 h-3.5" />
+                            AI Analysis
+                          </div>
+                          <button
+                            onClick={analyzeStudentAI}
+                            className="inline-flex items-center gap-1 px-2 py-0.5 text-[10px] text-purple-600 hover:bg-purple-100 rounded transition-colors"
+                          >
+                            <Brain className="w-3 h-3" />
+                            Re-analyze
+                          </button>
+                        </div>
+                        <div className="text-sm text-gray-700 whitespace-pre-wrap leading-relaxed">{aiAnalysis.result}</div>
+                      </div>
+                    )}
+                  </div>
+                )}
               </div>
             </div>
 

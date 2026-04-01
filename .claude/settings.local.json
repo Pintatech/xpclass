@@ -68,7 +68,8 @@
       "Bash(npm uninstall:*)",
       "Bash(xargs -I {} basename {})",
       "Bash(grep -n \"<TeacherExerciseNav\" src/components/exercises/*.jsx)",
-      "Bash(find /c/Users/Calvin_PC/Downloads/xpclass -maxdepth 3 -type f \\\\\\(-name *.sql -o -name *migrations* \\\\\\))"
+      "Bash(find /c/Users/Calvin_PC/Downloads/xpclass -maxdepth 3 -type f \\\\\\(-name *.sql -o -name *migrations* \\\\\\))",
+      "Bash(xargs grep:*)"
     ],
     "deny": [],
     "ask": []

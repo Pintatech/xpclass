@@ -141,6 +141,66 @@ function transcribeVideoPlugin() {
   }
 }
 
+// Local dev middleware for /api/ai-analyze (mirrors api/ai-analyze.js)
+function aiAnalyzePlugin() {
+  return {
+    name: 'ai-analyze-proxy',
+    configureServer(server) {
+      server.middlewares.use('/api/ai-analyze', async (req, res) => {
+        if (req.method !== 'POST') {
+          res.writeHead(405, { 'Content-Type': 'application/json' })
+          res.end(JSON.stringify({ error: 'Method not allowed' }))
+          return
+        }
+        const apiKey = process.env.VITE_MEGALLM_API_KEY || process.env.MEGALLM_API_KEY
+        if (!apiKey) {
+          res.writeHead(500, { 'Content-Type': 'application/json' })
+          res.end(JSON.stringify({ error: 'MEGALLM_API_KEY not set in .env' }))
+          return
+        }
+        try {
+          const chunks = []
+          for await (const chunk of req) chunks.push(chunk)
+          const { messages, max_tokens = 2000, temperature = 0.3 } = JSON.parse(Buffer.concat(chunks).toString())
+
+          const reqBody = JSON.stringify({ model: 'openai-gpt-oss-20b', messages, max_tokens, temperature })
+          let apiRes
+          for (let attempt = 0; attempt < 3; attempt++) {
+            apiRes = await fetch('https://ai.megallm.io/v1/chat/completions', {
+              method: 'POST',
+              headers: {
+                'Authorization': `Bearer ${apiKey}`,
+                'Content-Type': 'application/json',
+              },
+              body: reqBody
+            })
+            if (apiRes.ok || (apiRes.status !== 429 && apiRes.status !== 500)) break
+            await new Promise(r => setTimeout(r, (attempt + 1) * 2000))
+          }
+          if (!apiRes.ok) {
+            const errText = await apiRes.text()
+            res.writeHead(apiRes.status, { 'Content-Type': 'application/json' })
+            res.end(JSON.stringify({ error: `MegaLLM error: ${apiRes.status}`, detail: errText }))
+            return
+          }
+          const data = await apiRes.json()
+          const result = data.choices?.[0]?.message?.content
+          if (!result) {
+            res.writeHead(500, { 'Content-Type': 'application/json' })
+            res.end(JSON.stringify({ error: 'No response from AI' }))
+            return
+          }
+          res.writeHead(200, { 'Content-Type': 'application/json' })
+          res.end(JSON.stringify({ result }))
+        } catch (err) {
+          res.writeHead(500, { 'Content-Type': 'application/json' })
+          res.end(JSON.stringify({ error: err.message }))
+        }
+      })
+    }
+  }
+}
+
 // https://vitejs.dev/config/
 export default defineConfig(({ mode }) => {
   // Load .env so ASSEMBLYAI_API_KEY is available in process.env
@@ -148,7 +208,7 @@ export default defineConfig(({ mode }) => {
   Object.assign(process.env, env)
 
   return {
-  plugins: [react(), assemblyAIPlugin(), transcribeVideoPlugin()],
+  plugins: [react(), assemblyAIPlugin(), transcribeVideoPlugin(), aiAnalyzePlugin()],
   server: {
     port: 3001,
     host: true,
