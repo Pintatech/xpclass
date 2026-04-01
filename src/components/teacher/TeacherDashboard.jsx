@@ -44,12 +44,12 @@ const TeacherDashboard = () => {
       hasLoadedCourses
     });
 
-    if (user && !authLoading && !hasLoadedCourses) {
+    if (user && !authLoading && profile && !hasLoadedCourses) {
       console.log('✅ Conditions met, fetching courses...');
       fetchTeacherCourses();
       setHasLoadedCourses(true);
     }
-  }, [user, authLoading, hasLoadedCourses]);
+  }, [user, authLoading, profile, hasLoadedCourses]);
 
   useEffect(() => {
     if (selectedCourse) {

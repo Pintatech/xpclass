@@ -5,8 +5,11 @@ import { useAuth } from '../../../hooks/useAuth';
 import {
   ArrowLeft, ClipboardList, BookOpen, Check, ChevronDown, ChevronRight,
   User, CheckSquare, Square, MinusSquare, Eye, EyeOff, Save, Star,
-  Award, MessageSquare, History, Zap, X, GraduationCap
+  Award, MessageSquare, History, Zap, X, GraduationCap,
+  AlertTriangle, Brain, Sparkles, Target
 } from 'lucide-react';
+
+const MEGALLM_API_KEY = import.meta.env.VITE_MEGALLM_API_KEY || 'sk-mega-90798a7547487b440a37b054ffbb33cbc57d85cf86929b52bb894def833d784e';
 
 // ─── Preview Card (screenshot-friendly, matches mockup) ────────────────
 const ReportPreview = ({ data }) => {
@@ -365,6 +368,7 @@ const UnitReportPage = () => {
   const [studentProgress, setStudentProgress] = useState({});
   const [selectedSessions, setSelectedSessions] = useState(new Set());
   const [selectedLessons, setSelectedLessons] = useState(new Set());
+  const [selectedExercises, setSelectedExercises] = useState(new Set());
   const [expandedUnits, setExpandedUnits] = useState(new Set());
 
   // Curriculum
@@ -378,6 +382,11 @@ const UnitReportPage = () => {
   const [viewingReport, setViewingReport] = useState(null);
   const [showHistory, setShowHistory] = useState(false);
 
+  // Weakness analysis
+  const [weaknessTags, setWeaknessTags] = useState([]);
+  const [weaknessLoading, setWeaknessLoading] = useState(false);
+  const [aiAnalysis, setAiAnalysis] = useState({ loading: false, result: null, error: null });
+
   // Fetch base data on mount
   useEffect(() => {
     if (user && courseId) {
@@ -386,16 +395,95 @@ const UnitReportPage = () => {
     }
   }, [user, courseId]);
 
-  // Fetch student-specific data when student changes
-  useEffect(() => {
-    if (selectedStudentId && courseId) {
-      setViewingReport(null);
-      setComment({ achievements: '', improvements: '', suggestions: '' });
-      setCurriculum({ objectives: '', knowledge: '', presentation: '' });
-      setPreviewMode(false);
-      fetchStudentData(selectedStudentId);
+  const fetchWeaknessData = async (studentId) => {
+    try {
+      setWeaknessLoading(true);
+      const { data: rows } = await supabase.rpc('get_student_weakness_by_course', {
+        p_course_id: courseId
+      });
+      const studentRows = (rows || []).filter(r => r.user_id === studentId);
+      const tags = studentRows.map(r => ({
+        tag: r.tag,
+        total_questions: r.total_questions,
+        correct: r.correct,
+        accuracy: Number(r.accuracy)
+      })).sort((a, b) => a.accuracy - b.accuracy);
+      setWeaknessTags(tags);
+    } catch (err) {
+      console.error('Error fetching weakness data:', err);
+    } finally {
+      setWeaknessLoading(false);
     }
-  }, [selectedStudentId]);
+  };
+
+  const analyzeStudentAI = async () => {
+    if (!selectedStudentId) return;
+    setAiAnalysis({ loading: true, result: null, error: null });
+    try {
+      const exerciseIds = [...selectedExercises];
+      if (exerciseIds.length === 0) {
+        setAiAnalysis({ loading: false, result: 'No exercises found in this course.', error: null });
+        return;
+      }
+      const { data: filtered, error } = await supabase
+        .from('question_attempts')
+        .select('exercise_id, exercise_type, question_id, selected_answer, correct_answer')
+        .eq('user_id', selectedStudentId)
+        .eq('is_correct', false)
+        .in('exercise_id', exerciseIds)
+        .order('created_at', { ascending: false })
+        .limit(50);
+      if (error) throw error;
+      if (!filtered || filtered.length === 0) {
+        setAiAnalysis({ loading: false, result: 'No wrong answers in this course.', error: null });
+        return;
+      }
+      console.log('🔍 AI Analysis — exerciseIds:', exerciseIds, 'wrong answers found:', filtered.length);
+      const wrongList = filtered.slice(0, 20).map((a, i) =>
+        `${i + 1}. Student wrote "${a.selected_answer}" but correct answer is "${a.correct_answer}"`
+      ).join('\n');
+      console.log('📤 Sending to MegaLLM:\n', wrongList);
+      const response = await fetch('https://ai.megallm.io/v1/chat/completions', {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${MEGALLM_API_KEY}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          model: 'openai-gpt-oss-20b',
+          messages: [
+            { role: 'system', content: 'Bạn là giáo viên tiếng Anh chuyên phân tích lỗi sai của học sinh. Trả lời ngắn gọn bằng tiếng Việt, dùng bullet points.' },
+            { role: 'user', content: `Phân tích ${Math.min(filtered.length, 20)} câu trả lời sai dưới đây. Tìm 3-5 pattern lỗi chính. Mỗi pattern: tên lỗi, 2 ví dụ, số lần mắc. Ngắn gọn.\n\n${wrongList}` }
+          ],
+          max_tokens: 2000,
+          temperature: 0.3
+        })
+      });
+      if (!response.ok) {
+        const errText = await response.text();
+        throw new Error(`API error: ${response.status} - ${errText}`);
+      }
+      const resData = await response.json();
+      const resultText = resData.choices?.[0]?.message?.content;
+      if (!resultText) throw new Error('No response from AI. Please try again.');
+      setAiAnalysis({ loading: false, result: resultText, error: null });
+    } catch (err) {
+      console.error('AI analysis error:', err);
+      setAiAnalysis({ loading: false, result: null, error: err.message });
+    }
+  };
+
+  const getAccuracyColor = (accuracy) => {
+    if (accuracy < 50) return 'bg-red-100 text-red-700 border-red-200';
+    if (accuracy < 75) return 'bg-yellow-100 text-yellow-700 border-yellow-200';
+    return 'bg-green-100 text-green-700 border-green-200';
+  };
+
+  const getAccuracyBarColor = (accuracy) => {
+    if (accuracy < 50) return 'bg-red-400';
+    if (accuracy < 75) return 'bg-yellow-400';
+    return 'bg-green-400';
+  };
 
   const fetchBaseData = async () => {
     try {
@@ -457,7 +545,7 @@ const UnitReportPage = () => {
         }
       }
 
-      setExpandedUnits(new Set(unitsData.map(u => u.id)));
+      setExpandedUnits(new Set());
     } catch (err) {
       console.error('Error fetching base data:', err);
     } finally {
@@ -526,6 +614,20 @@ const UnitReportPage = () => {
     }
   };
 
+  // Fetch student-specific data when student changes
+  useEffect(() => {
+    if (selectedStudentId && courseId) {
+      setViewingReport(null);
+      setComment({ achievements: '', improvements: '', suggestions: '' });
+      setCurriculum({ objectives: '', knowledge: '', presentation: '' });
+      setPreviewMode(false);
+      setWeaknessTags([]);
+      setAiAnalysis({ loading: false, result: null, error: null });
+      fetchStudentData(selectedStudentId);
+      fetchWeaknessData(selectedStudentId);
+    }
+  }, [selectedStudentId]);
+
   const fetchSavedReports = async () => {
     try {
       const { data } = await supabase
@@ -560,13 +662,13 @@ const UnitReportPage = () => {
     const total = selectedLessonDates.length;
     stats.rate = total > 0 ? Math.round(((stats.present + stats.late) / total) * 100) : 0;
 
-    // Exercise snapshot (from selected sessions)
+    // Exercise snapshot (from selected exercises)
     const exerciseGroups = [];
     visibleUnits.forEach(unit => {
       const unitSessions = getVisibleSessions(unit.id).filter(s => selectedSessions.has(s.id));
       const items = [];
       unitSessions.forEach(session => {
-        (exercisesMap[session.id] || []).forEach(ex => {
+        (exercisesMap[session.id] || []).filter(ex => selectedExercises.has(ex.id)).forEach(ex => {
           const prog = studentProgress[ex.id];
           items.push({
             title: ex.title,
@@ -700,20 +802,17 @@ const UnitReportPage = () => {
   }, [lessonDates, lessonRecordMap, selectedLessons]);
 
   const exerciseStats = useMemo(() => {
-    if (selectedSessions.size === 0) return null;
-    const exIds = [];
-    selectedSessions.forEach(sid => { (exercisesMap[sid] || []).forEach(e => exIds.push(e.id)); });
-    if (exIds.length === 0) return null;
+    if (selectedExercises.size === 0) return null;
     let completed = 0, totalScore = 0, scored = 0;
-    exIds.forEach(id => {
+    selectedExercises.forEach(id => {
       const prog = studentProgress[id];
       if (prog?.status === 'completed') {
         completed++;
         if (prog.score != null) { totalScore += prog.score; scored++; }
       }
     });
-    return { completed, total: exIds.length, avgScore: scored > 0 ? Math.round(totalScore / scored) : null };
-  }, [selectedSessions, exercisesMap, studentProgress]);
+    return { completed, total: selectedExercises.size, avgScore: scored > 0 ? Math.round(totalScore / scored) : null };
+  }, [selectedExercises, studentProgress]);
 
   const studentLevel = Math.floor(studentXp / 1000) + 1;
 
@@ -726,19 +825,29 @@ const UnitReportPage = () => {
     (sessionsMap[unitId] || []).filter(s => !s.assigned_student_id || s.assigned_student_id === selectedStudentId);
 
 
-  // ─── Session/Unit selection ──────────────────────────────────
+  // ─── Session/Unit/Exercise selection ──────────────────────────
+  const toggleExercise = (exerciseId) => {
+    setSelectedExercises(prev => { const n = new Set(prev); n.has(exerciseId) ? n.delete(exerciseId) : n.add(exerciseId); return n; });
+  };
   const toggleSession = (sessionId) => {
-    setSelectedSessions(prev => { const n = new Set(prev); n.has(sessionId) ? n.delete(sessionId) : n.add(sessionId); return n; });
+    const exIds = (exercisesMap[sessionId] || []).map(e => e.id);
+    const wasSelected = selectedSessions.has(sessionId);
+    setSelectedSessions(prev => { const n = new Set(prev); wasSelected ? n.delete(sessionId) : n.add(sessionId); return n; });
+    setSelectedExercises(prev => { const n = new Set(prev); exIds.forEach(id => wasSelected ? n.delete(id) : n.add(id)); return n; });
   };
   const toggleUnit = (unitId) => {
     const sIds = getVisibleSessions(unitId).filter(s => (exercisesMap[s.id] || []).length > 0).map(s => s.id);
     const all = sIds.length > 0 && sIds.every(id => selectedSessions.has(id));
     setSelectedSessions(prev => { const n = new Set(prev); sIds.forEach(id => all ? n.delete(id) : n.add(id)); return n; });
+    const exIds = sIds.flatMap(sid => (exercisesMap[sid] || []).map(e => e.id));
+    setSelectedExercises(prev => { const n = new Set(prev); exIds.forEach(id => all ? n.delete(id) : n.add(id)); return n; });
   };
   const selectAll = () => {
     const allSIds = visibleUnits.flatMap(u => getVisibleSessions(u.id)).filter(s => (exercisesMap[s.id] || []).length > 0).map(s => s.id);
     const all = allSIds.length > 0 && allSIds.every(id => selectedSessions.has(id));
     setSelectedSessions(all ? new Set() : new Set(allSIds));
+    const allExIds = allSIds.flatMap(sid => (exercisesMap[sid] || []).map(e => e.id));
+    setSelectedExercises(all ? new Set() : new Set(allExIds));
   };
   const toggleExpandUnit = (unitId) => {
     setExpandedUnits(prev => { const n = new Set(prev); n.has(unitId) ? n.delete(unitId) : n.add(unitId); return n; });
@@ -1038,13 +1147,102 @@ const UnitReportPage = () => {
               </div>
             )}
 
+            {/* Weakness Analysis */}
+            <div className="bg-white rounded-lg shadow-sm border">
+              <div className="px-4 py-3 border-b border-gray-200 flex items-center gap-2">
+                <Target className="w-5 h-5 text-red-500" />
+                <h2 className="text-base font-semibold text-gray-900">Weakness Analysis</h2>
+                {weaknessTags.filter(t => t.accuracy < 50).length > 0 && (
+                  <span className="inline-flex items-center gap-1 px-2 py-0.5 text-xs bg-red-50 text-red-600 rounded-full border border-red-200">
+                    <AlertTriangle className="w-3 h-3" />
+                    {weaknessTags.filter(t => t.accuracy < 50).length} weak
+                  </span>
+                )}
+              </div>
+              <div className="p-4 space-y-4">
+                {weaknessLoading && (
+                  <div className="text-center py-6 text-gray-400">
+                    <div className="w-6 h-6 border-2 border-gray-300 border-t-blue-500 rounded-full animate-spin mx-auto mb-2" />
+                    Loading...
+                  </div>
+                )}
+                {!weaknessLoading && weaknessTags.length === 0 && (
+                  <p className="text-sm text-gray-500 text-center py-4">No tag data yet for this student.</p>
+                )}
+                {!weaknessLoading && weaknessTags.length > 0 && (
+                  <div className="space-y-2">
+                    <div className="text-xs font-medium text-gray-500 uppercase tracking-wide">Accuracy by Tag</div>
+                    {weaknessTags.map(t => (
+                      <div key={t.tag} className="flex items-center gap-3">
+                        <span className="text-xs font-medium text-gray-700 w-32 truncate" title={t.tag}>{t.tag}</span>
+                        <div className="flex-1 h-5 bg-gray-100 rounded-full overflow-hidden relative">
+                          <div
+                            className={`h-full rounded-full transition-all ${getAccuracyBarColor(t.accuracy)}`}
+                            style={{ width: `${t.accuracy}%` }}
+                          />
+                          <span className="absolute inset-0 flex items-center justify-center text-[10px] font-medium text-gray-700">
+                            {t.correct}/{t.total_questions} ({t.accuracy}%)
+                          </span>
+                        </div>
+                        <span className={`px-2 py-0.5 text-xs font-medium rounded-full border ${getAccuracyColor(t.accuracy)}`}>
+                          {t.accuracy}%
+                        </span>
+                      </div>
+                    ))}
+                  </div>
+                )}
+                {/* AI Analysis */}
+                <div>
+                  {!aiAnalysis.loading && !aiAnalysis.result && !aiAnalysis.error && (
+                    <button
+                      onClick={analyzeStudentAI}
+                      className="inline-flex items-center gap-2 px-3 py-1.5 text-xs bg-purple-50 text-purple-700 border border-purple-200 rounded-lg hover:bg-purple-100 transition-colors"
+                    >
+                      <Brain className="w-3.5 h-3.5" />
+                      Analyze with AI
+                    </button>
+                  )}
+                  {aiAnalysis.loading && (
+                    <div className="flex items-center gap-2 text-sm text-purple-600">
+                      <div className="w-4 h-4 border-2 border-purple-300 border-t-purple-600 rounded-full animate-spin" />
+                      Analyzing wrong answers...
+                    </div>
+                  )}
+                  {aiAnalysis.error && (
+                    <div className="text-sm text-red-600 bg-red-50 border border-red-200 rounded-lg p-3">
+                      Error: {aiAnalysis.error}
+                      <button onClick={analyzeStudentAI} className="ml-2 text-red-700 underline">Retry</button>
+                    </div>
+                  )}
+                  {aiAnalysis.result && (
+                    <div className="bg-purple-50 border border-purple-200 rounded-lg p-3">
+                      <div className="flex items-center justify-between mb-2">
+                        <div className="flex items-center gap-1.5 text-xs font-medium text-purple-700">
+                          <Sparkles className="w-3.5 h-3.5" />
+                          AI Analysis
+                        </div>
+                        <button
+                          onClick={analyzeStudentAI}
+                          className="inline-flex items-center gap-1 px-2 py-0.5 text-[10px] text-purple-600 hover:bg-purple-100 rounded transition-colors"
+                        >
+                          <Brain className="w-3 h-3" />
+                          Re-analyze
+                        </button>
+                      </div>
+                      <div className="text-sm text-gray-700 whitespace-pre-wrap leading-relaxed">{aiAnalysis.result}</div>
+                    </div>
+                  )}
+                </div>
+              </div>
+            </div>
+
             {/* Exercises — pick units/sessions */}
             <div className="bg-white rounded-lg shadow-sm border">
               <div className="px-4 py-3 border-b border-gray-200 flex items-center justify-between">
                 <div className="flex items-center gap-2">
                   <BookOpen className="w-5 h-5 text-blue-600" />
                   <h2 className="text-base font-semibold text-gray-900">Exercises</h2>
-                  <span className="text-xs text-gray-400">({selectedSessions.size} session{selectedSessions.size !== 1 ? 's' : ''})</span>
+                  <span className="text-xs text-gray-400">({selectedExercises.size} exercise{selectedExercises.size !== 1 ? 's' : ''})</span>
                 </div>
                 <div className="flex items-center gap-3">
                   {exerciseStats && (
@@ -1103,12 +1301,16 @@ const UnitReportPage = () => {
                               {session.assigned_student_id && <span className="px-1 py-0.5 bg-purple-50 text-purple-500 rounded text-[9px] font-bold">1:1</span>}
                               <span className="text-[10px] text-gray-400 ml-auto">{exercises.length} exercise{exercises.length !== 1 ? 's' : ''}</span>
                             </div>
-                            {/* Exercises — read-only list, shown when session is selected */}
+                            {/* Exercises — selectable list, shown when session is selected */}
                             {isSel && exercises.map(ex => {
                               const prog = studentProgress[ex.id];
                               const done = prog?.status === 'completed';
+                              const exSel = selectedExercises.has(ex.id);
                               return (
-                                <div key={ex.id} className="flex items-center gap-3 px-4 py-1.5 pl-16 bg-blue-50/30">
+                                <div key={ex.id} className={`flex items-center gap-3 px-4 py-1.5 pl-14 cursor-pointer transition-colors ${exSel ? 'bg-blue-50/50' : 'bg-gray-50/30 opacity-50'}`} onClick={() => toggleExercise(ex.id)}>
+                                  <button className="text-gray-400 hover:text-blue-600" onClick={(e) => { e.stopPropagation(); toggleExercise(ex.id); }}>
+                                    {exSel ? <CheckSquare className="w-3 h-3 text-blue-600" /> : <Square className="w-3 h-3" />}
+                                  </button>
                                   <span className="text-sm text-gray-600 flex-1 truncate">{ex.title}</span>
                                   <span className="text-[10px] text-gray-400 uppercase">{ex.exercise_type}</span>
                                   {done ? (

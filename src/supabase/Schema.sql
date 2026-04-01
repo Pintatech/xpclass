@@ -2855,12 +2855,12 @@ BEGIN
   month_end := (date_trunc('month', NOW() AT TIME ZONE 'Asia/Ho_Chi_Minh') AT TIME ZONE 'Asia/Ho_Chi_Minh');
   month_start := (date_trunc('month', NOW() AT TIME ZONE 'Asia/Ho_Chi_Minh') - INTERVAL '1 month') AT TIME ZONE 'Asia/Ho_Chi_Minh';
 
-  -- Check if already awarded for this month (check rank 1 achievement)
+  -- Check if already awarded for this month (look for awards made after the month ended)
   IF EXISTS(
     SELECT 1 FROM user_achievements ua
     JOIN achievements a ON a.id = ua.achievement_id
     WHERE a.criteria_type = 'monthly_xp_leader' AND a.is_active = true
-      AND ua.earned_at >= month_start AND ua.earned_at < month_end + INTERVAL '1 day'
+      AND ua.earned_at >= month_end AND ua.earned_at < month_end + INTERVAL '1 month'
   ) THEN
     RETURN json_build_object('status', 'already_awarded', 'month_start', month_start);
   END IF;

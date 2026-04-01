@@ -96,7 +96,7 @@ const XPRateCircle = ({ rate }) => {
 };
 
 const TeacherCourseOverview = () => {
-  const { user, isAdmin, loading: authLoading } = useAuth();
+  const { user, profile, isAdmin, loading: authLoading } = useAuth();
   const navigate = useNavigate();
   const [courses, setCourses] = useState([]);
   const [courseData, setCourseData] = useState({}); // { courseId: { students, lessons, records } }
@@ -140,10 +140,10 @@ const TeacherCourseOverview = () => {
   };
 
   useEffect(() => {
-    if (user && !authLoading) {
+    if (user && !authLoading && profile) {
       fetchCourses();
     }
-  }, [user, authLoading]);
+  }, [user, authLoading, profile]);
 
   useEffect(() => {
     const handleClickOutside = (e) => {
