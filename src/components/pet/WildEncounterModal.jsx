@@ -35,13 +35,18 @@ const raritySolidColor = {
   legendary: '#FACC15',
 }
 
-const BALL_BONUS = { common: 0.10, uncommon: 0.25, rare: 0.45, epic: 0.70, legendary: 0.95 }
-const PET_DIFFICULTY = { common: 0.50, uncommon: 0.30, rare: 0.15, epic: 0.07, legendary: 0.03 }
+// CATCH_RATE[ballRarity][petRarity] = percent chance
+const CATCH_RATE = {
+  //                 common  uncommon  rare  epic  legendary
+  common:          { common: 75, uncommon: 60, rare: 40, epic: 25, legendary: 15 },
+  uncommon:        { common: 90, uncommon: 75, rare: 55, epic: 40, legendary: 30 },
+  rare:            { common: 100, uncommon: 95, rare: 75, epic: 60, legendary: 45 },
+  epic:            { common: 100, uncommon: 100, rare: 90, epic: 75, legendary: 60 },
+  legendary:       { common: 100, uncommon: 100, rare: 100, epic: 95, legendary: 90 },
+}
 
 const getCatchRate = (ballRarity, petRarity) => {
-  const bonus = BALL_BONUS[ballRarity] || 0.30
-  const difficulty = PET_DIFFICULTY[petRarity] || 0.50
-  return Math.min(100, Math.round((bonus + difficulty) * 100))
+  return CATCH_RATE[ballRarity]?.[petRarity] ?? 50
 }
 
 const BallImage = ({ ball, className = '' }) => {

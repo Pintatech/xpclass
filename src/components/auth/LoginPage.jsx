@@ -348,24 +348,20 @@ const LoginPage = () => {
             <span className="text-sm font-medium">Google</span>
           </button> */}
 
-          {/* Links */}
-          <div className="text-center space-y-2 mb-4">
-            {/* <Link
-              to="/forgot-password"
-              className="text-xs text-blue-600 hover:text-blue-800 block"
-            >
-              Quên mật khẩu?
-            </Link> */}
-            {/* <div className="text-xs text-gray-600">
-              Chưa có tài khoản?{' '}
-              <Link
-                to="/register"
-                className="text-blue-600 hover:text-blue-800 font-medium"
-              >
-                Đăng ký ngay
-              </Link>
-            </div> */}
+          {/* Divider */}
+          <div className="flex items-center w-[280px]">
+            <div className="flex-1 border-t border-gray-300"></div>
+            <span className="px-3 text-xs text-gray-500">hoặc</span>
+            <div className="flex-1 border-t border-gray-300"></div>
           </div>
+
+          {/* Guest Button */}
+          <Link
+            to="/guest"
+            className="w-[280px] border-2 border-blue-600 hover:bg-blue-600 hover:text-white text-blue-700 rounded-lg px-4 py-2.5 text-center text-sm font-medium transition-all duration-300 mb-4"
+          >
+            Dùng thử miễn phí
+          </Link>
         </div>
       </div>
     </div>

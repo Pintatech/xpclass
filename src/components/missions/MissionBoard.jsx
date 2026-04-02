@@ -459,9 +459,9 @@ const MissionCard = ({ mission, tabConfig, onClaim, claiming, index, entered }) 
         entered ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-2'
       } ${
         isClaimed
-          ? 'bg-gray-50 border-gray-200 opacity-50'
+          ? 'bg-gradient-to-r from-emerald-50 to-green-50 border-emerald-300 shadow-md shadow-emerald-100'
           : isCompleted
-            ? `bg-white ${tabConfig.borderColor} shadow-md`
+            ? `bg-gradient-to-r from-amber-50 to-yellow-50 border-amber-300 shadow-lg shadow-amber-100 ring-1 ring-amber-200/50`
             : 'bg-white border-gray-200 hover:border-gray-300 shadow-sm hover:shadow-md'
       }`}
       style={{
@@ -470,7 +470,7 @@ const MissionCard = ({ mission, tabConfig, onClaim, claiming, index, entered }) 
       }}
     >
       {/* Corner brackets */}
-      {!isClaimed && (
+      {!isClaimed && !isCompleted && (
         <>
           <div className={`absolute top-0 left-[10px] w-5 h-[1px] bg-gradient-to-r ${tabConfig.cornerColor} to-transparent`} />
           <div className={`absolute top-0 left-[10px] w-[1px] h-5 bg-gradient-to-b ${tabConfig.cornerColor} to-transparent`} />
@@ -479,9 +479,14 @@ const MissionCard = ({ mission, tabConfig, onClaim, claiming, index, entered }) 
         </>
       )}
 
+      {/* Shimmer for completed */}
+      {isCompleted && (
+        <div className="absolute inset-0 bg-gradient-to-r from-transparent via-amber-200/20 to-transparent animate-[shimmer_3s_infinite]" />
+      )}
+
       {/* Completed top border accent */}
       {isCompleted && (
-        <div className={`absolute top-0 left-[10px] right-0 h-[2px] bg-gradient-to-r ${tabConfig.color} opacity-70`} />
+        <div className={`absolute top-0 left-[10px] right-0 h-[2px] bg-gradient-to-r from-amber-400 to-yellow-400`} />
       )}
 
       {/* Active side accent */}
@@ -494,7 +499,7 @@ const MissionCard = ({ mission, tabConfig, onClaim, claiming, index, entered }) 
           {/* Icon */}
           <div className={`flex-shrink-0 w-12 h-12 flex items-center justify-center border ${
             isClaimed
-              ? 'bg-gray-100 border-gray-200'
+              ? 'bg-emerald-100 border-emerald-200'
               : isCompleted
                 ? `bg-gradient-to-br ${tabConfig.color} border-transparent shadow-md`
                 : `bg-gray-50 ${tabConfig.borderColor}`
@@ -504,7 +509,7 @@ const MissionCard = ({ mission, tabConfig, onClaim, claiming, index, entered }) 
                }}
           >
             {isClaimed ? (
-              <CheckCircle className="w-6 h-6 text-gray-400" />
+              <CheckCircle className="w-6 h-6 text-emerald-500" />
             ) : missionImage.startsWith('/') ? (
               <img src={assetUrl(missionImage)} alt="" className="w-9 h-9 object-contain" />
             ) : (
@@ -516,40 +521,40 @@ const MissionCard = ({ mission, tabConfig, onClaim, claiming, index, entered }) 
           <div className="flex-1 min-w-0">
             <div className="flex items-center justify-between gap-2">
               <h3 className={`font-semibold truncate ${
-                isClaimed ? 'text-gray-400' : 'text-gray-900'
+                isClaimed ? 'text-emerald-700' : 'text-gray-900'
               }`}>
                 {mission.title}
               </h3>
               {/* Rewards */}
               <div className="flex items-center gap-3 flex-shrink-0">
                 {mission.reward_xp > 0 && (
-                  <div className={`flex flex-col items-center ${isClaimed ? 'opacity-30' : ''}`}>
+                  <div className="flex flex-col items-center">
                     <img src={assetUrl('/image/study/xp.png')} alt="XP" className="w-6 h-6" />
-                    <span className={`text-[10px] font-bold ${isClaimed ? 'text-gray-400' : 'text-amber-500'}`}>
+                    <span className={`text-[10px] font-bold ${isClaimed ? 'text-emerald-600' : 'text-amber-500'}`}>
                       {mission.reward_xp}
                     </span>
                   </div>
                 )}
                 {mission.reward_gems > 0 && (
-                  <div className={`flex flex-col items-center ${isClaimed ? 'opacity-30' : ''}`}>
+                  <div className="flex flex-col items-center">
                     <img src={assetUrl('/image/study/gem.png')} alt="Gems" className="w-6 h-6" />
-                    <span className={`text-[10px] font-bold ${isClaimed ? 'text-gray-400' : 'text-purple-500'}`}>
+                    <span className={`text-[10px] font-bold ${isClaimed ? 'text-emerald-600' : 'text-purple-500'}`}>
                       {mission.reward_gems}
                     </span>
                   </div>
                 )}
                 {mission.reward_item_name && (
-                  <div className={`flex flex-col items-center ${isClaimed ? 'opacity-30' : ''}`}>
+                  <div className="flex flex-col items-center">
                     <img src={mission.reward_item_image || assetUrl('/image/study/gem.png')} alt={mission.reward_item_name} className="w-6 h-6 object-contain" />
-                    <span className={`text-[10px] font-bold ${isClaimed ? 'text-gray-400' : 'text-green-600'}`}>
+                    <span className={`text-[10px] font-bold ${isClaimed ? 'text-emerald-600' : 'text-green-600'}`}>
                       {mission.reward_item_quantity > 1 ? `x${mission.reward_item_quantity}` : mission.reward_item_name}
                     </span>
                   </div>
                 )}
                 {mission.reward_chest_name && (
-                  <div className={`flex flex-col items-center ${isClaimed ? 'opacity-30' : ''}`}>
+                  <div className="flex flex-col items-center">
                     <img src={mission.reward_chest_image || assetUrl('/image/chest/legendary-chest.png')} alt={mission.reward_chest_name} className="w-6 h-6 object-contain" />
-                    <span className={`text-[10px] font-bold ${isClaimed ? 'text-gray-400' : 'text-yellow-600'}`}>
+                    <span className={`text-[10px] font-bold ${isClaimed ? 'text-emerald-600' : 'text-yellow-600'}`}>
                       {mission.reward_chest_name}
                     </span>
                   </div>
@@ -557,7 +562,7 @@ const MissionCard = ({ mission, tabConfig, onClaim, claiming, index, entered }) 
               </div>
             </div>
 
-            <p className={`text-sm mt-0.5 ${isClaimed ? 'text-gray-300' : 'text-gray-400'}`}>
+            <p className={`text-sm mt-0.5 ${isClaimed ? 'text-emerald-500/70' : 'text-gray-400'}`}>
               {mission.description}
             </p>
 
@@ -612,7 +617,7 @@ const MissionCard = ({ mission, tabConfig, onClaim, claiming, index, entered }) 
         )}
 
         {isClaimed && (
-          <div className="mt-3 w-full py-2 text-center text-xs text-gray-400 font-medium flex items-center justify-center gap-1.5 tracking-wider uppercase">
+          <div className="mt-3 w-full py-2 text-center text-xs text-emerald-600 font-semibold flex items-center justify-center gap-1.5 tracking-wider uppercase">
             <CheckCircle className="w-3.5 h-3.5" />
             Đã nhận thưởng
           </div>
@@ -629,6 +634,8 @@ const TabCompletionCard = ({ mission, tabConfig, onClaim, claiming, entered, tot
   const isClaimed = mission.status === 'claimed'
   const isCompleted = mission.status === 'completed'
   const chestImage = mission.reward_chest_image || assetUrl('/image/chest/legendary-chest.png')
+  const missionIcon = MISSION_IMAGE_MAP[mission.icon] || DEFAULT_MISSION_IMAGE
+  const displayImage = mission.icon ? assetUrl(missionIcon) : chestImage
 
   return (
     <div
@@ -660,39 +667,56 @@ const TabCompletionCard = ({ mission, tabConfig, onClaim, claiming, entered, tot
             {isClaimed ? (
               <CheckCircle className="w-8 h-8 text-gray-400" />
             ) : (
-              <img src={chestImage} alt="" className={`w-11 h-11 object-contain ${!isCompleted && progress === 0 ? 'grayscale opacity-50' : ''}`} />
+              <img src={displayImage} alt="" className={`w-11 h-11 object-contain ${!isCompleted && progress === 0 ? 'grayscale opacity-50' : ''}`} />
             )}
           </div>
 
           {/* Content */}
           <div className="flex-1 min-w-0">
-            <div className="flex items-center gap-2">
-              <h3 className={`font-bold ${isClaimed ? 'text-gray-400' : 'text-gray-900'}`}>
-                {mission.title}
-              </h3>
-              {!isClaimed && (
-                <span className="text-[10px] px-2 py-0.5 rounded-full font-bold bg-amber-100 text-amber-600 uppercase tracking-wider">
-                  Bonus
-                </span>
-              )}
-            </div>
-            <p className={`text-sm mt-0.5 ${isClaimed ? 'text-gray-300' : 'text-gray-500'}`}>
-              {mission.description}
-            </p>
+            <div className="flex items-center justify-between gap-2">
+              <div className="min-w-0">
+                <div className="flex items-center gap-2">
+                  <h3 className={`font-bold truncate ${isClaimed ? 'text-gray-400' : 'text-gray-900'}`}>
+                    {mission.title}
+                  </h3>
+                  {!isClaimed && (
+                    <span className="text-[10px] px-2 py-0.5 rounded-full font-bold bg-amber-100 text-amber-600 uppercase tracking-wider flex-shrink-0">
+                      Bonus
+                    </span>
+                  )}
+                </div>
+                <p className={`text-sm mt-0.5 ${isClaimed ? 'text-gray-300' : 'text-gray-500'}`}>
+                  {mission.description}
+                </p>
+              </div>
 
-            {/* Rewards row */}
-            <div className="flex items-center gap-3 mt-1.5">
-              {mission.reward_chest_name && (
-                <span className={`text-xs font-semibold ${isClaimed ? 'text-gray-400' : 'text-amber-600'}`}>
-                  +1 {mission.reward_chest_name}
-                </span>
-              )}
-              {mission.reward_xp > 0 && (
-                <span className={`text-xs ${isClaimed ? 'text-gray-400' : 'text-amber-500'}`}>+{mission.reward_xp} XP</span>
-              )}
-              {mission.reward_gems > 0 && (
-                <span className={`text-xs ${isClaimed ? 'text-gray-400' : 'text-purple-500'}`}>+{mission.reward_gems} Gems</span>
-              )}
+              {/* Rewards */}
+              <div className="flex items-center gap-3 flex-shrink-0">
+                {mission.reward_chest_name && (
+                  <div className={`flex flex-col items-center ${isClaimed ? 'opacity-30' : ''}`}>
+                    <img src={chestImage} alt={mission.reward_chest_name} className="w-6 h-6 object-contain" />
+                    <span className={`text-[10px] font-bold ${isClaimed ? 'text-gray-400' : 'text-yellow-600'}`}>
+                      {mission.reward_chest_name}
+                    </span>
+                  </div>
+                )}
+                {mission.reward_xp > 0 && (
+                  <div className={`flex flex-col items-center ${isClaimed ? 'opacity-30' : ''}`}>
+                    <img src={assetUrl('/image/study/xp.png')} alt="XP" className="w-6 h-6" />
+                    <span className={`text-[10px] font-bold ${isClaimed ? 'text-gray-400' : 'text-amber-500'}`}>
+                      {mission.reward_xp}
+                    </span>
+                  </div>
+                )}
+                {mission.reward_gems > 0 && (
+                  <div className={`flex flex-col items-center ${isClaimed ? 'opacity-30' : ''}`}>
+                    <img src={assetUrl('/image/study/gem.png')} alt="Gems" className="w-6 h-6" />
+                    <span className={`text-[10px] font-bold ${isClaimed ? 'text-gray-400' : 'text-purple-500'}`}>
+                      {mission.reward_gems}
+                    </span>
+                  </div>
+                )}
+              </div>
             </div>
           </div>
         </div>
@@ -745,7 +769,7 @@ const TabCompletionCard = ({ mission, tabConfig, onClaim, claiming, entered, tot
         )}
 
         {isClaimed && (
-          <div className="mt-3 w-full py-2 text-center text-xs text-gray-400 font-medium flex items-center justify-center gap-1.5 tracking-wider uppercase">
+          <div className="mt-3 w-full py-2 text-center text-xs text-emerald-600 font-semibold flex items-center justify-center gap-1.5 tracking-wider uppercase">
             <CheckCircle className="w-3.5 h-3.5" />
             Đã nhận thưởng
           </div>

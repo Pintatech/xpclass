@@ -31,6 +31,8 @@ import MissionBoard from './components/missions/MissionBoard'
 import LiveBattlePage from './components/livebattle/LiveBattlePage'
 import UnitReportPage from './components/teacher/reports/UnitReportPage'
 import WeaknessAnalysis from './components/teacher/WeaknessAnalysis'
+import GuestEntry from './components/guest/GuestEntry'
+import GuestSessionRunner from './components/guest/GuestSessionRunner'
 
 
 function App() {
@@ -46,6 +48,8 @@ function App() {
             <Routes>
               <Route path="/login" element={<LoginPage />} />
               <Route path="/register" element={<RegisterPage />} />
+              <Route path="/guest" element={<GuestEntry />} />
+              <Route path="/guest/session" element={<GuestSessionRunner />} />
               <Route path="/" element={
                 <ProtectedRoute>
                   <Layout />

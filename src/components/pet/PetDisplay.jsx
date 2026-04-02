@@ -1578,7 +1578,7 @@ const PetDisplay = () => {
                     className="fixed inset-0 z-10"
                     onClick={() => setShowFeedMenu(false)}
                   />
-                  <div className="absolute top-full right-0 mt-2 bg-white shadow-xl p-4 z-20 border-2 border-orange-200 min-w-[200px]"
+                  <div className="absolute bottom-full right-0 mb-2 bg-white shadow-xl p-4 z-20 border-2 border-orange-200 min-w-[200px]"
                     style={{ clipPath: 'polygon(8px 0, 100% 0, 100% calc(100% - 8px), calc(100% - 8px) 100%, 0 100%, 0 8px)' }}
                   >
 

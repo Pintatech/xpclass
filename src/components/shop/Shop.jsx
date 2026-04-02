@@ -1,11 +1,12 @@
 import { useState, useEffect } from 'react'
+import { createPortal } from 'react-dom'
 import { useSearchParams } from 'react-router-dom'
 import { supabase } from '../../supabase/client'
 import { useAuth } from '../../hooks/useAuth'
 import { useProgress } from '../../hooks/useProgress'
 import { usePet } from '../../hooks/usePet'
 import { useInventory } from '../../hooks/useInventory'
-import { ShoppingBag, Check, Lock, ChevronLeft, ChevronRight, Eye, EyeOff, Sparkles } from 'lucide-react'
+import { ShoppingBag, Check, Lock, ChevronLeft, ChevronRight, Eye, EyeOff, Sparkles, Package, X } from 'lucide-react'
 
 import { assetUrl } from '../../hooks/useBranding';
 const rarityOrder = ['common', 'uncommon', 'rare', 'epic', 'legendary']
@@ -50,6 +51,121 @@ const CornerBrackets = () => (
   </>
 )
 
+/* ── Item Detail Modal ── */
+const rarityGlowColor = {
+  common: 'rgba(156,163,175,0.3)',
+  uncommon: 'rgba(74,222,128,0.4)',
+  rare: 'rgba(96,165,250,0.5)',
+  epic: 'rgba(192,132,252,0.5)',
+  legendary: 'rgba(250,204,21,0.6)',
+}
+const rarityBorderColor = {
+  common: 'border-gray-300',
+  uncommon: 'border-green-300',
+  rare: 'border-blue-300',
+  epic: 'border-purple-300',
+  legendary: 'border-yellow-300',
+}
+const rarityGradientLine = {
+  common: 'from-gray-300 via-gray-400 to-gray-300',
+  uncommon: 'from-green-300 via-green-400 to-green-300',
+  rare: 'from-blue-300 via-blue-400 to-blue-300',
+  epic: 'from-purple-300 via-purple-400 to-purple-300',
+  legendary: 'from-yellow-300 via-amber-400 to-yellow-300',
+}
+
+const ItemDetailModal = ({ item, onClose }) => {
+  const rarity = item.rarity || item.item_data?.rarity || 'common'
+  const rc = rarityCardColors[rarity] || rarityCardColors.common
+
+  return (
+    <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-[60]" onClick={onClose}>
+      <div
+        className={`relative bg-white border-2 ${rarityBorderColor[rarity]} max-w-sm w-full mx-4 overflow-hidden`}
+        style={{ clipPath: CLIP_CARD, boxShadow: `0 0 30px ${rarityGlowColor[rarity]}` }}
+        onClick={e => e.stopPropagation()}
+      >
+        {/* Top gradient line */}
+        <div className={`h-1 w-full bg-gradient-to-r ${rarityGradientLine[rarity]}`} />
+
+        <CornerBrackets />
+
+        {/* Close button */}
+        <button onClick={onClose} className="absolute top-3 right-3 text-gray-400 hover:text-gray-600 z-10">
+          <X className="w-5 h-5" />
+        </button>
+
+        {/* Item Image */}
+        <div className="flex justify-center pt-6 pb-4 px-6">
+          <div className={`w-40 h-40 bg-gradient-to-br ${rarityEggGradient[rarity]} flex items-center justify-center`}
+            style={{ clipPath: CLIP_CARD }}
+          >
+            {item.image_url ? (
+              item.category === 'background' ? (
+                <div
+                  className="w-full h-full bg-cover bg-center"
+                  style={{ backgroundImage: `url(${item.item_data?.background_url || item.image_url})`, clipPath: CLIP_CARD }}
+                />
+              ) : (
+                <img
+                  src={item.image_url}
+                  alt={item.name}
+                  className="w-3/4 h-3/4 object-contain"
+                  style={item.category === 'hammer' ? { transform: 'rotate(90deg)' } : undefined}
+                />
+              )
+            ) : (
+              <Package className="w-12 h-12 text-gray-300" />
+            )}
+          </div>
+        </div>
+
+        {/* Details */}
+        <div className="px-6 pb-6 text-center">
+          {/* Rarity badge */}
+          <span className={`inline-block px-3 py-0.5 text-[10px] font-semibold tracking-wider mb-2 ${rc.badge}`}
+            style={{ clipPath: CLIP_TAB }}
+          >
+            {rarity.toUpperCase()}
+          </span>
+
+          <h2 className="text-lg font-bold text-gray-800 tracking-wide">{item.name}</h2>
+
+          {item.item_data?.collection && (
+            <p className="text-xs text-blue-500 mt-1">Set: {item.item_data.collection}</p>
+          )}
+
+          {item.description && (
+            <p className="text-sm text-gray-500 mt-2">{item.description}</p>
+          )}
+
+          {/* Price & type info */}
+          <div className="flex justify-center gap-6 mt-4 text-sm text-gray-500">
+            {item.price != null && (
+              <div className="flex flex-col items-center">
+                <span className="text-[10px] uppercase tracking-wider text-gray-400">Price</span>
+                <span className="font-semibold text-gray-700">{item.price}</span>
+              </div>
+            )}
+            {item.category && (
+              <div className="flex flex-col items-center">
+                <span className="text-[10px] uppercase tracking-wider text-gray-400">Type</span>
+                <span className="font-semibold text-gray-700 capitalize">{item.category}</span>
+              </div>
+            )}
+            {item.item_data?.xp_bonus > 0 && (
+              <div className="flex flex-col items-center">
+                <span className="text-[10px] uppercase tracking-wider text-gray-400">Bonus</span>
+                <span className="font-semibold text-yellow-600">+{item.item_data.xp_bonus}% XP</span>
+              </div>
+            )}
+          </div>
+        </div>
+      </div>
+    </div>
+  )
+}
+
 const Shop = () => {
   const [searchParams] = useSearchParams()
   const { user, profile, updateProfile, fetchUserProfile } = useAuth()
@@ -72,6 +188,7 @@ const Shop = () => {
   const [buyingEggId, setBuyingEggId] = useState(null)
   const [confirmEggCurrency, setConfirmEggCurrency] = useState(null) // 'gems' or 'xp' when confirmItem is an egg
   const [message, setMessage] = useState(null)
+  const [selectedItem, setSelectedItem] = useState(null)
 
   useEffect(() => {
     if (user) {
@@ -532,8 +649,9 @@ const Shop = () => {
                   </div>
 
                   {/* Ball Image */}
-                  <div className={`w-full aspect-square bg-gradient-to-br ${rarityEggGradient[ball.rarity]} flex items-center justify-center mb-3`}
+                  <div className={`w-full aspect-square bg-gradient-to-br ${rarityEggGradient[ball.rarity]} flex items-center justify-center mb-3 cursor-pointer`}
                     style={{ clipPath: CLIP_CARD }}
+                    onClick={() => setSelectedItem(ball)}
                   >
                     {ball.image_url ? (
                       <img src={ball.image_url} alt={ball.name} className="w-3/4 h-3/4 object-contain" />
@@ -631,8 +749,9 @@ const Shop = () => {
                   </div>
 
                   {/* Egg Image */}
-                  <div className={`w-full aspect-square bg-gradient-to-br ${rarityEggGradient[egg.rarity]} flex items-center justify-center mb-3`}
+                  <div className={`w-full aspect-square bg-gradient-to-br ${rarityEggGradient[egg.rarity]} flex items-center justify-center mb-3 cursor-pointer`}
                     style={{ clipPath: CLIP_CARD }}
+                    onClick={() => setSelectedItem(egg)}
                   >
                     {egg.image_url ? (
                       <img src={egg.image_url} alt={egg.name} className="w-3/4 h-3/4 object-contain" />
@@ -710,18 +829,17 @@ const Shop = () => {
               const hasVariants = group.variants.length > 1
               const owned = isOwned(item.id)
               const canAfford = canAffordItem(item)
+              const itemRarity = item.rarity || item.item_data?.rarity || 'common'
+              const rc = rarityCardColors[itemRarity] || rarityCardColors.common
               return (
                 <div
                   key={group.groupKey || item.id}
                   className={`relative bg-white border-2 overflow-hidden transition-all duration-200 ${
                     !owned && !canAfford
                       ? 'border-gray-200 grayscale opacity-60'
-                      : `hover:shadow-xl ${
-                          owned
-                            ? 'border-green-200 hover:border-green-300'
-                            : 'border-gray-200 hover:border-blue-300'}`
+                      : `hover:shadow-xl ${rc.border}`
                     }`}
-                  style={{ clipPath: CLIP_CARD }}
+                  style={{ clipPath: CLIP_CARD, boxShadow: owned || canAfford ? `0 0 12px ${rc.glow}` : undefined }}
                 >
                   <CornerBrackets />
 
@@ -749,7 +867,7 @@ const Shop = () => {
                   )}
 
                   {/* Item image */}
-                  <div className="aspect-square bg-gray-50 flex items-center justify-center p-4 relative">
+                  <div className="aspect-square bg-gray-50 flex items-center justify-center p-4 relative cursor-pointer" onClick={() => setSelectedItem(item)}>
                     {!owned && !canAfford && (
                       <div className="absolute inset-0 flex items-center justify-center bg-black/20 z-20">
                         <Lock className="w-6 h-6 text-white drop-shadow" />
@@ -898,6 +1016,12 @@ const Shop = () => {
             })}
           </div>
         )
+      )}
+
+      {/* Item Detail Modal */}
+      {selectedItem && createPortal(
+        <ItemDetailModal item={selectedItem} onClose={() => setSelectedItem(null)} />,
+        document.body
       )}
 
       {/* Confirm Modal */}

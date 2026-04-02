@@ -3043,11 +3043,11 @@ CREATE TABLE IF NOT EXISTS public.missions (
   mission_type text NOT NULL CHECK (mission_type IN ('daily', 'weekly', 'special')),
   goal_type text NOT NULL CHECK (goal_type IN (
     'complete_exercises', 'score_high', 'earn_xp', 'play_games',
-    'win_pvp', 'daily_challenge', 'login_streak', 'complete_session',
+    'win_pvp', 'win_quickmatch', 'daily_challenge', 'login_streak', 'complete_session',
     'open_chests', 'collect_items', 'all_green_lesson',
     'blast_words', 'whack_moles', 'scramble_words',
     'type_words', 'match_pairs', 'pronounce_words',
-    'earn_3_stars', 'catch_fish'
+    'earn_3_stars', 'catch_fish', 'complete_all_missions'
   )),
   goal_value integer NOT NULL DEFAULT 1,
   reward_xp integer DEFAULT 0,
@@ -3148,7 +3148,21 @@ BEGIN
                ch.name AS reward_chest_name, ch.image_url AS reward_chest_image,
                m.reward_chest_id,
                m.sort_order,
-               um.id AS user_mission_id, um.progress, um.status
+               um.id AS user_mission_id,
+               CASE WHEN m.goal_type = 'complete_all_missions' THEN (
+                 SELECT COUNT(*) FROM user_missions um2 JOIN missions m2 ON m2.id = um2.mission_id
+                 WHERE um2.user_id = p_user_id AND um2.status = 'claimed'
+                   AND m2.mission_type = 'daily' AND m2.goal_type != 'complete_all_missions'
+                   AND m2.is_active = true AND um2.period_start = today
+               ) ELSE um.progress END AS progress,
+               CASE WHEN m.goal_type = 'complete_all_missions' THEN
+                 CASE WHEN (
+                   SELECT COUNT(*) FROM user_missions um2 JOIN missions m2 ON m2.id = um2.mission_id
+                   WHERE um2.user_id = p_user_id AND um2.status = 'claimed'
+                     AND m2.mission_type = 'daily' AND m2.goal_type != 'complete_all_missions'
+                     AND m2.is_active = true AND um2.period_start = today
+                 ) >= m.goal_value AND um.status = 'active' THEN 'completed' ELSE um.status END
+               ELSE um.status END AS status
         FROM missions m
         JOIN user_missions um ON um.mission_id = m.id AND um.user_id = p_user_id
         LEFT JOIN collectible_items ci ON ci.id = m.reward_item_id
@@ -3165,7 +3179,21 @@ BEGIN
                ch.name AS reward_chest_name, ch.image_url AS reward_chest_image,
                m.reward_chest_id,
                m.sort_order,
-               um.id AS user_mission_id, um.progress, um.status
+               um.id AS user_mission_id,
+               CASE WHEN m.goal_type = 'complete_all_missions' THEN (
+                 SELECT COUNT(*) FROM user_missions um2 JOIN missions m2 ON m2.id = um2.mission_id
+                 WHERE um2.user_id = p_user_id AND um2.status = 'claimed'
+                   AND m2.mission_type = 'weekly' AND m2.goal_type != 'complete_all_missions'
+                   AND m2.is_active = true AND um2.period_start = week_start
+               ) ELSE um.progress END AS progress,
+               CASE WHEN m.goal_type = 'complete_all_missions' THEN
+                 CASE WHEN (
+                   SELECT COUNT(*) FROM user_missions um2 JOIN missions m2 ON m2.id = um2.mission_id
+                   WHERE um2.user_id = p_user_id AND um2.status = 'claimed'
+                     AND m2.mission_type = 'weekly' AND m2.goal_type != 'complete_all_missions'
+                     AND m2.is_active = true AND um2.period_start = week_start
+                 ) >= m.goal_value AND um.status = 'active' THEN 'completed' ELSE um.status END
+               ELSE um.status END AS status
         FROM missions m
         JOIN user_missions um ON um.mission_id = m.id AND um.user_id = p_user_id
         LEFT JOIN collectible_items ci ON ci.id = m.reward_item_id
@@ -3183,7 +3211,21 @@ BEGIN
                m.reward_chest_id,
                m.sort_order,
                m.start_date, m.end_date,
-               um.id AS user_mission_id, um.progress, um.status
+               um.id AS user_mission_id,
+               CASE WHEN m.goal_type = 'complete_all_missions' THEN (
+                 SELECT COUNT(*) FROM user_missions um2 JOIN missions m2 ON m2.id = um2.mission_id
+                 WHERE um2.user_id = p_user_id AND um2.status = 'claimed'
+                   AND m2.mission_type = 'special' AND m2.goal_type != 'complete_all_missions'
+                   AND m2.is_active = true AND um2.period_start = COALESCE(m2.start_date, today)
+               ) ELSE um.progress END AS progress,
+               CASE WHEN m.goal_type = 'complete_all_missions' THEN
+                 CASE WHEN (
+                   SELECT COUNT(*) FROM user_missions um2 JOIN missions m2 ON m2.id = um2.mission_id
+                   WHERE um2.user_id = p_user_id AND um2.status = 'claimed'
+                     AND m2.mission_type = 'special' AND m2.goal_type != 'complete_all_missions'
+                     AND m2.is_active = true AND um2.period_start = COALESCE(m2.start_date, today)
+                 ) >= m.goal_value AND um.status = 'active' THEN 'completed' ELSE um.status END
+               ELSE um.status END AS status
         FROM missions m
         JOIN user_missions um ON um.mission_id = m.id AND um.user_id = p_user_id
         LEFT JOIN collectible_items ci ON ci.id = m.reward_item_id
@@ -3305,24 +3347,6 @@ BEGIN
     VALUES (p_user_id, v_reward_chest_id, 'mission', v_mission_id::text);
   END IF;
 
-  -- Increment complete_all_missions progress for same tab
-  IF v_goal_type != 'complete_all_missions' THEN
-    UPDATE user_missions um
-    SET progress = LEAST(um.progress + 1, m.goal_value),
-        status = CASE
-          WHEN LEAST(um.progress + 1, m.goal_value) >= m.goal_value AND um.status = 'active'
-          THEN 'completed' ELSE um.status END,
-        updated_at = NOW()
-    FROM missions m
-    WHERE um.mission_id = m.id AND um.user_id = p_user_id AND um.status = 'active'
-      AND m.goal_type = 'complete_all_missions' AND m.mission_type = v_mission_type AND m.is_active = true
-      AND (
-        (m.mission_type = 'daily' AND um.period_start = today)
-        OR (m.mission_type = 'weekly' AND um.period_start = week_start)
-        OR (m.mission_type = 'special' AND um.period_start = COALESCE(m.start_date, today))
-      );
-  END IF;
-
   INSERT INTO notifications (user_id, type, title, message, icon, data)
   VALUES (p_user_id, 'mission_reward', 'Mission Complete!',
     'You completed "' || v_mission_title || '"! ' ||
@@ -3379,23 +3403,6 @@ BEGIN
       chests_granted := chests_granted + 1;
     END IF;
 
-    -- Increment complete_all_missions progress for same tab
-    IF rec.goal_type != 'complete_all_missions' THEN
-      UPDATE user_missions um2
-      SET progress = LEAST(um2.progress + 1, m2.goal_value),
-          status = CASE
-            WHEN LEAST(um2.progress + 1, m2.goal_value) >= m2.goal_value AND um2.status = 'active'
-            THEN 'completed' ELSE um2.status END,
-          updated_at = NOW()
-      FROM missions m2
-      WHERE um2.mission_id = m2.id AND um2.user_id = p_user_id AND um2.status = 'active'
-        AND m2.goal_type = 'complete_all_missions' AND m2.mission_type = rec.mission_type AND m2.is_active = true
-        AND (
-          (m2.mission_type = 'daily' AND um2.period_start = today)
-          OR (m2.mission_type = 'weekly' AND um2.period_start = week_start)
-          OR (m2.mission_type = 'special' AND um2.period_start = COALESCE(m2.start_date, today))
-        );
-    END IF;
   END LOOP;
 
   IF claimed_count > 0 THEN
@@ -3460,5 +3467,27 @@ CREATE TABLE public.live_battle_participants (
   xp_awarded integer DEFAULT 0,
   CONSTRAINT live_battle_participants_pkey PRIMARY KEY (id),
   CONSTRAINT live_battle_participants_unique UNIQUE (session_id, user_id)
+);
+
+-- Guest access tables
+CREATE TABLE public.guest_visitors (
+  id uuid NOT NULL DEFAULT uuid_generate_v4(),
+  name text NOT NULL,
+  created_at timestamp with time zone DEFAULT now(),
+  CONSTRAINT guest_visitors_pkey PRIMARY KEY (id)
+);
+
+CREATE TABLE public.guest_attempts (
+  id uuid NOT NULL DEFAULT uuid_generate_v4(),
+  guest_id uuid NOT NULL REFERENCES public.guest_visitors(id),
+  session_id uuid NOT NULL REFERENCES public.sessions(id),
+  score integer DEFAULT 0,
+  total_correct integer DEFAULT 0,
+  total_questions integer DEFAULT 0,
+  time_used_seconds integer DEFAULT 0,
+  timed_out boolean DEFAULT false,
+  answers jsonb,
+  created_at timestamp with time zone DEFAULT now(),
+  CONSTRAINT guest_attempts_pkey PRIMARY KEY (id)
 );
 

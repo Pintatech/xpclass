@@ -46,6 +46,9 @@ const UserManagement = () => {
   const [userInventory, setUserInventory] = useState([])
   const [userPurchases, setUserPurchases] = useState([])
   const [userChests, setUserChests] = useState([])
+  const [pets, setPets] = useState([])
+  const [selectedPet, setSelectedPet] = useState('')
+  const [userPets, setUserPets] = useState([])
   const [giftTab, setGiftTab] = useState('gift') // 'gift' | 'inventory'
 
   useEffect(() => {
@@ -218,14 +221,16 @@ const UserManagement = () => {
 
   const openGiftModal = async (user) => {
     setGiftUser(user)
-    const [{ data: shop }, { data: collectibles }, { data: chestData }] = await Promise.all([
+    const [{ data: shop }, { data: collectibles }, { data: chestData }, { data: petData }] = await Promise.all([
       supabase.from('shop_items').select('id, name, category').eq('is_active', true).order('category').order('name'),
       supabase.from('collectible_items').select('id, name, item_type, rarity').eq('is_active', true).order('item_type').order('name'),
       supabase.from('chests').select('id, name, chest_type').eq('is_active', true).order('chest_type').order('name'),
+      supabase.from('pets').select('id, name, rarity, image_url').eq('is_active', true).order('rarity').order('name'),
     ])
     setShopItems(shop || [])
     setCollectibleItems(collectibles || [])
     setChests(chestData || [])
+    setPets(petData || [])
     // Also fetch user's current items
     fetchUserItems(user.id)
   }
@@ -238,28 +243,32 @@ const UserManagement = () => {
     setSelectedCollectibleItem('')
     setCollectibleQty(1)
     setSelectedChest('')
+    setSelectedPet('')
     setGiftMessage('')
     setGiftTab('gift')
     setUserInventory([])
     setUserPurchases([])
     setUserChests([])
+    setUserPets([])
   }
 
   const fetchUserItems = async (userId) => {
-    const [{ data: inv }, { data: purch }, { data: uchests }] = await Promise.all([
+    const [{ data: inv }, { data: purch }, { data: uchests }, { data: upets }] = await Promise.all([
       supabase.from('user_inventory').select('quantity, collectible_items(name, rarity, image_url)').eq('user_id', userId).gt('quantity', 0),
       supabase.from('user_purchases').select('shop_items(name, category, image_url)').eq('user_id', userId),
       supabase.from('user_chests').select('chests(name, chest_type, image_url), earned_at, opened_at').eq('user_id', userId).is('opened_at', null),
+      supabase.from('user_pets').select('pet_id, is_active, pets(name, rarity, image_url)').eq('user_id', userId),
     ])
     setUserInventory(inv || [])
     setUserPurchases(purch || [])
     setUserChests(uchests || [])
+    setUserPets(upets || [])
   }
 
   const handleGift = async () => {
     const xp = parseInt(giftXP) || 0
     const gems = parseInt(giftGems) || 0
-    if (xp === 0 && gems === 0 && !selectedShopItem && !selectedCollectibleItem && !selectedChest) {
+    if (xp === 0 && gems === 0 && !selectedShopItem && !selectedCollectibleItem && !selectedChest && !selectedPet) {
       showNotification('Nhập số XP, Gems hoặc chọn item/chest', 'error')
       return
     }
@@ -324,6 +333,19 @@ const UserManagement = () => {
         if (error) throw error
         const chest = chests.find(c => c.id === selectedChest)
         parts.push(`Chest: ${chest?.name}`)
+      }
+
+      // Grant pet
+      if (selectedPet) {
+        const { count } = await supabase.from('user_pets').select('id', { count: 'exact', head: true }).eq('user_id', giftUser.id)
+        const { error } = await supabase.from('user_pets').insert({
+          user_id: giftUser.id,
+          pet_id: selectedPet,
+          is_active: count === 0,
+        })
+        if (error) throw error
+        const pet = pets.find(p => p.id === selectedPet)
+        parts.push(`Pet: ${pet?.name}`)
       }
 
       // Send notification to user
@@ -707,7 +729,7 @@ const UserManagement = () => {
                   giftTab === 'inventory' ? 'text-blue-600 border-b-2 border-blue-600' : 'text-gray-400 hover:text-gray-600'
                 }`}
               >
-                Xem đồ ({userPurchases.length + userInventory.length + userChests.length})
+                Xem đồ ({userPurchases.length + userInventory.length + userChests.length + userPets.length})
               </button>
             </div>
 
@@ -768,7 +790,27 @@ const UserManagement = () => {
                     </div>
                   </div>
                 )}
-                {userPurchases.length === 0 && userInventory.length === 0 && userChests.length === 0 && (
+                {userPets.length > 0 && (
+                  <div>
+                    <div className="text-xs font-medium text-gray-500 mb-2">Pets</div>
+                    <div className="grid grid-cols-3 gap-2">
+                      {userPets.map((up, i) => (
+                        <div key={i} className="flex flex-col items-center gap-1 bg-gray-50 border rounded-lg p-2 relative">
+                          {up.pets?.image_url ? (
+                            <img src={up.pets.image_url} alt="" className="w-10 h-10 object-contain" />
+                          ) : (
+                            <div className="w-10 h-10 bg-gray-200 rounded flex items-center justify-center text-gray-400 text-xs">?</div>
+                          )}
+                          <span className="text-xs text-center text-gray-700 leading-tight">{up.pets?.name}</span>
+                          {up.is_active && (
+                            <span className="absolute top-1 right-1 bg-green-500 text-white text-[10px] rounded-full px-1.5">active</span>
+                          )}
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+                {userPurchases.length === 0 && userInventory.length === 0 && userChests.length === 0 && userPets.length === 0 && (
                   <div className="text-center text-gray-400 py-8">Không có gì</div>
                 )}
               </div>
@@ -844,6 +886,19 @@ const UserManagement = () => {
                   <option value="">-- Không chọn --</option>
                   {chests.map(chest => (
                     <option key={chest.id} value={chest.id}>[{chest.chest_type}] {chest.name}</option>
+                  ))}
+                </select>
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Pet</label>
+                <select
+                  value={selectedPet}
+                  onChange={(e) => setSelectedPet(e.target.value)}
+                  className="input w-full"
+                >
+                  <option value="">-- Không chọn --</option>
+                  {pets.map(pet => (
+                    <option key={pet.id} value={pet.id}>[{pet.rarity}] {pet.name}</option>
                   ))}
                 </select>
               </div>
