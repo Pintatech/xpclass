@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react'
 import { supabase } from '../../supabase/client'
-import { Search, Clock, CheckCircle, Circle, Loader2, Swords, Trophy, BookOpen } from 'lucide-react'
+import { Search, Clock, CheckCircle, Circle, Loader2, Swords, Trophy, BookOpen, ShoppingBag, Package, TreePine } from 'lucide-react'
 
 const PAGE_SIZE = 50
 
@@ -25,9 +25,12 @@ const GAME_TYPE_LABELS = {
 }
 
 const RecentActivities = () => {
-  const [tab, setTab] = useState('exercises') // 'exercises' | 'pvp'
+  const [tab, setTab] = useState('exercises') // 'exercises' | 'pvp' | 'purchases' | 'inventory' | 'wildarea'
   const [activities, setActivities] = useState([])
   const [pvpMatches, setPvpMatches] = useState([])
+  const [purchases, setPurchases] = useState([])
+  const [inventory, setInventory] = useState([])
+  const [wildEncounters, setWildEncounters] = useState([])
   const [loading, setLoading] = useState(true)
   const [loadingMore, setLoadingMore] = useState(false)
   const [searchQuery, setSearchQuery] = useState('')
@@ -37,8 +40,14 @@ const RecentActivities = () => {
     setSearchQuery('')
     if (tab === 'exercises') {
       fetchActivities(true)
-    } else {
+    } else if (tab === 'pvp') {
       fetchPvpMatches(true)
+    } else if (tab === 'purchases') {
+      fetchPurchases(true)
+    } else if (tab === 'inventory') {
+      fetchInventory(true)
+    } else {
+      fetchWildEncounters(true)
     }
   }, [tab])
 
@@ -137,12 +146,202 @@ const RecentActivities = () => {
     }
   }
 
+  const fetchPurchases = async (reset = false) => {
+    try {
+      if (reset) {
+        setLoading(true)
+      } else {
+        setLoadingMore(true)
+      }
+
+      const offset = reset ? 0 : purchases.length
+
+      let query = supabase
+        .from('user_purchases')
+        .select(`
+          id, user_id, item_id, purchased_at,
+          shop_items(name, category, image_url)
+        `)
+        .order('purchased_at', { ascending: false })
+        .range(offset, offset + PAGE_SIZE - 1)
+
+      const { data, error } = await query
+
+      if (error) throw error
+
+      let newData = data || []
+
+      // Fetch user names for the purchases
+      const userIds = [...new Set(newData.map(p => p.user_id).filter(Boolean))]
+      let userMap = {}
+      if (userIds.length > 0) {
+        const { data: users } = await supabase
+          .from('users')
+          .select('id, full_name')
+          .in('id', userIds)
+        if (users) {
+          userMap = Object.fromEntries(users.map(u => [u.id, u.full_name]))
+        }
+      }
+
+      newData = newData.map(p => ({ ...p, full_name: userMap[p.user_id] || 'Unknown' }))
+
+      if (searchQuery.trim()) {
+        const q = searchQuery.trim().toLowerCase()
+        newData = newData.filter(p =>
+          p.full_name.toLowerCase().includes(q)
+        )
+      }
+
+      setHasMore(newData.length === PAGE_SIZE)
+
+      if (reset) {
+        setPurchases(newData)
+      } else {
+        setPurchases(prev => [...prev, ...newData])
+      }
+    } catch (error) {
+      console.error('Error fetching purchases:', error)
+    } finally {
+      setLoading(false)
+      setLoadingMore(false)
+    }
+  }
+
+  const fetchInventory = async (reset = false) => {
+    try {
+      if (reset) {
+        setLoading(true)
+      } else {
+        setLoadingMore(true)
+      }
+
+      const offset = reset ? 0 : inventory.length
+
+      let query = supabase
+        .from('user_inventory')
+        .select(`
+          id, user_id, item_id, quantity, updated_at,
+          collectible_items(name, rarity, image_url, item_type, price_gems, price_xp)
+        `)
+        .gt('quantity', 0)
+        .order('updated_at', { ascending: false })
+        .range(offset, offset + PAGE_SIZE - 1)
+
+      const { data, error } = await query
+
+      if (error) throw error
+
+      let newData = data || []
+
+      // Fetch user names
+      const userIds = [...new Set(newData.map(p => p.user_id).filter(Boolean))]
+      let userMap = {}
+      if (userIds.length > 0) {
+        const { data: users } = await supabase
+          .from('users')
+          .select('id, full_name')
+          .in('id', userIds)
+        if (users) {
+          userMap = Object.fromEntries(users.map(u => [u.id, u.full_name]))
+        }
+      }
+
+      newData = newData.map(p => ({ ...p, full_name: userMap[p.user_id] || 'Unknown' }))
+
+      if (searchQuery.trim()) {
+        const q = searchQuery.trim().toLowerCase()
+        newData = newData.filter(p =>
+          p.full_name.toLowerCase().includes(q)
+        )
+      }
+
+      setHasMore(newData.length === PAGE_SIZE)
+
+      if (reset) {
+        setInventory(newData)
+      } else {
+        setInventory(prev => [...prev, ...newData])
+      }
+    } catch (error) {
+      console.error('Error fetching inventory:', error)
+    } finally {
+      setLoading(false)
+      setLoadingMore(false)
+    }
+  }
+
+  const fetchWildEncounters = async (reset = false) => {
+    try {
+      if (reset) {
+        setLoading(true)
+      } else {
+        setLoadingMore(true)
+      }
+
+      const offset = reset ? 0 : wildEncounters.length
+
+      let query = supabase
+        .from('wild_area_logs')
+        .select('id, user_id, pet_name, pet_rarity, ball_name, action, is_duplicate, refund_xp, catch_rate, created_at')
+        .order('created_at', { ascending: false })
+        .range(offset, offset + PAGE_SIZE - 1)
+
+      const { data, error } = await query
+
+      if (error) throw error
+
+      let newData = data || []
+
+      // Fetch user names
+      const userIds = [...new Set(newData.map(p => p.user_id).filter(Boolean))]
+      let userMap = {}
+      if (userIds.length > 0) {
+        const { data: users } = await supabase
+          .from('users')
+          .select('id, full_name')
+          .in('id', userIds)
+        if (users) {
+          userMap = Object.fromEntries(users.map(u => [u.id, u.full_name]))
+        }
+      }
+
+      newData = newData.map(p => ({ ...p, full_name: userMap[p.user_id] || 'Unknown' }))
+
+      if (searchQuery.trim()) {
+        const q = searchQuery.trim().toLowerCase()
+        newData = newData.filter(p =>
+          p.full_name.toLowerCase().includes(q)
+        )
+      }
+
+      setHasMore(newData.length === PAGE_SIZE)
+
+      if (reset) {
+        setWildEncounters(newData)
+      } else {
+        setWildEncounters(prev => [...prev, ...newData])
+      }
+    } catch (error) {
+      console.error('Error fetching wild encounters:', error)
+    } finally {
+      setLoading(false)
+      setLoadingMore(false)
+    }
+  }
+
   const handleSearch = (e) => {
     e.preventDefault()
     if (tab === 'exercises') {
       fetchActivities(true)
-    } else {
+    } else if (tab === 'pvp') {
       fetchPvpMatches(true)
+    } else if (tab === 'purchases') {
+      fetchPurchases(true)
+    } else if (tab === 'inventory') {
+      fetchInventory(true)
+    } else {
+      fetchWildEncounters(true)
     }
   }
 
@@ -184,7 +383,7 @@ const RecentActivities = () => {
     return '-'
   }
 
-  const currentData = tab === 'exercises' ? activities : pvpMatches
+  const currentData = tab === 'exercises' ? activities : tab === 'pvp' ? pvpMatches : tab === 'purchases' ? purchases : tab === 'inventory' ? inventory : wildEncounters
 
   if (loading) {
     return (
@@ -202,6 +401,24 @@ const RecentActivities = () => {
             className={`flex items-center gap-2 px-4 py-2 text-sm font-medium rounded-lg transition-colors ${tab === 'pvp' ? 'bg-blue-600 text-white' : 'bg-gray-100 text-gray-700 hover:bg-gray-200'}`}
           >
             <Swords className="w-4 h-4" /> PvP Matches
+          </button>
+          <button
+            onClick={() => setTab('purchases')}
+            className={`flex items-center gap-2 px-4 py-2 text-sm font-medium rounded-lg transition-colors ${tab === 'purchases' ? 'bg-blue-600 text-white' : 'bg-gray-100 text-gray-700 hover:bg-gray-200'}`}
+          >
+            <ShoppingBag className="w-4 h-4" /> Purchases
+          </button>
+          <button
+            onClick={() => setTab('inventory')}
+            className={`flex items-center gap-2 px-4 py-2 text-sm font-medium rounded-lg transition-colors ${tab === 'inventory' ? 'bg-blue-600 text-white' : 'bg-gray-100 text-gray-700 hover:bg-gray-200'}`}
+          >
+            <Package className="w-4 h-4" /> Inventory
+          </button>
+          <button
+            onClick={() => setTab('wildarea')}
+            className={`flex items-center gap-2 px-4 py-2 text-sm font-medium rounded-lg transition-colors ${tab === 'wildarea' ? 'bg-blue-600 text-white' : 'bg-gray-100 text-gray-700 hover:bg-gray-200'}`}
+          >
+            <TreePine className="w-4 h-4" /> Wild Area
           </button>
         </div>
         <div className="flex items-center justify-center py-12">
@@ -227,6 +444,24 @@ const RecentActivities = () => {
           className={`flex items-center gap-2 px-4 py-2 text-sm font-medium rounded-lg transition-colors ${tab === 'pvp' ? 'bg-blue-600 text-white' : 'bg-gray-100 text-gray-700 hover:bg-gray-200'}`}
         >
           <Swords className="w-4 h-4" /> PvP Matches
+        </button>
+        <button
+          onClick={() => setTab('purchases')}
+          className={`flex items-center gap-2 px-4 py-2 text-sm font-medium rounded-lg transition-colors ${tab === 'purchases' ? 'bg-blue-600 text-white' : 'bg-gray-100 text-gray-700 hover:bg-gray-200'}`}
+        >
+          <ShoppingBag className="w-4 h-4" /> Purchases
+        </button>
+        <button
+          onClick={() => setTab('inventory')}
+          className={`flex items-center gap-2 px-4 py-2 text-sm font-medium rounded-lg transition-colors ${tab === 'inventory' ? 'bg-blue-600 text-white' : 'bg-gray-100 text-gray-700 hover:bg-gray-200'}`}
+        >
+          <Package className="w-4 h-4" /> Inventory
+        </button>
+        <button
+          onClick={() => setTab('wildarea')}
+          className={`flex items-center gap-2 px-4 py-2 text-sm font-medium rounded-lg transition-colors ${tab === 'wildarea' ? 'bg-blue-600 text-white' : 'bg-gray-100 text-gray-700 hover:bg-gray-200'}`}
+        >
+          <TreePine className="w-4 h-4" /> Wild Area
         </button>
       </div>
 
@@ -360,11 +595,199 @@ const RecentActivities = () => {
         </div>
       )}
 
+      {/* Purchases Table */}
+      {tab === 'purchases' && (
+        <div className="bg-white rounded-xl shadow-sm border overflow-hidden">
+          <div className="overflow-x-auto">
+            <table className="w-full text-sm">
+              <thead>
+                <tr className="bg-gray-50 border-b">
+                  <th className="text-left px-4 py-3 font-semibold text-gray-700">Student</th>
+                  <th className="text-left px-4 py-3 font-semibold text-gray-700">Item</th>
+                  <th className="text-center px-4 py-3 font-semibold text-gray-700">Category</th>
+                  <th className="text-right px-4 py-3 font-semibold text-gray-700">Date</th>
+                </tr>
+              </thead>
+              <tbody>
+                {purchases.length === 0 ? (
+                  <tr>
+                    <td colSpan={4} className="text-center py-12 text-gray-500">
+                      No purchases found.
+                    </td>
+                  </tr>
+                ) : (
+                  purchases.map((purchase, index) => (
+                    <tr key={purchase.id || `${purchase.user_id}-${purchase.item_id}-${index}`} className="border-b last:border-b-0 hover:bg-gray-50">
+                      <td className="px-4 py-3 font-medium text-gray-900">{purchase.full_name || 'Unknown'}</td>
+                      <td className="px-4 py-3 text-gray-700">
+                        <div className="flex items-center gap-2">
+                          {purchase.shop_items?.image_url && (
+                            <img src={purchase.shop_items.image_url} alt="" className="w-6 h-6 rounded object-cover" />
+                          )}
+                          {purchase.shop_items?.name || 'Unknown Item'}
+                        </div>
+                      </td>
+                      <td className="px-4 py-3 text-center">
+                        <span className="px-2 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-800 capitalize">
+                          {purchase.shop_items?.category || '-'}
+                        </span>
+                      </td>
+                      <td className="px-4 py-3 text-right text-gray-500 text-xs">{formatDate(purchase.purchased_at)}</td>
+                    </tr>
+                  ))
+                )}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      )}
+
+      {/* Inventory Table */}
+      {tab === 'inventory' && (
+        <div className="bg-white rounded-xl shadow-sm border overflow-hidden">
+          <div className="overflow-x-auto">
+            <table className="w-full text-sm">
+              <thead>
+                <tr className="bg-gray-50 border-b">
+                  <th className="text-left px-4 py-3 font-semibold text-gray-700">Student</th>
+                  <th className="text-left px-4 py-3 font-semibold text-gray-700">Item</th>
+                  <th className="text-center px-4 py-3 font-semibold text-gray-700">Type</th>
+                  <th className="text-center px-4 py-3 font-semibold text-gray-700">Rarity</th>
+                  <th className="text-center px-4 py-3 font-semibold text-gray-700">Qty</th>
+                  <th className="text-center px-4 py-3 font-semibold text-gray-700">For Sale</th>
+                  <th className="text-right px-4 py-3 font-semibold text-gray-700">Updated</th>
+                </tr>
+              </thead>
+              <tbody>
+                {inventory.length === 0 ? (
+                  <tr>
+                    <td colSpan={7} className="text-center py-12 text-gray-500">
+                      No inventory found.
+                    </td>
+                  </tr>
+                ) : (
+                  inventory.map((entry, index) => {
+                    const item = entry.collectible_items
+                    const forSale = (item?.price_gems > 0) || (item?.price_xp > 0)
+                    return (
+                      <tr key={entry.id || `${entry.user_id}-${entry.item_id}-${index}`} className="border-b last:border-b-0 hover:bg-gray-50">
+                        <td className="px-4 py-3 font-medium text-gray-900">{entry.full_name}</td>
+                        <td className="px-4 py-3 text-gray-700">
+                          <div className="flex items-center gap-2">
+                            {item?.image_url && (
+                              <img src={item.image_url} alt="" className="w-6 h-6 rounded object-cover" />
+                            )}
+                            {item?.name || 'Unknown Item'}
+                          </div>
+                        </td>
+                        <td className="px-4 py-3 text-center">
+                          <span className="px-2 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-800 capitalize">
+                            {item?.item_type?.replace('_', ' ') || '-'}
+                          </span>
+                        </td>
+                        <td className="px-4 py-3 text-center">
+                          <span className={`px-2 py-0.5 rounded-full text-xs font-medium capitalize ${
+                            item?.rarity === 'legendary' ? 'bg-yellow-100 text-yellow-700' :
+                            item?.rarity === 'epic' ? 'bg-purple-100 text-purple-700' :
+                            item?.rarity === 'rare' ? 'bg-blue-100 text-blue-700' :
+                            item?.rarity === 'uncommon' ? 'bg-green-100 text-green-700' :
+                            'bg-gray-100 text-gray-700'
+                          }`}>
+                            {item?.rarity || '-'}
+                          </span>
+                        </td>
+                        <td className="px-4 py-3 text-center font-semibold text-gray-900">{entry.quantity}</td>
+                        <td className="px-4 py-3 text-center">
+                          {forSale ? (
+                            <span className="inline-flex items-center gap-1 text-xs font-medium">
+                              {item.price_gems > 0 && <span className="text-blue-600">{item.price_gems} 💎</span>}
+                              {item.price_gems > 0 && item.price_xp > 0 && <span className="text-gray-400">/</span>}
+                              {item.price_xp > 0 && <span className="text-green-600">{item.price_xp} XP</span>}
+                            </span>
+                          ) : (
+                            <span className="text-gray-400 text-xs">-</span>
+                          )}
+                        </td>
+                        <td className="px-4 py-3 text-right text-gray-500 text-xs">{formatDate(entry.updated_at)}</td>
+                      </tr>
+                    )
+                  })
+                )}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      )}
+
+      {/* Wild Area Table */}
+      {tab === 'wildarea' && (
+        <div className="bg-white rounded-xl shadow-sm border overflow-hidden">
+          <div className="overflow-x-auto">
+            <table className="w-full text-sm">
+              <thead>
+                <tr className="bg-gray-50 border-b">
+                  <th className="text-left px-4 py-3 font-semibold text-gray-700">Student</th>
+                  <th className="text-left px-4 py-3 font-semibold text-gray-700">Pet</th>
+                  <th className="text-center px-4 py-3 font-semibold text-gray-700">Rarity</th>
+                  <th className="text-center px-4 py-3 font-semibold text-gray-700">Action</th>
+                  <th className="text-center px-4 py-3 font-semibold text-gray-700">Ball</th>
+                  <th className="text-center px-4 py-3 font-semibold text-gray-700">Rate</th>
+                  <th className="text-center px-4 py-3 font-semibold text-gray-700">Note</th>
+                  <th className="text-right px-4 py-3 font-semibold text-gray-700">Date</th>
+                </tr>
+              </thead>
+              <tbody>
+                {wildEncounters.length === 0 ? (
+                  <tr>
+                    <td colSpan={8} className="text-center py-12 text-gray-500">
+                      No wild area encounters found.
+                    </td>
+                  </tr>
+                ) : (
+                  wildEncounters.map((entry) => (
+                    <tr key={entry.id} className="border-b last:border-b-0 hover:bg-gray-50">
+                      <td className="px-4 py-3 font-medium text-gray-900">{entry.full_name}</td>
+                      <td className="px-4 py-3 text-gray-700">{entry.pet_name || '-'}</td>
+                      <td className="px-4 py-3 text-center">
+                        <span className={`px-2 py-0.5 rounded-full text-xs font-medium capitalize ${
+                          entry.pet_rarity === 'legendary' ? 'bg-yellow-100 text-yellow-700' :
+                          entry.pet_rarity === 'epic' ? 'bg-purple-100 text-purple-700' :
+                          entry.pet_rarity === 'rare' ? 'bg-blue-100 text-blue-700' :
+                          entry.pet_rarity === 'uncommon' ? 'bg-green-100 text-green-700' :
+                          'bg-gray-100 text-gray-700'
+                        }`}>
+                          {entry.pet_rarity || '-'}
+                        </span>
+                      </td>
+                      <td className="px-4 py-3 text-center">
+                        <span className={`px-2 py-0.5 rounded-full text-xs font-medium ${
+                          entry.action === 'catch_success' ? 'bg-green-100 text-green-800' :
+                          entry.action === 'catch_fail' ? 'bg-red-100 text-red-800' :
+                          'bg-blue-100 text-blue-800'
+                        }`}>
+                          {entry.action === 'catch_success' ? 'Caught' : entry.action === 'catch_fail' ? 'Escaped' : 'Encounter'}
+                        </span>
+                      </td>
+                      <td className="px-4 py-3 text-center text-gray-700">{entry.ball_name || '-'}</td>
+                      <td className="px-4 py-3 text-center text-gray-700">{entry.catch_rate != null ? `${entry.catch_rate}%` : '-'}</td>
+                      <td className="px-4 py-3 text-center text-xs text-gray-500">
+                        {entry.is_duplicate && <span className="text-orange-600 font-medium">Dupe (+{entry.refund_xp} XP)</span>}
+                      </td>
+                      <td className="px-4 py-3 text-right text-gray-500 text-xs">{formatDate(entry.created_at)}</td>
+                    </tr>
+                  ))
+                )}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      )}
+
       {/* Load More */}
       {hasMore && currentData.length > 0 && (
         <div className="flex justify-center">
           <button
-            onClick={() => tab === 'exercises' ? fetchActivities(false) : fetchPvpMatches(false)}
+            onClick={() => tab === 'exercises' ? fetchActivities(false) : tab === 'pvp' ? fetchPvpMatches(false) : tab === 'purchases' ? fetchPurchases(false) : tab === 'inventory' ? fetchInventory(false) : fetchWildEncounters(false)}
             disabled={loadingMore}
             className="px-6 py-2 bg-white border border-gray-300 text-sm font-medium text-gray-700 rounded-lg hover:bg-gray-50 disabled:opacity-50 transition-colors flex items-center gap-2"
           >
