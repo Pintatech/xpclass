@@ -44,15 +44,15 @@ const getThemeBackground = (colorTheme) => {
   return themeBackgrounds[colorTheme] || themeBackgrounds.blue;
 };
 
-// Theme-based ribbon images for unit titles
-const getRibbonImage = (colorTheme) => {
+// Theme-based ribbon colors for unit titles
+const getRibbonColors = (colorTheme) => {
   const themeRibbons = {
-    blue: assetUrl('/image/unit_list/ice_label1.png'),
-    green: assetUrl('/image/unit_list/forest_label.png'),
-    purple: assetUrl('/image/unit_list/pirate_label.png'),
-    orange: assetUrl('/image/unit_list/ninja_label1.png'),
-    red: assetUrl('/image/unit_list/dino_label.webp'),
-    yellow: assetUrl('/image/unit_list/desert_label.png'),
+    blue: { bg: 'linear-gradient(135deg, #3b82f6, #1d4ed8)', shadow: '#1e3a8a', fold: '#1e40af' },
+    green: { bg: 'linear-gradient(135deg, #22c55e, #15803d)', shadow: '#14532d', fold: '#166534' },
+    purple: { bg: 'linear-gradient(135deg, #8b5cf6, #6d28d9)', shadow: '#4c1d95', fold: '#5b21b6' },
+    orange: { bg: 'linear-gradient(135deg, #f97316, #c2410c)', shadow: '#7c2d12', fold: '#9a3412' },
+    red: { bg: 'linear-gradient(135deg, #ef4444, #b91c1c)', shadow: '#7f1d1d', fold: '#991b1b' },
+    yellow: { bg: 'linear-gradient(135deg, #eab308, #ca8a04)', shadow: '#713f12', fold: '#a16207' },
   };
   return themeRibbons[colorTheme] || themeRibbons.blue;
 };
@@ -60,12 +60,12 @@ const getRibbonImage = (colorTheme) => {
 // Theme-based border colors for unit cards
 const getBorderColor = (colorTheme) => {
   const themeBorders = {
-    blue: "border-[#a2d4f9]",
-    green: "border-[#77cd0b]",
-    purple: "border-blue-400",
-    orange: "border-gray-700",
-    red: "border-yellow-800",
-    yellow: "border-yellow-400",
+    blue: "border-blue-500",
+    green: "border-green-500",
+    purple: "border-purple-500",
+    orange: "border-orange-500",
+    red: "border-red-500",
+    yellow: "border-yellow-500",
   };
   return themeBorders[colorTheme] || themeBorders.blue;
 };
@@ -586,20 +586,20 @@ const UnitList = () => {
 
     // Theme-based colors for completed status
     const themeBackColors = {
-      blue: "bg-cyan-700",
+      blue: "bg-blue-700",
       green: "bg-green-700",
-      purple: "bg-blue-700",
-      orange: "bg-gray-900",
-      red: "bg-yellow-700",
+      purple: "bg-purple-700",
+      orange: "bg-orange-700",
+      red: "bg-red-700",
       yellow: "bg-yellow-700",
     };
 
     const themeFrontColors = {
-      blue: "bg-[#4bece5]",
+      blue: "bg-blue-500",
       green: "bg-green-500",
-      purple: "bg-blue-500",
-      orange: "bg-gray-700",
-      red: "bg-brown-500",
+      purple: "bg-purple-500",
+      orange: "bg-orange-500",
+      red: "bg-red-500",
       yellow: "bg-yellow-500",
     };
 
@@ -904,13 +904,35 @@ const UnitList = () => {
                     }}
                   >
                     <div className="absolute inset-0 bg-white/30" />
-                    <div className="absolute -top-8 left-1/2 -translate-x-1/2 z-20">
-                      <div className="relative">
-                        <img src={getRibbonImage(unit.color_theme)} className="w-48 h-12" alt="" />
-                        <span className="absolute inset-0 flex items-center justify-center text-white font-bold text-lg drop-shadow-md">
-                          {unit.title}
-                        </span>
-                      </div>
+                    <div className="absolute -top-5 left-1/2 -translate-x-1/2 z-20">
+                      {(() => {
+                        const ribbon = getRibbonColors(unit.color_theme);
+                        return (
+                          <div className="relative flex items-center">
+                            {/* Left fold */}
+                            <div
+                              className="absolute -bottom-2 left-0 w-3 h-2"
+                              style={{ background: ribbon.fold, clipPath: 'polygon(0 0, 100% 0, 100% 100%)' }}
+                            />
+                            {/* Right fold */}
+                            <div
+                              className="absolute -bottom-2 right-0 w-3 h-2"
+                              style={{ background: ribbon.fold, clipPath: 'polygon(0 0, 100% 0, 0 100%)' }}
+                            />
+                            {/* Main ribbon */}
+                            <div
+                              className="relative px-6 py-2 text-white font-bold text-lg drop-shadow-md whitespace-nowrap"
+                              style={{
+                                background: ribbon.bg,
+                                borderRadius: '4px',
+                                boxShadow: `0 3px 6px ${ribbon.shadow}40`,
+                              }}
+                            >
+                              {unit.title}
+                            </div>
+                          </div>
+                        );
+                      })()}
                     </div>
 
                     {/* Personal unit badge */}

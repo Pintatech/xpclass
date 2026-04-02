@@ -64,6 +64,7 @@ const AdminDashboard = () => {
   const [stats, setStats] = useState(null);
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [pendingReportsCount, setPendingReportsCount] = useState(0);
+  const [pendingAvatarsCount, setPendingAvatarsCount] = useState(0);
 
   // Get current tab from URL
   const getCurrentTab = () => {
@@ -93,8 +94,19 @@ const AdminDashboard = () => {
     if (isAdmin()) {
       loadStats();
       fetchPendingReportsCount();
+      fetchPendingAvatarsCount();
     }
   }, [isAdmin]);
+
+  const fetchPendingAvatarsCount = async () => {
+    try {
+      const { count, error } = await supabase
+        .from('avatar_uploads')
+        .select('*', { count: 'exact', head: true })
+        .eq('status', 'pending')
+      if (!error) setPendingAvatarsCount(count || 0)
+    } catch {}
+  }
 
   const fetchPendingReportsCount = async () => {
     try {
@@ -276,6 +288,11 @@ const AdminDashboard = () => {
                   {tab.id === 'reports' && pendingReportsCount > 0 && (
                     <span className="ml-auto bg-red-500 text-white text-[10px] font-bold rounded-full min-w-[18px] h-[18px] flex items-center justify-center px-1">
                       {pendingReportsCount}
+                    </span>
+                  )}
+                  {tab.id === 'avatar-approval' && pendingAvatarsCount > 0 && (
+                    <span className="ml-auto bg-red-500 text-white text-[10px] font-bold rounded-full min-w-[18px] h-[18px] flex items-center justify-center px-1">
+                      {pendingAvatarsCount}
                     </span>
                   )}
                 </button>

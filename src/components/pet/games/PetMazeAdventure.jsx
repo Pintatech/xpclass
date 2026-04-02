@@ -751,7 +751,7 @@ const PetMazeAdventure = ({
       setFloatingLetters([...floatingLettersRef.current])
       const newPlaced = [...placedLetters, { id: letter.id, letter: letter.letter }]
       setPlacedLetters(newPlaced)
-      playSound(assetUrl('/sound/scram-correct.mp3'), 0.3)
+      playSound(assetUrl('/sound/pop2.mp3'), 0.3, 1)
 
       if (newPlaced.length === challenge.word.length) {
         floatingDoneRef.current = true
@@ -774,7 +774,6 @@ const PetMazeAdventure = ({
     if (!matchupSelected) {
       // First tap — select it
       setMatchupSelected({ side, index, value })
-      playSound(assetUrl('/sound/scram-correct.mp3'), 0.2)
       return
     }
 

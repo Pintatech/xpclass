@@ -346,7 +346,6 @@ const PetWhackMole = ({ petImageUrl, petName, onGameEnd, onClose, hammerSkinUrl,
         setScore(scoreRef.current)
         setWordPopup({ points: 5, streak: 0 })
         setTimeout(() => setWordPopup(null), 1200)
-        setFloatingTexts(prev => [...prev, { id: Date.now(), text: '+5', x: 50, y: 50, opacity: 1, color: '#22c55e' }])
       } else {
         setPetHp(prev => Math.min(prev + 1, PET_MAX_HP))
         setFloatingTexts(prev => [...prev, { id: Date.now(), text: '+1 HP', x: 50, y: 50, opacity: 1, color: '#22c55e' }])
@@ -427,12 +426,6 @@ const PetWhackMole = ({ petImageUrl, petName, onGameEnd, onClose, hammerSkinUrl,
       setRoundsCompleted(prev => prev + 1)
       setWordPopup({ points, streak: newStreak })
       setTimeout(() => setWordPopup(null), 1200)
-      setFloatingTexts(prev => [...prev, {
-        id: Date.now(),
-        text: newStreak >= 3 ? `+${points} ${newStreak}x` : `+${points}`,
-        x: 50, y: 50, opacity: 1,
-        color: '#f59e0b',
-      }])
       playSound(assetUrl('/pet-game/whack/mole-correct.mp3'), 0.4)
 
       // End frenzy early if all frenzy moles whacked
@@ -478,16 +471,6 @@ const PetWhackMole = ({ petImageUrl, petName, onGameEnd, onClose, hammerSkinUrl,
       setRoundsCompleted(prev => prev + 1)
       setWordPopup({ points, streak: newStreak })
       setTimeout(() => setWordPopup(null), 1200)
-
-      // Floating +points text
-      setFloatingTexts(prev => [...prev, {
-        id: Date.now(),
-        text: newStreak >= 3 ? `+${points} ${newStreak}x` : `+${points}`,
-        x: 50,
-        y: 50,
-        opacity: 1,
-        color: newStreak >= 5 ? '#f59e0b' : newStreak >= 3 ? '#8b5cf6' : '#22c55e',
-      }])
 
       playSound(assetUrl('/pet-game/whack/mole-correct.mp3'), 0.4)
 

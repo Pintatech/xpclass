@@ -602,7 +602,7 @@ const PetMatchGame = ({ petImageUrl, petName, onGameEnd, onClose, wordBank: word
           <div className="absolute inset-0 flex flex-col">
             {/* Top HUD */}
             <div className="p-4 z-10">
-              <div className="flex items-center justify-between mb-3 pl-12">
+              <div className="flex items-center justify-between mb-3 pl-24">
                 {/* Score */}
                 <div className="flex flex-col items-start gap-1">
                   <div className="bg-white/20 backdrop-blur rounded-2xl px-4 py-2">
