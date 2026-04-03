@@ -440,7 +440,7 @@ const FillBlankEditor = ({ questions, onQuestionsChange, settings, onSettingsCha
           currentInstruction = trimmedLine
         }
         // Check if this line looks like a new numbered question (e.g., "1.", "2.", "Quest 1:", "Question 2.", etc.)
-        else if (trimmedLine.match(/^\d+\.\s+/) || trimmedLine.match(/^Quest(?:ion)?\s*\d+[.:]\s*/i)) {
+        else if (trimmedLine.match(/^\d+\.\s+/) || trimmedLine.match(/^Quest(?:ion)?\s*\d+[.:]?\s*/i)) {
           // Process previous accumulated question
           processAccumulatedQuestion()
           // Start accumulating new question

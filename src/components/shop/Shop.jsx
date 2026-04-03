@@ -413,13 +413,15 @@ const Shop = () => {
 
   const categories = [
     { key: 'avatar', label: 'Avatar' },
+        { key: 'ball', label: 'Adventure' },
     { key: 'frame', label: 'Frame' },
     { key: 'background', label: 'Background' },
     { key: 'pet', label: 'Pet bowl' },
     { key: 'spaceship', label: 'Spaceship' },
-    { key: 'boat', label: 'Boat' },
     { key: 'hammer', label: 'Hammer' },
-    { key: 'ball', label: 'Adventure' },
+    { key: 'boat', label: 'Boat' },
+
+
     // { key: 'egg', label: 'Egg' },
     // { key: 'school', label: 'School things' },
   ]
