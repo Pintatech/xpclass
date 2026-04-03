@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef, useCallback } from 'react'
 import { createPortal } from 'react-dom'
-import { X, Trophy, Volume2, VolumeX, Mic, Square, Loader2, Heart } from 'lucide-react'
+import { X, Trophy, Mic, Square, Loader2, Heart } from 'lucide-react'
 
 import { assetUrl } from '../../../hooks/useBranding'
 
@@ -66,7 +66,7 @@ const transcribeAudio = async (audioBlob) => {
 }
 
 const WORDS_PER_GAME = 10
-const MAX_ATTEMPTS = 2
+const MAX_ATTEMPTS = 5
 const PASS_SCORE = 70 // score threshold to pass a word
 const PET_MAX_HP = 5
 
@@ -132,7 +132,7 @@ const PetSayItRight = ({ petImageUrl, petName, onGameEnd, onClose, wordBank: wor
   const [wordsCorrect, setWordsCorrect] = useState(0)
   const [wordsFailed, setWordsFailed] = useState([])
   const [wordResults, setWordResults] = useState([]) // { word, score, passed }
-  const [muted, setMuted] = useState(false)
+  const muted = false
 
   // Recording state
   const [isRecording, setIsRecording] = useState(false)
@@ -377,22 +377,8 @@ const PetSayItRight = ({ petImageUrl, petName, onGameEnd, onClose, wordBank: wor
     setPetHp(PET_MAX_HP)
     setPhase('playing')
 
-    try {
-      const music = new Audio(assetUrl('/sound/pet-word-scamble-2-faster.mp3'))
-      music.loop = true
-      music.volume = 0.2
-      bgMusicRef.current = music
-      music.play().catch(() => {})
-    } catch {}
   }, [wordBankProp])
 
-  // Stop music on results
-  useEffect(() => {
-    if ((phase === 'results' || phase === 'defeated') && bgMusicRef.current) {
-      bgMusicRef.current.pause()
-      bgMusicRef.current = null
-    }
-  }, [phase])
 
   // Play end-of-game sounds
   useEffect(() => {
@@ -499,7 +485,7 @@ const PetSayItRight = ({ petImageUrl, petName, onGameEnd, onClose, wordBank: wor
         ref={containerRef}
         className="relative w-full max-w-[400px] h-full max-h-[100dvh] overflow-hidden rounded-none sm:rounded-2xl sm:max-h-[90vh] sm:shadow-2xl"
         style={{
-          background: 'linear-gradient(135deg, #f97316 0%, #ef4444 50%, #ec4899 100%)',
+          background: 'linear-gradient(135deg, #c2410c 0%, #991b1b 50%, #9d174d 100%)',
           transform: screenShake > 0 ? `translate(${Math.sin(screenShake * 2) * 3}px, ${Math.cos(screenShake * 2) * 3}px)` : 'none',
         }}
       >
@@ -612,7 +598,26 @@ const PetSayItRight = ({ petImageUrl, petName, onGameEnd, onClose, wordBank: wor
           <div className="px-4 pt-3 pb-1 z-10">
             <div className="w-full max-w-md mx-auto flex flex-col items-center gap-2">
               <div className="w-full flex items-center justify-between">
-                <div className="flex flex-col items-start gap-1">
+                <div className="flex items-center gap-1">
+                  {Array.from({ length: PET_MAX_HP }).map((_, i) => (
+                    <Heart
+                      key={i}
+                      className="w-4 h-4"
+                      fill={i < petHp ? '#ef4444' : 'none'}
+                      stroke={i < petHp ? '#ef4444' : 'rgba(255,255,255,0.3)'}
+                      style={i >= petHp ? { animation: 'bbHeartLose 0.4s ease-out forwards' } : {}}
+                    />
+                  ))}
+                </div>
+
+                {petImageUrl && (
+                  <img src={petImageUrl} alt={petName}
+                    className="w-10 h-10 object-contain drop-shadow-md"
+                    onError={(e) => { e.target.style.display = 'none' }}
+                  />
+                )}
+
+                <div className="flex flex-col items-end gap-1">
                   <div className="bg-white/20 backdrop-blur rounded-2xl px-4 py-2 flex items-center gap-2">
                     <span className="text-xl font-black text-white">{displayScore}</span>
                   </div>
@@ -626,7 +631,7 @@ const PetSayItRight = ({ petImageUrl, petName, onGameEnd, onClose, wordBank: wor
                     const isClose = gap > 0 && gap <= 15
                     const pct = Math.min(100, Math.round((displayScore / nextToBeat.score) * 100))
                     return (
-                      <div className="w-28 ml-1" style={{ animation: isClose ? 'hintPulse 0.6s ease-in-out infinite' : 'none' }}>
+                      <div className="w-28 mr-1" style={{ animation: isClose ? 'hintPulse 0.6s ease-in-out infinite' : 'none' }}>
                         <div className="flex items-center justify-between gap-1 mb-0.5">
                           <div className="flex items-center gap-1">
                             <span className="text-[11px]">&#x2694;&#xFE0F;</span>
@@ -648,39 +653,6 @@ const PetSayItRight = ({ petImageUrl, petName, onGameEnd, onClose, wordBank: wor
                     )
                   })()}
                 </div>
-
-                <div className="flex items-center gap-1">
-                  {Array.from({ length: PET_MAX_HP }).map((_, i) => (
-                    <Heart
-                      key={i}
-                      className="w-4 h-4"
-                      fill={i < petHp ? '#ef4444' : 'none'}
-                      stroke={i < petHp ? '#ef4444' : 'rgba(255,255,255,0.3)'}
-                      style={i >= petHp ? { animation: 'bbHeartLose 0.4s ease-out forwards' } : {}}
-                    />
-                  ))}
-                </div>
-
-                {petImageUrl && (
-                  <img src={petImageUrl} alt={petName}
-                    className="w-10 h-10 object-contain drop-shadow-md"
-                    onError={(e) => { e.target.style.display = 'none' }}
-                  />
-                )}
-
-                {/* Mute */}
-                <button
-                  onClick={() => {
-                    setMuted(prev => {
-                      const next = !prev
-                      if (bgMusicRef.current) bgMusicRef.current.muted = next
-                      return next
-                    })
-                  }}
-                  className="bg-white/20 backdrop-blur rounded-full p-1.5"
-                >
-                  {muted ? <VolumeX className="w-4 h-4 text-white" /> : <Volume2 className="w-4 h-4 text-white" />}
-                </button>
               </div>
 
               {/* Progress dots */}

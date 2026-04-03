@@ -890,7 +890,8 @@ const ExerciseList = () => {
 
     try {
       // Randomly award either XP or Gems, not both
-      const isGemReward = Math.random() < 0.05; // 30% chance for gems, 70% for XP
+      const gemChance = 0.10 + (exercises.length * 0.01); // 10% base + 1% per exercise
+      const isGemReward = Math.random() < gemChance;
 
       let xp = 0;
       let gems = 0;

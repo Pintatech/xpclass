@@ -4,8 +4,8 @@ import { Star, Heart } from 'lucide-react'
 
 import { assetUrl } from '../../../hooks/useBranding';
 const GAME_DURATION = 61
-const MOLE_SHOW_MIN = 1500
-const MOLE_SHOW_MAX = 2500
+const MOLE_SHOW_MIN = 3500
+const MOLE_SHOW_MAX = 4500
 const GRID_COLS = 3
 const GRID_ROWS = 3
 const HOLES = GRID_COLS * GRID_ROWS

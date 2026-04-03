@@ -916,31 +916,6 @@ const MultipleChoiceExercise = ({ testMode = false, exerciseData = null, onAnswe
       )}
 
 
-      {/* Quiz Complete Screen */}
-      {isQuizComplete && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-          <CelebrationScreen
-            score={Math.round((questionResults.filter(r => r.isCorrect).length / questionResults.length) * 100)}
-            correctAnswers={questionResults.filter(r => r.isCorrect).length}
-            totalQuestions={questionResults.length}
-            passThreshold={80}
-            xpAwarded={xpAwarded}
-            passGif={passGif}
-            isRetryMode={isRetryMode}
-            wrongQuestionsCount={isRetryMode ? 0 : wrongQuestions.length}
-            onRetryWrongQuestions={handleRetryWrongQuestions}
-            onBackToList={() => {
-              if (session && session.units) {
-                navigate(`/study/course/${session.units.course_id}/unit/${session.unit_id}/session/${sessionId}`)
-              } else {
-                navigate('/study')
-              }
-            }}
-            exerciseId={exerciseId}
-          />
-        </div>
-      )}
-
       {/* Meme Overlay */}
       {showMeme && (
         <div className="fixed inset-0 flex items-center justify-center z-50 pointer-events-none">
@@ -1397,6 +1372,31 @@ const MultipleChoiceExercise = ({ testMode = false, exerciseData = null, onAnswe
         </>
         </div>
       </div>
+
+      {/* Quiz Complete Screen */}
+      {isQuizComplete && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+          <CelebrationScreen
+            score={Math.round((questionResults.filter(r => r.isCorrect).length / questionResults.length) * 100)}
+            correctAnswers={questionResults.filter(r => r.isCorrect).length}
+            totalQuestions={questionResults.length}
+            passThreshold={80}
+            xpAwarded={xpAwarded}
+            passGif={passGif}
+            isRetryMode={isRetryMode}
+            wrongQuestionsCount={isRetryMode ? 0 : wrongQuestions.length}
+            onRetryWrongQuestions={handleRetryWrongQuestions}
+            onBackToList={() => {
+              if (session && session.units) {
+                navigate(`/study/course/${session.units.course_id}/unit/${session.unit_id}/session/${sessionId}`)
+              } else {
+                navigate('/study')
+              }
+            }}
+            exerciseId={exerciseId}
+          />
+        </div>
+      )}
     </>
   )
 }

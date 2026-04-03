@@ -186,7 +186,7 @@ const PetCatchGame = ({ petImageUrl, petName, onGameEnd, onClose, questionBank: 
     const gameArea = gameAreaRef.current
     if (!gameArea) return
 
-    const FINGER_OFFSET = 300 // px above touch point so finger doesn't cover pet
+    const FINGER_OFFSET = 0 // same position as cursor/touch point
     const updatePetPos = (clientX, clientY) => {
       const rect = gameArea.getBoundingClientRect()
       petPosRef.current = {

@@ -1150,27 +1150,6 @@ const DragDropExercise = ({ testMode = false, exerciseData = null, onAnswersColl
           </div>
         )}
 
-        {/* Result Screen */}
-        {showResultScreen && (
-          <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-            <CelebrationScreen
-              score={(() => {
-                const cz = questionResults.reduce((sum, r) => sum + (r.correctZones || 0), 0)
-                const tz = questionResults.reduce((sum, r) => sum + (r.totalZones || 1), 0)
-                return Math.round((cz / tz) * 100)
-              })()}
-              correctAnswers={questionResults.reduce((sum, r) => sum + (r.correctZones || 0), 0)}
-              totalQuestions={questionResults.reduce((sum, r) => sum + (r.totalZones || 1), 0)}
-              passThreshold={75}
-              xpAwarded={xpEarnedThisSession}
-              passGif={passGif}
-              isRetryMode={false}
-              wrongQuestionsCount={0}
-              onBackToList={handleBackToList}
-              exerciseId={exerciseId}
-            />
-          </div>
-        )}
 
         {/* Global Intro */}
         {exercise?.content?.intro && String(exercise.content.intro).trim() && (
@@ -1463,6 +1442,28 @@ const DragDropExercise = ({ testMode = false, exerciseData = null, onAnswersColl
         </div>
         </div>
       </div>
+
+      {/* Result Screen */}
+      {showResultScreen && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+          <CelebrationScreen
+            score={(() => {
+              const cz = questionResults.reduce((sum, r) => sum + (r.correctZones || 0), 0)
+              const tz = questionResults.reduce((sum, r) => sum + (r.totalZones || 1), 0)
+              return Math.round((cz / tz) * 100)
+            })()}
+            correctAnswers={questionResults.reduce((sum, r) => sum + (r.correctZones || 0), 0)}
+            totalQuestions={questionResults.reduce((sum, r) => sum + (r.totalZones || 1), 0)}
+            passThreshold={75}
+            xpAwarded={xpEarnedThisSession}
+            passGif={passGif}
+            isRetryMode={false}
+            wrongQuestionsCount={0}
+            onBackToList={handleBackToList}
+            exerciseId={exerciseId}
+          />
+        </div>
+      )}
     </>
   )
 }

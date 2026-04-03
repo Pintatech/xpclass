@@ -3491,3 +3491,127 @@ CREATE TABLE public.guest_attempts (
   CONSTRAINT guest_attempts_pkey PRIMARY KEY (id)
 );
 
+-- Guest access RLS policies
+ALTER TABLE public.guest_visitors ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.guest_attempts ENABLE ROW LEVEL SECURITY;
+
+CREATE POLICY "Allow anonymous insert on guest_visitors"
+  ON public.guest_visitors FOR INSERT TO anon WITH CHECK (true);
+
+CREATE POLICY "Allow anonymous insert on guest_attempts"
+  ON public.guest_attempts FOR INSERT TO anon WITH CHECK (true);
+
+CREATE POLICY "Allow authenticated read on guest_visitors"
+  ON public.guest_visitors FOR SELECT TO authenticated USING (true);
+
+CREATE POLICY "Allow authenticated read on guest_attempts"
+  ON public.guest_attempts FOR SELECT TO authenticated USING (true);
+
+-- Anon read access for guest/demo mode
+CREATE POLICY "Allow anonymous read on sessions"
+  ON public.sessions FOR SELECT TO anon USING (true);
+
+CREATE POLICY "Allow anonymous read on exercises"
+  ON public.exercises FOR SELECT TO anon USING (true);
+
+CREATE POLICY "Allow anonymous read on exercise_assignments"
+  ON public.exercise_assignments FOR SELECT TO anon USING (true);
+
+CREATE POLICY "Allow anonymous read on courses"
+  ON public.courses FOR SELECT TO anon USING (true);
+
+CREATE POLICY "Allow anonymous read on units"
+  ON public.units FOR SELECT TO anon USING (true);
+
+CREATE POLICY "Allow anonymous read on site_settings"
+  ON public.site_settings FOR SELECT TO anon USING (true);
+
+-- ============================================================
+-- WILD AREA LOGS
+-- ============================================================
+CREATE TABLE IF NOT EXISTS public.wild_area_logs (
+  id uuid DEFAULT gen_random_uuid() PRIMARY KEY,
+  user_id uuid REFERENCES public.users(id) ON DELETE CASCADE NOT NULL,
+  pet_id uuid REFERENCES public.pets(id) ON DELETE SET NULL,
+  pet_name text,
+  pet_rarity text,
+  ball_item_id uuid REFERENCES public.collectible_items(id) ON DELETE SET NULL,
+  ball_name text,
+  action text NOT NULL CHECK (action IN ('encounter', 'catch_success', 'catch_fail')),
+  is_duplicate boolean DEFAULT false,
+  refund_xp integer DEFAULT 0,
+  catch_rate integer,
+  created_at timestamptz DEFAULT now()
+);
+
+CREATE INDEX IF NOT EXISTS idx_wild_area_logs_user_id ON public.wild_area_logs(user_id);
+CREATE INDEX IF NOT EXISTS idx_wild_area_logs_created_at ON public.wild_area_logs(created_at DESC);
+
+ALTER TABLE public.wild_area_logs ENABLE ROW LEVEL SECURITY;
+
+CREATE POLICY "Admins can read all wild area logs"
+  ON public.wild_area_logs FOR SELECT
+  USING (EXISTS (SELECT 1 FROM public.users WHERE id = auth.uid() AND role = 'admin'));
+
+CREATE POLICY "Users can read own wild area logs"
+  ON public.wild_area_logs FOR SELECT
+  USING (user_id = auth.uid());
+
+CREATE POLICY "Service can insert wild area logs"
+  ON public.wild_area_logs FOR INSERT
+  WITH CHECK (true);
+
+-- ============================================================
+-- REPORTS
+-- ============================================================
+CREATE TABLE IF NOT EXISTS public.reports (
+  id uuid DEFAULT gen_random_uuid() PRIMARY KEY,
+  user_id uuid NOT NULL REFERENCES auth.users(id) ON DELETE CASCADE,
+  category text NOT NULL DEFAULT 'other',
+  subject text NOT NULL,
+  message text NOT NULL,
+  screenshot_url text,
+  status text NOT NULL DEFAULT 'pending',
+  admin_reply text,
+  replied_by uuid REFERENCES auth.users(id),
+  replied_at timestamptz,
+  created_at timestamptz DEFAULT now(),
+  updated_at timestamptz DEFAULT now()
+);
+
+CREATE INDEX IF NOT EXISTS idx_reports_user_id ON reports(user_id);
+CREATE INDEX IF NOT EXISTS idx_reports_status ON reports(status);
+CREATE INDEX IF NOT EXISTS idx_reports_created_at ON reports(created_at DESC);
+
+ALTER TABLE reports ENABLE ROW LEVEL SECURITY;
+
+CREATE POLICY "Users can create reports"
+  ON reports FOR INSERT WITH CHECK (auth.uid() = user_id);
+
+CREATE POLICY "Users can view own reports"
+  ON reports FOR SELECT USING (auth.uid() = user_id);
+
+CREATE POLICY "Admins can view all reports"
+  ON reports FOR SELECT
+  USING (EXISTS (SELECT 1 FROM users WHERE id = auth.uid() AND role = 'admin'));
+
+CREATE POLICY "Admins can update reports"
+  ON reports FOR UPDATE
+  USING (EXISTS (SELECT 1 FROM users WHERE id = auth.uid() AND role = 'admin'));
+
+CREATE POLICY "Admins can delete reports"
+  ON reports FOR DELETE
+  USING (EXISTS (SELECT 1 FROM users WHERE id = auth.uid() AND role = 'admin'));
+
+-- ============================================================
+-- STUDENT REPORTS
+-- ============================================================
+CREATE TABLE IF NOT EXISTS public.student_reports (
+  id uuid DEFAULT gen_random_uuid() PRIMARY KEY,
+  course_id uuid REFERENCES courses(id) ON DELETE CASCADE NOT NULL,
+  student_id uuid REFERENCES users(id) ON DELETE CASCADE NOT NULL,
+  created_by uuid REFERENCES users(id) NOT NULL,
+  report_data jsonb NOT NULL,
+  created_at timestamptz DEFAULT now()
+);
+

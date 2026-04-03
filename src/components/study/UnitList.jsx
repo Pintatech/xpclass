@@ -909,16 +909,6 @@ const UnitList = () => {
                         const ribbon = getRibbonColors(unit.color_theme);
                         return (
                           <div className="relative flex items-center">
-                            {/* Left fold */}
-                            <div
-                              className="absolute -bottom-2 left-0 w-3 h-2"
-                              style={{ background: ribbon.fold, clipPath: 'polygon(0 0, 100% 0, 100% 100%)' }}
-                            />
-                            {/* Right fold */}
-                            <div
-                              className="absolute -bottom-2 right-0 w-3 h-2"
-                              style={{ background: ribbon.fold, clipPath: 'polygon(0 0, 100% 0, 0 100%)' }}
-                            />
                             {/* Main ribbon */}
                             <div
                               className="relative px-6 py-2 text-white font-bold text-lg drop-shadow-md whitespace-nowrap"
