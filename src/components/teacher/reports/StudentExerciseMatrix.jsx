@@ -92,13 +92,13 @@ const StudentExerciseMatrix = ({ selectedCourse, initialSessionId }) => {
     try {
       const { data, error } = await supabase
         .from('sessions')
-        .select('id, title, session_number')
+        .select('id, title, session_number, is_test')
         .eq('unit_id', selectedUnit)
         .order('session_number');
 
       if (error) throw error;
 
-      setSessions(data || []);
+      setSessions((data || []).filter(s => !s.is_test));
 
       // Keep initialSessionId if it belongs to this unit's sessions
       if (initialSessionId && data?.some(s => s.id === initialSessionId)) {
@@ -173,22 +173,22 @@ const StudentExerciseMatrix = ({ selectedCourse, initialSessionId }) => {
         sessionIds = [selectedSession];
         const { data: sessionData, error: sessionError } = await supabase
           .from('sessions')
-          .select('id, title, session_number, unit_id')
+          .select('id, title, session_number, unit_id, is_test')
           .eq('id', selectedSession)
           .single();
 
         if (sessionError) throw sessionError;
-        sessionsData = sessionData ? [sessionData] : [];
+        sessionsData = sessionData && !sessionData.is_test ? [sessionData] : [];
       } else {
         const { data: sessions, error: sessionsError } = await supabase
           .from('sessions')
-          .select('id, title, session_number, unit_id')
+          .select('id, title, session_number, unit_id, is_test')
           .in('unit_id', unitIds)
           .order('session_number');
 
         if (sessionsError) throw sessionsError;
 
-        sessionsData = sessions || [];
+        sessionsData = (sessions || []).filter(s => !s.is_test);
         sessionIds = sessionsData.map(s => s.id);
       }
       if (sessionIds.length === 0) {

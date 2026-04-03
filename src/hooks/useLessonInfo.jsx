@@ -31,7 +31,7 @@ export const useLessonInfo = () => {
   };
 
   // Returns the saved record (with id) so lesson_records can reference it
-  const saveLessonInfo = async (info) => {
+  const saveLessonInfo = async (info, { isDraft = false } = {}) => {
     try {
       setLoading(true);
       setError(null);
@@ -39,6 +39,7 @@ export const useLessonInfo = () => {
       const { id, ...rest } = info;
       const record = {
         ...rest,
+        is_draft: isDraft,
         recorded_by: user.id,
         updated_at: new Date().toISOString()
       };

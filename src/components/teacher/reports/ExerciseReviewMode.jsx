@@ -3,6 +3,7 @@ import { supabase } from '../../../supabase/client'
 import {
   CheckCircle, XCircle, ChevronLeft, ChevronRight, X, Clock, Edit3
 } from 'lucide-react'
+import { RichTextWithAudio } from '../../ui/RichTextRenderer'
 
 const decodeIndex = (type, idx) => {
   switch (type) {
@@ -49,7 +50,7 @@ const MultipleChoiceExerciseReview = ({ exercise, qas }) => {
             {q.question && (
               <div className="text-sm text-gray-800 leading-relaxed" dangerouslySetInnerHTML={{ __html: q.question }} />
             )}
-            <div className="space-y-1.5 mt-2">
+            <div className="grid grid-cols-2 gap-1.5 mt-2">
               {(q.options || []).map((opt, i) => {
                 const isCorrect = i === correct
                 const isSelected = i === selected
@@ -57,7 +58,7 @@ const MultipleChoiceExerciseReview = ({ exercise, qas }) => {
                 if (isCorrect) cls = 'border-green-400 bg-green-50 text-green-800'
                 else if (isSelected) cls = 'border-red-400 bg-red-50 text-red-800'
                 return (
-                  <div key={i} className={`flex items-center gap-3 px-3 py-2 border rounded-lg ${cls}`}>
+                  <div key={i} className={`flex items-center gap-2 px-3 py-1.5 border rounded-lg ${cls}`}>
                     <div className="shrink-0">
                       {isCorrect
                         ? <CheckCircle className="w-4 h-4 text-green-500" />
@@ -66,8 +67,8 @@ const MultipleChoiceExerciseReview = ({ exercise, qas }) => {
                           : <div className="w-4 h-4 rounded-full border-2 border-gray-300" />
                       }
                     </div>
-                    <span className="text-sm flex-1">{opt}</span>
-                    {isCorrect && isSelected && <span className="text-xs text-green-600 font-medium shrink-0">Your answer ✓</span>}
+                    <span className="text-sm flex-1 truncate">{opt}</span>
+                    {isCorrect && isSelected && <span className="text-xs text-green-600 font-medium shrink-0">✓</span>}
                     {isCorrect && !isSelected && <span className="text-xs text-green-600 font-medium shrink-0">Correct</span>}
                     {isSelected && !isCorrect && <span className="text-xs text-red-600 font-medium shrink-0">Your answer</span>}
                   </div>
@@ -655,7 +656,7 @@ const ExerciseReviewMode = ({ attempt, passingScore = 70, onAttemptUpdate, onClo
 
   return (
     <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-50 p-4">
-      <div className="bg-white rounded-xl shadow-2xl w-full max-w-2xl flex flex-col max-h-[90vh]">
+      <div className="bg-white rounded-xl shadow-2xl w-full max-w-6xl flex flex-col max-h-[90vh]">
 
         {/* Header */}
         <div className="flex items-center justify-between p-4 border-b border-gray-100 shrink-0">
@@ -747,47 +748,90 @@ const ExerciseReviewMode = ({ attempt, passingScore = 70, onAttemptUpdate, onClo
               </div>
             </div>
 
+            {current.exercise?.content?.intro && String(current.exercise.content.intro).trim() && (
+              <div className="mb-3 p-3 bg-blue-50 border border-blue-100 rounded-lg text-sm text-gray-700">
+                <RichTextWithAudio content={current.exercise.content.intro} allowImages allowLinks />
+              </div>
+            )}
+
             <hr className="border-gray-100 mb-4" />
 
             {renderExercise(current)}
 
             {/* Override section */}
-            <div className="mt-4 pt-4 border-t border-dashed border-gray-200">
-              <p className="text-xs font-medium text-gray-400 uppercase tracking-wide mb-2">Grade Override</p>
-              <div className="space-y-1.5">
-                {current.qas.map((qa, i) => (
-                  <div key={qa.id} className="flex items-center gap-2">
-                    {current.qas.length > 1 && (
-                      <span className="text-xs text-gray-400 w-12 shrink-0">Part {i + 1}</span>
-                    )}
-                    <span className={`text-xs font-medium px-2 py-0.5 rounded-full ${
-                      qa.is_correct ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'
-                    }`}>
-                      {qa.is_correct ? 'Correct' : 'Incorrect'}
-                    </span>
-                    {qa.selected_answer != null && (
-                      <span className="text-xs text-gray-400 truncate max-w-[160px]" title={String(qa.selected_answer)}>
-                        &ldquo;{typeof qa.selected_answer === 'object' ? JSON.stringify(qa.selected_answer) : String(qa.selected_answer)}&rdquo;
-                      </span>
-                    )}
-                    {qa.teacher_override && (
-                      <span className="text-xs text-orange-500 italic">overridden</span>
-                    )}
-                    <button
-                      onClick={() => handleOverride(qa, !qa.is_correct)}
-                      disabled={savingOverride === qa.id}
-                      className="ml-auto flex items-center gap-1 text-xs text-gray-400 hover:text-blue-600 hover:bg-blue-50 px-2 py-1 rounded transition-colors disabled:opacity-50"
-                    >
-                      {savingOverride === qa.id
-                        ? <div className="w-3 h-3 border-2 border-blue-500 border-t-transparent rounded-full animate-spin" />
-                        : <Edit3 size={11} />
-                      }
-                      {qa.is_correct ? 'Mark incorrect' : 'Mark correct'}
-                    </button>
+            {(() => {
+              const exType = current.exercise?.exercise_type || current.qas[0]?.exercise_type
+              const questions = current.exercise?.content?.questions || []
+              const hotspots = current.exercise?.content?.hotspots || []
+              const byQI = groupQAs(exType, current.qas)
+
+              // Build list of relevant QAs matched to actual content
+              const overrideQAs = []
+              if (exType === 'image_hotspot') {
+                hotspots.forEach((_, hi) => {
+                  const qa = byQI[hi]?.[0]
+                  if (qa) overrideQAs.push({ qa, label: `Q${hi + 1}` })
+                })
+              } else if (exType === 'multiple_choice' || exType === 'ai_fill_blank') {
+                questions.forEach((_, qi) => {
+                  const qa = byQI[qi]?.[0]
+                  if (qa) overrideQAs.push({ qa, label: `Q${qi + 1}` })
+                })
+              } else if (exType === 'drag_drop') {
+                questions.forEach((q, qi) => {
+                  const zones = q.drop_zones || []
+                  zones.forEach((_, zi) => {
+                    const qa = (byQI[qi] || {})[zi]
+                    if (qa) overrideQAs.push({ qa, label: `Q${qi + 1}.${zi + 1}` })
+                  })
+                })
+              } else if (exType === 'fill_blank' || exType === 'dropdown') {
+                questions.forEach((q, qi) => {
+                  const subCount = exType === 'fill_blank' ? (q.blanks || []).length : (q.dropdowns || []).length
+                  for (let si = 0; si < subCount; si++) {
+                    const qa = (byQI[qi] || {})[si]
+                    if (qa) overrideQAs.push({ qa, label: `Q${qi + 1}.${si + 1}` })
+                  }
+                })
+              } else {
+                // Fallback: show all QAs
+                current.qas.forEach((qa, i) => overrideQAs.push({ qa, label: `Part ${i + 1}` }))
+              }
+
+              return (
+                <div className="mt-4 pt-4 border-t border-dashed border-gray-200">
+                  <p className="text-xs font-medium text-gray-400 uppercase tracking-wide mb-2">Grade Override</p>
+                  <div className="space-y-1.5">
+                    {overrideQAs.map(({ qa, label }, i) => (
+                      <div key={`${currentIdx}-${label}`} className="flex items-center gap-2">
+                        {overrideQAs.length > 1 && (
+                          <span className="text-xs text-gray-400 w-12 shrink-0">{label}</span>
+                        )}
+                        <span className={`text-xs font-medium px-2 py-0.5 rounded-full ${
+                          qa.is_correct ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'
+                        }`}>
+                          {qa.is_correct ? 'Correct' : 'Incorrect'}
+                        </span>
+                        {qa.teacher_override && (
+                          <span className="text-xs text-orange-500 italic">overridden</span>
+                        )}
+                        <button
+                          onClick={() => handleOverride(qa, !qa.is_correct)}
+                          disabled={savingOverride === qa.id}
+                          className="ml-auto flex items-center gap-1 text-xs text-gray-400 hover:text-blue-600 hover:bg-blue-50 px-2 py-1 rounded transition-colors disabled:opacity-50"
+                        >
+                          {savingOverride === qa.id
+                            ? <div className="w-3 h-3 border-2 border-blue-500 border-t-transparent rounded-full animate-spin" />
+                            : <Edit3 size={11} />
+                          }
+                          {qa.is_correct ? 'Mark incorrect' : 'Mark correct'}
+                        </button>
+                      </div>
+                    ))}
                   </div>
-                ))}
-              </div>
-            </div>
+                </div>
+              )
+            })()}
           </div>
         )}
 

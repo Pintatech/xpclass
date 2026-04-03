@@ -216,7 +216,7 @@ const TeacherCourseOverview = () => {
     // Fetch all lesson_info for this course
     const { data: lessons } = await supabase
       .from('lesson_info')
-      .select('id, session_date, lesson_name, skill, feedback')
+      .select('id, session_date, lesson_name, skill, feedback, is_draft')
       .eq('course_id', courseId)
       .order('session_date', { ascending: true });
 
@@ -354,8 +354,11 @@ const TeacherCourseOverview = () => {
                         {lessons.slice(-8).map(lesson => (
                           <div key={lesson.id} className="w-7 flex-shrink-0 text-center">
                             <button
-                              onClick={() => setLessonModal({ courseId: course.id, lessonId: lesson.id })}
-                              className="text-[10px] text-gray-400 leading-none hover:text-blue-600 hover:underline cursor-pointer"
+                              onClick={() => lesson.is_draft
+                                ? navigate(`/teacher/class-reports?course=${course.id}&date=${lesson.session_date}`)
+                                : setLessonModal({ courseId: course.id, lessonId: lesson.id })
+                              }
+                              className={`text-[10px] leading-none hover:underline cursor-pointer ${lesson.is_draft ? 'text-yellow-500 hover:text-yellow-600' : 'text-gray-400 hover:text-blue-600'}`}
                             >
                               {new Date(lesson.session_date + 'T00:00:00').toLocaleDateString('en', { day: 'numeric', month: 'short' })}
                             </button>

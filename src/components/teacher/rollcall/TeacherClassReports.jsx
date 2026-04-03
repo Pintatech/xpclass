@@ -11,7 +11,8 @@ import {
   Info,
   MessageSquare,
   X,
-  Eye
+  Eye,
+  Upload
 } from 'lucide-react';
 import { useAuth } from '../../../hooks/useAuth';
 import { useTeacherCourse } from '../../../hooks/useTeacherCourseContext';
@@ -62,23 +63,29 @@ const TeacherClassReports = () => {
   const [searchParams] = useSearchParams();
   const [activeTab, setActiveTab] = useState(searchParams.get('tab') || 'info');
   const initialCourse = searchParams.get('course');
+  const initialDate = searchParams.get('date');
   const fromCourse = searchParams.get('from') === 'course';
   const [students, setStudents] = useState([]);
   const [records, setRecords] = useState({});
   const [lessonInfo, setLessonInfo] = useState({});
   const [loading, setLoading] = useState(false);
   const [saving, setSaving] = useState(false);
+  const [savingDraft, setSavingDraft] = useState(false);
   const [notification, setNotification] = useState(null);
   const [hasDraft, setHasDraft] = useState(false);
+  const [isDbDraft, setIsDbDraft] = useState(false);
   const [showOverview, setShowOverview] = useState(false);
   const skipDraftSave = useRef(false);
 
-  // Pre-select course from URL param
+  // Pre-select course and date from URL params
   useEffect(() => {
     if (initialCourse && courses.length > 0 && courses.some(c => c.id === initialCourse)) {
       setSelectedCourse(initialCourse);
     }
-  }, [initialCourse, courses, setSelectedCourse]);
+    if (initialDate && !selectedDate) {
+      setSelectedDate(initialDate);
+    }
+  }, [initialCourse, initialDate, courses, setSelectedCourse, selectedDate, setSelectedDate]);
 
   const selectedCourseData = courses.find(course => course.id === selectedCourse);
 
@@ -174,9 +181,14 @@ const TeacherClassReports = () => {
       const dbHasData = existingInfo?.id;
       if (dbHasData) {
         skipDraftSave.current = true;
-        setLessonInfo(existingInfo);
+        // Derive lesson_type since it's not persisted to DB
+        const derivedType = existingInfo.lesson_mode
+          ? 'Theo chương trình'
+          : existingInfo.lesson_name ? 'Bài tự chọn' : '';
+        setLessonInfo({ ...existingInfo, lesson_type: derivedType });
         setRecords(recordsMap);
         setHasDraft(false);
+        setIsDbDraft(!!existingInfo.is_draft);
         clearDraft(selectedCourse, selectedDate);
         skipDraftSave.current = false;
       } else {
@@ -192,6 +204,7 @@ const TeacherClassReports = () => {
           setRecords(recordsMap);
           setHasDraft(false);
         }
+        setIsDbDraft(false);
         skipDraftSave.current = false;
       }
     } catch (error) {
@@ -280,6 +293,45 @@ const TeacherClassReports = () => {
       .filter(Boolean);
   };
 
+  const handleSaveDraft = async () => {
+    try {
+      setSavingDraft(true);
+
+      // eslint-disable-next-line no-unused-vars
+      const { xp_bonus, lesson_type, ...lessonInfoForDB } = lessonInfo;
+      const savedInfo = await saveLessonInfo({
+        ...lessonInfoForDB,
+        course_id: selectedCourse,
+        session_date: selectedDate
+      }, { isDraft: true });
+
+      if (!savedInfo) {
+        showNotification('Failed to save draft', 'error');
+        return;
+      }
+
+      const recordsArray = Object.values(records).filter(r => r.student_id);
+      if (recordsArray.length > 0) {
+        const recordsSuccess = await saveRecords(savedInfo.id, recordsArray);
+        if (!recordsSuccess) {
+          showNotification('Failed to save draft records', 'error');
+          return;
+        }
+      }
+
+      clearDraft(selectedCourse, selectedDate);
+      setHasDraft(false);
+      setIsDbDraft(true);
+      setLessonInfo(prev => ({ ...prev, id: savedInfo.id }));
+      showNotification('Draft saved to cloud');
+    } catch (error) {
+      console.error('Error saving draft:', error);
+      showNotification('Error saving draft', 'error');
+    } finally {
+      setSavingDraft(false);
+    }
+  };
+
   const handleSave = async () => {
     setShowOverview(false);
     try {
@@ -309,18 +361,20 @@ const TeacherClassReports = () => {
         }
       }
 
-      // 3. Award XP to students
-      const xpUpdates = calcXpUpdates();
-      if (xpUpdates.length > 0) {
-        const { error: xpError } = await supabase.rpc('add_xp_batch', {
-          updates: xpUpdates
-        });
-        if (xpError) console.error('[XP] Error awarding XP:', xpError);
-      }
+      // Award XP & missions only on first finalize (new record or was a draft)
+      const isFirstFinalize = !lessonInfo.id || isDbDraft;
 
-      // 4. Update mission progress for students with all-green lesson (non-blocking)
-      // Only on first save — skip if editing an existing lesson to avoid double-counting
-      if (!lessonInfo.id) {
+      // 3. Award XP to students
+      if (isFirstFinalize) {
+        const xpUpdates = calcXpUpdates();
+        if (xpUpdates.length > 0) {
+          const { error: xpError } = await supabase.rpc('add_xp_batch', {
+            updates: xpUpdates
+          });
+          if (xpError) console.error('[XP] Error awarding XP:', xpError);
+        }
+
+        // 4. Update mission progress for students with all-green lesson
         const allGreenStudents = recordsArray.filter(rec =>
           rec.attendance_status === 'present' &&
           rec.performance_rating === 'wow' &&
@@ -337,6 +391,7 @@ const TeacherClassReports = () => {
 
       clearDraft(selectedCourse, selectedDate);
       setHasDraft(false);
+      setIsDbDraft(false);
       showNotification('Saved lesson successfully');
       navigate('/teacher/overview');
     } catch (error) {
@@ -517,20 +572,34 @@ const TeacherClassReports = () => {
       {selectedCourse && (
         <div className="sticky bottom-0 bg-white border-t shadow-lg">
           <div className="max-w-7xl mx-auto px-4 md:px-6 py-3 md:py-4 flex items-center justify-between gap-3">
-            {!canSave && (
-              <p className="text-sm text-red-500">
-                Incomplete: {incompleteTabs.join(', ')}
-              </p>
-            )}
-            {canSave && <div />}
-            <button
-              onClick={() => setShowOverview(true)}
-              disabled={!canSave || saving || loading}
-              className="flex items-center gap-2 px-6 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 shadow-sm transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-            >
-              <Eye className="w-5 h-5" />
-              {saving ? 'Saving...' : 'Review & Save'}
-            </button>
+            <div className="flex items-center gap-2">
+              {!canSave && (
+                <p className="text-sm text-red-500">
+                  Incomplete: {incompleteTabs.join(', ')}
+                </p>
+              )}
+              {isDbDraft && (
+                <span className="text-xs bg-yellow-100 text-yellow-700 px-2 py-1 rounded-full font-medium">Draft</span>
+              )}
+            </div>
+            <div className="flex items-center gap-2">
+              <button
+                onClick={handleSaveDraft}
+                disabled={savingDraft || saving || loading || !selectedDate}
+                className="flex items-center gap-2 px-4 py-3 bg-white text-gray-700 border border-gray-300 rounded-lg hover:bg-gray-50 shadow-sm transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                <Upload className="w-5 h-5" />
+                {savingDraft ? 'Saving...' : 'Save Draft'}
+              </button>
+              <button
+                onClick={() => setShowOverview(true)}
+                disabled={!canSave || saving || loading}
+                className="flex items-center gap-2 px-6 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 shadow-sm transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                <Eye className="w-5 h-5" />
+                {saving ? 'Saving...' : 'Review & Save'}
+              </button>
+            </div>
           </div>
         </div>
       )}
