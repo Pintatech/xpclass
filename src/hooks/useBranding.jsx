@@ -4,12 +4,12 @@ import { supabase } from '../supabase/client'
 const BRANDING_DEFAULTS = {
   branding_app_name: "XPclass - Pinta's LMS",
   branding_description: "Web làm bài tập, gamification, sự kiện, thi đấu.",
-  branding_logo_url: "https://xpclass.vn/xpclass/image/Logo_Pinta.png",
-  branding_favicon_url: "https://xpclass.vn/xpclass/favicon.ico",
-  branding_og_image_url: "https://xpclass.vn/xpclass/Asset%205.png",
-  branding_base_asset_url: "https://xpclass.vn/xpclass",
+  branding_logo_url: "https://bhlpjvcplrofixogcrqp.supabase.co/storage/v1/object/public/ui-assets/image/Logo_Pinta.png",
+  branding_favicon_url: "https://bhlpjvcplrofixogcrqp.supabase.co/storage/v1/object/public/ui-assets/favicon.ico",
+  branding_og_image_url: "https://bhlpjvcplrofixogcrqp.supabase.co/storage/v1/object/public/ui-assets/Asset%205.png",
+  branding_base_asset_url: "https://bhlpjvcplrofixogcrqp.supabase.co/storage/v1/object/public/ui-assets",
   branding_base_site_url: "https://xpclass.vn",
-  branding_hero_image_url: "https://xpclass.vn/xpclass/image/dashboard/blue_dashboard_hero_section.jpeg",
+  branding_hero_image_url: "https://bhlpjvcplrofixogcrqp.supabase.co/storage/v1/object/public/ui-assets/image/dashboard/blue_dashboard_hero_section.jpeg",
 }
 
 // Module-level state so assetUrl/siteUrl work outside React components

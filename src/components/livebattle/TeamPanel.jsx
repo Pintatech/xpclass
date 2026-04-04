@@ -30,20 +30,20 @@ const memeImages = [
   'minus6.png', 'minus7.gif', 'minus8.jpg', 'minus9.gif',
   'nick young.jpg', 'nick-confused.gif', 'tom.jpg', 'vince mc.gif',
   'you-guys-are-getting-paid.jpg',
-].map(f => `${assetUrl('/livebattle/wrong_image/')}${encodeURIComponent(f)}`)
+].map(f => `${assetUrl('/class-battle/wrong_image/')}${encodeURIComponent(f)}`)
 
 const correctImages = {
   small: [
     'plus11.png', 'plus12.png', 'plus13.png', 'plus14.png',
     'drake yes.jpg', 'tapping head.jpg', 'tapping head.png', 'tapping-head-tap-head.gif',
-  ].map(f => `${assetUrl('/livebattle/correct_image/')}${encodeURIComponent(f)}`),
+  ].map(f => `${assetUrl('/class-battle/correct_image/')}${encodeURIComponent(f)}`),
   medium: [
     'plus31.png', 'plus32.png', 'plus33.png', 'plus34.png',
-  ].map(f => `${assetUrl('/livebattle/correct_image/')}${encodeURIComponent(f)}`),
+  ].map(f => `${assetUrl('/class-battle/correct_image/')}${encodeURIComponent(f)}`),
   big: [
     'plus51.gif', 'plus52.gif', 'plus53.gif', 'plus54.gif',
     'plus55.gif', 'plus56.gif', 'plus57.gif',
-  ].map(f => `${assetUrl('/livebattle/correct_image/')}${encodeURIComponent(f)}`),
+  ].map(f => `${assetUrl('/class-battle/correct_image/')}${encodeURIComponent(f)}`),
 }
 
 const pickCorrectImage = (val) => {
