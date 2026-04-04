@@ -67,6 +67,9 @@ DECLARE
   rarity_key text;
   rarity_value integer;
   selected_pet record;
+  v_daily_limit integer;
+  v_today_count integer;
+  v_today_start timestamptz;
 BEGIN
   SELECT config_value INTO config_val
   FROM drop_config WHERE config_key = 'pet_encounter';
@@ -90,6 +93,33 @@ BEGIN
         'encountered', false,
         'cooldown_remaining', EXTRACT(EPOCH FROM (last_encounter + (cooldown_minutes * interval '1 minute') - now()))::integer
       );
+    END IF;
+
+    -- Check daily limit from site_settings
+    SELECT (setting_value)::integer INTO v_daily_limit
+    FROM site_settings
+    WHERE setting_key = 'maze_daily_limit';
+
+    v_daily_limit := COALESCE(v_daily_limit, 0);
+
+    IF v_daily_limit > 0 THEN
+      -- Calculate start of today in Vietnam timezone
+      v_today_start := date_trunc('day', now() AT TIME ZONE 'Asia/Ho_Chi_Minh') AT TIME ZONE 'Asia/Ho_Chi_Minh';
+
+      SELECT COUNT(*) INTO v_today_count
+      FROM wild_area_logs
+      WHERE user_id = p_user_id
+        AND action = 'encounter'
+        AND created_at >= v_today_start;
+
+      IF v_today_count >= v_daily_limit THEN
+        RETURN json_build_object(
+          'encountered', false,
+          'error', 'daily_limit',
+          'daily_limit', v_daily_limit,
+          'today_count', v_today_count
+        );
+      END IF;
     END IF;
 
     -- Consume adventure ticket (non-admins only)

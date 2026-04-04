@@ -251,14 +251,19 @@ const PetDisplay = () => {
         }
       }
 
-      // Check daily limit
+      // Check daily limit (server-side enforced, but also check here for UI)
       const dailyLimit = parseInt(map['maze_daily_limit']) || 0;
       if (dailyLimit > 0) {
         const todayVN = vnTime.toISOString().split('T')[0];
-        const storageKey = `maze_count_${user.id}_${todayVN}`;
-        const todayCount = parseInt(localStorage.getItem(storageKey) || '0');
+        const todayStart = new Date(todayVN + 'T00:00:00+07:00').toISOString();
+        const { count } = await supabase
+          .from('wild_area_logs')
+          .select('*', { count: 'exact', head: true })
+          .eq('user_id', user.id)
+          .eq('action', 'encounter')
+          .gte('created_at', todayStart);
 
-        if (todayCount >= dailyLimit) {
+        if ((count || 0) >= dailyLimit) {
           setMazeBlocked(true);
           setMazeBlockedReason(`Daily limit reached (${dailyLimit}/${dailyLimit}).`);
           return;
@@ -459,18 +464,16 @@ const PetDisplay = () => {
       setMessage({ type: 'error', text: 'You need an Adventure Ticket to enter the Wild Area!' })
       return
     }
+    if (result?.error === 'daily_limit') {
+      setMazeBlocked(true)
+      setMazeBlockedReason(`Daily limit reached (${result.daily_limit}/${result.daily_limit}).`)
+      setMessage({ type: 'error', text: `Daily limit reached (${result.daily_limit}/${result.daily_limit}).` })
+      return
+    }
     if (result?.cooldown_remaining && !isAdmin()) {
       setWildAreaCooldown(result.cooldown_remaining)
     }
     if (result?.encountered) {
-      // Increment daily maze count
-      const now = new Date();
-      const vnTime = new Date(now.toLocaleString('en-US', { timeZone: 'Asia/Ho_Chi_Minh' }));
-      const todayVN = vnTime.toISOString().split('T')[0];
-      const storageKey = `maze_count_${user.id}_${todayVN}`;
-      const currentCount = parseInt(localStorage.getItem(storageKey) || '0');
-      localStorage.setItem(storageKey, String(currentCount + 1));
-
       fetchInventory() // refresh ticket count
       clearEncounter() // prevent WildEncounterModal from showing yet
       setShowWildArea(false)
@@ -2156,7 +2159,7 @@ const PetDisplay = () => {
                 className={`relative flex flex-col items-center gap-2 p-4 border-2 transition-all group overflow-hidden ${competitionGame === 'astroblast' ? 'border-yellow-400 bg-yellow-50 ring-2 ring-yellow-300' : 'border-red-200 hover:border-red-400 hover:bg-red-50'}`}
               >
                 {competitionGame === 'astroblast' && <span className="absolute -top-2 -right-2 text-lg">🏆</span>}
-                <img src={assetUrl('/image/inventory/spaceship/phantom-voyager.png')} alt="Astro Blast" className="w-20 h-20 object-contain group-hover:scale-110 transition-transform" />
+                <img src={assetUrl('/image/inventory/spaceships/phantom-voyager.png')} alt="Astro Blast" className="w-20 h-20 object-contain group-hover:scale-110 transition-transform" />
                 <span className="font-bold text-gray-800 text-xs">Astro Blast</span>
               </button>
               )}

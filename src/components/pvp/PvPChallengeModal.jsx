@@ -156,7 +156,7 @@ const TauntPicker = ({ challengeId, onSent }) => {
 const GAMES = [
   { id: 'scramble', name: 'Word Scramble', icon: assetUrl('/image/dashboard/pet-scramble.jpg'), description: 'Pop bubbles in order!' },
   { id: 'whackmole', name: 'Whack-a-Mole', icon: assetUrl('/pet-game/whack/mole-normal.png'), description: 'Tap the correct word!' },
-  { id: 'astroblast', name: 'Astro Blast', icon: assetUrl('/image/inventory/spaceship/phantom-voyager.png'), description: 'Shoot the asteroids!' },
+  { id: 'astroblast', name: 'Astro Blast', icon: assetUrl('/image/inventory/spaceships/phantom-voyager.png'), description: 'Shoot the asteroids!' },
   { id: 'matchgame', name: 'Match Up', icon: assetUrl('/image/dashboard/match1.png'), description: 'Match words & meanings!' },
   { id: 'flappy', name: 'Flappy Pet', icon: assetUrl('/image/dashboard/flap.png'), description: 'Fly and collect fruits!' },
   { id: 'wordtype', name: 'Word Type', icon: assetUrl('/image/dashboard/pet-type.webp'), description: 'Type the correct word!' },
