@@ -7,6 +7,7 @@ import { useProgress } from '../../hooks/useProgress'
 import { useFeedback } from '../../hooks/useFeedback'
 import { usePet } from '../../hooks/usePet'
 import { saveRecentExercise } from '../../utils/recentExercise'
+import { splitAnswers, firstAnswer } from '../../utils/splitAnswers'
 import LoadingSpinner from '../ui/LoadingSpinner'
 import { Check, X, RotateCcw, HelpCircle, ArrowLeft, MessageCircle } from 'lucide-react'
 import RichTextRenderer from '../ui/RichTextRenderer'
@@ -347,10 +348,7 @@ const FillBlankExercise = ({ testMode = false, exerciseData = null, onAnswersCol
 
   const checkAnswer = (blankIndex) => {
     const userAnswer = (userAnswers[currentQuestionIndex]?.[blankIndex] || '').trim()
-    const correctAnswers = currentQuestion.blanks[blankIndex].answer
-      .split(',')
-      .map(a => a.trim())
-      .filter(a => a)
+    const correctAnswers = splitAnswers(currentQuestion.blanks[blankIndex].answer)
     const caseSensitive = currentQuestion.blanks[blankIndex].case_sensitive
 
     if (caseSensitive) {
@@ -370,10 +368,7 @@ const FillBlankExercise = ({ testMode = false, exerciseData = null, onAnswersCol
     if (!blank) return 64 // Default 64px (w-16)
 
     // Get all possible answers and find the longest one
-    const answers = blank.answer
-      .split(',')
-      .map(a => a.trim())
-      .filter(a => a)
+    const answers = splitAnswers(blank.answer)
 
     const longestAnswer = answers.reduce((longest, current) =>
       current.length > longest.length ? current : longest, ''
@@ -506,10 +501,7 @@ const FillBlankExercise = ({ testMode = false, exerciseData = null, onAnswersCol
     const scores = questions.map((question, qIndex) => {
       const correctAnswers = question.blanks.filter((_, blankIndex) => {
         const userAnswer = userAnswers[qIndex]?.[blankIndex] || ''
-        const correctAnswers = question.blanks[blankIndex].answer
-          .split(',')
-          .map(a => a.trim())
-          .filter(a => a)
+        const correctAnswers = splitAnswers(question.blanks[blankIndex].answer)
         const caseSensitive = question.blanks[blankIndex].case_sensitive
 
         if (caseSensitive) {
@@ -613,7 +605,7 @@ const FillBlankExercise = ({ testMode = false, exerciseData = null, onAnswersCol
       ).join(', ')
 
       const correctAnswersList = currentQuestion.blanks.map(blank =>
-        blank.answer.split(',')[0].trim()
+        firstAnswer(blank.answer)
       ).join(', ')
 
       // Strip HTML tags from question for cleaner prompt
@@ -953,10 +945,7 @@ const FillBlankExercise = ({ testMode = false, exerciseData = null, onAnswersCol
   const checkAnswerForQuestion = (questionIndex, blankIndex) => {
     const question = questions[questionIndex]
     const userAnswer = (userAnswers[questionIndex]?.[blankIndex] || '').trim()
-    const correctAnswers = question.blanks[blankIndex].answer
-      .split(',')
-      .map(a => a.trim())
-      .filter(a => a)
+    const correctAnswers = splitAnswers(question.blanks[blankIndex].answer)
     const caseSensitive = question.blanks[blankIndex].case_sensitive
 
     if (caseSensitive) {
@@ -971,10 +960,7 @@ const FillBlankExercise = ({ testMode = false, exerciseData = null, onAnswersCol
     const blank = question?.blanks?.[blankIndex]
     if (!blank) return 64
 
-    const answers = blank.answer
-      .split(',')
-      .map(a => a.trim())
-      .filter(a => a)
+    const answers = splitAnswers(blank.answer)
 
     const longestAnswer = answers.reduce((longest, current) =>
       current.length > longest.length ? current : longest, ''
@@ -1058,7 +1044,7 @@ const FillBlankExercise = ({ testMode = false, exerciseData = null, onAnswersCol
                         const currentBlankIdx = blankIdx++
                         const blank = question.blanks?.[currentBlankIdx]
                         if (!blank) return <span key={index}>_____</span>
-                        const answer = blank.answer?.split(',')[0]?.trim() || '_____'
+                        const answer = firstAnswer(blank.answer) || '_____'
                         return (
                           <span key={index} className="inline-block mx-1 px-2 py-0.5 rounded font-bold bg-green-100 text-green-800 border border-green-300">
                             {answer}
@@ -1324,10 +1310,7 @@ const FillBlankExercise = ({ testMode = false, exerciseData = null, onAnswersCol
                     <div className="mt-4 p-4 bg-gray-50 rounded-lg space-y-2">
                       <h4 className="font-medium text-gray-700 text-sm">Correct Answers:</h4>
                       {question.blanks.map((blank, blankIndex) => {
-                        const correctAns = blank.answer
-                          .split(',')
-                          .map(a => a.trim())
-                          .filter(a => a)
+                        const correctAns = splitAnswers(blank.answer)
                         return (
                           <div key={blankIndex} className="flex items-center gap-2 flex-wrap">
                             <span className="text-sm text-gray-600">Blank {blankIndex + 1}:</span>
@@ -1384,10 +1367,7 @@ const FillBlankExercise = ({ testMode = false, exerciseData = null, onAnswersCol
                       newUserAnswers[qIndex] = {}
                       question.blanks.forEach((blank, blankIndex) => {
                         const userAnswer = userAnswers[qIndex]?.[blankIndex] || ''
-                        const correctAnswers = blank.answer
-                          .split(',')
-                          .map(a => a.trim())
-                          .filter(a => a)
+                        const correctAnswers = splitAnswers(blank.answer)
                         const caseSensitive = blank.case_sensitive
 
                         // Check if answer is correct
@@ -1673,10 +1653,7 @@ const FillBlankExercise = ({ testMode = false, exerciseData = null, onAnswersCol
                <div className="space-y-2">
                  <h4 className="font-medium text-gray-700">Correct Answers:</h4>
                  {currentQuestion.blanks.map((blank, blankIndex) => {
-                 const correctAnswers = blank.answer
-                   .split(',')
-                   .map(a => a.trim())
-                   .filter(a => a)
+                 const correctAnswers = splitAnswers(blank.answer)
                  
                  return (
                    <div key={blankIndex} className="flex items-center gap-2 flex-wrap">

@@ -18,6 +18,7 @@ import {
 import RichTextRenderer from '../../ui/RichTextRenderer'
 import { handleRichTextShortcut } from '../../../hooks/useRichTextShortcuts'
 import { supabase } from '../../../supabase/client'
+import { firstAnswer } from '../../../utils/splitAnswers'
 
 const FillBlankEditor = ({ questions, onQuestionsChange, settings, onSettingsChange, intro, onIntroChange }) => {
   const [localQuestions, setLocalQuestions] = useState(questions || [])
@@ -104,7 +105,7 @@ const FillBlankEditor = ({ questions, onQuestionsChange, settings, onSettingsCha
         const hintMatch = text.slice(pos).match(/^(?<!!)\[([^\]]+)\]\s+\(([^)]+)\)/)
         if (hintMatch && (pos === 0 || text[pos - 1] !== '!')) {
           const answers = hintMatch[1].split(/[|]/).map(a => a.trim()).filter(a => a)
-          resultBlanks.push({ text: hintMatch[2], answer: answers.join(', '), case_sensitive: false })
+          resultBlanks.push({ text: hintMatch[2], answer: answers.join('|'), case_sensitive: false })
           displayText += `_____ (${hintMatch[2]})`
           pos += hintMatch[0].length
           continue
@@ -117,7 +118,7 @@ const FillBlankEditor = ({ questions, onQuestionsChange, settings, onSettingsCha
           const afterBracket = text.slice(pos + bracketMatch[0].length)
           if (!afterBracket.match(/^\s*\(/)) {
             const answers = bracketMatch[1].split(/[|]/).map(a => a.trim()).filter(a => a)
-            resultBlanks.push({ text: '', answer: answers.join(', '), case_sensitive: false })
+            resultBlanks.push({ text: '', answer: answers.join('|'), case_sensitive: false })
             displayText += '_____'
             pos += bracketMatch[0].length
             continue
@@ -398,7 +399,7 @@ const FillBlankEditor = ({ questions, onQuestionsChange, settings, onSettingsCha
           const answer = m[1]
           // m[2] is the hint text, which we preserve in the display
           const answers = answer.split(/[|/,]/).map(a => a.trim()).filter(a => a)
-          const answerText = answers.length > 0 ? answers.join(', ') : answer
+          const answerText = answers.length > 0 ? answers.join('|') : answer
           blanks.push({ text: '', answer: answerText, case_sensitive: false })
         })
         // Replace with-hint occurrences with blank keeping hint text
@@ -409,7 +410,7 @@ const FillBlankEditor = ({ questions, onQuestionsChange, settings, onSettingsCha
         noHintMatches.forEach((m) => {
           const answer = m[1]
           const answers = answer.split(/[|/,]/).map(a => a.trim()).filter(a => a)
-          const answerText = answers.length > 0 ? answers.join(', ') : answer
+          const answerText = answers.length > 0 ? answers.join('|') : answer
           blanks.push({ text: '', answer: answerText, case_sensitive: false })
         })
         // Replace no-hint occurrences with blank only
@@ -675,7 +676,7 @@ const FillBlankEditor = ({ questions, onQuestionsChange, settings, onSettingsCha
           <p className="text-sm text-blue-700 mb-3">
             Format: Use [answer] for blanks, or [answer] (hint) for blanks with hints
             <br />
-            Multiple answers: [answer1|answer2|answer3] or [answer1, answer2]
+            Multiple answers: [answer1|answer2|answer3] or [answer1/answer2]
             <br />
             Explanation: Add a line starting with # after a question
           </p>
@@ -802,7 +803,7 @@ B. Fill in the blanks with the correct form.
                 ref={(el) => { questionTextareasRef.current[index] = el }}
                      className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
                      rows={3}
-                     placeholder="Type [answer] for blanks, e.g.: By the time I arrived, everyone [had left] (leave)! Use | for multiple answers: [I'm|I am]. You can also use _____ manually."
+                     placeholder="Type [answer] for blanks, e.g.: By the time I arrived, everyone [had left] (leave)! Use | or / for multiple answers: [I'm|I am]. You can also use _____ manually."
               />
               {/* Preview */}
               {question.question && (
@@ -814,7 +815,7 @@ B. Fill in the blanks with the correct form.
                       return question.question.split(/(_{5})/).map((part, i) => {
                         if (part === '_____') {
                           const currentBlank = question.blanks[blankIdx]
-                          const answer = currentBlank?.answer?.split(',')[0]?.trim() || ''
+                          const answer = firstAnswer(currentBlank?.answer) || ''
                           const width = Math.max(60, answer.length * 10 + 24)
                           blankIdx++
                           return (
@@ -851,7 +852,7 @@ B. Fill in the blanks with the correct form.
                         value={blank.answer}
                         onChange={(e) => updateBlank(index, blankIndex, 'answer', e.target.value)}
                         className="flex-1 px-2 py-1.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 text-sm"
-                        placeholder="correct answer(s), comma separated"
+                        placeholder="correct answer(s), use | or / to separate"
                       />
                       {blank.text && <span className="text-xs text-gray-400 flex-shrink-0">({blank.text})</span>}
                       <label className="flex items-center gap-1 flex-shrink-0">

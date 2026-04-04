@@ -3,6 +3,7 @@ import { useSearchParams, useNavigate } from 'react-router-dom'
 import { supabase } from '../../supabase/client'
 import MultipleChoiceExercise from '../exercises/MultipleChoiceExercise'
 import FillBlankExercise from '../exercises/FillBlankExercise'
+import { splitAnswers } from '../../utils/splitAnswers'
 import DragDropExercise from '../exercises/DragDropExercise'
 import DropdownExercise from '../exercises/DropdownExercise'
 import ImageHotspotExercise from '../exercises/ImageHotspotExercise'
@@ -187,7 +188,7 @@ const GuestSessionRunner = () => {
             blanks.forEach((blank, bi) => {
               totalQuestions++
               const typed = ((exerciseAnswers?.[qi] || {})[bi] || '').trim()
-              const correctAnswers = (blank.answer || '').split(',').map(a => a.trim()).filter(Boolean)
+              const correctAnswers = splitAnswers(blank.answer)
               const isCorrect = blank.case_sensitive
                 ? correctAnswers.some(a => typed === a)
                 : correctAnswers.some(a => typed.toLowerCase() === a.toLowerCase())

@@ -4,6 +4,7 @@ import {
   CheckCircle, XCircle, ChevronLeft, ChevronRight, X, Clock, Edit3
 } from 'lucide-react'
 import { RichTextWithAudio } from '../../ui/RichTextRenderer'
+import { splitAnswers, firstAnswer } from '../../../utils/splitAnswers'
 
 const decodeIndex = (type, idx) => {
   switch (type) {
@@ -105,7 +106,7 @@ const FillBlankSentence = ({ questionText, blanksQAs }) => {
                 {qa.selected_answer || '—'}
                 {!qa.is_correct && (
                   <span className="text-green-700">
-                    → {qa.correct_answer?.split(',')[0]?.trim()}
+                    → {firstAnswer(qa.correct_answer)}
                   </span>
                 )}
                 {qa.is_correct
@@ -149,7 +150,7 @@ const FillBlankExerciseReview = ({ exercise, qas }) => {
                     <>
                       <span className="text-gray-400">→</span>
                       <span className="px-2 py-0.5 rounded bg-green-50 text-green-800 font-medium">
-                        {qa.correct_answer?.split(',')[0]?.trim()}
+                        {firstAnswer(qa.correct_answer)}
                       </span>
                     </>
                   )}
@@ -335,7 +336,7 @@ const AIFillBlankExerciseReview = ({ exercise, qas }) => {
       {questions.map((q, qi) => {
         const qa = byQI[qi]?.[0]
         if (!qa) return null
-        const expected = (qa.correct_answer || '').split(',').map(a => a.trim()).filter(Boolean)
+        const expected = splitAnswers(qa.correct_answer)
         return (
           <div key={qi} className="space-y-2">
             {questions.length > 1 && (

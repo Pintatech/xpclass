@@ -1,7 +1,7 @@
 import React, { useState } from "react";
 import confetti from "canvas-confetti";
 
-import { assetUrl, siteUrl } from './useBranding';
+import { assetUrl } from './useBranding';
 /**
  * Custom hook for handling feedback (memes + sounds) for exercises
  * @returns {Object} { currentMeme, showMeme, playFeedback, playCelebration, passGif }
@@ -46,14 +46,14 @@ assetUrl('/meme/wrong_you-guys-are-getting-paid.jpg'),
 
   // Pass celebration GIFs
   const passGifs = [
-    siteUrl('/leaderboard/end_gif/end%201.gif'),
-    siteUrl('/leaderboard/end_gif/end%202.gif'),
-    siteUrl('/leaderboard/end_gif/end%203.gif'),
-    siteUrl('/leaderboard/end_gif/end%204.gif'),
-    siteUrl('/leaderboard/end_gif/end%205.gif'),
-    siteUrl('/leaderboard/end_gif/end%206.gif'),
-    siteUrl('/leaderboard/end_gif/end%207.gif'),
-    siteUrl('/leaderboard/end_gif/end%208.gif')
+    assetUrl('/class-battle/end_gif/end%201.gif'),
+    assetUrl('/class-battle/end_gif/end%202.gif'),
+    assetUrl('/class-battle/end_gif/end%203.gif'),
+    assetUrl('/class-battle/end_gif/end%204.gif'),
+    assetUrl('/class-battle/end_gif/end%205.gif'),
+    assetUrl('/class-battle/end_gif/end%206.gif'),
+    assetUrl('/class-battle/end_gif/end%207.gif'),
+    assetUrl('/class-battle/end_gif/end%208.gif')
   ];
 
   // Sound URLs

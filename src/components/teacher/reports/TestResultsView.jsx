@@ -11,6 +11,7 @@ import {
   Eye
 } from 'lucide-react'
 import ExerciseReviewMode from './ExerciseReviewMode'
+import { splitAnswers } from '../../../utils/splitAnswers'
 
 const TestResultsView = ({ selectedCourse }) => {
   const [testSessions, setTestSessions] = useState([])
@@ -41,7 +42,7 @@ const TestResultsView = ({ selectedCourse }) => {
       case 'fill_blank': {
         const blank = questions[qi]?.blanks?.[sub]
         if (!blank) return null
-        const correct = (blank.answer || '').split(',').map(a => a.trim()).filter(Boolean)
+        const correct = splitAnswers(blank.answer)
         const typed = (qa.selected_answer || '').trim()
         const isCorrect = blank.case_sensitive
           ? correct.some(a => typed === a)

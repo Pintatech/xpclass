@@ -5,6 +5,7 @@ import { useTests } from '../../hooks/useTests'
 import { useAuth } from '../../hooks/useAuth'
 import MultipleChoiceExercise from '../exercises/MultipleChoiceExercise'
 import FillBlankExercise from '../exercises/FillBlankExercise'
+import { splitAnswers } from '../../utils/splitAnswers'
 import DragDropExercise from '../exercises/DragDropExercise'
 import DropdownExercise from '../exercises/DropdownExercise'
 import ImageHotspotExercise from '../exercises/ImageHotspotExercise'
@@ -311,7 +312,7 @@ const TestRunner = () => {
               totalQuestions++
               // exerciseAnswers is userAnswers: { questionIndex: { blankIndex: value } }
               const typed = ((exerciseAnswers?.[qi] || {})[bi] || '').trim()
-              const correctAnswers = (blank.answer || '').split(',').map(a => a.trim()).filter(Boolean)
+              const correctAnswers = splitAnswers(blank.answer)
               const caseSensitive = blank.case_sensitive
               const isCorrect = caseSensitive
                 ? correctAnswers.some(a => typed === a)
