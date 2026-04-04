@@ -201,6 +201,56 @@ function aiAnalyzePlugin() {
   }
 }
 
+// Local dev middleware for /api/pet-chat (proxies Groq API for pet chat/tutor)
+function petChatPlugin() {
+  return {
+    name: 'pet-chat-proxy',
+    configureServer(server) {
+      server.middlewares.use('/api/pet-chat', async (req, res) => {
+        if (req.method !== 'POST') {
+          res.writeHead(405, { 'Content-Type': 'application/json' })
+          res.end(JSON.stringify({ error: 'Method not allowed' }))
+          return
+        }
+        const apiKey = process.env.GROQ_API_KEY
+        if (!apiKey) {
+          res.writeHead(500, { 'Content-Type': 'application/json' })
+          res.end(JSON.stringify({ error: 'GROQ_API_KEY not set in .env' }))
+          return
+        }
+        try {
+          const chunks = []
+          for await (const chunk of req) chunks.push(chunk)
+          const { messages, model = 'openai/gpt-oss-20b', max_tokens = 500, temperature = 0.7 } = JSON.parse(Buffer.concat(chunks).toString())
+
+          const apiRes = await fetch('https://api.groq.com/openai/v1/chat/completions', {
+            method: 'POST',
+            headers: {
+              'Authorization': `Bearer ${apiKey}`,
+              'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({ model, messages, max_tokens, temperature })
+          })
+
+          if (!apiRes.ok) {
+            const errText = await apiRes.text()
+            res.writeHead(apiRes.status, { 'Content-Type': 'application/json' })
+            res.end(JSON.stringify({ error: `Groq error: ${apiRes.status}`, detail: errText }))
+            return
+          }
+
+          const data = await apiRes.json()
+          res.writeHead(200, { 'Content-Type': 'application/json' })
+          res.end(JSON.stringify(data))
+        } catch (err) {
+          res.writeHead(500, { 'Content-Type': 'application/json' })
+          res.end(JSON.stringify({ error: err.message }))
+        }
+      })
+    }
+  }
+}
+
 // https://vitejs.dev/config/
 export default defineConfig(({ mode }) => {
   // Load .env so ASSEMBLYAI_API_KEY is available in process.env
@@ -208,7 +258,7 @@ export default defineConfig(({ mode }) => {
   Object.assign(process.env, env)
 
   return {
-  plugins: [react(), assemblyAIPlugin(), transcribeVideoPlugin(), aiAnalyzePlugin()],
+  plugins: [react(), assemblyAIPlugin(), transcribeVideoPlugin(), aiAnalyzePlugin(), petChatPlugin()],
   server: {
     port: 3001,
     host: true,

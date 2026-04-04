@@ -1,5 +1,28 @@
 // Pet Chat Service - AI-powered pet conversations
-// Uses MegaLLM AI to generate pet responses
+// Proxied through server-side /api/pet-chat (Groq API)
+
+// Helper to call Groq via server proxy
+const callMegaLLM = async (messages, { model = 'openai/gpt-oss-20b', max_tokens = 500, temperature = 0.7 } = {}) => {
+  const response = await fetch('/api/pet-chat', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ messages, model, max_tokens, temperature }),
+  })
+
+  if (!response.ok) {
+    const err = await response.json().catch(() => ({}))
+    throw new Error(err.error || `Proxy error: ${response.status}`)
+  }
+
+  const data = await response.json()
+  const content = data.choices?.[0]?.message?.content?.trim()
+
+  if (!content) {
+    throw new Error('Empty AI response')
+  }
+
+  return content
+}
 
 export const chatWithPet = async (pet, userMessage, chatHistory = [], language = 'vi') => {
   try {
@@ -9,7 +32,6 @@ export const chatWithPet = async (pet, userMessage, chatHistory = [], language =
     return response
   } catch (error) {
     console.error('❌ Pet chat error:', error)
-    // Fallback to simple responses if AI fails
     return getFallbackResponse(pet, language)
   }
 }
@@ -39,18 +61,11 @@ const getFallbackResponse = (pet, language) => {
   }
 }
 
-// MegaLLM Pet Chat integration with retry
+// MegaLLM Pet Chat via Edge Function
 const callMegaLLMPetChat = async (pet, userMessage, _chatHistory, language, retryCount = 0) => {
-  const API_KEY = import.meta.env.VITE_MEGALLM_API_KEY || 'sk-mega-90798a7547487b440a37b054ffbb33cbc57d85cf86929b52bb894def833d784e'
-
-  if (!API_KEY) {
-    throw new Error('MegaLLM API key not configured')
-  }
-
   const petName = pet.nickname || pet.name
   const petType = pet.info || 'virtual pet'
 
-  // Simplified prompt for reliability
   const systemPrompt = language === 'vi'
     ? `Bạn tên là ${petName}, một ${petType} dễ thương. Trả lời ngắn (1-2 câu), vui vẻ, có thể dùng emoji. Level: ${pet.level}.`
     : `Your name is ${petName}, a cute ${petType}. Reply short (1-2 sentences), cheerful, can use emojis. Level: ${pet.level}.`
@@ -61,46 +76,12 @@ const callMegaLLMPetChat = async (pet, userMessage, _chatHistory, language, retr
   ]
 
   try {
-    console.log('📤 Sending pet chat request to MegaLLM...')
+    console.log('📤 Sending pet chat request via Edge Function...')
 
-    const response = await fetch('https://ai.megallm.io/v1/chat/completions', {
-      method: 'POST',
-      headers: {
-        'Authorization': `Bearer ${API_KEY}`,
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({
-        model: 'openai-gpt-oss-20b',
-        messages,
-        max_tokens: 1000,
-        temperature: 0.7
-      })
-    })
+    const content = await callMegaLLM(messages, { max_tokens: 1000 })
 
-    console.log('📥 MegaLLM Pet Chat response status:', response.status)
-
-    if (!response.ok) {
-      const errorText = await response.text()
-      throw new Error(`MegaLLM API error: ${response.status} - ${errorText}`)
-    }
-
-    const data = await response.json()
-    const rawContent = data.choices?.[0]?.message?.content
-
-    if (!rawContent) {
-      if (retryCount < 1) {
-        console.warn('⚠️ Empty response, retrying...')
-        await new Promise(r => setTimeout(r, 500))
-        return callMegaLLMPetChat(pet, userMessage, _chatHistory, language, retryCount + 1)
-      }
-      console.warn('⚠️ Empty response from AI, using fallback')
-      throw new Error('Empty AI response')
-    }
-
-    const content = rawContent.trim()
     console.log('🐾 Pet says:', content)
 
-    // Determine mood from response content
     let mood = 'happy'
     if (content.includes('buồn') || content.includes('sad') || content.includes('😢')) {
       mood = 'sad'
@@ -108,11 +89,13 @@ const callMegaLLMPetChat = async (pet, userMessage, _chatHistory, language, retr
       mood = 'tired'
     }
 
-    return {
-      message: content,
-      mood
-    }
+    return { message: content, mood }
   } catch (error) {
+    if (retryCount < 1) {
+      console.warn('⚠️ Error, retrying...', error.message)
+      await new Promise(r => setTimeout(r, 500))
+      return callMegaLLMPetChat(pet, userMessage, _chatHistory, language, retryCount + 1)
+    }
     console.error('MegaLLM Pet Chat error:', error)
     throw error
   }
@@ -127,7 +110,6 @@ export const getPetTutorExplanation = async (pet, questionData, language = 'vi')
     return response
   } catch (error) {
     console.error('❌ Pet tutor error:', error)
-    // Fallback response if AI fails
     return getTutorFallbackResponse(pet, language)
   }
 }
@@ -152,19 +134,12 @@ const getTutorFallbackResponse = (pet, language) => {
   }
 }
 
-// MegaLLM Pet Tutor integration
+// MegaLLM Pet Tutor via Edge Function
 const callMegaLLMPetTutor = async (pet, questionData, language, retryCount = 0) => {
-  const API_KEY = import.meta.env.VITE_MEGALLM_API_KEY || 'sk-mega-90798a7547487b440a37b054ffbb33cbc57d85cf86929b52bb894def833d784e'
-
-  if (!API_KEY) {
-    throw new Error('MegaLLM API key not configured')
-  }
-
   const petName = pet?.nickname || pet?.name || 'Pet'
   const petType = pet?.info || 'virtual pet'
   const { question, selectedAnswer, correctAnswer } = questionData
 
-  // Tutor-focused prompt
   const systemPrompt = language === 'vi'
     ? `Bạn là ${petName}, một ${petType} đang giúp học sinh học bài. Học sinh vừa trả lời sai câu hỏi này:
 
@@ -187,50 +162,19 @@ Explain briefly (2-3 sentences) why the correct answer is right, in a friendly a
   ]
 
   try {
-    console.log('📤 Sending pet tutor request to MegaLLM...')
+    console.log('📤 Sending pet tutor request via Edge Function...')
 
-    const response = await fetch('https://ai.megallm.io/v1/chat/completions', {
-      method: 'POST',
-      headers: {
-        'Authorization': `Bearer ${API_KEY}`,
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({
-        model: 'openai-gpt-oss-20b',
-        messages,
-        max_tokens: 500,
-        temperature: 0.7
-      })
-    })
+    const content = await callMegaLLM(messages)
 
-    console.log('📥 MegaLLM Pet Tutor response status:', response.status)
-
-    if (!response.ok) {
-      const errorText = await response.text()
-      throw new Error(`MegaLLM API error: ${response.status} - ${errorText}`)
-    }
-
-    const data = await response.json()
-    const rawContent = data.choices?.[0]?.message?.content
-
-    if (!rawContent) {
-      if (retryCount < 1) {
-        console.warn('⚠️ Empty response, retrying...')
-        await new Promise(r => setTimeout(r, 500))
-        return callMegaLLMPetTutor(pet, questionData, language, retryCount + 1)
-      }
-      console.warn('⚠️ Empty response from AI, using fallback')
-      throw new Error('Empty AI response')
-    }
-
-    const content = rawContent.trim()
     console.log('🎓 Pet tutor says:', content)
 
-    return {
-      message: content,
-      success: true
-    }
+    return { message: content, success: true }
   } catch (error) {
+    if (retryCount < 1) {
+      console.warn('⚠️ Error, retrying...', error.message)
+      await new Promise(r => setTimeout(r, 500))
+      return callMegaLLMPetTutor(pet, questionData, language, retryCount + 1)
+    }
     console.error('MegaLLM Pet Tutor error:', error)
     throw error
   }

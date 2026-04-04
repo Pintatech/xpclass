@@ -138,14 +138,8 @@ const generateExplanation = (similarity, userAnswer, expected) => {
   }
 }
 
-// MegaLLM AI integration
+// AI Scoring integration (via Groq proxy)
 export const callMegaLLMScoring = async (question, userAnswer, expectedAnswers, context, language = 'en') => {
-  const API_KEY = import.meta.env.VITE_MEGALLM_API_KEY || 'sk-mega-90798a7547487b440a37b054ffbb33cbc57d85cf86929b52bb894def833d784e'
-
-  if (!API_KEY) {
-    throw new Error('MegaLLM API key not configured')
-  }
-
   const prompt = language === 'vi'
     ? `
 Bạn là trợ lý AI giáo dục chấm điểm câu trả lời điền vào chỗ trống.
@@ -202,18 +196,14 @@ Respond in JSON format:
 `
 
   try {
-    console.log('📤 Sending request to MegaLLM API...')
+    console.log('📤 Sending request to Groq API...')
     console.log('Language:', language)
     console.log('Prompt preview:', prompt.substring(0, 200) + '...')
 
-    const response = await fetch('https://ai.megallm.io/v1/chat/completions', {
+    const response = await fetch('/api/pet-chat', {
       method: 'POST',
-      headers: {
-        'Authorization': `Bearer ${API_KEY}`,
-        'Content-Type': 'application/json',
-      },
+      headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
-        model: 'openai-gpt-oss-20b',
         messages: [
           {
             role: 'system',
@@ -231,11 +221,11 @@ Respond in JSON format:
       })
     })
 
-    console.log('📥 MegaLLM API response status:', response.status)
+    console.log('📥 Groq API response status:', response.status)
 
     if (!response.ok) {
       const errorText = await response.text()
-      throw new Error(`MegaLLM API error: ${response.status} - ${errorText}`)
+      throw new Error(`Groq API error: ${response.status} - ${errorText}`)
     }
 
     const data = await response.json()

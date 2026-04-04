@@ -83,9 +83,8 @@ export const LEVELS = [
 
 const getLevelConfig = (value) => LEVELS.find(l => l.value === value) || LEVELS[2]
 
-// Call MegaLLM with level-aware scoring prompt
+// Call AI with level-aware scoring prompt (via Groq proxy)
 export const scoreSpeechWithLLM = async (prompt, spokenText, keyPoints, evaluationCriteria, level) => {
-  const API_KEY = import.meta.env.VITE_MEGALLM_API_KEY || 'sk-mega-90798a7547487b440a37b054ffbb33cbc57d85cf86929b52bb894def833d784e'
   const kp = keyPoints?.join(', ') || ''
   const criteria = evaluationCriteria || 'content relevance, vocabulary, grammar, fluency'
   const levelConfig = getLevelConfig(level)
@@ -113,14 +112,10 @@ Provide evaluation in JSON calibrated to the student's level:
   "sample_improvement": "One example sentence showing improvement appropriate for this level"
 }`
 
-  const response = await fetch('https://ai.megallm.io/v1/chat/completions', {
+  const response = await fetch('/api/pet-chat', {
     method: 'POST',
-    headers: {
-      'Authorization': `Bearer ${API_KEY}`,
-      'Content-Type': 'application/json',
-    },
+    headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({
-      model: 'openai-gpt-oss-20b',
       messages: [
         { role: 'system', content: 'You are an expert speaking examiner who adapts feedback to student age and level. Always respond in valid JSON.' },
         { role: 'user', content: userPrompt },
