@@ -2668,7 +2668,7 @@ const PetDisplay = () => {
             }
             setMazeAdventure(null)
           }}
-          onClose={() => setMazeAdventure(null)}
+          onClose={() => { setMazeAdventure(null); clearEncounter(); }}
         />
       )}
 

@@ -533,7 +533,6 @@ const PetMazeAdventure = ({
   const [showQuitWarning, setShowQuitWarning] = useState(false)
 
   const handleGameClose = useCallback(() => {
-    clearInterval(qTimerRef.current)
     setShowQuitWarning(true)
   }, [])
 
