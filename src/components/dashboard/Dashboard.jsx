@@ -609,7 +609,7 @@ const Dashboard = () => {
               <div className="bg-white/90 backdrop-blur-sm px-4 py-1 flex items-center space-x-2"
                 style={{ clipPath: 'polygon(6px 0, 100% 0, calc(100% - 6px) 100%, 0 100%)' }}
               >
-                <img src="https://xpclass.vn/xpclass/icon/profile/streak.svg" alt="Streak" className="w-5 h-5" />
+                <img src={assetUrl('/icon/profile/streak.svg')} alt="Streak" className="w-5 h-5" />
                 <span className="font-semibold text-red-500">{profile?.streak_count || 0}</span>
               </div>
               <div className="flex items-center gap-2">

@@ -1,5 +1,6 @@
 import { useState, useRef, useCallback, useEffect, useMemo } from 'react'
 import { createPortal } from 'react-dom'
+import { assetUrl } from '../../hooks/useBranding'
 import { useInventory } from '../../hooks/useInventory'
 import { usePet } from '../../hooks/usePet'
 
@@ -350,11 +351,11 @@ const WildEncounterModal = ({ pet, onClose, onCatchComplete }) => {
   useEffect(() => {
     if (phase === 'result') {
       if (caught) {
-        try { new Audio('https://xpclass.vn/xpclass/sound/pet-caught.mp3').play() } catch {}
+        try { new Audio(assetUrl('/sound/pet-caught.mp3')).play() } catch {}
         setFlashOpacity(0.4)
         setTimeout(() => setFlashOpacity(0), 300)
       } else {
-        try { new Audio('https://xpclass.vn/xpclass/sound/escape.mp3').play() } catch {}
+        try { new Audio(assetUrl('/sound/escape.mp3')).play() } catch {}
         setScreenShake(true)
         setTimeout(() => setScreenShake(false), 300)
       }

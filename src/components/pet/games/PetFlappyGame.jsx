@@ -191,13 +191,13 @@ const PetFlappyGame = ({ petImageUrl, petName, wordBank: wordBankProp, onGameEnd
   useEffect(() => {
     if (phase === 'results') {
       if (displayScore >= passGoal) {
-        playSound('https://xpclass.vn/xpclass/pet-game/angry/angry-birds-level-complete.mp3', 0.5)
+        playSound(assetUrl('/pet-game/angry/angry-birds-level-complete.mp3'), 0.5)
       } else {
-        playSound('https://xpclass.vn/xpclass/sound/craft_fail.mp3', 0.5)
+        playSound(assetUrl('/sound/craft_fail.mp3'), 0.5)
       }
     }
     if (phase === 'defeated') {
-      playSound('https://xpclass.vn/xpclass/sound/craft_fail.mp3', 0.5)
+      playSound(assetUrl('/sound/craft_fail.mp3'), 0.5)
     }
   }, [phase, playSound, displayScore, passGoal])
 
@@ -748,7 +748,7 @@ const PetFlappyGame = ({ petImageUrl, petName, wordBank: wordBankProp, onGameEnd
                   onError={(e) => { e.target.style.display = 'none'; e.target.nextSibling.style.display = ''; }}
                 />
               ) : null}
-              <img src="https://xpclass.vn/xpclass/image/dashboard/flap.png" alt="Flappy Pet" className="w-20 h-20 object-contain drop-shadow-lg" style={{ display: petImageUrl ? 'none' : '' }} />
+              <img src={assetUrl('/image/dashboard/flap.png')} alt="Flappy Pet" className="w-20 h-20 object-contain drop-shadow-lg" style={{ display: petImageUrl ? 'none' : '' }} />
             </div>
             <div className="flex gap-1 justify-center">
               {Array.from({ length: PET_MAX_HP }).map((_, i) => (
@@ -832,7 +832,7 @@ const PetFlappyGame = ({ petImageUrl, petName, wordBank: wordBankProp, onGameEnd
                 onError={(e) => { e.target.style.display = 'none'; e.target.nextSibling.style.display = ''; }}
               />
             ) : null}
-            <img src="https://xpclass.vn/xpclass/image/dashboard/flap.png" alt="Flappy Pet" className="w-full h-full object-contain drop-shadow-lg" style={{ display: petImageUrl ? 'none' : '' }} />
+            <img src={assetUrl('/image/dashboard/flap.png')} alt="Flappy Pet" className="w-full h-full object-contain drop-shadow-lg" style={{ display: petImageUrl ? 'none' : '' }} />
           </div>
         )}
 

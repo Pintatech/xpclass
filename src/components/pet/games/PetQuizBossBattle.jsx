@@ -4,11 +4,11 @@ import { X, Volume2, VolumeX, Trophy, Heart, Swords, Shield, Zap } from 'lucide-
 import { assetUrl } from '../../../hooks/useBranding'
 
 const BOSSES = [
-  { name: 'Stone Golem', hp: 4, img: 'https://xpclass.vn/xpclass/pet-game/boss/boss1.png', color: '#9ca3af', bg: 'from-gray-800 to-gray-700', attackName: 'Rock Slam', accent: 'gray' },
-  { name: 'Forest Troll', hp: 5, img: 'https://xpclass.vn/xpclass/pet-game/boss/boss2.png', color: '#22c55e', bg: 'from-green-900 to-emerald-800', attackName: 'Vine Whip', accent: 'green' },
-  { name: 'Frost Giant', hp: 7, img: 'https://xpclass.vn/xpclass/pet-game/boss/boss3.png', color: '#3b82f6', bg: 'from-blue-900 to-cyan-900', attackName: 'Ice Crush', accent: 'blue' },
-  { name: 'Shadow Demon', hp: 9, img: 'https://xpclass.vn/xpclass/pet-game/boss/boss4.png', color: '#a855f7', bg: 'from-purple-900 to-indigo-900', attackName: 'Dark Pulse', accent: 'purple' },
-  { name: 'Dragon King', hp: 12, img: 'https://xpclass.vn/xpclass/pet-game/boss/boss5.png', color: '#eab308', bg: 'from-yellow-900 to-amber-800', attackName: 'Golden Fire', accent: 'gold' },
+  { name: 'Stone Golem', hp: 4, img: assetUrl('/pet-game/boss/boss1.png'), color: '#9ca3af', bg: 'from-gray-800 to-gray-700', attackName: 'Rock Slam', accent: 'gray' },
+  { name: 'Forest Troll', hp: 5, img: assetUrl('/pet-game/boss/boss2.png'), color: '#22c55e', bg: 'from-green-900 to-emerald-800', attackName: 'Vine Whip', accent: 'green' },
+  { name: 'Frost Giant', hp: 7, img: assetUrl('/pet-game/boss/boss3.png'), color: '#3b82f6', bg: 'from-blue-900 to-cyan-900', attackName: 'Ice Crush', accent: 'blue' },
+  { name: 'Shadow Demon', hp: 9, img: assetUrl('/pet-game/boss/boss4.png'), color: '#a855f7', bg: 'from-purple-900 to-indigo-900', attackName: 'Dark Pulse', accent: 'purple' },
+  { name: 'Dragon King', hp: 12, img: assetUrl('/pet-game/boss/boss5.png'), color: '#eab308', bg: 'from-yellow-900 to-amber-800', attackName: 'Golden Fire', accent: 'gold' },
 ]
 
 const POINTS_PER_HIT = 10
@@ -413,10 +413,10 @@ const PetQuizBossBattle = ({
   // Play end-of-game sounds
   useEffect(() => {
     if (phase === 'results' || phase === 'victory') {
-      playSound('https://xpclass.vn/xpclass/pet-game/angry/angry-birds-level-complete.mp3', 0.5)
+      playSound(assetUrl('/pet-game/angry/angry-birds-level-complete.mp3'), 0.5)
     }
     if (phase === 'defeated') {
-      playSound('https://xpclass.vn/xpclass/sound/craft_fail.mp3', 0.5)
+      playSound(assetUrl('/sound/craft_fail.mp3'), 0.5)
     }
   }, [phase, playSound])
 

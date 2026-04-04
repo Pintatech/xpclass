@@ -1009,7 +1009,7 @@ const PetDisplay = () => {
     <div
       className="relative shadow-lg bg-cover bg-center bg-blue-200 overflow-hidden"
       style={{
-        backgroundImage: `url(${assetUrl('/')}image/dashboard/2709577_14710.jpg)`,
+        backgroundImage: `url(${assetUrl('/image/dashboard/2709577_14710.jpg')})`,
         clipPath: 'polygon(12px 0, 100% 0, 100% calc(100% - 12px), calc(100% - 12px) 100%, 0 100%, 0 12px)',
       }}
     >
@@ -2156,7 +2156,7 @@ const PetDisplay = () => {
                 className={`relative flex flex-col items-center gap-2 p-4 border-2 transition-all group overflow-hidden ${competitionGame === 'astroblast' ? 'border-yellow-400 bg-yellow-50 ring-2 ring-yellow-300' : 'border-red-200 hover:border-red-400 hover:bg-red-50'}`}
               >
                 {competitionGame === 'astroblast' && <span className="absolute -top-2 -right-2 text-lg">🏆</span>}
-                <img src="https://xpclass.vn/xpclass/image/inventory/spaceship/phantom-voyager.png" alt="Astro Blast" className="w-20 h-20 object-contain group-hover:scale-110 transition-transform" />
+                <img src={assetUrl('/image/inventory/spaceship/phantom-voyager.png')} alt="Astro Blast" className="w-20 h-20 object-contain group-hover:scale-110 transition-transform" />
                 <span className="font-bold text-gray-800 text-xs">Astro Blast</span>
               </button>
               )}
@@ -2166,7 +2166,7 @@ const PetDisplay = () => {
                 className={`relative flex flex-col items-center gap-2 p-4 border-2 transition-all group overflow-hidden ${competitionGame === 'flappy' ? 'border-yellow-400 bg-yellow-50 ring-2 ring-yellow-300' : 'border-sky-200 hover:border-sky-400 hover:bg-sky-50'}`}
               >
                 {competitionGame === 'flappy' && <span className="absolute -top-2 -right-2 text-lg">🏆</span>}
-                <img src="https://xpclass.vn/xpclass/image/dashboard/flap.png" alt="Flappy Pet" className="w-20 h-20 object-contain group-hover:scale-110 transition-transform" />
+                <img src={assetUrl('/image/dashboard/flap.png')} alt="Flappy Pet" className="w-20 h-20 object-contain group-hover:scale-110 transition-transform" />
                 <span className="font-bold text-gray-800 text-xs">Flappy Pet</span>
               </button>
               )}
@@ -2176,7 +2176,7 @@ const PetDisplay = () => {
                 className={`relative flex flex-col items-center gap-2 p-4 border-2 transition-all group overflow-hidden ${competitionGame === 'matchgame' ? 'border-yellow-400 bg-yellow-50 ring-2 ring-yellow-300' : 'border-indigo-200 hover:border-indigo-400 hover:bg-indigo-50'}`}
               >
                 {competitionGame === 'matchgame' && <span className="absolute -top-2 -right-2 text-lg">🏆</span>}
-                <img src="https://xpclass.vn/xpclass/image/dashboard/match1.png" alt="Match Up" className="w-20 h-20 object-contain group-hover:scale-110 transition-transform" />
+                <img src={assetUrl('/image/dashboard/match1.png')} alt="Match Up" className="w-20 h-20 object-contain group-hover:scale-110 transition-transform" />
                 <span className="font-bold text-gray-800 text-xs">Match Up</span>
               </button>
               )}
@@ -2186,7 +2186,7 @@ const PetDisplay = () => {
                 className={`relative flex flex-col items-center gap-2 p-4 border-2 transition-all group overflow-hidden ${competitionGame === 'wordtype' ? 'border-yellow-400 bg-yellow-50 ring-2 ring-yellow-300' : 'border-cyan-200 hover:border-cyan-400 hover:bg-cyan-50'}`}
               >
                 {competitionGame === 'wordtype' && <span className="absolute -top-2 -right-2 text-lg">🏆</span>}
-                <img src="https://xpclass.vn/xpclass/image/dashboard/pet-type.webp" alt="Word Type" className="w-20 h-20 object-cover rounded-lg group-hover:scale-110 transition-transform" />
+                <img src={assetUrl('/image/dashboard/pet-type.webp')} alt="Word Type" className="w-20 h-20 object-cover rounded-lg group-hover:scale-110 transition-transform" />
                 <span className="font-bold text-gray-800 text-xs">Word Type</span>
               </button>
               )}
@@ -2196,7 +2196,7 @@ const PetDisplay = () => {
                 className={`relative flex flex-col items-center gap-2 p-4 border-2 transition-all group overflow-hidden ${competitionGame === 'sayitright' ? 'border-yellow-400 bg-yellow-50 ring-2 ring-yellow-300' : 'border-orange-200 hover:border-orange-400 hover:bg-orange-50'}`}
               >
                 {competitionGame === 'sayitright' && <span className="absolute -top-2 -right-2 text-lg">🏆</span>}
-                <img src="https://xpclass.vn/xpclass/pet-display/game-logo/say.png" alt="Say It Right" className="w-20 h-20 object-contain rounded-lg group-hover:scale-110 transition-transform" />
+                <img src={assetUrl('/pet-display/game-logo/say.png')} alt="Say It Right" className="w-20 h-20 object-contain rounded-lg group-hover:scale-110 transition-transform" />
                 <span className="font-bold text-gray-800 text-xs">Say It Right</span>
               </button>
               )}
@@ -2206,7 +2206,7 @@ const PetDisplay = () => {
                 className={`relative flex flex-col items-center gap-2 p-4 border-2 transition-all group overflow-hidden ${competitionGame === 'quizrush' ? 'border-yellow-400 bg-yellow-50 ring-2 ring-yellow-300' : 'border-violet-200 hover:border-violet-400 hover:bg-violet-50'}`}
               >
                 {competitionGame === 'quizrush' && <span className="absolute -top-2 -right-2 text-lg">🏆</span>}
-                <img src="https://xpclass.vn/xpclass/pet-display/game-logo/quiz.png" alt="Quiz Rush" className="w-20 h-20 object-contain rounded-lg group-hover:scale-110 transition-transform" />
+                <img src={assetUrl('/pet-display/game-logo/quiz.png')} alt="Quiz Rush" className="w-20 h-20 object-contain rounded-lg group-hover:scale-110 transition-transform" />
                 <span className="font-bold text-gray-800 text-xs">Quiz Rush</span>
               </button>
               )}
@@ -2216,7 +2216,7 @@ const PetDisplay = () => {
                 className={`relative flex flex-col items-center gap-2 p-4 border-2 transition-all group overflow-hidden ${competitionGame === 'bossbattle' ? 'border-yellow-400 bg-yellow-50 ring-2 ring-yellow-300' : 'border-red-200 hover:border-red-400 hover:bg-red-50'}`}
               >
                 {competitionGame === 'bossbattle' && <span className="absolute -top-2 -right-2 text-lg">🏆</span>}
-                <img src="https://xpclass.vn/xpclass/pet-game/boss/boss1.png" alt="Boss Battle" className="w-20 h-20 object-contain group-hover:scale-110 transition-transform" />
+                <img src={assetUrl('/pet-game/boss/boss1.png')} alt="Boss Battle" className="w-20 h-20 object-contain group-hover:scale-110 transition-transform" />
                 <span className="font-bold text-gray-800 text-xs">Boss Battle</span>
               </button>
               )}
@@ -2227,7 +2227,7 @@ const PetDisplay = () => {
                 className={`relative flex flex-col items-center gap-2 p-4 border-2 transition-all group overflow-hidden ${competitionGame === 'angrypet' ? 'border-yellow-400 bg-yellow-50 ring-2 ring-yellow-300' : 'border-orange-200 hover:border-orange-400 hover:bg-orange-50'}`}
               >
                 {competitionGame === 'angrypet' && <span className="absolute -top-2 -right-2 text-lg">🏆</span>}
-                <img src="https://xpclass.vn/xpclass/pet-game/angry/Slingshot.png" alt="Angry Pet" className="w-20 h-20 object-contain group-hover:scale-110 transition-transform" />
+                <img src={assetUrl('/pet-game/angry/Slingshot.png')} alt="Angry Pet" className="w-20 h-20 object-contain group-hover:scale-110 transition-transform" />
                 <span className="font-bold text-gray-800 text-xs">Angry Pet</span>
               </button>
               )}
@@ -2238,7 +2238,7 @@ const PetDisplay = () => {
                 className={`relative flex flex-col items-center gap-2 p-4 border-2 transition-all group overflow-hidden ${competitionGame === 'catch' ? 'border-yellow-400 bg-yellow-50 ring-2 ring-yellow-300' : 'border-teal-200 hover:border-teal-400 hover:bg-teal-50'}`}
               >
                 {competitionGame === 'catch' && <span className="absolute -top-2 -right-2 text-lg">🏆</span>}
-                <img src="https://xpclass.vn/xpclass/image/pet/catch-game.png" alt="Hungry Pet" className="w-20 h-20 object-contain group-hover:scale-110 transition-transform" />
+                <img src={assetUrl('/image/pet/catch-game.png')} alt="Hungry Pet" className="w-20 h-20 object-contain group-hover:scale-110 transition-transform" />
                 <span className="font-bold text-gray-800 text-xs">Hungry Pet</span>
               </button>
               )}
@@ -2249,7 +2249,7 @@ const PetDisplay = () => {
                 className={`relative flex flex-col items-center gap-2 p-4 border-2 transition-all group overflow-hidden ${competitionGame === 'fishing' ? 'border-yellow-400 bg-yellow-50 ring-2 ring-yellow-300' : 'border-cyan-200 hover:border-cyan-400 hover:bg-cyan-50'}`}
               >
                 {competitionGame === 'fishing' && <span className="absolute -top-2 -right-2 text-lg">🏆</span>}
-                <img src="https://xpclass.vn/xpclass/pet-display/game-logo/fish.png" alt="Fishing Frenzy" className="w-20 h-20 object-contain rounded-lg group-hover:scale-110 transition-transform" />
+                <img src={assetUrl('/pet-display/game-logo/fish.png')} alt="Fishing Frenzy" className="w-20 h-20 object-contain rounded-lg group-hover:scale-110 transition-transform" />
                 <span className="font-bold text-gray-800 text-xs">Fishing Frenzy</span>
               </button>
               )}
@@ -2412,12 +2412,12 @@ const PetDisplay = () => {
           shipSkinUrl={profile?.active_spaceship_url}
           shipLaserColor={profile?.active_spaceship_laser}
           asteroidSkinUrls={[
-            'https://xpclass.vn/xpclass/pet-game/astro/alien1.png',
-            'https://xpclass.vn/xpclass/pet-game/astro/alien2.png',
-            'https://xpclass.vn/xpclass/pet-game/astro/alien3.png',
-            'https://xpclass.vn/xpclass/pet-game/astro/alien4.png',
-            'https://xpclass.vn/xpclass/pet-game/astro/alien5.png',
-            'https://xpclass.vn/xpclass/pet-game/astro/alien6.png'
+            assetUrl('/pet-game/astro/alien1.png'),
+            assetUrl('/pet-game/astro/alien2.png'),
+            assetUrl('/pet-game/astro/alien3.png'),
+            assetUrl('/pet-game/astro/alien4.png'),
+            assetUrl('/pet-game/astro/alien5.png'),
+            assetUrl('/pet-game/astro/alien6.png')
           ]}
           wordBank={wordBank}
           leaderboard={gameLeaderboards.astroblast}

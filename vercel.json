@@ -4,6 +4,9 @@
   "framework": "vite",
   "installCommand": "npm install",
   "devCommand": "npm run dev",
+  "redirects": [
+    { "source": "/(.*)", "has": [{ "type": "host", "value": "xpclass.vercel.app" }], "destination": "https://xpclass.vn/$1", "permanent": true }
+  ],
   "rewrites": [
     { "source": "/proxy-image/:path*", "destination": "https://xpclass.vn/:path*" },
     { "source": "/api/(.*)", "destination": "/api/$1" },

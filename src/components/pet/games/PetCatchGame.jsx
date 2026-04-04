@@ -370,17 +370,17 @@ const PetCatchGame = ({ petImageUrl, petName, onGameEnd, onClose, questionBank: 
     try {
       if (phase === 'results') {
         if (questionsCorrectRef.current >= passGoal) {
-          const sound = new Audio('https://xpclass.vn/xpclass/pet-game/angry/angry-birds-level-complete.mp3')
+          const sound = new Audio(assetUrl('/pet-game/angry/angry-birds-level-complete.mp3'))
           sound.volume = 0.5
           sound.play().catch(() => {})
         } else {
-          const sound = new Audio('https://xpclass.vn/xpclass/sound/craft_fail.mp3')
+          const sound = new Audio(assetUrl('/sound/craft_fail.mp3'))
           sound.volume = 0.5
           sound.play().catch(() => {})
         }
       }
       if (phase === 'defeated') {
-        const sound = new Audio('https://xpclass.vn/xpclass/sound/craft_fail.mp3')
+        const sound = new Audio(assetUrl('/sound/craft_fail.mp3'))
         sound.volume = 0.5
         sound.play().catch(() => {})
       }
@@ -394,7 +394,7 @@ const PetCatchGame = ({ petImageUrl, petName, onGameEnd, onClose, questionBank: 
       >
         {/* Background image */}
         <div className="absolute inset-0 z-0">
-          <img src="https://xpclass.vn/xpclass/image/pet/pet-catch-bg.jpg" alt="" className="w-full h-full object-cover blur-sm" />
+          <img src={assetUrl('/image/pet/pet-catch-bg.jpg')} alt="" className="w-full h-full object-cover blur-sm" />
           <div className="absolute inset-0 bg-black/40" />
         </div>
       <style>{`

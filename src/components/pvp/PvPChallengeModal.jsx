@@ -156,14 +156,14 @@ const TauntPicker = ({ challengeId, onSent }) => {
 const GAMES = [
   { id: 'scramble', name: 'Word Scramble', icon: assetUrl('/image/dashboard/pet-scramble.jpg'), description: 'Pop bubbles in order!' },
   { id: 'whackmole', name: 'Whack-a-Mole', icon: assetUrl('/pet-game/whack/mole-normal.png'), description: 'Tap the correct word!' },
-  { id: 'astroblast', name: 'Astro Blast', icon: 'https://xpclass.vn/xpclass/image/inventory/spaceship/phantom-voyager.png', description: 'Shoot the asteroids!' },
-  { id: 'matchgame', name: 'Match Up', icon: 'https://xpclass.vn/xpclass/image/dashboard/match1.png', description: 'Match words & meanings!' },
-  { id: 'flappy', name: 'Flappy Pet', icon: 'https://xpclass.vn/xpclass/image/dashboard/flap.png', description: 'Fly and collect fruits!' },
-  { id: 'wordtype', name: 'Word Type', icon: 'https://xpclass.vn/xpclass/image/dashboard/pet-type.webp', description: 'Type the correct word!' },
+  { id: 'astroblast', name: 'Astro Blast', icon: assetUrl('/image/inventory/spaceship/phantom-voyager.png'), description: 'Shoot the asteroids!' },
+  { id: 'matchgame', name: 'Match Up', icon: assetUrl('/image/dashboard/match1.png'), description: 'Match words & meanings!' },
+  { id: 'flappy', name: 'Flappy Pet', icon: assetUrl('/image/dashboard/flap.png'), description: 'Fly and collect fruits!' },
+  { id: 'wordtype', name: 'Word Type', icon: assetUrl('/image/dashboard/pet-type.webp'), description: 'Type the correct word!' },
   { id: 'sayitright', name: 'Say It Right', icon: null, emoji: '🎤', description: 'Pronounce the word!' },
   { id: 'quizrush', name: 'Quiz Rush', icon: null, emoji: '❓', description: 'Answer questions fast!' },
-  { id: 'angrypet', name: 'Angry Pet', icon: 'https://xpclass.vn/xpclass/pet-game/angry/Slingshot.png', description: 'Launch at the answer!' },
-  { id: 'fishing', name: 'Fishing', icon: 'https://xpclass.vn/xpclass/pet-display/game-logo/fish.png', description: 'Catch the right fish!' },
+  { id: 'angrypet', name: 'Angry Pet', icon: assetUrl('/pet-game/angry/Slingshot.png'), description: 'Launch at the answer!' },
+  { id: 'fishing', name: 'Fishing', icon: assetUrl('/pet-display/game-logo/fish.png'), description: 'Catch the right fish!' },
 ]
 
 const PvPChallengeModal = ({ opponent, onClose }) => {
@@ -352,9 +352,9 @@ const PvPChallengeModal = ({ opponent, onClose }) => {
         const winner = score > challengerScore ? user.id : score < challengerScore ? hasPending.challenger_id : null
         try {
           const url = score > challengerScore
-            ? 'https://xpclass.vn/xpclass/sound/victory.mp3'
+            ? assetUrl('/sound/victory.mp3')
             : score < challengerScore
-              ? 'https://xpclass.vn/xpclass/sound/craft_fail.mp3'
+              ? assetUrl('/sound/craft_fail.mp3')
               : null
           if (url) { const s = new Audio(url); s.volume = 0.5; s.play().catch(() => {}) }
         } catch {}
@@ -426,12 +426,12 @@ const PvPChallengeModal = ({ opponent, onClose }) => {
         return <PetWordScramble {...commonProps} onGameEnd={(s) => handleGameEnd(s)} wordBank={wordBank} />
       case 'astroblast':
         return <PetAstroBlast {...commonProps} onGameEnd={(s) => handleGameEnd(s)} wordBank={wordBank} shipSkinUrl={profile?.active_spaceship_url} shipLaserColor={profile?.active_spaceship_laser} asteroidSkinUrls={[
-          'https://xpclass.vn/xpclass/pet-game/astro/alien1.png',
-          'https://xpclass.vn/xpclass/pet-game/astro/alien2.png',
-          'https://xpclass.vn/xpclass/pet-game/astro/alien3.png',
-          'https://xpclass.vn/xpclass/pet-game/astro/alien4.png',
-          'https://xpclass.vn/xpclass/pet-game/astro/alien5.png',
-          'https://xpclass.vn/xpclass/pet-game/astro/alien6.png',
+          assetUrl('/pet-game/astro/alien1.png'),
+          assetUrl('/pet-game/astro/alien2.png'),
+          assetUrl('/pet-game/astro/alien3.png'),
+          assetUrl('/pet-game/astro/alien4.png'),
+          assetUrl('/pet-game/astro/alien5.png'),
+          assetUrl('/pet-game/astro/alien6.png'),
         ]} />
       case 'matchgame':
         if (realtimeMode && hasPending?.id && wordSeed) {

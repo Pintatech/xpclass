@@ -704,9 +704,9 @@ const PvPResponseModal = ({ challenge, onClose }) => {
       const draw = score === freshScore;
       try {
         const url = won
-          ? "https://xpclass.vn/xpclass/sound/victory.mp3"
+          ? assetUrl('/sound/victory.mp3')
           : !draw
-            ? "https://xpclass.vn/xpclass/sound/craft_fail.mp3"
+            ? assetUrl('/sound/craft_fail.mp3')
             : null;
         if (url) { const s = new Audio(url); s.volume = 0.5; s.play().catch(() => {}); }
       } catch {}
@@ -809,12 +809,12 @@ const PvPResponseModal = ({ challenge, onClose }) => {
             shipSkinUrl={profile?.active_spaceship_url}
             shipLaserColor={profile?.active_spaceship_laser}
             asteroidSkinUrls={[
-              "https://xpclass.vn/xpclass/pet-game/astro/alien1.png",
-              "https://xpclass.vn/xpclass/pet-game/astro/alien2.png",
-              "https://xpclass.vn/xpclass/pet-game/astro/alien3.png",
-              "https://xpclass.vn/xpclass/pet-game/astro/alien4.png",
-              "https://xpclass.vn/xpclass/pet-game/astro/alien5.png",
-              "https://xpclass.vn/xpclass/pet-game/astro/alien6.png",
+              assetUrl('/pet-game/astro/alien1.png'),
+              assetUrl('/pet-game/astro/alien2.png'),
+              assetUrl('/pet-game/astro/alien3.png'),
+              assetUrl('/pet-game/astro/alien4.png'),
+              assetUrl('/pet-game/astro/alien5.png'),
+              assetUrl('/pet-game/astro/alien6.png'),
             ]}
           />
         );

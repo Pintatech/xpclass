@@ -4,12 +4,12 @@ import { assetUrl } from './useBranding'
 
 // Power-up definitions
 export const POWERUPS = {
-  double: { name: 'Double', icon: '⚡', image: 'https://xpclass.vn/xpclass/class-battle/double.png', description: 'Next point add is 2x', color: 'from-yellow-400 to-orange-500' },
-  shield: { name: 'Shield', icon: '🛡️', image: 'https://xpclass.vn/xpclass/class-battle/shield.png', description: 'Block next steal or freeze', color: 'from-blue-400 to-blue-600' },
-  steal:  { name: 'Steal', icon: '🦊', image: 'https://xpclass.vn/xpclass/class-battle/steal.png', description: 'Steal points from opponent', color: 'from-red-400 to-red-600' },
-  swap:   { name: 'Swap', icon: '🔄', image: 'https://xpclass.vn/xpclass/class-battle/swap.png', description: 'Swap team scores', color: 'from-purple-400 to-purple-600' },
-  mystery:{ name: 'Mystery', icon: '🎁', image: 'https://xpclass.vn/xpclass/class-battle/spell.png', description: 'Random effect!', color: 'from-pink-400 to-pink-600' },
-  random: { name: 'Random', icon: '🎲', image: 'https://xpclass.vn/xpclass/class-battle/randomspell.png', description: 'Pick a random power-up!', color: 'from-emerald-400 to-teal-500' },
+  double: { name: 'Double', icon: '⚡', image: assetUrl('/class-battle/double.png'), description: 'Next point add is 2x', color: 'from-yellow-400 to-orange-500' },
+  shield: { name: 'Shield', icon: '🛡️', image: assetUrl('/class-battle/shield.png'), description: 'Block next steal or freeze', color: 'from-blue-400 to-blue-600' },
+  steal:  { name: 'Steal', icon: '🦊', image: assetUrl('/class-battle/steal.png'), description: 'Steal points from opponent', color: 'from-red-400 to-red-600' },
+  swap:   { name: 'Swap', icon: '🔄', image: assetUrl('/class-battle/swap.png'), description: 'Swap team scores', color: 'from-purple-400 to-purple-600' },
+  mystery:{ name: 'Mystery', icon: '🎁', image: assetUrl('/class-battle/spell.png'), description: 'Random effect!', color: 'from-pink-400 to-pink-600' },
+  random: { name: 'Random', icon: '🎲', image: assetUrl('/class-battle/randomspell.png'), description: 'Pick a random power-up!', color: 'from-emerald-400 to-teal-500' },
 }
 
 const resolvePetImage = (userPet) => {

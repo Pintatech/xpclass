@@ -20,10 +20,10 @@ const STAR_THRESHOLDS = {
 
 const FRENZY_DURATION = 3000
 const POWERUPS = [
-  { type: 'slow', img: 'https://xpclass.vn/xpclass/pet-game/fish/freeze.png', label: 'Slow', duration: 0 },
-  { type: 'double', img: 'https://xpclass.vn/xpclass/pet-game/fish/double-fish.png', label: '2x', duration: 8000 },
-  { type: 'heal', img: 'https://xpclass.vn/xpclass/pet-game/fish/heart.png', label: '+1 HP', duration: 0 },
-  { type: 'frenzy', img: 'https://xpclass.vn/xpclass/pet-game/fish/frenzy.png', label: '🎣 Frenzy!', duration: FRENZY_DURATION },
+  { type: 'slow', img: assetUrl('/pet-game/fish/freeze.png'), label: 'Slow', duration: 0 },
+  { type: 'double', img: assetUrl('/pet-game/fish/double-fish.png'), label: '2x', duration: 8000 },
+  { type: 'heal', img: assetUrl('/pet-game/fish/heart.png'), label: '+1 HP', duration: 0 },
+  { type: 'frenzy', img: assetUrl('/pet-game/fish/frenzy.png'), label: '🎣 Frenzy!', duration: FRENZY_DURATION },
 ]
 const POWERUP_CHANCE = 0.15
 
@@ -232,13 +232,13 @@ const PetWhackMole = ({ petImageUrl, petName, onGameEnd, onClose, hammerSkinUrl,
   useEffect(() => {
     if (phase === 'results') {
       if (starsEarned >= 1) {
-        playSound('https://xpclass.vn/xpclass/pet-game/angry/angry-birds-level-complete.mp3', 0.5)
+        playSound(assetUrl('/pet-game/angry/angry-birds-level-complete.mp3'), 0.5)
       } else {
-        playSound('https://xpclass.vn/xpclass/sound/craft_fail.mp3', 0.5)
+        playSound(assetUrl('/sound/craft_fail.mp3'), 0.5)
       }
     }
     if (phase === 'defeated') {
-      playSound('https://xpclass.vn/xpclass/sound/craft_fail.mp3', 0.5)
+      playSound(assetUrl('/sound/craft_fail.mp3'), 0.5)
     }
   }, [phase, playSound, starsEarned])
 
@@ -634,7 +634,7 @@ const PetWhackMole = ({ petImageUrl, petName, onGameEnd, onClose, hammerSkinUrl,
           }
         }}
         style={{
-          backgroundImage: 'url(https://xpclass.vn/xpclass/image/pet/whack.png)',
+          backgroundImage: `url(${assetUrl('/image/pet/whack.png')})`,
           backgroundSize: 'cover',
           backgroundPosition: 'center',
           transform: screenShake > 0 ? `translate(${Math.sin(screenShake) * 4}px, ${Math.cos(screenShake) * 4}px)` : 'none',

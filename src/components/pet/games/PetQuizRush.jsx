@@ -324,10 +324,10 @@ const PetQuizRush = ({ petImageUrl, petName, onGameEnd, onClose, questionBank: q
   // Play end-of-game sounds
   useEffect(() => {
     if (phase === 'results') {
-      playSound('https://xpclass.vn/xpclass/pet-game/angry/angry-birds-level-complete.mp3', 0.5)
+      playSound(assetUrl('/pet-game/angry/angry-birds-level-complete.mp3'), 0.5)
     }
     if (phase === 'defeated') {
-      playSound('https://xpclass.vn/xpclass/sound/craft_fail.mp3', 0.5)
+      playSound(assetUrl('/sound/craft_fail.mp3'), 0.5)
     }
   }, [phase, playSound])
 

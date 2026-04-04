@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react'
 import { createPortal } from 'react-dom'
+import { assetUrl } from '../../hooks/useBranding'
 import { X, Play, Pause, RotateCcw, Minimize2 } from 'lucide-react'
 
 const PRESET_TIMES = [10, 15, 20, 30, 45, 60, 90, 120, 180, 300]
@@ -70,7 +71,7 @@ const TimerModal = ({ visible, onHide, onActiveChange, onRemainingChange }) => {
         if (prev <= 1) {
           clearTimer()
           setPhase('finished')
-          const audio = new Audio('https://xpclass.vn/xpclass/class-battle/Applause.mp3')
+          const audio = new Audio(assetUrl('/class-battle/Applause.mp3'))
           audio.volume = 0.7
           audio.play().catch(() => {})
           alarmRef.current = audio

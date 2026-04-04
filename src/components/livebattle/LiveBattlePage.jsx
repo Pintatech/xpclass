@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
+import { assetUrl } from '../../hooks/useBranding'
 import { ArrowLeft, Play, Square, Shuffle, Trophy, Sparkles, BookOpen, RotateCcw, Flag, Timer } from 'lucide-react'
 import TimerModal from './TimerModal'
 import { useAuth } from '../../hooks/useAuth'
@@ -108,7 +109,7 @@ const LiveBattlePage = () => {
     const winTeamName = winnerTeam === 'a' ? session.team_a_name : winnerTeam === 'b' ? session.team_b_name : 'Draw'
 
     return (
-      <div className="min-h-screen bg-cover bg-center bg-no-repeat p-4" style={{ backgroundImage: 'url(https://xpclass.vn/xpclass/pet-game/petbattle.jpg)' }}>
+      <div className="min-h-screen bg-cover bg-center bg-no-repeat p-4" style={{ backgroundImage: `url(${assetUrl('/pet-game/petbattle.jpg')})` }}>
         <div className="max-w-4xl mx-auto">
           {/* Victory header */}
           <div className="text-center py-8">
@@ -173,7 +174,7 @@ const LiveBattlePage = () => {
   const isActive = session?.status === 'active'
 
   return (
-    <div className="min-h-screen bg-cover bg-center bg-no-repeat px-2 py-3" style={{ backgroundImage: 'url(https://xpclass.vn/xpclass/class-battle/bg.jpg)' }}>
+    <div className="min-h-screen bg-cover bg-center bg-no-repeat px-2 py-3" style={{ backgroundImage: `url(${assetUrl('/class-battle/bg.jpg')})` }}>
       <PowerUpEffect events={events} />
 
       <div className="w-full px-2">

@@ -50,9 +50,9 @@ const TARGET_LAYOUTS = {
   ],
 }
 
-const PIG_DEFAULT = (i) => `https://xpclass.vn/xpclass/pet-game/angry/pig${i + 1}.png`
-const PIG_CORRECT = (i) => `https://xpclass.vn/xpclass/pet-game/angry/pig${i + 1}-correct.png`
-const PIG_WRONG = (i) => `https://xpclass.vn/xpclass/pet-game/angry/pig${i + 1}-wrong.png`
+const PIG_DEFAULT = (i) => assetUrl(`/pet-game/angry/pig${i + 1}.png`)
+const PIG_CORRECT = (i) => assetUrl(`/pet-game/angry/pig${i + 1}-correct.png`)
+const PIG_WRONG = (i) => assetUrl(`/pet-game/angry/pig${i + 1}-wrong.png`)
 
 const PetAngryPet = ({ petImageUrl, petName, onGameEnd, onClose, questionBank: questionBankProp = [], hideClose = false, scoreToBeat = null, leaderboard = [], chestEnabled = false, currentLevel = 1 }) => {
   const thresholds = STAR_THRESHOLDS[currentLevel] || [7, 10, 14]
@@ -217,7 +217,7 @@ const PetAngryPet = ({ petImageUrl, petName, onGameEnd, onClose, questionBank: q
       setScreenShake(10)
 
       setWrongQuestions(prev => [...prev, { word: currentQ.choices[currentQ.answer_index], hint: currentQ.question }])
-      playSound('https://xpclass.vn/xpclass/pet-game/angry/oink.wav', 0.4)
+      playSound(assetUrl('/pet-game/angry/oink.wav'), 0.4)
       // Pet falls to the ground after hitting wrong target
       setTimeout(() => setPetFalling(true), 300)
 
@@ -366,13 +366,13 @@ const PetAngryPet = ({ petImageUrl, petName, onGameEnd, onClose, questionBank: q
   useEffect(() => {
     if (phase === 'results') {
       if (questionsCorrect >= passGoal) {
-        playSound('https://xpclass.vn/xpclass/pet-game/angry/angry-birds-level-complete.mp3', 0.5)
+        playSound(assetUrl('/pet-game/angry/angry-birds-level-complete.mp3'), 0.5)
       } else {
-        playSound('https://xpclass.vn/xpclass/sound/craft_fail.mp3', 0.5)
+        playSound(assetUrl('/sound/craft_fail.mp3'), 0.5)
       }
     }
     if (phase === 'defeated') {
-      playSound('https://xpclass.vn/xpclass/sound/craft_fail.mp3', 0.5)
+      playSound(assetUrl('/sound/craft_fail.mp3'), 0.5)
     }
   }, [phase, playSound, questionsCorrect, passGoal])
 
@@ -449,7 +449,7 @@ const PetAngryPet = ({ petImageUrl, petName, onGameEnd, onClose, questionBank: q
         transformOrigin: 'center bottom',
         zIndex: 4,
       }}>
-        <img src="https://xpclass.vn/xpclass/pet-game/angry/Slingshot.png" alt="Slingshot" className="w-24 h-28 object-contain" />
+        <img src={assetUrl('/pet-game/angry/Slingshot.png')} alt="Slingshot" className="w-24 h-28 object-contain" />
       </div>
     )
   }
@@ -514,7 +514,7 @@ const PetAngryPet = ({ petImageUrl, petName, onGameEnd, onClose, questionBank: q
         }}
       >
         {/* Background image */}
-        <img src="https://xpclass.vn/xpclass/pet-game/angry/angry-background.png" alt="" className="absolute inset-0 w-full h-full object-cover pointer-events-none" />
+        <img src={assetUrl('/pet-game/angry/angry-background.png')} alt="" className="absolute inset-0 w-full h-full object-cover pointer-events-none" />
 
         {/* Close button */}
         {!hideClose && phase !== 'results' && phase !== 'defeated' && (

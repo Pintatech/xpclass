@@ -296,7 +296,7 @@ const PvPRealtimeWordScramble = ({
                   }
                   <span className="text-white font-bold text-sm">{petName}</span>
                 </div>
-                <img src="https://xpclass.vn/xpclass/icon/dashboard/pvp.png" alt="VS" className="w-16 h-16 object-contain drop-shadow-lg" style={{ animation: 'pvpVsPulse 1s ease-in-out infinite' }} />
+                <img src={assetUrl('/icon/dashboard/pvp.png')} alt="VS" className="w-16 h-16 object-contain drop-shadow-lg" style={{ animation: 'pvpVsPulse 1s ease-in-out infinite' }} />
                 <div className="flex flex-col items-center gap-2" style={{ animation: 'pvpSlideInRight 0.5s ease-out' }}>
                   {opponentPetUrl
                     ? <img src={opponentPetUrl} alt={opponentName} className="w-20 h-20 object-contain drop-shadow-lg" style={{ transform: 'scaleX(-1)' }} />

@@ -4,10 +4,10 @@ import { assetUrl } from '../../hooks/useBranding'
 import { POWERUPS } from '../../hooks/useLiveBattle'
 
 const pointSounds = {
-  add1: new Audio('https://xpclass.vn/xpclass/class-battle/add1.mp3'),
-  add2: new Audio('https://xpclass.vn/xpclass/class-battle/add2.mp3'),
-  add3: new Audio('https://xpclass.vn/xpclass/class-battle/add3.mp3'),
-  minus1: new Audio('https://xpclass.vn/xpclass/class-battle/minus1.mp3'),
+  add1: new Audio(assetUrl('/class-battle/add1.mp3')),
+  add2: new Audio(assetUrl('/class-battle/add2.mp3')),
+  add3: new Audio(assetUrl('/class-battle/add3.mp3')),
+  minus1: new Audio(assetUrl('/class-battle/minus1.mp3')),
 }
 const playPointSound = (val) => {
   const key = val < 0 ? 'minus1' : val >= 3 ? 'add3' : val === 2 ? 'add2' : 'add1'
@@ -17,11 +17,11 @@ const playPointSound = (val) => {
 }
 
 const pointButtons = [
-  { value: -1, image: 'https://xpclass.vn/xpclass/class-battle/brick.png', label: '-1', name: 'Brick' },
-  { value: 1, image: 'https://xpclass.vn/xpclass/class-battle/apple.png', label: '+1', name: 'Apple' },
-  { value: 2, image: 'https://xpclass.vn/xpclass/class-battle/fish.png', label: '+2', name: 'Fish' },
-  { value: 3, image: 'https://xpclass.vn/xpclass/class-battle/meat.png', label: '+3', name: 'Meat' },
-  { value: 'random', image: 'https://xpclass.vn/xpclass/class-battle/random.png', label: '?', name: 'Random' },
+  { value: -1, image: assetUrl('/class-battle/brick.png'), label: '-1', name: 'Brick' },
+  { value: 1, image: assetUrl('/class-battle/apple.png'), label: '+1', name: 'Apple' },
+  { value: 2, image: assetUrl('/class-battle/fish.png'), label: '+2', name: 'Fish' },
+  { value: 3, image: assetUrl('/class-battle/meat.png'), label: '+3', name: 'Meat' },
+  { value: 'random', image: assetUrl('/class-battle/random.png'), label: '?', name: 'Random' },
 ]
 
 const memeImages = [

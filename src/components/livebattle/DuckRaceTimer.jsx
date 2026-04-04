@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useRef, useCallback, useMemo } from 'react'
 import { createPortal } from 'react-dom'
+import { assetUrl } from '../../hooks/useBranding'
 import { X, Play, RotateCcw } from 'lucide-react'
 
 const LANE_COLORS = ['#facc15', '#fb923c', '#4ade80', '#60a5fa', '#c084fc', '#f87171', '#f472b6', '#34d399', '#a78bfa', '#fbbf24']
@@ -118,7 +119,7 @@ const DuckRaceTimer = ({ onClose, participants = [] }) => {
   useEffect(() => {
     if (phase === 'racing') {
       killMusic()
-      const audio = new Audio('https://xpclass.vn/xpclass/class-battle/race-bgmusic.mp3')
+      const audio = new Audio(assetUrl('/class-battle/race-bgmusic.mp3'))
       audio.loop = true
       audio.volume = 0.5
       audio.play().catch(() => {})
@@ -142,7 +143,7 @@ const DuckRaceTimer = ({ onClose, participants = [] }) => {
           }, 100)
         }, 5000)
       }
-      const applause = new Audio('https://xpclass.vn/xpclass/class-battle/Applause.mp3')
+      const applause = new Audio(assetUrl('/class-battle/Applause.mp3'))
       applause.volume = 0.6
       applause.play().catch(() => {})
     }

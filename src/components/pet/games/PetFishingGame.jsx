@@ -25,10 +25,10 @@ const FISH_BASE_POINTS = {
 const FRENZY_FISH_COUNT = 4
 const FRENZY_DURATION = 4000
 const POWERUPS = [
-  { type: 'slow', img: 'https://xpclass.vn/xpclass/pet-game/fish/freeze.png', label: 'Slow', duration: 0 },
-  { type: 'double', img: 'https://xpclass.vn/xpclass/pet-game/fish/double-fish.png', label: '2x', duration: 8000 },
-  { type: 'heal', img: 'https://xpclass.vn/xpclass/pet-game/fish/heart.png', label: '+1 HP', duration: 0 },
-  { type: 'frenzy', img: 'https://xpclass.vn/xpclass/pet-game/fish/frenzy.png', label: '🎣 Frenzy!', duration: FRENZY_DURATION },
+  { type: 'slow', img: assetUrl('/pet-game/fish/freeze.png'), label: 'Slow', duration: 0 },
+  { type: 'double', img: assetUrl('/pet-game/fish/double-fish.png'), label: '2x', duration: 8000 },
+  { type: 'heal', img: assetUrl('/pet-game/fish/heart.png'), label: '+1 HP', duration: 0 },
+  { type: 'frenzy', img: assetUrl('/pet-game/fish/frenzy.png'), label: '🎣 Frenzy!', duration: FRENZY_DURATION },
 ]
 const POWERUP_CHANCE = 0.15 // 15% chance per round
 
@@ -297,13 +297,13 @@ const PetFishingGame = ({ petImageUrl, petName, onGameEnd, onClose, wordBank: wo
   useEffect(() => {
     if (phase === 'results') {
       if (wordsCompleted >= passGoal) {
-        playSound('https://xpclass.vn/xpclass/pet-game/angry/angry-birds-level-complete.mp3', 0.5)
+        playSound(assetUrl('/pet-game/angry/angry-birds-level-complete.mp3'), 0.5)
       } else {
-        playSound('https://xpclass.vn/xpclass/sound/craft_fail.mp3', 0.5)
+        playSound(assetUrl('/sound/craft_fail.mp3'), 0.5)
       }
     }
     if (phase === 'defeated') {
-      playSound('https://xpclass.vn/xpclass/sound/craft_fail.mp3', 0.5)
+      playSound(assetUrl('/sound/craft_fail.mp3'), 0.5)
     }
   }, [phase, playSound, wordsCompleted, passGoal])
 
@@ -651,7 +651,7 @@ const PetFishingGame = ({ petImageUrl, petName, onGameEnd, onClose, wordBank: wo
   const handlePowerupTap = useCallback((pu) => {
     if (phase !== 'playing') return
     setPowerups(prev => prev.filter(p => p.id !== pu.id))
-    playSound('https://xpclass.vn/xpclass/sound/power-up.mp3', 0.3)
+    playSound(assetUrl('/sound/power-up.mp3'), 0.3)
 
     if (pu.type === 'heal') {
       if (petHp >= PET_MAX_HP) {

@@ -21,28 +21,28 @@ const RC = {
 }
 
 const BIOMES = [
-  { name: 'Enchanted Forest',  bg: 'from-emerald-950 via-green-950 to-slate-950', emoji: '🌿', accent: '#22c55e', bgMobile: 'https://xpclass.vn/xpclass/adventure/forest-mb.jpg', bgDesktop: 'https://xpclass.vn/xpclass/adventure/forest.jpg' },
-  { name: 'Crystal Caves',     bg: 'from-blue-950 via-indigo-950 to-slate-950',   emoji: '💎', accent: '#6366f1', bgMobile: 'https://xpclass.vn/xpclass/adventure/cave-mb.jpg', bgDesktop: 'https://xpclass.vn/xpclass/adventure/cave.jpg' },
-  { name: 'Volcanic Ridge',    bg: 'from-red-950 via-orange-950 to-slate-950',    emoji: '🌋', accent: '#ef4444', bgMobile: 'https://xpclass.vn/xpclass/adventure/volcano-mb.jpg', bgDesktop: 'https://xpclass.vn/xpclass/adventure/volcano.jpg' },
-  { name: 'Mystic Swamp',      bg: 'from-teal-950 via-emerald-950 to-slate-950',  emoji: '🍄', accent: '#14b8a6', bgMobile: 'https://xpclass.vn/xpclass/adventure/swamp-mb.jpg', bgDesktop: 'https://xpclass.vn/xpclass/adventure/swamp.jpg' },
-  { name: 'Frozen Peaks',      bg: 'from-cyan-950 via-sky-950 to-slate-950',      emoji: '❄️', accent: '#22d3ee', bgMobile: 'https://xpclass.vn/xpclass/adventure/frozen-mb.jpg', bgDesktop: 'https://xpclass.vn/xpclass/adventure/frozen.jpg' },
-  { name: 'Shadow Ruins',      bg: 'from-violet-950 via-purple-950 to-slate-950', emoji: '🏚️', accent: '#a78bfa', bgMobile: 'https://xpclass.vn/xpclass/adventure/shadow-mb.jpg', bgDesktop: 'https://xpclass.vn/xpclass/adventure/shadown%20ruin.jpg' },
+  { name: 'Enchanted Forest',  bg: 'from-emerald-950 via-green-950 to-slate-950', emoji: '🌿', accent: '#22c55e', bgMobile: assetUrl('/adventure/forest-mb.jpg'), bgDesktop: assetUrl('/adventure/forest.jpg') },
+  { name: 'Crystal Caves',     bg: 'from-blue-950 via-indigo-950 to-slate-950',   emoji: '💎', accent: '#6366f1', bgMobile: assetUrl('/adventure/cave-mb.jpg'), bgDesktop: assetUrl('/adventure/cave.jpg') },
+  { name: 'Volcanic Ridge',    bg: 'from-red-950 via-orange-950 to-slate-950',    emoji: '🌋', accent: '#ef4444', bgMobile: assetUrl('/adventure/volcano-mb.jpg'), bgDesktop: assetUrl('/adventure/volcano.jpg') },
+  { name: 'Mystic Swamp',      bg: 'from-teal-950 via-emerald-950 to-slate-950',  emoji: '🍄', accent: '#14b8a6', bgMobile: assetUrl('/adventure/swamp-mb.jpg'), bgDesktop: assetUrl('/adventure/swamp.jpg') },
+  { name: 'Frozen Peaks',      bg: 'from-cyan-950 via-sky-950 to-slate-950',      emoji: '❄️', accent: '#22d3ee', bgMobile: assetUrl('/adventure/frozen-mb.jpg'), bgDesktop: assetUrl('/adventure/frozen.jpg') },
+  { name: 'Shadow Ruins',      bg: 'from-violet-950 via-purple-950 to-slate-950', emoji: '🏚️', accent: '#a78bfa', bgMobile: assetUrl('/adventure/shadow-mb.jpg'), bgDesktop: assetUrl('/adventure/shadown%20ruin.jpg') },
 ]
 
 const MONSTER_IMAGES = [
-  'https://xpclass.vn/xpclass/pet-game/astro/alien1.png',
-  'https://xpclass.vn/xpclass/pet-game/astro/alien2.png',
-  'https://xpclass.vn/xpclass/pet-game/astro/alien3.png',
-  'https://xpclass.vn/xpclass/pet-game/astro/alien4.png',
-  'https://xpclass.vn/xpclass/pet-game/astro/alien5.png',
+  assetUrl('/pet-game/astro/alien1.png'),
+  assetUrl('/pet-game/astro/alien2.png'),
+  assetUrl('/pet-game/astro/alien3.png'),
+  assetUrl('/pet-game/astro/alien4.png'),
+  assetUrl('/pet-game/astro/alien5.png'),
 ]
 
 const BOSS_IMAGES = [
-  'https://xpclass.vn/xpclass/pet-game/boss/boss1.png',
-  'https://xpclass.vn/xpclass/pet-game/boss/boss2.png',
-  'https://xpclass.vn/xpclass/pet-game/boss/boss3.png',
-  'https://xpclass.vn/xpclass/pet-game/boss/boss4.png',
-  'https://xpclass.vn/xpclass/pet-game/boss/boss5.png',
+  assetUrl('/pet-game/boss/boss1.png'),
+  assetUrl('/pet-game/boss/boss2.png'),
+  assetUrl('/pet-game/boss/boss3.png'),
+  assetUrl('/pet-game/boss/boss4.png'),
+  assetUrl('/pet-game/boss/boss5.png'),
 ]
 
 const BOSS_NAMES = ['Stone Golem', 'Forest Troll', 'Frost Giant', 'Shadow Demon', 'Dragon King']
@@ -479,7 +479,7 @@ const PetMazeAdventure = ({
       setTimeout(() => { setPhase('map'); setEntranceStep(0) }, 3500),
     ]
     try {
-      entranceAudioRef.current = new Audio('https://xpclass.vn/xpclass/sound/adventure-start.mp3')
+      entranceAudioRef.current = new Audio(assetUrl('/sound/adventure-start.mp3'))
       entranceAudioRef.current.volume = 0.4
       entranceAudioRef.current.play().catch(() => {})
     } catch {}
@@ -491,7 +491,7 @@ const PetMazeAdventure = ({
     if (phase !== 'victory') return
     const laserTimer = setTimeout(() => {
       try {
-        const s = new Audio('https://xpclass.vn/xpclass/sound/laser.mp3')
+        const s = new Audio(assetUrl('/sound/laser.mp3'))
         s.volume = 0.3
         s.play().catch(() => {})
       } catch {}
