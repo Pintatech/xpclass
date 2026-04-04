@@ -794,45 +794,47 @@ const PetMazeAdventure = ({
       setMatchupSelected(null)
       playSound(assetUrl('/sound/scram-correct.mp3'), 0.4)
 
-      // Boss takes damage for each correct match
-      const dmg = 1
-      const newBossHp = Math.max(0, bossHp - dmg)
-      setBossHp(newBossHp)
-      const newStreak = streakRef.current + 1
-      streakRef.current = newStreak
-      setStreak(newStreak)
-      const points = POINTS_PER_HIT + (newStreak >= 5 ? STREAK_BONUS_5 : newStreak >= 3 ? STREAK_BONUS_3 : 0)
-      scoreRef.current += points
-      setStopScore(scoreRef.current)
+      // Only hit boss when all pairs are matched
+      if (newMatched.length >= challenge.matchupPairs.length) {
+        const dmg = 1
+        const newBossHp = Math.max(0, bossHp - dmg)
+        setBossHp(newBossHp)
+        const newStreak = streakRef.current + 1
+        streakRef.current = newStreak
+        setStreak(newStreak)
+        const points = POINTS_PER_HIT + (newStreak >= 5 ? STREAK_BONUS_5 : newStreak >= 3 ? STREAK_BONUS_3 : 0)
+        scoreRef.current += points
+        setStopScore(scoreRef.current)
 
-      setPetAnim('attack')
-      setTimeout(() => setPetAnim('idle'), 600)
-      setSlashEffect(true)
-      setTimeout(() => setSlashEffect(false), 400)
-      setBossAnim('hit')
-      setTimeout(() => setBossAnim('idle'), 500)
-      setDamagePopup({ dmg, isCritical: false, points })
-      setTimeout(() => setDamagePopup(null), 1200)
-      shakeRef.current = 6
-      setScreenShake(6)
+        setPetAnim('attack')
+        setTimeout(() => setPetAnim('idle'), 600)
+        setSlashEffect(true)
+        setTimeout(() => setSlashEffect(false), 400)
+        setBossAnim('hit')
+        setTimeout(() => setBossAnim('idle'), 500)
+        setDamagePopup({ dmg, isCritical: false, points })
+        setTimeout(() => setDamagePopup(null), 1200)
+        shakeRef.current = 6
+        setScreenShake(6)
 
-      if (newStreak >= 3) {
-        setComboAnim(true)
-        setTimeout(() => setComboAnim(false), 600)
-      }
+        if (newStreak >= 3) {
+          setComboAnim(true)
+          setTimeout(() => setComboAnim(false), 600)
+        }
 
-      const cw = containerRef.current?.clientWidth || 400
-      const ch = containerRef.current?.clientHeight || 700
-      spawnParticles(cw / 2, ch * 0.22, ['#a78bfa', '#f472b6', '#34d399', '#60a5fa'], 10)
+        const cw = containerRef.current?.clientWidth || 400
+        const ch = containerRef.current?.clientHeight || 700
+        spawnParticles(cw / 2, ch * 0.22, ['#a78bfa', '#f472b6', '#34d399', '#60a5fa'], 10)
 
-      if (newBossHp <= 0) {
-        matchupDoneRef.current = true
-        setBossAnim('defeated')
-        setTimeout(() => handleGameComplete(scoreRef.current, { bossDefeated: true }), 700)
-      } else if (newMatched.length >= challenge.matchupPairs.length) {
-        // All pairs matched — advance
-        matchupDoneRef.current = true
-        setTimeout(() => advanceChallenge(), 600)
+        if (newBossHp <= 0) {
+          matchupDoneRef.current = true
+          setBossAnim('defeated')
+          setTimeout(() => handleGameComplete(scoreRef.current, { bossDefeated: true }), 700)
+        } else {
+          // All pairs matched, boss still alive — advance
+          matchupDoneRef.current = true
+          setTimeout(() => advanceChallenge(), 600)
+        }
       }
     } else {
       // Wrong match
