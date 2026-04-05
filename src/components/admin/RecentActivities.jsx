@@ -532,6 +532,12 @@ const RecentActivities = () => {
         >
           <TreePine className="w-4 h-4" /> Wild Area
         </button>
+        <button
+          onClick={() => setTab('training')}
+          className={`flex items-center gap-2 px-4 py-2 text-sm font-medium rounded-lg transition-colors ${tab === 'training' ? 'bg-blue-600 text-white' : 'bg-gray-100 text-gray-700 hover:bg-gray-200'}`}
+        >
+          <Gamepad2 className="w-4 h-4" /> Training
+        </button>
       </div>
 
       {/* Search */}
