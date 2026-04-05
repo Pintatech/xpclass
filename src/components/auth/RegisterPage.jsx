@@ -1,8 +1,12 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { Link, Navigate } from 'react-router-dom'
 import { useAuth } from '../../hooks/useAuth'
-import Button from '../ui/Button'
-import { Eye, EyeOff, Mail, Lock, User } from 'lucide-react'
+import { Eye, EyeOff } from 'lucide-react'
+import { supabase } from '../../supabase/client'
+import { assetUrl } from '../../hooks/useBranding'
+
+const DEFAULT_LOGIN_IMAGE =
+  'https://images.unsplash.com/photo-1557683316-973673baf926?w=1200&h=400&fit=crop'
 
 const RegisterPage = () => {
   const [formData, setFormData] = useState({
@@ -16,8 +20,29 @@ const RegisterPage = () => {
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
   const [success, setSuccess] = useState(false)
+  const [loginBgImage, setLoginBgImage] = useState(DEFAULT_LOGIN_IMAGE)
 
   const { user, signUp } = useAuth()
+
+  useEffect(() => {
+    fetchLoginPageImage()
+  }, [])
+
+  const fetchLoginPageImage = async () => {
+    try {
+      const { data, error } = await supabase
+        .from('site_settings')
+        .select('setting_value')
+        .eq('setting_key', 'login_page_image')
+        .single()
+
+      if (data?.setting_value && !error) {
+        setLoginBgImage(data.setting_value)
+      }
+    } catch (error) {
+      console.error('Failed to load login image:', error)
+    }
+  }
 
   if (user) {
     return <Navigate to="/" replace />
@@ -35,15 +60,14 @@ const RegisterPage = () => {
     setLoading(true)
     setError('')
 
-    // Validation
     if (formData.password !== formData.confirmPassword) {
-      setError('Mật khẩu xác nhận không khớp')
+      setError('Mat khau xac nhan khong khop')
       setLoading(false)
       return
     }
 
     if (formData.password.length < 6) {
-      setError('Mật khẩu phải có ít nhất 6 ký tự')
+      setError('Mat khau phai co it nhat 6 ky tu')
       setLoading(false)
       return
     }
@@ -51,12 +75,12 @@ const RegisterPage = () => {
     try {
       const { error } = await signUp(formData.email, formData.password, formData.fullName)
       if (error) {
-        setError(error.message || 'Có lỗi xảy ra khi đăng ký')
+        setError(error.message || 'Co loi xay ra khi dang ky')
       } else {
         setSuccess(true)
       }
     } catch (err) {
-      setError('Có lỗi xảy ra, vui lòng thử lại')
+      setError('Co loi xay ra, vui long thu lai')
     } finally {
       setLoading(false)
     }
@@ -64,24 +88,21 @@ const RegisterPage = () => {
 
   if (success) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-purple-50 flex items-center justify-center px-4">
+      <div className="min-h-screen flex items-center justify-center bg-white px-4">
         <div className="max-w-md w-full text-center">
-          <div className="bg-white rounded-2xl shadow-xl p-8">
-            <div className="w-16 h-16 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-4">
+          <div className="flex flex-col items-center gap-4">
+            <div className="w-16 h-16 bg-green-100 rounded-full flex items-center justify-center">
               <svg className="w-8 h-8 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
               </svg>
             </div>
-            <h2 className="text-2xl font-bold text-gray-900 mb-2">
-              Đăng ký thành công!
-            </h2>
-            <p className="text-gray-600 mb-6">
-              Vui lòng kiểm tra email để xác thực tài khoản.
-            </p>
-            <Link to="/login">
-              <Button className="w-full">
-                Đến trang đăng nhập
-              </Button>
+            <a className="signup-title">Dang ky thanh cong!</a>
+            <p className="text-gray-500 text-sm">Vui long kiem tra email de xac thuc tai khoan.</p>
+            <Link
+              to="/login"
+              className="neomorphic-button mt-4 flex items-center justify-center"
+            >
+              Dang nhap
             </Link>
           </div>
         </div>
@@ -90,165 +111,272 @@ const RegisterPage = () => {
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-purple-50 flex items-center justify-center px-4">
-      <div className="max-w-md w-full space-y-8">
-        {/* Logo & Title */}
-        <div className="text-center">
-          <div className="flex justify-center mb-4">
-            <div className="w-16 h-16 bg-gradient-to-r from-primary-600 to-secondary-600 rounded-2xl flex items-center justify-center text-white font-bold text-2xl">
-              M
+    <div className="min-h-screen flex">
+      <style>{`
+        .neomorphic-card {
+          background: transparent;
+        }
+
+        @media (min-width: 768px) {
+          .neomorphic-card {
+            background: transparent;
+            border-radius: 15px;
+            box-shadow: none;
+          }
+        }
+
+        .neomorphic-input {
+          position: relative;
+          width: 100%;
+        }
+
+        .custom-border-input {
+          width: 100%;
+          padding: 10px;
+          outline: none;
+          background: transparent;
+          color: #1e40af;
+          font-size: 1em;
+          border: none;
+          border-left: 2px solid #2b313849;
+          border-bottom: 2px solid #2b313849;
+          border-bottom-left-radius: 8px;
+          transition: border-color 0.3s ease;
+        }
+
+        .custom-border-input:focus {
+          border-left-color: #2563eb;
+          border-bottom-color: #2563eb;
+        }
+
+        .neomorphic-input span {
+          position: absolute;
+          left: 0;
+          top: 0;
+          transform: translateY(-4px);
+          margin-left: 10px;
+          padding: 10px;
+          pointer-events: none;
+          font-size: 14px;
+          color: #1e40af;
+          text-transform: none;
+          transition: 0.5s;
+          letter-spacing: normal;
+          border-radius: 8px;
+          z-index: 2;
+        }
+
+        .neomorphic-input input:valid ~ span,
+        .neomorphic-input input:focus ~ span {
+          transform: translateX(156px) translateY(-15px);
+          font-size: 0.8em;
+          padding: 5px 10px;
+          background: #2563eb;
+          letter-spacing: 0.2em;
+          color: #fff;
+        }
+
+        .neomorphic-button {
+          height: 45px;
+          width: 120px;
+          border-radius: 8px;
+          border: 2px solid #2563eb;
+          cursor: pointer;
+          background-color: #2563eb;
+          transition: 0.5s;
+          text-transform: none;
+          font-size: 14px;
+          letter-spacing: normal;
+          color: white;
+          font-weight: bold;
+        }
+
+        .neomorphic-button:hover:not(:disabled) {
+          background-color: #1d4ed8;
+        }
+
+        .neomorphic-button:disabled {
+          opacity: 0.5;
+          cursor: not-allowed;
+        }
+
+        .signup-title {
+          color: #1e40af;
+          text-transform: none;
+          letter-spacing: normal;
+          display: block;
+          font-weight: bold;
+          font-size: x-large;
+          margin-top: 1em;
+          margin-bottom: 0.5em;
+        }
+      `}</style>
+
+      {/* Left Side - Image (hidden on mobile) */}
+      <div className="hidden md:flex md:w-3/5 lg:w-3/5 relative overflow-hidden">
+        <div
+          className="absolute inset-0 bg-cover bg-center"
+          style={{ backgroundImage: `url('${loginBgImage}')` }}
+        />
+        <div className="relative z-10 flex flex-col justify-center items-center w-full p-12 text-white">
+          <div>
+            <img
+              src={assetUrl('/image/Logo_Pinta.png')}
+              alt="Pinta Logo"
+              className="mb-8 max-w-[200px] h-auto"
+            />
+            <h1 className="text-4xl lg:text-5xl font-bold mb-4">
+              Join XPClass
+            </h1>
+            <p className="text-lg lg:text-xl text-blue-100 mb-8">
+              Start your gamified learning journey today
+            </p>
+            <div className="space-y-4">
+              <div className="flex items-center gap-3">
+                <div className="w-8 h-8 rounded-full bg-white/20 flex items-center justify-center">
+                  <span className="text-xl">🎯</span>
+                </div>
+                <p className="text-blue-50">Track your progress with XP</p>
+              </div>
+              <div className="flex items-center gap-3">
+                <div className="w-8 h-8 rounded-full bg-white/20 flex items-center justify-center">
+                  <span className="text-xl">🔥</span>
+                </div>
+                <p className="text-blue-50">Build streaks and stay motivated</p>
+              </div>
+              <div className="flex items-center gap-3">
+                <div className="w-8 h-8 rounded-full bg-white/20 flex items-center justify-center">
+                  <span className="text-xl">🏆</span>
+                </div>
+                <p className="text-blue-50">Unlock achievements and rewards</p>
+              </div>
             </div>
           </div>
-          <h2 className="text-3xl font-bold text-gray-900 mb-2">
-            Tạo tài khoản mới
-          </h2>
-          <p className="text-gray-600">
-            Bắt đầu hành trình học tập với MomTek
-          </p>
         </div>
+      </div>
 
-        {/* Register Form */}
-        <div className="bg-white rounded-2xl shadow-xl p-8">
-          <form onSubmit={handleSubmit} className="space-y-6">
+      {/* Right Side - Register Form */}
+      <div className="w-full md:w-2/5 lg:w-2/5 flex flex-col items-center justify-center min-h-screen px-4 bg-white">
+        <div className="neomorphic-card flex flex-col items-center justify-center w-full md:w-[400px] lg:w-[400px] gap-6 p-8 pt-20 md:pt-24 relative">
+          {/* Logo - Top Left */}
+          <div className="absolute top-1 md:top-6 left-4">
+            <img
+              src={assetUrl('/Asset%205.png')}
+              alt="Logo"
+              width={64}
+              height={64}
+            />
+          </div>
+
+          {/* Top right dots */}
+          <div className="absolute top-4 md:top-8 right-4 flex gap-2">
+            <div className="w-3 h-3 rounded-full bg-blue-500"></div>
+            <div className="w-3 h-3 rounded-full bg-purple-500"></div>
+            <div className="w-3 h-3 rounded-full bg-pink-500"></div>
+          </div>
+
+          <a className="signup-title">Tao tai khoan moi</a>
+
+          <form
+            onSubmit={handleSubmit}
+            className="w-full flex flex-col items-center gap-6"
+          >
             {error && (
-              <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-lg">
+              <div className="bg-red-50 border-2 border-red-400 text-red-700 px-4 py-2 rounded-lg text-sm w-[280px]">
                 {error}
               </div>
             )}
 
-            {/* Full Name Field */}
-            <div>
-              <label htmlFor="fullName" className="block text-sm font-medium text-gray-700 mb-2">
-                Họ và tên
-              </label>
-              <div className="relative">
-                <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                  <User className="h-5 w-5 text-gray-400" />
-                </div>
-                <input
-                  id="fullName"
-                  name="fullName"
-                  type="text"
-                  required
-                  value={formData.fullName}
-                  onChange={handleChange}
-                  className="input pl-10"
-                  placeholder="Nhập họ và tên"
-                />
-              </div>
+            {/* Full Name */}
+            <div className="neomorphic-input w-[280px]">
+              <input
+                type="text"
+                name="fullName"
+                required
+                value={formData.fullName}
+                onChange={handleChange}
+                className="custom-border-input"
+              />
+              <span>Ho va ten</span>
             </div>
 
-            {/* Email Field */}
-            <div>
-              <label htmlFor="email" className="block text-sm font-medium text-gray-700 mb-2">
-                Email
-              </label>
-              <div className="relative">
-                <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                  <Mail className="h-5 w-5 text-gray-400" />
-                </div>
-                <input
-                  id="email"
-                  name="email"
-                  type="email"
-                  required
-                  value={formData.email}
-                  onChange={handleChange}
-                  className="input pl-10"
-                  placeholder="Nhập email của bạn"
-                />
-              </div>
+            {/* Email */}
+            <div className="neomorphic-input w-[280px]">
+              <input
+                type="email"
+                name="email"
+                required
+                value={formData.email}
+                onChange={handleChange}
+                className="custom-border-input"
+              />
+              <span>Email</span>
             </div>
 
-            {/* Password Field */}
-            <div>
-              <label htmlFor="password" className="block text-sm font-medium text-gray-700 mb-2">
-                Mật khẩu
-              </label>
-              <div className="relative">
-                <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                  <Lock className="h-5 w-5 text-gray-400" />
-                </div>
-                <input
-                  id="password"
-                  name="password"
-                  type={showPassword ? 'text' : 'password'}
-                  required
-                  value={formData.password}
-                  onChange={handleChange}
-                  className="input pl-10 pr-10"
-                  placeholder="Nhập mật khẩu"
-                />
-                <button
-                  type="button"
-                  className="absolute inset-y-0 right-0 pr-3 flex items-center"
-                  onClick={() => setShowPassword(!showPassword)}
-                >
-                  {showPassword ? (
-                    <EyeOff className="h-5 w-5 text-gray-400" />
-                  ) : (
-                    <Eye className="h-5 w-5 text-gray-400" />
-                  )}
-                </button>
-              </div>
+            {/* Password */}
+            <div className="neomorphic-input w-[280px]">
+              <input
+                type={showPassword ? 'text' : 'password'}
+                name="password"
+                required
+                value={formData.password}
+                onChange={handleChange}
+                className="custom-border-input"
+              />
+              <span>Mat khau</span>
+              <button
+                type="button"
+                className="absolute right-2 top-2 text-blue-600"
+                onClick={() => setShowPassword(!showPassword)}
+              >
+                {showPassword ? <EyeOff className="h-5 w-5" /> : <Eye className="h-5 w-5" />}
+              </button>
             </div>
 
-            {/* Confirm Password Field */}
-            <div>
-              <label htmlFor="confirmPassword" className="block text-sm font-medium text-gray-700 mb-2">
-                Xác nhận mật khẩu
-              </label>
-              <div className="relative">
-                <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                  <Lock className="h-5 w-5 text-gray-400" />
-                </div>
-                <input
-                  id="confirmPassword"
-                  name="confirmPassword"
-                  type={showConfirmPassword ? 'text' : 'password'}
-                  required
-                  value={formData.confirmPassword}
-                  onChange={handleChange}
-                  className="input pl-10 pr-10"
-                  placeholder="Nhập lại mật khẩu"
-                />
-                <button
-                  type="button"
-                  className="absolute inset-y-0 right-0 pr-3 flex items-center"
-                  onClick={() => setShowConfirmPassword(!showConfirmPassword)}
-                >
-                  {showConfirmPassword ? (
-                    <EyeOff className="h-5 w-5 text-gray-400" />
-                  ) : (
-                    <Eye className="h-5 w-5 text-gray-400" />
-                  )}
-                </button>
-              </div>
+            {/* Confirm Password */}
+            <div className="neomorphic-input w-[280px]">
+              <input
+                type={showConfirmPassword ? 'text' : 'password'}
+                name="confirmPassword"
+                required
+                value={formData.confirmPassword}
+                onChange={handleChange}
+                className="custom-border-input"
+              />
+              <span>Xac nhan</span>
+              <button
+                type="button"
+                className="absolute right-2 top-2 text-blue-600"
+                onClick={() => setShowConfirmPassword(!showConfirmPassword)}
+              >
+                {showConfirmPassword ? <EyeOff className="h-5 w-5" /> : <Eye className="h-5 w-5" />}
+              </button>
             </div>
 
-            {/* Submit Button */}
-            <Button
+            {/* Submit */}
+            <button
               type="submit"
-              loading={loading}
-              className="w-full"
-              size="lg"
+              disabled={loading}
+              className="neomorphic-button mb-4"
             >
-              Đăng ký
-            </Button>
+              {loading ? 'Loading...' : 'Dang ky'}
+            </button>
           </form>
 
-          {/* Links */}
-          <div className="mt-6 text-center">
-            <div className="text-sm text-gray-600">
-              Đã có tài khoản?{' '}
-              <Link 
-                to="/login" 
-                className="text-primary-600 hover:text-primary-500 font-medium"
-              >
-                Đăng nhập ngay
-              </Link>
-            </div>
+          {/* Divider */}
+          <div className="flex items-center w-[280px]">
+            <div className="flex-1 border-t border-gray-300"></div>
+            <span className="px-3 text-xs text-gray-500">hoac</span>
+            <div className="flex-1 border-t border-gray-300"></div>
           </div>
+
+          {/* Login link */}
+          <Link
+            to="/login"
+            className="w-[280px] border-2 border-blue-600 hover:bg-blue-600 hover:text-white text-blue-700 rounded-lg px-4 py-2.5 text-center text-sm font-medium transition-all duration-300 mb-4"
+          >
+            Da co tai khoan? Dang nhap
+          </Link>
         </div>
       </div>
     </div>

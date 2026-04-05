@@ -221,7 +221,7 @@ function petChatPlugin() {
         try {
           const chunks = []
           for await (const chunk of req) chunks.push(chunk)
-          const { messages, model = 'openai/gpt-oss-20b', max_tokens = 500, temperature = 0.7 } = JSON.parse(Buffer.concat(chunks).toString())
+          const { messages, model = 'moonshotai/kimi-k2-instruct', max_tokens = 500, temperature = 0.7 } = JSON.parse(Buffer.concat(chunks).toString())
 
           const apiRes = await fetch('https://api.groq.com/openai/v1/chat/completions', {
             method: 'POST',

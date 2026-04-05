@@ -116,7 +116,13 @@ const RecentActivities = () => {
             reward_xp,
             reward_gems,
             mission_type,
-            icon
+            goal_type,
+            icon,
+            reward_item_id,
+            reward_item_quantity,
+            reward_chest_id,
+            collectible_items:reward_item_id (name, image_url),
+            chests:reward_chest_id (name, image_url)
           )
         `)
         .eq('status', 'claimed')
@@ -196,8 +202,8 @@ const RecentActivities = () => {
           if (dayA !== dayB) return dateB - dateA
 
           // Same day: competition winners and gem activities go first
-          const aHasGems = a.type === 'competition' || (a.type === 'mission' && a.missions?.reward_gems > 0) || (a.type === 'achievement' && a.achievements?.gem_reward > 0)
-          const bHasGems = b.type === 'competition' || (b.type === 'mission' && b.missions?.reward_gems > 0) || (b.type === 'achievement' && b.achievements?.gem_reward > 0)
+          const aHasGems = a.type === 'competition' || (a.type === 'mission' && (a.missions?.reward_gems > 0 || a.missions?.goal_type === 'complete_all_missions')) || (a.type === 'achievement' && a.achievements?.gem_reward > 0)
+          const bHasGems = b.type === 'competition' || (b.type === 'mission' && (b.missions?.reward_gems > 0 || b.missions?.goal_type === 'complete_all_missions')) || (b.type === 'achievement' && b.achievements?.gem_reward > 0)
           if (aHasGems && !bHasGems) return -1
           if (!aHasGems && bHasGems) return 1
 
@@ -279,6 +285,8 @@ const RecentActivities = () => {
           <div key={`${activity.type}-${activity.id}`} className={`relative flex items-center space-x-3 p-3 transition-all overflow-hidden ${
             activity.type === 'competition'
               ? 'border border-amber-300 bg-amber-50'
+              : activity.type === 'mission' && activity.missions?.goal_type === 'complete_all_missions'
+              ? 'border border-yellow-400 bg-gradient-to-r from-yellow-50 to-amber-50'
               : activity.type === 'achievement' && activity.achievements?.gem_reward > 0
               ? 'border border-purple-200 bg-purple-50'
               : activity.type === 'mission' && activity.missions?.reward_gems > 0
@@ -325,9 +333,17 @@ const RecentActivities = () => {
               ) : activity.type === 'mission' ? (
                 <p className="text-sm text-gray-600">
                   hoàn thành nhiệm vụ <span className="font-medium text-blue-700">{activity.missions.title}</span>
-                  {' '}<span className="inline-flex items-center text-yellow-600 font-medium whitespace-nowrap"><img src={assetUrl('/image/study/xp.png')} alt="XP" className="w-3 h-3 inline mr-0.5" />+{activity.missions.reward_xp || 0}</span>
+                  {(activity.missions.reward_xp || 0) > 0 && (
+                    <>{' '}<span className="inline-flex items-center text-yellow-600 font-medium whitespace-nowrap"><img src={assetUrl('/image/study/xp.png')} alt="XP" className="w-3 h-3 inline mr-0.5" />+{activity.missions.reward_xp}</span></>
+                  )}
                   {activity.missions.reward_gems > 0 && (
                     <>{' '}<span className="inline-flex items-center text-purple-600 font-medium whitespace-nowrap"><img src={assetUrl('/image/study/gem.png')} alt="Gem" className="w-3 h-3 inline mr-0.5" />+{activity.missions.reward_gems}</span></>
+                  )}
+                  {activity.missions.collectible_items && (
+                    <>{' '}<span className="inline-flex items-center text-emerald-600 font-medium whitespace-nowrap">+<img src={activity.missions.collectible_items.image_url} alt={activity.missions.collectible_items.name} className="w-3 h-3 inline mx-0.5 object-contain" />{activity.missions.reward_item_quantity || 1} {activity.missions.collectible_items.name}</span></>
+                  )}
+                  {activity.missions.chests && (
+                    <>{' '}<span className="inline-flex items-center text-amber-600 font-medium whitespace-nowrap">+<img src={activity.missions.chests.image_url} alt={activity.missions.chests.name} className="w-3 h-3 inline mx-0.5 object-contain" />{activity.missions.chests.name}</span></>
                   )}
                 </p>
               ) : (

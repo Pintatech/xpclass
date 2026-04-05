@@ -3317,6 +3317,44 @@ BEGIN
   IF v_mission_id IS NULL THEN
     RETURN json_build_object('success', false, 'error', 'Mission not found');
   END IF;
+
+  -- For complete_all_missions bonus: check dynamically if all other missions in the same type are claimed
+  IF v_goal_type = 'complete_all_missions' AND v_status = 'active' THEN
+    DECLARE
+      v_completed_count integer;
+      v_goal integer;
+      v_period_start date;
+    BEGIN
+      SELECT goal_value INTO v_goal FROM missions WHERE id = v_mission_id;
+      SELECT period_start INTO v_period_start FROM user_missions WHERE id = p_user_mission_id;
+
+      IF v_mission_type = 'daily' THEN
+        SELECT COUNT(*) INTO v_completed_count
+        FROM user_missions um2 JOIN missions m2 ON m2.id = um2.mission_id
+        WHERE um2.user_id = p_user_id AND um2.status = 'claimed'
+          AND m2.mission_type = 'daily' AND m2.goal_type != 'complete_all_missions'
+          AND m2.is_active = true AND um2.period_start = v_period_start;
+      ELSIF v_mission_type = 'weekly' THEN
+        SELECT COUNT(*) INTO v_completed_count
+        FROM user_missions um2 JOIN missions m2 ON m2.id = um2.mission_id
+        WHERE um2.user_id = p_user_id AND um2.status = 'claimed'
+          AND m2.mission_type = 'weekly' AND m2.goal_type != 'complete_all_missions'
+          AND m2.is_active = true AND um2.period_start = v_period_start;
+      ELSIF v_mission_type = 'special' THEN
+        SELECT COUNT(*) INTO v_completed_count
+        FROM user_missions um2 JOIN missions m2 ON m2.id = um2.mission_id
+        WHERE um2.user_id = p_user_id AND um2.status = 'claimed'
+          AND m2.mission_type = 'special' AND m2.goal_type != 'complete_all_missions'
+          AND m2.is_active = true AND um2.period_start = COALESCE(m2.start_date, today);
+      END IF;
+
+      IF v_completed_count >= v_goal THEN
+        UPDATE user_missions SET status = 'completed' WHERE id = p_user_mission_id;
+        v_status := 'completed';
+      END IF;
+    END;
+  END IF;
+
   IF v_status != 'completed' THEN
     RETURN json_build_object('success', false, 'error', 'Mission not completed yet');
   END IF;
@@ -3373,6 +3411,38 @@ BEGIN
   today := (NOW() AT TIME ZONE 'Asia/Ho_Chi_Minh')::date;
   week_start := today - (EXTRACT(ISODOW FROM today)::int - 1);
   SELECT name INTO v_user_name FROM users WHERE id = p_user_id;
+
+  -- Auto-complete eligible bonus missions before claiming
+  FOR rec IN
+    SELECT um.id AS user_mission_id, m.mission_type, m.goal_value, um.period_start
+    FROM user_missions um JOIN missions m ON m.id = um.mission_id
+    WHERE um.user_id = p_user_id AND um.status = 'active'
+      AND m.goal_type = 'complete_all_missions' AND m.is_active = true
+  LOOP
+    DECLARE
+      v_done integer;
+    BEGIN
+      IF rec.mission_type = 'daily' THEN
+        SELECT COUNT(*) INTO v_done FROM user_missions um2 JOIN missions m2 ON m2.id = um2.mission_id
+        WHERE um2.user_id = p_user_id AND um2.status = 'claimed'
+          AND m2.mission_type = 'daily' AND m2.goal_type != 'complete_all_missions'
+          AND m2.is_active = true AND um2.period_start = rec.period_start;
+      ELSIF rec.mission_type = 'weekly' THEN
+        SELECT COUNT(*) INTO v_done FROM user_missions um2 JOIN missions m2 ON m2.id = um2.mission_id
+        WHERE um2.user_id = p_user_id AND um2.status = 'claimed'
+          AND m2.mission_type = 'weekly' AND m2.goal_type != 'complete_all_missions'
+          AND m2.is_active = true AND um2.period_start = rec.period_start;
+      ELSIF rec.mission_type = 'special' THEN
+        SELECT COUNT(*) INTO v_done FROM user_missions um2 JOIN missions m2 ON m2.id = um2.mission_id
+        WHERE um2.user_id = p_user_id AND um2.status = 'claimed'
+          AND m2.mission_type = 'special' AND m2.goal_type != 'complete_all_missions'
+          AND m2.is_active = true AND um2.period_start = COALESCE(m2.start_date, today);
+      END IF;
+      IF v_done >= rec.goal_value THEN
+        UPDATE user_missions SET status = 'completed' WHERE id = rec.user_mission_id;
+      END IF;
+    END;
+  END LOOP;
 
   FOR rec IN
     SELECT um.id AS user_mission_id, m.reward_xp, m.reward_gems, m.title,

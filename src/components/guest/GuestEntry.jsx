@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { supabase } from '../../supabase/client'
 import { assetUrl } from '../../hooks/useBranding'
-import { ArrowLeft, Play, BookOpen, FileText, User } from 'lucide-react'
+import { ArrowLeft, Play, BookOpen, FileText, User, History, ChevronDown, ChevronRight, CheckCircle, XCircle } from 'lucide-react'
 
 const GuestEntry = () => {
   const navigate = useNavigate()
@@ -13,6 +13,8 @@ const GuestEntry = () => {
   const [course, setCourse] = useState(null)
   const [step, setStep] = useState('name') // 'name' | 'pick'
   const [guestId, setGuestId] = useState(null)
+  const [attempts, setAttempts] = useState([])
+  const [showHistory, setShowHistory] = useState(false)
 
   useEffect(() => {
     // Sign out any existing auth session so Supabase uses anon role
@@ -24,6 +26,7 @@ const GuestEntry = () => {
         setName(savedName)
         setGuestId(savedId)
         setStep('pick')
+        fetchAttempts(savedId)
       }
       fetchDemoCourse()
     })
@@ -102,6 +105,7 @@ const GuestEntry = () => {
       localStorage.setItem('guest_name', name.trim())
       localStorage.setItem('guest_id', id)
       setStep('pick')
+      fetchAttempts(id)
     } catch (err) {
       console.error('Error saving guest:', err)
       // Fallback: still let them proceed with a temp ID
@@ -110,6 +114,19 @@ const GuestEntry = () => {
       localStorage.setItem('guest_name', name.trim())
       localStorage.setItem('guest_id', tempId)
       setStep('pick')
+    }
+  }
+
+  const fetchAttempts = async (id) => {
+    try {
+      const { data } = await supabase
+        .from('guest_attempts')
+        .select('id, session_id, score, total_correct, total_questions, time_used_seconds, timed_out, created_at')
+        .eq('guest_id', id)
+        .order('created_at', { ascending: false })
+      setAttempts(data || [])
+    } catch (err) {
+      console.error('Error fetching attempts:', err)
     }
   }
 
@@ -301,6 +318,60 @@ const GuestEntry = () => {
                 <div className="text-6xl mb-4">📝</div>
                 <h3 className="text-lg font-medium text-gray-900 mb-2">Chua co bai hoc nao</h3>
                 <p className="text-gray-600 text-sm">Khoa hoc demo chua co noi dung.</p>
+              </div>
+            )}
+
+            {/* Attempt history */}
+            {attempts.length > 0 && (
+              <div className="bg-white rounded-xl shadow-sm overflow-hidden">
+                <button
+                  onClick={() => setShowHistory(!showHistory)}
+                  className="w-full flex items-center justify-between p-4 hover:bg-gray-50 transition-colors"
+                >
+                  <div className="flex items-center gap-2">
+                    <History className="w-5 h-5 text-blue-600" />
+                    <span className="font-semibold text-gray-800">Lich su lam bai ({attempts.length})</span>
+                  </div>
+                  {showHistory
+                    ? <ChevronDown size={18} className="text-gray-400" />
+                    : <ChevronRight size={18} className="text-gray-400" />
+                  }
+                </button>
+
+                {showHistory && (
+                  <div className="px-4 pb-4 space-y-2">
+                    {attempts.map(attempt => {
+                      const sessionInfo = sessions.find(s => s.id === attempt.session_id)
+                      const scoreColor = attempt.score >= 80 ? 'text-green-600' : attempt.score >= 50 ? 'text-yellow-600' : 'text-red-600'
+                      const scoreBg = attempt.score >= 80 ? 'bg-green-50' : attempt.score >= 50 ? 'bg-yellow-50' : 'bg-red-50'
+
+                      return (
+                        <div key={attempt.id} className={`p-3 rounded-lg ${scoreBg}`}>
+                          <div className="flex items-center justify-between">
+                            <div className="flex-1 min-w-0">
+                              <p className="font-medium text-gray-800 text-sm truncate">
+                                {sessionInfo?.title || 'Bai hoc'}
+                              </p>
+                              <p className="text-xs text-gray-500 mt-0.5">
+                                {new Date(attempt.created_at).toLocaleDateString('vi-VN', {
+                                  day: '2-digit', month: '2-digit', year: 'numeric',
+                                  hour: '2-digit', minute: '2-digit'
+                                })}
+                                {attempt.timed_out && ' • Het gio'}
+                              </p>
+                            </div>
+                            <div className="text-right flex-shrink-0 ml-3">
+                              <p className={`text-lg font-bold ${scoreColor}`}>{attempt.score}%</p>
+                              <p className="text-xs text-gray-500">
+                                {attempt.total_correct}/{attempt.total_questions}
+                              </p>
+                            </div>
+                          </div>
+                        </div>
+                      )
+                    })}
+                  </div>
+                )}
               </div>
             )}
           </div>

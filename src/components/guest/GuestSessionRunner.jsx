@@ -9,7 +9,7 @@ import DropdownExercise from '../exercises/DropdownExercise'
 import ImageHotspotExercise from '../exercises/ImageHotspotExercise'
 import AIFillBlankExercise from '../exercises/AIFillBlankExercise'
 import PDFWorksheetExercise from '../exercises/PDFWorksheetExercise'
-import { Clock, AlertTriangle, Send, CheckCircle, ChevronRight, FileText, Play, ArrowLeft } from 'lucide-react'
+import { Clock, AlertTriangle, Send, CheckCircle, XCircle, ChevronRight, ChevronDown, FileText, Play, ArrowLeft, UserPlus } from 'lucide-react'
 
 const exerciseTypeLabels = {
   multiple_choice: 'Multiple Choice',
@@ -39,6 +39,7 @@ const GuestSessionRunner = () => {
   const [showConfirmSubmit, setShowConfirmSubmit] = useState(false)
   const [showInfo, setShowInfo] = useState(true)
   const [startTime, setStartTime] = useState(null)
+  const [showIncorrect, setShowIncorrect] = useState(false)
 
   useEffect(() => {
     if (sessionId) loadSession()
@@ -398,14 +399,189 @@ const GuestSessionRunner = () => {
     )
   }
 
+  // Build detailed incorrect answers list
+  const getIncorrectDetails = () => {
+    const incorrect = []
+
+    exercises.forEach(ex => {
+      const exerciseAnswers = answers[ex.id]
+
+      if (ex.exercise_type === 'image_hotspot') {
+        const content = ex.content || {}
+        const hotspots = content.hotspots || []
+        const labels = content.labels || []
+        const userAnswer = exerciseAnswers || {}
+
+        hotspots.forEach((hotspot, hi) => {
+          const selectedLabelId = userAnswer[hotspot.id]
+          const selectedLabel = labels.find(l => l.id === selectedLabelId)
+          const isDistractor = selectedLabel?.type === 'distractor'
+          const isCorrect = !isDistractor && selectedLabel?.hotspot_id === hotspot.id
+          if (!isCorrect) {
+            const correctLabel = labels.find(l => l.hotspot_id === hotspot.id && l.type !== 'distractor')
+            incorrect.push({
+              exercise: ex.title || 'Image Hotspot',
+              question: `Hotspot ${hi + 1}`,
+              yourAnswer: selectedLabel?.text || '(khong tra loi)',
+              correctAnswer: correctLabel?.text || '?'
+            })
+          }
+        })
+        return
+      }
+
+      if (ex.exercise_type === 'pdf_worksheet') {
+        const content = ex.content || {}
+        const allPages = content.pages || []
+        const userAnswer = exerciseAnswers || {}
+
+        allPages.forEach(page => {
+          const fields = page.fields || []
+          fields.forEach((field) => {
+            const fieldAnswer = userAnswer[field.id]
+            let isCorrect = false
+            let correctText = ''
+
+            switch (field.type) {
+              case 'text': {
+                const typed = (fieldAnswer || '').trim()
+                const correct = (field.correct_answer || '').trim()
+                isCorrect = field.case_sensitive
+                  ? typed === correct
+                  : typed.toLowerCase() === correct.toLowerCase()
+                correctText = correct
+                break
+              }
+              case 'dropdown':
+                isCorrect = fieldAnswer === field.correct_option
+                correctText = field.correct_option || ''
+                break
+              case 'checkbox': {
+                const expected = field.correct_answer === 'true'
+                isCorrect = fieldAnswer === expected
+                correctText = expected ? 'Checked' : 'Unchecked'
+                break
+              }
+            }
+            if (!isCorrect) {
+              incorrect.push({
+                exercise: ex.title || 'PDF Worksheet',
+                question: field.label || field.id,
+                yourAnswer: fieldAnswer != null ? String(fieldAnswer) : '(khong tra loi)',
+                correctAnswer: correctText
+              })
+            }
+          })
+        })
+        return
+      }
+
+      const questions = ex.content?.questions || []
+      questions.forEach((q, qi) => {
+        switch (ex.exercise_type) {
+          case 'multiple_choice': {
+            const userAnswer = exerciseAnswers?.[qi]
+            if (userAnswer !== q.correct_answer) {
+              const options = q.options || []
+              incorrect.push({
+                exercise: ex.title || 'Multiple Choice',
+                question: q.question || `Cau ${qi + 1}`,
+                yourAnswer: userAnswer != null ? (options[userAnswer] || userAnswer) : '(khong tra loi)',
+                correctAnswer: options[q.correct_answer] || q.correct_answer
+              })
+            }
+            break
+          }
+          case 'fill_blank': {
+            const blanks = q.blanks || []
+            blanks.forEach((blank, bi) => {
+              const typed = ((exerciseAnswers?.[qi] || {})[bi] || '').trim()
+              const correctAnswers = splitAnswers(blank.answer)
+              const isCorrect = blank.case_sensitive
+                ? correctAnswers.some(a => typed === a)
+                : correctAnswers.some(a => typed.toLowerCase() === a.toLowerCase())
+              if (!isCorrect) {
+                incorrect.push({
+                  exercise: ex.title || 'Fill Blank',
+                  question: q.text ? `${q.text.substring(0, 50)}...` : `Cau ${qi + 1}, o ${bi + 1}`,
+                  yourAnswer: typed || '(khong tra loi)',
+                  correctAnswer: correctAnswers[0] || '?'
+                })
+              }
+            })
+            break
+          }
+          case 'drag_drop': {
+            const dropZones = q.drop_zones || []
+            const correctOrder = q.correct_order || []
+            const items = q.items || []
+            const userPlacements = exerciseAnswers?.[qi] || {}
+
+            dropZones.forEach((zone, zi) => {
+              const studentItemId = userPlacements[zone.id]
+              const correctItemId = correctOrder[zi]
+              if (!studentItemId || studentItemId !== correctItemId) {
+                const studentItem = items.find(it => it.id === studentItemId)
+                const correctItem = items.find(it => it.id === correctItemId)
+                incorrect.push({
+                  exercise: ex.title || 'Drag & Drop',
+                  question: zone.label || `Zone ${zi + 1}`,
+                  yourAnswer: studentItem?.text || '(khong tra loi)',
+                  correctAnswer: correctItem?.text || '?'
+                })
+              }
+            })
+            break
+          }
+          case 'dropdown': {
+            const dropdowns = q.dropdowns || []
+            dropdowns.forEach((dd, di) => {
+              const selected = ((exerciseAnswers?.[qi] || {})[di] || '').trim()
+              const correct = (dd.correct_answer || '').trim()
+              if (selected !== correct) {
+                incorrect.push({
+                  exercise: ex.title || 'Dropdown',
+                  question: q.text ? `${q.text.substring(0, 50)}...` : `Cau ${qi + 1}, dropdown ${di + 1}`,
+                  yourAnswer: selected || '(khong tra loi)',
+                  correctAnswer: correct
+                })
+              }
+            })
+            break
+          }
+          case 'ai_fill_blank': {
+            const userAnswer = (exerciseAnswers?.[qi] || '').trim().toLowerCase()
+            const expectedAnswers = q.expected_answers || []
+            const isCorrect = expectedAnswers.length > 0 && expectedAnswers.some(ea =>
+              userAnswer.includes(ea.trim().toLowerCase())
+            )
+            if (!isCorrect) {
+              incorrect.push({
+                exercise: ex.title || 'AI Fill Blank',
+                question: q.question || `Cau ${qi + 1}`,
+                yourAnswer: exerciseAnswers?.[qi] || '(khong tra loi)',
+                correctAnswer: expectedAnswers.join(' / ') || '?'
+              })
+            }
+            break
+          }
+        }
+      })
+    })
+
+    return incorrect
+  }
+
   // Results screen
   if (results) {
     const scoreColor = results.score >= 80 ? 'text-green-600' : results.score >= 50 ? 'text-yellow-600' : 'text-red-600'
     const scoreBg = results.score >= 80 ? 'bg-green-50 border-green-200' : results.score >= 50 ? 'bg-yellow-50 border-yellow-200' : 'bg-red-50 border-red-200'
+    const incorrectDetails = getIncorrectDetails()
 
     return (
       <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 p-4">
-        <div className="max-w-md mx-auto mt-12">
+        <div className="max-w-md mx-auto mt-8 space-y-4">
+          {/* Score card */}
           <div className={`rounded-2xl p-8 text-center border-2 ${scoreBg}`}>
             <div className={`w-20 h-20 rounded-full flex items-center justify-center mx-auto mb-4 ${
               results.score >= 80 ? 'bg-green-100' : results.score >= 50 ? 'bg-yellow-100' : 'bg-red-100'
@@ -436,7 +612,63 @@ const GuestSessionRunner = () => {
             )}
           </div>
 
-          <div className="mt-6 flex gap-3">
+          {/* Incorrect answers */}
+          {incorrectDetails.length > 0 && (
+            <div className="bg-white rounded-2xl shadow-sm border border-gray-200 overflow-hidden">
+              <button
+                onClick={() => setShowIncorrect(!showIncorrect)}
+                className="w-full flex items-center justify-between p-4 hover:bg-gray-50 transition-colors"
+              >
+                <div className="flex items-center gap-2">
+                  <XCircle className="w-5 h-5 text-red-500" />
+                  <span className="font-medium text-gray-900 text-sm">
+                    Cau tra loi sai ({incorrectDetails.length})
+                  </span>
+                </div>
+                {showIncorrect
+                  ? <ChevronDown size={18} className="text-gray-400" />
+                  : <ChevronRight size={18} className="text-gray-400" />
+                }
+              </button>
+
+              {showIncorrect && (
+                <div className="px-4 pb-4 space-y-2">
+                  {incorrectDetails.map((item, i) => (
+                    <div key={i} className="p-3 bg-red-50 rounded-lg text-sm">
+                      <p className="font-medium text-gray-800 mb-1">{item.question}</p>
+                      <p className="text-xs text-gray-500">{item.exercise}</p>
+                      <div className="mt-2 space-y-1">
+                        <p className="text-red-600 text-xs flex items-center gap-1">
+                          <XCircle size={12} /> Ban chon: {item.yourAnswer}
+                        </p>
+                        <p className="text-green-600 text-xs flex items-center gap-1">
+                          <CheckCircle size={12} /> Dap an dung: {item.correctAnswer}
+                        </p>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          )}
+
+          {/* Register CTA */}
+          <div className="bg-white rounded-2xl shadow-sm border-2 border-blue-200 p-6 text-center">
+            <UserPlus className="w-10 h-10 text-blue-600 mx-auto mb-3" />
+            <h3 className="font-bold text-gray-900 mb-1">Dang ky tai khoan</h3>
+            <p className="text-gray-500 text-sm mb-4">
+              Tao tai khoan de theo doi tien trinh hoc tap va nhan XP!
+            </p>
+            <button
+              onClick={() => navigate('/register')}
+              className="w-full px-6 py-3 bg-blue-600 text-white rounded-xl font-medium hover:bg-blue-700 transition-colors flex items-center justify-center gap-2"
+            >
+              <UserPlus size={18} /> Dang ky ngay
+            </button>
+          </div>
+
+          {/* Action buttons */}
+          <div className="flex gap-3">
             <button
               onClick={() => {
                 setResults(null)
