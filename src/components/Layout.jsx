@@ -81,7 +81,8 @@ const Layout = () => {
 
   const hideBottomNav = exercisePaths.some(p => location.pathname.startsWith(p)) || isSessionPage || isTestPage
   const isLiveBattle = location.pathname.startsWith('/teacher/live-battle')
-  const hideSidebar = exercisePaths.some(p => location.pathname.startsWith(p)) || isTestPage || isLiveBattle
+  const isStudyPage = location.pathname.startsWith('/study') || location.pathname.startsWith('/pets')
+  const hideSidebar = exercisePaths.some(p => location.pathname.startsWith(p)) || isTestPage || isLiveBattle || isStudyPage
   const isInsideCourse = /\/study\/(course|level)\//.test(location.pathname) || exercisePaths.some(p => location.pathname.startsWith(p))
 
   if (loading) {

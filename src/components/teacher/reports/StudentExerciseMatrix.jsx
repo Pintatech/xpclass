@@ -458,6 +458,39 @@ const StudentExerciseMatrix = ({ selectedCourse, initialSessionId }) => {
     setTeacherFeedbacks({});
   };
 
+  const [resetting, setResetting] = useState(false);
+
+  const handleResetProgress = async () => {
+    if (!selectedCell || !isAdmin) return;
+    const { studentId, studentName, exerciseId, exerciseTitle } = selectedCell;
+    if (!window.confirm(`Reset all progress for "${studentName}" on "${exerciseTitle}"?\n\nThis will delete their score, attempts, and question history for this exercise.`)) return;
+
+    setResetting(true);
+    try {
+      // Delete question_attempts first, then user_progress
+      await supabase
+        .from('question_attempts')
+        .delete()
+        .eq('user_id', studentId)
+        .eq('exercise_id', exerciseId);
+
+      await supabase
+        .from('user_progress')
+        .delete()
+        .eq('user_id', studentId)
+        .eq('exercise_id', exerciseId);
+
+      // Refresh matrix data and close modal
+      closeModal();
+      fetchMatrixData(exercises.length || 15);
+    } catch (err) {
+      console.error('Error resetting progress:', err);
+      alert('Failed to reset progress. Check console for details.');
+    } finally {
+      setResetting(false);
+    }
+  };
+
   const handleVideoCell = async (studentId, studentName, exerciseId, exerciseTitle) => {
     setLoadingAttempts(true);
     setSelectedCell({ studentId, studentName, exerciseId, exerciseTitle });
@@ -986,6 +1019,17 @@ const StudentExerciseMatrix = ({ selectedCourse, initialSessionId }) => {
                       </>
                     )
                   })()}
+                  {isAdmin && (
+                    <button
+                      onClick={handleResetProgress}
+                      disabled={resetting}
+                      className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-red-600 bg-red-50 hover:bg-red-100 rounded-lg transition-colors disabled:opacity-50 ml-2"
+                      title="Reset this student's progress on this exercise"
+                    >
+                      <RotateCcw className={`w-3.5 h-3.5 ${resetting ? 'animate-spin' : ''}`} />
+                      {resetting ? 'Resetting...' : 'Reset'}
+                    </button>
+                  )}
                   <button
                     onClick={closeModal}
                     className="text-gray-400 hover:text-gray-600 transition-colors ml-2"

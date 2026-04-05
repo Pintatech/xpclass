@@ -397,9 +397,17 @@ const PetInventory = () => {
 
       {/* ---- Top Bar ---- */}
       <div className="absolute top-0 left-0 right-0 z-30 p-3 flex justify-between items-start">
-        <div>
-          <h1 className="text-xl font-black text-white drop-shadow-lg">My Pets</h1>
-          <p className="text-xs text-white/70 drop-shadow">{userPets.length} pets collected</p>
+        <div className="flex items-center gap-2">
+          <button
+            onClick={() => navigate(-1)}
+            className="bg-white/20 hover:bg-white/30 backdrop-blur-md text-white p-2 rounded-lg transition-all shadow-lg border border-white/20"
+          >
+            <ChevronLeft className="w-5 h-5" />
+          </button>
+          <div>
+            <h1 className="text-xl font-black text-white drop-shadow-lg">My Pets</h1>
+            <p className="text-xs text-white/70 drop-shadow">{userPets.length} pets collected</p>
+          </div>
         </div>
         <div className="flex gap-2">
           <button
