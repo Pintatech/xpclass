@@ -336,11 +336,13 @@ const PetAstroBlast = ({ petImageUrl, petName, onGameEnd, onClose, shipSkinUrl, 
           // Bounce off edges
           if (newX < 50) { newX = 50; newVx = Math.abs(newVx) * 0.5 }
           if (newX > containerW - 50) { newX = containerW - 50; newVx = -Math.abs(newVx) * 0.5 }
+          // Fall 2x faster while word is hidden (mystery phase y <= 130)
+          const mysteryMul = w.y <= 130 ? 1.5 : 1
           return {
             ...w,
             x: newX,
             vx: newVx,
-            y: w.y + w.vy * dt * slowMul,
+            y: w.y + w.vy * dt * slowMul * mysteryMul,
             vy: w.vy + GRAVITY * dt,
             rotation: w.rotation + w.rotationSpeed * dt,
           }

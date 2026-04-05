@@ -24,6 +24,7 @@ const UserManagement = () => {
   const { user: currentUser } = useAuth()
   const [searchTerm, setSearchTerm] = useState('')
   const [filterRole, setFilterRole] = useState('all')
+  const [filterCohort, setFilterCohort] = useState('all')
   const [users, setUsers] = useState([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState(null)
@@ -370,11 +371,14 @@ const UserManagement = () => {
     }
   }
 
+  const allCohorts = [...new Set(users.flatMap(u => u.cohorts))].sort()
+
   const filteredUsers = users.filter(user => {
     const matchesSearch = user.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
                          user.email.toLowerCase().includes(searchTerm.toLowerCase())
     const matchesRole = filterRole === 'all' || user.role === filterRole
-    return matchesSearch && matchesRole
+    const matchesCohort = filterCohort === 'all' || user.cohorts.includes(filterCohort)
+    return matchesSearch && matchesRole && matchesCohort
   })
 
   const getStatusColor = (status) => {
@@ -513,6 +517,18 @@ const UserManagement = () => {
                 <option value="admin">Quản trị</option>
               </select>
             </div>
+
+            {/* Cohort Filter */}
+            <select
+              value={filterCohort}
+              onChange={(e) => setFilterCohort(e.target.value)}
+              className="input min-w-[120px]"
+            >
+              <option value="all">Tất cả Cohort</option>
+              {allCohorts.map(c => (
+                <option key={c} value={c}>{c}</option>
+              ))}
+            </select>
 
             <div className="ml-auto">
               <Button onClick={() => setShowBulkImport(true)}>

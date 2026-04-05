@@ -235,7 +235,7 @@ const RecentActivities = () => {
 
       if (error) throw error
 
-      let newData = data || []
+      let newData = (data || []).filter(p => p.collectible_items?.item_type !== 'pet_food')
 
       // Fetch user names
       const userIds = [...new Set(newData.map(p => p.user_id).filter(Boolean))]

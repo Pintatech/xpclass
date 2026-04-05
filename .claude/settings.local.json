@@ -69,7 +69,8 @@
       "Bash(xargs -I {} basename {})",
       "Bash(grep -n \"<TeacherExerciseNav\" src/components/exercises/*.jsx)",
       "Bash(find /c/Users/Calvin_PC/Downloads/xpclass -maxdepth 3 -type f \\\\\\(-name *.sql -o -name *migrations* \\\\\\))",
-      "Bash(xargs grep:*)"
+      "Bash(xargs grep:*)",
+      "Bash(npx -y acorn-loose --ecma2020 src/components/pet/games/PetCatchGame.jsx)"
     ],
     "deny": [],
     "ask": []
