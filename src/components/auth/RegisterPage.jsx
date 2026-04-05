@@ -11,7 +11,7 @@ const DEFAULT_LOGIN_IMAGE =
 const RegisterPage = () => {
   const [formData, setFormData] = useState({
     fullName: '',
-    email: '',
+    username: '',
     password: '',
     confirmPassword: ''
   })
@@ -60,6 +60,33 @@ const RegisterPage = () => {
     setLoading(true)
     setError('')
 
+    const username = formData.username.trim()
+    if (!username) {
+      setError('Vui long nhap ten dang nhap')
+      setLoading(false)
+      return
+    }
+    if (username.length < 3) {
+      setError('Ten dang nhap phai co it nhat 3 ky tu')
+      setLoading(false)
+      return
+    }
+    if (username.length > 20) {
+      setError('Ten dang nhap khong duoc qua 20 ky tu')
+      setLoading(false)
+      return
+    }
+    if (/\s/.test(username)) {
+      setError('Ten dang nhap khong duoc co dau cach')
+      setLoading(false)
+      return
+    }
+    if (!/^[a-zA-Z0-9._]+$/.test(username)) {
+      setError('Ten dang nhap chi duoc chua chu cai, so, dau cham va gach duoi')
+      setLoading(false)
+      return
+    }
+
     if (formData.password !== formData.confirmPassword) {
       setError('Mat khau xac nhan khong khop')
       setLoading(false)
@@ -72,8 +99,12 @@ const RegisterPage = () => {
       return
     }
 
+    // Generate a random email from the username
+    const randomSuffix = Math.random().toString(36).substring(2, 8)
+    const generatedEmail = `${formData.username.trim().toLowerCase().replace(/\s+/g, '_')}_${randomSuffix}@xpclass.local`
+
     try {
-      const { error } = await signUp(formData.email, formData.password, formData.fullName)
+      const { error } = await signUp(generatedEmail, formData.password, formData.fullName, formData.username.trim())
       if (error) {
         setError(error.message || 'Co loi xay ra khi dang ky')
       } else {
@@ -300,17 +331,17 @@ const RegisterPage = () => {
               <span>Ho va ten</span>
             </div>
 
-            {/* Email */}
+            {/* Username */}
             <div className="neomorphic-input w-[280px]">
               <input
-                type="email"
-                name="email"
+                type="text"
+                name="username"
                 required
-                value={formData.email}
+                value={formData.username}
                 onChange={handleChange}
                 className="custom-border-input"
               />
-              <span>Email</span>
+              <span>Ten dang nhap</span>
             </div>
 
             {/* Password */}

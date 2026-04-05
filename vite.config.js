@@ -152,10 +152,10 @@ function aiAnalyzePlugin() {
           res.end(JSON.stringify({ error: 'Method not allowed' }))
           return
         }
-        const apiKey = process.env.VITE_MEGALLM_API_KEY || process.env.MEGALLM_API_KEY
+        const apiKey = process.env.GROQ_API_KEY
         if (!apiKey) {
           res.writeHead(500, { 'Content-Type': 'application/json' })
-          res.end(JSON.stringify({ error: 'MEGALLM_API_KEY not set in .env' }))
+          res.end(JSON.stringify({ error: 'GROQ_API_KEY not set in .env' }))
           return
         }
         try {
@@ -163,10 +163,10 @@ function aiAnalyzePlugin() {
           for await (const chunk of req) chunks.push(chunk)
           const { messages, max_tokens = 2000, temperature = 0.3 } = JSON.parse(Buffer.concat(chunks).toString())
 
-          const reqBody = JSON.stringify({ model: 'openai-gpt-oss-20b', messages, max_tokens, temperature })
+          const reqBody = JSON.stringify({ model: 'moonshotai/kimi-k2-instruct', messages, max_tokens, temperature })
           let apiRes
           for (let attempt = 0; attempt < 3; attempt++) {
-            apiRes = await fetch('https://ai.megallm.io/v1/chat/completions', {
+            apiRes = await fetch('https://api.groq.com/openai/v1/chat/completions', {
               method: 'POST',
               headers: {
                 'Authorization': `Bearer ${apiKey}`,
@@ -180,7 +180,7 @@ function aiAnalyzePlugin() {
           if (!apiRes.ok) {
             const errText = await apiRes.text()
             res.writeHead(apiRes.status, { 'Content-Type': 'application/json' })
-            res.end(JSON.stringify({ error: `MegaLLM error: ${apiRes.status}`, detail: errText }))
+            res.end(JSON.stringify({ error: `Groq error: ${apiRes.status}`, detail: errText }))
             return
           }
           const data = await apiRes.json()

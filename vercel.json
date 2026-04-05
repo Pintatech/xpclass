@@ -16,6 +16,7 @@
     { "path": "/api/cron/award-daily-challenge-winners", "schedule": "5 17 * * *" },
     { "path": "/api/cron/award-weekly-scramble-champion", "schedule": "5 17 * * 0" },
     { "path": "/api/cron/award-weekly-xp-champion", "schedule": "10 17 * * 0" },
-    { "path": "/api/cron/award-monthly-xp-champion", "schedule": "10 17 1 * *" }
+    { "path": "/api/cron/award-monthly-xp-champion", "schedule": "10 17 1 * *" },
+    { "path": "/api/cron/cleanup-training-scores", "schedule": "0 0 * * *" }
   ]
 }

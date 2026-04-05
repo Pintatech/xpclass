@@ -156,6 +156,38 @@ const RecentActivities = () => {
 
       if (competitionError) throw competitionError
 
+      // Fetch wild area pet catches
+      const { data: wildCatchData, error: wildCatchError } = await supabase
+        .from('wild_area_logs')
+        .select(`
+          id,
+          user_id,
+          pet_name,
+          pet_rarity,
+          ball_name,
+          created_at,
+          pets:pet_id (
+            id,
+            name,
+            image_url
+          ),
+          collectible_items:ball_item_id (
+            image_url
+          ),
+          users:user_id (
+            id,
+            full_name,
+            avatar_url,
+            role,
+            user_equipment(active_title, active_frame_ratio, hide_frame)
+          )
+        `)
+        .eq('action', 'catch_success')
+        .order('created_at', { ascending: false })
+        .limit(15)
+
+      if (wildCatchError) throw wildCatchError
+
       // Flatten user_equipment into users object
       const flattenUser = (item) => {
         if (!item?.users) return item
@@ -190,8 +222,17 @@ const RecentActivities = () => {
           activity_date: n.created_at
         }))
 
+      // Process wild area catches (exclude admins)
+      const wildCatchActivities = (wildCatchData || [])
+        .filter(w => w.users && w.pets && w.users.role !== 'admin')
+        .map(w => flattenUser({
+          ...w,
+          type: 'wild_catch',
+          activity_date: w.created_at
+        }))
+
       // Merge and sort by date, gem/competition activities stick to top for their day
-      const allActivities = [...achievementActivities, ...missionActivities, ...competitionActivities]
+      const allActivities = [...achievementActivities, ...missionActivities, ...competitionActivities, ...wildCatchActivities]
         .sort((a, b) => {
           const dateA = new Date(a.activity_date)
           const dateB = new Date(b.activity_date)
@@ -285,6 +326,8 @@ const RecentActivities = () => {
           <div key={`${activity.type}-${activity.id}`} className={`relative flex items-center space-x-3 p-3 transition-all overflow-hidden ${
             activity.type === 'competition'
               ? 'border border-amber-300 bg-amber-50'
+              : activity.type === 'wild_catch'
+              ? 'border border-emerald-200 bg-emerald-50'
               : activity.type === 'mission' && activity.missions?.goal_type === 'complete_all_missions'
               ? 'border border-yellow-400 bg-gradient-to-r from-yellow-50 to-amber-50'
               : activity.type === 'achievement' && activity.achievements?.gem_reward > 0
@@ -311,6 +354,10 @@ const RecentActivities = () => {
               <div className="flex items-center space-x-2">
                 {activity.type === 'competition' ? (
                   <span className="text-base flex-shrink-0">🏆</span>
+                ) : activity.type === 'wild_catch' ? (
+                  activity.collectible_items?.image_url
+                    ? <img src={activity.collectible_items.image_url} alt={activity.ball_name} className="w-5 h-5 flex-shrink-0 object-contain" />
+                    : <img src={assetUrl('/image/dashboard/pet-type.webp')} alt="wild catch" className="w-4 h-4 flex-shrink-0 object-contain" />
                 ) : activity.type === 'mission' ? (
                   <img src={getMissionImage(activity.missions.icon).startsWith('http') ? getMissionImage(activity.missions.icon) : assetUrl(getMissionImage(activity.missions.icon))} alt="mission" className="w-4 h-4 flex-shrink-0 object-contain" />
                 ) : (
@@ -329,6 +376,15 @@ const RecentActivities = () => {
                   {activity.data?.gems > 0 && (
                     <>{' '}<span className="inline-flex items-center text-purple-600 font-medium whitespace-nowrap"><img src={assetUrl('/image/study/gem.png')} alt="Gem" className="w-3 h-3 inline mr-0.5" />+{activity.data.gems}</span></>
                   )}
+                </p>
+              ) : activity.type === 'wild_catch' ? (
+                <p className="text-sm text-gray-600">
+                  bắt được <span className={`font-medium ${
+                    activity.pet_rarity === 'legendary' ? 'text-yellow-600' :
+                    activity.pet_rarity === 'epic' ? 'text-purple-600' :
+                    activity.pet_rarity === 'rare' ? 'text-blue-600' :
+                    activity.pet_rarity === 'uncommon' ? 'text-green-600' : 'text-gray-700'
+                  }`}>{activity.pet_name}</span> trong khu vực hoang dã
                 </p>
               ) : activity.type === 'mission' ? (
                 <p className="text-sm text-gray-600">

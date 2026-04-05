@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react'
 import { supabase } from '../../supabase/client'
-import { Search, Clock, CheckCircle, Circle, Loader2, Swords, Trophy, BookOpen, ShoppingBag, Package, TreePine } from 'lucide-react'
+import { Search, Clock, CheckCircle, Circle, Loader2, Swords, Trophy, BookOpen, ShoppingBag, Package, TreePine, Gamepad2 } from 'lucide-react'
 
 const PAGE_SIZE = 50
 
@@ -25,12 +25,13 @@ const GAME_TYPE_LABELS = {
 }
 
 const RecentActivities = () => {
-  const [tab, setTab] = useState('exercises') // 'exercises' | 'pvp' | 'purchases' | 'inventory' | 'wildarea'
+  const [tab, setTab] = useState('exercises') // 'exercises' | 'pvp' | 'purchases' | 'inventory' | 'wildarea' | 'training'
   const [activities, setActivities] = useState([])
   const [pvpMatches, setPvpMatches] = useState([])
   const [purchases, setPurchases] = useState([])
   const [inventory, setInventory] = useState([])
   const [wildEncounters, setWildEncounters] = useState([])
+  const [trainingScores, setTrainingScores] = useState([])
   const [loading, setLoading] = useState(true)
   const [loadingMore, setLoadingMore] = useState(false)
   const [searchQuery, setSearchQuery] = useState('')
@@ -46,8 +47,10 @@ const RecentActivities = () => {
       fetchPurchases(true)
     } else if (tab === 'inventory') {
       fetchInventory(true)
-    } else {
+    } else if (tab === 'wildarea') {
       fetchWildEncounters(true)
+    } else if (tab === 'training') {
+      fetchTrainingScores(true)
     }
   }, [tab])
 
@@ -271,6 +274,64 @@ const RecentActivities = () => {
     }
   }
 
+  const fetchTrainingScores = async (reset = false) => {
+    try {
+      if (reset) {
+        setLoading(true)
+      } else {
+        setLoadingMore(true)
+      }
+
+      const offset = reset ? 0 : trainingScores.length
+
+      let query = supabase
+        .from('training_scores')
+        .select('id, user_id, game_type, score, played_at')
+        .order('played_at', { ascending: false })
+        .range(offset, offset + PAGE_SIZE - 1)
+
+      const { data, error } = await query
+
+      if (error) throw error
+
+      let newData = data || []
+
+      const userIds = [...new Set(newData.map(p => p.user_id).filter(Boolean))]
+      let userMap = {}
+      if (userIds.length > 0) {
+        const { data: users } = await supabase
+          .from('users')
+          .select('id, full_name')
+          .in('id', userIds)
+        if (users) {
+          userMap = Object.fromEntries(users.map(u => [u.id, u.full_name]))
+        }
+      }
+
+      newData = newData.map(p => ({ ...p, full_name: userMap[p.user_id] || 'Unknown' }))
+
+      if (searchQuery.trim()) {
+        const q = searchQuery.trim().toLowerCase()
+        newData = newData.filter(p =>
+          p.full_name.toLowerCase().includes(q)
+        )
+      }
+
+      setHasMore(newData.length === PAGE_SIZE)
+
+      if (reset) {
+        setTrainingScores(newData)
+      } else {
+        setTrainingScores(prev => [...prev, ...newData])
+      }
+    } catch (error) {
+      console.error('Error fetching training scores:', error)
+    } finally {
+      setLoading(false)
+      setLoadingMore(false)
+    }
+  }
+
   const fetchWildEncounters = async (reset = false) => {
     try {
       if (reset) {
@@ -340,8 +401,10 @@ const RecentActivities = () => {
       fetchPurchases(true)
     } else if (tab === 'inventory') {
       fetchInventory(true)
-    } else {
+    } else if (tab === 'wildarea') {
       fetchWildEncounters(true)
+    } else if (tab === 'training') {
+      fetchTrainingScores(true)
     }
   }
 
@@ -383,7 +446,7 @@ const RecentActivities = () => {
     return '-'
   }
 
-  const currentData = tab === 'exercises' ? activities : tab === 'pvp' ? pvpMatches : tab === 'purchases' ? purchases : tab === 'inventory' ? inventory : wildEncounters
+  const currentData = tab === 'exercises' ? activities : tab === 'pvp' ? pvpMatches : tab === 'purchases' ? purchases : tab === 'inventory' ? inventory : tab === 'wildarea' ? wildEncounters : trainingScores
 
   if (loading) {
     return (
@@ -419,6 +482,12 @@ const RecentActivities = () => {
             className={`flex items-center gap-2 px-4 py-2 text-sm font-medium rounded-lg transition-colors ${tab === 'wildarea' ? 'bg-blue-600 text-white' : 'bg-gray-100 text-gray-700 hover:bg-gray-200'}`}
           >
             <TreePine className="w-4 h-4" /> Wild Area
+          </button>
+          <button
+            onClick={() => setTab('training')}
+            className={`flex items-center gap-2 px-4 py-2 text-sm font-medium rounded-lg transition-colors ${tab === 'training' ? 'bg-blue-600 text-white' : 'bg-gray-100 text-gray-700 hover:bg-gray-200'}`}
+          >
+            <Gamepad2 className="w-4 h-4" /> Training
           </button>
         </div>
         <div className="flex items-center justify-center py-12">
@@ -783,11 +852,51 @@ const RecentActivities = () => {
         </div>
       )}
 
+      {/* Training Scores Table */}
+      {tab === 'training' && (
+        <div className="bg-white rounded-xl shadow-sm border overflow-hidden">
+          <div className="overflow-x-auto">
+            <table className="w-full text-sm">
+              <thead>
+                <tr className="bg-gray-50 border-b">
+                  <th className="text-left px-4 py-3 font-semibold text-gray-700">Student</th>
+                  <th className="text-center px-4 py-3 font-semibold text-gray-700">Game</th>
+                  <th className="text-center px-4 py-3 font-semibold text-gray-700">Score</th>
+                  <th className="text-right px-4 py-3 font-semibold text-gray-700">Date</th>
+                </tr>
+              </thead>
+              <tbody>
+                {trainingScores.length === 0 ? (
+                  <tr>
+                    <td colSpan={4} className="text-center py-12 text-gray-500">
+                      No training scores found.
+                    </td>
+                  </tr>
+                ) : (
+                  trainingScores.map((entry) => (
+                    <tr key={entry.id} className="border-b last:border-b-0 hover:bg-gray-50">
+                      <td className="px-4 py-3 font-medium text-gray-900">{entry.full_name}</td>
+                      <td className="px-4 py-3 text-center">
+                        <span className="px-2 py-0.5 rounded-full text-xs font-medium bg-purple-100 text-purple-800">
+                          {GAME_TYPE_LABELS[entry.game_type] || entry.game_type}
+                        </span>
+                      </td>
+                      <td className="px-4 py-3 text-center font-semibold text-gray-900">{entry.score}</td>
+                      <td className="px-4 py-3 text-right text-gray-500 text-xs">{formatDate(entry.played_at)}</td>
+                    </tr>
+                  ))
+                )}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      )}
+
       {/* Load More */}
       {hasMore && currentData.length > 0 && (
         <div className="flex justify-center">
           <button
-            onClick={() => tab === 'exercises' ? fetchActivities(false) : tab === 'pvp' ? fetchPvpMatches(false) : tab === 'purchases' ? fetchPurchases(false) : tab === 'inventory' ? fetchInventory(false) : fetchWildEncounters(false)}
+            onClick={() => tab === 'exercises' ? fetchActivities(false) : tab === 'pvp' ? fetchPvpMatches(false) : tab === 'purchases' ? fetchPurchases(false) : tab === 'inventory' ? fetchInventory(false) : tab === 'wildarea' ? fetchWildEncounters(false) : fetchTrainingScores(false)}
             disabled={loadingMore}
             className="px-6 py-2 bg-white border border-gray-300 text-sm font-medium text-gray-700 rounded-lg hover:bg-gray-50 disabled:opacity-50 transition-colors flex items-center gap-2"
           >

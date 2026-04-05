@@ -452,8 +452,8 @@ const UnitReportPage = () => {
       ).join('\n');
       console.log('📤 Sending to AI proxy:\n', wrongList);
       const messages = [
-        { role: 'system', content: 'Bạn là giáo viên tiếng Anh chuyên phân tích lỗi sai của học sinh. Trả lời ngắn gọn bằng tiếng Việt, dùng bullet points.' },
-        { role: 'user', content: `Phân tích ${Math.min(wrongAnswers.length, 20)} câu trả lời sai dưới đây. Tìm 3-5 pattern lỗi chính. Mỗi pattern: tên lỗi, 2 ví dụ, số lần mắc. Ngắn gọn.\n\n${wrongList}` }
+        { role: 'system', content: 'You are an English teacher writing a report card comment for a parent to read. Write in Vietnamese, professional but warm. No bullet points, no lists, no headings. Just 2-3 natural paragraphs. Mention what the student struggles with based on their wrong answers, give a couple of specific examples, acknowledge their effort, and recommend what they should practice at home. Keep it concise and suitable for a report card.' },
+        { role: 'user', content: `Here are ${Math.min(wrongAnswers.length, 20)} wrong answers from this student. Write a report card comment:\n\n${wrongList}` }
       ];
       const response = await fetch('/api/ai-analyze', {
         method: 'POST',

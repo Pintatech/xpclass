@@ -23,19 +23,19 @@ export default async function handler(req) {
       return jsonResponse(400, { error: 'Missing messages array' })
     }
 
-    const MEGALLM_API_KEY = process.env.VITE_MEGALLM_API_KEY || process.env.MEGALLM_API_KEY
+    const GROQ_API_KEY = process.env.GROQ_API_KEY
 
-    if (!MEGALLM_API_KEY) {
-      return jsonResponse(500, { error: 'MEGALLM_API_KEY not configured' })
+    if (!GROQ_API_KEY) {
+      return jsonResponse(500, { error: 'GROQ_API_KEY not configured' })
     }
 
-    const reqBody = JSON.stringify({ model: 'openai-gpt-oss-20b', messages, max_tokens, temperature })
+    const reqBody = JSON.stringify({ model: 'moonshotai/kimi-k2-instruct', messages, max_tokens, temperature })
     let response
     for (let attempt = 0; attempt < 5; attempt++) {
-      response = await fetch('https://ai.megallm.io/v1/chat/completions', {
+      response = await fetch('https://api.groq.com/openai/v1/chat/completions', {
         method: 'POST',
         headers: {
-          'Authorization': `Bearer ${MEGALLM_API_KEY}`,
+          'Authorization': `Bearer ${GROQ_API_KEY}`,
           'Content-Type': 'application/json',
         },
         body: reqBody
@@ -46,7 +46,7 @@ export default async function handler(req) {
 
     if (!response.ok) {
       const errText = await response.text()
-      return jsonResponse(response.status, { error: `MegaLLM error: ${response.status}`, detail: errText })
+      return jsonResponse(response.status, { error: `Groq error: ${response.status}`, detail: errText })
     }
 
     const data = await response.json()

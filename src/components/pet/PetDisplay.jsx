@@ -669,6 +669,8 @@ const PetDisplay = () => {
   // This way refresh/quit still counts as an attempt.
   const recordAttemptStart = async (gameType) => {
     if (!gameType || !user?.id) return;
+
+    // Check attempt limit during active competition
     const { data: settings } = await supabase
       .from('site_settings')
       .select('setting_key, setting_value')
@@ -689,46 +691,39 @@ const PetDisplay = () => {
     const maxAttempts = parseInt(settingsMap['leaderboard_competition_max_attempts']) || 0;
     const endDate = settingsMap['leaderboard_competition_end_date'] || '';
 
-    // Don't record if competition end date has passed
-    if (endDate && new Date() > new Date(endDate + 'T23:59:59+07:00')) {
-      pendingAttemptId.current = null;
-      return;
-    }
+    // Enforce attempt limit only during active competition for the matching game
+    const isCompetitionGame = isActive && compType === 'game' && gameType === activeGameType
+      && !(endDate && new Date() > new Date(endDate + 'T23:59:59+07:00'));
 
-    if (isActive && compType === 'game' && gameType === activeGameType) {
-      // Check attempt limit
-      if (maxAttempts > 0) {
-        const now = new Date();
-        const day = now.getDay();
-        const daysFromMonday = day === 0 ? 6 : day - 1;
-        const weekStart = new Date(now);
-        weekStart.setDate(weekStart.getDate() - daysFromMonday);
-        const weekStartISO = weekStart.toISOString().split('T')[0] + 'T00:00:00+07:00';
+    if (isCompetitionGame && maxAttempts > 0) {
+      const now = new Date();
+      const day = now.getDay();
+      const daysFromMonday = day === 0 ? 6 : day - 1;
+      const weekStart = new Date(now);
+      weekStart.setDate(weekStart.getDate() - daysFromMonday);
+      const weekStartISO = weekStart.toISOString().split('T')[0] + 'T00:00:00+07:00';
 
-        const { count } = await supabase
-          .from('training_scores')
-          .select('*', { count: 'exact', head: true })
-          .eq('user_id', user.id)
-          .eq('game_type', gameType)
-          .gte('played_at', weekStartISO);
+      const { count } = await supabase
+        .from('training_scores')
+        .select('*', { count: 'exact', head: true })
+        .eq('user_id', user.id)
+        .eq('game_type', gameType)
+        .gte('played_at', weekStartISO);
 
-        if (count >= maxAttempts) {
-          pendingAttemptId.current = null;
-          return;
-        }
+      if (count >= maxAttempts) {
+        pendingAttemptId.current = null;
+        return;
       }
-
-      // Insert score 0 now — will update on game end
-      const { data } = await supabase.from('training_scores').insert({
-        user_id: user.id,
-        game_type: gameType,
-        score: 0
-      }).select('id').single();
-
-      pendingAttemptId.current = data?.id || null;
-    } else {
-      pendingAttemptId.current = null;
     }
+
+    // Always insert score — regardless of competition status
+    const { data } = await supabase.from('training_scores').insert({
+      user_id: user.id,
+      game_type: gameType,
+      score: 0
+    }).select('id').single();
+
+    pendingAttemptId.current = data?.id || null;
   };
 
   const fetchGameLeaderboard = async (gameType) => {
