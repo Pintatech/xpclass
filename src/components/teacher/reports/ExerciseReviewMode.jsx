@@ -90,8 +90,8 @@ const MultipleChoiceExerciseReview = ({ exercise, qas }) => {
 }
 
 const FillBlankSentence = ({ questionText, blanksQAs }) => {
-  // Split on 3+ underscores to find blank positions
-  const parts = questionText.split(/_{3,}/)
+  // Split on 3+ underscores or [blank] to find blank positions
+  const parts = questionText.split(/_{3,}|\[blank\]/gi)
   return (
     <p className="text-sm text-gray-800 leading-loose">
       {parts.map((part, i) => {
@@ -122,9 +122,42 @@ const FillBlankSentence = ({ questionText, blanksQAs }) => {
   )
 }
 
+// Expand old-format fill_blank attempts (single row with comma-separated answers) into per-blank rows
+const expandFillBlankQAs = (qas, questions) => {
+  const expanded = []
+  qas.forEach(qa => {
+    const hasIndex = qa.question_index != null && qa.question_index > 0
+    const selected = (qa.selected_answer || '').split(',').map(s => s.trim())
+    const correct = (qa.correct_answer || '').split(',').map(s => s.trim())
+    // Old format: single row with multiple comma-separated answers
+    if (!hasIndex && selected.length > 1) {
+      // Find which question index this belongs to
+      const qId = qa.question_id
+      const qi = questions.findIndex(q => q.id === qId) ?? 0
+      selected.forEach((sel, bi) => {
+        const corr = correct[bi] || ''
+        const isCorrect = corr
+          ? splitAnswers(corr).some(a => sel.toLowerCase() === a.toLowerCase())
+          : qa.is_correct
+        expanded.push({
+          ...qa,
+          question_index: qi * 100 + bi,
+          selected_answer: sel,
+          correct_answer: corr,
+          is_correct: isCorrect
+        })
+      })
+    } else {
+      expanded.push(qa)
+    }
+  })
+  return expanded
+}
+
 const FillBlankExerciseReview = ({ exercise, qas }) => {
   const questions = exercise?.content?.questions || []
-  const byQI = groupQAs('fill_blank', qas)
+  const expandedQAs = expandFillBlankQAs(qas, questions)
+  const byQI = groupQAs('fill_blank', expandedQAs)
 
   return (
     <div className="space-y-5">

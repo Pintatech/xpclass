@@ -274,7 +274,7 @@ const StudentExerciseMatrix = ({ selectedCourse, initialSessionId }) => {
       for (const exerciseId of limitedExerciseIds) {
         const { data: exerciseAttempts, error: attemptsError } = await supabase
           .from('question_attempts')
-          .select('user_id, exercise_id, question_id, is_correct, created_at')
+          .select('user_id, exercise_id, question_id, question_index, is_correct, selected_answer, correct_answer, exercise_type, created_at')
           .in('user_id', studentIds)
           .eq('exercise_id', exerciseId);
 
@@ -283,16 +283,40 @@ const StudentExerciseMatrix = ({ selectedCourse, initialSessionId }) => {
           continue;
         }
 
-        // Group attempts by student-exercise, then by question_id, keeping latest attempt
+        // Expand old fill_blank attempts (single row with comma-separated answers) into per-blank rows
+        const expandedAttempts = [];
         (exerciseAttempts || []).forEach(attempt => {
+          if (attempt.exercise_type === 'fill_blank' && attempt.question_index == null) {
+            const selected = (attempt.selected_answer || '').split(',').map(s => s.trim());
+            const correct = (attempt.correct_answer || '').split(',').map(s => s.trim());
+            if (selected.length > 1) {
+              selected.forEach((sel, bi) => {
+                const corr = correct[bi] || '';
+                expandedAttempts.push({
+                  ...attempt,
+                  question_index: bi,
+                  selected_answer: sel,
+                  correct_answer: corr,
+                  is_correct: corr ? corr.toLowerCase() === sel.toLowerCase() : attempt.is_correct
+                });
+              });
+              return;
+            }
+          }
+          expandedAttempts.push(attempt);
+        });
+
+        // Group attempts by student-exercise, then by question+blank, keeping latest attempt
+        expandedAttempts.forEach(attempt => {
           const key = `${attempt.user_id}-${attempt.exercise_id}`;
           if (!attemptsByCell.has(key)) {
             attemptsByCell.set(key, new Map());
           }
           const questionMap = attemptsByCell.get(key);
-          const existing = questionMap.get(attempt.question_id);
+          const attemptKey = `${attempt.question_id}_${attempt.question_index ?? 'x'}`;
+          const existing = questionMap.get(attemptKey);
           if (!existing || new Date(attempt.created_at) > new Date(existing.created_at)) {
-            questionMap.set(attempt.question_id, attempt);
+            questionMap.set(attemptKey, attempt);
           }
         });
       }
@@ -412,12 +436,41 @@ const StudentExerciseMatrix = ({ selectedCourse, initialSessionId }) => {
 
       setExerciseDetail(exerciseData);
 
-      // Group by question_id to show latest attempt for each question
+      // Expand old fill_blank attempts (single row with comma-separated answers) into per-blank rows
+      let processedAttempts = attemptsData || [];
+      if (exerciseData?.exercise_type === 'fill_blank' && exerciseData?.content?.questions) {
+        const expanded = [];
+        processedAttempts.forEach(attempt => {
+          const hasIndex = attempt.question_index != null && attempt.question_index > 0;
+          const selected = (attempt.selected_answer || '').split(',').map(s => s.trim());
+          const correct = (attempt.correct_answer || '').split(',').map(s => s.trim());
+          if (!hasIndex && selected.length > 1) {
+            const qi = exerciseData.content.questions.findIndex(q => q.id === attempt.question_id);
+            const qIdx = qi >= 0 ? qi : 0;
+            selected.forEach((sel, bi) => {
+              const corr = correct[bi] || '';
+              expanded.push({
+                ...attempt,
+                question_index: qIdx * 100 + bi,
+                selected_answer: sel,
+                correct_answer: corr,
+                is_correct: corr ? corr.toLowerCase() === sel.toLowerCase() : attempt.is_correct
+              });
+            });
+          } else {
+            expanded.push(attempt);
+          }
+        });
+        processedAttempts = expanded;
+      }
+
+      // Group by question_id + question_index to show latest attempt for each question/blank
       const latestAttempts = {};
-      (attemptsData || []).forEach(attempt => {
-        if (!latestAttempts[attempt.question_id] ||
-            new Date(attempt.created_at) > new Date(latestAttempts[attempt.question_id].created_at)) {
-          latestAttempts[attempt.question_id] = attempt;
+      (processedAttempts).forEach(attempt => {
+        const key = `${attempt.question_id}_${attempt.question_index ?? 'x'}`;
+        if (!latestAttempts[key] ||
+            new Date(attempt.created_at) > new Date(latestAttempts[key].created_at)) {
+          latestAttempts[key] = attempt;
         }
       });
 

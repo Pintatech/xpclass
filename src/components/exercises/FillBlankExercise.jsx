@@ -401,21 +401,27 @@ const FillBlankExercise = ({ testMode = false, exerciseData = null, onAnswersCol
       const exerciseId = urlParams.get('exerciseId')
 
       if (exerciseId && user) {
-        // Convert answers to comma-separated strings
-        const selectedAnswers = Object.values(userAnswers[currentQuestionIndex] || {}).join(', ')
-        const correctAnswers = currentQuestion.blanks.map(b => b.answer).join(', ')
-
-        await supabase.from('question_attempts').insert({
-          exercise_id: exerciseId,
-          exercise_type: 'fill_blank',
-          question_id: currentQuestion.id || `q${currentQuestionIndex}`,
-          user_id: user.id,
-          selected_answer: selectedAnswers,
-          correct_answer: correctAnswers,
-          is_correct: questionScore === 100,
-          attempt_number: attemptNumber,
-          response_time: Date.now() - startTime
+        // Save one row per blank for accurate per-blank stats
+        const blankAttempts = currentQuestion.blanks.map((blank, blankIndex) => {
+          const userAnswer = (userAnswers[currentQuestionIndex]?.[blankIndex] || '').trim()
+          const correctAnswersList = splitAnswers(blank.answer)
+          const isBlankCorrect = blank.case_sensitive
+            ? correctAnswersList.some(a => userAnswer === a)
+            : correctAnswersList.some(a => userAnswer.toLowerCase() === a.toLowerCase())
+          return {
+            exercise_id: exerciseId,
+            exercise_type: 'fill_blank',
+            question_id: currentQuestion.id || `q${currentQuestionIndex}`,
+            question_index: currentQuestionIndex * 100 + blankIndex,
+            user_id: user.id,
+            selected_answer: userAnswer,
+            correct_answer: blank.answer,
+            is_correct: isBlankCorrect,
+            attempt_number: attemptNumber,
+            response_time: Date.now() - startTime
+          }
         })
+        await supabase.from('question_attempts').insert(blankAttempts)
       }
     } catch (err) {
       console.log('⚠️ Could not save question attempt:', err.message)
@@ -526,17 +532,27 @@ const FillBlankExercise = ({ testMode = false, exerciseData = null, onAnswersCol
     // Save all question attempts to database
     if (exerciseId && user) {
       try {
-        const attempts = questions.map((question, qIndex) => ({
-          exercise_id: exerciseId,
-          exercise_type: 'fill_blank',
-          question_id: question.id || `q${qIndex}`,
-          user_id: user.id,
-          selected_answer: Object.values(userAnswers[qIndex] || {}).join(', '),
-          correct_answer: question.blanks.map(b => b.answer).join(', '),
-          is_correct: scores[qIndex] === 100,
-          attempt_number: attemptNumber,
-          response_time: Date.now() - startTime
-        }))
+        const attempts = questions.flatMap((question, qIndex) =>
+          question.blanks.map((blank, blankIndex) => {
+            const userAnswer = (userAnswers[qIndex]?.[blankIndex] || '').trim()
+            const correctAnswersList = splitAnswers(blank.answer)
+            const isBlankCorrect = blank.case_sensitive
+              ? correctAnswersList.some(a => userAnswer === a)
+              : correctAnswersList.some(a => userAnswer.toLowerCase() === a.toLowerCase())
+            return {
+              exercise_id: exerciseId,
+              exercise_type: 'fill_blank',
+              question_id: question.id || `q${qIndex}`,
+              question_index: qIndex * 100 + blankIndex,
+              user_id: user.id,
+              selected_answer: userAnswer,
+              correct_answer: blank.answer,
+              is_correct: isBlankCorrect,
+              attempt_number: attemptNumber,
+              response_time: Date.now() - startTime
+            }
+          })
+        )
         await supabase.from('question_attempts').insert(attempts)
       } catch (err) {
         console.log('⚠️ Could not save question attempts:', err.message)

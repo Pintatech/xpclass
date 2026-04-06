@@ -331,6 +331,23 @@ const SingleExerciseReview = ({ exercise, questionAttempts, onOverride, overridi
           }
         }
       }
+    } else if (type === 'fill_blank') {
+      // Check if we have per-blank attempts (new format) or single attempt (old format)
+      const blankAttempts = questionAttempts
+        .filter(a => a.question_id === q.id)
+        .sort((a, b) => (a.question_index || 0) - (b.question_index || 0))
+      if (blankAttempts.length > 1) {
+        // New format: reconstruct combined attempt for FillBlankReview
+        const combined = {
+          ...blankAttempts[0],
+          selected_answer: blankAttempts.map(a => a.selected_answer || '').join(', '),
+          correct_answer: blankAttempts.map(a => a.correct_answer || '').join(', '),
+          is_correct: blankAttempts.every(a => a.is_correct)
+        }
+        reviewItems.push({ question: q, attempt: combined })
+      } else if (blankAttempts.length === 1) {
+        reviewItems.push({ question: q, attempt: blankAttempts[0] })
+      }
     } else {
       const attempt = questionAttempts.find(a => a.question_id === q.id)
       if (attempt) reviewItems.push({ question: q, attempt })
