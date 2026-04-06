@@ -108,7 +108,7 @@ export const AuthProvider = ({ children }) => {
     return { data, error }
   }
 
-  const signUp = async (email, password, fullName, username) => {
+  const signUp = async (email, password, fullName, username, courseId) => {
     const { data, error } = await supabase.auth.signUp({
       email,
       password,
@@ -138,22 +138,26 @@ export const AuthProvider = ({ children }) => {
           console.error('Error creating user profile:', profileError)
         }
 
-        // Auto-enroll in sample course (demo_course_id from site_settings)
+        // Auto-enroll in selected course (or fallback to demo_course_id)
         try {
-          const { data: setting } = await supabase
-            .from('site_settings')
-            .select('setting_value')
-            .eq('setting_key', 'demo_course_id')
-            .single()
+          let enrollCourseId = courseId
+          if (!enrollCourseId) {
+            const { data: setting } = await supabase
+              .from('site_settings')
+              .select('setting_value')
+              .eq('setting_key', 'demo_course_id')
+              .single()
+            enrollCourseId = setting?.setting_value
+          }
 
-          if (setting?.setting_value) {
+          if (enrollCourseId) {
             await supabase.from('course_enrollments').insert({
-              course_id: setting.setting_value,
+              course_id: enrollCourseId,
               student_id: data.user.id
             })
           }
         } catch (enrollErr) {
-          console.error('Error auto-enrolling in sample course:', enrollErr)
+          console.error('Error auto-enrolling in course:', enrollErr)
         }
 
         // Give a random common/uncommon pet

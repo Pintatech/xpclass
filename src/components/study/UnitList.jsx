@@ -26,6 +26,7 @@ import {
   ChevronUp,
   ChevronDown,
   User,
+  Copy,
 } from "lucide-react";
 import StudentStatsPopover from "../ui/StudentStatsPopover";
 import useClassStats from "../../hooks/useClassStats";
@@ -93,6 +94,9 @@ const UnitList = () => {
   const { user, profile } = useAuth();
   const { canCreateContent } = usePermissions();
   const { sessionStats: classStats } = useClassStats(currentId);
+  const [copyingUnit, setCopyingUnit] = useState(null);
+  const [availableCourses, setAvailableCourses] = useState([]);
+  const [copyingInProgress, setCopyingInProgress] = useState(false);
   const [courseExerciseIdSet, setCourseExerciseIdSet] = useState(new Set());
   const [studentNameMap, setStudentNameMap] = useState({});
   const [personalFilter, setPersonalFilter] = useState('shared');
@@ -560,6 +564,111 @@ const UnitList = () => {
     }
   };
 
+  const handleCopyUnit = async (unit) => {
+    // Fetch available courses (excluding current)
+    const { data: courses, error } = await supabase
+      .from("courses")
+      .select("id, title")
+      .order("title");
+    if (error) {
+      alert("Failed to load courses: " + error.message);
+      return;
+    }
+    setAvailableCourses(courses || []);
+    setCopyingUnit(unit);
+  };
+
+  const handleCopyUnitToCourse = async (targetCourseId) => {
+    setCopyingInProgress(true);
+    try {
+      // 1. Get max unit_number in target course
+      const { data: targetUnits } = await supabase
+        .from("units")
+        .select("unit_number")
+        .eq("course_id", targetCourseId)
+        .order("unit_number", { ascending: false })
+        .limit(1);
+      const nextUnitNumber = targetUnits?.length > 0 ? targetUnits[0].unit_number + 1 : 1;
+
+      // 2. Clone the unit
+      const { data: newUnit, error: unitError } = await supabase
+        .from("units")
+        .insert({
+          course_id: targetCourseId,
+          title: copyingUnit.title,
+          description: copyingUnit.description,
+          unit_number: nextUnitNumber,
+          color_theme: copyingUnit.color_theme,
+          unlock_requirement: copyingUnit.unlock_requirement,
+          is_active: copyingUnit.is_active,
+          thumbnail_url: copyingUnit.thumbnail_url,
+          estimated_duration: copyingUnit.estimated_duration,
+        })
+        .select()
+        .single();
+      if (unitError) throw unitError;
+
+      // 3. Get sessions for this unit
+      const { data: unitSessions, error: sessError } = await supabase
+        .from("sessions")
+        .select("*")
+        .eq("unit_id", copyingUnit.id)
+        .order("session_number");
+      if (sessError) throw sessError;
+
+      // 4. Clone each session and its exercise assignments
+      for (const sess of unitSessions || []) {
+        const { data: newSession, error: newSessError } = await supabase
+          .from("sessions")
+          .insert({
+            unit_id: newUnit.id,
+            title: sess.title,
+            description: sess.description,
+            session_number: sess.session_number,
+            session_type: sess.session_type,
+            difficulty_level: sess.difficulty_level,
+            xp_reward: sess.xp_reward,
+            unlock_requirement: sess.unlock_requirement,
+            is_active: sess.is_active,
+            thumbnail_url: sess.thumbnail_url,
+            estimated_duration: sess.estimated_duration,
+            is_test: sess.is_test,
+          })
+          .select()
+          .single();
+        if (newSessError) throw newSessError;
+
+        // 5. Get exercise assignments for this session
+        const { data: assignments, error: assignError } = await supabase
+          .from("exercise_assignments")
+          .select("exercise_id, order_index")
+          .eq("session_id", sess.id)
+          .order("order_index");
+        if (assignError) throw assignError;
+
+        if (assignments?.length > 0) {
+          const newAssignments = assignments.map((a) => ({
+            session_id: newSession.id,
+            exercise_id: a.exercise_id,
+            order_index: a.order_index,
+          }));
+          const { error: insertError } = await supabase
+            .from("exercise_assignments")
+            .insert(newAssignments);
+          if (insertError) throw insertError;
+        }
+      }
+
+      alert(`Unit "${copyingUnit.title}" copied successfully!`);
+      setCopyingUnit(null);
+    } catch (err) {
+      console.error("Error copying unit:", err);
+      alert("Failed to copy unit: " + (err.message || "Unknown error"));
+    } finally {
+      setCopyingInProgress(false);
+    }
+  };
+
   const getSessionStatus = (session, index) => {
     const progress = sessionProgress[session.id];
 
@@ -983,6 +1092,13 @@ const UnitList = () => {
                               <Edit className="w-4 h-4" />
                             </button>
                             <button
+                              onClick={() => handleCopyUnit(unit)}
+                              className="p-2 text-gray-400 hover:text-blue-600 hover:bg-blue-100 rounded-lg transition-colors"
+                              title="Copy to another course"
+                            >
+                              <Copy className="w-4 h-4" />
+                            </button>
+                            <button
                               onClick={() => handleDeleteUnit(unit)}
                               className="p-2 text-red-400 hover:text-red-600 hover:bg-red-100 rounded-lg transition-colors"
                               title="Delete unit"
@@ -1168,6 +1284,41 @@ const UnitList = () => {
           }}
           onUpdated={handleUnitUpdated}
         />
+      )}
+
+      {/* Copy Unit to Course Modal */}
+      {copyingUnit && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
+          <div className="bg-white rounded-xl p-6 w-full max-w-md mx-4 max-h-[80vh] flex flex-col">
+            <h3 className="text-lg font-bold mb-1">Copy Unit</h3>
+            <p className="text-sm text-gray-500 mb-4">
+              Copy "<span className="font-medium">{copyingUnit.title}</span>" to:
+            </p>
+            <div className="flex-1 overflow-y-auto space-y-2 mb-4">
+              {availableCourses.length === 0 ? (
+                <p className="text-gray-400 text-center py-4">No other courses found</p>
+              ) : (
+                availableCourses.map((course) => (
+                  <button
+                    key={course.id}
+                    disabled={copyingInProgress}
+                    onClick={() => handleCopyUnitToCourse(course.id)}
+                    className="w-full text-left px-4 py-3 rounded-lg border border-gray-200 hover:border-blue-400 hover:bg-blue-50 transition-colors disabled:opacity-50"
+                  >
+                    {course.title}
+                  </button>
+                ))
+              )}
+            </div>
+            <button
+              onClick={() => setCopyingUnit(null)}
+              disabled={copyingInProgress}
+              className="w-full py-2 text-gray-600 hover:text-gray-800 transition-colors"
+            >
+              Cancel
+            </button>
+          </div>
+        </div>
       )}
 
     </div>

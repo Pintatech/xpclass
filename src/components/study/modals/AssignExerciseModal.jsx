@@ -66,7 +66,7 @@ const AssignExerciseModal = ({ sessionId, courseId, onClose, onAssigned }) => {
         query = query.eq('folder_id', selectedFolder.id)
       }
 
-      query = query.order('created_at', { ascending: false })
+      query = query.order('created_at', { ascending: true })
 
       const { data, error } = await query
 

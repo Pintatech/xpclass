@@ -13,8 +13,10 @@ const RegisterPage = () => {
     fullName: '',
     username: '',
     password: '',
-    confirmPassword: ''
+    confirmPassword: '',
+    courseId: ''
   })
+  const [courses, setCourses] = useState([])
   const [showPassword, setShowPassword] = useState(false)
   const [showConfirmPassword, setShowConfirmPassword] = useState(false)
   const [loading, setLoading] = useState(false)
@@ -26,7 +28,34 @@ const RegisterPage = () => {
 
   useEffect(() => {
     fetchLoginPageImage()
+    fetchCourses()
   }, [])
+
+  const fetchCourses = async () => {
+    try {
+      // Get allowed course IDs from site_settings
+      const { data: setting } = await supabase
+        .from('site_settings')
+        .select('setting_value')
+        .eq('setting_key', 'register_course_ids')
+        .single()
+
+      if (!setting?.setting_value) return
+
+      const courseIds = JSON.parse(setting.setting_value)
+      if (!Array.isArray(courseIds) || courseIds.length === 0) return
+
+      const { data, error } = await supabase
+        .from('courses')
+        .select('id, title, level_number')
+        .in('id', courseIds)
+        .eq('is_active', true)
+        .order('level_number')
+      if (!error && data) setCourses(data)
+    } catch (err) {
+      console.error('Failed to load courses:', err)
+    }
+  }
 
   const fetchLoginPageImage = async () => {
     try {
@@ -104,7 +133,7 @@ const RegisterPage = () => {
     const generatedEmail = `${formData.username.trim().toLowerCase().replace(/\s+/g, '_')}_${randomSuffix}@xpclass.local`
 
     try {
-      const { error } = await signUp(generatedEmail, formData.password, formData.fullName, formData.username.trim())
+      const { error } = await signUp(generatedEmail, formData.password, formData.fullName, formData.username.trim(), formData.courseId || null)
       if (error) {
         setError(error.message || 'Co loi xay ra khi dang ky')
       } else {
@@ -330,6 +359,26 @@ const RegisterPage = () => {
               />
               <span>Ho va ten</span>
             </div>
+
+            {/* Course / Grade */}
+            {courses.length > 0 && (
+              <div className="neomorphic-input w-[280px]">
+                <select
+                  name="courseId"
+                  value={formData.courseId}
+                  onChange={handleChange}
+                  className="custom-border-input"
+                  required
+                >
+                  <option value="">-- Chon lop --</option>
+                  {courses.map(course => (
+                    <option key={course.id} value={course.id}>
+                      {course.title}
+                    </option>
+                  ))}
+                </select>
+              </div>
+            )}
 
             {/* Username */}
             <div className="neomorphic-input w-[280px]">

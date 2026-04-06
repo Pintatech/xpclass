@@ -138,6 +138,7 @@ const ExerciseList = () => {
   const [editableControlPoints, setEditableControlPoints] = useState(null);
   const [draggingNode, setDraggingNode] = useState(null);
   const [draggingControlPoint, setDraggingControlPoint] = useState(null);
+  const [pickedExerciseIndex, setPickedExerciseIndex] = useState(null);
   const mapContainerRef = useRef(null);
   // Desktop detection for responsive node positions
   const [isDesktop, setIsDesktop] = useState(
@@ -150,7 +151,9 @@ const ExerciseList = () => {
 
   // Drag and drop sensors
   const sensors = useSensors(
-    useSensor(PointerSensor),
+    useSensor(PointerSensor, {
+      activationConstraint: { distance: 8 },
+    }),
     useSensor(KeyboardSensor, {
       coordinateGetter: sortableKeyboardCoordinates,
     }),
@@ -237,24 +240,28 @@ const ExerciseList = () => {
     // Update order_index in database
     try {
       // Step 1: Set all order_index to negative temporary values to avoid conflicts
-      for (let i = 0; i < newExercises.length; i++) {
-        const { error } = await supabase
-          .from("exercise_assignments")
-          .update({ order_index: -(i + 1000) })
-          .eq("id", newExercises[i].assignment_id);
-
-        if (error) throw error;
-      }
+      const tempResults = await Promise.all(
+        newExercises.map((ex, i) =>
+          supabase
+            .from("exercise_assignments")
+            .update({ order_index: -(i + 1000) })
+            .eq("id", ex.assignment_id),
+        ),
+      );
+      const tempError = tempResults.find((r) => r.error);
+      if (tempError?.error) throw tempError.error;
 
       // Step 2: Set to actual order_index values
-      for (let i = 0; i < newExercises.length; i++) {
-        const { error } = await supabase
-          .from("exercise_assignments")
-          .update({ order_index: i + 1 })
-          .eq("id", newExercises[i].assignment_id);
-
-        if (error) throw error;
-      }
+      const finalResults = await Promise.all(
+        newExercises.map((ex, i) =>
+          supabase
+            .from("exercise_assignments")
+            .update({ order_index: i + 1 })
+            .eq("id", ex.assignment_id),
+        ),
+      );
+      const finalError = finalResults.find((r) => r.error);
+      if (finalError?.error) throw finalError.error;
 
       // Update local state with new order_index values
       setExercises(
@@ -272,6 +279,46 @@ const ExerciseList = () => {
       alert(
         "Failed to update exercise order: " + (err.message || "Unknown error"),
       );
+    }
+  };
+
+  const moveExerciseToPosition = async (fromIndex, toPosition) => {
+    const targetIndex = toPosition - 1;
+    if (targetIndex < 0 || targetIndex >= exercises.length || targetIndex === fromIndex) return;
+
+    const newExercises = arrayMove(exercises, fromIndex, targetIndex);
+    setExercises(newExercises);
+
+    try {
+      const tempResults = await Promise.all(
+        newExercises.map((ex, i) =>
+          supabase
+            .from("exercise_assignments")
+            .update({ order_index: -(i + 1000) })
+            .eq("id", ex.assignment_id),
+        ),
+      );
+      const tempError = tempResults.find((r) => r.error);
+      if (tempError?.error) throw tempError.error;
+
+      const finalResults = await Promise.all(
+        newExercises.map((ex, i) =>
+          supabase
+            .from("exercise_assignments")
+            .update({ order_index: i + 1 })
+            .eq("id", ex.assignment_id),
+        ),
+      );
+      const finalError = finalResults.find((r) => r.error);
+      if (finalError?.error) throw finalError.error;
+
+      setExercises(
+        newExercises.map((ex, idx) => ({ ...ex, order_index: idx + 1 })),
+      );
+    } catch (err) {
+      console.error("Error updating exercise order:", err);
+      setExercises(exercises);
+      alert("Failed to update exercise order: " + (err.message || "Unknown error"));
     }
   };
 
@@ -997,8 +1044,6 @@ const ExerciseList = () => {
   // Sortable Exercise Card Component
   const SortableExerciseCard = ({ exercise, index }) => {
     const {
-      attributes,
-      listeners,
       setNodeRef,
       transform,
       transition,
@@ -1080,16 +1125,37 @@ const ExerciseList = () => {
             100% { transform: translateX(100%); }
           }
         `}</style>
-          {/* Drag Handle - Only show for admins/teachers */}
+          {/* Reorder Handle - Only show for admins/teachers */}
           {canCreateContent() && (
-            <div
-              {...attributes}
-              {...listeners}
-              className="flex-shrink-0 mr-3 cursor-grab active:cursor-grabbing text-gray-400 hover:text-gray-600"
-              onClick={(e) => e.stopPropagation()}
+            <button
+              className={`flex-shrink-0 mr-3 p-1 rounded transition-colors ${
+                pickedExerciseIndex === index
+                  ? "text-blue-600 bg-blue-100"
+                  : pickedExerciseIndex !== null
+                    ? "text-green-600 bg-green-50 hover:bg-green-100 ring-2 ring-green-400"
+                    : "text-gray-400 hover:text-gray-600 hover:bg-gray-100"
+              }`}
+              title={
+                pickedExerciseIndex === index
+                  ? "Click another exercise to place it here"
+                  : pickedExerciseIndex !== null
+                    ? "Click to place here"
+                    : "Click to pick up, then click destination"
+              }
+              onClick={(e) => {
+                e.stopPropagation();
+                if (pickedExerciseIndex === null) {
+                  setPickedExerciseIndex(index);
+                } else if (pickedExerciseIndex === index) {
+                  setPickedExerciseIndex(null);
+                } else {
+                  moveExerciseToPosition(pickedExerciseIndex, index + 1);
+                  setPickedExerciseIndex(null);
+                }
+              }}
             >
               <GripVertical className="w-5 h-5" />
-            </div>
+            </button>
           )}
 
           {/* Exercise Icon */}
