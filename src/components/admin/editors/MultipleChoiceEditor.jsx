@@ -722,7 +722,7 @@ const MultipleChoiceEditor = ({ questions, onQuestionsChange, settings, onSettin
           currentQuestion.explanation = trimmedLine.replace(/^(Explanation|Giải\s*thích)\s*[.:\u002D]\s*/i, '')
         }
         // Answer options
-        else if (currentQuestion && (trimmedLine.match(optionRegex) || trimmedLine.match(/^\(?[A-Za-z]\)\s+/) || trimmedLine.match(/^(True|False|Yes|No)/i) || trimmedLine.startsWith('='))) {
+        else if (currentQuestion && (trimmedLine.match(optionRegex) || trimmedLine.match(/^\(?[A-Za-z]\)\s+/) || trimmedLine.match(/^(True|False|Yes|No|NG|Not Given)/i) || trimmedLine.match(/^[TF]$/i) || trimmedLine.startsWith('='))) {
           const { optionText, optionExplanation, isCorrect } = parseOption(trimmedLine)
           if (optionText) {
             if (isCorrect) {

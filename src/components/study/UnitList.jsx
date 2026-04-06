@@ -510,10 +510,13 @@ const UnitList = () => {
     const numB = unitB.unit_number;
 
     try {
-      await Promise.all([
-        supabase.from("units").update({ unit_number: numB }).eq("id", unitA.id),
-        supabase.from("units").update({ unit_number: numA }).eq("id", unitB.id),
-      ]);
+      // Sequential to avoid deadlock
+      const resA = await supabase.from("units").update({ unit_number: -1 }).eq("id", unitA.id);
+      if (resA.error) throw resA.error;
+      const resB = await supabase.from("units").update({ unit_number: numA }).eq("id", unitB.id);
+      if (resB.error) throw resB.error;
+      const resC = await supabase.from("units").update({ unit_number: numB }).eq("id", unitA.id);
+      if (resC.error) throw resC.error;
 
       setUnits((prev) => {
         const next = [...prev];
@@ -524,6 +527,7 @@ const UnitList = () => {
       });
     } catch (err) {
       console.error("Error swapping units:", err);
+      alert("Failed to reorder units: " + (err.message || err));
     }
   };
 
