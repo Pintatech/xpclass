@@ -1303,6 +1303,11 @@ Good morning in Vietnamese is {1:MC:=Chào buổi sáng#Correct explanation~Chà
                       type="text"
                       value={option}
                       onChange={(e) => updateOption(index, optionIndex, e.target.value)}
+                      onKeyDown={(e) => {
+                        if ((e.ctrlKey || e.metaKey) && /^[biuBIU]$/.test(e.key)) {
+                          handleRichTextShortcut(e, e.target, option, (v) => updateOption(index, optionIndex, v))
+                        }
+                      }}
                       className="w-full min-w-0 px-2 py-1 text-sm border border-gray-300 rounded focus:ring-2 focus:ring-blue-500"
                       placeholder={String.fromCharCode(65 + optionIndex)}
                     />

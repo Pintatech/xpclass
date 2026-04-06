@@ -923,11 +923,6 @@ const FillBlankExercise = ({ testMode = false, exerciseData = null, onAnswersCol
                 } ${showResults ? 'cursor-not-allowed opacity-75' : ''}`}
                 placeholder=" "
               />
-              {blank?.text && (
-                <div className="absolute -bottom-6 left-0 text-xs text-gray-500 whitespace-nowrap">
-                  Hint: {blank.text}
-                </div>
-              )}
             </div>
           </span>
         )

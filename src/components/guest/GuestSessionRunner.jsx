@@ -10,6 +10,8 @@ import ImageHotspotExercise from '../exercises/ImageHotspotExercise'
 import AIFillBlankExercise from '../exercises/AIFillBlankExercise'
 import PDFWorksheetExercise from '../exercises/PDFWorksheetExercise'
 import { Clock, AlertTriangle, Send, CheckCircle, XCircle, ChevronRight, ChevronDown, FileText, Play, ArrowLeft, UserPlus } from 'lucide-react'
+import RichTextRenderer from '../ui/RichTextRenderer'
+import { callAIScoring } from '../../utils/aiScoringService'
 
 const exerciseTypeLabels = {
   multiple_choice: 'Multiple Choice',
@@ -40,6 +42,8 @@ const GuestSessionRunner = () => {
   const [showInfo, setShowInfo] = useState(true)
   const [startTime, setStartTime] = useState(null)
   const [showIncorrect, setShowIncorrect] = useState(false)
+  const [aiScores, setAiScores] = useState({}) // { 'exerciseId_questionIndex': { score, explanation, confidence } }
+  const [aiScoringInProgress, setAiScoringInProgress] = useState(false)
 
   useEffect(() => {
     if (sessionId) loadSession()
@@ -115,7 +119,7 @@ const GuestSessionRunner = () => {
   }, [timeRemaining])
 
   // Grading logic - same as TestRunner
-  const gradeSession = useCallback(() => {
+  const gradeSession = useCallback((aiScoresMap = {}) => {
     let totalCorrect = 0
     let totalQuestions = 0
 
@@ -222,12 +226,19 @@ const GuestSessionRunner = () => {
           }
           case 'ai_fill_blank': {
             totalQuestions++
-            const userAnswer = (exerciseAnswers?.[qi] || '').trim().toLowerCase()
-            const expectedAnswers = q.expected_answers || []
-            const isCorrect = expectedAnswers.length > 0 && expectedAnswers.some(ea =>
-              userAnswer.includes(ea.trim().toLowerCase())
-            )
-            if (isCorrect) totalCorrect++
+            const aiKey = `${ex.id}_${qi}`
+            const aiResult = aiScoresMap[aiKey]
+            if (aiResult && aiResult.score >= 70) {
+              totalCorrect++
+            } else if (!aiResult) {
+              // Fallback to simple matching if no AI score
+              const userAnswer = (exerciseAnswers?.[qi] || '').trim().toLowerCase()
+              const expectedAnswers = q.expected_answers || []
+              const isCorrect = expectedAnswers.length > 0 && expectedAnswers.some(ea =>
+                userAnswer.includes(ea.trim().toLowerCase())
+              )
+              if (isCorrect) totalCorrect++
+            }
             break
           }
           default:
@@ -248,7 +259,34 @@ const GuestSessionRunner = () => {
     setShowConfirmSubmit(false)
 
     try {
-      const gradeResult = gradeSession()
+      // Run AI scoring for ai_fill_blank exercises first
+      const newAiScores = {}
+      const aiPromises = []
+
+      exercises.forEach(ex => {
+        if (ex.exercise_type !== 'ai_fill_blank') return
+        const exerciseAnswers = answers[ex.id]
+        const questions = ex.content?.questions || []
+        questions.forEach((q, qi) => {
+          const userAnswer = (exerciseAnswers?.[qi] || '').trim()
+          if (!userAnswer) return
+          const key = `${ex.id}_${qi}`
+          aiPromises.push(
+            callAIScoring(q.question, userAnswer, q.expected_answers || [], 'educational assessment', 'vi')
+              .then(result => { newAiScores[key] = result })
+              .catch(() => { newAiScores[key] = { score: 0, explanation: 'Không thể chấm điểm AI', confidence: 0 } })
+          )
+        })
+      })
+
+      if (aiPromises.length > 0) {
+        setAiScoringInProgress(true)
+        await Promise.all(aiPromises)
+        setAiScoringInProgress(false)
+        setAiScores(newAiScores)
+      }
+
+      const gradeResult = gradeSession(newAiScores)
       const timeUsed = startTime ? Math.floor((Date.now() - startTime) / 1000) : 0
 
       // Save guest attempt to database
@@ -550,17 +588,16 @@ const GuestSessionRunner = () => {
             break
           }
           case 'ai_fill_blank': {
-            const userAnswer = (exerciseAnswers?.[qi] || '').trim().toLowerCase()
-            const expectedAnswers = q.expected_answers || []
-            const isCorrect = expectedAnswers.length > 0 && expectedAnswers.some(ea =>
-              userAnswer.includes(ea.trim().toLowerCase())
-            )
+            const aiKey = `${ex.id}_${qi}`
+            const aiResult = aiScores[aiKey]
+            const isCorrect = aiResult ? aiResult.score >= 70 : false
             if (!isCorrect) {
               incorrect.push({
                 exercise: ex.title || 'AI Fill Blank',
                 question: q.question || `Cau ${qi + 1}`,
                 yourAnswer: exerciseAnswers?.[qi] || '(khong tra loi)',
-                correctAnswer: expectedAnswers.join(' / ') || '?'
+                correctAnswer: (q.expected_answers || []).join(' / ') || '?',
+                aiScore: aiResult || null
               })
             }
             break
@@ -635,16 +672,24 @@ const GuestSessionRunner = () => {
                 <div className="px-4 pb-4 space-y-2">
                   {incorrectDetails.map((item, i) => (
                     <div key={i} className="p-3 bg-red-50 rounded-lg text-sm">
-                      <p className="font-medium text-gray-800 mb-1">{item.question}</p>
+                      <div className="font-medium text-gray-800 mb-1"><RichTextRenderer content={item.question} allowImages allowLinks /></div>
                       <p className="text-xs text-gray-500">{item.exercise}</p>
                       <div className="mt-2 space-y-1">
-                        <p className="text-red-600 text-xs flex items-center gap-1">
-                          <XCircle size={12} /> Ban chon: {item.yourAnswer}
-                        </p>
-                        <p className="text-green-600 text-xs flex items-center gap-1">
-                          <CheckCircle size={12} /> Dap an dung: {item.correctAnswer}
-                        </p>
+                        <div className="text-red-600 text-xs flex items-start gap-1">
+                          <XCircle size={12} className="flex-shrink-0 mt-0.5" /><div>Ban chon: <RichTextRenderer content={item.yourAnswer} allowImages allowLinks /></div>
+                        </div>
+                        <div className="text-green-600 text-xs flex items-start gap-1">
+                          <CheckCircle size={12} className="flex-shrink-0 mt-0.5" /><div>Dap an dung: <RichTextRenderer content={item.correctAnswer} allowImages allowLinks /></div>
+                        </div>
                       </div>
+                      {item.aiScore && (
+                        <div className="mt-2 p-2 bg-white rounded border border-gray-200">
+                          <div className="flex items-center gap-2 mb-1">
+                            <span className="text-xs font-semibold text-blue-700">AI Score: {Math.round(item.aiScore.score)}%</span>
+                          </div>
+                          <p className="text-xs text-gray-600">{item.aiScore.explanation}</p>
+                        </div>
+                      )}
                     </div>
                   ))}
                 </div>
@@ -802,7 +847,7 @@ const GuestSessionRunner = () => {
                 disabled={submitting}
                 className="flex-1 px-4 py-2 bg-green-600 text-white rounded-xl font-medium hover:bg-green-700 transition-colors disabled:opacity-50"
               >
-                {submitting ? 'Dang nop...' : 'Nop bai'}
+                {submitting ? (aiScoringInProgress ? 'AI dang cham diem...' : 'Dang nop...') : 'Nop bai'}
               </button>
             </div>
           </div>

@@ -17,7 +17,7 @@ const LEVELS = Object.keys(LEVEL_UNITS);
 
 const TAGS = ['L1', 'L2', 'L3', 'L4', 'L5', 'L6', 'Present', 'Project'];
 
-const SKILLS = ['Mixed', 'Speaking', 'Listening', 'Writing', 'Reading', 'Phonic', 'Grammar'];
+const SKILLS = ['Mixed', 'Speaking', 'Listening', 'Writing', 'Reading', 'Phonic', 'Grammar', 'Vocab'];
 
 const LESSON_TYPES = ['Theo chương trình', 'Bài tự chọn'];
 
@@ -55,7 +55,7 @@ const LessonInfoView = ({ lessonInfo, onChange, selectedDate, onDateChange }) =>
               type="date"
               value={selectedDate || ''}
               onChange={(e) => onDateChange?.(e.target.value)}
-              min={(() => { const d = new Date(); d.setDate(d.getDate() - 6); return d.toISOString().split('T')[0]; })()}
+              min={(() => { const d = new Date(); d.setDate(d.getDate() - 29); return d.toISOString().split('T')[0]; })()}
               max={new Date().toISOString().split('T')[0]}
               className="px-4 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
             />

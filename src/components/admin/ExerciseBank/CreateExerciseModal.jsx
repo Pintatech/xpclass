@@ -123,12 +123,12 @@ const CreateExerciseModal = ({ folders, selectedFolder, onClose, onCreated, allo
   }
 
   return (
-    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-      <div className={`bg-white rounded-lg shadow-xl w-full mx-4 max-h-[90vh] overflow-y-auto ${formData.exercise_type === 'pdf_worksheet' || formData.exercise_type === 'image_hotspot' ? 'max-w-6xl' : 'max-w-4xl'}`}>
+    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+      <div className={`bg-white rounded-lg shadow-xl w-full max-h-[90vh] flex flex-col ${formData.exercise_type === 'pdf_worksheet' || formData.exercise_type === 'image_hotspot' ? 'max-w-6xl' : 'max-w-4xl'}`}>
         {/* Form */}
-        <form onSubmit={handleSubmit} className="p-6 space-y-6">
+        <form onSubmit={handleSubmit} className="flex flex-col flex-1 min-h-0">
           {/* Header with actions */}
-          <div className="flex items-center justify-between -m-6 mb-0 p-4 border-b border-gray-200 bg-gray-50 rounded-t-lg">
+          <div className="flex items-center justify-between p-4 border-b border-gray-200 bg-gray-50 rounded-t-lg flex-shrink-0">
             <h2 className="text-lg font-semibold text-gray-900">Create New Exercise</h2>
             <div className="flex items-center gap-2">
               <button
@@ -148,6 +148,7 @@ const CreateExerciseModal = ({ folders, selectedFolder, onClose, onCreated, allo
               </button>
             </div>
           </div>
+          <div className="overflow-y-auto p-6 space-y-6">
           {error && (
             <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-lg">
               {error}
@@ -370,6 +371,7 @@ const CreateExerciseModal = ({ folders, selectedFolder, onClose, onCreated, allo
                 onSkipScoringChange={(val) => handleContentChange('skip_scoring', val)}
               />
             )}
+          </div>
           </div>
 
         </form>

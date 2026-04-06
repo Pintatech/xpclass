@@ -9,7 +9,7 @@ import { usePermissions } from '../../hooks/usePermissions'
 import { useProgress } from '../../hooks/useProgress'
 import { useFeedback } from '../../hooks/useFeedback'
 import ExerciseHeader from '../ui/ExerciseHeader'
-import RichTextRenderer from '../ui/RichTextRenderer'
+import RichTextRenderer, { RichTextWithAudio } from '../ui/RichTextRenderer'
 import AudioPlayer from '../ui/AudioPlayer'
 import CelebrationScreen from '../ui/CelebrationScreen'
 import TeacherExerciseNav from '../ui/TeacherExerciseNav'
@@ -1036,6 +1036,11 @@ const DragDropExercise = ({ testMode = false, exerciseData = null, onAnswersColl
             </div>
           </div>
         </div>
+        {exercise?.content?.intro && String(exercise.content.intro).trim() && (
+          <div className="w-full rounded-lg p-4 md:p-6 bg-white shadow-sm border border-gray-200 mb-4">
+            <RichTextWithAudio content={exercise.content.intro} allowImages={true} allowLinks={false} />
+          </div>
+        )}
         <div className="space-y-6">
           {allQuestions.map((question, qIndex) => {
             const correctMapping = {}
@@ -1154,12 +1159,7 @@ const DragDropExercise = ({ testMode = false, exerciseData = null, onAnswersColl
         {/* Global Intro */}
         {exercise?.content?.intro && String(exercise.content.intro).trim() && (
           <div className="w-full max-w-4xl min-w-0 mx-auto rounded-lg p-4 md:p-6 bg-white shadow-sm border border-gray-200 mb-4">
-            <RichTextRenderer
-              content={exercise.content.intro}
-              allowImages={true}
-              allowLinks={false}
-              style={{ whiteSpace: 'pre-wrap' }}
-            />
+            <RichTextWithAudio content={exercise.content.intro} allowImages={true} allowLinks={false} />
           </div>
         )}
 
