@@ -140,7 +140,53 @@ export function useLiveBattle() {
           .select('*')
           .eq('session_id', existing.id)
 
-        const enriched = await enrichParticipants(existingParts || [])
+        // Check for new enrollments not yet in the session
+        const existingUserIds = (existingParts || []).map(p => p.user_id)
+        const { data: enrollments } = await supabase
+          .from('course_enrollments')
+          .select('student_id')
+          .eq('course_id', courseId)
+          .eq('is_active', true)
+
+        const newStudentIds = (enrollments || [])
+          .map(e => e.student_id)
+          .filter(id => !existingUserIds.includes(id))
+
+        let allParts = existingParts || []
+
+        if (newStudentIds.length > 0) {
+          // Fetch active pets for new students
+          const { data: petData } = await supabase
+            .from('user_pets')
+            .select('id, user_id')
+            .in('user_id', newStudentIds)
+            .eq('is_active', true)
+          const petsByUser = {}
+          ;(petData || []).forEach(p => { petsByUser[p.user_id] = p })
+
+          // Assign new students to the smaller team
+          const teamACount = allParts.filter(p => p.team === 'a').length
+          const teamBCount = allParts.filter(p => p.team === 'b').length
+
+          const newRows = newStudentIds.map((id, idx) => {
+            const nextTeam = (teamACount + idx - (teamBCount > teamACount ? 1 : 0)) % 2 === 0 && teamACount <= teamBCount ? 'a' : 'b'
+            return {
+              session_id: existing.id,
+              user_id: id,
+              user_pet_id: petsByUser[id]?.id || null,
+              team: (teamACount <= teamBCount) ? (idx % 2 === 0 ? 'a' : 'b') : (idx % 2 === 0 ? 'b' : 'a'),
+            }
+          })
+
+          const { data: inserted } = await supabase
+            .from('live_battle_participants')
+            .insert(newRows)
+            .select()
+
+          allParts = [...allParts, ...(inserted || [])]
+        }
+
+        const enriched = await enrichParticipants(allParts)
 
         setSession(existing)
         setParticipants(enriched)

@@ -7,6 +7,7 @@ import Button from "../ui/Button";
 import AddUnitModal from "./modals/AddUnitModal";
 import EditUnitModal from "./modals/EditUnitModal";
 import AddSessionModal from "./modals/AddSessionModal";
+import EditSessionModal from "./modals/EditSessionModal";
 import { assetUrl } from '../../hooks/useBranding';
 // Thay spinner bằng skeleton để điều hướng mượt hơn
 import {
@@ -100,6 +101,9 @@ const UnitList = () => {
   const [courseExerciseIdSet, setCourseExerciseIdSet] = useState(new Set());
   const [studentNameMap, setStudentNameMap] = useState({});
   const [personalFilter, setPersonalFilter] = useState('shared');
+  const [contextMenu, setContextMenu] = useState(null); // { x, y, session, unitId }
+  const [copiedSession, setCopiedSession] = useState(null);
+  const [editingSession, setEditingSession] = useState(null);
 
   // Compute course-level stats: how many exercises each student has done (excluding test sessions)
   const courseStudentStats = (() => {
@@ -669,6 +673,106 @@ const UnitList = () => {
     }
   };
 
+  // --- Context menu handlers ---
+  const handleSessionContextMenu = (e, session, unitId) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setContextMenu({ x: e.clientX, y: e.clientY, session, unitId });
+  };
+
+  const closeContextMenu = () => setContextMenu(null);
+
+  // Close context menu on any click
+  useEffect(() => {
+    if (!contextMenu) return;
+    const handler = () => closeContextMenu();
+    window.addEventListener('click', handler);
+    return () => window.removeEventListener('click', handler);
+  }, [contextMenu]);
+
+  const handleCopySession = (session) => {
+    setCopiedSession(session);
+    closeContextMenu();
+  };
+
+  const handlePasteSession = async (targetUnitId) => {
+    if (!copiedSession) return;
+    closeContextMenu();
+    try {
+      // Get next session_number
+      const { data: existing } = await supabase
+        .from('sessions')
+        .select('session_number')
+        .eq('unit_id', targetUnitId)
+        .order('session_number', { ascending: false })
+        .limit(1);
+      const nextNum = existing?.length > 0 ? existing[0].session_number + 1 : 1;
+
+      // Clone session
+      const { data: newSession, error: sessError } = await supabase
+        .from('sessions')
+        .insert({
+          unit_id: targetUnitId,
+          title: copiedSession.title,
+          description: copiedSession.description,
+          session_number: nextNum,
+          session_type: copiedSession.session_type,
+          difficulty_level: copiedSession.difficulty_level,
+          xp_reward: copiedSession.xp_reward,
+          is_active: copiedSession.is_active,
+          estimated_duration: copiedSession.estimated_duration,
+          is_test: copiedSession.is_test,
+          assigned_student_id: copiedSession.assigned_student_id,
+        })
+        .select()
+        .single();
+      if (sessError) throw sessError;
+
+      // Clone exercise assignments
+      const { data: assignments, error: assignError } = await supabase
+        .from('exercise_assignments')
+        .select('exercise_id, order_index')
+        .eq('session_id', copiedSession.id)
+        .order('order_index');
+      if (assignError) throw assignError;
+
+      if (assignments?.length > 0) {
+        const { error: insertError } = await supabase
+          .from('exercise_assignments')
+          .insert(assignments.map(a => ({
+            session_id: newSession.id,
+            exercise_id: a.exercise_id,
+            order_index: a.order_index,
+          })));
+        if (insertError) throw insertError;
+      }
+
+      setSessions(prev => [...prev, newSession]);
+      alert(`Session "${copiedSession.title}" pasted successfully!`);
+    } catch (err) {
+      console.error('Error pasting session:', err);
+      alert('Failed to paste session: ' + (err.message || 'Unknown error'));
+    }
+  };
+
+  const handleDeleteSession = async (session) => {
+    closeContextMenu();
+    if (!window.confirm(`Delete "${session.title}"?\n\nThis will also delete all exercise assignments. This cannot be undone.`)) return;
+    try {
+      const { error } = await supabase.from('sessions').delete().eq('id', session.id);
+      if (error) throw error;
+      setSessions(prev => prev.filter(s => s.id !== session.id));
+    } catch (err) {
+      console.error('Error deleting session:', err);
+      alert('Failed to delete session: ' + (err.message || 'Unknown error'));
+    }
+  };
+
+  const handleSessionUpdated = (updatedSession) => {
+    setSessions(prev => prev.map(s => s.id === updatedSession.id ? updatedSession : s));
+    setEditingSession(null);
+  };
+
   const getSessionStatus = (session, index) => {
     const progress = sessionProgress[session.id];
 
@@ -731,6 +835,7 @@ const UnitList = () => {
       <div
         key={session.id}
         onClick={() => !isLocked && handleSessionClick(session)}
+        onContextMenu={canCreateContent() ? (e) => handleSessionContextMenu(e, session, session.unit_id) : undefined}
         className={`block ${isLocked ? "cursor-not-allowed" : "cursor-pointer"
           } w-full`}
       >
@@ -1051,20 +1156,7 @@ const UnitList = () => {
                     )}
 
                     <div className="relative mb-3 mt-6 flex items-center justify-end">
-                      <div className="flex items-center space-x-3">
-                        {canCreateContent() && (
-                          <button
-                            onClick={() => {
-                              const base = levelId ? `/study/level/${levelId}` : `/study/course/${currentId}`;
-                              navigate(`${base}/unit/${unit.id}`);
-                            }}
-                            className="p-2 text-blue-400 hover:text-blue-600 hover:bg-blue-100 rounded-lg transition-colors"
-                            title="Manage sessions"
-                          >
-                            <List className="w-4 h-4" />
-                          </button>
-                        )}
-                      </div>
+
                       <div className="flex items-center space-x-2">
                         {canCreateContent() && (
                           <div className="flex items-center space-x-1">
@@ -1284,6 +1376,53 @@ const UnitList = () => {
           }}
           onUpdated={handleUnitUpdated}
         />
+      )}
+
+      {/* Edit Session Modal */}
+      {editingSession && (
+        <EditSessionModal
+          session={editingSession}
+          courseId={currentId}
+          onClose={() => setEditingSession(null)}
+          onUpdated={handleSessionUpdated}
+        />
+      )}
+
+      {/* Session Context Menu */}
+      {contextMenu && (
+        <div
+          className="fixed z-[100] bg-white rounded-lg shadow-xl border border-gray-200 py-1 min-w-[160px]"
+          style={{ left: contextMenu.x, top: contextMenu.y }}
+          onClick={(e) => e.stopPropagation()}
+        >
+          <button
+            onClick={() => { setEditingSession(contextMenu.session); closeContextMenu(); }}
+            className="w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-blue-50 hover:text-blue-700 flex items-center gap-2"
+          >
+            <Edit className="w-3.5 h-3.5" /> Edit
+          </button>
+          <button
+            onClick={() => handleCopySession(contextMenu.session)}
+            className="w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-blue-50 hover:text-blue-700 flex items-center gap-2"
+          >
+            <Copy className="w-3.5 h-3.5" /> Copy
+          </button>
+          {copiedSession && (
+            <button
+              onClick={() => handlePasteSession(contextMenu.unitId)}
+              className="w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-green-50 hover:text-green-700 flex items-center gap-2"
+            >
+              <Plus className="w-3.5 h-3.5" /> Paste &ldquo;{copiedSession.title}&rdquo;
+            </button>
+          )}
+          <div className="border-t border-gray-100 my-1" />
+          <button
+            onClick={() => handleDeleteSession(contextMenu.session)}
+            className="w-full text-left px-4 py-2 text-sm text-red-600 hover:bg-red-50 flex items-center gap-2"
+          >
+            <Trash2 className="w-3.5 h-3.5" /> Delete
+          </button>
+        </div>
       )}
 
       {/* Copy Unit to Course Modal */}
