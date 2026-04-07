@@ -325,14 +325,14 @@ const SmartDragDropEditor = ({ questions, onQuestionsChange, intro, onIntroChang
         const trimmedLine = line.trim()
 
         // Check if this is a new question (starts with Q: or number.)
-        if (trimmedLine.match(/^(Q:|Quest(ion)?\s*\d+\s*:|Question|\d+[).:])/i)) {
+        if (trimmedLine.match(/^(Q:?|Quest(ion)?\s*\d+\s*:?|\d+[).:])/i)) {
           // Save previous question if exists
           if (currentQuestion) {
             newQuestions.push(currentQuestion)
           }
 
           // Start new question - extract the question title
-          const questionTitle = trimmedLine.replace(/^(Q:|Quest(ion)?\s*\d+\s*:|Question|\d+[).:])\s*/i, '')
+          const questionTitle = trimmedLine.replace(/^(Q:?|Quest(ion)?\s*\d+\s*:?|\d+[).:])\s*/i, '')
           currentQuestion = {
             id: `q${Date.now()}_${questionCounter++}`,
             question: '',
@@ -348,6 +348,53 @@ const SmartDragDropEditor = ({ questions, onQuestionsChange, intro, onIntroChang
             }
           }
           currentDistractors = []
+        }
+        // Check if this is a slash-separated ordering line: =word1/ word2/ word3. #explanation
+        else if (trimmedLine.startsWith('=') && trimmedLine.includes('/') && currentQuestion) {
+          let sentencePart = trimmedLine.slice(1) // remove leading =
+          let explanation = ''
+          const hashIndex = sentencePart.indexOf('#')
+          if (hashIndex !== -1) {
+            explanation = sentencePart.slice(hashIndex + 1).trim()
+            sentencePart = sentencePart.slice(0, hashIndex).trim()
+          }
+
+          const pieces = sentencePart.split('/').map(p => p.trim()).filter(p => p.length > 0)
+          if (pieces.length > 0) {
+            const items = pieces.map((word, i) => ({
+              id: `item_${Date.now()}_${i}_${Math.random().toString(36).slice(2, 7)}`,
+              text: word,
+              type: 'correct'
+            }))
+            // Add any distractors
+            currentDistractors.forEach((word, i) => {
+              items.push({
+                id: `distractor_${Date.now()}_${i}_${Math.random().toString(36).slice(2, 7)}`,
+                text: word,
+                type: 'distractor'
+              })
+            })
+
+            const dropZones = pieces.map((word, i) => ({
+              id: `zone_${i + 1}`,
+              label: `Drop ${word} here`,
+              word: word,
+              position: i
+            }))
+
+            const questionText = dropZones.map(z => `[DROP_ZONE_${z.id}]`).join(' ')
+            const correctOrder = dropZones.map(zone =>
+              items.find(item => item.text === zone.word)?.id
+            ).filter(Boolean)
+
+            currentQuestion.question = questionText
+            currentQuestion.items = items
+            currentQuestion.drop_zones = dropZones
+            currentQuestion.correct_order = correctOrder
+            if (explanation) {
+              currentQuestion.explanation = explanation
+            }
+          }
         }
         // Check if this line contains dragable words in [brackets]
         else if (trimmedLine.includes('[') && trimmedLine.includes(']') && currentQuestion) {

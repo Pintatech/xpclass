@@ -623,8 +623,10 @@ const MultipleChoiceEditor = ({ questions, onQuestionsChange, settings, onSettin
         return
       }
 
-      // Remove block comments /* */ from the text
-      const textWithoutComments = bulkText.replace(/\/\*[\s\S]*?\*\//g, '')
+      // Remove block comments /* */ and /.../ (single or multi-line) from the text
+      const textWithoutComments = bulkText
+        .replace(/\/\*[\s\S]*?\*\//g, '')
+        .replace(/\/[^/]+\//g, '')
 
       // Pre-process: split lines that have multiple options on one line
       // e.g. "A. cat   B. dog   C. bird   D. fish" or "(A) cat  (B) dog  (C) bird"

@@ -259,6 +259,7 @@ const FlashcardExercise = () => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [currentAudio, setCurrentAudio] = useState(null);
+  const audioPlayCount = useRef(0);
   const [session, setSession] = useState(null);
   const [isFlipped, setIsFlipped] = useState(false);
   const [speechSynth] = useState(window.speechSynthesis);
@@ -561,12 +562,13 @@ const FlashcardExercise = () => {
   };
 
   const handleCardSelect = (index) => {
-    // Stop current audio when switching cards
+    // Stop current audio and reset play count when switching cards
     if (currentAudio) {
       currentAudio.pause();
       currentAudio.currentTime = 0;
       setCurrentAudio(null);
     }
+    audioPlayCount.current = 0;
     // Stop any speech synthesis
     speechSynth.cancel();
     // Pause all videos
@@ -579,7 +581,7 @@ const FlashcardExercise = () => {
     setCurrentCard(index);
   };
 
-  const speakText = (text, lang = "en-US") => {
+  const speakText = (text, lang = "en-US", rate = 1) => {
     // Stop any current speech
     speechSynth.cancel();
 
@@ -588,7 +590,7 @@ const FlashcardExercise = () => {
     const speak = () => {
       const utterance = new SpeechSynthesisUtterance(text);
       utterance.lang = lang;
-      utterance.rate = 0.75;
+      utterance.rate = rate;
       utterance.pitch = 1;
       utterance.volume = 0.8;
 
@@ -670,8 +672,10 @@ const FlashcardExercise = () => {
           currentAudio.currentTime = 0;
         }
 
-        // Play custom audio
+        // Play custom audio (slow down by 25% on second click)
         const audio = new Audio(currentFlashcard.audioUrl);
+        audioPlayCount.current += 1;
+        audio.playbackRate = audioPlayCount.current >= 2 ? 0.75 : 1;
         audio.play().catch((err) => {
           console.error("Error playing audio:", err);
           // Fallback to TTS if audio fails
@@ -688,11 +692,12 @@ const FlashcardExercise = () => {
           return;
         }
 
+        audioPlayCount.current += 1;
         // Always speak the front text (English) regardless of flip state
         const textToSpeak = currentFlashcard.front;
         const language = "en-US";
 
-        speakText(textToSpeak, language);
+        speakText(textToSpeak, language, audioPlayCount.current >= 2 ? 0.75 : 1);
       }
     }
   };

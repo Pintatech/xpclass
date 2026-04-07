@@ -768,8 +768,21 @@ const UnitList = () => {
     }
   };
 
-  const handleSessionUpdated = (updatedSession) => {
-    setSessions(prev => prev.map(s => s.id === updatedSession.id ? updatedSession : s));
+  const handleSessionUpdated = async (updatedSession) => {
+    // Refetch all sessions for this unit since reordering may have changed multiple session_numbers
+    const { data: refreshed } = await supabase
+      .from('sessions')
+      .select('*')
+      .eq('unit_id', updatedSession.unit_id)
+      .order('session_number');
+    if (refreshed) {
+      setSessions(prev => {
+        const otherUnits = prev.filter(s => s.unit_id !== updatedSession.unit_id);
+        return [...otherUnits, ...refreshed];
+      });
+    } else {
+      setSessions(prev => prev.map(s => s.id === updatedSession.id ? updatedSession : s));
+    }
     setEditingSession(null);
   };
 

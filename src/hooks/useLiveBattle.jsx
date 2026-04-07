@@ -29,7 +29,6 @@ export function useLiveBattle() {
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState(null)
 
-  // Flat team scores (not distributed to individuals)
   const [teamScores, setTeamScores] = useState({ a: 0, b: 0 })
 
   // Power-up state (local only)
@@ -44,24 +43,22 @@ export function useLiveBattle() {
 
     if (saveTimerRef.current) clearTimeout(saveTimerRef.current)
     saveTimerRef.current = setTimeout(() => {
-      // Persist each participant's score and team
+      // Persist each participant's team
       for (const p of participants) {
         supabase
           .from('live_battle_participants')
-          .update({ individual_score: p.individual_score, team: p.team })
+          .update({ team: p.team })
           .eq('id', p.id)
           .then(() => {})
       }
-      // Persist session team names and scores (individual + flat team scores)
-      const teamA = participants.filter(p => p.team === 'a').reduce((s, p) => s + p.individual_score, 0) + teamScores.a
-      const teamB = participants.filter(p => p.team === 'b').reduce((s, p) => s + p.individual_score, 0) + teamScores.b
+      // Persist session team names and scores
       supabase
         .from('live_battle_sessions')
         .update({
           team_a_name: session.team_a_name,
           team_b_name: session.team_b_name,
-          team_a_score: teamA,
-          team_b_score: teamB,
+          team_a_score: teamScores.a,
+          team_b_score: teamScores.b,
         })
         .eq('id', session.id)
         .then(() => {})
@@ -70,11 +67,6 @@ export function useLiveBattle() {
     return () => { if (saveTimerRef.current) clearTimeout(saveTimerRef.current) }
   }, [participants, session, teamScores])
 
-  const recalcTeamScores = useCallback((parts) => {
-    const teamA = parts.filter(p => p.team === 'a').reduce((s, p) => s + p.individual_score, 0)
-    const teamB = parts.filter(p => p.team === 'b').reduce((s, p) => s + p.individual_score, 0)
-    return { teamA, teamB }
-  }, [])
 
   // Enrich participant rows with student/pet display info
   const enrichParticipants = useCallback(async (parts) => {
@@ -324,40 +316,6 @@ export function useLiveBattle() {
     setEvents(prev => [event, ...prev].slice(0, 50))
   }, [])
 
-  const addIndividualPoints = useCallback((participantId, amount) => {
-    const participant = participants.find(p => p.id === participantId)
-    if (!participant) return
-
-    const team = participant.team
-    if (amount > 0 && isFrozen(team)) {
-      addEvent({ type: 'blocked', text: `❄️ ${participant.student_name}'s team is frozen!`, team, ts: Date.now() })
-      return
-    }
-
-    let finalAmount = amount
-    let doubled = false
-    if (amount > 0 && hasDouble(team)) {
-      finalAmount = amount * 2
-      doubled = true
-      removeDouble(team)
-    }
-
-    setParticipants(prev => prev.map(p =>
-      p.id === participantId
-        ? { ...p, individual_score: Math.max(0, p.individual_score + finalAmount) }
-        : p
-    ))
-
-    addEvent({
-      type: doubled ? 'powerup' : finalAmount > 0 ? 'points_add' : 'points_remove',
-      text: doubled
-        ? `⚡ Double! ${participant.student_name} gets +${finalAmount}`
-        : `${finalAmount > 0 ? '+' : ''}${finalAmount} to ${participant.student_name}`,
-      team,
-      ts: Date.now(),
-    })
-  }, [participants, isFrozen, hasDouble, removeDouble, addEvent])
-
   const addTeamPoints = useCallback((team, amount) => {
     if (amount > 0 && isFrozen(team)) {
       addEvent({ type: 'blocked', text: `❄️ Team is frozen! Can't add points.`, team, ts: Date.now() })
@@ -414,45 +372,16 @@ export function useLiveBattle() {
           addEvent({ type: 'powerup', text: `Shield blocked the steal!`, team: opponentTeam, ts: Date.now() })
           return
         }
-        // Remove from opponent team members
-        setParticipants(prev => {
-          const opponentMembers = prev.filter(p => p.team === opponentTeam)
-          const targetMembers = prev.filter(p => p.team === targetTeam)
-          if (opponentMembers.length === 0 || targetMembers.length === 0) return prev
-
-          const totalToSteal = Math.min(stealAmount, opponentMembers.reduce((s, p) => s + p.individual_score, 0))
-          const perSteal = Math.floor(totalToSteal / opponentMembers.length)
-          const perGain = Math.floor(totalToSteal / targetMembers.length)
-
-          return prev.map(p => {
-            if (p.team === opponentTeam) return { ...p, individual_score: Math.max(0, p.individual_score - perSteal) }
-            if (p.team === targetTeam) return { ...p, individual_score: p.individual_score + perGain }
-            return p
-          })
-        })
+        setTeamScores(prev => ({
+          ...prev,
+          [opponentTeam]: Math.max(0, prev[opponentTeam] - stealAmount),
+          [targetTeam]: prev[targetTeam] + Math.min(stealAmount, prev[opponentTeam]),
+        }))
         addEvent({ type: 'powerup', text: `Steal ${stealAmount} points!`, team: targetTeam, ts: Date.now() })
         break
       }
 
       case 'swap': {
-        // Swap individual scores between teams
-        setParticipants(prev => {
-          const teamAMembers = prev.filter(p => p.team === 'a')
-          const teamBMembers = prev.filter(p => p.team === 'b')
-          const teamATotal = teamAMembers.reduce((s, p) => s + p.individual_score, 0)
-          const teamBTotal = teamBMembers.reduce((s, p) => s + p.individual_score, 0)
-          // Reset all to 0, then distribute the swapped total evenly
-          return prev.map(p => {
-            if (p.team === 'a') {
-              const perPerson = teamAMembers.length ? Math.floor(teamBTotal / teamAMembers.length) : 0
-              return { ...p, individual_score: perPerson }
-            } else {
-              const perPerson = teamBMembers.length ? Math.floor(teamATotal / teamBMembers.length) : 0
-              return { ...p, individual_score: perPerson }
-            }
-          })
-        })
-        // Swap flat team scores
         setTeamScores(prev => ({ a: prev.b, b: prev.a }))
         addEvent({ type: 'powerup', text: `Swap scores!`, team: targetTeam, ts: Date.now() })
         break
@@ -510,9 +439,8 @@ export function useLiveBattle() {
   const endGame = useCallback(async () => {
     if (!session) return
 
-    const { teamA: indA, teamB: indB } = recalcTeamScores(participants)
-    const teamA = indA + teamScores.a
-    const teamB = indB + teamScores.b
+    const teamA = teamScores.a
+    const teamB = teamScores.b
     const winnerTeam = teamA > teamB ? 'a' : teamB > teamA ? 'b' : 'draw'
     const xpWinner = session.xp_winner || 30
     const xpLoser = session.xp_loser || 10
@@ -549,7 +477,7 @@ export function useLiveBattle() {
       // Update participant record
       await supabase
         .from('live_battle_participants')
-        .update({ individual_score: p.individual_score, xp_awarded: p.xp_awarded })
+        .update({ xp_awarded: p.xp_awarded })
         .eq('id', p.id)
     }
 
@@ -577,23 +505,19 @@ export function useLiveBattle() {
     // Clear freeze timers
     Object.values(freezeTimerRef.current).forEach(t => clearTimeout(t))
     freezeTimerRef.current = {}
-  }, [session, participants, recalcTeamScores])
+  }, [session, participants, teamScores])
 
   const updateXpRewards = useCallback((xpWinner, xpLoser) => {
     setSession(prev => prev ? { ...prev, xp_winner: xpWinner, xp_loser: xpLoser } : prev)
   }, [])
 
   const resetScores = useCallback(() => {
-    setParticipants(prev => prev.map(p => ({ ...p, individual_score: 0 })))
     setTeamScores({ a: 0, b: 0 })
   }, [])
 
   const getTeamScore = useCallback((team) => {
-    const individualTotal = participants
-      .filter(p => p.team === team)
-      .reduce((s, p) => s + p.individual_score, 0)
-    return individualTotal + teamScores[team]
-  }, [participants, teamScores])
+    return teamScores[team]
+  }, [teamScores])
 
   return {
     session,
@@ -606,7 +530,6 @@ export function useLiveBattle() {
     updateTeam,
     shuffleTeams,
     updateTeamName,
-    addIndividualPoints,
     addTeamPoints,
     activatePowerup,
     startGame,
