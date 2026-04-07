@@ -1500,7 +1500,7 @@ const PetDisplay = () => {
               />
             </div>
 
-            {/* Chat Button - Above Train Button */}
+            {/* Chat Button - Hidden
             <div className="absolute bottom-[272px] right-2 z-10">
               <button
                 onClick={() => setShowChat(!showChat)}
@@ -1514,6 +1514,7 @@ const PetDisplay = () => {
                 />
               </button>
             </div>
+            */}
 
             {/* Train Button - Above Food Bowl */}
             {!profile?.is_banned && <div className="absolute bottom-52 right-2 z-10">
