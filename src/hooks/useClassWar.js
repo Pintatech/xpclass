@@ -86,21 +86,31 @@ const useClassWar = (courseId) => {
           const exerciseIds = [...new Set((courseExercises || []).map(e => e.exercise_id))];
 
           if (exerciseIds.length > 0) {
-            // Fetch completed progress (same approach as weekly leaderboard)
-            let progressQuery = supabase
-              .from('user_progress')
-              .select('user_id, exercise_id, score, max_score')
-              .eq('status', 'completed')
-              .in('user_id', allMemberIds)
-              .in('exercise_id', exerciseIds)
-              .gte('completed_at', warData.started_at);
+            // Fetch completed progress with pagination (matches leaderboard logic)
+            let progressData = [];
+            const PAGE_SIZE = 1000;
+            let page = 0;
+            while (true) {
+              let progressQuery = supabase
+                .from('user_progress')
+                .select('user_id, exercise_id, score, max_score')
+                .eq('status', 'completed')
+                .in('user_id', allMemberIds)
+                .in('exercise_id', exerciseIds)
+                .gte('completed_at', warData.started_at);
 
-            if (warData.ended_at) {
-              progressQuery = progressQuery.lte('completed_at', warData.ended_at);
+              if (warData.ended_at) {
+                progressQuery = progressQuery.lte('completed_at', warData.ended_at);
+              }
+
+              const { data: batch, error: progressError } = await progressQuery
+                .order('completed_at', { ascending: true })
+                .range(page * PAGE_SIZE, (page + 1) * PAGE_SIZE - 1);
+              if (progressError) throw progressError;
+              progressData = progressData.concat(batch);
+              if (batch.length < PAGE_SIZE) break;
+              page++;
             }
-
-            const { data: progressData, error: progressError } = await progressQuery;
-            if (progressError) throw progressError;
 
             // Fetch xp_reward for each exercise
             const { data: exercisesData } = await supabase

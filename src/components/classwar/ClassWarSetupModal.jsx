@@ -76,7 +76,7 @@ const ClassWarSetupModal = ({ courseId, onClose, onStarted, existingWar, teamAXP
         // Update war name and team names
         const { error: updateError } = await supabase
           .from('class_wars')
-          .update({ name: warName, team_a_name: teamAName, team_b_name: teamBName, started_at: new Date(startDate).toISOString() })
+          .update({ name: warName, team_a_name: teamAName, team_b_name: teamBName, started_at: new Date(startDate + 'T00:00:00+07:00').toISOString() })
           .eq('id', existingWar.id);
         if (updateError) throw updateError;
 
@@ -96,7 +96,7 @@ const ClassWarSetupModal = ({ courseId, onClose, onStarted, existingWar, teamAXP
             name: warName,
             team_a_name: teamAName,
             team_b_name: teamBName,
-            started_at: new Date(startDate).toISOString(),
+            started_at: new Date(startDate + 'T00:00:00+07:00').toISOString(),
             status: 'active',
             created_by: user.id,
           })
@@ -156,9 +156,9 @@ const ClassWarSetupModal = ({ courseId, onClose, onStarted, existingWar, teamAXP
   );
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center">
+    <div className="fixed inset-0 z-50 flex items-center justify-center px-2 pb-16 sm:pb-4 sm:px-4">
       <div className="absolute inset-0 bg-black/50" onClick={onClose} />
-      <div className="relative bg-white rounded-2xl shadow-xl w-full max-w-2xl max-h-[90vh] overflow-hidden flex flex-col">
+      <div className="relative bg-white rounded-2xl shadow-xl w-full max-w-2xl max-h-[85vh] sm:max-h-[90vh] overflow-hidden flex flex-col">
         {/* Header */}
         <div className="bg-purple-600 px-5 py-4 text-white flex items-center justify-between">
           <div className="flex items-center gap-2">
@@ -252,9 +252,12 @@ const ClassWarSetupModal = ({ courseId, onClose, onStarted, existingWar, teamAXP
                       if (reward.items?.length > 0) {
                         const { data: u } = await supabase.from('users').select('full_name').eq('id', uid).single();
                         for (const item of reward.items) {
+                          const addQty = item.quantity || 1;
+                          const { data: existing } = await supabase.from('user_inventory')
+                            .select('quantity').eq('user_id', uid).eq('item_id', item.item_id).single();
                           await supabase.from('user_inventory').upsert({
                             user_id: uid, user_name: u?.full_name || '', item_id: item.item_id,
-                            item_name: item.item_name, quantity: item.quantity || 1,
+                            item_name: item.item_name, quantity: (existing?.quantity || 0) + addQty,
                           }, { onConflict: 'user_id,item_id' });
                         }
                       }

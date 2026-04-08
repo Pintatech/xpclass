@@ -486,6 +486,95 @@ const ImageHotspotExerciseReview = ({ exercise, qas }) => {
   )
 }
 
+const PDFWorksheetExerciseReview = ({ exercise, qas }) => {
+  const allPages = exercise?.content?.pages || []
+  // Build a map from field.id -> qa for matching by question_id
+  const byFieldId = {}
+  qas.forEach(qa => { if (qa.question_id) byFieldId[qa.question_id] = qa })
+  // Also group by question_index for test-runner path
+  const byQI = groupQAs('pdf_worksheet', qas)
+
+  return (
+    <div className="space-y-4">
+      {allPages.map((page, pi) => {
+        const fields = page.fields || []
+        if (fields.length === 0) return null
+        return (
+          <div key={pi}>
+            {allPages.length > 1 && (
+              <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-2">
+                Page {page.page_number}
+              </p>
+            )}
+            <div className="space-y-1.5">
+              {fields.map((field, fi) => {
+                const qa = byFieldId[field.id] || byQI[pi]?.[fi]
+                const isCorrect = qa?.is_correct
+                const studentAnswer = qa?.selected_answer
+
+                let correctDisplay = ''
+                if (field.type === 'text') {
+                  correctDisplay = field.correct_answer || ''
+                } else if (field.type === 'dropdown') {
+                  correctDisplay = field.options?.[field.correct_option] || ''
+                } else if (field.type === 'checkbox') {
+                  correctDisplay = field.correct_answer === 'true' ? 'Checked' : 'Unchecked'
+                }
+
+                let studentDisplay = ''
+                if (field.type === 'dropdown') {
+                  const idx = parseInt(studentAnswer)
+                  studentDisplay = !isNaN(idx) ? (field.options?.[idx] || '(no answer)') : '(no answer)'
+                } else if (field.type === 'checkbox') {
+                  studentDisplay = studentAnswer === 'true' ? 'Checked' : 'Unchecked'
+                } else {
+                  studentDisplay = studentAnswer || '(no answer)'
+                }
+
+                return (
+                  <div
+                    key={field.id}
+                    className={`flex items-center gap-3 px-3 py-2 rounded-lg border text-sm ${
+                      qa
+                        ? isCorrect
+                          ? 'border-green-200 bg-green-50'
+                          : 'border-red-200 bg-red-50'
+                        : 'border-gray-200 bg-gray-50'
+                    }`}
+                  >
+                    <div className="shrink-0">
+                      {qa ? (
+                        isCorrect
+                          ? <CheckCircle className="w-4 h-4 text-green-500" />
+                          : <XCircle className="w-4 h-4 text-red-500" />
+                      ) : (
+                        <div className="w-4 h-4 rounded-full border-2 border-gray-300" />
+                      )}
+                    </div>
+                    <span className="text-xs text-gray-500 shrink-0 w-24 truncate" title={field.label}>
+                      {field.label || `Field ${fi + 1}`}
+                    </span>
+                    <span className={`font-medium ${qa ? (isCorrect ? 'text-green-800' : 'text-red-800') : 'text-gray-500'}`}>
+                      {studentDisplay}
+                    </span>
+                    {qa && !isCorrect && correctDisplay && (
+                      <>
+                        <span className="text-gray-400">→</span>
+                        <span className="font-medium text-green-800">{correctDisplay}</span>
+                      </>
+                    )}
+                    <span className="text-xs text-gray-400 ml-auto capitalize">({field.type})</span>
+                  </div>
+                )
+              })}
+            </div>
+          </div>
+        )
+      })}
+    </div>
+  )
+}
+
 const GenericExerciseReview = ({ qas }) => {
   const fmt = (val) => {
     if (val === null || val === undefined) return '(no answer)'
@@ -651,6 +740,8 @@ const ExerciseReviewMode = ({ attempt, passingScore = 70, onAttemptUpdate, onClo
         return <AIFillBlankExerciseReview exercise={group.exercise} qas={group.qas} />
       case 'image_hotspot':
         return <ImageHotspotExerciseReview exercise={group.exercise} qas={group.qas} />
+      case 'pdf_worksheet':
+        return <PDFWorksheetExerciseReview exercise={group.exercise} qas={group.qas} />
       default:
         return <GenericExerciseReview qas={group.qas} />
     }

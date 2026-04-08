@@ -53,6 +53,7 @@ const MultipleChoiceEditor = ({ questions, onQuestionsChange, settings, onSettin
   const [bulkImportMode, setBulkImportMode] = useState(false)
   const [bulkText, setBulkText] = useState('')
   const [lastBulkText, setLastBulkText] = useState('')
+  const [stripComments, setStripComments] = useState(false)
 
   // Load lastBulkText from localStorage on mount
   useEffect(() => {
@@ -623,10 +624,10 @@ const MultipleChoiceEditor = ({ questions, onQuestionsChange, settings, onSettin
         return
       }
 
-      // Remove block comments /* */ and /.../ (single or multi-line) from the text
-      const textWithoutComments = bulkText
-        .replace(/\/\*[\s\S]*?\*\//g, '')
-        .replace(/\/[^/]+\//g, '')
+      // Optionally remove comments from the text
+      const textWithoutComments = stripComments
+        ? bulkText.replace(/\/\*[\s\S]*?\*\//g, '').replace(/\/[^/\n]+\//g, '')
+        : bulkText
 
       // Pre-process: split lines that have multiple options on one line
       // e.g. "A. cat   B. dog   C. bird   D. fish" or "(A) cat  (B) dog  (C) bird"
@@ -1108,6 +1109,17 @@ Question 2
 Good morning in Vietnamese is {1:MC:=Chào buổi sáng#Correct explanation~Chào buổi chiều#Afternoon greeting~Tạm biệt#Means goodbye}
 # Extra note for the whole question`}
           />
+          <div className="flex items-center gap-4 mt-2">
+            <label className="flex items-center gap-1.5 text-sm text-blue-700 cursor-pointer select-none">
+              <input
+                type="checkbox"
+                checked={stripComments}
+                onChange={(e) => setStripComments(e.target.checked)}
+                className="rounded"
+              />
+              Strip comments <span className="text-xs text-gray-500">({`/* */ and /…/`})</span>
+            </label>
+          </div>
           <div className="flex justify-between items-center mt-2">
             <button
               type="button"
