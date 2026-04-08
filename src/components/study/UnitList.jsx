@@ -31,6 +31,10 @@ import {
 } from "lucide-react";
 import StudentStatsPopover from "../ui/StudentStatsPopover";
 import useClassStats from "../../hooks/useClassStats";
+import useClassWar from "../../hooks/useClassWar";
+import ClassWarPanel from "../classwar/ClassWarPanel";
+import ClassWarBanner from "../classwar/ClassWarBanner";
+import ClassWarModal from "../classwar/ClassWarModal";
 import CoursePersonalAssignments from "./CoursePersonalAssignments";
 
 // Theme-based background images for unit cards
@@ -104,6 +108,10 @@ const UnitList = () => {
   const [contextMenu, setContextMenu] = useState(null); // { x, y, session, unitId }
   const [copiedSession, setCopiedSession] = useState(null);
   const [editingSession, setEditingSession] = useState(null);
+  const [showWarModal, setShowWarModal] = useState(false);
+
+  // Class War
+  const { war: activeWar, teamA, teamB, teamAXP, teamBXP, userTeam } = useClassWar(currentId);
 
   // Compute course-level stats: how many exercises each student has done (excluding test sessions)
   const courseStudentStats = (() => {
@@ -1064,6 +1072,36 @@ const UnitList = () => {
 
         {/* Content Area */}
         <div className="flex-1 overflow-y-auto p-6">
+          {/* Mobile: Class War Banner */}
+          {activeWar && (
+            <div className="lg:hidden">
+              <ClassWarBanner
+                war={activeWar}
+                teamAXP={teamAXP}
+                teamBXP={teamBXP}
+                userTeam={userTeam}
+                onClick={() => setShowWarModal(true)}
+              />
+            </div>
+          )}
+
+          <div className="flex gap-4">
+            {/* Desktop: Left Team Panel */}
+            {activeWar && (
+              <div className="hidden lg:block w-64 shrink-0">
+                <ClassWarPanel
+                  team="A"
+                  teamName={activeWar.team_a_name}
+                  members={teamA}
+                  totalXP={teamAXP}
+                  opponentXP={teamBXP}
+                  userId={user?.id}
+                />
+              </div>
+            )}
+
+            {/* Center: existing content */}
+            <div className="flex-1 min-w-0">
           {/* Personal Assignments for Students */}
           {profile?.role === 'user' && courseExerciseIdSet.size > 0 && (
             <CoursePersonalAssignments courseExerciseIds={courseExerciseIdSet} />
@@ -1355,6 +1393,36 @@ const UnitList = () => {
               </div>
             )}
           </>
+            </div>{/* end flex-1 min-w-0 (center content) */}
+
+            {/* Desktop: Right Team Panel */}
+            {activeWar && (
+              <div className="hidden lg:block w-64 shrink-0">
+                <ClassWarPanel
+                  team="B"
+                  teamName={activeWar.team_b_name}
+                  members={teamB}
+                  totalXP={teamBXP}
+                  opponentXP={teamAXP}
+                  userId={user?.id}
+                />
+              </div>
+            )}
+          </div>{/* end flex gap-4 */}
+
+          {/* Mobile: Class War Modal */}
+          {showWarModal && activeWar && (
+            <ClassWarModal
+              war={activeWar}
+              teamA={teamA}
+              teamB={teamB}
+              teamAXP={teamAXP}
+              teamBXP={teamBXP}
+              userTeam={userTeam}
+              userId={user?.id}
+              onClose={() => setShowWarModal(false)}
+            />
+          )}
         </div>
       </div>
 

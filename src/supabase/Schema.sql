@@ -132,7 +132,7 @@ CREATE TABLE public.users (
   energy integer DEFAULT 100 CHECK (energy >= 0 AND energy <= 100),
   energy_last_reset date DEFAULT CURRENT_DATE,
   CONSTRAINT users_pkey PRIMARY KEY (id),
-  CONSTRAINT users_id_fkey FOREIGN KEY (id) REFERENCES auth.users(id)
+  CONSTRAINT users_id_fkey FOREIGN KEY (id) REFERENCES auth.users(id) ON DELETE CASCADE
 );
 
 CREATE TABLE public.user_equipment (
@@ -159,7 +159,7 @@ CREATE TABLE public.cohorts (
   created_at timestamp with time zone DEFAULT now(),
   updated_at timestamp with time zone DEFAULT now(),
   CONSTRAINT cohorts_pkey PRIMARY KEY (id),
-  CONSTRAINT cohorts_created_by_fkey FOREIGN KEY (created_by) REFERENCES public.users(id)
+  CONSTRAINT cohorts_created_by_fkey FOREIGN KEY (created_by) REFERENCES public.users(id) ON DELETE SET NULL
 );
 CREATE TABLE public.courses (
   id uuid NOT NULL DEFAULT uuid_generate_v4(),
@@ -176,7 +176,7 @@ CREATE TABLE public.courses (
   teacher_id uuid,
   chest_enabled boolean DEFAULT false,
   CONSTRAINT courses_pkey PRIMARY KEY (id),
-  CONSTRAINT courses_teacher_id_fkey FOREIGN KEY (teacher_id) REFERENCES public.users(id)
+  CONSTRAINT courses_teacher_id_fkey FOREIGN KEY (teacher_id) REFERENCES public.users(id) ON DELETE SET NULL
 );
 CREATE TABLE public.cohort_members (
   id uuid NOT NULL DEFAULT uuid_generate_v4(),
@@ -188,7 +188,33 @@ CREATE TABLE public.cohort_members (
   updated_at timestamp with time zone DEFAULT now(),
   CONSTRAINT cohort_members_pkey PRIMARY KEY (id),
   CONSTRAINT cohort_members_cohort_id_fkey FOREIGN KEY (cohort_id) REFERENCES public.cohorts(id),
-  CONSTRAINT cohort_members_student_id_fkey FOREIGN KEY (student_id) REFERENCES public.users(id)
+  CONSTRAINT cohort_members_student_id_fkey FOREIGN KEY (student_id) REFERENCES public.users(id) ON DELETE CASCADE
+);
+CREATE TABLE public.class_wars (
+  id uuid NOT NULL DEFAULT uuid_generate_v4(),
+  course_id uuid NOT NULL,
+  name text DEFAULT 'Class War',
+  team_a_name text DEFAULT 'Red Team',
+  team_b_name text DEFAULT 'Blue Team',
+  status text DEFAULT 'active' CHECK (status IN ('active', 'ended')),
+  started_at timestamp with time zone DEFAULT now(),
+  ended_at timestamp with time zone,
+  created_by uuid,
+  created_at timestamp with time zone DEFAULT now(),
+  CONSTRAINT class_wars_pkey PRIMARY KEY (id),
+  CONSTRAINT class_wars_course_id_fkey FOREIGN KEY (course_id) REFERENCES public.courses(id),
+  CONSTRAINT class_wars_created_by_fkey FOREIGN KEY (created_by) REFERENCES public.users(id)
+);
+CREATE TABLE public.class_war_members (
+  id uuid NOT NULL DEFAULT uuid_generate_v4(),
+  war_id uuid NOT NULL,
+  user_id uuid NOT NULL,
+  team text NOT NULL CHECK (team IN ('A', 'B')),
+  created_at timestamp with time zone DEFAULT now(),
+  CONSTRAINT class_war_members_pkey PRIMARY KEY (id),
+  CONSTRAINT class_war_members_war_id_fkey FOREIGN KEY (war_id) REFERENCES public.class_wars(id) ON DELETE CASCADE,
+  CONSTRAINT class_war_members_user_id_fkey FOREIGN KEY (user_id) REFERENCES public.users(id) ON DELETE CASCADE,
+  CONSTRAINT class_war_members_unique UNIQUE (war_id, user_id)
 );
 CREATE TABLE public.course_enrollments (
   id uuid NOT NULL DEFAULT uuid_generate_v4(),
@@ -201,8 +227,8 @@ CREATE TABLE public.course_enrollments (
   updated_at timestamp with time zone DEFAULT now(),
   CONSTRAINT course_enrollments_pkey PRIMARY KEY (id),
   CONSTRAINT course_enrollments_course_id_fkey FOREIGN KEY (course_id) REFERENCES public.courses(id),
-  CONSTRAINT course_enrollments_student_id_fkey FOREIGN KEY (student_id) REFERENCES public.users(id),
-  CONSTRAINT course_enrollments_assigned_by_fkey FOREIGN KEY (assigned_by) REFERENCES public.users(id)
+  CONSTRAINT course_enrollments_student_id_fkey FOREIGN KEY (student_id) REFERENCES public.users(id) ON DELETE CASCADE,
+  CONSTRAINT course_enrollments_assigned_by_fkey FOREIGN KEY (assigned_by) REFERENCES public.users(id) ON DELETE SET NULL
 );
 CREATE TABLE public.course_progress (
   id uuid NOT NULL DEFAULT uuid_generate_v4(),
@@ -218,7 +244,7 @@ CREATE TABLE public.course_progress (
   created_at timestamp with time zone DEFAULT now(),
   updated_at timestamp with time zone DEFAULT now(),
   CONSTRAINT course_progress_pkey PRIMARY KEY (id),
-  CONSTRAINT level_progress_user_id_fkey FOREIGN KEY (user_id) REFERENCES public.users(id),
+  CONSTRAINT level_progress_user_id_fkey FOREIGN KEY (user_id) REFERENCES public.users(id) ON DELETE CASCADE,
   CONSTRAINT level_progress_level_id_fkey FOREIGN KEY (course_id) REFERENCES public.courses(id)
 );
 CREATE TABLE public.course_teachers (
@@ -228,7 +254,7 @@ CREATE TABLE public.course_teachers (
   created_at timestamp with time zone DEFAULT now(),
   CONSTRAINT course_teachers_pkey PRIMARY KEY (id),
   CONSTRAINT course_teachers_course_id_fkey FOREIGN KEY (course_id) REFERENCES public.courses(id),
-  CONSTRAINT course_teachers_teacher_id_fkey FOREIGN KEY (teacher_id) REFERENCES public.users(id)
+  CONSTRAINT course_teachers_teacher_id_fkey FOREIGN KEY (teacher_id) REFERENCES public.users(id) ON DELETE CASCADE
 );
 CREATE TABLE public.units (
   id uuid NOT NULL DEFAULT uuid_generate_v4(),
@@ -246,7 +272,7 @@ CREATE TABLE public.units (
   assigned_student_id uuid,
   CONSTRAINT units_pkey PRIMARY KEY (id),
   CONSTRAINT units_level_id_fkey FOREIGN KEY (course_id) REFERENCES public.courses(id),
-  CONSTRAINT units_assigned_student_fkey FOREIGN KEY (assigned_student_id) REFERENCES public.users(id)
+  CONSTRAINT units_assigned_student_fkey FOREIGN KEY (assigned_student_id) REFERENCES public.users(id) ON DELETE SET NULL
 );
 CREATE TABLE public.sessions (
   id uuid NOT NULL DEFAULT uuid_generate_v4(),
@@ -270,7 +296,7 @@ CREATE TABLE public.sessions (
   assigned_student_id uuid,
   CONSTRAINT sessions_pkey PRIMARY KEY (id),
   CONSTRAINT sessions_unit_id_fkey FOREIGN KEY (unit_id) REFERENCES public.units(id),
-  CONSTRAINT sessions_assigned_student_fkey FOREIGN KEY (assigned_student_id) REFERENCES public.users(id)
+  CONSTRAINT sessions_assigned_student_fkey FOREIGN KEY (assigned_student_id) REFERENCES public.users(id) ON DELETE SET NULL
 );
 CREATE TABLE public.exercises (
   id uuid NOT NULL DEFAULT uuid_generate_v4(),
@@ -305,7 +331,7 @@ CREATE TABLE public.daily_quests (
   created_at timestamp with time zone DEFAULT now(),
   updated_at timestamp with time zone DEFAULT now(),
   CONSTRAINT daily_quests_pkey PRIMARY KEY (id),
-  CONSTRAINT daily_quests_user_id_fkey FOREIGN KEY (user_id) REFERENCES public.users(id),
+  CONSTRAINT daily_quests_user_id_fkey FOREIGN KEY (user_id) REFERENCES public.users(id) ON DELETE CASCADE,
   CONSTRAINT daily_quests_exercise_id_fkey FOREIGN KEY (exercise_id) REFERENCES public.exercises(id)
 );
 CREATE TABLE public.exercise_assignments (
@@ -334,9 +360,9 @@ CREATE TABLE public.individual_exercise_assignments (
   created_at timestamp with time zone DEFAULT now(),
   updated_at timestamp with time zone DEFAULT now(),
   CONSTRAINT individual_exercise_assignments_pkey PRIMARY KEY (id),
-  CONSTRAINT individual_exercise_assignments_user_id_fkey FOREIGN KEY (user_id) REFERENCES auth.users(id),
+  CONSTRAINT individual_exercise_assignments_user_id_fkey FOREIGN KEY (user_id) REFERENCES auth.users(id) ON DELETE CASCADE,
   CONSTRAINT individual_exercise_assignments_exercise_id_fkey FOREIGN KEY (exercise_id) REFERENCES public.exercises(id),
-  CONSTRAINT individual_exercise_assignments_assigned_by_fkey FOREIGN KEY (assigned_by) REFERENCES auth.users(id)
+  CONSTRAINT individual_exercise_assignments_assigned_by_fkey FOREIGN KEY (assigned_by) REFERENCES auth.users(id) ON DELETE SET NULL
 );
 CREATE TABLE public.question_attempts (
   id uuid NOT NULL DEFAULT uuid_generate_v4(),
@@ -352,7 +378,7 @@ CREATE TABLE public.question_attempts (
   created_at timestamp with time zone DEFAULT now(),
   updated_at timestamp with time zone DEFAULT now(),
   CONSTRAINT question_attempts_pkey PRIMARY KEY (id),
-  CONSTRAINT question_attempts_user_id_fkey FOREIGN KEY (user_id) REFERENCES public.users(id),
+  CONSTRAINT question_attempts_user_id_fkey FOREIGN KEY (user_id) REFERENCES public.users(id) ON DELETE CASCADE,
   CONSTRAINT question_attempts_exercise_id_fkey FOREIGN KEY (exercise_id) REFERENCES public.exercises(id)
 );
 CREATE TABLE public.session_progress (
@@ -369,7 +395,7 @@ CREATE TABLE public.session_progress (
   created_at timestamp with time zone DEFAULT now(),
   updated_at timestamp with time zone DEFAULT now(),
   CONSTRAINT session_progress_pkey PRIMARY KEY (id),
-  CONSTRAINT session_progress_user_id_fkey FOREIGN KEY (user_id) REFERENCES public.users(id),
+  CONSTRAINT session_progress_user_id_fkey FOREIGN KEY (user_id) REFERENCES public.users(id) ON DELETE CASCADE,
   CONSTRAINT session_progress_session_id_fkey FOREIGN KEY (session_id) REFERENCES public.sessions(id)
 );
 CREATE TABLE public.session_reward_claims (
@@ -381,7 +407,7 @@ CREATE TABLE public.session_reward_claims (
   gems_awarded integer DEFAULT 0,
   claimed_at timestamp with time zone DEFAULT now(),
   CONSTRAINT session_reward_claims_pkey PRIMARY KEY (id),
-  CONSTRAINT session_reward_claims_user_id_fkey FOREIGN KEY (user_id) REFERENCES public.users(id),
+  CONSTRAINT session_reward_claims_user_id_fkey FOREIGN KEY (user_id) REFERENCES public.users(id) ON DELETE CASCADE,
   CONSTRAINT session_reward_claims_session_id_fkey FOREIGN KEY (session_id) REFERENCES public.sessions(id)
 );
 CREATE TABLE public.unit_reward_claims (
@@ -392,7 +418,7 @@ CREATE TABLE public.unit_reward_claims (
   claimed_at timestamp with time zone DEFAULT now(),
   full_name text,
   CONSTRAINT unit_reward_claims_pkey PRIMARY KEY (id),
-  CONSTRAINT unit_reward_claims_user_id_fkey FOREIGN KEY (user_id) REFERENCES public.users(id),
+  CONSTRAINT unit_reward_claims_user_id_fkey FOREIGN KEY (user_id) REFERENCES public.users(id) ON DELETE CASCADE,
   CONSTRAINT unit_reward_claims_unit_id_fkey FOREIGN KEY (unit_id) REFERENCES public.units(id)
 );
 CREATE TABLE public.user_achievements (
@@ -403,7 +429,7 @@ CREATE TABLE public.user_achievements (
   claimed_at timestamp with time zone,
   xp_claimed integer DEFAULT 0,
   CONSTRAINT user_achievements_pkey PRIMARY KEY (id),
-  CONSTRAINT user_achievements_user_id_fkey FOREIGN KEY (user_id) REFERENCES public.users(id),
+  CONSTRAINT user_achievements_user_id_fkey FOREIGN KEY (user_id) REFERENCES public.users(id) ON DELETE CASCADE,
   CONSTRAINT user_achievements_achievement_id_fkey FOREIGN KEY (achievement_id) REFERENCES public.achievements(id)
 );
 CREATE TABLE public.user_progress (
@@ -427,7 +453,7 @@ CREATE TABLE public.user_progress (
   full_name text,
   exercise_title text,
   CONSTRAINT user_progress_pkey PRIMARY KEY (id),
-  CONSTRAINT user_progress_user_id_fkey FOREIGN KEY (user_id) REFERENCES public.users(id),
+  CONSTRAINT user_progress_user_id_fkey FOREIGN KEY (user_id) REFERENCES public.users(id) ON DELETE CASCADE,
   CONSTRAINT user_progress_level_id_fkey FOREIGN KEY (course_id) REFERENCES public.courses(id),
   CONSTRAINT user_progress_unit_id_fkey FOREIGN KEY (unit_id) REFERENCES public.units(id),
   CONSTRAINT user_progress_session_id_fkey FOREIGN KEY (session_id) REFERENCES public.sessions(id),
@@ -440,7 +466,7 @@ CREATE TABLE public.user_purchases (
   purchased_at timestamp with time zone DEFAULT now(),
   CONSTRAINT user_purchases_pkey PRIMARY KEY (id),
   CONSTRAINT user_purchases_user_id_item_id_key UNIQUE (user_id, item_id),
-  CONSTRAINT user_purchases_user_id_fkey FOREIGN KEY (user_id) REFERENCES public.users(id),
+  CONSTRAINT user_purchases_user_id_fkey FOREIGN KEY (user_id) REFERENCES public.users(id) ON DELETE CASCADE,
   CONSTRAINT user_purchases_item_id_fkey FOREIGN KEY (item_id) REFERENCES public.shop_items(id)
 );
 CREATE TABLE public.weekly_xp_tracking (
@@ -451,7 +477,7 @@ CREATE TABLE public.weekly_xp_tracking (
   total_xp integer DEFAULT 0,
   created_at timestamp with time zone DEFAULT now(),
   CONSTRAINT weekly_xp_tracking_pkey PRIMARY KEY (id),
-  CONSTRAINT weekly_xp_tracking_user_id_fkey FOREIGN KEY (user_id) REFERENCES public.users(id)
+  CONSTRAINT weekly_xp_tracking_user_id_fkey FOREIGN KEY (user_id) REFERENCES public.users(id) ON DELETE CASCADE
 );
 
 -- ====================================
@@ -1196,7 +1222,7 @@ CREATE TABLE IF NOT EXISTS public.user_pets (
   habitat_y double precision,
   habitat_flip boolean DEFAULT false,
   CONSTRAINT user_pets_pkey PRIMARY KEY (id),
-  CONSTRAINT user_pets_user_id_fkey FOREIGN KEY (user_id) REFERENCES public.users(id),
+  CONSTRAINT user_pets_user_id_fkey FOREIGN KEY (user_id) REFERENCES public.users(id) ON DELETE CASCADE,
   CONSTRAINT user_pets_pet_id_fkey FOREIGN KEY (pet_id) REFERENCES public.pets(id)
 );
 
@@ -1355,7 +1381,7 @@ CREATE TABLE IF NOT EXISTS public.user_inventory (
   updated_at timestamp with time zone DEFAULT now(),
   CONSTRAINT user_inventory_pkey PRIMARY KEY (id),
   CONSTRAINT user_inventory_user_item_key UNIQUE (user_id, item_id),
-  CONSTRAINT user_inventory_user_id_fkey FOREIGN KEY (user_id) REFERENCES public.users(id),
+  CONSTRAINT user_inventory_user_id_fkey FOREIGN KEY (user_id) REFERENCES public.users(id) ON DELETE CASCADE,
   CONSTRAINT user_inventory_item_id_fkey FOREIGN KEY (item_id) REFERENCES public.collectible_items(id)
 );
 
@@ -1387,7 +1413,7 @@ CREATE TABLE IF NOT EXISTS public.user_chests (
   opened_at timestamp with time zone,
   items_received jsonb,
   CONSTRAINT user_chests_pkey PRIMARY KEY (id),
-  CONSTRAINT user_chests_user_id_fkey FOREIGN KEY (user_id) REFERENCES public.users(id),
+  CONSTRAINT user_chests_user_id_fkey FOREIGN KEY (user_id) REFERENCES public.users(id) ON DELETE CASCADE,
   CONSTRAINT user_chests_chest_id_fkey FOREIGN KEY (chest_id) REFERENCES public.chests(id)
 );
 
@@ -1430,7 +1456,7 @@ CREATE TABLE IF NOT EXISTS public.user_crafts (
   crafted_at timestamp with time zone DEFAULT now(),
   result_data jsonb,
   CONSTRAINT user_crafts_pkey PRIMARY KEY (id),
-  CONSTRAINT user_crafts_user_id_fkey FOREIGN KEY (user_id) REFERENCES public.users(id),
+  CONSTRAINT user_crafts_user_id_fkey FOREIGN KEY (user_id) REFERENCES public.users(id) ON DELETE CASCADE,
   CONSTRAINT user_crafts_recipe_id_fkey FOREIGN KEY (recipe_id) REFERENCES public.recipes(id)
 );
 
@@ -2189,7 +2215,7 @@ CREATE TABLE IF NOT EXISTS public.giftcodes (
   created_at timestamp with time zone DEFAULT now(),
   updated_at timestamp with time zone DEFAULT now(),
   CONSTRAINT giftcodes_pkey PRIMARY KEY (id),
-  CONSTRAINT giftcodes_created_by_fkey FOREIGN KEY (created_by) REFERENCES public.users(id)
+  CONSTRAINT giftcodes_created_by_fkey FOREIGN KEY (created_by) REFERENCES public.users(id) ON DELETE SET NULL
 );
 
 CREATE INDEX IF NOT EXISTS idx_giftcodes_code ON public.giftcodes(code);
@@ -2509,13 +2535,13 @@ CREATE TABLE IF NOT EXISTS public.lesson_info (
   lesson_tags text,
   skill text,
   feedback text,
-  recorded_by uuid NOT NULL,
+  recorded_by uuid,
   created_at timestamp with time zone DEFAULT now(),
   updated_at timestamp with time zone DEFAULT now(),
   CONSTRAINT lesson_info_pkey PRIMARY KEY (id),
   CONSTRAINT lesson_info_unique UNIQUE (course_id, session_date),
   CONSTRAINT lesson_info_course_fkey FOREIGN KEY (course_id) REFERENCES public.courses(id) ON DELETE CASCADE,
-  CONSTRAINT lesson_info_recorded_by_fkey FOREIGN KEY (recorded_by) REFERENCES public.users(id)
+  CONSTRAINT lesson_info_recorded_by_fkey FOREIGN KEY (recorded_by) REFERENCES public.users(id) ON DELETE SET NULL
 );
 
 CREATE INDEX IF NOT EXISTS idx_lesson_info_course_date
@@ -2546,7 +2572,7 @@ CREATE TABLE IF NOT EXISTS public.lesson_records (
   CONSTRAINT lesson_records_unique UNIQUE (lesson_info_id, student_id),
   CONSTRAINT lesson_records_lesson_fkey FOREIGN KEY (lesson_info_id) REFERENCES public.lesson_info(id) ON DELETE CASCADE,
   CONSTRAINT lesson_records_student_fkey FOREIGN KEY (student_id) REFERENCES public.users(id) ON DELETE CASCADE,
-  CONSTRAINT lesson_records_recorded_by_fkey FOREIGN KEY (recorded_by) REFERENCES public.users(id)
+  CONSTRAINT lesson_records_recorded_by_fkey FOREIGN KEY (recorded_by) REFERENCES public.users(id) ON DELETE SET NULL
 );
 
 CREATE INDEX IF NOT EXISTS idx_lesson_records_lesson_info
@@ -2572,7 +2598,7 @@ CREATE TABLE IF NOT EXISTS public.test_attempts (
   created_at timestamp with time zone DEFAULT now(),
   CONSTRAINT test_attempts_pkey PRIMARY KEY (id),
   CONSTRAINT test_attempts_session_id_fkey FOREIGN KEY (session_id) REFERENCES public.sessions(id),
-  CONSTRAINT test_attempts_user_id_fkey FOREIGN KEY (user_id) REFERENCES public.users(id)
+  CONSTRAINT test_attempts_user_id_fkey FOREIGN KEY (user_id) REFERENCES public.users(id) ON DELETE CASCADE
 );
 
 -- ============================================================
@@ -2596,7 +2622,7 @@ CREATE TABLE IF NOT EXISTS public.test_question_attempts (
   CONSTRAINT test_question_attempts_pkey PRIMARY KEY (id),
   CONSTRAINT test_question_attempts_attempt_id_fkey FOREIGN KEY (test_attempt_id) REFERENCES public.test_attempts(id) ON DELETE CASCADE,
   CONSTRAINT test_question_attempts_exercise_id_fkey FOREIGN KEY (exercise_id) REFERENCES public.exercises(id),
-  CONSTRAINT test_question_attempts_overridden_by_fkey FOREIGN KEY (overridden_by) REFERENCES public.users(id)
+  CONSTRAINT test_question_attempts_overridden_by_fkey FOREIGN KEY (overridden_by) REFERENCES public.users(id) ON DELETE SET NULL
 );
 
 -- ============================================================
@@ -3003,7 +3029,7 @@ CREATE TABLE IF NOT EXISTS avatar_uploads (
   reject_reason TEXT,
   created_at TIMESTAMPTZ DEFAULT NOW(),
   reviewed_at TIMESTAMPTZ,
-  reviewed_by UUID REFERENCES users(id)
+  reviewed_by UUID REFERENCES users(id) ON DELETE SET NULL
 );
 
 CREATE INDEX idx_avatar_uploads_user_id ON avatar_uploads(user_id);
@@ -3512,7 +3538,7 @@ INSERT INTO missions (title, description, icon, mission_type, goal_type, goal_va
 CREATE TABLE public.live_battle_sessions (
   id uuid NOT NULL DEFAULT uuid_generate_v4(),
   course_id uuid NOT NULL REFERENCES public.courses(id),
-  teacher_id uuid NOT NULL REFERENCES public.users(id),
+  teacher_id uuid REFERENCES public.users(id) ON DELETE SET NULL,
   status text NOT NULL DEFAULT 'setup' CHECK (status IN ('setup','active','finished')),
   team_a_name text DEFAULT 'Team Alpha',
   team_b_name text DEFAULT 'Team Beta',
@@ -3530,7 +3556,7 @@ CREATE TABLE public.live_battle_sessions (
 CREATE TABLE public.live_battle_participants (
   id uuid NOT NULL DEFAULT uuid_generate_v4(),
   session_id uuid NOT NULL REFERENCES public.live_battle_sessions(id) ON DELETE CASCADE,
-  user_id uuid NOT NULL REFERENCES public.users(id),
+  user_id uuid NOT NULL REFERENCES public.users(id) ON DELETE CASCADE,
   user_pet_id uuid REFERENCES public.user_pets(id),
   team text NOT NULL CHECK (team IN ('a','b')),
   individual_score integer DEFAULT 0,
@@ -3643,7 +3669,7 @@ CREATE TABLE IF NOT EXISTS public.reports (
   screenshot_url text,
   status text NOT NULL DEFAULT 'pending',
   admin_reply text,
-  replied_by uuid REFERENCES auth.users(id),
+  replied_by uuid REFERENCES auth.users(id) ON DELETE SET NULL,
   replied_at timestamptz,
   created_at timestamptz DEFAULT now(),
   updated_at timestamptz DEFAULT now()
@@ -3680,7 +3706,7 @@ CREATE TABLE IF NOT EXISTS public.student_reports (
   id uuid DEFAULT gen_random_uuid() PRIMARY KEY,
   course_id uuid REFERENCES courses(id) ON DELETE CASCADE NOT NULL,
   student_id uuid REFERENCES users(id) ON DELETE CASCADE NOT NULL,
-  created_by uuid REFERENCES users(id) NOT NULL,
+  created_by uuid REFERENCES users(id) ON DELETE SET NULL,
   report_data jsonb NOT NULL,
   created_at timestamptz DEFAULT now()
 );

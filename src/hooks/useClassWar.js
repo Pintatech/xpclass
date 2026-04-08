@@ -1,0 +1,177 @@
+import { useState, useEffect, useCallback } from 'react';
+import { supabase } from '../supabase/client';
+import { useAuth } from './useAuth';
+
+const useClassWar = (courseId) => {
+  const { user } = useAuth();
+  const [war, setWar] = useState(null);
+  const [teamA, setTeamA] = useState([]);
+  const [teamB, setTeamB] = useState([]);
+  const [teamAXP, setTeamAXP] = useState(0);
+  const [teamBXP, setTeamBXP] = useState(0);
+  const [userTeam, setUserTeam] = useState(null);
+  const [loading, setLoading] = useState(true);
+
+  const fetchClassWar = useCallback(async () => {
+    if (!courseId || !user) {
+      setLoading(false);
+      return;
+    }
+
+    try {
+      setLoading(true);
+
+      // Fetch active war for this course
+      const { data: warData, error: warError } = await supabase
+        .from('class_wars')
+        .select('*')
+        .eq('course_id', courseId)
+        .eq('status', 'active')
+        .order('created_at', { ascending: false })
+        .limit(1)
+        .maybeSingle();
+
+      if (warError) throw warError;
+      if (!warData) {
+        setWar(null);
+        setTeamA([]);
+        setTeamB([]);
+        setTeamAXP(0);
+        setTeamBXP(0);
+        setUserTeam(null);
+        setLoading(false);
+        return;
+      }
+
+      setWar(warData);
+
+      // Fetch all members with user info
+      const { data: members, error: membersError } = await supabase
+        .from('class_war_members')
+        .select('user_id, team, users:user_id(id, full_name, avatar_url)')
+        .eq('war_id', warData.id);
+
+      if (membersError) throw membersError;
+
+      const membersA = (members || []).filter(m => m.team === 'A');
+      const membersB = (members || []).filter(m => m.team === 'B');
+      const allMemberIds = (members || []).map(m => m.user_id);
+
+      // Find which team the current user is on
+      const currentMember = (members || []).find(m => m.user_id === user.id);
+      setUserTeam(currentMember?.team || null);
+
+      // Get exercise IDs for this course: units -> sessions -> exercise_assignments
+      const { data: courseUnits } = await supabase
+        .from('units')
+        .select('id')
+        .eq('course_id', courseId);
+      const unitIds = (courseUnits || []).map(u => u.id);
+
+      const xpByUser = {};
+
+      if (unitIds.length > 0 && allMemberIds.length > 0) {
+        const { data: courseSessions } = await supabase
+          .from('sessions')
+          .select('id')
+          .in('unit_id', unitIds);
+        const sessionIds = (courseSessions || []).map(s => s.id);
+
+        if (sessionIds.length > 0) {
+          const { data: courseExercises } = await supabase
+            .from('exercise_assignments')
+            .select('exercise_id')
+            .in('session_id', sessionIds);
+          const exerciseIds = [...new Set((courseExercises || []).map(e => e.exercise_id))];
+
+          if (exerciseIds.length > 0) {
+            // Fetch completed progress (same approach as weekly leaderboard)
+            let progressQuery = supabase
+              .from('user_progress')
+              .select('user_id, exercise_id, score, max_score')
+              .eq('status', 'completed')
+              .in('user_id', allMemberIds)
+              .in('exercise_id', exerciseIds)
+              .gte('completed_at', warData.started_at);
+
+            if (warData.ended_at) {
+              progressQuery = progressQuery.lte('completed_at', warData.ended_at);
+            }
+
+            const { data: progressData, error: progressError } = await progressQuery;
+            if (progressError) throw progressError;
+
+            // Fetch xp_reward for each exercise
+            const { data: exercisesData } = await supabase
+              .from('exercises')
+              .select('id, xp_reward')
+              .in('id', exerciseIds);
+            const exerciseXpMap = {};
+            (exercisesData || []).forEach(e => { exerciseXpMap[e.id] = e.xp_reward || 10; });
+
+            // Calculate XP with bonus tiers (matches leaderboard logic)
+            (progressData || []).forEach(p => {
+              const baseXp = exerciseXpMap[p.exercise_id] || 10;
+              const scorePercent = p.max_score > 0 ? (p.score / p.max_score) * 100 : 0;
+              let xp = baseXp;
+              if (scorePercent >= 95) xp = Math.round(baseXp * 1.5);
+              else if (scorePercent >= 90) xp = Math.round(baseXp * 1.3);
+              xpByUser[p.user_id] = (xpByUser[p.user_id] || 0) + xp;
+            });
+          }
+
+          // Add chest XP from session_reward_claims (matches leaderboard logic)
+          if (sessionIds.length > 0) {
+            let chestQuery = supabase
+              .from('session_reward_claims')
+              .select('user_id, xp_awarded, claimed_at')
+              .in('user_id', allMemberIds)
+              .in('session_id', sessionIds)
+              .gt('xp_awarded', 0)
+              .gte('claimed_at', warData.started_at);
+
+            if (warData.ended_at) {
+              chestQuery = chestQuery.lte('claimed_at', warData.ended_at);
+            }
+
+            const { data: chestData } = await chestQuery;
+            (chestData || []).forEach(claim => {
+              xpByUser[claim.user_id] = (xpByUser[claim.user_id] || 0) + claim.xp_awarded;
+            });
+          }
+        }
+      }
+
+      // Build team arrays with XP
+      const buildTeam = (teamMembers) =>
+        teamMembers
+          .map(m => ({
+            id: m.user_id,
+            name: m.users?.full_name || 'Unknown',
+            avatar_url: m.users?.avatar_url || null,
+            xp: xpByUser[m.user_id] || 0,
+          }))
+          .sort((a, b) => b.xp - a.xp);
+
+      const teamAData = buildTeam(membersA);
+      const teamBData = buildTeam(membersB);
+
+      setTeamA(teamAData);
+      setTeamB(teamBData);
+      setTeamAXP(teamAData.reduce((sum, m) => sum + m.xp, 0));
+      setTeamBXP(teamBData.reduce((sum, m) => sum + m.xp, 0));
+    } catch (err) {
+      console.error('Error fetching class war:', err);
+    } finally {
+      setLoading(false);
+    }
+  }, [courseId, user]);
+
+  useEffect(() => {
+    fetchClassWar();
+  }, [fetchClassWar]);
+
+  return { war, teamA, teamB, teamAXP, teamBXP, userTeam, loading, refresh: fetchClassWar };
+};
+
+export default useClassWar;
