@@ -1,4 +1,5 @@
-import { Star, Crown, Flame } from 'lucide-react';
+import { Star, Crown, Flame, Gift } from 'lucide-react';
+import { assetUrl } from '../../hooks/useBranding';
 
 const teamThemes = {
   A: {
@@ -23,7 +24,33 @@ const teamThemes = {
   },
 };
 
-const ClassWarPanel = ({ team, teamName, members, totalXP, opponentXP, userId, compact = false }) => {
+const RewardBadge = ({ reward, label }) => {
+  if (!reward) return null;
+  const parts = [];
+  if (reward.xp > 0) parts.push({ type: 'xp', value: reward.xp });
+  if (reward.gems > 0) parts.push({ type: 'gems', value: reward.gems });
+  if (reward.items?.length > 0) {
+    reward.items.forEach(i => parts.push({ type: 'item', value: `${i.item_name} x${i.quantity}`, image: i.image_url }));
+  }
+  if (parts.length === 0) return null;
+
+  return (
+    <div className="flex items-center gap-1.5 text-[10px] text-white/80">
+      <Gift className="w-3 h-3 shrink-0 text-yellow-300" />
+      <span className="font-semibold text-yellow-200">{label}:</span>
+      {parts.map((p, i) => (
+        <span key={i} className="flex items-center gap-0.5">
+          {i > 0 && <span className="mx-0.5">+</span>}
+          {p.type === 'xp' && <><span>{p.value}</span><img src={assetUrl('/image/study/xp.png')} alt="XP" className="w-3 h-3" /></>}
+          {p.type === 'gems' && <><span>{p.value}</span><img src={assetUrl('/image/study/gem.png')} alt="Gems" className="w-3 h-3" /></>}
+          {p.type === 'item' && <>{p.image && <img src={p.image} alt="" className="w-3 h-3 object-contain" />}<span>{p.value}</span></>}
+        </span>
+      ))}
+    </div>
+  );
+};
+
+const ClassWarPanel = ({ team, teamName, members, totalXP, opponentXP, userId, rewards, compact = false }) => {
   const theme = teamThemes[team] || teamThemes.A;
   const isWinning = totalXP > opponentXP;
   const maxXP = Math.max(totalXP, opponentXP, 1);
@@ -51,6 +78,12 @@ const ClassWarPanel = ({ team, teamName, members, totalXP, opponentXP, userId, c
             style={{ width: `${Math.round((totalXP / maxXP) * 100)}%` }}
           />
         </div>
+        {/* Rewards */}
+        {rewards && (
+          <div className="mt-2">
+            <RewardBadge reward={isWinning ? rewards.winner : rewards.loser} label={isWinning ? 'Reward' : 'Reward'} />
+          </div>
+        )}
       </div>
 
       {/* Member list */}

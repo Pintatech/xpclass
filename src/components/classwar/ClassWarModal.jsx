@@ -1,7 +1,7 @@
 import { X, Swords } from 'lucide-react';
 import ClassWarPanel from './ClassWarPanel';
 
-const ClassWarModal = ({ war, teamA, teamB, teamAXP, teamBXP, userTeam, userId, onClose }) => {
+const ClassWarModal = ({ war, teamA, teamB, teamAXP, teamBXP, userTeam, userId, rewards, onClose }) => {
   const totalXP = teamAXP + teamBXP || 1;
   const aPercent = Math.round((teamAXP / totalXP) * 100);
 
@@ -53,6 +53,7 @@ const ClassWarModal = ({ war, teamA, teamB, teamAXP, teamBXP, userTeam, userId, 
             totalXP={teamAXP}
             opponentXP={teamBXP}
             userId={userId}
+            rewards={rewards}
             compact
           />
           <ClassWarPanel
@@ -62,6 +63,7 @@ const ClassWarModal = ({ war, teamA, teamB, teamAXP, teamBXP, userTeam, userId, 
             totalXP={teamBXP}
             opponentXP={teamAXP}
             userId={userId}
+            rewards={rewards}
             compact
           />
         </div>

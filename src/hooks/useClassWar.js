@@ -10,6 +10,7 @@ const useClassWar = (courseId) => {
   const [teamAXP, setTeamAXP] = useState(0);
   const [teamBXP, setTeamBXP] = useState(0);
   const [userTeam, setUserTeam] = useState(null);
+  const [rewards, setRewards] = useState({ winner: null, loser: null });
   const [loading, setLoading] = useState(true);
 
   const fetchClassWar = useCallback(async () => {
@@ -160,6 +161,35 @@ const useClassWar = (courseId) => {
       setTeamB(teamBData);
       setTeamAXP(teamAData.reduce((sum, m) => sum + m.xp, 0));
       setTeamBXP(teamBData.reduce((sum, m) => sum + m.xp, 0));
+
+      // Fetch reward settings
+      const { data: rewardSettings } = await supabase
+        .from('site_settings')
+        .select('setting_key, setting_value')
+        .in('setting_key', ['class_war_winner_rewards', 'class_war_loser_rewards']);
+      const emptyR = { xp: 0, gems: 0, items: [] };
+      let winR = emptyR, losR = emptyR;
+      (rewardSettings || []).forEach(s => {
+        try {
+          const v = JSON.parse(s.setting_value);
+          if (s.setting_key === 'class_war_winner_rewards') winR = { ...emptyR, ...v };
+          if (s.setting_key === 'class_war_loser_rewards') losR = { ...emptyR, ...v };
+        } catch {}
+      });
+      // Enrich items with image_url from collectible_items
+      const allItems = [...(winR.items || []), ...(losR.items || [])];
+      const missingIds = allItems.filter(i => !i.image_url && i.item_id).map(i => i.item_id);
+      if (missingIds.length > 0) {
+        const { data: itemData } = await supabase
+          .from('collectible_items')
+          .select('id, image_url')
+          .in('id', missingIds);
+        const imgMap = Object.fromEntries((itemData || []).map(i => [i.id, i.image_url]));
+        [winR, losR].forEach(r => {
+          (r.items || []).forEach(i => { if (!i.image_url && imgMap[i.item_id]) i.image_url = imgMap[i.item_id]; });
+        });
+      }
+      setRewards({ winner: winR, loser: losR });
     } catch (err) {
       console.error('Error fetching class war:', err);
     } finally {
@@ -171,7 +201,7 @@ const useClassWar = (courseId) => {
     fetchClassWar();
   }, [fetchClassWar]);
 
-  return { war, teamA, teamB, teamAXP, teamBXP, userTeam, loading, refresh: fetchClassWar };
+  return { war, teamA, teamB, teamAXP, teamBXP, userTeam, rewards, loading, refresh: fetchClassWar };
 };
 
 export default useClassWar;

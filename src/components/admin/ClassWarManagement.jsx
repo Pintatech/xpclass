@@ -1,445 +1,238 @@
 import { useState, useEffect } from 'react';
 import { supabase } from '../../supabase/client';
-import { useAuth } from '../../hooks/useAuth';
-import { Swords, Shuffle, Play, Square, ArrowLeftRight, Trophy, Users, RefreshCw } from 'lucide-react';
+import { Swords, Save, Gift, Trophy } from 'lucide-react';
+
+const emptyReward = () => ({ xp: 0, gems: 0, items: [] });
 
 const ClassWarManagement = () => {
-  const { user } = useAuth();
-  const [courses, setCourses] = useState([]);
-  const [selectedCourse, setSelectedCourse] = useState(null);
-  const [enrolledStudents, setEnrolledStudents] = useState([]);
-  const [activeWar, setActiveWar] = useState(null);
-  const [teamAMembers, setTeamAMembers] = useState([]);
-  const [teamBMembers, setTeamBMembers] = useState([]);
-  const [teamAName, setTeamAName] = useState('Red Team');
-  const [teamBName, setTeamBName] = useState('Blue Team');
-  const [warName, setWarName] = useState('Class War');
-  const [pastWars, setPastWars] = useState([]);
-  const [loading, setLoading] = useState(false);
+  const [winnerReward, setWinnerReward] = useState(emptyReward());
+  const [loserReward, setLoserReward] = useState(emptyReward());
+  const [availableItems, setAvailableItems] = useState([]);
+  const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [notification, setNotification] = useState(null);
+  const [pastWars, setPastWars] = useState([]);
 
-  // Fetch courses
   useEffect(() => {
-    const fetchCourses = async () => {
-      const { data } = await supabase
-        .from('courses')
-        .select('id, title, level_number')
+    const fetchData = async () => {
+      // Fetch reward settings
+      const { data: settings } = await supabase
+        .from('site_settings')
+        .select('setting_key, setting_value')
+        .in('setting_key', ['class_war_winner_rewards', 'class_war_loser_rewards']);
+
+      (settings || []).forEach(s => {
+        try {
+          const val = JSON.parse(s.setting_value);
+          if (s.setting_key === 'class_war_winner_rewards') setWinnerReward({ ...emptyReward(), ...val });
+          if (s.setting_key === 'class_war_loser_rewards') setLoserReward({ ...emptyReward(), ...val });
+        } catch {}
+      });
+
+      // Fetch collectible items
+      const { data: items } = await supabase
+        .from('collectible_items')
+        .select('id, name, image_url, rarity')
         .eq('is_active', true)
-        .order('level_number');
-      setCourses(data || []);
-    };
-    fetchCourses();
-  }, []);
+        .order('name');
+      setAvailableItems(items || []);
 
-  // Fetch data when course is selected
-  useEffect(() => {
-    if (!selectedCourse) return;
-    fetchCourseData();
-  }, [selectedCourse]);
-
-  const fetchCourseData = async () => {
-    setLoading(true);
-    try {
-      // Fetch enrolled students
-      const { data: enrollments } = await supabase
-        .from('course_enrollments')
-        .select('student_id, users:student_id(id, full_name, real_name, avatar_url)')
-        .eq('course_id', selectedCourse)
-        .eq('is_active', true);
-      setEnrolledStudents((enrollments || []).map(e => e.users).filter(Boolean));
-
-      // Fetch active war
-      const { data: warData } = await supabase
+      // Fetch recent wars across all courses
+      const { data: wars } = await supabase
         .from('class_wars')
-        .select('*')
-        .eq('course_id', selectedCourse)
-        .eq('status', 'active')
+        .select('*, courses:course_id(title)')
         .order('created_at', { ascending: false })
-        .limit(1)
-        .maybeSingle();
+        .limit(20);
+      setPastWars(wars || []);
 
-      if (warData) {
-        setActiveWar(warData);
-        setWarName(warData.name || 'Class War');
-        setTeamAName(warData.team_a_name);
-        setTeamBName(warData.team_b_name);
-
-        // Fetch team members
-        const { data: members } = await supabase
-          .from('class_war_members')
-          .select('user_id, team, users:user_id(id, full_name, real_name, avatar_url)')
-          .eq('war_id', warData.id);
-
-        setTeamAMembers((members || []).filter(m => m.team === 'A').map(m => m.users).filter(Boolean));
-        setTeamBMembers((members || []).filter(m => m.team === 'B').map(m => m.users).filter(Boolean));
-      } else {
-        setActiveWar(null);
-        setTeamAMembers([]);
-        setTeamBMembers([]);
-        setTeamAName('Red Team');
-        setTeamBName('Blue Team');
-        setWarName('Class War');
-      }
-
-      // Fetch past wars
-      const { data: past } = await supabase
-        .from('class_wars')
-        .select('*')
-        .eq('course_id', selectedCourse)
-        .eq('status', 'ended')
-        .order('ended_at', { ascending: false })
-        .limit(10);
-      setPastWars(past || []);
-    } catch (err) {
-      console.error('Error fetching course data:', err);
-      showNotification('Failed to load data', 'error');
-    } finally {
       setLoading(false);
-    }
-  };
+    };
+    fetchData();
+  }, []);
 
   const showNotification = (msg, type = 'success') => {
     setNotification({ msg, type });
     setTimeout(() => setNotification(null), 3000);
   };
 
-  const shuffleTeams = () => {
-    const students = [...enrolledStudents];
-    // Fisher-Yates shuffle
-    for (let i = students.length - 1; i > 0; i--) {
-      const j = Math.floor(Math.random() * (i + 1));
-      [students[i], students[j]] = [students[j], students[i]];
-    }
-    const mid = Math.ceil(students.length / 2);
-    setTeamAMembers(students.slice(0, mid));
-    setTeamBMembers(students.slice(mid));
-  };
-
-  const moveToTeam = (student, fromTeam) => {
-    if (fromTeam === 'A') {
-      setTeamAMembers(prev => prev.filter(s => s.id !== student.id));
-      setTeamBMembers(prev => [...prev, student]);
-    } else {
-      setTeamBMembers(prev => prev.filter(s => s.id !== student.id));
-      setTeamAMembers(prev => [...prev, student]);
-    }
-  };
-
-  const handleStartWar = async () => {
-    if (teamAMembers.length === 0 || teamBMembers.length === 0) {
-      showNotification('Both teams need at least one member', 'error');
-      return;
-    }
-
+  const handleSave = async () => {
     setSaving(true);
     try {
-      // Create the war
-      const { data: warData, error: warError } = await supabase
-        .from('class_wars')
-        .insert({
-          course_id: selectedCourse,
-          name: warName,
-          team_a_name: teamAName,
-          team_b_name: teamBName,
-          status: 'active',
-          created_by: user.id,
-        })
-        .select()
-        .single();
-
-      if (warError) throw warError;
-
-      // Insert team members
-      const members = [
-        ...teamAMembers.map(s => ({ war_id: warData.id, user_id: s.id, team: 'A' })),
-        ...teamBMembers.map(s => ({ war_id: warData.id, user_id: s.id, team: 'B' })),
+      const upserts = [
+        { setting_key: 'class_war_winner_rewards', setting_value: JSON.stringify(winnerReward), description: 'Class War winner rewards (XP, gems, items)' },
+        { setting_key: 'class_war_loser_rewards', setting_value: JSON.stringify(loserReward), description: 'Class War loser rewards (XP, gems, items)' },
       ];
 
-      const { error: membersError } = await supabase
-        .from('class_war_members')
-        .insert(members);
+      for (const row of upserts) {
+        const { data: existing } = await supabase
+          .from('site_settings')
+          .select('id')
+          .eq('setting_key', row.setting_key)
+          .maybeSingle();
 
-      if (membersError) throw membersError;
-
-      setActiveWar(warData);
-      showNotification('Class War started!');
-    } catch (err) {
-      console.error('Error starting war:', err);
-      showNotification('Failed to start war: ' + (err.message || err), 'error');
-    } finally {
-      setSaving(false);
-    }
-  };
-
-  const handleEndWar = async () => {
-    if (!activeWar) return;
-    if (!window.confirm('End this Class War? This cannot be undone.')) return;
-
-    setSaving(true);
-    try {
-      const { error } = await supabase
-        .from('class_wars')
-        .update({ status: 'ended', ended_at: new Date().toISOString() })
-        .eq('id', activeWar.id);
-
-      if (error) throw error;
-
-      showNotification('Class War ended!');
-      fetchCourseData();
-    } catch (err) {
-      console.error('Error ending war:', err);
-      showNotification('Failed to end war', 'error');
-    } finally {
-      setSaving(false);
-    }
-  };
-
-  const handleUpdateTeams = async () => {
-    if (!activeWar) return;
-    setSaving(true);
-    try {
-      // Update war names
-      await supabase
-        .from('class_wars')
-        .update({ name: warName, team_a_name: teamAName, team_b_name: teamBName })
-        .eq('id', activeWar.id);
-
-      // Delete existing members and re-insert
-      await supabase
-        .from('class_war_members')
-        .delete()
-        .eq('war_id', activeWar.id);
-
-      const members = [
-        ...teamAMembers.map(s => ({ war_id: activeWar.id, user_id: s.id, team: 'A' })),
-        ...teamBMembers.map(s => ({ war_id: activeWar.id, user_id: s.id, team: 'B' })),
-      ];
-
-      if (members.length > 0) {
-        await supabase.from('class_war_members').insert(members);
+        if (existing) {
+          await supabase.from('site_settings').update({ setting_value: row.setting_value, updated_at: new Date().toISOString() }).eq('id', existing.id);
+        } else {
+          await supabase.from('site_settings').insert(row);
+        }
       }
 
-      showNotification('Teams updated!');
+      showNotification('Reward settings saved!');
     } catch (err) {
-      console.error('Error updating teams:', err);
-      showNotification('Failed to update teams', 'error');
+      console.error('Error saving settings:', err);
+      showNotification('Failed to save: ' + (err.message || err), 'error');
     } finally {
       setSaving(false);
     }
   };
 
-  const renderTeamColumn = (teamLabel, teamName, setTeamName, members, teamKey, themeColors) => (
-    <div className={`flex-1 border ${themeColors.border} rounded-xl overflow-hidden`}>
-      <div className={`${themeColors.bg} px-4 py-3`}>
-        <input
-          value={teamName}
-          onChange={e => setTeamName(e.target.value)}
-          className={`bg-transparent border-b ${themeColors.inputBorder} text-white font-bold text-sm w-full outline-none placeholder-white/50`}
-          placeholder="Team name..."
-        />
-        <div className="text-xs text-white/70 mt-1">{members.length} members</div>
-      </div>
-      <div className="p-3 space-y-1 max-h-80 overflow-y-auto bg-white">
-        {members.length === 0 && (
-          <p className="text-xs text-gray-400 text-center py-4">No members</p>
-        )}
-        {members.map(student => (
-          <div key={student.id} className="flex items-center gap-2 px-2 py-1.5 rounded-lg hover:bg-gray-50 group">
-            <div className="w-7 h-7 rounded-full bg-gray-200 overflow-hidden shrink-0">
-              {student.avatar_url ? (
-                <img src={student.avatar_url} alt="" className="w-full h-full object-cover" />
-              ) : (
-                <div className="w-full h-full flex items-center justify-center text-xs font-bold text-gray-500">
-                  {(student.real_name || student.full_name || '?')[0].toUpperCase()}
-                </div>
-              )}
+  const RewardEditor = ({ label, reward, setReward, color }) => {
+    const [selItemId, setSelItemId] = useState('');
+    const [selItemQty, setSelItemQty] = useState(1);
+
+    const addItem = () => {
+      if (!selItemId) return;
+      const item = availableItems.find(i => i.id === selItemId);
+      if (!item || reward.items.some(r => r.item_id === selItemId)) return;
+      setReward({ ...reward, items: [...reward.items, { item_id: item.id, item_name: item.name, image_url: item.image_url, quantity: selItemQty }] });
+      setSelItemId('');
+      setSelItemQty(1);
+    };
+
+    const removeItem = (itemId) => {
+      setReward({ ...reward, items: reward.items.filter(r => r.item_id !== itemId) });
+    };
+
+    return (
+      <div className={`border ${color.border} rounded-xl overflow-hidden`}>
+        <div className={`${color.bg} px-4 py-2 text-white font-semibold text-sm flex items-center gap-2`}>
+          <Gift className="w-4 h-4" />
+          {label}
+        </div>
+        <div className="p-4 space-y-3 bg-white">
+          <div className="grid grid-cols-2 gap-3">
+            <div>
+              <label className="block text-xs font-medium text-gray-500 mb-1">XP per member</label>
+              <input type="number" min="0" value={reward.xp}
+                onChange={e => setReward({ ...reward, xp: parseInt(e.target.value) || 0 })}
+                className="border border-gray-300 rounded-lg px-3 py-1.5 text-sm w-full" />
             </div>
-            <span className="flex-1 text-sm text-gray-700 truncate">{student.real_name || student.full_name}</span>
-            <button
-              onClick={() => moveToTeam(student, teamKey)}
-              className="opacity-0 group-hover:opacity-100 p-1 hover:bg-gray-200 rounded transition-all"
-              title={`Move to ${teamKey === 'A' ? teamBName : teamAName}`}
-            >
-              <ArrowLeftRight className="w-3.5 h-3.5 text-gray-500" />
-            </button>
+            <div>
+              <label className="block text-xs font-medium text-gray-500 mb-1">Gems per member</label>
+              <input type="number" min="0" value={reward.gems}
+                onChange={e => setReward({ ...reward, gems: parseInt(e.target.value) || 0 })}
+                className="border border-gray-300 rounded-lg px-3 py-1.5 text-sm w-full" />
+            </div>
           </div>
-        ))}
+
+          <div>
+            <label className="block text-xs font-medium text-gray-500 mb-1">Items per member</label>
+            <div className="flex items-center gap-2 mb-2">
+              <select value={selItemId} onChange={e => setSelItemId(e.target.value)}
+                className="border border-gray-300 rounded-lg px-3 py-1.5 text-sm flex-1">
+                <option value="">-- Select item --</option>
+                {availableItems.map(item => (
+                  <option key={item.id} value={item.id}>{item.name} ({item.rarity})</option>
+                ))}
+              </select>
+              <input type="number" min="1" value={selItemQty}
+                onChange={e => setSelItemQty(parseInt(e.target.value) || 1)}
+                className="border border-gray-300 rounded-lg px-3 py-1.5 text-sm w-16" />
+              <button onClick={addItem} disabled={!selItemId}
+                className="px-3 py-1.5 text-sm bg-green-100 text-green-700 rounded-lg hover:bg-green-200 disabled:opacity-50">
+                Add
+              </button>
+            </div>
+            {reward.items.length > 0 && (
+              <div className="space-y-1">
+                {reward.items.map(item => (
+                  <div key={item.item_id} className="flex items-center justify-between px-3 py-1.5 bg-yellow-50 rounded-lg text-sm">
+                    <span>{item.item_name} x{item.quantity}</span>
+                    <button onClick={() => removeItem(item.item_id)} className="text-red-400 hover:text-red-600 text-xs">Remove</button>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        </div>
       </div>
-    </div>
-  );
+    );
+  };
+
+  if (loading) {
+    return (
+      <div className="flex justify-center py-12">
+        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-purple-600" />
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-6">
-      {/* Notification */}
       {notification && (
         <div className={`fixed top-4 right-4 z-50 px-4 py-2 rounded-lg shadow-lg text-white text-sm ${
-          notification.type === 'error' ? 'bg-red-500' : 'bg-green-500'
-        }`}>
+          notification.type === 'error' ? 'bg-red-500' : 'bg-green-500'}`}>
           {notification.msg}
         </div>
       )}
 
-      {/* Header */}
-      <div className="flex items-center gap-3">
-        <Swords className="w-6 h-6 text-orange-500" />
-        <h2 className="text-xl font-bold text-gray-900">Class War Management</h2>
+      <div className="flex items-center justify-between">
+        <div className="flex items-center gap-3">
+          <Swords className="w-6 h-6 text-orange-500" />
+          <h2 className="text-xl font-bold text-gray-900">Class War Settings</h2>
+        </div>
+        <button onClick={handleSave} disabled={saving}
+          className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white text-sm font-medium rounded-lg hover:bg-blue-700 disabled:opacity-50">
+          <Save className="w-4 h-4" />
+          {saving ? 'Saving...' : 'Save Settings'}
+        </button>
       </div>
 
-      {/* Course selector */}
-      <div>
-        <label className="block text-sm font-medium text-gray-700 mb-1">Select Course</label>
-        <select
-          value={selectedCourse || ''}
-          onChange={e => setSelectedCourse(e.target.value || null)}
-          className="w-full max-w-md border border-gray-300 rounded-lg px-3 py-2 text-sm"
-        >
-          <option value="">-- Choose a course --</option>
-          {courses.map(c => (
-            <option key={c.id} value={c.id}>
-              Level {c.level_number}: {c.title}
-            </option>
-          ))}
-        </select>
+      <p className="text-sm text-gray-500">
+        Configure rewards for all Class Wars. Teachers create and end wars from their course page. Rewards are distributed automatically when a war ends.
+      </p>
+
+      {/* Reward settings */}
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+        <RewardEditor
+          label="Winner Rewards"
+          reward={winnerReward}
+          setReward={setWinnerReward}
+          color={{ bg: 'bg-gradient-to-r from-yellow-500 to-amber-500', border: 'border-yellow-300' }}
+        />
+        <RewardEditor
+          label="Loser Rewards (Consolation)"
+          reward={loserReward}
+          setReward={setLoserReward}
+          color={{ bg: 'bg-gradient-to-r from-gray-500 to-gray-400', border: 'border-gray-300' }}
+        />
       </div>
 
-      {selectedCourse && !loading && (
-        <>
-          {/* Active war or create new */}
-          <div className="bg-white border rounded-xl p-6">
-            <div className="flex items-center justify-between mb-4">
-              <h3 className="font-semibold text-gray-900 flex items-center gap-2">
-                {activeWar ? (
-                  <>
-                    <Play className="w-4 h-4 text-green-500" />
-                    Active War: {activeWar.name}
-                  </>
-                ) : (
-                  <>
-                    <Swords className="w-4 h-4 text-gray-400" />
-                    Create New War
-                  </>
-                )}
-              </h3>
-              <div className="flex items-center gap-2">
-                {!activeWar && (
-                  <button
-                    onClick={shuffleTeams}
-                    disabled={enrolledStudents.length < 2}
-                    className="flex items-center gap-1.5 px-3 py-1.5 text-sm bg-purple-100 text-purple-700 rounded-lg hover:bg-purple-200 transition-colors disabled:opacity-50"
-                  >
-                    <Shuffle className="w-3.5 h-3.5" />
-                    Shuffle Teams
-                  </button>
-                )}
-                {activeWar && (
-                  <>
-                    <button
-                      onClick={shuffleTeams}
-                      className="flex items-center gap-1.5 px-3 py-1.5 text-sm bg-purple-100 text-purple-700 rounded-lg hover:bg-purple-200 transition-colors"
-                    >
-                      <Shuffle className="w-3.5 h-3.5" />
-                      Reshuffle
-                    </button>
-                    <button
-                      onClick={handleUpdateTeams}
-                      disabled={saving}
-                      className="flex items-center gap-1.5 px-3 py-1.5 text-sm bg-blue-100 text-blue-700 rounded-lg hover:bg-blue-200 transition-colors disabled:opacity-50"
-                    >
-                      <RefreshCw className="w-3.5 h-3.5" />
-                      Save Changes
-                    </button>
-                    <button
-                      onClick={handleEndWar}
-                      disabled={saving}
-                      className="flex items-center gap-1.5 px-3 py-1.5 text-sm bg-red-100 text-red-700 rounded-lg hover:bg-red-200 transition-colors disabled:opacity-50"
-                    >
-                      <Square className="w-3.5 h-3.5" />
-                      End War
-                    </button>
-                  </>
-                )}
+      {/* All wars history */}
+      {pastWars.length > 0 && (
+        <div className="bg-white border rounded-xl p-6">
+          <h3 className="font-semibold text-gray-900 flex items-center gap-2 mb-4">
+            <Trophy className="w-4 h-4 text-yellow-500" /> War History
+          </h3>
+          <div className="space-y-2">
+            {pastWars.map(war => (
+              <div key={war.id} className="flex items-center justify-between px-4 py-3 bg-gray-50 rounded-lg">
+                <div>
+                  <span className="font-medium text-sm text-gray-900">{war.name}</span>
+                  <span className="text-xs text-gray-500 ml-2">{war.courses?.title}</span>
+                  <span className="text-xs text-gray-400 ml-2">{war.team_a_name} vs {war.team_b_name}</span>
+                </div>
+                <div className="flex items-center gap-2">
+                  <span className={`text-xs px-2 py-0.5 rounded-full ${war.status === 'active' ? 'bg-green-100 text-green-700' : 'bg-gray-100 text-gray-500'}`}>
+                    {war.status}
+                  </span>
+                  <span className="text-xs text-gray-400">
+                    {war.ended_at ? new Date(war.ended_at).toLocaleDateString() : new Date(war.created_at).toLocaleDateString()}
+                  </span>
+                </div>
               </div>
-            </div>
-
-            {/* War name */}
-            {!activeWar && (
-              <div className="mb-4">
-                <label className="block text-xs font-medium text-gray-500 mb-1">War Name</label>
-                <input
-                  value={warName}
-                  onChange={e => setWarName(e.target.value)}
-                  className="border border-gray-300 rounded-lg px-3 py-1.5 text-sm w-64"
-                  placeholder="Class War"
-                />
-              </div>
-            )}
-
-            {/* Enrolled count */}
-            <div className="flex items-center gap-2 mb-4 text-sm text-gray-500">
-              <Users className="w-4 h-4" />
-              <span>{enrolledStudents.length} enrolled students</span>
-            </div>
-
-            {/* Team columns */}
-            <div className="flex gap-4">
-              {renderTeamColumn('Team A', teamAName, setTeamAName, teamAMembers, 'A', {
-                bg: 'bg-gradient-to-r from-red-600 to-red-500',
-                border: 'border-red-200',
-                inputBorder: 'border-white/30',
-              })}
-              {renderTeamColumn('Team B', teamBName, setTeamBName, teamBMembers, 'B', {
-                bg: 'bg-gradient-to-r from-blue-600 to-blue-500',
-                border: 'border-blue-200',
-                inputBorder: 'border-white/30',
-              })}
-            </div>
-
-            {/* Start button */}
-            {!activeWar && (
-              <div className="mt-4 flex justify-center">
-                <button
-                  onClick={handleStartWar}
-                  disabled={saving || teamAMembers.length === 0 || teamBMembers.length === 0}
-                  className="flex items-center gap-2 px-6 py-2.5 bg-gradient-to-r from-red-500 via-purple-500 to-blue-500 text-white font-bold rounded-xl hover:opacity-90 transition-opacity disabled:opacity-50 shadow-lg"
-                >
-                  <Swords className="w-5 h-5" />
-                  Start Class War!
-                </button>
-              </div>
-            )}
+            ))}
           </div>
-
-          {/* Past wars */}
-          {pastWars.length > 0 && (
-            <div className="bg-white border rounded-xl p-6">
-              <h3 className="font-semibold text-gray-900 flex items-center gap-2 mb-4">
-                <Trophy className="w-4 h-4 text-yellow-500" />
-                Past Wars
-              </h3>
-              <div className="space-y-2">
-                {pastWars.map(war => (
-                  <div key={war.id} className="flex items-center justify-between px-4 py-3 bg-gray-50 rounded-lg">
-                    <div>
-                      <span className="font-medium text-sm text-gray-900">{war.name}</span>
-                      <span className="text-xs text-gray-500 ml-2">
-                        {war.team_a_name} vs {war.team_b_name}
-                      </span>
-                    </div>
-                    <div className="text-xs text-gray-400">
-                      {war.ended_at ? new Date(war.ended_at).toLocaleDateString() : '—'}
-                    </div>
-                  </div>
-                ))}
-              </div>
-            </div>
-          )}
-        </>
-      )}
-
-      {loading && (
-        <div className="flex justify-center py-12">
-          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-purple-600" />
         </div>
       )}
     </div>
