@@ -225,8 +225,8 @@ const ClassWarSetupModal = ({ courseId, onClose, onStarted, existingWar, teamAXP
                   });
 
                   const aWins = propTeamAXP >= propTeamBXP;
-                  const winnerIds = (aWins ? propTeamA : propTeamB).map(m => m.id);
-                  const loserIds = (aWins ? propTeamB : propTeamA).map(m => m.id);
+                  const winnerIds = (aWins ? propTeamA : propTeamB).filter(m => !m.isSupporter).map(m => m.id);
+                  const loserIds = (aWins ? propTeamB : propTeamA).filter(m => !m.isSupporter).map(m => m.id);
 
                   const giveRewards = async (ids, reward) => {
                     if (ids.length === 0 || (!reward.xp && !reward.gems && !(reward.items?.length))) return;

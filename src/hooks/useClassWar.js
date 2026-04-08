@@ -157,6 +157,23 @@ const useClassWar = (courseId) => {
       const teamAData = buildTeam(membersA);
       const teamBData = buildTeam(membersB);
 
+      // Add supporters to smaller team (each mirrors lowest XP player)
+      if (teamAData.length !== teamBData.length && teamAData.length > 0 && teamBData.length > 0) {
+        const smallerTeam = teamAData.length < teamBData.length ? teamAData : teamBData;
+        const largerTeam = teamAData.length > teamBData.length ? teamAData : teamBData;
+        const diff = largerTeam.length - smallerTeam.length;
+        const lowest = smallerTeam[smallerTeam.length - 1]; // already sorted desc
+        for (let i = 0; i < diff; i++) {
+          smallerTeam.push({
+            id: `supporter-${i}`,
+            name: `Supporter ${diff > 1 ? i + 1 : ''} (${lowest.name})`,
+            avatar_url: null,
+            xp: lowest.xp,
+            isSupporter: true,
+          });
+        }
+      }
+
       setTeamA(teamAData);
       setTeamB(teamBData);
       setTeamAXP(teamAData.reduce((sum, m) => sum + m.xp, 0));

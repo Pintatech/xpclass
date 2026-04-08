@@ -35,17 +35,20 @@ const RewardBadge = ({ reward, label }) => {
   if (parts.length === 0) return null;
 
   return (
-    <div className="flex items-center gap-1.5 text-[10px] text-white/80">
-      <Gift className="w-3 h-3 shrink-0 text-yellow-300" />
-      <span className="font-semibold text-yellow-200">{label}:</span>
-      {parts.map((p, i) => (
-        <span key={i} className="flex items-center gap-0.5">
-          {i > 0 && <span className="mx-0.5">+</span>}
-          {p.type === 'xp' && <><span>{p.value}</span><img src={assetUrl('/image/study/xp.png')} alt="XP" className="w-3 h-3" /></>}
-          {p.type === 'gems' && <><span>{p.value}</span><img src={assetUrl('/image/study/gem.png')} alt="Gems" className="w-3 h-3" /></>}
-          {p.type === 'item' && <>{p.image && <img src={p.image} alt="" className="w-3 h-3 object-contain" />}<span>{p.value}</span></>}
-        </span>
-      ))}
+    <div className="mt-1 bg-white/15 backdrop-blur-sm rounded-lg px-3 py-2 border border-white/20">
+      <div className="flex items-center gap-1.5 mb-1.5">
+        <Gift className="w-3.5 h-3.5 text-yellow-300" />
+        <span className="font-bold text-yellow-200 text-xs">{label}</span>
+      </div>
+      <div className="flex flex-wrap items-center gap-2">
+        {parts.map((p, i) => (
+          <span key={i} className="flex items-center gap-1 bg-white/15 rounded-md px-2 py-0.5">
+            {p.type === 'xp' && <><img src={assetUrl('/image/study/xp.png')} alt="XP" className="w-4 h-4" /><span className="text-xs font-bold text-yellow-100">{p.value}</span></>}
+            {p.type === 'gems' && <><img src={assetUrl('/image/study/gem.png')} alt="Gems" className="w-4 h-4" /><span className="text-xs font-bold text-yellow-100">{p.value}</span></>}
+            {p.type === 'item' && <>{p.image && <img src={p.image} alt="" className="w-4 h-4 object-contain" />}<span className="text-xs font-bold text-yellow-100">{p.value}</span></>}
+          </span>
+        ))}
+      </div>
     </div>
   );
 };
@@ -93,16 +96,20 @@ const ClassWarPanel = ({ team, teamName, members, totalXP, opponentXP, userId, r
         )}
         {members.map((member, idx) => {
           const isCurrentUser = member.id === userId;
+          const isSupporter = member.isSupporter;
           return (
             <div
               key={member.id}
               className={`flex items-center gap-2 px-2 py-1.5 rounded-lg text-sm transition-colors ${
+                isSupporter ? 'bg-yellow-50 border border-dashed border-yellow-300' :
                 isCurrentUser ? theme.highlight : 'hover:bg-white/60'
               }`}
             >
               {/* Rank */}
               <span className="w-5 text-center text-xs font-bold text-gray-400">
-                {idx === 0 && members.length > 1 ? (
+                {isSupporter ? (
+                  <span className="text-yellow-500">★</span>
+                ) : idx === 0 && members.length > 1 ? (
                   <Star className="w-3.5 h-3.5 text-yellow-500 inline" />
                 ) : (
                   idx + 1
@@ -110,24 +117,24 @@ const ClassWarPanel = ({ team, teamName, members, totalXP, opponentXP, userId, r
               </span>
 
               {/* Avatar */}
-              <div className="w-7 h-7 rounded-full bg-gray-200 overflow-hidden shrink-0">
+              <div className={`w-7 h-7 rounded-full overflow-hidden shrink-0 ${isSupporter ? 'bg-yellow-200' : 'bg-gray-200'}`}>
                 {member.avatar_url ? (
                   <img src={member.avatar_url} alt="" className="w-full h-full object-cover" />
                 ) : (
                   <div className="w-full h-full flex items-center justify-center text-xs font-bold text-gray-500">
-                    {(member.name || '?')[0].toUpperCase()}
+                    {isSupporter ? '🤝' : (member.name || '?')[0].toUpperCase()}
                   </div>
                 )}
               </div>
 
               {/* Name */}
-              <span className={`flex-1 truncate text-xs ${isCurrentUser ? 'font-bold' : 'text-gray-700'}`}>
+              <span className={`flex-1 truncate text-xs ${isSupporter ? 'text-yellow-700 italic' : isCurrentUser ? 'font-bold' : 'text-gray-700'}`}>
                 {member.name}
                 {isCurrentUser && <span className="ml-1 text-[10px] opacity-60">(you)</span>}
               </span>
 
               {/* XP */}
-              <span className={`text-xs font-semibold px-1.5 py-0.5 rounded ${theme.xpBadge}`}>
+              <span className={`text-xs font-semibold px-1.5 py-0.5 rounded ${isSupporter ? 'bg-yellow-100 text-yellow-700' : theme.xpBadge}`}>
                 {member.xp}
               </span>
             </div>
