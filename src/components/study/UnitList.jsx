@@ -111,7 +111,6 @@ const UnitList = () => {
   const [editingSession, setEditingSession] = useState(null);
   const [showWarModal, setShowWarModal] = useState(false);
   const [showWarSetup, setShowWarSetup] = useState(false);
-  const [endingWar, setEndingWar] = useState(false);
 
   // Class War
   const { war: activeWar, teamA, teamB, teamAXP, teamBXP, userTeam, rewards: warRewards, refresh: refreshWar } = useClassWar(currentId);
@@ -1072,76 +1071,11 @@ const UnitList = () => {
                   <Button
                     variant="outline"
                     size="sm"
-                    onClick={async () => {
-                      if (!window.confirm('End this Class War and distribute rewards?')) return;
-                      setEndingWar(true);
-                      try {
-                        // Fetch reward settings
-                        const { data: settings } = await supabase
-                          .from('site_settings')
-                          .select('setting_key, setting_value')
-                          .in('setting_key', ['class_war_winner_rewards', 'class_war_loser_rewards']);
-                        const emptyR = { xp: 0, gems: 0, items: [] };
-                        let winR = emptyR, losR = emptyR;
-                        (settings || []).forEach(s => {
-                          try {
-                            const v = JSON.parse(s.setting_value);
-                            if (s.setting_key === 'class_war_winner_rewards') winR = { ...emptyR, ...v };
-                            if (s.setting_key === 'class_war_loser_rewards') losR = { ...emptyR, ...v };
-                          } catch {}
-                        });
-
-                        // Determine winner
-                        const aWins = teamAXP >= teamBXP;
-                        const winnerIds = (aWins ? teamA : teamB).map(m => m.id);
-                        const loserIds = (aWins ? teamB : teamA).map(m => m.id);
-
-                        // Distribute rewards
-                        const giveRewards = async (ids, reward) => {
-                          if (ids.length === 0 || (!reward.xp && !reward.gems && !(reward.items?.length))) return;
-                          for (const uid of ids) {
-                            if (reward.xp > 0 || reward.gems > 0) {
-                              const { data: u } = await supabase.from('users').select('xp, gems').eq('id', uid).single();
-                              if (u) {
-                                const upd = { updated_at: new Date().toISOString() };
-                                if (reward.xp > 0) upd.xp = (u.xp || 0) + reward.xp;
-                                if (reward.gems > 0) upd.gems = (u.gems || 0) + reward.gems;
-                                await supabase.from('users').update(upd).eq('id', uid);
-                              }
-                            }
-                            if (reward.items?.length > 0) {
-                              const { data: u } = await supabase.from('users').select('full_name').eq('id', uid).single();
-                              for (const item of reward.items) {
-                                await supabase.from('user_inventory').upsert({
-                                  user_id: uid, user_name: u?.full_name || '', item_id: item.item_id,
-                                  item_name: item.item_name, quantity: item.quantity || 1,
-                                }, { onConflict: 'user_id,item_id' });
-                              }
-                            }
-                          }
-                        };
-
-                        await giveRewards(winnerIds, winR);
-                        await giveRewards(loserIds, losR);
-
-                        // End the war
-                        const { error } = await supabase
-                          .from('class_wars')
-                          .update({ status: 'ended', ended_at: new Date().toISOString() })
-                          .eq('id', activeWar.id);
-                        if (error) throw error;
-                        refreshWar();
-                      } catch (err) {
-                        alert('Failed to end war: ' + (err.message || err));
-                      } finally {
-                        setEndingWar(false);
-                      }
-                    }}
-                    disabled={endingWar}
-                    className="flex items-center space-x-2 bg-red-50 border-red-200 text-red-700 hover:bg-red-100"
+                    onClick={() => setShowWarSetup(true)}
+                    className="flex items-center space-x-2 bg-yellow-50 border-yellow-200 text-yellow-700 hover:bg-yellow-100"
                   >
                     <Swords className="w-4 h-4" />
-                    <span>{endingWar ? 'Ending...' : 'End War'}</span>
+                    <span>Edit War</span>
                   </Button>
                 ) : (
                   <Button
@@ -1522,7 +1456,12 @@ const UnitList = () => {
       {showWarSetup && (
         <ClassWarSetupModal
           courseId={currentId}
-          onClose={() => setShowWarSetup(false)}
+          existingWar={activeWar}
+          teamAXP={teamAXP}
+          teamBXP={teamBXP}
+          teamAMembers={teamA}
+          teamBMembers={teamB}
+          onClose={() => { setShowWarSetup(false); }}
           onStarted={() => refreshWar()}
         />
       )}
