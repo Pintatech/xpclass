@@ -11,6 +11,7 @@ const ClassWarSetupModal = ({ courseId, onClose, onStarted, existingWar, teamAXP
   const [teamAName, setTeamAName] = useState(existingWar?.team_a_name || 'Red Team');
   const [teamBName, setTeamBName] = useState(existingWar?.team_b_name || 'Blue Team');
   const [warName, setWarName] = useState(existingWar?.name || 'Class War');
+  const [startDate, setStartDate] = useState(existingWar?.started_at ? existingWar.started_at.slice(0, 10) : new Date().toISOString().slice(0, 10));
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [ending, setEnding] = useState(false);
@@ -75,7 +76,7 @@ const ClassWarSetupModal = ({ courseId, onClose, onStarted, existingWar, teamAXP
         // Update war name and team names
         const { error: updateError } = await supabase
           .from('class_wars')
-          .update({ name: warName, team_a_name: teamAName, team_b_name: teamBName })
+          .update({ name: warName, team_a_name: teamAName, team_b_name: teamBName, started_at: new Date(startDate).toISOString() })
           .eq('id', existingWar.id);
         if (updateError) throw updateError;
 
@@ -95,6 +96,7 @@ const ClassWarSetupModal = ({ courseId, onClose, onStarted, existingWar, teamAXP
             name: warName,
             team_a_name: teamAName,
             team_b_name: teamBName,
+            started_at: new Date(startDate).toISOString(),
             status: 'active',
             created_by: user.id,
           })
@@ -174,10 +176,17 @@ const ClassWarSetupModal = ({ courseId, onClose, onStarted, existingWar, teamAXP
           ) : (
             <>
               <div className="flex items-center justify-between">
-                <div>
-                  <label className="block text-xs font-medium text-gray-500 mb-1">War Name</label>
-                  <input value={warName} onChange={e => setWarName(e.target.value)}
-                    className="border border-gray-300 rounded-lg px-3 py-1.5 text-sm w-56" placeholder="Class War" />
+                <div className="flex items-center gap-3">
+                  <div>
+                    <label className="block text-xs font-medium text-gray-500 mb-1">War Name</label>
+                    <input value={warName} onChange={e => setWarName(e.target.value)}
+                      className="border border-gray-300 rounded-lg px-3 py-1.5 text-sm w-44" placeholder="Class War" />
+                  </div>
+                  <div>
+                    <label className="block text-xs font-medium text-gray-500 mb-1">Start Date</label>
+                    <input type="date" value={startDate} onChange={e => setStartDate(e.target.value)}
+                      className="border border-gray-300 rounded-lg px-3 py-1.5 text-sm" />
+                  </div>
                 </div>
                 <div className="flex items-center gap-2">
                   <span className="text-xs text-gray-500 flex items-center gap-1">
