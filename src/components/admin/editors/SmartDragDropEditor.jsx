@@ -40,7 +40,7 @@ const renderQuestionWithDropZones = (questionText, dropZones, renderDropZone) =>
   })
 }
 
-const SmartDragDropEditor = ({ questions, onQuestionsChange, intro, onIntroChange }) => {
+const SmartDragDropEditor = ({ questions, onQuestionsChange, intro, onIntroChange, folderPath }) => {
   const [localQuestions, setLocalQuestions] = useState([])
   const [previewMode, setPreviewMode] = useState(false)
   const [bulkImportMode, setBulkImportMode] = useState(false)
@@ -320,26 +320,41 @@ const SmartDragDropEditor = ({ questions, onQuestionsChange, intro, onIntroChang
       let questionCounter = 0
       let currentQuestion = null
       let currentDistractors = []
+      let introLines = []
+      let firstQuestionSeen = false
 
       lines.forEach((line) => {
         const trimmedLine = line.trim()
 
+        const isQuestion = trimmedLine.match(/^(Q:?|Quest(ion)?\s*\d+\s*:?|\d+\.?\s)/i)
+
+        // Before first question appears, collect into intro
+        if (!firstQuestionSeen && !isQuestion) {
+          introLines.push(trimmedLine)
+          return
+        }
+        firstQuestionSeen = true
+
         // Check if this is a new question (starts with Q: or number.)
-        if (trimmedLine.match(/^(Q:?|Quest(ion)?\s*\d+\s*:?|\d+[).:])/i)) {
+        if (isQuestion) {
           // Save previous question if exists
           if (currentQuestion) {
             newQuestions.push(currentQuestion)
           }
 
           // Start new question - extract the question title
-          const questionTitle = trimmedLine.replace(/^(Q:?|Quest(ion)?\s*\d+\s*:?|\d+[).:])\s*/i, '')
+          const questionTitle = trimmedLine.replace(/^(Q:?|Quest(ion)?\s*\d+\s*:?|\d+\.?\s)\s*/i, '')
+          // Extract parenthesized content into question field, rest stays as explanation
+          const parenMatch = questionTitle.match(/^\(([^)]+)\)\s*(.*)$/)
+          const questionText = parenMatch ? parenMatch[1].trim() : ''
+          const explanationText = parenMatch ? (parenMatch[2] || '').trim() : ''
           currentQuestion = {
             id: `q${Date.now()}_${questionCounter++}`,
-            question: '',
+            question: questionText,
             items: [],
             drop_zones: [],
             correct_order: [],
-            explanation: questionTitle,
+            explanation: explanationText,
             settings: {
               allow_undo: true,
               show_hints: true,
@@ -348,6 +363,19 @@ const SmartDragDropEditor = ({ questions, onQuestionsChange, intro, onIntroChang
             }
           }
           currentDistractors = []
+
+          // If the title itself contains brackets, process them as drag items
+          const titleToProcess = parenMatch ? (parenMatch[2] || '').trim() : questionTitle
+          if (titleToProcess.includes('[') && titleToProcess.includes(']')) {
+            const newQuestionData = generateQuestion(titleToProcess, currentDistractors)
+            if (newQuestionData) {
+              const prefix = currentQuestion.question ? currentQuestion.question + '\n\n' : ''
+              currentQuestion.question = prefix + newQuestionData.question
+              currentQuestion.items = newQuestionData.items
+              currentQuestion.drop_zones = newQuestionData.drop_zones
+              currentQuestion.correct_order = newQuestionData.correct_order
+            }
+          }
         }
         // Check if this is a slash-separated ordering line: =word1/ word2/ word3. #explanation
         else if (trimmedLine.startsWith('=') && trimmedLine.includes('/') && currentQuestion) {
@@ -387,7 +415,8 @@ const SmartDragDropEditor = ({ questions, onQuestionsChange, intro, onIntroChang
               items.find(item => item.text === zone.word)?.id
             ).filter(Boolean)
 
-            currentQuestion.question = questionText
+            const prefix = currentQuestion.question ? currentQuestion.question + '\n\n' : ''
+            currentQuestion.question = prefix + questionText
             currentQuestion.items = items
             currentQuestion.drop_zones = dropZones
             currentQuestion.correct_order = correctOrder
@@ -402,8 +431,9 @@ const SmartDragDropEditor = ({ questions, onQuestionsChange, intro, onIntroChang
           const newQuestionData = generateQuestion(trimmedLine, distractorWords)
 
           if (newQuestionData) {
-            // Update current question with the generated data
-            currentQuestion.question = newQuestionData.question
+            // Prepend any existing question text (e.g. from parenthesized content)
+            const prefix = currentQuestion.question ? currentQuestion.question + '\n\n' : ''
+            currentQuestion.question = prefix + newQuestionData.question
             currentQuestion.items = newQuestionData.items
             currentQuestion.drop_zones = newQuestionData.drop_zones
             currentQuestion.correct_order = newQuestionData.correct_order
@@ -433,6 +463,10 @@ const SmartDragDropEditor = ({ questions, onQuestionsChange, intro, onIntroChang
       }
 
       if (newQuestions.length > 0) {
+        if (introLines.length > 0 && onIntroChange) {
+          const newIntro = introLines.join('\n')
+          onIntroChange(intro ? intro + '\n' + newIntro : newIntro)
+        }
         setLastBulkText(bulkText)
         try { localStorage.setItem('xpclass_last_bulk_text_drag_drop', bulkText) } catch {}
         const updatedQuestions = [...localQuestions, ...newQuestions]
@@ -624,6 +658,38 @@ const SmartDragDropEditor = ({ questions, onQuestionsChange, intro, onIntroChang
     return sizeMap[imageSize] || sizeMap['medium']
   }
 
+  const handleImagePaste = async (e, index) => {
+    const items = e.clipboardData?.items
+    if (!items) return
+    for (const item of items) {
+      if (item.type.startsWith('image/')) {
+        e.preventDefault()
+        const file = item.getAsFile()
+        if (!file) return
+        try {
+          const basePath = folderPath ? `exercise_bank/${folderPath}` : 'exercise_bank'
+          const path = `${basePath}/${Date.now()}_${Math.random().toString(36).slice(2)}_pasted.${file.type.split('/')[1]}`
+          const { error: uploadError } = await supabase.storage
+            .from('exercise-files')
+            .upload(path, file, { cacheControl: '3600', upsert: true })
+          if (uploadError) throw uploadError
+          const { data: publicData } = supabase.storage
+            .from('exercise-files')
+            .getPublicUrl(path)
+          const publicUrl = publicData?.publicUrl
+          if (!publicUrl) throw new Error('Cannot get public URL')
+          const sizeStyle = getImageSizeStyle()
+          const imgTag = `<img src="${publicUrl}" alt="" ${sizeStyle} />`
+          insertAtCursor(index, 'question', imgTag)
+        } catch (err) {
+          console.error('Image paste upload failed:', err)
+          alert('Failed to upload pasted image')
+        }
+        return
+      }
+    }
+  }
+
   const getAudioAttributes = () => {
     const attributes = []
     if (audioControls) attributes.push('controls')
@@ -766,28 +832,30 @@ const SmartDragDropEditor = ({ questions, onQuestionsChange, intro, onIntroChang
               const file = e.target.files?.[0]
               if (!file) return
               try {
-                const path = `drag_drop/${Date.now()}_${Math.random().toString(36).slice(2)}_${file.name}`
+                const basePath = folderPath ? `exercise_bank/${folderPath}` : 'exercise_bank'
+                const path = `${basePath}/${Date.now()}_${Math.random().toString(36).slice(2)}_${file.name}`
                 const { error: uploadError } = await supabase.storage
-                  .from('exercise-images')
+                  .from('exercise-files')
                   .upload(path, file, { cacheControl: '3600', upsert: true })
                 if (uploadError) throw uploadError
 
                 const { data: publicData } = supabase.storage
-                  .from('exercise-images')
+                  .from('exercise-files')
                   .getPublicUrl(path)
 
                 const publicUrl = publicData?.publicUrl
                 if (!publicUrl) throw new Error('Cannot get public URL')
 
+                const sizeStyle = getImageSizeStyle()
                 const textarea = introTextareaRef.current
                 const current = intro || ''
                 if (!textarea) {
-                  onIntroChange && onIntroChange(current + (current ? '\n\n' : '') + `![](${publicUrl})`)
+                  onIntroChange && onIntroChange(current + (current ? '\n\n' : '') + `<img src="${publicUrl}" alt="" ${sizeStyle} />`)
                   return
                 }
                 const start = textarea.selectionStart || 0
                 const end = textarea.selectionEnd || 0
-                const textToInsert = `\n![](${publicUrl})\n`
+                const textToInsert = `\n<img src="${publicUrl}" alt="" ${sizeStyle} />\n`
                 const newValue = current.slice(0, start) + textToInsert + current.slice(end)
                 onIntroChange && onIntroChange(newValue)
                 setTimeout(() => {
@@ -825,6 +893,7 @@ const SmartDragDropEditor = ({ questions, onQuestionsChange, intro, onIntroChang
           value={intro || ''}
           onChange={(e) => onIntroChange && onIntroChange(e.target.value)}
           onKeyDown={(e) => handleRichTextShortcut(e, introTextareaRef.current, intro || '', (v) => onIntroChange && onIntroChange(v))}
+          onPaste={(e) => handleImagePaste(e, -1)}
           className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 mt-1"
           rows={2}
           placeholder="Enter introductory text for the drag & drop exercise..."
@@ -983,6 +1052,7 @@ She [has] [been] [studying] English for 3 years`}
                           value={toEditableText(question)}
                           onChange={(e) => updateQuestionText(question.id, e.target.value)}
                           onKeyDown={(e) => handleRichTextShortcut(e, questionTextareasRef.current[index], toEditableText(question), (v) => updateQuestionText(question.id, v))}
+                          onPaste={(e) => handleImagePaste(e, index)}
                           ref={(el) => { questionTextareasRef.current[index] = el }}
                           className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                           rows={3}

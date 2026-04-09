@@ -75,6 +75,24 @@ const AchievementBadgeBar = ({ achievements, userStats, onClaimXP, userAchieveme
         case 'daily_exercises':
           unlocked = false
           break
+        case 'pet_owned':
+          unlocked = (userStats?.petCount || 0) >= achievement.criteria_value
+          break
+        case 'pet_evolved':
+          unlocked = (userStats?.petEvolvedCount || 0) >= achievement.criteria_value
+          break
+        case 'avatar_owned':
+        case 'frame_owned':
+        case 'spaceship_owned':
+        case 'hammer_owned':
+        case 'boat_owned': {
+          const cat = achievement.criteria_type.replace('_owned', '')
+          unlocked = (userStats?.shopCounts?.[cat] || 0) >= achievement.criteria_value
+          break
+        }
+        case 'wild_catch_success':
+          unlocked = (userStats?.wildCatchCount || 0) >= achievement.criteria_value
+          break
         default:
           unlocked = false
       }

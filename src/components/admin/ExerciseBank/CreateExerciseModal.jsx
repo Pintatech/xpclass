@@ -110,6 +110,18 @@ const CreateExerciseModal = ({ folders, selectedFolder, onClose, onCreated, allo
     ? (EXERCISE_TAGS[formData.category] || [])
     : ALL_TAGS
 
+  const getFolderPath = (folderId) => {
+    const parts = []
+    let current = folderId
+    while (current) {
+      const folder = folders.find(f => f.id === current)
+      if (!folder) break
+      parts.unshift(folder.name.replace(/[^a-zA-Z0-9_-]/g, '_'))
+      current = folder.parent_folder_id
+    }
+    return parts.join('/')
+  }
+
   // Build folder options
   const buildFolderOptions = (folders, parentId = null, level = 0) => {
     return folders
@@ -269,6 +281,7 @@ const CreateExerciseModal = ({ folders, selectedFolder, onClose, onCreated, allo
               <FlashcardEditor
                 cards={formData.content.cards || []}
                 onCardsChange={(cards) => handleContentChange('cards', cards)}
+                folderPath={getFolderPath(formData.folder_id)}
               />
             )}
 
@@ -280,6 +293,7 @@ const CreateExerciseModal = ({ folders, selectedFolder, onClose, onCreated, allo
                 onSettingsChange={(settings) => handleContentChange('settings', settings)}
                 intro={formData.content.intro || ''}
                 onIntroChange={(intro) => handleContentChange('intro', intro)}
+                folderPath={getFolderPath(formData.folder_id)}
               />
             )}
 
@@ -290,6 +304,7 @@ const CreateExerciseModal = ({ folders, selectedFolder, onClose, onCreated, allo
                   onQuestionsChange={(questions) => handleContentChange('questions', questions)}
                   intro={formData.content.intro || ''}
                   onIntroChange={(intro) => handleContentChange('intro', intro)}
+                  folderPath={getFolderPath(formData.folder_id)}
                 />
               </div>
             )}
@@ -302,6 +317,7 @@ const CreateExerciseModal = ({ folders, selectedFolder, onClose, onCreated, allo
                 onSettingsChange={(settings) => handleContentChange('settings', settings)}
                 intro={formData.content.intro || ''}
                 onIntroChange={(intro) => handleContentChange('intro', intro)}
+                folderPath={getFolderPath(formData.folder_id)}
               />
             )}
 
@@ -334,6 +350,7 @@ const CreateExerciseModal = ({ folders, selectedFolder, onClose, onCreated, allo
                     const currentSettings = formData?.content?.settings || {}
                     handleContentChange('settings', { ...currentSettings, language: lang })
                   }}
+                  folderPath={getFolderPath(formData.folder_id)}
                 />
               </div>
             )}

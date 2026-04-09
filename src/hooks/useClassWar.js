@@ -153,6 +153,36 @@ const useClassWar = (courseId) => {
         }
       }
 
+      // Add XP from live battles
+      if (allMemberIds.length > 0) {
+        let battleQuery = supabase
+          .from('live_battle_sessions')
+          .select('id, finished_at')
+          .eq('course_id', courseId)
+          .eq('status', 'finished')
+          .gte('finished_at', warData.started_at);
+
+        if (warData.ended_at) {
+          battleQuery = battleQuery.lte('finished_at', warData.ended_at);
+        }
+
+        const { data: battles } = await battleQuery;
+        const battleIds = (battles || []).map(b => b.id);
+
+        if (battleIds.length > 0) {
+          const { data: battleParts } = await supabase
+            .from('live_battle_participants')
+            .select('user_id, xp_awarded')
+            .in('session_id', battleIds)
+            .in('user_id', allMemberIds)
+            .gt('xp_awarded', 0);
+
+          (battleParts || []).forEach(p => {
+            xpByUser[p.user_id] = (xpByUser[p.user_id] || 0) + p.xp_awarded;
+          });
+        }
+      }
+
       // Build team arrays with XP
       const buildTeam = (teamMembers) =>
         teamMembers

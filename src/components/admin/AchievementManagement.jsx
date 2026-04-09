@@ -72,7 +72,15 @@ const AchievementManagement = () => {
     { value: 'weekly_xp_leader_3', label: 'Top 3 XP tuần (tự động)' },
     { value: 'monthly_xp_leader', label: 'Top 1 XP tháng (tự động)' },
     { value: 'monthly_xp_leader_2', label: 'Top 2 XP tháng (tự động)' },
-    { value: 'monthly_xp_leader_3', label: 'Top 3 XP tháng (tự động)' }
+    { value: 'monthly_xp_leader_3', label: 'Top 3 XP tháng (tự động)' },
+    { value: 'pet_owned', label: 'Số pet sở hữu' },
+    { value: 'pet_evolved', label: 'Số pet đã tiến hóa' },
+    { value: 'avatar_owned', label: 'Số avatar sở hữu' },
+    { value: 'frame_owned', label: 'Số frame sở hữu' },
+    { value: 'spaceship_owned', label: 'Số spaceship sở hữu' },
+    { value: 'hammer_owned', label: 'Số hammer sở hữu' },
+    { value: 'boat_owned', label: 'Số boat sở hữu' },
+    { value: 'wild_catch_success', label: 'Số lần bắt pet hoang dã thành công' }
   ]
 
   const badgeColors = [
