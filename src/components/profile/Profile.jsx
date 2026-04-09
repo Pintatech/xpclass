@@ -663,19 +663,7 @@ const Profile = () => {
     }
   }
 
-  const getNameChangeCooldown = () => {
-    if (!profile?.name_changed_at) return null
-    const changedAt = new Date(profile.name_changed_at)
-    const unlockAt = new Date(changedAt.getTime() + 30 * 24 * 60 * 60 * 1000)
-    const now = new Date()
-    if (now >= unlockAt) return null
-    return Math.ceil((unlockAt - now) / (24 * 60 * 60 * 1000))
-  }
-
-  const nameChangeCooldownDays = getNameChangeCooldown()
-
   const handleEditToggle = () => {
-    if (!isEditing && nameChangeCooldownDays) return
     setIsEditing(!isEditing)
     if (!isEditing) {
       setEditData({
@@ -715,14 +703,7 @@ const Profile = () => {
 
   const handleSaveProfile = async () => {
     try {
-      const nameChanged = editData.full_name !== profile?.full_name
-      if (nameChanged && !window.confirm('Bạn chỉ được đổi tên 1 lần trong 30 ngày. Bạn có chắc chắn muốn đổi không?')) {
-        return
-      }
-      await updateProfile({
-        ...editData,
-        ...(nameChanged ? { name_changed_at: new Date().toISOString() } : {})
-      })
+      await updateProfile(editData)
       setIsEditing(false)
     } catch (error) {
       console.error('Error updating profile:', error)
@@ -892,15 +873,10 @@ const Profile = () => {
                     </button>
                   </div>
                 ) : (
-                  <div>
-                    <button onClick={handleEditToggle} className="px-4 py-2 text-sm font-medium text-white hover:bg-white/20 transition-colors disabled:opacity-50" style={{ clipPath: CLIP_BTN }} disabled={!!nameChangeCooldownDays}>
-                      <Edit3 className="w-4 h-4 mr-2 inline" />
-                      Edit
-                    </button>
-                    {nameChangeCooldownDays && (
-                      <p className="text-xs text-blue-200 mt-1">Đổi tên sau {nameChangeCooldownDays} ngày</p>
-                    )}
-                  </div>
+                  <button onClick={handleEditToggle} className="px-4 py-2 text-sm font-medium text-white hover:bg-white/20 transition-colors" style={{ clipPath: CLIP_BTN }}>
+                    <Edit3 className="w-4 h-4 mr-2 inline" />
+                    Edit
+                  </button>
                 )}
               </div>
             )}

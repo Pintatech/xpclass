@@ -61,18 +61,29 @@ const ClassWarPanel = ({ team, teamName, members, totalXP, opponentXP, userId, r
   return (
     <div className={`${theme.bg} ${theme.border} border rounded-xl overflow-hidden ${compact ? '' : 'sticky top-6'}`}>
       {/* Header */}
-      <div className={`${theme.headerBg} px-4 py-3 text-white`}>
-        <div className="flex items-center justify-between">
-          <div className="flex items-center gap-2">
-            {isWinning && totalXP > 0 && <Crown className="w-4 h-4 text-yellow-300" />}
-            <span className="font-bold text-sm">{teamName}</span>
-          </div>
-          <span className="text-xs opacity-80">{members.length} members</span>
+      <div className={`${theme.headerBg} px-4 py-3 text-white relative overflow-hidden`}>
+        {/* Animated background glow */}
+        <div className="absolute inset-0 opacity-20">
+          <div className={`absolute -top-8 -left-8 w-32 h-32 rounded-full blur-2xl animate-pulse ${team === 'A' ? 'bg-red-300' : 'bg-blue-300'}`} />
+          <div className={`absolute -bottom-8 -right-8 w-24 h-24 rounded-full blur-2xl animate-pulse delay-700 ${team === 'A' ? 'bg-orange-300' : 'bg-cyan-300'}`} />
         </div>
-        <div className="flex items-center gap-2 mt-2">
-          <Flame className="w-5 h-5 text-yellow-300" />
-          <span className="text-2xl font-extrabold">{totalXP.toLocaleString()}</span>
-          <span className="text-xs opacity-70">XP</span>
+        <div className="relative">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-2">
+              {isWinning && totalXP > 0 && <Crown className="w-5 h-5 text-yellow-300 animate-bounce" />}
+              <span className="font-extrabold text-lg tracking-wide uppercase drop-shadow-[0_2px_4px_rgba(0,0,0,0.3)]"
+                style={{ textShadow: '0 0 12px rgba(255,255,255,0.3), 0 0 24px rgba(255,255,255,0.15)' }}
+              >
+                {teamName}
+              </span>
+            </div>
+            <span className="text-xs opacity-80 bg-white/10 px-2 py-0.5 rounded-full">{members.length} members</span>
+          </div>
+          <div className="flex items-center gap-2 mt-2">
+            <Flame className="w-5 h-5 text-yellow-300" />
+            <span className="text-2xl font-extrabold">{totalXP.toLocaleString()}</span>
+            <span className="text-xs opacity-70">XP</span>
+          </div>
         </div>
         {/* XP bar */}
         <div className={`mt-2 h-2 ${theme.barBg} rounded-full overflow-hidden`}>
