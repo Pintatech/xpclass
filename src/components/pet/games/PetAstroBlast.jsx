@@ -24,13 +24,10 @@ const ASTEROID_CLIPS = [
   'polygon(25% 0%, 55% 2%, 75% 0%, 100% 15%, 95% 45%, 100% 70%, 90% 100%, 60% 95%, 35% 100%, 5% 80%, 0% 50%, 8% 20%)',
 ]
 
-const FRENZY_COUNT = 4
-const FRENZY_DURATION = 3000
 const POWERUPS = [
   { type: 'slow', img: assetUrl('/pet-game/fish/freeze.png'), label: 'Slow', duration: 0 },
   { type: 'double', img: assetUrl('/pet-game/fish/double-fish.png'), label: '2x', duration: 8000 },
   { type: 'heal', img: assetUrl('/pet-game/fish/heart.png'), label: '+1 HP', duration: 0 },
-  { type: 'frenzy', img: assetUrl('/pet-game/fish/frenzy.png'), label: '🎣 Frenzy!', duration: FRENZY_DURATION },
 ]
 const POWERUP_CHANCE = 0.15
 
@@ -387,7 +384,7 @@ const PetAstroBlast = ({ petImageUrl, petName, onGameEnd, onClose, shipSkinUrl, 
               setIsChestRound(false)
               setChestTimer(0)
             }
-            if (w.isCorrect && !w.isFrenzy) {
+            if (w.isCorrect) {
               setMissedWords(p => {
                 if (p.some(m => m.word === w.word)) return p
                 return [...p, { word: w.word, hint: w.hint }]
@@ -421,13 +418,8 @@ const PetAstroBlast = ({ petImageUrl, petName, onGameEnd, onClose, shipSkinUrl, 
       // Expire timed power-ups + update progress
       if (activePowerupRef.current?.expiresAt) {
         if (now >= activePowerupRef.current.expiresAt) {
-          const wasFrenzy = activePowerupRef.current.type === 'frenzy'
           activePowerupRef.current = null
           setActivePowerup(null)
-          if (wasFrenzy) {
-            setFlyingWords(prev => prev.filter(w => !w.isFrenzy))
-            scheduleNextRound()
-          }
         } else {
           const remaining = activePowerupRef.current.expiresAt - now
           const duration = activePowerupRef.current.duration
@@ -496,50 +488,6 @@ const PetAstroBlast = ({ petImageUrl, petName, onGameEnd, onClose, shipSkinUrl, 
         setFeedback({ type: 'correct', word: '+1 HP', x: pu.x, y: pu.y })
       }
       setTimeout(() => setFeedback(null), 600)
-    } else if (pu.type === 'frenzy') {
-      const active = { type: 'frenzy', img: pu.img, label: pu.label, duration: pu.duration, expiresAt: performance.now() + pu.duration }
-      activePowerupRef.current = active
-      setActivePowerup(active)
-      setFeedback({ type: 'correct', word: '🎣 Frenzy!', x: pu.x, y: pu.y })
-      setTimeout(() => setFeedback(null), 600)
-
-      // Clear existing words and spawn frenzy wave
-      setCurrentHint('🎣 Frenzy! Bắn tất cả!')
-      setFlyingWords([])
-      const containerW = containerRef.current?.clientWidth || 400
-      const words = wordBankProp
-      const frenzyWords = shuffle([...words]).slice(0, FRENZY_COUNT)
-      const skinCount = asteroidSkinUrls?.length || 1
-      const skinIndices = shuffle(Array.from({ length: skinCount }, (_, idx) => idx))
-      const roundId = Date.now()
-      frenzyWords.forEach((w, i) => {
-        setTimeout(() => {
-          const zoneWidth = containerW / frenzyWords.length
-          const launchX = zoneWidth * i + zoneWidth / 2 + (Math.random() - 0.5) * 20
-          const vy = 1.8 + Math.random() * 0.8
-          const vx = (Math.random() - 0.5) * 1.0
-          setFlyingWords(prev => [...prev, {
-            id: `frenzy-${w.word}-${roundId}-${i}`,
-            word: w.word,
-            hint: w.hint,
-            isCorrect: true,
-            isFrenzy: true,
-            isChest: false,
-            x: launchX,
-            y: -50,
-            vx,
-            vy,
-            slashed: false,
-            wrong: false,
-            opacity: 1,
-            scale: 1,
-            rotation: (Math.random() - 0.5) * 10,
-            rotationSpeed: (Math.random() - 0.5) * 0.6,
-            clipIdx: Math.floor(Math.random() * ASTEROID_CLIPS.length),
-            skinIdx: skinIndices[i % skinIndices.length],
-          }])
-        }, i * 100)
-      })
     } else if (pu.type === 'slow') {
       const active = { type: 'slow', img: pu.img, label: pu.label, roundIndex: roundIndexRef.current }
       activePowerupRef.current = active
@@ -554,7 +502,7 @@ const PetAstroBlast = ({ petImageUrl, petName, onGameEnd, onClose, shipSkinUrl, 
       setFeedback({ type: 'correct', word: `${pu.label}!`, x: pu.x, y: pu.y })
       setTimeout(() => setFeedback(null), 600)
     }
-  }, [phase, playSound, petHp, wordBankProp])
+  }, [phase, playSound, petHp])
 
   // Handle slashing a word
   const handleSlash = useCallback((wordObj) => {
@@ -589,25 +537,16 @@ const PetAstroBlast = ({ petImageUrl, petName, onGameEnd, onClose, shipSkinUrl, 
       setWordPopup({ points, streak: newStreak })
       setTimeout(() => setWordPopup(null), 1000)
 
-      // Mark correct word as slashed — frenzy words don't dismiss others
-      if (wordObj.isFrenzy) {
-        setFlyingWords(prev => prev.map(w =>
-          w.id === wordObj.id ? { ...w, slashed: true } : w
-        ))
-      } else {
-        setFlyingWords(prev => prev.map(w => {
-          if (w.id === wordObj.id) return { ...w, slashed: true }
-          const roundId = wordObj.id.split('-').slice(1, 2)[0]
-          const thisRoundId = w.id.split('-').slice(1, 2)[0]
-          if (roundId === thisRoundId && !w.slashed) return { ...w, opacity: 0.5, wrong: true }
-          return w
-        }))
-      }
+      setFlyingWords(prev => prev.map(w => {
+        if (w.id === wordObj.id) return { ...w, slashed: true }
+        const roundId = wordObj.id.split('-').slice(1, 2)[0]
+        const thisRoundId = w.id.split('-').slice(1, 2)[0]
+        if (roundId === thisRoundId && !w.slashed) return { ...w, opacity: 0.5, wrong: true }
+        return w
+      }))
 
       // Slash particles
-      const colors = wordObj.isFrenzy
-        ? ['#facc15', '#f59e0b', '#fbbf24', '#fde68a', '#ff6b6b', '#ffffff']
-        : ['#fbbf24', '#f59e0b', '#ec4899', '#8b5cf6', '#3b82f6', '#10b981']
+      const colors = ['#fbbf24', '#f59e0b', '#ec4899', '#8b5cf6', '#3b82f6', '#10b981']
       const slashParticles = Array.from({ length: 15 }, (_, i) => ({
         id: `slash-${uid()}`,
         x: wordObj.x,
@@ -626,20 +565,7 @@ const PetAstroBlast = ({ petImageUrl, petName, onGameEnd, onClose, shipSkinUrl, 
       setTimeout(() => setFeedback(null), 600)
 
       // Spawn next round shortly after correct slash
-      if (wordObj.isFrenzy) {
-        // End frenzy early if all frenzy words blasted
-        setFlyingWords(prev => {
-          const remaining = prev.filter(w => w.isFrenzy && !w.slashed && w.id !== wordObj.id)
-          if (remaining.length === 0) {
-            activePowerupRef.current = null
-            setActivePowerup(null)
-            setTimeout(() => scheduleNextRound(), 300)
-          }
-          return prev
-        })
-      } else {
-        scheduleNextRound()
-      }
+      scheduleNextRound()
 
     } else {
       // WRONG slash
