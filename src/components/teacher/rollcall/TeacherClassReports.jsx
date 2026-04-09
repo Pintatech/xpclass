@@ -554,6 +554,7 @@ const TeacherClassReports = () => {
         <div className={activeTab === 'performance' ? '' : 'hidden'}>
           <ClassPerformanceView
             students={students}
+            courseId={selectedCourse}
             records={records}
             onChange={handleRecordChange}
             onMarkAll={(value) => handleMarkAll('performance_rating', value)}

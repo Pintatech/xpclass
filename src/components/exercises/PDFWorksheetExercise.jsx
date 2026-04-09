@@ -444,6 +444,34 @@ const PDFWorksheetExercise = ({ testMode = false, exerciseData = null, onAnswers
     const totalXP = baseXP + bonusXP
     const timeSpent = startTime ? Math.floor((Date.now() - startTime) / 1000) : 0
 
+    // Save question_attempts for each field (so teacher reports can review them)
+    if (user && !isTeacherView) {
+      try {
+        const attempts = []
+        const allPages = exercise.content?.pages || []
+        allPages.forEach(page => {
+          const fields = page.fields || []
+          fields.forEach((field) => {
+            const fieldAnswer = userAnswers[field.id]
+            attempts.push({
+              user_id: user.id,
+              exercise_id: exerciseId,
+              question_id: field.id,
+              exercise_type: 'pdf_worksheet',
+              selected_answer: fieldAnswer != null ? String(fieldAnswer) : null,
+              correct_answer: field.type === 'dropdown' ? String(field.correct_option) : field.correct_answer,
+              is_correct: newFeedback[field.id]?.correct || false,
+            })
+          })
+        })
+        if (attempts.length > 0) {
+          await supabase.from('question_attempts').insert(attempts)
+        }
+      } catch (err) {
+        console.log('⚠️ Could not save question attempts:', err.message)
+      }
+    }
+
     if (user && !hasEarnedXP && !isTeacherView) {
       const result = await completeExerciseWithXP(exerciseId, totalXP, {
         score: scorePercent,

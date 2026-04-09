@@ -66,19 +66,45 @@ const RecentActivities = () => {
 
       let query = supabase
         .from('user_progress')
-        .select('user_id, full_name, exercise_title, exercise_id, status, score, attempts, time_spent, completed_at, updated_at')
+        .select('user_id, exercise_title, exercise_id, status, score, attempts, time_spent, completed_at, updated_at')
         .order('updated_at', { ascending: false })
         .range(offset, offset + PAGE_SIZE - 1)
-
-      if (searchQuery.trim()) {
-        query = query.ilike('full_name', `%${searchQuery.trim()}%`)
-      }
 
       const { data, error } = await query
 
       if (error) throw error
 
-      const newData = data || []
+      let newData = data || []
+
+      // Fetch real names from users table (exclude teacher/admin)
+      const userIds = [...new Set(newData.map(p => p.user_id).filter(Boolean))]
+      let userMap = {}
+      let excludeIds = new Set()
+      if (userIds.length > 0) {
+        const { data: users } = await supabase
+          .from('users')
+          .select('id, full_name, real_name, role')
+          .in('id', userIds)
+        if (users) {
+          users.forEach(u => {
+            if (u.role === 'teacher' || u.role === 'admin') {
+              excludeIds.add(u.id)
+            } else {
+              userMap[u.id] = u.real_name || u.full_name
+            }
+          })
+        }
+      }
+
+      newData = newData.filter(p => !excludeIds.has(p.user_id)).map(p => ({ ...p, full_name: userMap[p.user_id] || 'Unknown' }))
+
+      if (searchQuery.trim()) {
+        const q = searchQuery.trim().toLowerCase()
+        newData = newData.filter(p =>
+          p.full_name.toLowerCase().includes(q)
+        )
+      }
+
       setHasMore(newData.length === PAGE_SIZE)
 
       if (reset) {
@@ -108,8 +134,8 @@ const RecentActivities = () => {
         .from('pvp_challenges')
         .select(`
           id, game_type, challenger_score, opponent_score, winner_id, status, created_at,
-          challenger:users!pvp_challenges_challenger_id_fkey(id, full_name),
-          opponent:users!pvp_challenges_opponent_id_fkey(id, full_name)
+          challenger:users!pvp_challenges_challenger_id_fkey(id, full_name, real_name, role),
+          opponent:users!pvp_challenges_opponent_id_fkey(id, full_name, real_name, role)
         `)
         .order('created_at', { ascending: false })
         .range(offset, offset + PAGE_SIZE - 1)
@@ -125,12 +151,18 @@ const RecentActivities = () => {
 
       let newData = data || []
 
+      // Exclude matches where either player is teacher/admin
+      newData = newData.filter(m =>
+        (m.challenger?.role !== 'teacher' && m.challenger?.role !== 'admin') &&
+        (m.opponent?.role !== 'teacher' && m.opponent?.role !== 'admin')
+      )
+
       // Client-side filter for search since nested FK ilike may not work
       if (searchQuery.trim()) {
         const q = searchQuery.trim().toLowerCase()
         newData = newData.filter(m =>
-          (m.challenger?.full_name || '').toLowerCase().includes(q) ||
-          (m.opponent?.full_name || '').toLowerCase().includes(q)
+          (m.challenger?.real_name || m.challenger?.full_name || '').toLowerCase().includes(q) ||
+          (m.opponent?.real_name || m.opponent?.full_name || '').toLowerCase().includes(q)
         )
       }
 
@@ -174,20 +206,27 @@ const RecentActivities = () => {
 
       let newData = data || []
 
-      // Fetch user names for the purchases
+      // Fetch user names for the purchases (exclude teacher/admin)
       const userIds = [...new Set(newData.map(p => p.user_id).filter(Boolean))]
       let userMap = {}
+      let excludeIds = new Set()
       if (userIds.length > 0) {
         const { data: users } = await supabase
           .from('users')
-          .select('id, full_name')
+          .select('id, full_name, real_name, role')
           .in('id', userIds)
         if (users) {
-          userMap = Object.fromEntries(users.map(u => [u.id, u.full_name]))
+          users.forEach(u => {
+            if (u.role === 'teacher' || u.role === 'admin') {
+              excludeIds.add(u.id)
+            } else {
+              userMap[u.id] = u.real_name || u.full_name
+            }
+          })
         }
       }
 
-      newData = newData.map(p => ({ ...p, full_name: userMap[p.user_id] || 'Unknown' }))
+      newData = newData.filter(p => !excludeIds.has(p.user_id)).map(p => ({ ...p, full_name: userMap[p.user_id] || 'Unknown' }))
 
       if (searchQuery.trim()) {
         const q = searchQuery.trim().toLowerCase()
@@ -237,20 +276,27 @@ const RecentActivities = () => {
 
       let newData = (data || []).filter(p => p.collectible_items?.item_type !== 'pet_food')
 
-      // Fetch user names
+      // Fetch user names (exclude teacher/admin)
       const userIds = [...new Set(newData.map(p => p.user_id).filter(Boolean))]
       let userMap = {}
+      let excludeIds = new Set()
       if (userIds.length > 0) {
         const { data: users } = await supabase
           .from('users')
-          .select('id, full_name')
+          .select('id, full_name, real_name, role')
           .in('id', userIds)
         if (users) {
-          userMap = Object.fromEntries(users.map(u => [u.id, u.full_name]))
+          users.forEach(u => {
+            if (u.role === 'teacher' || u.role === 'admin') {
+              excludeIds.add(u.id)
+            } else {
+              userMap[u.id] = u.real_name || u.full_name
+            }
+          })
         }
       }
 
-      newData = newData.map(p => ({ ...p, full_name: userMap[p.user_id] || 'Unknown' }))
+      newData = newData.filter(p => !excludeIds.has(p.user_id)).map(p => ({ ...p, full_name: userMap[p.user_id] || 'Unknown' }))
 
       if (searchQuery.trim()) {
         const q = searchQuery.trim().toLowerCase()
@@ -298,17 +344,24 @@ const RecentActivities = () => {
 
       const userIds = [...new Set(newData.map(p => p.user_id).filter(Boolean))]
       let userMap = {}
+      let excludeIds = new Set()
       if (userIds.length > 0) {
         const { data: users } = await supabase
           .from('users')
-          .select('id, full_name')
+          .select('id, full_name, real_name, role')
           .in('id', userIds)
         if (users) {
-          userMap = Object.fromEntries(users.map(u => [u.id, u.full_name]))
+          users.forEach(u => {
+            if (u.role === 'teacher' || u.role === 'admin') {
+              excludeIds.add(u.id)
+            } else {
+              userMap[u.id] = u.real_name || u.full_name
+            }
+          })
         }
       }
 
-      newData = newData.map(p => ({ ...p, full_name: userMap[p.user_id] || 'Unknown' }))
+      newData = newData.filter(p => !excludeIds.has(p.user_id)).map(p => ({ ...p, full_name: userMap[p.user_id] || 'Unknown' }))
 
       if (searchQuery.trim()) {
         const q = searchQuery.trim().toLowerCase()
@@ -354,20 +407,27 @@ const RecentActivities = () => {
 
       let newData = data || []
 
-      // Fetch user names
+      // Fetch user names (exclude teacher/admin)
       const userIds = [...new Set(newData.map(p => p.user_id).filter(Boolean))]
       let userMap = {}
+      let excludeIds = new Set()
       if (userIds.length > 0) {
         const { data: users } = await supabase
           .from('users')
-          .select('id, full_name')
+          .select('id, full_name, real_name, role')
           .in('id', userIds)
         if (users) {
-          userMap = Object.fromEntries(users.map(u => [u.id, u.full_name]))
+          users.forEach(u => {
+            if (u.role === 'teacher' || u.role === 'admin') {
+              excludeIds.add(u.id)
+            } else {
+              userMap[u.id] = u.real_name || u.full_name
+            }
+          })
         }
       }
 
-      newData = newData.map(p => ({ ...p, full_name: userMap[p.user_id] || 'Unknown' }))
+      newData = newData.filter(p => !excludeIds.has(p.user_id)).map(p => ({ ...p, full_name: userMap[p.user_id] || 'Unknown' }))
 
       if (searchQuery.trim()) {
         const q = searchQuery.trim().toLowerCase()
@@ -441,8 +501,8 @@ const RecentActivities = () => {
   const getWinnerLabel = (match) => {
     if (match.status !== 'completed') return '-'
     if (!match.winner_id) return 'Draw'
-    if (match.winner_id === match.challenger?.id) return match.challenger?.full_name || 'Challenger'
-    if (match.winner_id === match.opponent?.id) return match.opponent?.full_name || 'Opponent'
+    if (match.winner_id === match.challenger?.id) return match.challenger?.real_name || match.challenger?.full_name || 'Challenger'
+    if (match.winner_id === match.opponent?.id) return match.opponent?.real_name || match.opponent?.full_name || 'Opponent'
     return '-'
   }
 
@@ -637,7 +697,7 @@ const RecentActivities = () => {
                       <tr key={match.id} className="border-b last:border-b-0 hover:bg-gray-50">
                         <td className={`px-4 py-3 font-medium ${isWinnerChallenger ? 'text-green-700' : 'text-gray-900'}`}>
                           {isWinnerChallenger && <Trophy className="w-3 h-3 inline mr-1 text-yellow-500" />}
-                          {match.challenger?.full_name || 'Unknown'}
+                          {match.challenger?.real_name || match.challenger?.full_name || 'Unknown'}
                         </td>
                         <td className={`px-4 py-3 text-center font-semibold ${isWinnerChallenger ? 'text-green-700' : 'text-gray-900'}`}>
                           {match.challenger_score ?? '-'}
@@ -647,7 +707,7 @@ const RecentActivities = () => {
                           {match.opponent_score ?? '-'}
                         </td>
                         <td className={`px-4 py-3 text-right font-medium ${isWinnerOpponent ? 'text-green-700' : 'text-gray-900'}`}>
-                          {match.opponent?.full_name || 'Unknown'}
+                          {match.opponent?.real_name || match.opponent?.full_name || 'Unknown'}
                           {isWinnerOpponent && <Trophy className="w-3 h-3 inline ml-1 text-yellow-500" />}
                         </td>
                         <td className="px-4 py-3 text-center">

@@ -20,7 +20,7 @@ import { handleRichTextShortcut } from '../../../hooks/useRichTextShortcuts'
 import { supabase } from '../../../supabase/client'
 import { firstAnswer } from '../../../utils/splitAnswers'
 
-const FillBlankEditor = ({ questions, onQuestionsChange, settings, onSettingsChange, intro, onIntroChange }) => {
+const FillBlankEditor = ({ questions, onQuestionsChange, settings, onSettingsChange, intro, onIntroChange, folderPath }) => {
   const [localQuestions, setLocalQuestions] = useState(questions || [])
   const [bulkImportMode, setBulkImportMode] = useState(false)
   const [bulkText, setBulkText] = useState('')
@@ -306,6 +306,38 @@ const FillBlankEditor = ({ questions, onQuestionsChange, settings, onSettingsCha
   }
 
 
+  const handleImagePaste = async (e, index) => {
+    const items = e.clipboardData?.items
+    if (!items) return
+    for (const item of items) {
+      if (item.type.startsWith('image/')) {
+        e.preventDefault()
+        const file = item.getAsFile()
+        if (!file) return
+        try {
+          const basePath = folderPath ? `exercise_bank/${folderPath}` : 'exercise_bank'
+          const path = `${basePath}/${Date.now()}_${Math.random().toString(36).slice(2)}_pasted.${file.type.split('/')[1]}`
+          const { error: uploadError } = await supabase.storage
+            .from('exercise-files')
+            .upload(path, file, { cacheControl: '3600', upsert: true })
+          if (uploadError) throw uploadError
+          const { data: publicData } = supabase.storage
+            .from('exercise-files')
+            .getPublicUrl(path)
+          const publicUrl = publicData?.publicUrl
+          if (!publicUrl) throw new Error('Cannot get public URL')
+          const sizeStyle = getImageSizeStyle()
+          const imgTag = `<img src="${publicUrl}" alt="" ${sizeStyle} />`
+          insertAtCursor(index, index === -1 ? 'intro' : 'question', imgTag)
+        } catch (err) {
+          console.error('Image paste upload failed:', err)
+          alert('Failed to upload pasted image')
+        }
+        return
+      }
+    }
+  }
+
   const updateBlank = (questionIndex, blankIndex, field, value) => {
     const updatedQuestions = localQuestions.map((q, i) =>
       i === questionIndex
@@ -343,6 +375,8 @@ const FillBlankEditor = ({ questions, onQuestionsChange, settings, onSettingsCha
       let currentInstruction = ''
       let accumulatedText = [] // Accumulate lines that belong to the current question
       let currentExplanation = ''
+      let introLines = []
+      let firstQuestionSeen = false
 
       const processAccumulatedQuestion = () => {
         if (accumulatedText.length === 0) { currentExplanation = ''; return }
@@ -434,21 +468,32 @@ const FillBlankEditor = ({ questions, onQuestionsChange, settings, onSettingsCha
       lines.forEach((line) => {
         const trimmedLine = line.trim()
 
+        const isQuestion = trimmedLine.match(/^\d+\.?\s+/) || trimmedLine.match(/^Quest(?:ion)?\s*\d+[.:]?\s*/i)
+        const isInstruction = trimmedLine.match(/^[A-Z]\.\s+/)
+        const isExplanation = trimmedLine.match(/^#\s*/)
+
+        // Before first numbered question appears, collect into intro
+        if (!firstQuestionSeen && !isQuestion) {
+          introLines.push(trimmedLine)
+          return
+        }
+        firstQuestionSeen = true
+
         // Check if this is an instruction line (starts with letter and period)
-        if (trimmedLine.match(/^[A-Z]\.\s+/)) {
+        if (isInstruction) {
           // Process any accumulated question before changing instruction
           processAccumulatedQuestion()
           currentInstruction = trimmedLine
         }
         // Check if this line looks like a new numbered question (e.g., "1.", "2.", "Quest 1:", "Question 2.", etc.)
-        else if (trimmedLine.match(/^\d+\.\s+/) || trimmedLine.match(/^Quest(?:ion)?\s*\d+[.:]?\s*/i)) {
+        else if (isQuestion) {
           // Process previous accumulated question
           processAccumulatedQuestion()
           // Start accumulating new question
           accumulatedText.push(trimmedLine)
         }
         // Check if this is an explanation line (starts with #)
-        else if (trimmedLine.match(/^#\s*/)) {
+        else if (isExplanation) {
           currentExplanation = trimmedLine.replace(/^#\s*/, '').trim()
         }
         // Regular line - add to accumulated text
@@ -461,6 +506,11 @@ const FillBlankEditor = ({ questions, onQuestionsChange, settings, onSettingsCha
       processAccumulatedQuestion()
 
       if (newQuestions.length > 0) {
+        // Set intro from lines that appeared before the first question
+        if (introLines.length > 0 && onIntroChange) {
+          const newIntro = introLines.join('\n')
+          onIntroChange(intro ? intro + '\n' + newIntro : newIntro)
+        }
         setLastBulkText(bulkText)
         try { localStorage.setItem('xpclass_last_bulk_text_fill_blank', bulkText) } catch {}
         const updatedQuestions = [...localQuestions, ...newQuestions]
@@ -595,28 +645,31 @@ const FillBlankEditor = ({ questions, onQuestionsChange, settings, onSettingsCha
               const file = e.target.files?.[0]
               if (!file) return
               try {
-                const path = `fill_blank/${Date.now()}_${Math.random().toString(36).slice(2)}_${file.name}`
+                const basePath = folderPath ? `exercise_bank/${folderPath}` : 'exercise_bank'
+                const path = `${basePath}/${Date.now()}_${Math.random().toString(36).slice(2)}_${file.name}`
                 const { error: uploadError } = await supabase.storage
-                  .from('exercise-images')
+                  .from('exercise-files')
                   .upload(path, file, { cacheControl: '3600', upsert: true })
                 if (uploadError) throw uploadError
 
                 const { data: publicData } = supabase.storage
-                  .from('exercise-images')
+                  .from('exercise-files')
                   .getPublicUrl(path)
 
                 const publicUrl = publicData?.publicUrl
                 if (!publicUrl) throw new Error('Cannot get public URL')
 
+                const sizeStyle = getImageSizeStyle()
+                const imgTag = `<img src="${publicUrl}" alt="" ${sizeStyle} />`
                 const textarea = introTextareaRef.current
                 const current = intro || ''
                 if (!textarea) {
-                  onIntroChange && onIntroChange(current + (current ? '\n\n' : '') + `![](${publicUrl})`)
+                  onIntroChange && onIntroChange(current + (current ? '\n\n' : '') + imgTag)
                   return
                 }
                 const start = textarea.selectionStart || 0
                 const end = textarea.selectionEnd || 0
-                const textToInsert = `\n![](${publicUrl})\n`
+                const textToInsert = `\n${imgTag}\n`
                 const newValue = current.slice(0, start) + textToInsert + current.slice(end)
                 onIntroChange && onIntroChange(newValue)
                 setTimeout(() => {
@@ -649,6 +702,7 @@ const FillBlankEditor = ({ questions, onQuestionsChange, settings, onSettingsCha
           value={intro || ''}
           onChange={(e) => onIntroChange && onIntroChange(e.target.value)}
           onKeyDown={(e) => handleRichTextShortcut(e, introTextareaRef.current, intro || '', (v) => onIntroChange && onIntroChange(v))}
+          onPaste={(e) => handleImagePaste(e, -1)}
           className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
           rows={2}
           placeholder="Enter introductory text for the fill-in-the-blank exercise..."
@@ -800,6 +854,7 @@ B. Fill in the blanks with the correct form.
                 value={question.question || ''}
                 onChange={(e) => updateQuestion(index, 'question', e.target.value)}
                 onKeyDown={(e) => handleRichTextShortcut(e, questionTextareasRef.current[index], question.question || '', (v) => updateQuestion(index, 'question', v))}
+                onPaste={(e) => handleImagePaste(e, index)}
                 ref={(el) => { questionTextareasRef.current[index] = el }}
                      className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
                      rows={3}

@@ -105,6 +105,31 @@ const AchievementModal = ({ isOpen, onClose, achievements, userStats, onClaimXP,
           progress = 0
           unlocked = false
           break
+        case 'pet_owned':
+          progress = Math.min(((userStats?.petCount || 0) / achievement.criteria_value) * 100, 100)
+          unlocked = (userStats?.petCount || 0) >= achievement.criteria_value
+          break
+        case 'pet_evolved':
+          progress = Math.min(((userStats?.petEvolvedCount || 0) / achievement.criteria_value) * 100, 100)
+          unlocked = (userStats?.petEvolvedCount || 0) >= achievement.criteria_value
+          break
+        case 'avatar_owned':
+        case 'frame_owned':
+        case 'spaceship_owned':
+        case 'hammer_owned':
+        case 'boat_owned': {
+          const cat = achievement.criteria_type.replace('_owned', '')
+          const count = userStats?.shopCounts?.[cat] || 0
+          progress = Math.min((count / achievement.criteria_value) * 100, 100)
+          unlocked = count >= achievement.criteria_value
+          break
+        }
+        case 'wild_catch_success': {
+          const wc = userStats?.wildCatchCount || 0
+          progress = Math.min((wc / achievement.criteria_value) * 100, 100)
+          unlocked = wc >= achievement.criteria_value
+          break
+        }
         default:
           progress = 0
           unlocked = false

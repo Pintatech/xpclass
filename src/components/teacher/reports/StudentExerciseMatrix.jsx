@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { supabase } from '../../../supabase/client';
 import { useAuth } from '../../../hooks/useAuth';
-import { CheckCircle, XCircle, Clock, Minus, RotateCcw, Eye, X, ChevronDown, ChevronLeft, ChevronRight, RefreshCw, Video, Send, Star } from 'lucide-react';
+import { CheckCircle, XCircle, Clock, Minus, RotateCcw, Eye, X, ChevronDown, ChevronLeft, ChevronRight, RefreshCw, Video, Send, Star, FileText } from 'lucide-react';
 import SingleExerciseReview from './SingleExerciseReview';
 
 const VIDEO_TYPES = ['video', 'video_upload', 'speaking', 'speaking_assessment'];
@@ -274,7 +274,7 @@ const StudentExerciseMatrix = ({ selectedCourse, initialSessionId }) => {
       for (const exerciseId of limitedExerciseIds) {
         const { data: exerciseAttempts, error: attemptsError } = await supabase
           .from('question_attempts')
-          .select('user_id, exercise_id, question_id, question_index, is_correct, selected_answer, correct_answer, exercise_type, created_at')
+          .select('user_id, exercise_id, question_id, is_correct, selected_answer, correct_answer, exercise_type, created_at')
           .in('user_id', studentIds)
           .eq('exercise_id', exerciseId);
 
@@ -1273,9 +1273,107 @@ const StudentExerciseMatrix = ({ selectedCourse, initialSessionId }) => {
                   </div>
                 )
               ) : questionAttempts.length === 0 ? (
-                <div className="text-center py-12">
-                  <p className="text-gray-600">No question attempts found for this exercise.</p>
-                  <p className="text-sm text-gray-500 mt-2">This exercise may not have detailed question tracking.</p>
+                <div className="space-y-4">
+                  {/* Score from user_progress */}
+                  {(() => {
+                    const progress = getProgressForCell(selectedCell.studentId, selectedCell.exerciseId);
+                    const score = getScorePercentage(progress);
+                    return progress ? (
+                      <div className="flex items-center gap-3 mb-4 text-sm">
+                        <span className={`px-3 py-1.5 rounded-lg font-bold ${getScoreColor(score)}`}>
+                          Score: {progress.score}/{progress.max_score} ({score}%)
+                        </span>
+                        {progress.completed_at && (
+                          <span className="text-xs text-gray-500">
+                            Completed {new Date(progress.completed_at).toLocaleDateString('en', { day: 'numeric', month: 'short', year: 'numeric' })}
+                          </span>
+                        )}
+                      </div>
+                    ) : null;
+                  })()}
+
+                  {/* Answer key for pdf_worksheet */}
+                  {exerciseDetail?.exercise_type === 'pdf_worksheet' && exerciseDetail?.content?.pages?.length > 0 && (
+                    <div className="bg-gray-50 rounded-lg border border-gray-200 p-4">
+                      <h4 className="text-sm font-semibold text-gray-700 mb-3 flex items-center gap-2">
+                        <FileText className="w-4 h-4" />
+                        Answer Key
+                      </h4>
+                      <div className="space-y-1.5">
+                        {exerciseDetail.content.pages.flatMap((page, pi) =>
+                          (page.fields || []).map((field, fi) => (
+                            <div key={`${pi}-${fi}`} className="flex items-center gap-2 text-sm">
+                              <span className="flex-shrink-0 w-6 h-6 bg-green-100 text-green-700 rounded-full flex items-center justify-center font-bold text-xs">
+                                {exerciseDetail.content.pages.slice(0, pi).reduce((sum, p) => sum + (p.fields?.length || 0), 0) + fi + 1}
+                              </span>
+                              <span className="text-gray-600">{field.label || `Field ${fi + 1}`}:</span>
+                              <span className="font-medium text-green-800 bg-green-50 px-2 py-0.5 rounded">
+                                {field.type === 'text' && field.correct_answer}
+                                {field.type === 'dropdown' && (field.options?.[field.correct_option] || 'N/A')}
+                                {field.type === 'checkbox' && (field.correct_answer === 'true' ? 'Checked' : 'Unchecked')}
+                              </span>
+                              <span className="text-xs text-gray-400 capitalize">({field.type})</span>
+                            </div>
+                          ))
+                        )}
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Answer key for fill_blank / dropdown / multiple_choice / drag_drop etc. */}
+                  {exerciseDetail?.content?.questions?.length > 0 && (
+                    <div className="bg-gray-50 rounded-lg border border-gray-200 p-4">
+                      <h4 className="text-sm font-semibold text-gray-700 mb-3 flex items-center gap-2">
+                        <FileText className="w-4 h-4" />
+                        Answer Key
+                      </h4>
+                      <div className="space-y-2">
+                        {exerciseDetail.content.questions.map((q, qi) => {
+                          const exType = exerciseDetail.exercise_type;
+                          return (
+                            <div key={qi} className="flex items-start gap-2 text-sm">
+                              <span className="flex-shrink-0 w-6 h-6 bg-green-100 text-green-700 rounded-full flex items-center justify-center font-bold text-xs mt-0.5">
+                                {qi + 1}
+                              </span>
+                              <div className="flex-1 min-w-0">
+                                {q.question && (
+                                  <p className="text-gray-600 text-xs mb-1" dangerouslySetInnerHTML={{ __html: q.question.replace(/<img[^>]*>/gi, '').substring(0, 200) }} />
+                                )}
+                                <div className="flex flex-wrap items-center gap-1">
+                                  {exType === 'multiple_choice' && q.options && (
+                                    <span className="font-medium text-green-800 bg-green-50 px-2 py-0.5 rounded">
+                                      {q.options[q.correct_answer] || `Option ${q.correct_answer}`}
+                                    </span>
+                                  )}
+                                  {exType === 'fill_blank' && q.blanks?.map((blank, bi) => (
+                                    <span key={bi} className="font-medium text-green-800 bg-green-50 px-2 py-0.5 rounded">
+                                      {blank.answer}
+                                    </span>
+                                  ))}
+                                  {exType === 'dropdown' && q.dropdowns?.map((dd, di) => (
+                                    <span key={di} className="font-medium text-green-800 bg-green-50 px-2 py-0.5 rounded">
+                                      {dd.correct_answer}
+                                    </span>
+                                  ))}
+                                  {exType === 'drag_drop' && q.drop_zones?.map((zone, zi) => (
+                                    <span key={zi} className="font-medium text-green-800 bg-green-50 px-2 py-0.5 rounded">
+                                      {zone.label}: {q.items?.find(it => it.id === q.correct_order?.[zi])?.text || q.correct_order?.[zi]}
+                                    </span>
+                                  ))}
+                                </div>
+                              </div>
+                            </div>
+                          );
+                        })}
+                      </div>
+                    </div>
+                  )}
+
+                  {!exerciseDetail?.content?.pages?.length && !exerciseDetail?.content?.questions?.length && (
+                    <div className="text-center py-8">
+                      <p className="text-gray-500 text-sm">No detailed question data available for this attempt.</p>
+                    </div>
+                  )}
                 </div>
               ) : (
                 <div className="space-y-4">

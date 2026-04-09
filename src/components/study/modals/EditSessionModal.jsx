@@ -55,14 +55,57 @@ const EditSessionModal = ({ session, courseId, onClose, onUpdated }) => {
     setError('')
 
     try {
+      const newNumber = parseInt(formData.session_number) || 1
+      const oldNumber = session.session_number
+
+      // If session_number changed, shift others to avoid unique constraint violation
+      if (newNumber !== oldNumber) {
+        // Get all sessions in this unit, ordered
+        const { data: allSessions, error: sibErr } = await supabase
+          .from('sessions')
+          .select('id, session_number')
+          .eq('unit_id', session.unit_id)
+          .order('session_number')
+        if (sibErr) throw sibErr
+
+        // Set ALL sessions to negative temp values first to clear all constraints
+        for (let i = 0; i < allSessions.length; i++) {
+          const { error: tmpErr } = await supabase
+            .from('sessions')
+            .update({ session_number: -(i + 1) })
+            .eq('id', allSessions[i].id)
+          if (tmpErr) throw tmpErr
+        }
+
+        // Build new order: remove current session, insert at new position
+        const others = allSessions.filter(s => s.id !== session.id)
+        const insertIdx = Math.min(newNumber - 1, others.length)
+        others.splice(insertIdx, 0, { id: session.id })
+
+        // Assign final numbers
+        for (let i = 0; i < others.length; i++) {
+          const { error: updateErr } = await supabase
+            .from('sessions')
+            .update({ session_number: i + 1 })
+            .eq('id', others[i].id)
+          if (updateErr) throw updateErr
+        }
+      }
+
+      // Now update the other fields (session_number already set by reorder above)
+      const updateFields = {
+        title: formData.title.trim(),
+        is_test: formData.is_test,
+        assigned_student_id: formData.assigned_student_id || null
+      }
+      // If number didn't change, still set it
+      if (newNumber === oldNumber) {
+        updateFields.session_number = newNumber
+      }
+
       const { data, error } = await supabase
         .from('sessions')
-        .update({
-          title: formData.title.trim(),
-          session_number: parseInt(formData.session_number) || 1,
-          is_test: formData.is_test,
-          assigned_student_id: formData.assigned_student_id || null
-        })
+        .update(updateFields)
         .eq('id', session.id)
         .select()
         .single()

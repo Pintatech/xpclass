@@ -85,7 +85,6 @@ const TeamPanel = ({
   hasDouble,
   isActive, // game is active (not setup/finished)
   isSetup,
-  onAddIndividualPoints,
   onUpdateTeam,
   onTeamNameChange,
   onAddTeamPoints,
@@ -97,8 +96,6 @@ const TeamPanel = ({
   const [memeImage, setMemeImage] = useState(null)
   const [memeKey, setMemeKey] = useState(0)
   const memeTimer = React.useRef(null)
-  const [flashCard, setFlashCard] = useState(null) // { id, val, key }
-  const flashTimer = React.useRef(null)
 
   const showMeme = (val) => {
     const img = val < 0
@@ -204,13 +201,7 @@ const TeamPanel = ({
         ) : (
           <div className="grid grid-cols-3 gap-2">
             {participants.map(p => (
-              <div key={p.id} className={`${rarityBg[p.pet_rarity] || 'bg-white'} rounded-xl p-2 border-2 ${rarityColors[p.pet_rarity] || 'border-gray-200'} ${rarityGlow[p.pet_rarity] ? `shadow-md ${rarityGlow[p.pet_rarity]}` : 'shadow-sm'} relative group transition-all duration-300 ${flashCard?.id === p.id ? 'animate-card-flash ring-2 ' + (flashCard.val < 0 ? 'ring-red-400' : 'ring-green-400') : ''}`}>
-                {/* Floating point text */}
-                {flashCard?.id === p.id && (
-                  <div key={flashCard.key} className={`absolute -top-2 left-1/2 -translate-x-1/2 z-10 text-lg font-black animate-float-up ${flashCard.val < 0 ? 'text-red-500' : 'text-green-500'}`}>
-                    {flashCard.val > 0 ? `+${flashCard.val}` : flashCard.val}
-                  </div>
-                )}
+              <div key={p.id} className={`${rarityBg[p.pet_rarity] || 'bg-white'} rounded-xl p-2 border-2 ${rarityColors[p.pet_rarity] || 'border-gray-200'} ${rarityGlow[p.pet_rarity] ? `shadow-md ${rarityGlow[p.pet_rarity]}` : 'shadow-sm'} relative group transition-all duration-300`}>
                 {/* Pet image */}
                 <div className="flex items-center gap-2">
                   <div className="w-20 h-20 flex-shrink-0 flex items-center justify-center">
@@ -221,43 +212,10 @@ const TeamPanel = ({
                     )}
                   </div>
                   <div className="min-w-0 flex-1">
-                    <div className="text-xs font-semibold text-gray-800 truncate">{p.student_name}</div>
-                    {p.pet_name && <div className="text-[10px] text-gray-500 truncate">{p.pet_name}</div>}
-                    {isActive && (
-                      <div className={`text-sm font-bold ${colorTheme.accent}`}>{p.individual_score} pts</div>
-                    )}
+                    <div className="text-sm font-semibold text-gray-800 truncate">{p.student_name}</div>
+                    {p.pet_name && <div className="text-xs text-gray-500 truncate">{p.pet_name}</div>}
                   </div>
                 </div>
-
-                {/* Individual point buttons (active phase) */}
-                {isActive && (
-                  <div className="flex items-center justify-center gap-1 mt-1">
-                    {pointButtons.map(btn => (
-                      <button
-                        key={btn.label}
-                        onClick={() => {
-                          const val = btn.value === 'random'
-                            ? Math.floor(Math.random() * 7) - 1
-                            : btn.value
-                          onAddIndividualPoints(p.id, val)
-                          playPointSound(val)
-                          showMeme(val)
-                          if (flashTimer.current) clearTimeout(flashTimer.current)
-                          setFlashCard({ id: p.id, val, key: Date.now() })
-                          flashTimer.current = setTimeout(() => setFlashCard(null), 800)
-                        }}
-                        className="w-7 h-7 rounded-full bg-gray-100 hover:bg-gray-200 flex items-center justify-center transition-all hover:scale-110 active:scale-95 text-sm"
-                        title={btn.value === 'random' ? 'Random -1 to 5' : `${btn.name} (${btn.label})`}
-                      >
-                        {btn.image ? (
-                          <img src={btn.image} alt={btn.name} className="w-5 h-5 object-contain" />
-                        ) : (
-                          btn.emoji
-                        )}
-                      </button>
-                    ))}
-                  </div>
-                )}
 
                 {/* Move team button (setup phase) */}
                 {(isSetup || isActive) && (

@@ -2,7 +2,7 @@
 // Proxied through server-side /api/pet-chat (Groq API)
 
 // Helper to call Groq via server proxy
-const callMegaLLM = async (messages, { model = 'moonshotai/kimi-k2-instruct', max_tokens = 500, temperature = 0.7 } = {}) => {
+const callGroq = async (messages, { model = 'moonshotai/kimi-k2-instruct', max_tokens = 500, temperature = 0.7 } = {}) => {
   const response = await fetch('/api/pet-chat', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
@@ -27,7 +27,7 @@ const callMegaLLM = async (messages, { model = 'moonshotai/kimi-k2-instruct', ma
 export const chatWithPet = async (pet, userMessage, chatHistory = [], language = 'vi') => {
   try {
     console.log('🐾 Calling Pet Chat AI...')
-    const response = await callMegaLLMPetChat(pet, userMessage, chatHistory, language)
+    const response = await callGroqPetChat(pet, userMessage, chatHistory, language)
     console.log('✅ Pet response received:', response)
     return response
   } catch (error) {
@@ -61,8 +61,8 @@ const getFallbackResponse = (pet, language) => {
   }
 }
 
-// MegaLLM Pet Chat via Edge Function
-const callMegaLLMPetChat = async (pet, userMessage, _chatHistory, language, retryCount = 0) => {
+// Groq Pet Chat via Edge Function
+const callGroqPetChat = async (pet, userMessage, _chatHistory, language, retryCount = 0) => {
   const petName = pet.nickname || pet.name
   const petType = pet.info || 'virtual pet'
 
@@ -78,7 +78,7 @@ const callMegaLLMPetChat = async (pet, userMessage, _chatHistory, language, retr
   try {
     console.log('📤 Sending pet chat request via Edge Function...')
 
-    const content = await callMegaLLM(messages, { max_tokens: 1000 })
+    const content = await callGroq(messages, { max_tokens: 1000 })
 
     console.log('🐾 Pet says:', content)
 
@@ -94,9 +94,9 @@ const callMegaLLMPetChat = async (pet, userMessage, _chatHistory, language, retr
     if (retryCount < 1) {
       console.warn('⚠️ Error, retrying...', error.message)
       await new Promise(r => setTimeout(r, 500))
-      return callMegaLLMPetChat(pet, userMessage, _chatHistory, language, retryCount + 1)
+      return callGroqPetChat(pet, userMessage, _chatHistory, language, retryCount + 1)
     }
-    console.error('MegaLLM Pet Chat error:', error)
+    console.error('Groq Pet Chat error:', error)
     throw error
   }
 }
@@ -105,7 +105,7 @@ const callMegaLLMPetChat = async (pet, userMessage, _chatHistory, language, retr
 export const getPetTutorExplanation = async (pet, questionData, language = 'vi') => {
   try {
     console.log('🎓 Calling Pet Tutor AI...')
-    const response = await callMegaLLMPetTutor(pet, questionData, language)
+    const response = await callGroqPetTutor(pet, questionData, language)
     console.log('✅ Pet tutor response received:', response)
     return response
   } catch (error) {
@@ -134,8 +134,8 @@ const getTutorFallbackResponse = (pet, language) => {
   }
 }
 
-// MegaLLM Pet Tutor via Edge Function
-const callMegaLLMPetTutor = async (pet, questionData, language, retryCount = 0) => {
+// Groq Pet Tutor via Edge Function
+const callGroqPetTutor = async (pet, questionData, language, retryCount = 0) => {
   const petName = pet?.nickname || pet?.name || 'Pet'
   const petType = pet?.info || 'virtual pet'
   const { question, selectedAnswer, correctAnswer } = questionData
@@ -164,7 +164,7 @@ Explain briefly (2-3 sentences) why the correct answer is right, in a friendly a
   try {
     console.log('📤 Sending pet tutor request via Edge Function...')
 
-    const content = await callMegaLLM(messages)
+    const content = await callGroq(messages)
 
     console.log('🎓 Pet tutor says:', content)
 
@@ -173,9 +173,9 @@ Explain briefly (2-3 sentences) why the correct answer is right, in a friendly a
     if (retryCount < 1) {
       console.warn('⚠️ Error, retrying...', error.message)
       await new Promise(r => setTimeout(r, 500))
-      return callMegaLLMPetTutor(pet, questionData, language, retryCount + 1)
+      return callGroqPetTutor(pet, questionData, language, retryCount + 1)
     }
-    console.error('MegaLLM Pet Tutor error:', error)
+    console.error('Groq Pet Tutor error:', error)
     throw error
   }
 }

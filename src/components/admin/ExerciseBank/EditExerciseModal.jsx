@@ -71,6 +71,18 @@ const EditExerciseModal = ({ isOpen, onClose, exercise, onUpdate }) => {
     }
   }
 
+  const getFolderPath = (folderId) => {
+    const parts = []
+    let current = folderId
+    while (current) {
+      const folder = folders.find(f => f.id === current)
+      if (!folder) break
+      parts.unshift(folder.name.replace(/[^a-zA-Z0-9_-]/g, '_'))
+      current = folder.parent_folder_id
+    }
+    return parts.join('/')
+  }
+
   const handleInputChange = (field, value) => {
     setFormData(prev => ({
       ...prev,
@@ -153,6 +165,7 @@ const EditExerciseModal = ({ isOpen, onClose, exercise, onUpdate }) => {
           <FlashcardEditor
             cards={content.cards || content.flashcards || []}
             onCardsChange={(cards) => handleContentChange({ ...content, cards })}
+            folderPath={getFolderPath(formData.folder_id)}
           />
         )
       case 'multiple_choice':
@@ -164,6 +177,7 @@ const EditExerciseModal = ({ isOpen, onClose, exercise, onUpdate }) => {
             onSettingsChange={(settings) => handleContentChange({ ...content, settings })}
             intro={content.intro || ''}
             onIntroChange={(intro) => handleContentChange({ ...content, intro })}
+            folderPath={getFolderPath(formData.folder_id)}
           />
         )
       case 'fill_blank':
@@ -175,6 +189,7 @@ const EditExerciseModal = ({ isOpen, onClose, exercise, onUpdate }) => {
             onSettingsChange={(settings) => handleContentChange({ ...content, settings })}
             intro={content.intro || ''}
             onIntroChange={(intro) => handleContentChange({ ...content, intro })}
+            folderPath={getFolderPath(formData.folder_id)}
           />
         )
       case 'drag_drop':
@@ -184,6 +199,7 @@ const EditExerciseModal = ({ isOpen, onClose, exercise, onUpdate }) => {
             onQuestionsChange={(questions) => handleContentChange({ ...content, questions })}
             intro={content.intro || ''}
             onIntroChange={(intro) => handleContentChange({ ...content, intro })}
+            folderPath={getFolderPath(formData.folder_id)}
           />
         )
       case 'dropdown':
@@ -214,6 +230,7 @@ const EditExerciseModal = ({ isOpen, onClose, exercise, onUpdate }) => {
               ...content,
               settings: { ...(content?.settings || {}), language: lang }
             })}
+            folderPath={getFolderPath(formData.folder_id)}
           />
         )
       case 'image_hotspot':

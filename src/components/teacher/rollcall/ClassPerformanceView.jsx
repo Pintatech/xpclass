@@ -1,5 +1,5 @@
 import { useRef, useState } from 'react';
-import { Users, Star, Flag, Camera, X, Loader2 } from 'lucide-react';
+import { Users, Star, Flag, Camera, X, Loader2, Swords } from 'lucide-react';
 import { supabase } from '../../../supabase/client';
 
 const ratingOptions = [
@@ -8,12 +8,50 @@ const ratingOptions = [
   { value: 'ok', label: 'Ok', color: 'bg-red-500 text-white', inactive: 'bg-white text-red-700 border border-red-300 hover:bg-red-100' },
 ];
 
-const ClassPerformanceView = ({ students, records, onChange, onMarkAll, loading }) => {
+const ClassPerformanceView = ({ students, courseId, records, onChange, onMarkAll, loading }) => {
   const fileInputRefs = useRef({});
   const scoreRefs = useRef({});
   const maxScoreRefs = useRef({});
   const feedbackRefs = useRef({});
   const [uploading, setUploading] = useState({});
+  const [pullingBattle, setPullingBattle] = useState(false);
+
+  const pullFromLiveBattle = async () => {
+    if (!courseId) return;
+    setPullingBattle(true);
+    try {
+      const { data: session } = await supabase
+        .from('live_battle_sessions')
+        .select('id, winner_team')
+        .eq('course_id', courseId)
+        .eq('status', 'finished')
+        .order('finished_at', { ascending: false })
+        .limit(1)
+        .single();
+
+      if (!session) {
+        alert('No finished live battle found for this class.');
+        return;
+      }
+
+      const { data: participants } = await supabase
+        .from('live_battle_participants')
+        .select('user_id, team')
+        .eq('session_id', session.id);
+
+      if (!participants) return;
+
+      for (const p of participants) {
+        const isWinner = session.winner_team === 'draw' ? null : p.team === session.winner_team;
+        const rating = isWinner === null ? 'good' : isWinner ? 'wow' : 'good';
+        onChange(p.user_id, { performance_rating: rating });
+      }
+    } catch (err) {
+      console.error('Failed to pull live battle:', err);
+    } finally {
+      setPullingBattle(false);
+    }
+  };
 
   const fieldOrder = ['feedback', 'score', 'maxScore'];
   const fieldRefMap = {
@@ -108,6 +146,14 @@ const ClassPerformanceView = ({ students, records, onChange, onMarkAll, loading 
             Mark All {opt.label}
           </button>
         ))}
+        <button
+          onClick={pullFromLiveBattle}
+          disabled={pullingBattle}
+          className="flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-colors bg-white text-purple-700 border border-purple-300 hover:bg-purple-100"
+        >
+          <Swords className="w-4 h-4" />
+          {pullingBattle ? 'Pulling...' : 'Pull from Live Battle'}
+        </button>
       </div>
 
       <div className="bg-white rounded-lg shadow-sm border">

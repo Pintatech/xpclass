@@ -27,7 +27,6 @@ const LiveBattlePage = () => {
     updateTeam,
     shuffleTeams,
     updateTeamName,
-    addIndividualPoints,
     addTeamPoints,
     activatePowerup,
     startGame,
@@ -109,7 +108,7 @@ const LiveBattlePage = () => {
     const winTeamName = winnerTeam === 'a' ? session.team_a_name : winnerTeam === 'b' ? session.team_b_name : 'Draw'
 
     return (
-      <div className="min-h-screen bg-cover bg-center bg-no-repeat p-4" style={{ backgroundImage: `url(${assetUrl('/pet-game/petbattle.jpg')})` }}>
+      <div className="min-h-screen bg-cover bg-center bg-no-repeat p-4" style={{ backgroundImage: `url(${assetUrl('/pet-game/petbattle1.jpg')})` }}>
         <div className="max-w-4xl mx-auto">
           {/* Victory header */}
           <div className="text-center py-8">
@@ -149,7 +148,6 @@ const LiveBattlePage = () => {
                   </div>
                   <div className="flex-1 min-w-0">
                     <div className="text-sm text-gray-800 font-semibold truncate">{p.student_name}</div>
-                    <div className="text-xs text-gray-500">{p.individual_score} pts</div>
                   </div>
                   <div className="text-indigo-600 font-bold text-sm">+{p.xp_awarded} XP</div>
                 </div>
@@ -174,7 +172,7 @@ const LiveBattlePage = () => {
   const isActive = session?.status === 'active'
 
   return (
-    <div className="min-h-screen bg-cover bg-center bg-no-repeat px-2 py-3" style={{ backgroundImage: `url(${assetUrl('/class-battle/bg.jpg')})` }}>
+    <div className="min-h-screen bg-cover bg-center bg-no-repeat px-2 py-3" style={{ backgroundImage: `url(${assetUrl('/pet-game/petbattle1.jpg')})` }}>
       <PowerUpEffect events={events} />
 
       <div className="w-full px-2">
@@ -310,7 +308,7 @@ const LiveBattlePage = () => {
             hasDouble={hasDouble('a')}
             isActive={isActive}
             isSetup={isSetup}
-            onAddIndividualPoints={addIndividualPoints}
+
             onUpdateTeam={updateTeam}
             onTeamNameChange={updateTeamName}
             onAddTeamPoints={addTeamPoints}
@@ -327,7 +325,7 @@ const LiveBattlePage = () => {
             hasDouble={hasDouble('b')}
             isActive={isActive}
             isSetup={isSetup}
-            onAddIndividualPoints={addIndividualPoints}
+
             onUpdateTeam={updateTeam}
             onTeamNameChange={updateTeamName}
             onAddTeamPoints={addTeamPoints}

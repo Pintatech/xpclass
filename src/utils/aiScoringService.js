@@ -4,8 +4,8 @@
 export const callAIScoring = async (question, userAnswer, expectedAnswers, context = 'educational assessment', language = 'en') => {
   try {
     console.log('🤖 Calling AI Scoring with language:', language)
-    // Use MegaLLM AI service for scoring
-    const aiResponse = await callMegaLLMScoring(question, userAnswer, expectedAnswers, context, language)
+    // Use Groq AI service for scoring
+    const aiResponse = await callGroqScoring(question, userAnswer, expectedAnswers, context, language)
     console.log('✅ AI Response received:', aiResponse)
     return aiResponse
   } catch (error) {
@@ -139,7 +139,7 @@ const generateExplanation = (similarity, userAnswer, expected) => {
 }
 
 // AI Scoring integration (via Groq proxy)
-export const callMegaLLMScoring = async (question, userAnswer, expectedAnswers, context, language = 'en') => {
+export const callGroqScoring = async (question, userAnswer, expectedAnswers, context, language = 'en') => {
   const prompt = language === 'vi'
     ? `
 Bạn là trợ lý AI giáo dục chấm điểm câu trả lời điền vào chỗ trống.
@@ -261,12 +261,12 @@ Respond in JSON format:
       }
       throw new Error('No JSON found in response')
     } catch (parseError) {
-      console.error('Failed to parse MegaLLM response:', content)
+      console.error('Failed to parse Groq response:', content)
       console.error('Parse error:', parseError)
       throw new Error('Invalid response from AI service')
     }
   } catch (error) {
-    console.error('MegaLLM API error:', error)
+    console.error('Groq API error:', error)
     throw error
   }
 }

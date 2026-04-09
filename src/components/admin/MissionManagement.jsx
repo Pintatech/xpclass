@@ -20,7 +20,7 @@ const MISSION_IMAGE_MAP = {
   'gift': '/image/dashboard/pet-scramble.jpg',
   'package-open': '/image/inventory/spaceships/phantom-voyager.png',
   'joystick': '/image/pet/game-win.png',
-  'fish': '/image/dashboard/pet-type.webp',
+  'fish': '/pet-display/game-logo/fish.png',
 }
 
 const DEFAULT_MISSION_IMAGE = '/icon/dashboard/wow.svg'

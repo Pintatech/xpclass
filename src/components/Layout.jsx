@@ -84,6 +84,7 @@ const Layout = () => {
   const isStudyPage = location.pathname.startsWith('/study') || location.pathname.startsWith('/pets')
   const hideSidebar = exercisePaths.some(p => location.pathname.startsWith(p)) || isTestPage || isLiveBattle || isStudyPage
   const isInsideCourse = /\/study\/(course|level)\//.test(location.pathname) || exercisePaths.some(p => location.pathname.startsWith(p))
+  const isCoursePage = /\/study\/(course|level)\/[^/]+$/.test(location.pathname)
 
   if (loading) {
     return <LoadingSpinner />
@@ -105,7 +106,7 @@ const Layout = () => {
 
       {/* Main Content */}
       <main className={`${hideSidebar ? 'lg:pl-0' : 'lg:pl-64'} ${hideSidebar ? '' : 'xl:pr-56'} min-h-screen ${hideBottomNav ? 'pb-0' : 'pb-16 lg:pb-0'}`}>
-        <div className={isAdminPage || isFullWidthPage || isLiveBattle ? '' : isSessionPage ? '' : hideSidebar ? 'container mx-auto px-1 sm:px-4 py-2 sm:py-6 max-w-7xl' : 'container mx-auto px-4 py-6 max-w-7xl'}>
+        <div className={isAdminPage || isFullWidthPage || isLiveBattle ? '' : isCoursePage ? 'mx-auto px-1 sm:px-4 py-2 sm:py-6' : isSessionPage ? '' : hideSidebar ? 'container mx-auto px-1 sm:px-4 py-2 sm:py-6 max-w-7xl' : 'container mx-auto px-4 py-6 max-w-7xl'}>
           <Outlet />
         </div>
       </main>

@@ -23,7 +23,7 @@ import { supabase } from '../../../supabase/client'
 import RichTextRenderer from '../../ui/RichTextRenderer'
 import { handleRichTextShortcut } from '../../../hooks/useRichTextShortcuts'
 
-const MultipleChoiceEditor = ({ questions, onQuestionsChange, settings, onSettingsChange, intro, onIntroChange }) => {
+const MultipleChoiceEditor = ({ questions, onQuestionsChange, settings, onSettingsChange, intro, onIntroChange, folderPath }) => {
   const normalizeQuestion = (q, idx = 0) => {
     const safeOptions = Array.isArray(q?.options) ? q.options : ['', '', '', '']
     const baseOptionExplanations = Array.isArray(q?.option_explanations)
@@ -53,6 +53,7 @@ const MultipleChoiceEditor = ({ questions, onQuestionsChange, settings, onSettin
   const [bulkImportMode, setBulkImportMode] = useState(false)
   const [bulkText, setBulkText] = useState('')
   const [lastBulkText, setLastBulkText] = useState('')
+  const [stripComments, setStripComments] = useState(false)
 
   // Load lastBulkText from localStorage on mount
   useEffect(() => {
@@ -297,20 +298,22 @@ const MultipleChoiceEditor = ({ questions, onQuestionsChange, settings, onSettin
   const handleImageUpload = async (index, file) => {
     if (!file) return
     try {
-      const path = `multiple_choice/${Date.now()}_${Math.random().toString(36).slice(2)}_${file.name}`
+      const basePath = folderPath ? `exercise_bank/${folderPath}` : 'exercise_bank'
+      const path = `${basePath}/${Date.now()}_${Math.random().toString(36).slice(2)}_${file.name}`
       const { error: uploadError } = await supabase.storage
-        .from('exercise-images')
+        .from('exercise-files')
         .upload(path, file, { cacheControl: '3600', upsert: true })
       if (uploadError) throw uploadError
 
       const { data: publicData } = supabase.storage
-        .from('exercise-images')
+        .from('exercise-files')
         .getPublicUrl(path)
 
       const publicUrl = publicData?.publicUrl
       if (!publicUrl) throw new Error('Cannot get public URL')
 
-      insertAtCursor(index, `\n![](${publicUrl})\n`)
+      const sizeStyle = getImageSizeStyle()
+      insertAtCursor(index, `\n<img src="${publicUrl}" alt="" ${sizeStyle} />\n`)
       alert('Image uploaded and inserted into question!')
     } catch (e) {
       console.error('Image upload failed:', e)
@@ -430,6 +433,37 @@ const MultipleChoiceEditor = ({ questions, onQuestionsChange, settings, onSettin
     }
     
     return sizeMap[imageSize] || sizeMap['medium']
+  }
+
+  const handleImagePaste = async (e, index) => {
+    const items = e.clipboardData?.items
+    if (!items) return
+    for (const item of items) {
+      if (item.type.startsWith('image/')) {
+        e.preventDefault()
+        const file = item.getAsFile()
+        if (!file) return
+        try {
+          const basePath = folderPath ? `exercise_bank/${folderPath}` : 'exercise_bank'
+          const path = `${basePath}/${Date.now()}_${Math.random().toString(36).slice(2)}_pasted.${file.type.split('/')[1]}`
+          const { error: uploadError } = await supabase.storage
+            .from('exercise-files')
+            .upload(path, file, { cacheControl: '3600', upsert: true })
+          if (uploadError) throw uploadError
+          const { data: publicData } = supabase.storage
+            .from('exercise-files')
+            .getPublicUrl(path)
+          const publicUrl = publicData?.publicUrl
+          if (!publicUrl) throw new Error('Cannot get public URL')
+          const sizeStyle = getImageSizeStyle()
+          insertAtCursor(index, `<img src="${publicUrl}" alt="" ${sizeStyle} />`)
+        } catch (err) {
+          console.error('Image paste upload failed:', err)
+          alert('Failed to upload pasted image')
+        }
+        return
+      }
+    }
   }
 
   const getAudioAttributes = () => {
@@ -623,8 +657,10 @@ const MultipleChoiceEditor = ({ questions, onQuestionsChange, settings, onSettin
         return
       }
 
-      // Remove block comments /* */ from the text
-      const textWithoutComments = bulkText.replace(/\/\*[\s\S]*?\*\//g, '')
+      // Optionally remove comments from the text
+      const textWithoutComments = stripComments
+        ? bulkText.replace(/\/\*[\s\S]*?\*\//g, '').replace(/\/[^/\n]+\//g, '')
+        : bulkText
 
       // Pre-process: split lines that have multiple options on one line
       // e.g. "A. cat   B. dog   C. bird   D. fish" or "(A) cat  (B) dog  (C) bird"
@@ -1008,28 +1044,30 @@ const MultipleChoiceEditor = ({ questions, onQuestionsChange, settings, onSettin
             if (!file) return
             const uploadImageForIntro = async () => {
               try {
-                const path = `multiple_choice/${Date.now()}_${Math.random().toString(36).slice(2)}_${file.name}`
+                const basePath = folderPath ? `exercise_bank/${folderPath}` : 'exercise_bank'
+                const path = `${basePath}/${Date.now()}_${Math.random().toString(36).slice(2)}_${file.name}`
                 const { error: uploadError } = await supabase.storage
-                  .from('exercise-images')
+                  .from('exercise-files')
                   .upload(path, file, { cacheControl: '3600', upsert: true })
                 if (uploadError) throw uploadError
 
                 const { data: publicData } = supabase.storage
-                  .from('exercise-images')
+                  .from('exercise-files')
                   .getPublicUrl(path)
 
                 const publicUrl = publicData?.publicUrl
                 if (!publicUrl) throw new Error('Cannot get public URL')
 
+                const sizeStyle = getImageSizeStyle()
                 const textarea = questionInputRefs.current[-1]
                 const current = intro || ''
                 if (!textarea) {
-                  onIntroChange && onIntroChange(current + (current ? '\n\n' : '') + `![](${publicUrl})`)
+                  onIntroChange && onIntroChange(current + (current ? '\n\n' : '') + `<img src="${publicUrl}" alt="" ${sizeStyle} />`)
                   return
                 }
                 const start = textarea.selectionStart || 0
                 const end = textarea.selectionEnd || 0
-                const textToInsert = `\n![](${publicUrl})\n`
+                const textToInsert = `\n<img src="${publicUrl}" alt="" ${sizeStyle} />\n`
                 const newValue = current.slice(0, start) + textToInsert + current.slice(end)
                 onIntroChange && onIntroChange(newValue)
                 setTimeout(() => {
@@ -1072,6 +1110,7 @@ const MultipleChoiceEditor = ({ questions, onQuestionsChange, settings, onSettin
         value={intro || ''}
         onChange={(e) => onIntroChange && onIntroChange(e.target.value)}
         onKeyDown={(e) => handleRichTextShortcut(e, questionInputRefs.current[-1], intro || '', (v) => onIntroChange && onIntroChange(v))}
+        onPaste={(e) => handleImagePaste(e, -1)}
         className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
         rows={2}
         placeholder="Nhập nội dung giới thiệu chung cho bài trắc nghiệm..."
@@ -1106,6 +1145,17 @@ Question 2
 Good morning in Vietnamese is {1:MC:=Chào buổi sáng#Correct explanation~Chào buổi chiều#Afternoon greeting~Tạm biệt#Means goodbye}
 # Extra note for the whole question`}
           />
+          <div className="flex items-center gap-4 mt-2">
+            <label className="flex items-center gap-1.5 text-sm text-blue-700 cursor-pointer select-none">
+              <input
+                type="checkbox"
+                checked={stripComments}
+                onChange={(e) => setStripComments(e.target.checked)}
+                className="rounded"
+              />
+              Strip comments <span className="text-xs text-gray-500">({`/* */ and /…/`})</span>
+            </label>
+          </div>
           <div className="flex justify-between items-center mt-2">
             <button
               type="button"
@@ -1256,6 +1306,7 @@ Good morning in Vietnamese is {1:MC:=Chào buổi sáng#Correct explanation~Chà
                 value={question.question || ''}
                 onChange={(e) => updateQuestion(index, 'question', e.target.value)}
                 onKeyDown={(e) => handleKeyboardShortcut(e, index)}
+                onPaste={(e) => handleImagePaste(e, index)}
                 className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
                 rows={2}
                 placeholder="Enter your question here..."

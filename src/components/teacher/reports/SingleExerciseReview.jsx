@@ -125,6 +125,102 @@ const FillBlankReview = ({ question, attempt }) => {
   )
 }
 
+const FillBlankReviewWithOverride = ({ question, attempt, blankAttempts, onOverride, overriding }) => {
+  const selectedParts = (attempt.selected_answer || '').split(', ')
+  const correctParts = (attempt.correct_answer || '').split(', ')
+  const hasPerBlankAttempts = blankAttempts && blankAttempts.length > 0
+  // For old format (single DB row), use the attempt itself for override
+  const getOverrideTarget = (i) => hasPerBlankAttempts ? blankAttempts[i] : attempt
+
+  const isBlankCorrect = (ans, correctRaw) =>
+    (correctRaw || '').split('|').some(a => a.trim().toLowerCase() === (ans || '').trim().toLowerCase())
+
+  const parts = (question.question || '').split(/_{3,}/)
+
+  if (parts.length > 1) {
+    return (
+      <div className="space-y-2">
+        <p className="text-sm text-gray-800 leading-loose">
+          {parts.map((part, i) => {
+            const studentAns = selectedParts[i]
+            const correctAns = correctParts[i]
+            if (i >= parts.length - 1) return <span key={i} dangerouslySetInnerHTML={{ __html: part }} />
+            const ok = isBlankCorrect(studentAns, correctAns)
+            const target = getOverrideTarget(i)
+            return (
+              <React.Fragment key={i}>
+                <span dangerouslySetInnerHTML={{ __html: part }} />
+                <span className={`inline-flex items-center gap-1 px-2 py-0.5 mx-0.5 rounded font-medium ${
+                  ok ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'
+                }`}>
+                  {studentAns || '—'}
+                  {!ok && correctAns && (
+                    <span className="text-green-700 ml-1">→ {correctAns.split('|')[0].trim()}</span>
+                  )}
+                  {ok
+                    ? <CheckCircle size={11} className="text-green-500 shrink-0" />
+                    : <XCircle size={11} className="text-red-500 shrink-0" />
+                  }
+                  {target && (
+                    <button
+                      onClick={(e) => { e.stopPropagation(); onOverride(target.id, target.is_correct) }}
+                      disabled={overriding === target.id}
+                      className="ml-1 text-gray-400 hover:text-blue-600 transition-colors disabled:opacity-50"
+                      title={hasPerBlankAttempts ? (ok ? 'Mark incorrect' : 'Mark correct') : 'Override entire question'}
+                    >
+                      {overriding === target.id
+                        ? <RefreshCw size={10} className="animate-spin" />
+                        : <Edit3 size={10} />
+                      }
+                    </button>
+                  )}
+                </span>
+              </React.Fragment>
+            )
+          })}
+        </p>
+        {question.explanation && (
+          <div className="p-3 bg-blue-50 border border-blue-100 rounded-lg text-sm text-blue-800">
+            <strong>Explanation:</strong> {question.explanation}
+          </div>
+        )}
+      </div>
+    )
+  }
+
+  // Fallback list with override buttons
+  return (
+    <div className="space-y-2">
+      {question.question && <p className="text-sm text-gray-700 leading-relaxed">{question.question}</p>}
+      {selectedParts.map((ans, i) => {
+        const correctAns = correctParts[i]
+        const ok = isBlankCorrect(ans, correctAns)
+        const target = getOverrideTarget(i)
+        return (
+          <div key={i} className={`flex items-center gap-2 px-3 py-2 rounded-lg border text-sm ${ok ? 'border-green-200 bg-green-50' : 'border-red-200 bg-red-50'}`}>
+            {ok ? <CheckCircle className="w-4 h-4 text-green-500 shrink-0" /> : <XCircle className="w-4 h-4 text-red-500 shrink-0" />}
+            <span className={`font-medium ${ok ? 'text-green-800' : 'text-red-800'}`}>{ans || '—'}</span>
+            {!ok && correctAns && <><span className="text-gray-400">→</span><span className="font-medium text-green-800">{correctAns.split('|')[0].trim()}</span></>}
+            {target && (
+              <button
+                onClick={() => onOverride(target.id, target.is_correct)}
+                disabled={overriding === target.id}
+                className="ml-auto flex items-center gap-1 text-xs text-gray-400 hover:text-blue-600 hover:bg-blue-50 px-2 py-1 rounded transition-colors disabled:opacity-50"
+              >
+                {overriding === target.id
+                  ? <RefreshCw size={11} className="animate-spin" />
+                  : <Edit3 size={11} />
+                }
+                {ok ? 'Mark incorrect' : 'Mark correct'}
+              </button>
+            )}
+          </div>
+        )
+      })}
+    </div>
+  )
+}
+
 const DragDropReview = ({ question, attempt }) => {
   const items = question.items || []
   const dropZones = question.drop_zones || []
@@ -332,19 +428,18 @@ const SingleExerciseReview = ({ exercise, questionAttempts, onOverride, overridi
         }
       }
     } else if (type === 'fill_blank') {
-      // Check if we have per-blank attempts (new format) or single attempt (old format)
       const blankAttempts = questionAttempts
         .filter(a => a.question_id === q.id)
         .sort((a, b) => (a.question_index || 0) - (b.question_index || 0))
       if (blankAttempts.length > 1) {
-        // New format: reconstruct combined attempt for FillBlankReview
+        // New format: multiple DB rows per question — store all for inline rendering
         const combined = {
           ...blankAttempts[0],
           selected_answer: blankAttempts.map(a => a.selected_answer || '').join(', '),
           correct_answer: blankAttempts.map(a => a.correct_answer || '').join(', '),
           is_correct: blankAttempts.every(a => a.is_correct)
         }
-        reviewItems.push({ question: q, attempt: combined })
+        reviewItems.push({ question: q, attempt: combined, blankAttempts })
       } else if (blankAttempts.length === 1) {
         reviewItems.push({ question: q, attempt: blankAttempts[0] })
       }
@@ -354,10 +449,24 @@ const SingleExerciseReview = ({ exercise, questionAttempts, onOverride, overridi
     }
   })
 
-  const renderQuestion = (question, attempt, zoneIndex) => {
+  // For pdf_worksheet: build review items from pages/fields instead of questions
+  if (type === 'pdf_worksheet') {
+    const allPages = exercise?.content?.pages || []
+    allPages.forEach(page => {
+      const fields = page.fields || []
+      fields.forEach((field) => {
+        const attempt = questionAttempts.find(a => a.question_id === field.id)
+        if (attempt) {
+          reviewItems.push({ field, attempt, pageNumber: page.page_number })
+        }
+      })
+    })
+  }
+
+  const renderQuestion = (question, attempt, zoneIndex, blankAttempts) => {
     switch (type) {
       case 'multiple_choice': return <MultipleChoiceReview question={question} attempt={attempt} />
-      case 'fill_blank': return <FillBlankReview question={question} attempt={attempt} />
+      case 'fill_blank': return <FillBlankReviewWithOverride question={question} attempt={attempt} blankAttempts={blankAttempts} onOverride={onOverride} overriding={overriding} />
       case 'dropdown': return <DropdownReview question={question} attempt={attempt} />
       case 'drag_drop':
         if (zoneIndex !== undefined) {
@@ -368,49 +477,101 @@ const SingleExerciseReview = ({ exercise, questionAttempts, onOverride, overridi
     }
   }
 
+  const renderPDFWorksheetField = (field, attempt) => {
+    let correctDisplay = ''
+    let studentDisplay = ''
+
+    if (field.type === 'text') {
+      correctDisplay = field.correct_answer || ''
+      studentDisplay = attempt.selected_answer || '(no answer)'
+    } else if (field.type === 'dropdown') {
+      const idx = parseInt(attempt.selected_answer)
+      studentDisplay = !isNaN(idx) ? (field.options?.[idx] || '(no answer)') : '(no answer)'
+      correctDisplay = field.options?.[field.correct_option] || ''
+    } else if (field.type === 'checkbox') {
+      studentDisplay = attempt.selected_answer === 'true' ? 'Checked' : 'Unchecked'
+      correctDisplay = field.correct_answer === 'true' ? 'Checked' : 'Unchecked'
+    }
+
+    return (
+      <div className={`flex items-center gap-3 px-3 py-2 rounded-lg border text-sm ${
+        attempt.is_correct ? 'border-green-200 bg-green-50' : 'border-red-200 bg-red-50'
+      }`}>
+        {attempt.is_correct
+          ? <CheckCircle className="w-4 h-4 text-green-500 shrink-0" />
+          : <XCircle className="w-4 h-4 text-red-500 shrink-0" />
+        }
+        <span className="text-xs text-gray-500 shrink-0 w-24 truncate" title={field.label}>
+          {field.label || 'Field'}
+        </span>
+        <span className={`font-medium ${attempt.is_correct ? 'text-green-800' : 'text-red-800'}`}>
+          {studentDisplay}
+        </span>
+        {!attempt.is_correct && correctDisplay && (
+          <>
+            <span className="text-gray-400">→</span>
+            <span className="font-medium text-green-800">{correctDisplay}</span>
+          </>
+        )}
+        <span className="text-xs text-gray-400 ml-auto capitalize">({field.type})</span>
+      </div>
+    )
+  }
+
   if (!reviewItems.length) {
     return <p className="text-gray-500 text-sm text-center py-4">No question attempts to review.</p>
   }
 
   return (
     <div className="space-y-6">
-      {reviewItems.map((item, i) => (
-        <div key={`${item.attempt.id}_${item.zoneIndex ?? ''}`}>
-          <div className="flex items-center justify-between gap-2 mb-3">
-            {reviewItems.length > 1
-              ? <span className="text-base font-semibold text-gray-700">
-                  {item.zoneIndex !== undefined
-                    ? `Blank ${i + 1}`
-                    : `Question ${i + 1}`
-                  }
-                </span>
-              : <span />
-            }
-            <div className="flex items-center gap-2">
-              {item.attempt.manually_overridden && (
-                <span className="text-xs px-2 py-0.5 bg-orange-100 text-orange-600 rounded-full flex items-center gap-1">
-                  <Edit3 size={9} /> Overridden
-                </span>
+      {reviewItems.map((item, i) => {
+        const isFillBlank = type === 'fill_blank' && !item.field
+        return (
+          <div key={`${item.attempt.id}_${item.zoneIndex ?? ''}`}>
+            <div className="flex items-center justify-between gap-2 mb-3">
+              {reviewItems.length > 1
+                ? <span className="text-base font-semibold text-gray-700">
+                    {item.field
+                      ? `Field ${i + 1}`
+                      : item.zoneIndex !== undefined
+                        ? `Blank ${i + 1}`
+                        : `Question ${i + 1}`
+                    }
+                  </span>
+                : <span />
+              }
+              {/* Hide top-level override for fill_blank — handled per-blank inside the component */}
+              {!isFillBlank && (
+                <div className="flex items-center gap-2">
+                  {item.attempt.manually_overridden && (
+                    <span className="text-xs px-2 py-0.5 bg-orange-100 text-orange-600 rounded-full flex items-center gap-1">
+                      <Edit3 size={9} /> Overridden
+                    </span>
+                  )}
+                  <button
+                    onClick={() => onOverride(item.attempt.id, item.attempt.is_correct)}
+                    disabled={overriding === item.attempt.id}
+                    className="flex items-center gap-1 text-xs text-gray-400 hover:text-blue-600 hover:bg-blue-50 px-2 py-1 rounded transition-colors disabled:opacity-50"
+                  >
+                    {overriding === item.attempt.id
+                      ? <RefreshCw size={11} className="animate-spin" />
+                      : <Edit3 size={11} />
+                    }
+                    {item.attempt.is_correct ? 'Mark incorrect' : 'Mark correct'}
+                  </button>
+                </div>
               )}
-              <button
-                onClick={() => onOverride(item.attempt.id, item.attempt.is_correct)}
-                disabled={overriding === item.attempt.id}
-                className="flex items-center gap-1 text-xs text-gray-400 hover:text-blue-600 hover:bg-blue-50 px-2 py-1 rounded transition-colors disabled:opacity-50"
-              >
-                {overriding === item.attempt.id
-                  ? <RefreshCw size={11} className="animate-spin" />
-                  : <Edit3 size={11} />
-                }
-                {item.attempt.is_correct ? 'Mark incorrect' : 'Mark correct'}
-              </button>
             </div>
+
+            {item.field
+              ? renderPDFWorksheetField(item.field, item.attempt)
+              : renderQuestion(item.question, item.attempt, item.zoneIndex, item.blankAttempts)
+            }
+
+            {i < reviewItems.length - 1 && <hr className="border-gray-100 mt-4" />}
           </div>
-
-          {renderQuestion(item.question, item.attempt, item.zoneIndex)}
-
-          {i < reviewItems.length - 1 && <hr className="border-gray-100 mt-4" />}
-        </div>
-      ))}
+        )
+      })}
     </div>
   )
 }

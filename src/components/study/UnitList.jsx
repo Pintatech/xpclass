@@ -31,6 +31,11 @@ import {
 } from "lucide-react";
 import StudentStatsPopover from "../ui/StudentStatsPopover";
 import useClassStats from "../../hooks/useClassStats";
+import useClassWar from "../../hooks/useClassWar";
+import ClassWarPanel from "../classwar/ClassWarPanel";
+import ClassWarBanner from "../classwar/ClassWarBanner";
+import ClassWarModal from "../classwar/ClassWarModal";
+import ClassWarSetupModal from "../classwar/ClassWarSetupModal";
 import CoursePersonalAssignments from "./CoursePersonalAssignments";
 
 // Theme-based background images for unit cards
@@ -104,6 +109,11 @@ const UnitList = () => {
   const [contextMenu, setContextMenu] = useState(null); // { x, y, session, unitId }
   const [copiedSession, setCopiedSession] = useState(null);
   const [editingSession, setEditingSession] = useState(null);
+  const [showWarModal, setShowWarModal] = useState(false);
+  const [showWarSetup, setShowWarSetup] = useState(false);
+
+  // Class War
+  const { war: activeWar, teamA, teamB, teamAXP, teamBXP, userTeam, rewards: warRewards, refresh: refreshWar } = useClassWar(currentId);
 
   // Compute course-level stats: how many exercises each student has done (excluding test sessions)
   const courseStudentStats = (() => {
@@ -768,8 +778,21 @@ const UnitList = () => {
     }
   };
 
-  const handleSessionUpdated = (updatedSession) => {
-    setSessions(prev => prev.map(s => s.id === updatedSession.id ? updatedSession : s));
+  const handleSessionUpdated = async (updatedSession) => {
+    // Refetch all sessions for this unit since reordering may have changed multiple session_numbers
+    const { data: refreshed } = await supabase
+      .from('sessions')
+      .select('*')
+      .eq('unit_id', updatedSession.unit_id)
+      .order('session_number');
+    if (refreshed) {
+      setSessions(prev => {
+        const otherUnits = prev.filter(s => s.unit_id !== updatedSession.unit_id);
+        return [...otherUnits, ...refreshed];
+      });
+    } else {
+      setSessions(prev => prev.map(s => s.id === updatedSession.id ? updatedSession : s));
+    }
     setEditingSession(null);
   };
 
@@ -1044,6 +1067,27 @@ const UnitList = () => {
                   <Swords className="w-4 h-4" />
                   <span>Live Battle</span>
                 </Button>
+                {activeWar ? (
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => setShowWarSetup(true)}
+                    className="flex items-center space-x-2 bg-yellow-50 border-yellow-200 text-yellow-700 hover:bg-yellow-100"
+                  >
+                    <Swords className="w-4 h-4" />
+                    <span>Edit War</span>
+                  </Button>
+                ) : (
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => setShowWarSetup(true)}
+                    className="flex items-center space-x-2 bg-gradient-to-r from-red-50 to-blue-50 border-purple-200 text-purple-700 hover:from-red-100 hover:to-blue-100"
+                  >
+                    <Swords className="w-4 h-4" />
+                    <span>Class War</span>
+                  </Button>
+                )}
               </div>
             )}
           </div>
@@ -1051,6 +1095,37 @@ const UnitList = () => {
 
         {/* Content Area */}
         <div className="flex-1 overflow-y-auto p-6">
+          {/* Mobile: Class War Banner */}
+          {activeWar && (
+            <div className="lg:hidden">
+              <ClassWarBanner
+                war={activeWar}
+                teamAXP={teamAXP}
+                teamBXP={teamBXP}
+                userTeam={userTeam}
+                onClick={() => setShowWarModal(true)}
+              />
+            </div>
+          )}
+
+          <div className="flex gap-4">
+            {/* Desktop: Left Team Panel */}
+            {activeWar && (
+              <div className="hidden lg:block w-64 shrink-0">
+                <ClassWarPanel
+                  team="A"
+                  teamName={activeWar.team_a_name}
+                  members={teamA}
+                  totalXP={teamAXP}
+                  opponentXP={teamBXP}
+                  userId={user?.id}
+                  rewards={warRewards}
+                />
+              </div>
+            )}
+
+            {/* Center: existing content */}
+            <div className="flex-1 min-w-0">
           {/* Personal Assignments for Students */}
           {profile?.role === 'user' && courseExerciseIdSet.size > 0 && (
             <CoursePersonalAssignments courseExerciseIds={courseExerciseIdSet} />
@@ -1342,8 +1417,54 @@ const UnitList = () => {
               </div>
             )}
           </>
+            </div>{/* end flex-1 min-w-0 (center content) */}
+
+            {/* Desktop: Right Team Panel */}
+            {activeWar && (
+              <div className="hidden lg:block w-64 shrink-0">
+                <ClassWarPanel
+                  team="B"
+                  teamName={activeWar.team_b_name}
+                  members={teamB}
+                  totalXP={teamBXP}
+                  opponentXP={teamAXP}
+                  userId={user?.id}
+                  rewards={warRewards}
+                />
+              </div>
+            )}
+          </div>{/* end flex gap-4 */}
+
+          {/* Mobile: Class War Modal */}
+          {showWarModal && activeWar && (
+            <ClassWarModal
+              war={activeWar}
+              teamA={teamA}
+              teamB={teamB}
+              teamAXP={teamAXP}
+              teamBXP={teamBXP}
+              userTeam={userTeam}
+              userId={user?.id}
+              rewards={warRewards}
+              onClose={() => setShowWarModal(false)}
+            />
+          )}
         </div>
       </div>
+
+      {/* Class War Setup Modal */}
+      {showWarSetup && (
+        <ClassWarSetupModal
+          courseId={currentId}
+          existingWar={activeWar}
+          teamAXP={teamAXP}
+          teamBXP={teamBXP}
+          teamAMembers={teamA}
+          teamBMembers={teamB}
+          onClose={() => { setShowWarSetup(false); }}
+          onStarted={() => refreshWar()}
+        />
+      )}
 
       {/* Add Unit Modal */}
       {showAddUnitModal && (

@@ -4,7 +4,7 @@ import RichTextRenderer from '../../ui/RichTextRenderer'
 import { handleRichTextShortcut } from '../../../hooks/useRichTextShortcuts'
 import { supabase } from '../../../supabase/client'
 
-const AIFillBlankEditor = ({ questions, onQuestionsChange, intro, onIntroChange, language, onLanguageChange }) => {
+const AIFillBlankEditor = ({ questions, onQuestionsChange, intro, onIntroChange, language, onLanguageChange, folderPath }) => {
   const [localQuestions, setLocalQuestions] = useState([])
   const introTextareaRef = useRef(null)
   const introFileInputRef = useRef(null)
@@ -150,6 +150,38 @@ const AIFillBlankEditor = ({ questions, onQuestionsChange, intro, onIntroChange,
     return attrs.join(' ')
   }
 
+  const handleImagePaste = async (e, index) => {
+    const items = e.clipboardData?.items
+    if (!items) return
+    for (const item of items) {
+      if (item.type.startsWith('image/')) {
+        e.preventDefault()
+        const file = item.getAsFile()
+        if (!file) return
+        try {
+          const basePath = folderPath ? `exercise_bank/${folderPath}` : 'exercise_bank'
+          const path = `${basePath}/${Date.now()}_${Math.random().toString(36).slice(2)}_pasted.${file.type.split('/')[1]}`
+          const { error: uploadError } = await supabase.storage
+            .from('exercise-files')
+            .upload(path, file, { cacheControl: '3600', upsert: true })
+          if (uploadError) throw uploadError
+          const { data: publicData } = supabase.storage
+            .from('exercise-files')
+            .getPublicUrl(path)
+          const publicUrl = publicData?.publicUrl
+          if (!publicUrl) throw new Error('Cannot get public URL')
+          const sizeStyle = getImageSizeStyle()
+          const imgTag = `<img src="${publicUrl}" alt="" ${sizeStyle} />`
+          appendToField(index, 'question', imgTag)
+        } catch (err) {
+          console.error('Image paste upload failed:', err)
+          alert('Failed to upload pasted image')
+        }
+        return
+      }
+    }
+  }
+
   const handleUrlSubmit = () => {
     if (!urlInput.trim()) return
     try {
@@ -255,6 +287,8 @@ Trả lời bằng tiếng Việt với giải thích chi tiết, khuyến khíc
       let questionCounter = 0
       let currentInstruction = ''
       let accumulatedText = []
+      let introLines = []
+      let firstQuestionSeen = false
 
       const processAccumulatedQuestion = () => {
         if (accumulatedText.length === 0) return
@@ -302,13 +336,23 @@ Trả lời bằng tiếng Việt với giải thích chi tiết, khuyến khíc
       lines.forEach((line) => {
         const trimmedLine = line.trim()
 
+        const isQuestion = trimmedLine.match(/^\d+\.?\s+/) || trimmedLine.match(/^Quest(?:ion)?\s*\d+[.:]?\s*/i)
+        const isInstruction = trimmedLine.match(/^[A-Z]\.\s+/)
+
+        // Before first numbered question appears, collect into intro
+        if (!firstQuestionSeen && !isQuestion && !isInstruction) {
+          introLines.push(trimmedLine)
+          return
+        }
+        firstQuestionSeen = true
+
         // Check if this is an instruction line (starts with letter and period)
-        if (trimmedLine.match(/^[A-Z]\.\s+/)) {
+        if (isInstruction) {
           processAccumulatedQuestion()
           currentInstruction = trimmedLine
         }
         // Check if this line looks like a new numbered question
-        else if (trimmedLine.match(/^\d+\.\s+/)) {
+        else if (isQuestion) {
           processAccumulatedQuestion()
           accumulatedText.push(trimmedLine)
         }
@@ -322,6 +366,11 @@ Trả lời bằng tiếng Việt với giải thích chi tiết, khuyến khíc
       processAccumulatedQuestion()
 
       if (newQuestions.length > 0) {
+        // Set intro from lines that appeared before the first question
+        if (introLines.length > 0 && onIntroChange) {
+          const newIntro = introLines.join('\n')
+          onIntroChange(intro ? intro + '\n' + newIntro : newIntro)
+        }
         // Auto-generate AI prompts for imported questions
         const questionsWithPrompts = newQuestions.map(q => ({
           ...q,
@@ -470,6 +519,7 @@ Trả lời bằng tiếng Việt với giải thích chi tiết, khuyến khíc
           value={intro || ''}
           onChange={(e) => onIntroChange && onIntroChange(e.target.value)}
           onKeyDown={(e) => handleRichTextShortcut(e, introTextareaRef.current, intro || '', (v) => onIntroChange && onIntroChange(v))}
+          onPaste={(e) => handleImagePaste(e, -1)}
           className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500"
           rows={2}
           placeholder="Enter introductory text for the AI fill-in-the-blank exercise..."
@@ -610,6 +660,7 @@ B. Combine these sentences using a relative clause.
                       value={question.question}
                       onChange={(e) => updateQuestion(index, 'question', e.target.value)}
                       onKeyDown={(e) => handleRichTextShortcut(e, questionTextareasRef.current[index], question.question, (v) => updateQuestion(index, 'question', v))}
+                      onPaste={(e) => handleImagePaste(e, index)}
                       placeholder="Enter your fill-in-the-blank question here..."
                       className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-purple-500"
                       rows={3}

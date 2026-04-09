@@ -36,6 +36,10 @@ const Progress = () => {
   const [lessonResults, setLessonResults] = useState([])
   const [showAllLessons, setShowAllLessons] = useState(false)
   const [recentActivity, setRecentActivity] = useState([])
+  const [petCount, setPetCount] = useState(0)
+  const [petEvolvedCount, setPetEvolvedCount] = useState(0)
+  const [shopCounts, setShopCounts] = useState({ avatar: 0, frame: 0, spaceship: 0, hammer: 0, boat: 0 })
+  const [wildCatchCount, setWildCatchCount] = useState(0)
   const [loading, setLoading] = useState(true)
 
   const completedExercises = getCompletedExercises()
@@ -59,6 +63,10 @@ const Progress = () => {
       fetchMonthlyData()
       fetchLessonResults()
       fetchRecentActivity()
+      fetchPetCount()
+      fetchPetEvolvedCount()
+      fetchShopCounts()
+      fetchWildCatchCount()
       // checkAndAwardAchievements() // Disabled until SQL functions are fixed
     }
   }, [user, userProgress])
@@ -105,6 +113,29 @@ const Progress = () => {
           // This would need daily exercise count calculation
           progress = 0
           unlocked = false
+          break
+        case 'pet_owned':
+          progress = Math.min((petCount / achievement.criteria_value) * 100, 100)
+          unlocked = petCount >= achievement.criteria_value
+          break
+        case 'pet_evolved':
+          progress = Math.min((petEvolvedCount / achievement.criteria_value) * 100, 100)
+          unlocked = petEvolvedCount >= achievement.criteria_value
+          break
+        case 'avatar_owned':
+        case 'frame_owned':
+        case 'spaceship_owned':
+        case 'hammer_owned':
+        case 'boat_owned': {
+          const cat = achievement.criteria_type.replace('_owned', '')
+          const count = shopCounts[cat] || 0
+          progress = Math.min((count / achievement.criteria_value) * 100, 100)
+          unlocked = count >= achievement.criteria_value
+          break
+        }
+        case 'wild_catch_success':
+          progress = Math.min((wildCatchCount / achievement.criteria_value) * 100, 100)
+          unlocked = wildCatchCount >= achievement.criteria_value
           break
         default:
           progress = 0
@@ -180,7 +211,11 @@ const Progress = () => {
   const userStats = {
     completedExercises,
     currentStreak: profile?.streak_count || 0,
-    totalXp: profile?.xp || 0
+    totalXp: profile?.xp || 0,
+    petCount,
+    petEvolvedCount,
+    shopCounts,
+    wildCatchCount
   }
 
   // Local state for claimed fallback achievements
@@ -305,6 +340,62 @@ const Progress = () => {
       )
     } catch (err) {
       console.error('Error fetching recent activity:', err)
+    }
+  }
+
+  const fetchPetCount = async () => {
+    try {
+      const { count, error } = await supabase
+        .from('user_pets')
+        .select('id', { count: 'exact', head: true })
+        .eq('user_id', user.id)
+      if (!error) setPetCount(count || 0)
+    } catch (err) {
+      console.error('Error fetching pet count:', err)
+    }
+  }
+
+  const fetchPetEvolvedCount = async () => {
+    try {
+      const { count, error } = await supabase
+        .from('user_pets')
+        .select('id', { count: 'exact', head: true })
+        .eq('user_id', user.id)
+        .eq('evolution_stage', 2)
+      if (!error) setPetEvolvedCount(count || 0)
+    } catch (err) {
+      console.error('Error fetching pet evolved count:', err)
+    }
+  }
+
+  const fetchWildCatchCount = async () => {
+    try {
+      const { count, error } = await supabase
+        .from('wild_area_logs')
+        .select('id', { count: 'exact', head: true })
+        .eq('user_id', user.id)
+        .eq('action', 'catch_success')
+      if (!error) setWildCatchCount(count || 0)
+    } catch (err) {
+      console.error('Error fetching wild catch count:', err)
+    }
+  }
+
+  const fetchShopCounts = async () => {
+    try {
+      const { data, error } = await supabase
+        .from('user_purchases')
+        .select('item_id, shop_items(category)')
+        .eq('user_id', user.id)
+      if (error || !data) return
+      const counts = { avatar: 0, frame: 0, spaceship: 0, hammer: 0, boat: 0 }
+      data.forEach(p => {
+        const cat = p.shop_items?.category
+        if (cat && counts.hasOwnProperty(cat)) counts[cat]++
+      })
+      setShopCounts(counts)
+    } catch (err) {
+      console.error('Error fetching shop counts:', err)
     }
   }
 
