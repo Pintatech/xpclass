@@ -27,11 +27,29 @@ const ClassWarSetupModal = ({ courseId, onClose, onStarted, existingWar, teamAXP
       const students = (enrollments || []).map(e => e.users).filter(Boolean);
       setEnrolledStudents(students);
 
-      if (existingWar) {
+      // Load teams from existing war being edited, or from the last war for this course
+      const warIdToLoad = existingWar?.id;
+      let lastWarData = null;
+
+      if (!warIdToLoad) {
+        // Fetch the most recent war (active or ended) to preserve teams
+        const { data: lastWar } = await supabase
+          .from('class_wars')
+          .select('id, team_a_name, team_b_name')
+          .eq('course_id', courseId)
+          .in('status', ['active', 'ended'])
+          .order('created_at', { ascending: false })
+          .limit(1)
+          .maybeSingle();
+        lastWarData = lastWar;
+      }
+
+      const loadWarId = warIdToLoad || lastWarData?.id;
+      if (loadWarId) {
         const { data: members } = await supabase
           .from('class_war_members')
           .select('user_id, team')
-          .eq('war_id', existingWar.id);
+          .eq('war_id', loadWarId);
         const studentMap = Object.fromEntries(students.map(s => [s.id, s]));
         const a = [], b = [];
         (members || []).forEach(m => {
@@ -40,6 +58,12 @@ const ClassWarSetupModal = ({ courseId, onClose, onStarted, existingWar, teamAXP
         });
         setTeamAMembers(a);
         setTeamBMembers(b);
+
+        // Pre-fill team names from last war when creating new
+        if (!existingWar && lastWarData) {
+          setTeamAName(lastWarData.team_a_name || 'Red Team');
+          setTeamBName(lastWarData.team_b_name || 'Blue Team');
+        }
       }
 
       setLoading(false);

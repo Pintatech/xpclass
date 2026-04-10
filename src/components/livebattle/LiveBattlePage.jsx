@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
 import { assetUrl } from '../../hooks/useBranding'
-import { ArrowLeft, Play, Square, Shuffle, Trophy, Sparkles, BookOpen, RotateCcw, Flag, Timer } from 'lucide-react'
+import { ArrowLeft, Play, Square, Shuffle, Trophy, Sparkles, BookOpen, RotateCcw, Flag, Timer, Swords } from 'lucide-react'
 import TimerModal from './TimerModal'
 import { useAuth } from '../../hooks/useAuth'
 import { useLiveBattle } from '../../hooks/useLiveBattle'
@@ -37,6 +37,7 @@ const LiveBattlePage = () => {
     isFrozen,
     hasShield,
     hasDouble,
+    pullTeamsFromWar,
   } = useLiveBattle()
 
   const [ending, setEnding] = useState(false)
@@ -189,6 +190,16 @@ const LiveBattlePage = () => {
           <div className="flex items-center gap-2">
             {isSetup && (
               <>
+                <button
+                  onClick={async () => {
+                    const ok = await pullTeamsFromWar(courseId)
+                    if (!ok) alert('No active Class War found for this course.')
+                  }}
+                  className="flex items-center gap-1 px-3 py-1.5 bg-purple-100 hover:bg-purple-200 text-purple-700 rounded-lg text-sm font-medium transition-colors"
+                >
+                  <Swords className="w-3 h-3" />
+                  War Teams
+                </button>
                 <button
                   onClick={shuffleTeams}
                   className="flex items-center gap-1 px-3 py-1.5 bg-gray-200 hover:bg-gray-300 text-gray-700 rounded-lg text-sm transition-colors"

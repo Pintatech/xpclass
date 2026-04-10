@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { supabase } from '../../../supabase/client';
 import { useAuth } from '../../../hooks/useAuth';
-import { CheckCircle, XCircle, Clock, Minus, RotateCcw, Eye, X, ChevronDown, ChevronLeft, ChevronRight, RefreshCw, Video, Send, Star, FileText } from 'lucide-react';
+import { CheckCircle, XCircle, Clock, Minus, RotateCcw, Eye, X, ChevronDown, ChevronLeft, ChevronRight, RefreshCw, Video, Send, Star, FileText, User } from 'lucide-react';
 import SingleExerciseReview from './SingleExerciseReview';
 
 const VIDEO_TYPES = ['video', 'video_upload', 'speaking', 'speaking_assessment'];
@@ -92,7 +92,7 @@ const StudentExerciseMatrix = ({ selectedCourse, initialSessionId }) => {
     try {
       const { data, error } = await supabase
         .from('sessions')
-        .select('id, title, session_number, is_test')
+        .select('id, title, session_number, is_test, assigned_student_id')
         .eq('unit_id', selectedUnit)
         .order('session_number');
 
@@ -173,7 +173,7 @@ const StudentExerciseMatrix = ({ selectedCourse, initialSessionId }) => {
         sessionIds = [selectedSession];
         const { data: sessionData, error: sessionError } = await supabase
           .from('sessions')
-          .select('id, title, session_number, unit_id, is_test')
+          .select('id, title, session_number, unit_id, is_test, assigned_student_id')
           .eq('id', selectedSession)
           .single();
 
@@ -182,7 +182,7 @@ const StudentExerciseMatrix = ({ selectedCourse, initialSessionId }) => {
       } else {
         const { data: sessions, error: sessionsError } = await supabase
           .from('sessions')
-          .select('id, title, session_number, unit_id, is_test')
+          .select('id, title, session_number, unit_id, is_test, assigned_student_id')
           .in('unit_id', unitIds)
           .order('session_number');
 
@@ -222,7 +222,8 @@ const StudentExerciseMatrix = ({ selectedCourse, initialSessionId }) => {
           exerciseMap.set(exercise.id, {
             ...exercise,
             session_title: session?.title || 'Unknown Session',
-            session_number: session?.session_number || 0
+            session_number: session?.session_number || 0,
+            assigned_student_id: session?.assigned_student_id || null
           });
           exerciseIds.push(exercise.id);
         }
@@ -230,8 +231,11 @@ const StudentExerciseMatrix = ({ selectedCourse, initialSessionId }) => {
 
       let exerciseList = Array.from(exerciseMap.values());
 
-      // Sort exercises alphabetically by title (descending)
+      // Sort: shared exercises first, then personal; within each group sort by title (descending)
       exerciseList.sort((a, b) => {
+        const aPersonal = a.assigned_student_id ? 1 : 0;
+        const bPersonal = b.assigned_student_id ? 1 : 0;
+        if (aPersonal !== bPersonal) return aPersonal - bPersonal;
         return b.title.localeCompare(a.title);
       });
 
@@ -394,6 +398,9 @@ const StudentExerciseMatrix = ({ selectedCourse, initialSessionId }) => {
     let count = 0;
 
     exercises.forEach(exercise => {
+      // Skip personal exercises assigned to other students
+      if (exercise.assigned_student_id && exercise.assigned_student_id !== studentId) return;
+
       const progress = getProgressForCell(studentId, exercise.id);
       if (progress && progress.score !== null && progress.max_score) {
         totalPercentage += (progress.score / progress.max_score) * 100;
@@ -441,7 +448,7 @@ const StudentExerciseMatrix = ({ selectedCourse, initialSessionId }) => {
       if (exerciseData?.exercise_type === 'fill_blank' && exerciseData?.content?.questions) {
         const expanded = [];
         processedAttempts.forEach(attempt => {
-          const hasIndex = attempt.question_index != null && attempt.question_index > 0;
+          const hasIndex = attempt.question_index != null;
           const selected = (attempt.selected_answer || '').split(',').map(s => s.trim());
           const correct = (attempt.correct_answer || '').split(',').map(s => s.trim());
           if (!hasIndex && selected.length > 1) {
@@ -817,7 +824,7 @@ const StudentExerciseMatrix = ({ selectedCourse, initialSessionId }) => {
                     <option value="all">All Lessons</option>
                     {sessions.map(session => (
                       <option key={session.id} value={session.id}>
-                        {session.title}
+                        {session.assigned_student_id ? '👤 ' : ''}{session.title}
                       </option>
                     ))}
                   </select>
@@ -875,7 +882,14 @@ const StudentExerciseMatrix = ({ selectedCourse, initialSessionId }) => {
                 >
                   <div className="space-y-1">
                     <div className="text-xs font-medium text-gray-900 truncate">{exercise.title}</div>
-                    <div className="text-xs text-gray-500 truncate">{exercise.session_title}</div>
+                    <div className="text-xs text-gray-500 truncate flex items-center justify-center gap-1">
+                      {exercise.assigned_student_id && (
+                        <span className="inline-flex items-center gap-0.5 px-1 py-0.5 rounded bg-purple-100 text-purple-700 text-[9px] font-bold flex-shrink-0">
+                          <User className="w-2.5 h-2.5" />1:1
+                        </span>
+                      )}
+                      <span className="truncate">{exercise.session_title}</span>
+                    </div>
                   </div>
                 </th>
               ))}
@@ -922,6 +936,16 @@ const StudentExerciseMatrix = ({ selectedCourse, initialSessionId }) => {
                   })()}
                 </td>
                 {exercises.map(exercise => {
+                  // Personal session: only show data for the assigned student
+                  const isPersonalForOther = exercise.assigned_student_id && exercise.assigned_student_id !== student.id;
+                  if (isPersonalForOther) {
+                    return (
+                      <td key={`${student.id}-${exercise.id}`} className="px-2 py-3 text-center border-r bg-gray-50">
+                        <span className="text-[10px] text-gray-300">—</span>
+                      </td>
+                    );
+                  }
+
                   const progress = getProgressForCell(student.id, exercise.id);
                   const scorePercentage = getScorePercentage(progress);
                   const isVideo = VIDEO_TYPES.includes(exercise.exercise_type);

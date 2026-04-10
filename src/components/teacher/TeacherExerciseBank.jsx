@@ -8,7 +8,7 @@ import ExerciseBank from '../admin/ExerciseBank';
 const TeacherExerciseBank = () => {
   return (
     <div className="h-screen flex flex-col">
-      <ExerciseBank allowedTypes={['pdf_worksheet']} />
+      <ExerciseBank allowedTypes={null} />
     </div>
   );
 };

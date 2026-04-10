@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { supabase } from '../../../supabase/client';
-import { BookOpen, ChevronDown } from 'lucide-react';
+import { BookOpen, ChevronDown, User } from 'lucide-react';
 
 const LessonReportView = ({ selectedCourse }) => {
   const [units, setUnits] = useState([]);
@@ -52,13 +52,20 @@ const LessonReportView = ({ selectedCourse }) => {
       // Fetch sessions in the selected unit
       const { data: sessionsData, error: sessionsError } = await supabase
         .from('sessions')
-        .select('id, title, session_number')
+        .select('id, title, session_number, assigned_student_id')
         .eq('unit_id', selectedUnit)
         .eq('is_active', true)
         .order('session_number');
 
       if (sessionsError) throw sessionsError;
-      setSessions(sessionsData || []);
+      // Sort: shared sessions first, then personal sessions
+      const sorted = (sessionsData || []).sort((a, b) => {
+        const aPersonal = a.assigned_student_id ? 1 : 0;
+        const bPersonal = b.assigned_student_id ? 1 : 0;
+        if (aPersonal !== bPersonal) return aPersonal - bPersonal;
+        return (a.session_number || 0) - (b.session_number || 0);
+      });
+      setSessions(sorted);
 
       // Fetch students enrolled in the course
       const { data: enrollmentsData, error: enrollmentsError } = await supabase
@@ -233,6 +240,11 @@ const LessonReportView = ({ selectedCourse }) => {
                 {sessions.map(session => (
                   <th key={session.id} className="px-6 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider min-w-[120px]">
                     <div className="line-clamp-2">{session.title}</div>
+                    {session.assigned_student_id && (
+                      <span className="inline-flex items-center gap-0.5 mt-1 px-1.5 py-0.5 rounded bg-purple-100 text-purple-700 text-[9px] font-bold normal-case">
+                        <User className="w-2.5 h-2.5" />1:1
+                      </span>
+                    )}
                   </th>
                 ))}
               </tr>
@@ -258,6 +270,15 @@ const LessonReportView = ({ selectedCourse }) => {
                       </div>
                     </td>
                     {sessions.map(session => {
+                      // Personal session: only show data for the assigned student
+                      if (session.assigned_student_id && session.assigned_student_id !== student.id) {
+                        return (
+                          <td key={session.id} className="px-6 py-4 whitespace-nowrap text-center bg-gray-50">
+                            <span className="text-[10px] text-gray-300">—</span>
+                          </td>
+                        );
+                      }
+
                       const progress = sessionProgress[student.id]?.[session.id];
                       const percentage = progress?.percentage || 0;
                       const completed = progress?.completed || 0;

@@ -951,21 +951,31 @@ const UnitList = () => {
             </div>
 
             {/* Teacher stats badge with hover popover */}
-            {canCreateContent() && classStats?.[session.id] && (
+            {canCreateContent() && classStats?.[session.id] && (() => {
+              const raw = classStats[session.id];
+              const displayStats = session.assigned_student_id
+                ? (() => {
+                    const filtered = (raw.students || []).filter(st => st.id === session.assigned_student_id);
+                    const completed = filtered.filter(st => st.status === 'completed').length;
+                    return { ...raw, completed, total: filtered.length, students: filtered };
+                  })()
+                : raw;
+              return (
               <div className="absolute -bottom-1 left-1/2 -translate-x-1/2 z-40">
-                <StudentStatsPopover stats={classStats[session.id]}>
+                <StudentStatsPopover stats={displayStats}>
                   <div className={`rounded px-1.5 py-0.5 text-[8px] font-bold leading-none whitespace-nowrap shadow-sm cursor-default ${
-                    classStats[session.id].completed === classStats[session.id].total
+                    displayStats.completed === displayStats.total
                       ? 'bg-green-500 text-white'
-                      : classStats[session.id].completed > 0
+                      : displayStats.completed > 0
                         ? 'bg-yellow-400 text-gray-800'
                         : 'bg-gray-200 text-gray-600'
                   }`}>
-                    {classStats[session.id].completed}/{classStats[session.id].total}
+                    {displayStats.completed}/{displayStats.total}
                   </div>
                 </StudentStatsPopover>
               </div>
-            )}
+              );
+            })()}
           </span>
         </div>
       </div>

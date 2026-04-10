@@ -275,6 +275,49 @@ export function useLiveBattle() {
     })
   }, [])
 
+  const pullTeamsFromWar = useCallback(async (courseId) => {
+    if (!courseId) return false
+
+    // Fetch active class war for this course
+    const { data: warData } = await supabase
+      .from('class_wars')
+      .select('id, team_a_name, team_b_name')
+      .eq('course_id', courseId)
+      .eq('status', 'active')
+      .order('created_at', { ascending: false })
+      .limit(1)
+      .maybeSingle()
+
+    if (!warData) return false
+
+    // Fetch war members
+    const { data: members } = await supabase
+      .from('class_war_members')
+      .select('user_id, team')
+      .eq('war_id', warData.id)
+
+    if (!members || members.length === 0) return false
+
+    // Build a map: user_id -> 'a' or 'b' (war uses 'A'/'B', live battle uses 'a'/'b')
+    const warTeamMap = {}
+    members.forEach(m => { warTeamMap[m.user_id] = m.team.toLowerCase() })
+
+    // Reassign participants based on war teams
+    setParticipants(prev => prev.map(p => ({
+      ...p,
+      team: warTeamMap[p.user_id] || p.team,
+    })))
+
+    // Update team names from war
+    setSession(prev => prev ? {
+      ...prev,
+      team_a_name: warData.team_a_name || prev.team_a_name,
+      team_b_name: warData.team_b_name || prev.team_b_name,
+    } : prev)
+
+    return true
+  }, [])
+
   const updateTeamName = useCallback((team, name) => {
     setSession(prev => prev ? {
       ...prev,
@@ -540,5 +583,6 @@ export function useLiveBattle() {
     isFrozen,
     hasShield,
     hasDouble,
+    pullTeamsFromWar,
   }
 }
