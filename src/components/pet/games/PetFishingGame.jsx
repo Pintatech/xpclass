@@ -22,13 +22,10 @@ const FISH_BASE_POINTS = {
   '🐬': 12, '🦈': 12, '🐳': 12, '🐋': 12,
 }
 
-const FRENZY_FISH_COUNT = 4
-const FRENZY_DURATION = 4000
 const POWERUPS = [
   { type: 'slow', img: assetUrl('/pet-game/fish/freeze.png'), label: 'Slow', duration: 0 },
   { type: 'double', img: assetUrl('/pet-game/fish/double-fish.png'), label: '2x', duration: 8000 },
   { type: 'heal', img: assetUrl('/pet-game/fish/heart.png'), label: '+1 HP', duration: 0 },
-  { type: 'frenzy', img: assetUrl('/pet-game/fish/frenzy.png'), label: '🎣 Frenzy!', duration: FRENZY_DURATION },
 ]
 const POWERUP_CHANCE = 0.15 // 15% chance per round
 
@@ -430,8 +427,7 @@ const PetFishingGame = ({ petImageUrl, petName, onGameEnd, onClose, wordBank: wo
               if (f.isChest) {
                 chestSpawnedRef.current = true
               }
-              // Flag correct fish miss via ref (no side effects here) — skip frenzy fish
-              if (f.isCorrect && !f.isFrenzy && !pendingMissRef.current) {
+              if (f.isCorrect && !pendingMissRef.current) {
                 pendingMissRef.current = { word: f.word, hint: f.hint }
               }
               return false
@@ -478,18 +474,8 @@ const PetFishingGame = ({ petImageUrl, petName, onGameEnd, onClose, wordBank: wo
       // Expire timed power-ups + update progress
       if (activePowerupRef.current?.expiresAt) {
         if (now >= activePowerupRef.current.expiresAt) {
-          const wasFrenzy = activePowerupRef.current.type === 'frenzy'
           activePowerupRef.current = null
           setActivePowerup(null)
-          if (wasFrenzy) {
-            // Cancel hook if it's targeting a frenzy fish
-            if (hookRef.current && hookRef.current.fishId?.startsWith('frenzy-')) {
-              hookRef.current = null
-              setHook(null)
-            }
-            setFish(prev => prev.filter(f => !f.isFrenzy))
-            scheduleNextRound()
-          }
         } else {
           const remaining = activePowerupRef.current.expiresAt - now
           const duration = activePowerupRef.current.duration
@@ -548,27 +534,18 @@ const PetFishingGame = ({ petImageUrl, petName, onGameEnd, onClose, wordBank: wo
       setWordPopup({ points, streak: newStreak })
       setTimeout(() => setWordPopup(null), 1000)
 
-      // Mark caught — frenzy fish don't dismiss others
-      if (fishObj.isFrenzy) {
-        setFish(prev => prev.map(f =>
-          f.id === fishObj.id ? { ...f, caught: true, hooked: false } : f
-        ))
-      } else {
-        const roundId = fishObj.id.split('-').slice(1, 2)[0]
-        setFish(prev => prev.map(f => {
-          if (f.id === fishObj.id) return { ...f, caught: true, hooked: false }
-          const thisRoundId = f.id.split('-').slice(1, 2)[0]
-          if (roundId === thisRoundId && !f.caught) return { ...f, opacity: 0.5, wrong: true }
-          return f
-        }))
-      }
+      const roundId = fishObj.id.split('-').slice(1, 2)[0]
+      setFish(prev => prev.map(f => {
+        if (f.id === fishObj.id) return { ...f, caught: true, hooked: false }
+        const thisRoundId = f.id.split('-').slice(1, 2)[0]
+        if (roundId === thisRoundId && !f.caught) return { ...f, opacity: 0.5, wrong: true }
+        return f
+      }))
 
       // Splash particles at the surface
       const containerH = containerRef.current?.clientHeight || 700
       const splashY = containerH * 0.38
-      const colors = fishObj.isFrenzy
-        ? ['#facc15', '#f59e0b', '#fbbf24', '#fde68a', '#ff6b6b', '#ffffff']
-        : ['#60a5fa', '#3b82f6', '#93c5fd', '#2dd4bf', '#22d3ee', '#ffffff']
+      const colors = ['#60a5fa', '#3b82f6', '#93c5fd', '#2dd4bf', '#22d3ee', '#ffffff']
       const splashParticles = Array.from({ length: 12 }, (_, i) => ({
         id: `splash-${uid()}`,
         x: fishObj.x,
@@ -583,22 +560,7 @@ const PetFishingGame = ({ petImageUrl, petName, onGameEnd, onClose, wordBank: wo
       playSound(assetUrl('/sound/scram-correct.mp3'), 0.4)
       setFeedback({ type: 'correct', word: fishObj.word, x: fishObj.x, y: splashY })
       setTimeout(() => setFeedback(null), 600)
-      if (fishObj.isFrenzy) {
-        // End frenzy early if all frenzy fish caught (only if frenzy is still active)
-        if (activePowerupRef.current?.type === 'frenzy') {
-          setFish(prev => {
-            const remaining = prev.filter(f => f.isFrenzy && !f.caught && f.id !== fishObj.id)
-            if (remaining.length === 0) {
-              activePowerupRef.current = null
-              setActivePowerup(null)
-              setTimeout(() => scheduleNextRound(), 300)
-            }
-            return prev
-          })
-        }
-      } else {
-        scheduleNextRound()
-      }
+      scheduleNextRound()
 
     } else {
       // Wrong fish reeled in
@@ -666,56 +628,6 @@ const PetFishingGame = ({ petImageUrl, petName, onGameEnd, onClose, wordBank: wo
         setFeedback({ type: 'correct', word: '+1 HP', x: pu.x, y: pu.y })
       }
       setTimeout(() => setFeedback(null), 600)
-    } else if (pu.type === 'frenzy') {
-      const active = { type: 'frenzy', img: pu.img, label: pu.label, duration: pu.duration, expiresAt: performance.now() + pu.duration }
-      activePowerupRef.current = active
-      setActivePowerup(active)
-      setFeedback({ type: 'correct', word: `${pu.label}`, x: pu.x, y: pu.y })
-      setTimeout(() => setFeedback(null), 600)
-
-      // Clear existing fish and spawn frenzy wave
-      setCurrentHint('🎣 Frenzy! Bắt tất cả!')
-      setFish([])
-      const containerW = containerRef.current?.clientWidth || 400
-      const containerH = containerRef.current?.clientHeight || 700
-      const waterTop = containerH * 0.45
-      const waterBottom = containerH * 0.90
-      const words = wordBankProp
-      if (words.length > 0) {
-        const frenzyWords = shuffle([...words]).slice(0, FRENZY_FISH_COUNT)
-        const laneHeight = (waterBottom - waterTop) / frenzyWords.length
-        const emojiPool = shuffle([...FISH_EMOJIS])
-        const roundId = Date.now()
-        frenzyWords.forEach((w, i) => {
-          setTimeout(() => {
-            const goingRight = i % 2 === 0
-            const startX = goingRight ? -100 : containerW + 100
-            const laneY = waterTop + laneHeight * i + laneHeight / 2 + (Math.random() - 0.5) * 20
-            const speed = (BASE_FISH_SPEED + Math.random() * 1.0) * speedMul
-            const vx = goingRight ? speed : -speed
-            setFish(prev => [...prev, {
-              id: `frenzy-${w.word}-${roundId}-${i}`,
-              word: w.word,
-              hint: w.hint,
-              isCorrect: true,
-              isFrenzy: true,
-              isChest: false,
-              x: startX,
-              y: laneY,
-              baseY: laneY,
-              vx,
-              direction: goingRight ? 1 : -1,
-              caught: false,
-              wrong: false,
-              opacity: 1,
-              scale: 1,
-              emoji: emojiPool[i % emojiPool.length],
-              wiggleOffset: Math.random() * Math.PI * 2,
-              spawnTime: performance.now(),
-            }])
-          }, i * 100)
-        })
-      }
     } else if (pu.type === 'slow') {
       // Slow applies to current round only — store the round index
       const active = { type: 'slow', img: pu.img, label: pu.label, roundIndex: roundIndexRef.current }
@@ -731,7 +643,7 @@ const PetFishingGame = ({ petImageUrl, petName, onGameEnd, onClose, wordBank: wo
       setFeedback({ type: 'correct', word: `${pu.label}!`, x: pu.x, y: pu.y })
       setTimeout(() => setFeedback(null), 600)
     }
-  }, [phase, playSound, petHp, speedMul, wordBankProp])
+  }, [phase, playSound, petHp])
 
   // Handle tapping a fish — drop the hook
   const handleFishTap = useCallback((fishObj) => {
