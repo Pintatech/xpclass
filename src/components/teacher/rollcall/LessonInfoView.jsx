@@ -15,7 +15,7 @@ const LEVEL_UNITS = {
 
 const LEVELS = Object.keys(LEVEL_UNITS);
 
-const TAGS = ['L1', 'L2', 'L3', 'L4', 'L5', 'L6', 'Present', 'Project'];
+const TAGS = ['L1', 'L2', 'L3', 'L4', 'L5', 'L6', 'Present', 'Project' , 'Prepare Presentation'];
 
 const SKILLS = ['Mixed', 'Speaking', 'Listening', 'Writing', 'Reading', 'Phonic', 'Grammar', 'Vocab'];
 

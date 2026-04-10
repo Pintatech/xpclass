@@ -416,30 +416,36 @@ const DragDropExercise = ({ testMode = false, exerciseData = null, onAnswersColl
   }
 
   // Handle click on item - automatically place in next available zone
-  const handleItemClick = (itemId, questionIndex) => {
+  const handleItemClick = (itemId, questionIndex, instanceKey) => {
     const userAnswer = userAnswers[questionIndex] || {}
     const question = exercise.content.questions[questionIndex]
     const pending = pendingPlacements[questionIndex] || {}
 
-    // Check if item is already placed or has a pending placement
-    const isAlreadyPlaced = Object.values(userAnswer).includes(itemId)
-    const hasPendingPlacement = Object.values(pending).includes(itemId)
+    // Count how many instances of this item ID exist in the items list
+    const totalInstances = (question.items || []).filter(i => i.id === itemId).length
+    // Count how many are already placed in zones
+    const placedCount = Object.values(userAnswer).filter(id => id === itemId).length
+    // Count how many have pending placements
+    const pendingCount = Object.values(pending).filter(id => id === itemId).length
+    // This specific instance is "used" if placed + pending >= total instances up to this one
+    const isThisInstanceUsed = placedCount + pendingCount >= totalInstances
 
-    if (isAlreadyPlaced) {
-      // If already placed, remove it from current zone (instant, no animation)
+    if (isThisInstanceUsed && placedCount > 0) {
+      // Remove ONE instance from zones (the last one placed)
       const newAnswers = { ...userAnswers }
       if (!newAnswers[questionIndex]) {
         newAnswers[questionIndex] = {}
       }
 
-      // Find and remove from current zone
-      Object.keys(newAnswers[questionIndex]).forEach(zone => {
-        if (newAnswers[questionIndex][zone] === itemId) {
-          delete newAnswers[questionIndex][zone]
-        }
-      })
+      // Find and remove only the first matching zone
+      const zoneToRemove = Object.keys(newAnswers[questionIndex]).find(zone =>
+        newAnswers[questionIndex][zone] === itemId
+      )
+      if (zoneToRemove) {
+        delete newAnswers[questionIndex][zoneToRemove]
+      }
       setUserAnswers(newAnswers)
-    } else if (!hasPendingPlacement) {
+    } else if (placedCount + pendingCount < totalInstances) {
       // Find next available drop zone (excluding zones with pending placements)
       const availableZone = question.drop_zones.find(zone =>
         !userAnswer[zone.id] && !pending[zone.id]
@@ -465,7 +471,7 @@ const DragDropExercise = ({ testMode = false, exerciseData = null, onAnswersColl
         }
 
         // Get positions for animation
-        const itemElement = document.querySelector(`[data-item-id="${itemId}"]`)
+        const itemElement = document.querySelector(`[data-item-id="${instanceKey || itemId}"]`)
         const zoneElement = document.querySelector(`[data-zone-id="${availableZone.id}"]`)
 
         if (itemElement && zoneElement) {
@@ -974,7 +980,8 @@ const DragDropExercise = ({ testMode = false, exerciseData = null, onAnswersColl
                           setDraggedItem({ itemId: item.id, questionIndex: qIndex })
                           e.dataTransfer.effectAllowed = 'move'
                         }}
-                        onClick={() => !isUsed && handleItemClick(item.id, qIndex)}
+                        data-item-id={`${item.id}_${itemIdx}`}
+                        onClick={() => !isUsed && handleItemClick(item.id, qIndex, `${item.id}_${itemIdx}`)}
                         style={{
                           borderRadius: '0.75em', padding: 0, transition: 'all 0.1s',
                           cursor: isUsed ? 'default' : 'grab',
@@ -1251,13 +1258,13 @@ const DragDropExercise = ({ testMode = false, exerciseData = null, onAnswersColl
                 return (
                   <div
                     key={`${item.id}_${itemIdx}`}
-                    data-item-id={item.id}
+                    data-item-id={`${item.id}_${itemIdx}`}
                     draggable={!isUsed && !questionsChecked[currentQuestionIndex]}
                     onDragStart={(e) => !questionsChecked[currentQuestionIndex] && handleDragStart(e, item.id, currentQuestionIndex)}
                     onTouchStart={(e) => !questionsChecked[currentQuestionIndex] && handleTouchStart(e, item.id, currentQuestionIndex)}
                     onTouchMove={handleTouchMove}
                     onTouchEnd={handleTouchEnd}
-                    onClick={() => !questionsChecked[currentQuestionIndex] && handleItemClick(item.id, currentQuestionIndex)}
+                    onClick={() => !questionsChecked[currentQuestionIndex] && handleItemClick(item.id, currentQuestionIndex, `${item.id}_${itemIdx}`)}
                     className="border-none rounded-lg transition-all duration-100"
                     style={{
                       padding: 0,
