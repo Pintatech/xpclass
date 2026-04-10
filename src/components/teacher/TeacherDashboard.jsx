@@ -24,7 +24,7 @@ const TeacherDashboard = () => {
   const { user, isAdmin, profile, loading: authLoading } = useAuth();
   const navigate = useNavigate();
   const [courses, setCourses] = useState([]);
-  const [selectedCourse, setSelectedCourse] = useState('');
+  const [selectedCourse, setSelectedCourse] = useState(() => localStorage.getItem('teacherSelectedCourse') || '');
   const [students, setStudents] = useState([]);
   const [studentProgress, setStudentProgress] = useState([]);
   const [courseStats, setCourseStats] = useState({});
@@ -95,7 +95,11 @@ const TeacherDashboard = () => {
 
         setCourses(teacherCourses);
         if (teacherCourses.length > 0) {
-          setSelectedCourse(teacherCourses[0].id);
+          const saved = localStorage.getItem('teacherSelectedCourse');
+          if (!saved || !teacherCourses.some(c => c.id === saved)) {
+            setSelectedCourse(teacherCourses[0].id);
+            localStorage.setItem('teacherSelectedCourse', teacherCourses[0].id);
+          }
         }
       } else {
         console.log('Admin user, fetching all courses');
@@ -112,7 +116,11 @@ const TeacherDashboard = () => {
 
         setCourses(data || []);
         if (data?.length > 0) {
-          setSelectedCourse(data[0].id);
+          const saved = localStorage.getItem('teacherSelectedCourse');
+          if (!saved || !data.some(c => c.id === saved)) {
+            setSelectedCourse(data[0].id);
+            localStorage.setItem('teacherSelectedCourse', data[0].id);
+          }
         }
       }
 
@@ -435,8 +443,6 @@ const TeacherDashboard = () => {
       .sort((a, b) => new Date(b.completed_at || b.updated_at) - new Date(a.completed_at || a.updated_at));
   };
 
-  const selectedCourseData = courses.find(course => course.id === selectedCourse);
-
   if (authLoading) {
     return (
       <div className="flex items-center justify-center min-h-screen">
@@ -484,7 +490,7 @@ const TeacherDashboard = () => {
               </span>
               <select
                 value={selectedCourse}
-                onChange={(e) => setSelectedCourse(e.target.value)}
+                onChange={(e) => { setSelectedCourse(e.target.value); localStorage.setItem('teacherSelectedCourse', e.target.value); }}
                 className="w-full max-w-md p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
               >
                 {courses.map(course => (
@@ -494,9 +500,6 @@ const TeacherDashboard = () => {
                   </option>
                 ))}
               </select>
-              {selectedCourseData && (
-                <p className="text-sm text-gray-600 mt-2">{selectedCourseData.description}</p>
-              )}
             </div>
 
             {/* View Toggle */}
@@ -580,73 +583,53 @@ const TeacherDashboard = () => {
       {/* Course Overview Stats */}
       {selectedCourse && currentView === 'overview' && (
         <div className="space-y-4">
-        <div className="flex items-center gap-2">
-          <button
-            onClick={() => setStatsMode('shared')}
-            className={`px-3 py-1.5 rounded-lg text-sm font-medium transition-colors ${
-              statsMode === 'shared'
-                ? 'bg-blue-600 text-white'
-                : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
-            }`}
-          >
-            Shared
-          </button>
-          <button
-            onClick={() => setStatsMode('personal')}
-            className={`px-3 py-1.5 rounded-lg text-sm font-medium transition-colors ${
-              statsMode === 'personal'
-                ? 'bg-purple-600 text-white'
-                : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
-            }`}
-          >
-            Personal
-          </button>
-        </div>
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-          <div className="bg-white rounded-lg shadow-sm border p-6">
-            <div className="flex items-center">
-              <div className="flex-shrink-0">
-                <Users className="w-8 h-8 text-blue-600" />
-              </div>
-              <div className="ml-4">
-                <p className="text-sm font-medium text-gray-600">Enrolled Students</p>
-                <p className="text-2xl font-bold text-gray-900">{courseStats.totalStudents || 0}</p>
-              </div>
-            </div>
+        <div className="flex items-center gap-3 flex-wrap">
+          <div className="flex items-center gap-2">
+            <button
+              onClick={() => setStatsMode('shared')}
+              className={`px-3 py-1.5 rounded-lg text-sm font-medium transition-colors ${
+                statsMode === 'shared'
+                  ? 'bg-blue-600 text-white'
+                  : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+              }`}
+            >
+              Shared
+            </button>
+            <button
+              onClick={() => setStatsMode('personal')}
+              className={`px-3 py-1.5 rounded-lg text-sm font-medium transition-colors ${
+                statsMode === 'personal'
+                  ? 'bg-purple-600 text-white'
+                  : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+              }`}
+            >
+              Personal
+            </button>
           </div>
-
-          <div className="bg-white rounded-lg shadow-sm border p-6">
-            <div className="flex items-center">
-              <div className="flex-shrink-0">
-                <BookOpen className="w-8 h-8 text-green-600" />
-              </div>
-              <div className="ml-4">
-                <p className="text-sm font-medium text-gray-600">Average Score</p>
-                <p className="text-2xl font-bold text-gray-900">
-                  {students.length > 0
-                    ? Math.round(students.reduce((sum, student) =>
-                        sum + getStudentStats(student.student_id).averageScore, 0) / students.length)
-                    : 0}%
-                </p>
-              </div>
-            </div>
+          <div className="flex items-center gap-2 bg-white rounded-lg shadow-sm border px-4 py-2">
+            <Users className="w-5 h-5 text-blue-600" />
+            <span className="text-sm text-gray-600">Students</span>
+            <span className="text-lg font-bold text-gray-900">{statsMode === 'personal' ? students.filter(e => (personalExerciseIds[e.student_id] || []).length > 0).length : (courseStats.totalStudents || 0)}</span>
           </div>
-
-          <div className="bg-white rounded-lg shadow-sm border p-6">
-            <div className="flex items-center">
-              <div className="flex-shrink-0">
-                <Trophy className="w-8 h-8 text-yellow-600" />
-              </div>
-              <div className="ml-4">
-                <p className="text-sm font-medium text-gray-600">Avg Completion</p>
-                <p className="text-2xl font-bold text-gray-900">
-                  {students.length > 0
-                    ? Math.round(students.reduce((sum, student) =>
-                        sum + getStudentStats(student.student_id).completionRate, 0) / students.length)
-                    : 0}%
-                </p>
-              </div>
-            </div>
+          <div className="flex items-center gap-2 bg-white rounded-lg shadow-sm border px-4 py-2">
+            <BookOpen className="w-5 h-5 text-green-600" />
+            <span className="text-sm text-gray-600">Avg Score</span>
+            <span className="text-lg font-bold text-gray-900">
+              {students.length > 0
+                ? Math.round(students.reduce((sum, student) =>
+                    sum + getStudentStats(student.student_id).averageScore, 0) / students.length)
+                : 0}%
+            </span>
+          </div>
+          <div className="flex items-center gap-2 bg-white rounded-lg shadow-sm border px-4 py-2">
+            <Trophy className="w-5 h-5 text-yellow-600" />
+            <span className="text-sm text-gray-600">Avg Completion</span>
+            <span className="text-lg font-bold text-gray-900">
+              {students.length > 0
+                ? Math.round(students.reduce((sum, student) =>
+                    sum + getStudentStats(student.student_id).completionRate, 0) / students.length)
+                : 0}%
+            </span>
           </div>
         </div>
 
@@ -668,7 +651,11 @@ const TeacherDashboard = () => {
             </div>
           ) : (
             <div className="divide-y divide-gray-200">
-              {students.map((enrollment) => {
+              {students.filter((enrollment) => {
+                if (statsMode !== 'personal') return true;
+                const ids = personalExerciseIds[enrollment.student_id] || [];
+                return ids.length > 0;
+              }).map((enrollment) => {
                 const _s = enrollment.student;
                 const student = { ..._s, full_name: _s.real_name || _s.full_name, avatar_url: _s.real_avatar_url || _s.avatar_url };
                 const stats = getStudentStats(student.id);

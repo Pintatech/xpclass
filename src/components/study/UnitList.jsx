@@ -266,10 +266,10 @@ const UnitList = () => {
         if (personalStudentIds.length > 0) {
           const { data: studentNames } = await supabase
             .from("users")
-            .select("id, full_name")
+            .select("id, real_name")
             .in("id", personalStudentIds);
           const nameMap = {};
-          (studentNames || []).forEach(s => { nameMap[s.id] = s.full_name || "Unknown"; });
+          (studentNames || []).forEach(s => { nameMap[s.id] = s.real_name || "Unknown"; });
           setStudentNameMap(nameMap);
         }
       }

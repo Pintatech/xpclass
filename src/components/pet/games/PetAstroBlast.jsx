@@ -28,6 +28,7 @@ const POWERUPS = [
   { type: 'slow', img: assetUrl('/pet-game/fish/freeze.png'), label: 'Slow', duration: 0 },
   { type: 'double', img: assetUrl('/pet-game/fish/double-fish.png'), label: '2x', duration: 8000 },
   { type: 'heal', img: assetUrl('/pet-game/fish/heart.png'), label: '+1 HP', duration: 0 },
+  { type: 'frenzy', img: assetUrl('/pet-game/fish/frenzy.png'), label: '🎣 Frenzy!', duration: 0 },
 ]
 const POWERUP_CHANCE = 0.15
 
@@ -476,7 +477,14 @@ const PetAstroBlast = ({ petImageUrl, petName, onGameEnd, onClose, shipSkinUrl, 
     setPowerups(prev => prev.filter(p => p.id !== pu.id))
     playSound(assetUrl('/sound/power-up.mp3'), 0.3)
 
-    if (pu.type === 'heal') {
+    if (pu.type === 'frenzy') {
+      scoreRef.current += 50
+      setDisplayScore(scoreRef.current)
+      setWordPopup({ points: 50, streak: 0 })
+      setTimeout(() => setWordPopup(null), 1000)
+      setFeedback({ type: 'correct', word: '+50', x: pu.x, y: pu.y })
+      setTimeout(() => setFeedback(null), 600)
+    } else if (pu.type === 'heal') {
       if (petHp >= PET_MAX_HP) {
         scoreRef.current += 30
         setDisplayScore(scoreRef.current)
