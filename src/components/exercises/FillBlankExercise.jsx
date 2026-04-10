@@ -395,13 +395,12 @@ const FillBlankExercise = ({ testMode = false, exerciseData = null, onAnswersCol
     // Play feedback based on score
     playFeedback(questionScore >= 80)
 
-    // Save question attempt to database
+    // Save question attempt to database (one row per blank for per-blank override)
     try {
       const urlParams = new URLSearchParams(location.search)
       const exerciseId = urlParams.get('exerciseId')
 
       if (exerciseId && user) {
-        // Save one row per blank for accurate per-blank stats
         const blankAttempts = currentQuestion.blanks.map((blank, blankIndex) => {
           const userAnswer = (userAnswers[currentQuestionIndex]?.[blankIndex] || '').trim()
           const correctAnswersList = splitAnswers(blank.answer)
@@ -421,10 +420,11 @@ const FillBlankExercise = ({ testMode = false, exerciseData = null, onAnswersCol
             response_time: Date.now() - startTime
           }
         })
-        await supabase.from('question_attempts').insert(blankAttempts)
+        const { error: insertError } = await supabase.from('question_attempts').insert(blankAttempts)
+        if (insertError) console.error('⚠️ Fill blank insert error:', insertError)
       }
     } catch (err) {
-      console.log('⚠️ Could not save question attempt:', err.message)
+      console.error('⚠️ Could not save question attempt:', err.message)
     }
   }
 
@@ -553,9 +553,10 @@ const FillBlankExercise = ({ testMode = false, exerciseData = null, onAnswersCol
             }
           })
         )
-        await supabase.from('question_attempts').insert(attempts)
+        const { error: insertError } = await supabase.from('question_attempts').insert(attempts)
+        if (insertError) console.error('⚠️ Fill blank submitAll insert error:', insertError)
       } catch (err) {
-        console.log('⚠️ Could not save question attempts:', err.message)
+        console.error('⚠️ Could not save question attempts:', err.message)
       }
     }
 

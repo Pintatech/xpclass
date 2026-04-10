@@ -13,7 +13,6 @@ import {
   ChevronDown,
   ChevronRight,
   Grid,
-  Eye,
   BarChart3,
   FileText,
   Video,
@@ -35,6 +34,9 @@ const TeacherDashboard = () => {
   const [expandedStudent, setExpandedStudent] = useState(null);
   const [currentView, setCurrentView] = useState('overview'); // 'overview', 'matrix', or 'unit-progress'
   const [hasLoadedCourses, setHasLoadedCourses] = useState(false);
+  const [statsMode, setStatsMode] = useState('shared'); // 'shared' or 'personal'
+  const [personalExerciseIds, setPersonalExerciseIds] = useState({}); // { studentId: [exerciseIds] }
+  const [personalProgress, setPersonalProgress] = useState([]);
 
   useEffect(() => {
     console.log('🔄 Effect triggered:', {
@@ -57,6 +59,13 @@ const TeacherDashboard = () => {
       fetchCourseStats();
     }
   }, [selectedCourse]);
+
+  // Fetch personal assignments when students are loaded
+  useEffect(() => {
+    if (students.length > 0 && selectedCourse) {
+      fetchPersonalAssignments();
+    }
+  }, [students, selectedCourse]);
 
   const fetchTeacherCourses = async () => {
     try {
@@ -224,6 +233,81 @@ const TeacherDashboard = () => {
     }
   };
 
+  const fetchPersonalAssignments = async () => {
+    try {
+      const studentIds = students.map(e => e.student_id);
+
+      // Get units in this course
+      const { data: units, error: unitsErr } = await supabase
+        .from('units')
+        .select('id, assigned_student_id')
+        .eq('course_id', selectedCourse);
+      if (unitsErr) throw unitsErr;
+
+      const unitIds = (units || []).map(u => u.id);
+      if (unitIds.length === 0) { setPersonalExerciseIds({}); setPersonalProgress([]); return; }
+
+      // Get sessions in these units
+      const { data: sessions, error: sessionsErr } = await supabase
+        .from('sessions')
+        .select('id, assigned_student_id, unit_id')
+        .in('unit_id', unitIds);
+      if (sessionsErr) throw sessionsErr;
+
+      // A session is personal if it or its parent unit has assigned_student_id
+      const unitStudentMap = {};
+      (units || []).forEach(u => { if (u.assigned_student_id) unitStudentMap[u.id] = u.assigned_student_id; });
+
+      const personalSessionIds = [];
+      const sessionStudentMap = {};
+      (sessions || []).forEach(s => {
+        const studentId = s.assigned_student_id || unitStudentMap[s.unit_id];
+        if (studentId) {
+          personalSessionIds.push(s.id);
+          sessionStudentMap[s.id] = studentId;
+        }
+      });
+
+      if (personalSessionIds.length === 0) { setPersonalExerciseIds({}); setPersonalProgress([]); return; }
+
+      // Get exercises in personal sessions
+      const { data: assignments, error: assignErr } = await supabase
+        .from('exercise_assignments')
+        .select('session_id, exercise_id')
+        .in('session_id', personalSessionIds);
+      if (assignErr) throw assignErr;
+
+      // Group exercise IDs by student
+      const byStudent = {};
+      const allExerciseIds = [];
+      (assignments || []).forEach(a => {
+        const studentId = sessionStudentMap[a.session_id];
+        if (studentId) {
+          if (!byStudent[studentId]) byStudent[studentId] = [];
+          byStudent[studentId].push(a.exercise_id);
+          allExerciseIds.push(a.exercise_id);
+        }
+      });
+      setPersonalExerciseIds(byStudent);
+
+      // Fetch progress for personal exercises
+      const uniqueExerciseIds = Array.from(new Set(allExerciseIds));
+      if (uniqueExerciseIds.length > 0) {
+        const { data: progress, error: progressErr } = await supabase
+          .from('user_progress')
+          .select('id, user_id, exercise_id, status, score, max_score, attempts, time_spent, completed_at, updated_at')
+          .in('user_id', studentIds)
+          .in('exercise_id', uniqueExerciseIds);
+        if (progressErr) throw progressErr;
+        setPersonalProgress(progress || []);
+      } else {
+        setPersonalProgress([]);
+      }
+    } catch (error) {
+      console.error('Error fetching personal assignments:', error);
+    }
+  };
+
   const fetchCourseStats = async () => {
     if (!selectedCourse) return;
 
@@ -280,9 +364,38 @@ const TeacherDashboard = () => {
   };
 
   const getStudentStats = (studentId) => {
+    if (statsMode === 'personal') {
+      const personalIds = personalExerciseIds[studentId] || [];
+      const personalSet = new Set(personalIds);
+      const sp = personalProgress.filter(p => p.user_id === studentId && personalSet.has(p.exercise_id));
+
+      const completed = sp.filter(p => p.status === 'completed').length;
+      const attempted = sp.filter(p => p.status === 'attempted' || p.status === 'in_progress').length;
+      const totalTime = sp.reduce((sum, p) => sum + (p.time_spent || 0), 0);
+
+      const scores = sp
+        .filter(p => p.score !== null && (p.max_score || 0) > 0)
+        .map(p => (p.score / p.max_score) * 100);
+
+      const averageScore = scores.length > 0
+        ? scores.reduce((sum, score) => sum + score, 0) / scores.length
+        : 0;
+
+      const total = personalIds.length;
+      const completionRate = total > 0 ? Math.round((completed / total) * 100) : 0;
+
+      return {
+        completed,
+        attempted,
+        total,
+        averageScore: Math.round(averageScore),
+        totalTime: Math.round(totalTime / 60),
+        completionRate
+      };
+    }
+
     const courseExerciseSet = new Set(courseExerciseIds);
     const sp = studentProgress.filter(p => p.user_id === studentId && courseExerciseSet.has(p.exercise_id));
-    
 
     const completed = sp.filter(p => p.status === 'completed').length;
     const attempted = sp.filter(p => p.status === 'attempted' || p.status === 'in_progress').length;
@@ -304,7 +417,7 @@ const TeacherDashboard = () => {
       attempted,
       total,
       averageScore: Math.round(averageScore),
-      totalTime: Math.round(totalTime / 60), // minutes
+      totalTime: Math.round(totalTime / 60),
       completionRate
     };
   };
@@ -336,40 +449,29 @@ const TeacherDashboard = () => {
   return (
     <div className="space-y-6">
       {/* Quick Actions */}
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-          <div
-            onClick={() => navigate('/teacher/overview')}
-            className="bg-gradient-to-br from-green-50 to-green-100 p-6 rounded-lg shadow-sm hover:shadow-md cursor-pointer transition-all border border-green-200"
-          >
-            <div className="flex items-center space-x-3 mb-2">
-              <Users className="w-8 h-8 text-green-600" />
-              <h3 className="font-semibold text-gray-800">Điểm danh</h3>
-            </div>
-            <p className="text-sm text-gray-600">All classes at a glance with student performance history</p>
-          </div>
-
-          <div
-            onClick={() => navigate('/teacher/exercise-bank')}
-            className="bg-gradient-to-br from-blue-50 to-blue-100 p-6 rounded-lg shadow-sm hover:shadow-md cursor-pointer transition-all border border-blue-200"
-          >
-            <div className="flex items-center space-x-3 mb-2">
-              <Eye className="w-8 h-8 text-blue-600" />
-              <h3 className="font-semibold text-gray-800">Exercise Bank</h3>
-            </div>
-            <p className="text-sm text-gray-600">Browse and preview all exercises</p>
-          </div>
-
-          <div
-            onClick={() => navigate('/teacher/weakness-analysis')}
-            className="bg-gradient-to-br from-red-50 to-orange-100 p-6 rounded-lg shadow-sm hover:shadow-md cursor-pointer transition-all border border-red-200"
-          >
-            <div className="flex items-center space-x-3 mb-2">
-              <TrendingDown className="w-8 h-8 text-red-600" />
-              <h3 className="font-semibold text-gray-800">Weakness Analysis</h3>
-            </div>
-            <p className="text-sm text-gray-600">Per-student accuracy breakdown by skill tag</p>
-          </div>
-        </div>
+      <div className="flex gap-2">
+        <button
+          onClick={() => navigate('/teacher/overview')}
+          className="flex items-center gap-2 px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors text-sm font-medium"
+        >
+          <Users className="w-4 h-4" />
+          Điểm danh
+        </button>
+        <button
+          onClick={() => navigate('/teacher/exercise-bank')}
+          className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors text-sm font-medium"
+        >
+          <BookOpen className="w-4 h-4" />
+          Exercise Bank
+        </button>
+        <button
+          onClick={() => navigate('/teacher/weakness-analysis')}
+          className="flex items-center gap-2 px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors text-sm font-medium"
+        >
+          <TrendingDown className="w-4 h-4" />
+          Weakness Analysis
+        </button>
+      </div>
 
       {/* Course Selection & View Toggle */}
       {courses.length > 0 && (
@@ -477,6 +579,29 @@ const TeacherDashboard = () => {
 
       {/* Course Overview Stats */}
       {selectedCourse && currentView === 'overview' && (
+        <div className="space-y-4">
+        <div className="flex items-center gap-2">
+          <button
+            onClick={() => setStatsMode('shared')}
+            className={`px-3 py-1.5 rounded-lg text-sm font-medium transition-colors ${
+              statsMode === 'shared'
+                ? 'bg-blue-600 text-white'
+                : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+            }`}
+          >
+            Shared
+          </button>
+          <button
+            onClick={() => setStatsMode('personal')}
+            className={`px-3 py-1.5 rounded-lg text-sm font-medium transition-colors ${
+              statsMode === 'personal'
+                ? 'bg-purple-600 text-white'
+                : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+            }`}
+          >
+            Personal
+          </button>
+        </div>
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
           <div className="bg-white rounded-lg shadow-sm border p-6">
             <div className="flex items-center">
@@ -524,11 +649,8 @@ const TeacherDashboard = () => {
             </div>
           </div>
         </div>
-      )}
 
-      {/* Students List */}
-      {selectedCourse && currentView === 'overview' && (
-        <div className="bg-white rounded-lg shadow-sm border">
+      <div className="bg-white rounded-lg shadow-sm border">
           <div className="p-6 border-b border-gray-200">
             <h2 className="text-xl font-semibold text-gray-900">Student Progress</h2>
           </div>
@@ -661,6 +783,7 @@ const TeacherDashboard = () => {
               })}
             </div>
           )}
+        </div>
         </div>
       )}
 

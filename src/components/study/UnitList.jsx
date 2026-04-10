@@ -27,6 +27,7 @@ import {
   ChevronUp,
   ChevronDown,
   User,
+  Users,
   Copy,
 } from "lucide-react";
 import StudentStatsPopover from "../ui/StudentStatsPopover";
@@ -111,6 +112,10 @@ const UnitList = () => {
   const [editingSession, setEditingSession] = useState(null);
   const [showWarModal, setShowWarModal] = useState(false);
   const [showWarSetup, setShowWarSetup] = useState(false);
+  const [bulkPasteModal, setBulkPasteModal] = useState(null); // { unitId }
+  const [bulkPasteStudents, setBulkPasteStudents] = useState([]);
+  const [bulkPasteSelected, setBulkPasteSelected] = useState(new Set());
+  const [bulkPasteLoading, setBulkPasteLoading] = useState(false);
 
   // Class War
   const { war: activeWar, teamA, teamB, teamAXP, teamBXP, userTeam, rewards: warRewards, refresh: refreshWar } = useClassWar(currentId);
@@ -778,6 +783,96 @@ const UnitList = () => {
     }
   };
 
+  const openBulkPasteModal = async (unitId) => {
+    closeContextMenu();
+    if (!copiedSession) return;
+    setBulkPasteModal({ unitId });
+    setBulkPasteSelected(new Set());
+    setBulkPasteLoading(false);
+    try {
+      const { data, error: fetchError } = await supabase
+        .from('course_enrollments')
+        .select('student_id, student:users!student_id(id, full_name)')
+        .eq('course_id', currentId)
+        .eq('is_active', true);
+      if (fetchError) throw fetchError;
+      setBulkPasteStudents((data || []).map(e => ({
+        id: e.student?.id || e.student_id,
+        name: e.student?.full_name || 'Unknown',
+      })));
+    } catch (err) {
+      console.error('Error fetching students:', err);
+      setBulkPasteStudents([]);
+    }
+  };
+
+  const handleBulkPaste = async () => {
+    if (!copiedSession || !bulkPasteModal || bulkPasteSelected.size === 0) return;
+    setBulkPasteLoading(true);
+    const targetUnitId = bulkPasteModal.unitId;
+    try {
+      // Get exercises for the copied session
+      const { data: assignments, error: assignError } = await supabase
+        .from('exercise_assignments')
+        .select('exercise_id, order_index')
+        .eq('session_id', copiedSession.id)
+        .order('order_index');
+      if (assignError) throw assignError;
+
+      // Get next session_number
+      const { data: existing } = await supabase
+        .from('sessions')
+        .select('session_number')
+        .eq('unit_id', targetUnitId)
+        .order('session_number', { ascending: false })
+        .limit(1);
+      let nextNum = existing?.length > 0 ? existing[0].session_number + 1 : 1;
+
+      const newSessions = [];
+      for (const studentId of bulkPasteSelected) {
+        const { data: newSession, error: sessError } = await supabase
+          .from('sessions')
+          .insert({
+            unit_id: targetUnitId,
+            title: copiedSession.title,
+            description: copiedSession.description,
+            session_number: nextNum++,
+            session_type: copiedSession.session_type,
+            difficulty_level: copiedSession.difficulty_level,
+            xp_reward: copiedSession.xp_reward,
+            is_active: copiedSession.is_active,
+            estimated_duration: copiedSession.estimated_duration,
+            is_test: copiedSession.is_test,
+            assigned_student_id: studentId,
+          })
+          .select()
+          .single();
+        if (sessError) throw sessError;
+
+        if (assignments?.length > 0) {
+          const { error: insertError } = await supabase
+            .from('exercise_assignments')
+            .insert(assignments.map(a => ({
+              session_id: newSession.id,
+              exercise_id: a.exercise_id,
+              order_index: a.order_index,
+            })));
+          if (insertError) throw insertError;
+        }
+        newSessions.push(newSession);
+      }
+
+      setSessions(prev => [...prev, ...newSessions]);
+      alert(`Pasted "${copiedSession.title}" to ${newSessions.length} student(s)!`);
+      setBulkPasteModal(null);
+    } catch (err) {
+      console.error('Error bulk pasting:', err);
+      alert('Failed to bulk paste: ' + (err.message || 'Unknown error'));
+    } finally {
+      setBulkPasteLoading(false);
+    }
+  };
+
   const handleSessionUpdated = async (updatedSession) => {
     // Refetch all sessions for this unit since reordering may have changed multiple session_numbers
     const { data: refreshed } = await supabase
@@ -936,7 +1031,7 @@ const UnitList = () => {
                 <div className="bg-purple-500 rounded px-1 py-0.5 flex items-center gap-0.5 shadow-sm">
                   <User className="w-2.5 h-2.5 text-white" />
                   <span className="text-white text-[7px] font-bold leading-none">
-                    {profile?.role === 'user' ? 'YOU' : '1:1'}
+                    {profile?.role === 'user' ? 'YOU' : (studentNameMap[session.assigned_student_id]?.split(' ').pop() || '1:1')}
                   </span>
                 </div>
               </div>
@@ -1539,12 +1634,20 @@ const UnitList = () => {
             <Copy className="w-3.5 h-3.5" /> Copy
           </button>
           {copiedSession && (
-            <button
-              onClick={() => handlePasteSession(contextMenu.unitId)}
-              className="w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-green-50 hover:text-green-700 flex items-center gap-2"
-            >
-              <Plus className="w-3.5 h-3.5" /> Paste &ldquo;{copiedSession.title}&rdquo;
-            </button>
+            <>
+              <button
+                onClick={() => handlePasteSession(contextMenu.unitId)}
+                className="w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-green-50 hover:text-green-700 flex items-center gap-2"
+              >
+                <Plus className="w-3.5 h-3.5" /> Paste &ldquo;{copiedSession.title}&rdquo;
+              </button>
+              <button
+                onClick={() => openBulkPasteModal(contextMenu.unitId)}
+                className="w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-purple-50 hover:text-purple-700 flex items-center gap-2"
+              >
+                <Users className="w-3.5 h-3.5" /> Bulk Paste to Students
+              </button>
+            </>
           )}
           <div className="border-t border-gray-100 my-1" />
           <button
@@ -1553,6 +1656,95 @@ const UnitList = () => {
           >
             <Trash2 className="w-3.5 h-3.5" /> Delete
           </button>
+        </div>
+      )}
+
+      {/* Bulk Paste to Students Modal */}
+      {bulkPasteModal && copiedSession && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
+          <div className="bg-white rounded-xl p-6 w-full max-w-md mx-4 max-h-[80vh] flex flex-col">
+            <h3 className="text-lg font-bold mb-1 flex items-center gap-2">
+              <Users className="w-5 h-5 text-purple-600" />
+              Bulk Paste to Students
+            </h3>
+            <p className="text-sm text-gray-500 mb-4">
+              Paste &ldquo;<span className="font-medium">{copiedSession.title}</span>&rdquo; as a personal session for:
+            </p>
+
+            {bulkPasteStudents.length === 0 ? (
+              <p className="text-gray-400 text-center py-4">No enrolled students found</p>
+            ) : (
+              <>
+                <div className="flex items-center gap-2 mb-3">
+                  <button
+                    onClick={() => {
+                      if (bulkPasteSelected.size === bulkPasteStudents.length) {
+                        setBulkPasteSelected(new Set());
+                      } else {
+                        setBulkPasteSelected(new Set(bulkPasteStudents.map(s => s.id)));
+                      }
+                    }}
+                    className="text-xs text-purple-600 hover:text-purple-800 font-medium"
+                  >
+                    {bulkPasteSelected.size === bulkPasteStudents.length ? 'Deselect All' : 'Select All'}
+                  </button>
+                  <span className="text-xs text-gray-400">
+                    {bulkPasteSelected.size} / {bulkPasteStudents.length} selected
+                  </span>
+                </div>
+                <div className="flex-1 overflow-y-auto space-y-1 mb-4">
+                  {bulkPasteStudents.map(student => (
+                    <label
+                      key={student.id}
+                      className={`flex items-center gap-3 px-3 py-2 rounded-lg cursor-pointer transition-colors ${
+                        bulkPasteSelected.has(student.id)
+                          ? 'bg-purple-50 border border-purple-200'
+                          : 'bg-gray-50 border border-transparent hover:bg-gray-100'
+                      }`}
+                    >
+                      <input
+                        type="checkbox"
+                        checked={bulkPasteSelected.has(student.id)}
+                        onChange={() => {
+                          setBulkPasteSelected(prev => {
+                            const next = new Set(prev);
+                            if (next.has(student.id)) next.delete(student.id);
+                            else next.add(student.id);
+                            return next;
+                          });
+                        }}
+                        className="w-4 h-4 text-purple-600 rounded focus:ring-purple-500"
+                      />
+                      <User className="w-4 h-4 text-gray-400" />
+                      <span className="text-sm text-gray-800">{student.name}</span>
+                    </label>
+                  ))}
+                </div>
+              </>
+            )}
+
+            <div className="flex gap-3">
+              <button
+                onClick={() => setBulkPasteModal(null)}
+                disabled={bulkPasteLoading}
+                className="flex-1 py-2 text-gray-600 hover:text-gray-800 bg-gray-100 hover:bg-gray-200 rounded-lg transition-colors"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={handleBulkPaste}
+                disabled={bulkPasteLoading || bulkPasteSelected.size === 0}
+                className="flex-1 py-2 text-white bg-purple-600 hover:bg-purple-700 disabled:opacity-50 rounded-lg transition-colors flex items-center justify-center gap-2"
+              >
+                {bulkPasteLoading ? (
+                  <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                ) : (
+                  <Users className="w-4 h-4" />
+                )}
+                {bulkPasteLoading ? 'Pasting...' : `Paste to ${bulkPasteSelected.size} Student${bulkPasteSelected.size !== 1 ? 's' : ''}`}
+              </button>
+            </div>
+          </div>
         </div>
       )}
 
