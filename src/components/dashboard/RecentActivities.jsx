@@ -80,6 +80,7 @@ const RecentActivities = () => {
             id,
             full_name,
             avatar_url,
+            role,
             user_equipment(active_title, active_frame_ratio, hide_frame)
           ),
           achievements:achievement_id (
@@ -146,6 +147,7 @@ const RecentActivities = () => {
             id,
             full_name,
             avatar_url,
+            role,
             user_equipment(active_title, active_frame_ratio, hide_frame)
           )
         `)
@@ -197,7 +199,7 @@ const RecentActivities = () => {
 
       // Process achievement claims
       const achievementActivities = (achievementData || [])
-        .filter(achievement => achievement.users && achievement.achievements)
+        .filter(achievement => achievement.users && achievement.achievements && achievement.users.role !== 'admin')
         .map(achievement => flattenUser({
           ...achievement,
           type: 'achievement',
@@ -215,7 +217,7 @@ const RecentActivities = () => {
 
       // Process competition winners (top 1 only)
       const competitionActivities = (competitionData || [])
-        .filter(n => n.users)
+        .filter(n => n.users && n.users.role !== 'admin')
         .map(n => flattenUser({
           ...n,
           type: 'competition',

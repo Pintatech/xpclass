@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react'
+import { createPortal } from 'react-dom'
 import { useParams, useNavigate, useSearchParams } from 'react-router-dom'
 import { useAuth } from '../../hooks/useAuth'
 import { useStudentLevels } from '../../hooks/useStudentLevels'
@@ -29,6 +30,7 @@ import {
   Gift,
   RefreshCw
 } from 'lucide-react'
+import ClaimCelebration from '../ui/ClaimCelebration'
 
 const CLIP_CARD = 'polygon(10px 0, 100% 0, 100% calc(100% - 10px), calc(100% - 10px) 100%, 0 100%, 0 10px)'
 const CLIP_SM = 'polygon(6px 0, 100% 0, 100% calc(100% - 6px), calc(100% - 6px) 100%, 0 100%, 0 6px)'
@@ -107,6 +109,7 @@ const Profile = () => {
   const [showAchievementModal, setShowAchievementModal] = useState(false)
   const [claimingAchievement, setClaimingAchievement] = useState({})
   const [claimMessage, setClaimMessage] = useState('')
+  const [claimResult, setClaimResult] = useState(null)
 
   // Pet state for viewed user
   const [viewedUserPets, setViewedUserPets] = useState([])
@@ -686,13 +689,17 @@ const Profile = () => {
       await checkAndAwardAchievements()
       const result = await claimAchievementXP(achievementId)
       if (result.success) {
-        setClaimMessage(`+${result.xpAwarded} XP đã được cộng!`)
+        setClaimResult({
+          xp: result.xpAwarded || 0,
+          gems: achievement.gem_reward || 0,
+          title: achievement.title
+        })
         // Refresh achievements list using Profile's own fetch
         await fetchAchievements()
       } else {
         setClaimMessage(result.message)
+        setTimeout(() => setClaimMessage(''), 3000)
       }
-      setTimeout(() => setClaimMessage(''), 3000)
     } catch (error) {
       setClaimMessage('Có lỗi xảy ra khi nhận XP')
       setTimeout(() => setClaimMessage(''), 3000)
@@ -1471,7 +1478,7 @@ const Profile = () => {
       )}
 
       {/* Badge Modal */}
-      {showBadgeModal && (
+      {showBadgeModal && createPortal(
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
           <div className="relative bg-white border border-gray-200 max-w-4xl w-full max-h-[90vh] overflow-y-auto" style={{ clipPath: CLIP_CARD }}>
             <CornerBrackets />
@@ -1550,7 +1557,7 @@ const Profile = () => {
                         </div>
                         <div className="text-sm font-medium text-gray-600">{badge.badge_name}</div>
                         <div className="text-xs text-gray-500">{badge.xp_required} XP</div>
-                        
+
                       </div>
                     ))}
                   </div>
@@ -1567,11 +1574,12 @@ const Profile = () => {
               )}
             </div>
           </div>
-        </div>
+        </div>,
+        document.body
       )}
 
       {/* Achievement Modal */}
-      {showAchievementModal && (
+      {showAchievementModal && createPortal(
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
           <div className="relative bg-white border border-gray-200 max-w-4xl w-full max-h-[90vh] overflow-y-auto" style={{ clipPath: CLIP_CARD }}>
             <CornerBrackets />
@@ -1650,7 +1658,8 @@ const Profile = () => {
               )}
             </div>
           </div>
-        </div>
+        </div>,
+        document.body
       )}
 
       {/* Log Out Button */}
@@ -1665,6 +1674,12 @@ const Profile = () => {
             Log Out
           </button>
         </div>
+      )}
+      {claimResult && (
+        <ClaimCelebration
+          result={claimResult}
+          onClose={() => setClaimResult(null)}
+        />
       )}
     </div>
   )

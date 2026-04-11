@@ -19,7 +19,7 @@ const OnlineUsers = () => {
         const twentyFourHoursAgo = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString()
         const { data, error } = await supabase
           .from('users')
-          .select('id, full_name, avatar_url, last_seen_at, user_equipment(active_title, active_frame_ratio, hide_frame)')
+          .select('id, full_name, avatar_url, role, last_seen_at, user_equipment(active_title, active_frame_ratio, hide_frame)')
           .gte('last_seen_at', twentyFourHoursAgo)
           .order('last_seen_at', { ascending: false })
           .limit(40)
@@ -105,7 +105,7 @@ const OnlineUsers = () => {
                   </div>
                   <span className="text-sm text-gray-700 truncate">{u.full_name || 'An danh'}</span>
                 </Link>
-                {u.id !== user?.id && !profile?.is_banned && (
+                {u.id !== user?.id && !profile?.is_banned && u.role !== 'admin' && (
                   <button
                     onClick={() => setChallengeTarget(u)}
                     className={`flex-shrink-0 p-1.5 rounded-lg transition-all ${pendingChallengeUserIds[u.id] ? (pendingChallengeUserIds[u.id] === 'received' ? 'opacity-100 animate-pulse text-red-500 hover:bg-red-50' : 'opacity-100 text-gray-400 hover:bg-gray-100') : 'opacity-0 group-hover:opacity-100 text-red-500 hover:bg-red-50'}`}
@@ -142,7 +142,7 @@ const OnlineUsers = () => {
                       </div>
                       <span className="text-sm text-gray-500 truncate">{u.full_name || 'An danh'}</span>
                     </Link>
-                    {u.id !== user?.id && !profile?.is_banned && pendingChallengeUserIds[u.id] && (
+                    {u.id !== user?.id && !profile?.is_banned && u.role !== 'admin' && pendingChallengeUserIds[u.id] && (
                       <button
                         onClick={() => setChallengeTarget(u)}
                         className={`flex-shrink-0 p-1.5 rounded-lg transition-all ${pendingChallengeUserIds[u.id] === 'received' ? 'opacity-100 animate-pulse text-red-500 hover:bg-red-50' : 'opacity-100 text-gray-400 hover:bg-gray-100'}`}
