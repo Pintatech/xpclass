@@ -1,4 +1,4 @@
-import React, { useState } from 'react'
+import React, { useState, useEffect, useRef } from 'react'
 import { supabase } from '../../../supabase/client'
 import {
   Folder,
@@ -19,10 +19,30 @@ import CreateFolderModal from './CreateFolderModal'
 import EditFolderModal from './EditFolderModal'
 
 const FolderTree = ({ folders, folderCounts = {}, selectedFolder, onSelectFolder, onFolderUpdate, readOnly = false }) => {
-  const [expandedFolders, setExpandedFolders] = useState(new Set())
+  const [expandedFolders, setExpandedFolders] = useState(() => {
+    try {
+      const saved = JSON.parse(localStorage.getItem('exerciseBank_expandedFolders') || '[]')
+      return new Set(saved)
+    } catch { return new Set() }
+  })
   const [contextMenu, setContextMenu] = useState(null)
   const [showCreateModalFor, setShowCreateModalFor] = useState(null)
   const [editFolder, setEditFolder] = useState(null)
+
+  // Auto-expand path to selected folder on mount
+  const hasAutoExpanded = useRef(false)
+  useEffect(() => {
+    if (hasAutoExpanded.current || !selectedFolder || folders.length === 0) return
+    hasAutoExpanded.current = true
+    const newExpanded = new Set(expandedFolders)
+    let current = folders.find(f => f.id === selectedFolder.id)
+    while (current?.parent_folder_id) {
+      newExpanded.add(current.parent_folder_id)
+      current = folders.find(f => f.id === current.parent_folder_id)
+    }
+    setExpandedFolders(newExpanded)
+    localStorage.setItem('exerciseBank_expandedFolders', JSON.stringify([...newExpanded]))
+  }, [selectedFolder, folders])
 
   const toggleFolder = (folderId) => {
     const newExpanded = new Set(expandedFolders)
@@ -32,6 +52,7 @@ const FolderTree = ({ folders, folderCounts = {}, selectedFolder, onSelectFolder
       newExpanded.add(folderId)
     }
     setExpandedFolders(newExpanded)
+    localStorage.setItem('exerciseBank_expandedFolders', JSON.stringify([...newExpanded]))
   }
 
   const getFolderIcon = (folder) => {

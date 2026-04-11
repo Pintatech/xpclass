@@ -49,7 +49,7 @@ const useClassWar = (courseId) => {
       // Fetch all members with user info
       const { data: members, error: membersError } = await supabase
         .from('class_war_members')
-        .select('user_id, team, users:user_id(id, full_name, avatar_url)')
+        .select('user_id, team, users:user_id(id, full_name, real_name, avatar_url)')
         .eq('war_id', warData.id);
 
       if (membersError) throw membersError;
@@ -189,6 +189,7 @@ const useClassWar = (courseId) => {
           .map(m => ({
             id: m.user_id,
             name: m.users?.full_name || 'Unknown',
+            real_name: m.users?.real_name || null,
             avatar_url: m.users?.avatar_url || null,
             xp: xpByUser[m.user_id] || 0,
           }))

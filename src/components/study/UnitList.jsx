@@ -1225,6 +1225,7 @@ const UnitList = () => {
                   opponentXP={teamBXP}
                   userId={user?.id}
                   rewards={warRewards}
+                  isTeacher={profile?.role !== 'user'}
                 />
               </div>
             )}
@@ -1535,6 +1536,7 @@ const UnitList = () => {
                   opponentXP={teamAXP}
                   userId={user?.id}
                   rewards={warRewards}
+                  isTeacher={profile?.role !== 'user'}
                 />
               </div>
             )}
@@ -1551,6 +1553,7 @@ const UnitList = () => {
               userTeam={userTeam}
               userId={user?.id}
               rewards={warRewards}
+              isTeacher={profile?.role !== 'user'}
               onClose={() => setShowWarModal(false)}
             />
           )}

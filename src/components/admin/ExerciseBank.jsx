@@ -24,7 +24,17 @@ const ExerciseBank = ({ readOnly = false, allowedTypes = null }) => {
   const [folders, setFolders] = useState([])
   const [exercises, setExercises] = useState([])
   const [folderCounts, setFolderCounts] = useState({})
-  const [selectedFolder, setSelectedFolder] = useState(null)
+  const [selectedFolder, _setSelectedFolder] = useState(null)
+  const savedFolderIdRef = React.useRef(localStorage.getItem('exerciseBank_selectedFolderId'))
+
+  const setSelectedFolder = (folder) => {
+    _setSelectedFolder(folder)
+    if (folder) {
+      localStorage.setItem('exerciseBank_selectedFolderId', folder.id)
+    } else {
+      localStorage.removeItem('exerciseBank_selectedFolderId')
+    }
+  }
   const [loading, setLoading] = useState(true)
   const [searchTerm, setSearchTerm] = useState('')
   const [viewMode, setViewMode] = useState('list') // 'grid' or 'list'
@@ -63,11 +73,17 @@ const ExerciseBank = ({ readOnly = false, allowedTypes = null }) => {
 
       if (error) throw error
       setFolders(data || [])
-      // Default to the first root folder instead of "All Exercises"
+      // Restore saved folder or default to the first root folder
       if (data?.length > 0 && !selectedFolder) {
-        const rootFolders = data.filter(f => !f.parent_folder_id).sort((a, b) => a.sort_order - b.sort_order)
-        if (rootFolders.length > 0) {
-          setSelectedFolder(rootFolders[0])
+        const savedId = savedFolderIdRef.current
+        const savedFolder = savedId ? data.find(f => f.id === savedId) : null
+        if (savedFolder) {
+          setSelectedFolder(savedFolder)
+        } else {
+          const rootFolders = data.filter(f => !f.parent_folder_id).sort((a, b) => a.sort_order - b.sort_order)
+          if (rootFolders.length > 0) {
+            setSelectedFolder(rootFolders[0])
+          }
         }
       }
       setFoldersLoaded(true)

@@ -53,7 +53,7 @@ const RewardBadge = ({ reward, label }) => {
   );
 };
 
-const ClassWarPanel = ({ team, teamName, members, totalXP, opponentXP, userId, rewards, compact = false }) => {
+const ClassWarPanel = ({ team, teamName, members, totalXP, opponentXP, userId, rewards, compact = false, isTeacher = false }) => {
   const theme = teamThemes[team] || teamThemes.A;
   const isWinning = totalXP > opponentXP;
   const maxXP = Math.max(totalXP, opponentXP, 1);
@@ -140,7 +140,7 @@ const ClassWarPanel = ({ team, teamName, members, totalXP, opponentXP, userId, r
 
               {/* Name */}
               <span className={`flex-1 truncate text-xs ${isSupporter ? 'text-yellow-700 italic' : isCurrentUser ? 'font-bold' : 'text-gray-700'}`}>
-                {member.name}
+                {isTeacher && member.real_name ? member.real_name : member.name}
                 {isCurrentUser && <span className="ml-1 text-[10px] opacity-60">(you)</span>}
               </span>
 
