@@ -4,7 +4,7 @@ import { useState, useEffect } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import { getRecentExercise } from '../../utils/recentExercise'
 import RecentActivities from './RecentActivities'
-import DailyChallenge from './DailyChallenge'
+import TournamentWidget from './TournamentWidget'
 import AvatarWithFrame from '../ui/AvatarWithFrame'
 import PetDisplay from '../pet/PetDisplay'
 import PvPChallengeModal from '../pvp/PvPChallengeModal'
@@ -815,11 +815,11 @@ const Dashboard = () => {
         </div>
       )}
 
-      {/* Daily Challenge + Recent Activities - Side by side on PC */}
+      {/* Tournament + Recent Activities - Side by side on PC */}
       {profile?.role === 'user' && (
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6 mt-10">
           <div className="overflow-visible">
-            <DailyChallenge />
+            <TournamentWidget />
           </div>
           <div className="h-full">
             <RecentActivities />

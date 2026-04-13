@@ -3805,3 +3805,63 @@ CREATE TABLE IF NOT EXISTS public.student_reports (
   created_at timestamptz DEFAULT now()
 );
 
+-- ============================================================
+-- TOURNAMENTS (Bracket / Elimination)
+-- ============================================================
+CREATE TABLE public.tournaments (
+  id uuid NOT NULL DEFAULT uuid_generate_v4(),
+  name text NOT NULL,
+  status text NOT NULL DEFAULT 'active' CHECK (status IN ('active', 'completed', 'cancelled')),
+  bracket_size integer NOT NULL CHECK (bracket_size IN (4, 8, 16, 32, 64)),
+  game_type text NOT NULL DEFAULT 'wordtype' CHECK (game_type IN ('wordtype', 'scramble', 'matchgame', 'whackmole', 'astroblast', 'flappy', 'sayitright', 'quizrush')),
+  current_round integer NOT NULL DEFAULT 1,
+  total_rounds integer NOT NULL,
+  created_by uuid NOT NULL,
+  winner_id uuid,
+  round_rewards jsonb DEFAULT '{}',
+  entry_fee integer NOT NULL DEFAULT 0,
+  created_at timestamp with time zone DEFAULT now(),
+  updated_at timestamp with time zone DEFAULT now(),
+  CONSTRAINT tournaments_pkey PRIMARY KEY (id),
+  CONSTRAINT tournaments_created_by_fkey FOREIGN KEY (created_by) REFERENCES public.users(id),
+  CONSTRAINT tournaments_winner_id_fkey FOREIGN KEY (winner_id) REFERENCES public.users(id)
+);
+
+CREATE TABLE public.tournament_participants (
+  id uuid NOT NULL DEFAULT uuid_generate_v4(),
+  tournament_id uuid NOT NULL,
+  user_id uuid NOT NULL,
+  seed integer NOT NULL,
+  eliminated_in_round integer,
+  created_at timestamp with time zone DEFAULT now(),
+  CONSTRAINT tournament_participants_pkey PRIMARY KEY (id),
+  CONSTRAINT tournament_participants_tournament_fkey FOREIGN KEY (tournament_id) REFERENCES public.tournaments(id) ON DELETE CASCADE,
+  CONSTRAINT tournament_participants_user_fkey FOREIGN KEY (user_id) REFERENCES public.users(id) ON DELETE CASCADE,
+  CONSTRAINT tournament_participants_unique UNIQUE (tournament_id, user_id),
+  CONSTRAINT tournament_participants_seed_unique UNIQUE (tournament_id, seed)
+);
+
+CREATE TABLE public.tournament_matches (
+  id uuid NOT NULL DEFAULT uuid_generate_v4(),
+  tournament_id uuid NOT NULL,
+  round integer NOT NULL,
+  match_position integer NOT NULL,
+  player1_id uuid,
+  player2_id uuid,
+  player1_score integer,
+  player2_score integer,
+  winner_id uuid,
+  status text NOT NULL DEFAULT 'pending' CHECK (status IN ('pending', 'ready', 'completed')),
+  created_at timestamp with time zone DEFAULT now(),
+  updated_at timestamp with time zone DEFAULT now(),
+  CONSTRAINT tournament_matches_pkey PRIMARY KEY (id),
+  CONSTRAINT tournament_matches_tournament_fkey FOREIGN KEY (tournament_id) REFERENCES public.tournaments(id) ON DELETE CASCADE,
+  CONSTRAINT tournament_matches_player1_fkey FOREIGN KEY (player1_id) REFERENCES public.users(id),
+  CONSTRAINT tournament_matches_player2_fkey FOREIGN KEY (player2_id) REFERENCES public.users(id),
+  CONSTRAINT tournament_matches_winner_fkey FOREIGN KEY (winner_id) REFERENCES public.users(id),
+  CONSTRAINT tournament_matches_round_pos_unique UNIQUE (tournament_id, round, match_position)
+);
+
+CREATE INDEX idx_tournament_participants_user ON public.tournament_participants(user_id);
+CREATE INDEX idx_tournament_matches_tournament ON public.tournament_matches(tournament_id, round);
+

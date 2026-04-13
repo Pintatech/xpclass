@@ -70,7 +70,11 @@
       "Bash(grep -n \"<TeacherExerciseNav\" src/components/exercises/*.jsx)",
       "Bash(find /c/Users/Calvin_PC/Downloads/xpclass -maxdepth 3 -type f \\\\\\(-name *.sql -o -name *migrations* \\\\\\))",
       "Bash(xargs grep:*)",
-      "Bash(npx -y acorn-loose --ecma2020 src/components/pet/games/PetCatchGame.jsx)"
+      "Bash(npx -y acorn-loose --ecma2020 src/components/pet/games/PetCatchGame.jsx)",
+      "Bash(ls -1 /c/Users/NAME/Downloads/xpclass/src/hooks/*.jsx)",
+      "Bash(sed 's/CREATE TABLE.* //')",
+      "Bash(sed 's/ .*//')",
+      "Bash(awk '{print $3}')"
     ],
     "deny": [],
     "ask": []

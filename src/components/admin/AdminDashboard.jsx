@@ -25,7 +25,8 @@ import {
   ImagePlus,
   Target,
   MessageSquarePlus,
-  Swords
+  Swords,
+  GitMerge
 } from 'lucide-react';
 import { supabase } from '../../supabase/client';
 import { useAuth } from '../../hooks/useAuth';
@@ -54,6 +55,7 @@ import AvatarApproval from './AvatarApproval';
 import MissionManagement from './MissionManagement';
 import ReportManagement from './ReportManagement';
 import ClassWarManagement from './ClassWarManagement';
+import TournamentManagement from './TournamentManagement';
 import { useCohorts } from '../../hooks/useCohorts';
 
 const AdminDashboard = () => {
@@ -243,6 +245,7 @@ const AdminDashboard = () => {
     { id: 'activities', label: 'Activities', icon: Activity },
     { id: 'leaderboard', label: 'Leaderboard', icon: Trophy },
     { id: 'class-war', label: 'Class War', icon: Swords },
+    { id: 'tournaments', label: 'Tournaments', icon: GitMerge },
     { id: 'avatar-approval', label: 'Avatar Approval', icon: ImagePlus },
     { id: 'analytics', label: 'Analytics', icon: BarChart3 },
     { id: 'branding', label: 'Branding', icon: Palette }
@@ -419,6 +422,7 @@ const AdminDashboard = () => {
               <Route path="activities" element={<RecentActivities />} />
               <Route path="leaderboard" element={<LeaderboardSettings />} />
               <Route path="class-war" element={<ClassWarManagement />} />
+              <Route path="tournaments" element={<TournamentManagement />} />
               <Route path="avatar-approval" element={<AvatarApproval />} />
               <Route path="analytics" element={<AnalyticsView stats={stats} />} />
               <Route path="branding" element={<BrandingSettings />} />
