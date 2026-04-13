@@ -1,13 +1,15 @@
 import React, { useState, useEffect } from 'react'
 import { supabase } from '../../../supabase/client'
-import { X, Save, User, FileText } from 'lucide-react'
+import { X, Save, User, FileText, Calendar } from 'lucide-react'
 
 const EditSessionModal = ({ session, courseId, onClose, onUpdated }) => {
   const [formData, setFormData] = useState({
     title: '',
     session_number: 1,
     is_test: false,
-    assigned_student_id: null
+    assigned_student_id: null,
+    open_date: '',
+    close_date: ''
   })
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
@@ -20,7 +22,9 @@ const EditSessionModal = ({ session, courseId, onClose, onUpdated }) => {
         title: session.title || '',
         session_number: session.session_number || 1,
         is_test: session.is_test || false,
-        assigned_student_id: session.assigned_student_id || null
+        assigned_student_id: session.assigned_student_id || null,
+        open_date: session.open_date ? new Date(session.open_date).toISOString().slice(0, 16) : '',
+        close_date: session.close_date ? new Date(session.close_date).toISOString().slice(0, 16) : ''
       })
     }
   }, [session])
@@ -96,7 +100,9 @@ const EditSessionModal = ({ session, courseId, onClose, onUpdated }) => {
       const updateFields = {
         title: formData.title.trim(),
         is_test: formData.is_test,
-        assigned_student_id: formData.assigned_student_id || null
+        assigned_student_id: formData.assigned_student_id || null,
+        open_date: formData.open_date ? new Date(formData.open_date).toISOString() : null,
+        close_date: formData.close_date ? new Date(formData.close_date).toISOString() : null
       }
       // If number didn't change, still set it
       if (newNumber === oldNumber) {
@@ -217,6 +223,34 @@ const EditSessionModal = ({ session, courseId, onClose, onUpdated }) => {
             >
               <span className={`absolute top-0.5 left-0.5 w-5 h-5 bg-white rounded-full transition-transform ${formData.is_test ? 'translate-x-5' : ''}`} />
             </button>
+          </div>
+
+          {/* Open / Close Dates */}
+          <div className="grid grid-cols-2 gap-3">
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">
+                <Calendar className="w-3.5 h-3.5 inline mr-1" />
+                Open Date
+              </label>
+              <input
+                type="datetime-local"
+                value={formData.open_date}
+                onChange={(e) => handleChange('open_date', e.target.value)}
+                className="w-full px-2 py-1.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm"
+              />
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">
+                <Calendar className="w-3.5 h-3.5 inline mr-1" />
+                Close Date
+              </label>
+              <input
+                type="datetime-local"
+                value={formData.close_date}
+                onChange={(e) => handleChange('close_date', e.target.value)}
+                className="w-full px-2 py-1.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm"
+              />
+            </div>
           </div>
 
           {/* Actions */}

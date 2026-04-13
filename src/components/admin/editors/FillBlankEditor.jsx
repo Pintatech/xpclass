@@ -368,6 +368,88 @@ const FillBlankEditor = ({ questions, onQuestionsChange, settings, onSettingsCha
 
   const processBulkImport = () => {
     try {
+      // Detect answer-key format: passage with (N) ________ (hint) + "Answer key:" + (N) [answer] #explanation
+      const answerKeyMatch = bulkText.match(/answer\s*key\s*:/i)
+      if (answerKeyMatch) {
+        const answerKeyIndex = bulkText.indexOf(answerKeyMatch[0])
+        const passageSection = bulkText.substring(0, answerKeyIndex).trim()
+        const answerSection = bulkText.substring(answerKeyIndex).trim()
+
+        // Parse answer key lines: (N) or N. or N) followed by [answer] #explanation
+        const answers = {}
+        const explanations = {}
+        answerSection.split('\n').forEach(line => {
+          const m = line.match(/(?:\((\d+)\)|(\d+)[.)]\s)\s*\[([^\]]+)\]\s*(?:#(.*))?/)
+          if (m) {
+            const num = m[1] || m[2]
+            answers[num] = m[3].trim()
+            if (m[4]) explanations[num] = m[4].trim()
+          }
+        })
+
+        // Find blank numbers in order from the passage: (N) or N. or N) followed by underscores
+        const blankNumbers = []
+        const blankPattern = /(?:\((\d+)\)|(\d+)[.)]\s)\s*_{2,}/g
+        let bm
+        while ((bm = blankPattern.exec(passageSection)) !== null) {
+          blankNumbers.push(bm[1] || bm[2])
+        }
+
+        if (blankNumbers.length > 0 && Object.keys(answers).length > 0) {
+          // Split passage into intro (before first blank) and question text
+          const passageLines = passageSection.split('\n')
+          const introLines = []
+          let passageStartIdx = 0
+          for (let i = 0; i < passageLines.length; i++) {
+            if (/(?:\(\d+\)|\d+[.)]\s)\s*_{2,}/.test(passageLines[i])) {
+              passageStartIdx = i
+              break
+            }
+            introLines.push(passageLines[i].trim())
+          }
+
+          // Build display text: replace numbered blanks with _____
+          const passageText = passageLines.slice(passageStartIdx).join('\n')
+            .replace(/(?:\((\d+)\)|(\d+)[.)]\s)\s*_{2,}/g, (_, a, b) => `(${a || b}) _____`)
+
+          // Build blanks array in passage order
+          const blanks = blankNumbers.map(num => ({
+            text: '',
+            answer: answers[num] || '',
+            case_sensitive: false
+          }))
+
+          // Build combined explanation
+          const expParts = blankNumbers
+            .filter(num => explanations[num])
+            .map(num => `(${num}) ${explanations[num]}`)
+          const explanation = expParts.join('\n')
+
+          const question = {
+            id: `q${Date.now()}_0`,
+            question: passageText,
+            blanks,
+            explanation
+          }
+
+          // Set intro
+          if (introLines.length > 0 && onIntroChange) {
+            const newIntro = introLines.filter(l => l).join('\n')
+            if (newIntro) onIntroChange(intro ? intro + '\n' + newIntro : newIntro)
+          }
+
+          setLastBulkText(bulkText)
+          try { localStorage.setItem('xpclass_last_bulk_text_fill_blank', bulkText) } catch {}
+          const updatedQuestions = [...localQuestions, question]
+          setLocalQuestions(updatedQuestions)
+          onQuestionsChange(updatedQuestions)
+          setBulkText('')
+          setBulkImportMode(false)
+          alert(`Successfully imported 1 passage with ${blanks.length} blanks!`)
+          return
+        }
+      }
+
       const lines = bulkText.split('\n').filter(line => line.trim())
       const newQuestions = []
 

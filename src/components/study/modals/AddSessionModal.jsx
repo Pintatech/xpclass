@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react'
 import { supabase } from '../../../supabase/client'
-import { X, PlayCircle, Plus, User } from 'lucide-react'
+import { X, PlayCircle, Plus, User, Calendar } from 'lucide-react'
 
 const AddSessionModal = ({ unitId, courseId, parentAssignedStudentId, onClose, onCreated }) => {
   const [title, setTitle] = useState('')
@@ -9,6 +9,8 @@ const AddSessionModal = ({ unitId, courseId, parentAssignedStudentId, onClose, o
   const [students, setStudents] = useState([])
   const [loadingStudents, setLoadingStudents] = useState(false)
   const [parentStudentName, setParentStudentName] = useState('')
+  const [openDate, setOpenDate] = useState('')
+  const [closeDate, setCloseDate] = useState('')
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
 
@@ -90,7 +92,9 @@ const AddSessionModal = ({ unitId, courseId, parentAssignedStudentId, onClose, o
           unlock_requirement: null,
           is_active: true,
           estimated_duration: 15,
-          assigned_student_id: assignedId
+          assigned_student_id: assignedId,
+          open_date: openDate ? new Date(openDate).toISOString() : null,
+          close_date: closeDate ? new Date(closeDate).toISOString() : null
         })
         .select()
         .single()
@@ -206,6 +210,34 @@ const AddSessionModal = ({ unitId, courseId, parentAssignedStudentId, onClose, o
               required
               autoFocus
             />
+          </div>
+
+          {/* Open / Close Dates */}
+          <div className="grid grid-cols-2 gap-3">
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">
+                <Calendar className="w-3.5 h-3.5 inline mr-1" />
+                Open Date
+              </label>
+              <input
+                type="datetime-local"
+                value={openDate}
+                onChange={(e) => setOpenDate(e.target.value)}
+                className="w-full px-2 py-1.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm"
+              />
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">
+                <Calendar className="w-3.5 h-3.5 inline mr-1" />
+                Close Date
+              </label>
+              <input
+                type="datetime-local"
+                value={closeDate}
+                onChange={(e) => setCloseDate(e.target.value)}
+                className="w-full px-2 py-1.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm"
+              />
+            </div>
           </div>
 
           <div className="flex space-x-3">

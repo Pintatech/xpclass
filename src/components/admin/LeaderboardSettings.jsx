@@ -52,11 +52,13 @@ const LeaderboardSettings = () => {
   const [competitionItemId, setCompetitionItemId] = useState('');
   const [rewardThreshold, setRewardThreshold] = useState(0); // minimum score to qualify for XP reward
   const [rewardXP, setRewardXP] = useState(5); // XP given to all qualifiers
-  // Top 1/2/3 special rewards
+  // Top 1/2/3 + grouped 4-6, 7-10 rewards
   const DEFAULT_TOP_REWARDS = [
     { rank: 1, gems: 1, xp: 0, shop_items: [] },
     { rank: 2, gems: 0, xp: 0, shop_items: [] },
     { rank: 3, gems: 0, xp: 0, shop_items: [] },
+    { rank: '4-6', gems: 0, xp: 100, shop_items: [] },
+    { rank: '7-10', gems: 0, xp: 50, shop_items: [] },
   ];
   const [topRewards, setTopRewards] = useState(DEFAULT_TOP_REWARDS);
   const [maxAttempts, setMaxAttempts] = useState(0); // 0 = unlimited
@@ -166,7 +168,13 @@ const LeaderboardSettings = () => {
             setCompetitionItemId(row.setting_value);
             break;
           case 'leaderboard_competition_rewards':
-            try { setTopRewards(JSON.parse(row.setting_value)); } catch {}
+            try {
+              const saved = JSON.parse(row.setting_value);
+              // Merge with defaults: keep saved entries, add any missing rank groups
+              const savedRanks = new Set(saved.map(r => String(r.rank)));
+              const merged = [...saved, ...DEFAULT_TOP_REWARDS.filter(d => !savedRanks.has(String(d.rank)))];
+              setTopRewards(merged);
+            } catch { /* ignore malformed JSON */ }
             break;
           case 'leaderboard_competition_reward_gems':
             // Legacy: migrate old single gem reward to top rewards if no new format exists
@@ -338,17 +346,30 @@ const LeaderboardSettings = () => {
           }
         }
 
-        // Award top 1/2/3 rewards
-        const rankLabels = ['Hạng 1', 'Hạng 2', 'Hạng 3'];
-        const rankTitles = ['Vô địch Competition!', 'Hạng Nhì Competition!', 'Hạng Ba Competition!'];
-        const rankIcons = ['Trophy', 'Medal', 'Medal'];
-        const awardedNames = [];
+        // Expand grouped rewards (e.g. '4-6' → ranks 4,5,6) into per-rank list
+        const expandedRewards = [];
+        for (const reward of topRewards) {
+          if (typeof reward.rank === 'string' && reward.rank.includes('-')) {
+            const [start, end] = reward.rank.split('-').map(Number);
+            for (let r = start; r <= end; r++) {
+              expandedRewards.push({ ...reward, rank: r });
+            }
+          } else {
+            expandedRewards.push({ ...reward, rank: Number(reward.rank) });
+          }
+        }
 
-        for (let i = 0; i < Math.min(sorted.length, topRewards.length); i++) {
-          const reward = topRewards[i];
+        // Award top rewards
+        const awardedNames = [];
+        const awardedUserIds = [];
+
+        for (let i = 0; i < Math.min(sorted.length, expandedRewards.length); i++) {
+          const reward = expandedRewards[i];
           const [userId, userScore] = sorted[i];
           const hasReward = reward.gems > 0 || reward.xp > 0 || reward.shop_items.length > 0;
           if (!hasReward) continue;
+
+          awardedUserIds.push(userId);
 
           // Award gems
           if (reward.gems > 0) {
@@ -371,6 +392,9 @@ const LeaderboardSettings = () => {
           }
 
           // Build reward message
+          const rankNum = i + 1;
+          const rankLabel = `Hạng ${rankNum}`;
+          const rankTitle = rankNum === 1 ? 'Vô địch Competition!' : rankNum === 2 ? 'Hạng Nhì Competition!' : rankNum === 3 ? 'Hạng Ba Competition!' : `Top ${rankNum} Competition!`;
           const parts = [];
           if (reward.gems > 0) parts.push(`+${reward.gems} gems`);
           const totalXpAwarded = (reward.xp || 0) + (rewardThreshold > 0 && userScore >= rewardThreshold ? rewardXP : 0);
@@ -386,18 +410,18 @@ const LeaderboardSettings = () => {
           await supabase.from('notifications').insert([{
             user_id: userId,
             type: 'competition_winner',
-            title: rankTitles[i],
-            message: `Chúc mừng! Bạn đạt ${rankLabels[i]} với ${userScore} điểm. ${parts.join(', ')}`,
-            icon: rankIcons[i],
-            data: { competition: 'game', game_type: competitionGameType, score: userScore, rank: i + 1, ...reward },
+            title: rankTitle,
+            message: `Chúc mừng! Bạn đạt ${rankLabel} với ${userScore} điểm. ${parts.join(', ')}`,
+            icon: rankNum <= 3 ? 'Trophy' : 'Medal',
+            data: { competition: 'game', game_type: competitionGameType, score: userScore, rank: rankNum, ...reward },
           }]);
 
           const { data: userData } = await supabase.from('users').select('full_name').eq('id', userId).single();
-          awardedNames.push(`${rankLabels[i]}: ${userData?.full_name || 'Unknown'}`);
+          awardedNames.push(`${rankLabel}: ${userData?.full_name || 'Unknown'}`);
         }
 
-        // Notify qualifiers who got XP (excluding top 3 who already got notified)
-        const topUserIds = sorted.slice(0, Math.min(sorted.length, topRewards.length)).map(([id]) => id);
+        // Notify qualifiers who got XP (excluding awarded users who already got notified)
+        const topUserIds = awardedUserIds;
         if (rewardXP > 0 && qualifiers.length > 0) {
           const qualifierNotifs = qualifiers
             .filter(([userId]) => !topUserIds.includes(userId))
@@ -1036,19 +1060,20 @@ const LeaderboardSettings = () => {
           </div>
         </div>
 
-        {/* Top 1/2/3 Rewards Config */}
+        {/* Top Rewards Config */}
         <div className="border-t border-gray-100 pt-2 mt-3">
           <div className="flex items-center gap-2 mb-2">
             <Gift className="w-4 h-4 text-yellow-500" />
             <p className="text-sm font-medium text-gray-900">Top Player Rewards</p>
           </div>
-          <div className="flex gap-2">
+          <div className="flex gap-2 flex-wrap">
             {topRewards.map((reward, idx) => {
-              const rankIcons = ['🥇', '🥈', '🥉'];
+              const rankIcons = { 1: '🥇', 2: '🥈', 3: '🥉' };
+              const rankLabel = typeof reward.rank === 'string' ? `#${reward.rank}` : (rankIcons[reward.rank] || `#${reward.rank}`);
               return (
-                <div key={reward.rank} className="flex-1 p-2 border border-gray-200 rounded-lg bg-gray-50">
+                <div key={reward.rank} className="flex-1 min-w-[140px] p-2 border border-gray-200 rounded-lg bg-gray-50">
                   <div className="flex items-center gap-2 mb-1.5">
-                    <span className="text-base">{rankIcons[idx]}</span>
+                    <span className="text-base">{rankLabel}</span>
                     <div className="flex items-center gap-1.5">
                       <input
                         type="number"

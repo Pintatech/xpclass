@@ -294,6 +294,8 @@ CREATE TABLE public.sessions (
   passing_score integer DEFAULT 70,
   max_attempts integer DEFAULT 1,
   assigned_student_id uuid,
+  open_date timestamp with time zone,
+  close_date timestamp with time zone,
   CONSTRAINT sessions_pkey PRIMARY KEY (id),
   CONSTRAINT sessions_unit_id_fkey FOREIGN KEY (unit_id) REFERENCES public.units(id),
   CONSTRAINT sessions_assigned_student_fkey FOREIGN KEY (assigned_student_id) REFERENCES public.users(id) ON DELETE SET NULL
@@ -2747,28 +2749,29 @@ DECLARE
   week_start timestamptz;
   week_end timestamptz;
   rec RECORD;
-  ach RECORD;
-  rank_labels text[] := ARRAY['weekly_xp_leader', 'weekly_xp_leader_2', 'weekly_xp_leader_3'];
-  rank_titles text[] := ARRAY['Vô địch XP tuần!', 'Top 2 XP tuần!', 'Top 3 XP tuần!'];
-  rank_messages text[] := ARRAY['Bạn đạt nhiều XP nhất tuần', 'Bạn đạt Top 2 XP tuần', 'Bạn đạt Top 3 XP tuần'];
+  reward RECORD;
   awarded json[] := ARRAY[]::json[];
   cur_rank integer := 0;
+  rank_title text;
+  rank_message text;
+  v_user_name text;
+  v_item_name text;
 BEGIN
   -- Last week boundaries (Vietnam time)
   week_end := (date_trunc('day', NOW() AT TIME ZONE 'Asia/Ho_Chi_Minh') AT TIME ZONE 'Asia/Ho_Chi_Minh');
   week_start := week_end - INTERVAL '7 days';
 
-  -- Check if already awarded for this week (check rank 1 achievement)
+  -- Check if already awarded for this week (check rank 1 config)
   IF EXISTS(
     SELECT 1 FROM user_achievements ua
-    JOIN achievements a ON a.id = ua.achievement_id
-    WHERE a.criteria_type = 'weekly_xp_leader' AND a.is_active = true
+    JOIN leaderboard_rewards lr ON lr.achievement_id = ua.achievement_id
+    WHERE lr.timeframe = 'weekly' AND lr.rank = 1
       AND ua.earned_at >= week_end AND ua.earned_at < week_end + INTERVAL '1 day'
   ) THEN
     RETURN json_build_object('status', 'already_awarded', 'week_start', week_start);
   END IF;
 
-  -- Calculate XP from exercises (with score bonuses) + chest rewards, get top 3
+  -- Calculate XP from exercises (with score bonuses) + chest rewards, get top 10
   FOR rec IN
     WITH exercise_xp AS (
       SELECT up.user_id,
@@ -2804,40 +2807,74 @@ BEGIN
     FROM combined c
     JOIN users u ON u.id = c.user_id AND u.role = 'user'
     ORDER BY c.total_xp DESC
-    LIMIT 3
+    LIMIT 10
   LOOP
     cur_rank := cur_rank + 1;
 
-    -- Get achievement for this rank
-    SELECT id, COALESCE(xp_reward, 0) AS xp_reward, COALESCE(gem_reward, 0) AS gem_reward
-    INTO ach
-    FROM achievements
-    WHERE criteria_type = rank_labels[cur_rank] AND is_active = true
-    LIMIT 1;
+    -- Get reward config for this rank
+    SELECT lr.*, a.xp_reward AS ach_xp, a.gem_reward AS ach_gems
+    INTO reward
+    FROM leaderboard_rewards lr
+    LEFT JOIN achievements a ON a.id = lr.achievement_id
+    WHERE lr.timeframe = 'weekly' AND lr.rank = cur_rank AND lr.is_active = true;
 
-    -- Skip if no achievement configured for this rank
-    IF ach.id IS NULL THEN
+    -- Skip if no reward configured for this rank
+    IF reward IS NULL THEN
       CONTINUE;
     END IF;
 
-    -- Record achievement
-    INSERT INTO user_achievements (user_id, achievement_id, earned_at, claimed_at, xp_claimed)
-    VALUES (rec.user_id, ach.id, NOW(), NOW(), ach.xp_reward);
+    -- Build notification text
+    rank_title := CASE cur_rank
+      WHEN 1 THEN 'Vô địch XP tuần!'
+      WHEN 2 THEN 'Top 2 XP tuần!'
+      WHEN 3 THEN 'Top 3 XP tuần!'
+      ELSE 'Top ' || cur_rank || ' XP tuần!'
+    END;
+    rank_message := CASE cur_rank
+      WHEN 1 THEN 'Bạn đạt nhiều XP nhất tuần'
+      ELSE 'Bạn đạt Top ' || cur_rank || ' XP tuần'
+    END;
+
+    -- Record achievement (top 1-3 with badges)
+    IF reward.achievement_id IS NOT NULL THEN
+      INSERT INTO user_achievements (user_id, achievement_id, earned_at, claimed_at, xp_claimed)
+      VALUES (rec.user_id, reward.achievement_id, NOW(), NOW(), reward.xp_reward);
+    END IF;
 
     -- Award XP and gems
     UPDATE users
-    SET xp = xp + ach.xp_reward,
-        gems = gems + ach.gem_reward,
+    SET xp = xp + reward.xp_reward,
+        gems = gems + reward.gem_reward,
         updated_at = NOW()
     WHERE id = rec.user_id;
 
+    -- Award item if configured
+    IF reward.item_id IS NOT NULL THEN
+      SELECT full_name INTO v_user_name FROM users WHERE id = rec.user_id;
+      SELECT name INTO v_item_name FROM collectible_items WHERE id = reward.item_id;
+
+      INSERT INTO user_inventory (user_id, user_name, item_id, item_name, quantity)
+      VALUES (rec.user_id, v_user_name, reward.item_id, v_item_name, reward.item_quantity)
+      ON CONFLICT (user_id, item_id)
+      DO UPDATE SET quantity = user_inventory.quantity + reward.item_quantity, updated_at = now();
+    END IF;
+
+    -- Award chest if configured
+    IF reward.chest_id IS NOT NULL THEN
+      INSERT INTO user_chests (user_id, chest_id, source, source_ref)
+      VALUES (rec.user_id, reward.chest_id, 'weekly_leaderboard', 'rank_' || cur_rank);
+    END IF;
+
     -- Notify winner
     INSERT INTO notifications (user_id, type, title, message, icon, data)
-    VALUES (rec.user_id, 'competition_winner', rank_titles[cur_rank],
-      'Chúc mừng! ' || rank_messages[cur_rank] || ' (' || rec.total_xp || ' XP). +' || ach.xp_reward || ' XP, +' || ach.gem_reward || ' gems',
-      'Trophy', json_build_object('competition', 'weekly_xp', 'weekly_xp', rec.total_xp, 'xp_awarded', ach.xp_reward, 'gems_awarded', ach.gem_reward, 'rank', cur_rank)::jsonb);
+    VALUES (rec.user_id, 'competition_winner', rank_title,
+      'Chúc mừng! ' || rank_message || ' (' || rec.total_xp || ' XP). +' || reward.xp_reward || ' XP' ||
+        CASE WHEN reward.gem_reward > 0 THEN ', +' || reward.gem_reward || ' gems' ELSE '' END ||
+        CASE WHEN v_item_name IS NOT NULL THEN ', +' || reward.item_quantity || ' ' || v_item_name ELSE '' END,
+      'Trophy', json_build_object('competition', 'weekly_xp', 'weekly_xp', rec.total_xp, 'xp_awarded', reward.xp_reward, 'gems_awarded', reward.gem_reward, 'rank', cur_rank)::jsonb);
 
-    awarded := awarded || json_build_object('rank', cur_rank, 'user_id', rec.user_id, 'weekly_xp', rec.total_xp, 'xp_awarded', ach.xp_reward, 'gems_awarded', ach.gem_reward);
+    awarded := awarded || json_build_object('rank', cur_rank, 'user_id', rec.user_id, 'weekly_xp', rec.total_xp, 'xp_awarded', reward.xp_reward, 'gems_awarded', reward.gem_reward);
+    v_item_name := NULL;
   END LOOP;
 
   IF cur_rank = 0 THEN
@@ -2857,6 +2894,28 @@ $$;
 -- (17:10 UTC = 00:10 Monday VN time)
 
 -- ============================================================
+-- Leaderboard Rewards Config Table
+-- Configurable rewards per rank for weekly/monthly leaderboards
+-- ============================================================
+CREATE TABLE IF NOT EXISTS public.leaderboard_rewards (
+  id uuid NOT NULL DEFAULT uuid_generate_v4(),
+  timeframe text NOT NULL CHECK (timeframe IN ('weekly', 'monthly')),
+  rank integer NOT NULL CHECK (rank >= 1 AND rank <= 10),
+  xp_reward integer NOT NULL DEFAULT 0,
+  gem_reward integer NOT NULL DEFAULT 0,
+  item_id uuid,
+  item_quantity integer NOT NULL DEFAULT 1,
+  chest_id uuid,
+  achievement_id uuid,
+  is_active boolean NOT NULL DEFAULT true,
+  CONSTRAINT leaderboard_rewards_pkey PRIMARY KEY (id),
+  CONSTRAINT leaderboard_rewards_timeframe_rank_key UNIQUE (timeframe, rank),
+  CONSTRAINT leaderboard_rewards_item_id_fkey FOREIGN KEY (item_id) REFERENCES public.collectible_items(id),
+  CONSTRAINT leaderboard_rewards_chest_id_fkey FOREIGN KEY (chest_id) REFERENCES public.chests(id),
+  CONSTRAINT leaderboard_rewards_achievement_id_fkey FOREIGN KEY (achievement_id) REFERENCES public.achievements(id)
+);
+
+-- ============================================================
 -- Award monthly XP top 3 (cron: 1st of each month 00:10 VN time)
 -- Same logic but for the previous month, awards top 3
 -- ============================================================
@@ -2870,28 +2929,29 @@ DECLARE
   month_start timestamptz;
   month_end timestamptz;
   rec RECORD;
-  ach RECORD;
-  rank_labels text[] := ARRAY['monthly_xp_leader', 'monthly_xp_leader_2', 'monthly_xp_leader_3'];
-  rank_titles text[] := ARRAY['Vô địch XP tháng!', 'Top 2 XP tháng!', 'Top 3 XP tháng!'];
-  rank_messages text[] := ARRAY['Bạn đạt nhiều XP nhất tháng', 'Bạn đạt Top 2 XP tháng', 'Bạn đạt Top 3 XP tháng'];
+  reward RECORD;
   awarded json[] := ARRAY[]::json[];
   cur_rank integer := 0;
+  rank_title text;
+  rank_message text;
+  v_user_name text;
+  v_item_name text;
 BEGIN
   -- Last month boundaries (Vietnam time)
   month_end := (date_trunc('month', NOW() AT TIME ZONE 'Asia/Ho_Chi_Minh') AT TIME ZONE 'Asia/Ho_Chi_Minh');
   month_start := (date_trunc('month', NOW() AT TIME ZONE 'Asia/Ho_Chi_Minh') - INTERVAL '1 month') AT TIME ZONE 'Asia/Ho_Chi_Minh';
 
-  -- Check if already awarded for this month (look for awards made after the month ended)
+  -- Check if already awarded for this month
   IF EXISTS(
     SELECT 1 FROM user_achievements ua
-    JOIN achievements a ON a.id = ua.achievement_id
-    WHERE a.criteria_type = 'monthly_xp_leader' AND a.is_active = true
+    JOIN leaderboard_rewards lr ON lr.achievement_id = ua.achievement_id
+    WHERE lr.timeframe = 'monthly' AND lr.rank = 1
       AND ua.earned_at >= month_end AND ua.earned_at < month_end + INTERVAL '1 month'
   ) THEN
     RETURN json_build_object('status', 'already_awarded', 'month_start', month_start);
   END IF;
 
-  -- Calculate XP from exercises (with score bonuses) + chest rewards, get top 3
+  -- Calculate XP from exercises (with score bonuses) + chest rewards, get top 10
   FOR rec IN
     WITH exercise_xp AS (
       SELECT up.user_id,
@@ -2927,40 +2987,74 @@ BEGIN
     FROM combined c
     JOIN users u ON u.id = c.user_id AND u.role = 'user'
     ORDER BY c.total_xp DESC
-    LIMIT 3
+    LIMIT 10
   LOOP
     cur_rank := cur_rank + 1;
 
-    -- Get achievement for this rank
-    SELECT id, COALESCE(xp_reward, 0) AS xp_reward, COALESCE(gem_reward, 0) AS gem_reward
-    INTO ach
-    FROM achievements
-    WHERE criteria_type = rank_labels[cur_rank] AND is_active = true
-    LIMIT 1;
+    -- Get reward config for this rank
+    SELECT lr.*, a.xp_reward AS ach_xp, a.gem_reward AS ach_gems
+    INTO reward
+    FROM leaderboard_rewards lr
+    LEFT JOIN achievements a ON a.id = lr.achievement_id
+    WHERE lr.timeframe = 'monthly' AND lr.rank = cur_rank AND lr.is_active = true;
 
-    -- Skip if no achievement configured for this rank
-    IF ach.id IS NULL THEN
+    -- Skip if no reward configured for this rank
+    IF reward IS NULL THEN
       CONTINUE;
     END IF;
 
-    -- Record achievement
-    INSERT INTO user_achievements (user_id, achievement_id, earned_at, claimed_at, xp_claimed)
-    VALUES (rec.user_id, ach.id, NOW(), NOW(), ach.xp_reward);
+    -- Build notification text
+    rank_title := CASE cur_rank
+      WHEN 1 THEN 'Vô địch XP tháng!'
+      WHEN 2 THEN 'Top 2 XP tháng!'
+      WHEN 3 THEN 'Top 3 XP tháng!'
+      ELSE 'Top ' || cur_rank || ' XP tháng!'
+    END;
+    rank_message := CASE cur_rank
+      WHEN 1 THEN 'Bạn đạt nhiều XP nhất tháng'
+      ELSE 'Bạn đạt Top ' || cur_rank || ' XP tháng'
+    END;
+
+    -- Record achievement (top 1-3 with badges)
+    IF reward.achievement_id IS NOT NULL THEN
+      INSERT INTO user_achievements (user_id, achievement_id, earned_at, claimed_at, xp_claimed)
+      VALUES (rec.user_id, reward.achievement_id, NOW(), NOW(), reward.xp_reward);
+    END IF;
 
     -- Award XP and gems
     UPDATE users
-    SET xp = xp + ach.xp_reward,
-        gems = gems + ach.gem_reward,
+    SET xp = xp + reward.xp_reward,
+        gems = gems + reward.gem_reward,
         updated_at = NOW()
     WHERE id = rec.user_id;
 
+    -- Award item if configured
+    IF reward.item_id IS NOT NULL THEN
+      SELECT full_name INTO v_user_name FROM users WHERE id = rec.user_id;
+      SELECT name INTO v_item_name FROM collectible_items WHERE id = reward.item_id;
+
+      INSERT INTO user_inventory (user_id, user_name, item_id, item_name, quantity)
+      VALUES (rec.user_id, v_user_name, reward.item_id, v_item_name, reward.item_quantity)
+      ON CONFLICT (user_id, item_id)
+      DO UPDATE SET quantity = user_inventory.quantity + reward.item_quantity, updated_at = now();
+    END IF;
+
+    -- Award chest if configured
+    IF reward.chest_id IS NOT NULL THEN
+      INSERT INTO user_chests (user_id, chest_id, source, source_ref)
+      VALUES (rec.user_id, reward.chest_id, 'monthly_leaderboard', 'rank_' || cur_rank);
+    END IF;
+
     -- Notify winner
     INSERT INTO notifications (user_id, type, title, message, icon, data)
-    VALUES (rec.user_id, 'competition_winner', rank_titles[cur_rank],
-      'Chúc mừng! ' || rank_messages[cur_rank] || ' (' || rec.total_xp || ' XP). +' || ach.xp_reward || ' XP, +' || ach.gem_reward || ' gems',
-      'Crown', json_build_object('competition', 'monthly_xp', 'monthly_xp', rec.total_xp, 'xp_awarded', ach.xp_reward, 'gems_awarded', ach.gem_reward, 'rank', cur_rank)::jsonb);
+    VALUES (rec.user_id, 'competition_winner', rank_title,
+      'Chúc mừng! ' || rank_message || ' (' || rec.total_xp || ' XP). +' || reward.xp_reward || ' XP' ||
+        CASE WHEN reward.gem_reward > 0 THEN ', +' || reward.gem_reward || ' gems' ELSE '' END ||
+        CASE WHEN v_item_name IS NOT NULL THEN ', +' || reward.item_quantity || ' ' || v_item_name ELSE '' END,
+      'Crown', json_build_object('competition', 'monthly_xp', 'monthly_xp', rec.total_xp, 'xp_awarded', reward.xp_reward, 'gems_awarded', reward.gem_reward, 'rank', cur_rank)::jsonb);
 
-    awarded := awarded || json_build_object('rank', cur_rank, 'user_id', rec.user_id, 'monthly_xp', rec.total_xp, 'xp_awarded', ach.xp_reward, 'gems_awarded', ach.gem_reward);
+    awarded := awarded || json_build_object('rank', cur_rank, 'user_id', rec.user_id, 'monthly_xp', rec.total_xp, 'xp_awarded', reward.xp_reward, 'gems_awarded', reward.gem_reward);
+    v_item_name := NULL;
   END LOOP;
 
   IF cur_rank = 0 THEN

@@ -29,6 +29,7 @@ import {
   User,
   Users,
   Copy,
+  Clock,
 } from "lucide-react";
 import StudentStatsPopover from "../ui/StudentStatsPopover";
 import useClassStats from "../../hooks/useClassStats";
@@ -738,6 +739,8 @@ const UnitList = () => {
           estimated_duration: copiedSession.estimated_duration,
           is_test: copiedSession.is_test,
           assigned_student_id: copiedSession.assigned_student_id,
+          open_date: copiedSession.open_date,
+          close_date: copiedSession.close_date,
         })
         .select()
         .single();
@@ -844,6 +847,8 @@ const UnitList = () => {
             estimated_duration: copiedSession.estimated_duration,
             is_test: copiedSession.is_test,
             assigned_student_id: studentId,
+            open_date: copiedSession.open_date,
+            close_date: copiedSession.close_date,
           })
           .select()
           .single();
@@ -893,6 +898,17 @@ const UnitList = () => {
 
   const getSessionStatus = (session, index) => {
     const progress = sessionProgress[session.id];
+    const now = new Date();
+
+    // Check open/close dates for students
+    if (profile?.role === 'user') {
+      if (session.open_date && new Date(session.open_date) > now) {
+        return { status: "scheduled", canAccess: false };
+      }
+      if (session.close_date && new Date(session.close_date) < now) {
+        return { status: "closed", canAccess: false };
+      }
+    }
 
     // All sessions are now always available (unlocked)
     if (!progress) {
@@ -1032,6 +1048,20 @@ const UnitList = () => {
                   <User className="w-2.5 h-2.5 text-white" />
                   <span className="text-white text-[7px] font-bold leading-none">
                     {profile?.role === 'user' ? 'YOU' : (studentNameMap[session.assigned_student_id]?.split(' ').pop() || '1:1')}
+                  </span>
+                </div>
+              </div>
+            )}
+
+            {/* Scheduled / Closed badge */}
+            {(session.open_date || session.close_date) && (
+              <div className="absolute bottom-1 left-1 z-40">
+                <div className={`rounded px-1 py-0.5 flex items-center gap-0.5 shadow-sm ${
+                  status === 'closed' ? 'bg-red-500' : status === 'scheduled' ? 'bg-amber-500' : 'bg-emerald-500'
+                }`}>
+                  <Clock className="w-2.5 h-2.5 text-white" />
+                  <span className="text-white text-[7px] font-bold leading-none">
+                    {status === 'closed' ? 'CLOSED' : status === 'scheduled' ? 'SCHEDULED' : 'OPEN'}
                   </span>
                 </div>
               </div>
