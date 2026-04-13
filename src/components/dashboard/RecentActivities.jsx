@@ -50,10 +50,17 @@ const CornerBrackets = () => (
   </>
 )
 
+const TABS = [
+  { key: 'mission', label: 'Nhiệm vụ', icon: '🎯' },
+  { key: 'achievement', label: 'Thành tích', icon: '🏆' },
+  { key: 'wild', label: 'Wild Area', icon: '🌿' },
+]
+
 const RecentActivities = () => {
   const navigate = useNavigate()
   const [activities, setActivities] = useState([])
   const [loading, setLoading] = useState(true)
+  const [activeTab, setActiveTab] = useState('mission')
 
   useEffect(() => {
     fetchRecentActivities()
@@ -253,7 +260,6 @@ const RecentActivities = () => {
           // Same priority: sort by date descending
           return dateB - dateA
         })
-        .slice(0, 20)
 
       setActivities(allActivities)
     } catch (error) {
@@ -320,16 +326,46 @@ const RecentActivities = () => {
           LIVE
         </div>
       </div>
-      <div className="h-[2px] w-full bg-gradient-to-r from-blue-400 via-blue-200 to-transparent mb-4" />
+      <div className="h-[2px] w-full bg-gradient-to-r from-blue-400 via-blue-200 to-transparent mb-3" />
 
-      <div className="space-y-2 max-h-96 overflow-y-auto" style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }}>
+      {/* Tabs */}
+      <div className="flex gap-1 mb-3">
+        {TABS.map(tab => (
+          <button
+            key={tab.key}
+            onClick={() => setActiveTab(tab.key)}
+            className={`flex-1 flex items-center justify-center gap-1 px-2 py-1.5 text-xs font-medium rounded-md transition-all ${
+              activeTab === tab.key
+                ? 'bg-blue-100 text-blue-700 border border-blue-300'
+                : 'text-gray-500 hover:bg-gray-100 border border-transparent'
+            }`}
+          >
+            <span>{tab.icon}</span>
+            <span>{tab.label}</span>
+          </button>
+        ))}
+      </div>
+
+      <div className="space-y-2 max-h-80 overflow-y-auto" style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }}>
         <style>{`.activity-scroll::-webkit-scrollbar { display: none; }`}</style>
-        {activities.map((activity) => (
+        {activities
+          .filter(a => activeTab === 'achievement' ? (a.type === 'achievement' || a.type === 'competition')
+            : activeTab === 'mission' ? a.type === 'mission'
+            : a.type === 'wild_catch')
+          .map((activity) => (
           <div key={`${activity.type}-${activity.id}`} className={`relative flex items-center space-x-3 p-3 transition-all overflow-hidden ${
             activity.type === 'competition'
               ? 'border border-amber-300 bg-amber-50'
+              : activity.type === 'wild_catch' && activity.pet_rarity === 'legendary'
+              ? 'border border-yellow-400 bg-gradient-to-r from-yellow-50 to-amber-50'
+              : activity.type === 'wild_catch' && activity.pet_rarity === 'epic'
+              ? 'border border-purple-300 bg-purple-50'
+              : activity.type === 'wild_catch' && activity.pet_rarity === 'rare'
+              ? 'border border-blue-300 bg-blue-50'
+              : activity.type === 'wild_catch' && activity.pet_rarity === 'uncommon'
+              ? 'border border-green-300 bg-green-50'
               : activity.type === 'wild_catch'
-              ? 'border border-emerald-200 bg-emerald-50'
+              ? 'border border-gray-200 bg-gray-50'
               : activity.type === 'mission' && activity.missions?.goal_type === 'complete_all_missions'
               ? 'border border-yellow-400 bg-gradient-to-r from-yellow-50 to-amber-50'
               : activity.type === 'achievement' && activity.achievements?.gem_reward > 0
@@ -418,6 +454,13 @@ const RecentActivities = () => {
             </div>
           </div>
         ))}
+        {activities.filter(a => activeTab === 'achievement' ? (a.type === 'achievement' || a.type === 'competition')
+          : activeTab === 'mission' ? a.type === 'mission'
+          : a.type === 'wild_catch').length === 0 && (
+          <div className="text-center py-6 text-gray-400 text-sm">
+            Chưa có hoạt động nào
+          </div>
+        )}
       </div>
 
     </div>

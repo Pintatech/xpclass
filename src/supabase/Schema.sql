@@ -3743,9 +3743,9 @@ CREATE POLICY "Admins can read all wild area logs"
   ON public.wild_area_logs FOR SELECT
   USING (EXISTS (SELECT 1 FROM public.users WHERE id = auth.uid() AND role = 'admin'));
 
-CREATE POLICY "Users can read own wild area logs"
+CREATE POLICY "Users can read all wild area logs"
   ON public.wild_area_logs FOR SELECT
-  USING (user_id = auth.uid());
+  USING (auth.uid() IS NOT NULL);
 
 CREATE POLICY "Service can insert wild area logs"
   ON public.wild_area_logs FOR INSERT

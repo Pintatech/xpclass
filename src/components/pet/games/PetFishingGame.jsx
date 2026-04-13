@@ -1203,9 +1203,9 @@ const PetFishingGame = ({ petImageUrl, petName, onGameEnd, onClose, wordBank: wo
           {/* Boat on water surface */}
           <div className="absolute left-1/2 z-[3] pointer-events-none" style={{ top: '32%', transform: 'translateX(-50%)', animation: 'boatRock 4s ease-in-out infinite' }}>
             {boatSkinUrl ? (
-              <img src={boatSkinUrl} alt="boat" className="w-[56px] h-[56px] object-contain" style={{ filter: 'drop-shadow(0 3px 6px rgba(0,0,0,0.4))' }} />
+              <img src={boatSkinUrl} alt="boat" className="w-[80px] h-[80px] object-contain" style={{ filter: 'drop-shadow(0 3px 6px rgba(0,0,0,0.4))' }} />
             ) : (
-              <span style={{ fontSize: 42, filter: 'drop-shadow(0 3px 6px rgba(0,0,0,0.4))' }}>⛵</span>
+              <span style={{ fontSize: 64, filter: 'drop-shadow(0 3px 6px rgba(0,0,0,0.4))' }}>⛵</span>
             )}
             {activePowerup && (
               <div className="absolute -right-10 top-1/2 -translate-y-1/2" style={{ width: 40, height: 40 }}>

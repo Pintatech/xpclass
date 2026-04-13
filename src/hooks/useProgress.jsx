@@ -174,8 +174,9 @@ export const ProgressProvider = ({ children }) => {
       const hasBowl = !!profile.active_bowl_url
       const hasSpaceship = !!profile.active_spaceship_url
       const hasHammer = !!profile.active_hammer_url
+      const hasBoat = !!profile.active_boat_url
 
-      if (!hasAvatar && !hasFrame && !hasBackground && !hasBowl && !hasSpaceship && !hasHammer) return { total: 0, items: [] }
+      if (!hasAvatar && !hasFrame && !hasBackground && !hasBowl && !hasSpaceship && !hasHammer && !hasBoat) return { total: 0, items: [] }
 
       const { data, error } = await supabase
         .from('shop_items')
@@ -192,7 +193,8 @@ export const ProgressProvider = ({ children }) => {
           (hasBackground && (item.item_data?.background_url || item.image_url) === profile.active_background_url) ||
           (hasBowl && (item.item_data?.bowl_url || item.image_url) === profile.active_bowl_url) ||
           (hasSpaceship && item.image_url === profile.active_spaceship_url) ||
-          (hasHammer && item.image_url === profile.active_hammer_url)
+          (hasHammer && item.image_url === profile.active_hammer_url) ||
+          (hasBoat && (item.item_data?.boat_url || item.image_url) === profile.active_boat_url)
         )
         if (isEquipped && item.item_data?.xp_bonus > 0) {
           bonusItems.push({ name: item.name, category: item.category, bonus: item.item_data.xp_bonus })
