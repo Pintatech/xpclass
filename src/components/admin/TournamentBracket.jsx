@@ -38,7 +38,6 @@ const PlayerRow = ({ player, score, isWinner, participants }) => {
           {score}
         </span>
       )}
-      {isWinner && <Trophy className="w-3 h-3 text-yellow-500 flex-shrink-0" />}
     </div>
   )
 }

@@ -7,6 +7,31 @@ import { useTournament } from '../../hooks/useTournament'
 import { supabase } from '../../supabase/client'
 import TournamentBracket from './TournamentBracket'
 
+const SortableParticipant = ({ participant, index, total }) => {
+  const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id: participant.user_id })
+  const style = { transform: CSS.Transform.toString(transform), transition, zIndex: isDragging ? 50 : undefined, opacity: isDragging ? 0.5 : 1 }
+
+  return (
+    <div ref={setNodeRef} style={style}
+      className={`flex items-center gap-2 px-2 py-1.5 text-sm border-b last:border-b-0 ${index % 4 < 2 ? 'bg-white' : 'bg-purple-50/40'}`}
+    >
+      <button {...attributes} {...listeners} className="cursor-grab active:cursor-grabbing text-gray-300 hover:text-gray-500 touch-none">
+        <GripVertical className="w-3.5 h-3.5" />
+      </button>
+      <span className="text-[10px] text-gray-400 w-4 text-right">{index + 1}</span>
+      {participant.user?.avatar_url ? (
+        <img src={participant.user.avatar_url} alt="" className="w-5 h-5 rounded-full object-cover" />
+      ) : (
+        <div className="w-5 h-5 rounded-full bg-gray-200" />
+      )}
+      <span className="flex-1 text-gray-700 truncate">{participant.user?.full_name || 'Student'}</span>
+      {index % 2 === 0 && index + 1 < total && (
+        <span className="text-[9px] text-amber-600 font-bold">VS</span>
+      )}
+    </div>
+  )
+}
+
 const SortableStudent = ({ student, index, total, onRemove }) => {
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id: student.id })
   const style = { transform: CSS.Transform.toString(transform), transition, zIndex: isDragging ? 50 : undefined, opacity: isDragging ? 0.5 : 1 }
@@ -50,12 +75,14 @@ const GAME_TYPE_LABELS = {
 }
 
 const STATUS_STYLES = {
+  registration: 'bg-purple-100 text-purple-700',
   active: 'bg-green-100 text-green-700',
   completed: 'bg-blue-100 text-blue-700',
   cancelled: 'bg-gray-100 text-gray-500',
 }
 
 const STATUS_LABELS = {
+  registration: 'Đang đăng ký',
   active: 'Đang diễn ra',
   completed: 'Hoàn thành',
   cancelled: 'Đã hủy',
@@ -169,6 +196,9 @@ const CreateForm = ({ onCreated, onCancel }) => {
   const [entryFee, setEntryFee] = useState(0)
   const [allItems, setAllItems] = useState([])
   const [allChests, setAllChests] = useState([])
+  const [mode, setMode] = useState('direct') // 'direct' = pick students now, 'registration' = open for sign-up
+  const [allowedLevels, setAllowedLevels] = useState([]) // empty = all levels
+  const [allLevels, setAllLevels] = useState([])
 
   const selectedIds = selectedStudents.map(s => s.id)
   const totalRounds = Math.log2(bracketSize)
@@ -193,17 +223,20 @@ const CreateForm = ({ onCreated, onCancel }) => {
     }))
   }
 
-  // Fetch courses, items, chests on mount
+  // Fetch courses, items, chests, levels on mount
   useEffect(() => {
     const load = async () => {
-      const [courseRes, itemRes, chestRes] = await Promise.all([
+      const [courseRes, itemRes, chestRes, levelRes] = await Promise.all([
         supabase.from('courses').select('id, title, level_number').eq('is_active', true).order('level_number'),
         supabase.from('collectible_items').select('id, name, image_url, rarity').eq('is_active', true).order('name'),
         supabase.from('chests').select('id, name, image_url, chest_type').eq('is_active', true).order('name'),
+        supabase.from('users').select('current_level').eq('role', 'student'),
       ])
       setCourses(courseRes.data || [])
       setAllItems(itemRes.data || [])
       setAllChests(chestRes.data || [])
+      const levels = [...new Set((levelRes.data || []).map(u => u.current_level).filter(Boolean))].sort((a, b) => a - b)
+      setAllLevels(levels)
     }
     load()
   }, [])
@@ -274,23 +307,45 @@ const CreateForm = ({ onCreated, onCancel }) => {
     })
   }
 
+  const toggleLevel = (lvl) => {
+    setAllowedLevels(prev => prev.includes(lvl) ? prev.filter(l => l !== lvl) : [...prev, lvl])
+  }
+
   const handleSubmit = async () => {
     setError('')
     if (!name.trim()) { setError('Nhập tên giải đấu'); return }
-    if (selectedStudents.length !== bracketSize) {
+    if (mode === 'direct' && selectedStudents.length !== bracketSize) {
       setError(`Chọn đúng ${bracketSize} học sinh (đã chọn ${selectedStudents.length})`)
       return
     }
     setSaving(true)
     try {
-      await createTournament({
-        name: name.trim(),
-        bracket_size: bracketSize,
-        game_type: gameType,
-        studentIds: selectedIds,
-        round_rewards: roundRewards,
-        entry_fee: entryFee,
-      })
+      if (mode === 'registration') {
+        // Create tournament in registration status (no students yet)
+        const total_rounds = Math.log2(bracketSize)
+        const { error: tErr } = await supabase.from('tournaments').insert({
+          name: name.trim(),
+          bracket_size: bracketSize,
+          game_type: gameType,
+          total_rounds,
+          current_round: 0,
+          status: 'registration',
+          created_by: (await supabase.auth.getUser()).data.user.id,
+          round_rewards: roundRewards,
+          entry_fee: entryFee,
+          allowed_levels: allowedLevels.length > 0 ? allowedLevels : null,
+        })
+        if (tErr) throw tErr
+      } else {
+        await createTournament({
+          name: name.trim(),
+          bracket_size: bracketSize,
+          game_type: gameType,
+          studentIds: selectedIds,
+          round_rewards: roundRewards,
+          entry_fee: entryFee,
+        })
+      }
       onCreated()
     } catch (err) {
       setError(err.message)
@@ -369,72 +424,112 @@ const CreateForm = ({ onCreated, onCancel }) => {
         )}
       </div>
 
-      {/* Course + Student Selection */}
+      {/* Mode: Direct pick vs Registration */}
       <div>
-        <label className="block text-xs font-semibold text-gray-600 mb-1">Chọn khóa học</label>
-        <select
-          value={selectedCourse}
-          onChange={e => handleCourseChange(e.target.value)}
-          className="w-full border rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-blue-300 focus:border-blue-400 outline-none"
-        >
-          <option value="">-- Chọn khóa học --</option>
-          {courses.map(c => (
-            <option key={c.id} value={c.id}>{c.title}</option>
-          ))}
-        </select>
+        <label className="block text-xs font-semibold text-gray-600 mb-1">Chế độ</label>
+        <div className="flex gap-2">
+          <button onClick={() => setMode('direct')}
+            className={`px-4 py-1.5 rounded-lg text-xs font-medium transition-colors ${mode === 'direct' ? 'bg-blue-600 text-white' : 'bg-gray-100 text-gray-600 hover:bg-gray-200'}`}>
+            Chọn học sinh trực tiếp
+          </button>
+          <button onClick={() => setMode('registration')}
+            className={`px-4 py-1.5 rounded-lg text-xs font-medium transition-colors ${mode === 'registration' ? 'bg-blue-600 text-white' : 'bg-gray-100 text-gray-600 hover:bg-gray-200'}`}>
+            Mở đăng ký
+          </button>
+        </div>
+        {mode === 'registration' && (
+          <p className="text-[10px] text-gray-500 mt-1">Học sinh sẽ tự đăng ký. Bạn bắt đầu giải khi đủ người.</p>
+        )}
       </div>
 
-      {/* Bracket order + matchup preview */}
-      {selectedStudents.length > 0 && (
+      {/* Level Restriction (registration mode) */}
+      {mode === 'registration' && (
         <div>
-          <div className="flex items-center justify-between mb-1">
-            <label className="text-xs font-semibold text-gray-600">
-              Sắp xếp cặp đấu ({selectedStudents.length}/{bracketSize})
-            </label>
-            <button onClick={shuffleStudents} className="text-[10px] text-purple-600 hover:underline flex items-center gap-1">
-              <Shuffle className="w-3 h-3" /> Xáo trộn
-            </button>
+          <label className="block text-xs font-semibold text-gray-600 mb-1">Giới hạn level (bỏ trống = tất cả)</label>
+          <div className="flex flex-wrap gap-2">
+            {(allLevels.length > 0 ? allLevels : [1, 2, 3, 4, 5, 6, 7, 8, 9, 10]).map(lvl => (
+              <button key={lvl} onClick={() => toggleLevel(lvl)}
+                className={`px-3 py-1 rounded-full text-xs font-medium transition-colors ${allowedLevels.includes(lvl) ? 'bg-purple-600 text-white' : 'bg-gray-100 text-gray-600 hover:bg-gray-200'}`}>
+                Level {lvl}
+              </button>
+            ))}
           </div>
-          <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
-            <SortableContext items={selectedStudents.map(s => s.id)} strategy={verticalListSortingStrategy}>
-              <div className="border rounded-lg max-h-64 overflow-y-auto">
-                {selectedStudents.map((s, i) => (
-                  <SortableStudent key={s.id} student={s} index={i} total={selectedStudents.length} onRemove={removeStudent} />
-                ))}
-              </div>
-            </SortableContext>
-          </DndContext>
+          {allowedLevels.length > 0 && (
+            <p className="text-[10px] text-purple-600 mt-1 font-medium">
+              Chỉ học sinh level {allowedLevels.sort((a, b) => a - b).join(', ')} được đăng ký
+            </p>
+          )}
         </div>
       )}
 
-      {courseStudents.length > 0 && (
+      {/* Course + Student Selection (direct mode only) */}
+      {mode === 'direct' && <>
         <div>
-          <div className="flex items-center justify-between mb-1">
-            <label className="text-xs font-semibold text-gray-600">
-              Học sinh trong khóa ({courseStudents.filter(m => selectedIds.includes(m.student_id)).length}/{courseStudents.length})
-            </label>
-            <button onClick={selectAll} className="text-[10px] text-blue-600 hover:underline">
-              {courseStudents.every(m => selectedIds.includes(m.student_id)) ? 'Bỏ chọn khóa này' : 'Chọn cả khóa'}
-            </button>
-          </div>
-          <div className="border rounded-lg max-h-48 overflow-y-auto divide-y">
-            {courseStudents.map(m => (
-              <label
-                key={m.student_id}
-                className={`flex items-center gap-2 px-3 py-2 cursor-pointer hover:bg-gray-50 transition-colors ${selectedIds.includes(m.student_id) ? 'bg-blue-50' : ''}`}
-              >
-                <input
-                  type="checkbox"
-                  checked={selectedIds.includes(m.student_id)}
-                  onChange={() => toggleStudent(m.student_id, m.full_name)}
-                  className="accent-blue-600"
-                />
-                <span className="text-sm text-gray-700">{m.full_name}</span>
-              </label>
+          <label className="block text-xs font-semibold text-gray-600 mb-1">Chọn khóa học</label>
+          <select
+            value={selectedCourse}
+            onChange={e => handleCourseChange(e.target.value)}
+            className="w-full border rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-blue-300 focus:border-blue-400 outline-none"
+          >
+            <option value="">-- Chọn khóa học --</option>
+            {courses.map(c => (
+              <option key={c.id} value={c.id}>{c.title}</option>
             ))}
-          </div>
+          </select>
         </div>
-      )}
+
+        {/* Bracket order + matchup preview */}
+        {selectedStudents.length > 0 && (
+          <div>
+            <div className="flex items-center justify-between mb-1">
+              <label className="text-xs font-semibold text-gray-600">
+                Sắp xếp cặp đấu ({selectedStudents.length}/{bracketSize})
+              </label>
+              <button onClick={shuffleStudents} className="text-[10px] text-purple-600 hover:underline flex items-center gap-1">
+                <Shuffle className="w-3 h-3" /> Xáo trộn
+              </button>
+            </div>
+            <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
+              <SortableContext items={selectedStudents.map(s => s.id)} strategy={verticalListSortingStrategy}>
+                <div className="border rounded-lg max-h-64 overflow-y-auto">
+                  {selectedStudents.map((s, i) => (
+                    <SortableStudent key={s.id} student={s} index={i} total={selectedStudents.length} onRemove={removeStudent} />
+                  ))}
+                </div>
+              </SortableContext>
+            </DndContext>
+          </div>
+        )}
+
+        {courseStudents.length > 0 && (
+          <div>
+            <div className="flex items-center justify-between mb-1">
+              <label className="text-xs font-semibold text-gray-600">
+                Học sinh trong khóa ({courseStudents.filter(m => selectedIds.includes(m.student_id)).length}/{courseStudents.length})
+              </label>
+              <button onClick={selectAll} className="text-[10px] text-blue-600 hover:underline">
+                {courseStudents.every(m => selectedIds.includes(m.student_id)) ? 'Bỏ chọn khóa này' : 'Chọn cả khóa'}
+              </button>
+            </div>
+            <div className="border rounded-lg max-h-48 overflow-y-auto divide-y">
+              {courseStudents.map(m => (
+                <label
+                  key={m.student_id}
+                  className={`flex items-center gap-2 px-3 py-2 cursor-pointer hover:bg-gray-50 transition-colors ${selectedIds.includes(m.student_id) ? 'bg-blue-50' : ''}`}
+                >
+                  <input
+                    type="checkbox"
+                    checked={selectedIds.includes(m.student_id)}
+                    onChange={() => toggleStudent(m.student_id, m.full_name)}
+                    className="accent-blue-600"
+                  />
+                  <span className="text-sm text-gray-700">{m.full_name}</span>
+                </label>
+              ))}
+            </div>
+          </div>
+        )}
+      </>}
 
       {/* Rewards per round */}
       <div>
@@ -516,18 +611,100 @@ const CreateForm = ({ onCreated, onCancel }) => {
 
 // ─── Tournament Detail View ──────────────────────────────────
 const TournamentDetail = ({ tournamentId, onBack }) => {
-  const { tournament, participants, matches, loading, fetchTournament, recordMatchResult, advanceRound, checkMatchScores } = useTournament()
+  const { tournament, participants, matches, loading, fetchTournament, recordMatchResult, advanceRound, checkMatchScores, startTournament } = useTournament()
   const [scoreMatch, setScoreMatch] = useState(null)
   const [advancing, setAdvancing] = useState(false)
   const [advanceError, setAdvanceError] = useState('')
   const [checking, setChecking] = useState(false)
   const [checkResult, setCheckResult] = useState(null)
+  const [starting, setStarting] = useState(false)
+  const [startError, setStartError] = useState('')
+  const [orderedParts, setOrderedParts] = useState([])
+  const [reorderSaving, setReorderSaving] = useState(false)
+
+  const participantSensors = useSensors(useSensor(PointerSensor, { activationConstraint: { distance: 5 } }))
 
   useEffect(() => {
     if (!tournamentId) return
     // Auto-check training scores then load tournament data
     checkMatchScores(tournamentId).catch(() => {}).finally(() => fetchTournament(tournamentId))
   }, [tournamentId, fetchTournament, checkMatchScores])
+
+  useEffect(() => {
+    setOrderedParts(participants)
+  }, [participants])
+
+  const handleParticipantDragEnd = async (event) => {
+    const { active, over } = event
+    if (!over || active.id === over.id) return
+    const oldIdx = orderedParts.findIndex(p => p.user_id === active.id)
+    const newIdx = orderedParts.findIndex(p => p.user_id === over.id)
+    if (oldIdx < 0 || newIdx < 0) return
+    const reordered = arrayMove(orderedParts, oldIdx, newIdx)
+    setOrderedParts(reordered)
+    setReorderSaving(true)
+    try {
+      // Two-phase update to avoid any (tournament_id, seed) unique collisions.
+      await Promise.all(reordered.map((p, i) =>
+        supabase.from('tournament_participants')
+          .update({ seed: -(i + 1) })
+          .eq('tournament_id', tournamentId)
+          .eq('user_id', p.user_id)
+      ))
+      await Promise.all(reordered.map((p, i) =>
+        supabase.from('tournament_participants')
+          .update({ seed: i + 1 })
+          .eq('tournament_id', tournamentId)
+          .eq('user_id', p.user_id)
+      ))
+    } catch (err) {
+      console.error('reorder participants failed', err)
+    } finally {
+      setReorderSaving(false)
+    }
+  }
+
+  const handleShuffleParticipants = async () => {
+    if (orderedParts.length < 2) return
+    const shuffled = [...orderedParts]
+    for (let i = shuffled.length - 1; i > 0; i--) {
+      const j = Math.floor(Math.random() * (i + 1))
+      ;[shuffled[i], shuffled[j]] = [shuffled[j], shuffled[i]]
+    }
+    setOrderedParts(shuffled)
+    setReorderSaving(true)
+    try {
+      await Promise.all(shuffled.map((p, i) =>
+        supabase.from('tournament_participants')
+          .update({ seed: -(i + 1) })
+          .eq('tournament_id', tournamentId)
+          .eq('user_id', p.user_id)
+      ))
+      await Promise.all(shuffled.map((p, i) =>
+        supabase.from('tournament_participants')
+          .update({ seed: i + 1 })
+          .eq('tournament_id', tournamentId)
+          .eq('user_id', p.user_id)
+      ))
+    } catch (err) {
+      console.error('shuffle participants failed', err)
+    } finally {
+      setReorderSaving(false)
+    }
+  }
+
+  const handleStart = async () => {
+    setStartError('')
+    setStarting(true)
+    try {
+      await startTournament(tournamentId)
+      await fetchTournament(tournamentId)
+    } catch (err) {
+      setStartError(err.message)
+    } finally {
+      setStarting(false)
+    }
+  }
 
   const handleRecordScore = async (matchId, data) => {
     await recordMatchResult(matchId, data)
@@ -574,9 +751,14 @@ const TournamentDetail = ({ tournamentId, onBack }) => {
   }
 
   const currentRoundMatches = matches.filter(m => m.round === tournament.current_round)
-  const allCurrentCompleted = currentRoundMatches.length > 0 && currentRoundMatches.every(m => m.status === 'completed')
+  // A match is "decided" if it's already completed, or both players have scored
+  // (the winner will be locked in at advance time).
+  const allCurrentDecided = currentRoundMatches.length > 0 && currentRoundMatches.every(m =>
+    m.status === 'completed' || (m.player1_score != null && m.player2_score != null)
+  )
+  const allCurrentCompleted = allCurrentDecided
   const isLastRound = tournament.current_round >= tournament.total_rounds
-  const canAdvance = allCurrentCompleted && tournament.status === 'active'
+  const canAdvance = allCurrentDecided && tournament.status === 'active'
 
   return (
     <div className="space-y-4">
@@ -608,6 +790,67 @@ const TournamentDetail = ({ tournamentId, onBack }) => {
           </div>
         </div>
       </div>
+
+      {/* Registration Phase */}
+      {tournament.status === 'registration' && (
+        <div className="bg-purple-50 border border-purple-200 rounded-xl p-4 space-y-3">
+          <div className="flex items-center justify-between">
+            <div className="text-sm font-bold text-purple-800">
+              Đang mở đăng ký: {participants.length}/{tournament.bracket_size} người
+            </div>
+            {tournament.allowed_levels && tournament.allowed_levels.length > 0 && (
+              <span className="text-[10px] text-purple-600 bg-purple-100 px-2 py-0.5 rounded-full">
+                Level: {tournament.allowed_levels.join(', ')}
+              </span>
+            )}
+          </div>
+          <div className="w-full bg-purple-200 rounded-full h-2">
+            <div className="bg-purple-600 h-2 rounded-full transition-all" style={{ width: `${(participants.length / tournament.bracket_size) * 100}%` }} />
+          </div>
+          {orderedParts.length > 0 && (
+            <div>
+              <div className="flex items-center justify-between mb-1">
+                <span className="text-[10px] font-semibold text-purple-700">
+                  Sắp xếp cặp đấu (kéo để đổi thứ tự)
+                </span>
+                <div className="flex items-center gap-2">
+                  {reorderSaving && <span className="text-[10px] text-purple-500">Đang lưu...</span>}
+                  <button
+                    onClick={handleShuffleParticipants}
+                    disabled={reorderSaving || orderedParts.length < 2}
+                    className="text-[10px] text-purple-600 hover:underline flex items-center gap-1 disabled:opacity-40"
+                  >
+                    <Shuffle className="w-3 h-3" /> Xáo trộn
+                  </button>
+                </div>
+              </div>
+              <DndContext sensors={participantSensors} collisionDetection={closestCenter} onDragEnd={handleParticipantDragEnd}>
+                <SortableContext items={orderedParts.map(p => p.user_id)} strategy={verticalListSortingStrategy}>
+                  <div className="border border-purple-200 rounded-lg bg-white max-h-64 overflow-y-auto">
+                    {orderedParts.map((p, i) => (
+                      <SortableParticipant key={p.user_id} participant={p} index={i} total={orderedParts.length} />
+                    ))}
+                  </div>
+                </SortableContext>
+              </DndContext>
+            </div>
+          )}
+          <div className="flex items-center gap-3">
+            <button
+              onClick={handleStart}
+              disabled={starting || participants.length !== tournament.bracket_size}
+              className="bg-green-600 text-white text-sm font-medium px-4 py-2 rounded-lg hover:bg-green-700 disabled:opacity-40 disabled:cursor-not-allowed transition-colors flex items-center gap-2"
+            >
+              <Zap className="w-4 h-4" />
+              {starting ? 'Đang bắt đầu...' : 'Bắt đầu giải đấu'}
+            </button>
+            {participants.length !== tournament.bracket_size && (
+              <span className="text-xs text-purple-600">Cần đủ {tournament.bracket_size} người để bắt đầu</span>
+            )}
+          </div>
+          {startError && <div className="text-xs text-red-600">{startError}</div>}
+        </div>
+      )}
 
       {/* Action Buttons */}
       {tournament.status === 'active' && (

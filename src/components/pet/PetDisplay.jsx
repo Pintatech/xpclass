@@ -813,13 +813,55 @@ const PetDisplay = () => {
     const bonusScore = Math.round(score * bonusPercent / 100);
     const finalScore = score + bonusScore;
 
-    // Update the pending attempt row with the boosted score
+    // Update the pending attempt row with the boosted score + refresh played_at to END time
+    // (played_at was set at game-start; tournament scoring needs end-time so mid-game transitions count)
     if (pendingAttemptId.current && finalScore > 0) {
       await supabase.from('training_scores')
-        .update({ score: finalScore })
+        .update({ score: finalScore, played_at: new Date().toISOString() })
         .eq('id', pendingAttemptId.current);
     }
     pendingAttemptId.current = null;
+
+    // Auto-resolve any of this student's active tournament matches for this game_type.
+    // Runs inline so the bracket updates without waiting for admin to press "Cập nhật điểm".
+    if (user?.id && finalScore > 0) {
+      try {
+        const { data: myMatches } = await supabase
+          .from('tournament_matches')
+          .select('id, tournament_id, round, player1_id, player2_id, player1_score, player2_score, ready_at, created_at, tournaments!inner(game_type, status)')
+          .eq('status', 'ready')
+          .or(`player1_id.eq.${user.id},player2_id.eq.${user.id}`)
+          .eq('tournaments.game_type', gameType)
+          .eq('tournaments.status', 'active');
+
+        for (const m of (myMatches || [])) {
+          if (!m.player1_id || !m.player2_id) continue;
+          const since = m.ready_at || m.created_at;
+
+          const [p1Res, p2Res] = await Promise.all([
+            supabase.from('training_scores')
+              .select('score').eq('user_id', m.player1_id).eq('game_type', gameType)
+              .gte('played_at', since).gt('score', 0).order('score', { ascending: false }).limit(1),
+            supabase.from('training_scores')
+              .select('score').eq('user_id', m.player2_id).eq('game_type', gameType)
+              .gte('played_at', since).gt('score', 0).order('score', { ascending: false }).limit(1),
+          ]);
+          const p1Best = p1Res.data?.[0]?.score ?? null;
+          const p2Best = p2Res.data?.[0]?.score ?? null;
+
+          // Only update scores — winner is decided when admin advances the round,
+          // so students can keep playing to improve their score.
+          const partial = {};
+          if (p1Best != null && p1Best !== m.player1_score) partial.player1_score = p1Best;
+          if (p2Best != null && p2Best !== m.player2_score) partial.player2_score = p2Best;
+          if (Object.keys(partial).length > 0) {
+            await supabase.from('tournament_matches').update(partial).eq('id', m.id);
+          }
+        }
+      } catch (e) {
+        console.error('tournament auto-resolve failed', e);
+      }
+    }
 
     // Update mission progress for playing games (non-blocking)
     if (user?.id) {

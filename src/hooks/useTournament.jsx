@@ -115,6 +115,7 @@ export function useTournament() {
 
     // Round 1: pair up adjacent seeds
     const r1Count = bracket_size / 2
+    const nowIso = new Date().toISOString()
     for (let i = 0; i < r1Count; i++) {
       allMatches.push({
         tournament_id: t.id,
@@ -123,6 +124,7 @@ export function useTournament() {
         player1_id: shuffled[i * 2],
         player2_id: shuffled[i * 2 + 1],
         status: 'ready',
+        ready_at: nowIso,
       })
     }
 
@@ -182,6 +184,31 @@ export function useTournament() {
 
     const currentRound = t.current_round
 
+    // Auto-finalize any ready matches in this round that have both scores.
+    // (Matches stay 'ready' during play so students can keep improving; the winner
+    // is only locked in here, when the admin decides to advance the round.)
+    const { data: pendingFinalize } = await supabase.from('tournament_matches')
+      .select('*')
+      .eq('tournament_id', tournamentId)
+      .eq('round', currentRound)
+      .eq('status', 'ready')
+
+    for (const m of (pendingFinalize || [])) {
+      if (m.player1_score != null && m.player2_score != null) {
+        const winnerId = m.player1_score >= m.player2_score ? m.player1_id : m.player2_id
+        const loserId = winnerId === m.player1_id ? m.player2_id : m.player1_id
+        await supabase.from('tournament_matches').update({
+          winner_id: winnerId,
+          status: 'completed',
+          updated_at: new Date().toISOString(),
+        }).eq('id', m.id)
+        await supabase.from('tournament_participants')
+          .update({ eliminated_in_round: m.round })
+          .eq('tournament_id', tournamentId)
+          .eq('user_id', loserId)
+      }
+    }
+
     // Check all matches in current round are completed
     const { data: currentMatches } = await supabase.from('tournament_matches')
       .select('*')
@@ -232,8 +259,9 @@ export function useTournament() {
 
     for (const nm of (nextMatches || [])) {
       if (nm.player1_id && nm.player2_id) {
+        const nowIso = new Date().toISOString()
         await supabase.from('tournament_matches')
-          .update({ status: 'ready', updated_at: new Date().toISOString() })
+          .update({ status: 'ready', ready_at: nowIso, updated_at: nowIso })
           .eq('id', nm.id)
       }
     }
@@ -330,8 +358,9 @@ export function useTournament() {
     for (const match of readyMatches) {
       if (!match.player1_id || !match.player2_id) continue
 
-      // Get best score for each player for this game_type, played after the match became ready
-      const since = match.updated_at || match.created_at
+      // Anchor on ready_at (set once when match becomes playable; never drifts).
+      // Fall back to created_at for legacy rows without ready_at.
+      const since = match.ready_at || match.created_at
 
       const [p1Res, p2Res] = await Promise.all([
         supabase.from('training_scores')
@@ -352,23 +381,27 @@ export function useTournament() {
           .limit(1),
       ])
 
-      const p1Best = p1Res.data?.[0]?.score
-      const p2Best = p2Res.data?.[0]?.score
+      const p1Best = p1Res.data?.[0]?.score ?? null
+      const p2Best = p2Res.data?.[0]?.score ?? null
 
-      // Both must have played
-      if (p1Best == null || p2Best == null) continue
+      // Nothing to update if neither has played
+      if (p1Best == null && p2Best == null) continue
 
-      const winnerId = p1Best >= p2Best ? match.player1_id : match.player2_id
-      await recordMatchResult(match.id, {
-        player1_score: p1Best,
-        player2_score: p2Best,
-        winner_id: winnerId,
-      })
-      updated++
+      // Record each player's best in-window score. Keep status 'ready' even when both
+      // have scored — winner is only decided at advanceRound, so students can keep
+      // improving their score until the admin advances the round.
+      // Do NOT touch updated_at: legacy rows use it as a window anchor fallback.
+      const partial = {}
+      if (p1Best != null && p1Best !== match.player1_score) partial.player1_score = p1Best
+      if (p2Best != null && p2Best !== match.player2_score) partial.player2_score = p2Best
+      if (Object.keys(partial).length > 0) {
+        await supabase.from('tournament_matches').update(partial).eq('id', match.id)
+        updated++
+      }
     }
 
     return { updated }
-  }, [recordMatchResult])
+  }, [])
 
   // Delete tournament
   const deleteTournament = useCallback(async (id) => {
@@ -376,7 +409,9 @@ export function useTournament() {
     if (error) throw error
   }, [])
 
-  // Fetch tournaments for a student
+  // Fetch tournaments for a student (active ones, plus the most recent completed
+  // one as a fallback so the widget doesn't go blank the moment a tournament ends —
+  // it stays visible until a new active tournament takes its place).
   const fetchMyTournaments = useCallback(async (userId) => {
     const { data: myEntries } = await supabase
       .from('tournament_participants')
@@ -390,10 +425,93 @@ export function useTournament() {
       .from('tournaments')
       .select('*')
       .in('id', ids)
-      .eq('status', 'active')
+      .in('status', ['active', 'completed'])
       .order('created_at', { ascending: false })
 
-    return data || []
+    const all = data || []
+    const active = all.filter(t => t.status === 'active')
+    if (active.length > 0) return active
+    const latestCompleted = all.find(t => t.status === 'completed')
+    return latestCompleted ? [latestCompleted] : []
+  }, [])
+
+  // Fetch open-for-registration tournaments (for students)
+  const fetchOpenTournaments = useCallback(async (userLevel) => {
+    const { data, error } = await supabase
+      .from('tournaments')
+      .select('*, creator:users!tournaments_created_by_fkey(full_name), participant_count:tournament_participants(count)')
+      .eq('status', 'registration')
+      .order('created_at', { ascending: false })
+    if (error) { console.error('fetchOpenTournaments:', error); return [] }
+    // Filter by allowed_levels (null = all levels allowed)
+    return (data || []).filter(t =>
+      !t.allowed_levels || t.allowed_levels.length === 0 || t.allowed_levels.includes(userLevel)
+    )
+  }, [])
+
+  // Register current user for a tournament
+  const registerForTournament = useCallback(async (tournamentId) => {
+    if (!user?.id) throw new Error('Not logged in')
+    // Check entry fee
+    const { data: t } = await supabase.from('tournaments').select('entry_fee, bracket_size').eq('id', tournamentId).single()
+    if (!t) throw new Error('Tournament not found')
+    // Check not already full
+    const { count } = await supabase.from('tournament_participants').select('*', { count: 'exact', head: true }).eq('tournament_id', tournamentId)
+    if (count >= t.bracket_size) throw new Error('Giải đấu đã đầy')
+    // Check XP
+    if (t.entry_fee > 0) {
+      const { data: u } = await supabase.from('users').select('xp').eq('id', user.id).single()
+      if ((u?.xp || 0) < t.entry_fee) throw new Error(`Không đủ XP (cần ${t.entry_fee}, hiện có ${u?.xp || 0})`)
+    }
+    const { error } = await supabase.from('tournament_participants').insert({ tournament_id: tournamentId, user_id: user.id, seed: count + 1 })
+    if (error) throw error
+  }, [user])
+
+  // Unregister current user from a tournament
+  const unregisterFromTournament = useCallback(async (tournamentId) => {
+    if (!user?.id) throw new Error('Not logged in')
+    const { error } = await supabase.from('tournament_participants').delete().eq('tournament_id', tournamentId).eq('user_id', user.id)
+    if (error) throw error
+  }, [user])
+
+  // Admin: start a registration-phase tournament (transition to active, generate bracket)
+  const startTournament = useCallback(async (tournamentId) => {
+    const { data: t } = await supabase.from('tournaments').select('*').eq('id', tournamentId).single()
+    if (!t) throw new Error('Tournament not found')
+    if (t.status !== 'registration') throw new Error('Tournament not in registration phase')
+
+    const { data: parts } = await supabase.from('tournament_participants')
+      .select('user_id').eq('tournament_id', tournamentId).order('seed')
+    const playerIds = (parts || []).map(p => p.user_id)
+    if (playerIds.length !== t.bracket_size) throw new Error(`Cần đúng ${t.bracket_size} người chơi (hiện có ${playerIds.length})`)
+
+    // Deduct entry fee
+    if (t.entry_fee > 0) {
+      for (const uid of playerIds) {
+        const { data: u } = await supabase.from('users').select('xp, full_name').eq('id', uid).single()
+        if (!u || (u.xp || 0) < t.entry_fee) throw new Error(`${u?.full_name || 'Học sinh'} không đủ ${t.entry_fee} XP`)
+        await supabase.from('users').update({ xp: (u.xp || 0) - t.entry_fee }).eq('id', uid)
+      }
+    }
+
+    // Generate match slots
+    const total_rounds = Math.log2(t.bracket_size)
+    const allMatches = []
+    const r1Count = t.bracket_size / 2
+    const nowIso = new Date().toISOString()
+    for (let i = 0; i < r1Count; i++) {
+      allMatches.push({ tournament_id: t.id, round: 1, match_position: i, player1_id: playerIds[i * 2], player2_id: playerIds[i * 2 + 1], status: 'ready', ready_at: nowIso })
+    }
+    for (let r = 2; r <= total_rounds; r++) {
+      const matchCount = t.bracket_size / Math.pow(2, r)
+      for (let i = 0; i < matchCount; i++) {
+        allMatches.push({ tournament_id: t.id, round: r, match_position: i, status: 'pending' })
+      }
+    }
+    const { error: mErr } = await supabase.from('tournament_matches').insert(allMatches)
+    if (mErr) throw mErr
+
+    await supabase.from('tournaments').update({ status: 'active', current_round: 1, total_rounds, updated_at: new Date().toISOString() }).eq('id', tournamentId)
   }, [])
 
   return {
@@ -409,6 +527,10 @@ export function useTournament() {
     advanceRound,
     deleteTournament,
     fetchMyTournaments,
+    fetchOpenTournaments,
+    registerForTournament,
+    unregisterFromTournament,
+    startTournament,
     checkMatchScores,
   }
 }
