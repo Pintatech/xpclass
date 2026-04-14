@@ -1,9 +1,10 @@
 import React, { useState, useEffect, useRef } from 'react'
 import { Plus, Trash2, Eye, EyeOff, Upload, Image as ImageIcon, AlertCircle, X, Music, AlignLeft, AlignCenter, AlignRight } from 'lucide-react'
 import { handleRichTextShortcut } from '../../../hooks/useRichTextShortcuts'
+import { supabase } from '../../../supabase/client'
 
 import { useBranding } from '../../../hooks/useBranding';
-const ImageHotspotEditor = ({ content, onContentChange }) => {
+const ImageHotspotEditor = ({ content, onContentChange, folderPath }) => {
   const { branding } = useBranding()
   const [imageUrl, setImageUrl] = useState(content?.image_url || '')
   const [hotspots, setHotspots] = useState(content?.hotspots || [])
@@ -32,13 +33,49 @@ const ImageHotspotEditor = ({ content, onContentChange }) => {
   const [customSize, setCustomSize] = useState('400')
   const [audioControls, setAudioControls] = useState({ controls: true, autoplay: false, loop: false })
 
+  const [uploading, setUploading] = useState(false)
   const canvasRef = useRef(null)
   const imageRef = useRef(null)
   const containerRef = useRef(null)
   const questionTextareaRef = useRef(null)
   const explanationTextareaRef = useRef(null)
+  const fileInputRef = useRef(null)
   const onContentChangeRef = useRef(onContentChange)
   onContentChangeRef.current = onContentChange
+
+  const uploadFile = async (file) => {
+    if (!file || !file.type.startsWith('image/')) return
+    setUploading(true)
+    try {
+      const basePath = folderPath ? `exercise_bank/${folderPath}` : 'exercise_bank'
+      const path = `${basePath}/${Date.now()}_${Math.random().toString(36).slice(2)}_${file.name}`
+      const { error: uploadError } = await supabase.storage
+        .from('exercise-files')
+        .upload(path, file, { cacheControl: '3600', upsert: true })
+      if (uploadError) throw uploadError
+      const { data: publicData } = supabase.storage
+        .from('exercise-files')
+        .getPublicUrl(path)
+      if (publicData?.publicUrl) setImageUrl(publicData.publicUrl)
+    } catch (e) {
+      console.error('Image upload failed:', e)
+      alert('Image upload failed.')
+    } finally {
+      setUploading(false)
+    }
+  }
+
+  const handlePaste = (e) => {
+    const items = e.clipboardData?.items
+    if (!items) return
+    for (const item of items) {
+      if (item.type.startsWith('image/')) {
+        e.preventDefault()
+        uploadFile(item.getAsFile())
+        return
+      }
+    }
+  }
 
   // Update parent when content changes
   useEffect(() => {
@@ -376,16 +413,25 @@ const ImageHotspotEditor = ({ content, onContentChange }) => {
             type="text"
             value={imageUrl}
             onChange={(e) => setImageUrl(e.target.value)}
-            placeholder="https://example.com/image.jpg"
+            onPaste={handlePaste}
+            placeholder="Paste image URL or paste an image (Ctrl+V)"
             className="flex-1 px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+          />
+          <input
+            ref={fileInputRef}
+            type="file"
+            accept="image/*"
+            className="hidden"
+            onChange={(e) => uploadFile(e.target.files?.[0])}
           />
           <button
             type="button"
-            className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 flex items-center gap-2"
-            onClick={() => alert('Image upload feature coming soon! For now, paste an image URL.')}
+            className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 flex items-center gap-2 disabled:opacity-50"
+            disabled={uploading}
+            onClick={() => fileInputRef.current?.click()}
           >
             <Upload className="w-4 h-4" />
-            Upload
+            {uploading ? 'Uploading...' : 'Upload'}
           </button>
         </div>
       </div>

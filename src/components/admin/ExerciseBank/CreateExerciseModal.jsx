@@ -359,6 +359,7 @@ const CreateExerciseModal = ({ folders, selectedFolder, onClose, onCreated, allo
               <ImageHotspotEditor
                 content={formData.content}
                 onContentChange={(content) => setFormData({ ...formData, content })}
+                folderPath={getFolderPath(formData.folder_id)}
               />
             )}
 

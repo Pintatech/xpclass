@@ -799,9 +799,9 @@ const PetDisplay = () => {
   // Level-based score bonus: lower levels get more bonus to keep tournaments fair
   const getLevelBonusPercent = () => {
     const level = profile?.current_level || 1;
-    if (level <= 1) return 20;
-    if (level <= 2) return 15;
-    if (level <= 3) return 10;
+    if (level <= 1) return 15;
+    if (level <= 2) return 10;
+    if (level <= 3) return 5;
     return 0;
   };
 

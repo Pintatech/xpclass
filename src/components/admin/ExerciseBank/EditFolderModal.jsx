@@ -2,13 +2,14 @@ import React, { useState, useEffect } from 'react'
 import { supabase } from '../../../supabase/client'
 import { X, Folder, BookOpen, Edit3, Mic, Headphones, HelpCircle } from 'lucide-react'
 
-const EditFolderModal = ({ folder, onClose, onUpdated }) => {
+const EditFolderModal = ({ folder, onClose, onUpdated, isAdmin = false }) => {
   const [formData, setFormData] = useState({
     name: '',
     description: '',
     color: 'blue',
     icon: 'folder',
-    sort_order: 0
+    sort_order: 0,
+    read_only: false
   })
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
@@ -20,7 +21,8 @@ const EditFolderModal = ({ folder, onClose, onUpdated }) => {
         description: folder.description || '',
         color: folder.color || 'blue',
         icon: folder.icon || 'folder',
-        sort_order: folder.sort_order ?? 0
+        sort_order: folder.sort_order ?? 0,
+        read_only: folder.read_only ?? false
       })
     }
   }, [folder])
@@ -57,6 +59,7 @@ const EditFolderModal = ({ folder, onClose, onUpdated }) => {
           color: formData.color,
           icon: formData.icon,
           sort_order: parseInt(formData.sort_order) || 0,
+          read_only: formData.read_only,
           updated_at: new Date().toISOString()
         })
         .eq('id', folder.id)
@@ -198,6 +201,24 @@ const EditFolderModal = ({ folder, onClose, onUpdated }) => {
               })}
             </div>
           </div>
+
+          {/* Read Only - Admin only */}
+          {isAdmin && (
+            <div>
+              <label className="flex items-center space-x-3 cursor-pointer">
+                <input
+                  type="checkbox"
+                  checked={formData.read_only}
+                  onChange={(e) => handleChange('read_only', e.target.checked)}
+                  className="w-4 h-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500"
+                />
+                <div>
+                  <span className="text-sm font-medium text-gray-700">Read Only</span>
+                  <p className="text-xs text-gray-500">Exercises in this folder cannot be edited or deleted by teachers</p>
+                </div>
+              </label>
+            </div>
+          )}
 
           {/* Preview */}
           <div className="bg-gray-50 rounded-lg p-4">

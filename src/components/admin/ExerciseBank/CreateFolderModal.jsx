@@ -2,12 +2,13 @@ import React, { useState } from 'react'
 import { supabase } from '../../../supabase/client'
 import { X, Folder, BookOpen, Edit3, Mic, Headphones, HelpCircle } from 'lucide-react'
 
-const CreateFolderModal = ({ parentFolder, onClose, onCreated }) => {
+const CreateFolderModal = ({ parentFolder, onClose, onCreated, isAdmin = false }) => {
   const [formData, setFormData] = useState({
     name: '',
     description: '',
     color: 'blue',
-    icon: 'folder'
+    icon: 'folder',
+    read_only: false
   })
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
@@ -44,7 +45,8 @@ const CreateFolderModal = ({ parentFolder, onClose, onCreated }) => {
           color: formData.color,
           icon: formData.icon,
           parent_folder_id: parentFolder?.id || null,
-          sort_order: 0
+          sort_order: 0,
+          read_only: formData.read_only
         })
 
       if (error) throw error
@@ -174,6 +176,24 @@ const CreateFolderModal = ({ parentFolder, onClose, onCreated }) => {
               })}
             </div>
           </div>
+
+          {/* Read Only - Admin only */}
+          {isAdmin && (
+            <div>
+              <label className="flex items-center space-x-3 cursor-pointer">
+                <input
+                  type="checkbox"
+                  checked={formData.read_only}
+                  onChange={(e) => handleChange('read_only', e.target.checked)}
+                  className="w-4 h-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500"
+                />
+                <div>
+                  <span className="text-sm font-medium text-gray-700">Read Only</span>
+                  <p className="text-xs text-gray-500">Exercises in this folder cannot be edited or deleted by teachers</p>
+                </div>
+              </label>
+            </div>
+          )}
 
           {/* Preview */}
           <div className="bg-gray-50 rounded-lg p-4">

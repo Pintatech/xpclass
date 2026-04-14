@@ -402,13 +402,15 @@ const ExerciseBankCard = ({ exercise, viewMode, onUpdate, onEdit, readOnly = fal
                     <Eye className="w-3 h-3" />
                     <span>Preview</span>
                   </button>
-                  <button
-                    onClick={openAssignments}
-                    className="w-full text-left px-3 py-2 text-sm hover:bg-gray-50 flex items-center space-x-2"
-                  >
-                    <FolderOpen className="w-3 h-3" />
-                    <span>Assignments</span>
-                  </button>
+                  {!readOnly && (
+                    <button
+                      onClick={openAssignments}
+                      className="w-full text-left px-3 py-2 text-sm hover:bg-gray-50 flex items-center space-x-2"
+                    >
+                      <FolderOpen className="w-3 h-3" />
+                      <span>Assignments</span>
+                    </button>
+                  )}
                   {canEdit && (
                     <>
                       <button

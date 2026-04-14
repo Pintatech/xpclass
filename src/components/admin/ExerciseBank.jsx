@@ -20,7 +20,7 @@ import CreateExerciseModal from './ExerciseBank/CreateExerciseModal'
 import CreateFolderModal from './ExerciseBank/CreateFolderModal'
 import EditExerciseModal from './ExerciseBank/EditExerciseModal'
 
-const ExerciseBank = ({ readOnly = false, allowedTypes = null }) => {
+const ExerciseBank = ({ readOnly = false, allowedTypes = null, isAdmin = false }) => {
   const [folders, setFolders] = useState([])
   const [exercises, setExercises] = useState([])
   const [folderCounts, setFolderCounts] = useState({})
@@ -268,6 +268,7 @@ const ExerciseBank = ({ readOnly = false, allowedTypes = null }) => {
               onSelectFolder={setSelectedFolder}
               onFolderUpdate={fetchFolders}
               readOnly={readOnly}
+              isAdmin={isAdmin}
             />
           </div>
         </div>
@@ -393,7 +394,7 @@ const ExerciseBank = ({ readOnly = false, allowedTypes = null }) => {
                       viewMode={viewMode}
                       onUpdate={fetchExercises}
                       onEdit={handleEditExercise}
-                      readOnly={readOnly && !allowedTypes}
+                      readOnly={(readOnly && !allowedTypes) || (selectedFolder?.read_only === true)}
                       allowedTypes={allowedTypes}
                     />
                   ))}

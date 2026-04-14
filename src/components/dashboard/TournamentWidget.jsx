@@ -150,7 +150,7 @@ const RegistrationCard = ({ tournament, onRegister, onUnregister, isRegistered, 
   const participantCount = tournament.participant_count?.[0]?.count || 0
 
   return (
-    <div className="bg-gradient-to-br from-purple-50 to-indigo-50 border border-purple-200 rounded-xl p-3 space-y-2">
+    <div className="space-y-2">
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-2">
           <div className="w-8 h-8 rounded-lg bg-purple-100 flex items-center justify-center">

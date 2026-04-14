@@ -238,6 +238,7 @@ const EditExerciseModal = ({ isOpen, onClose, exercise, onUpdate }) => {
           <ImageHotspotEditor
             content={content}
             onContentChange={(newContent) => handleContentChange(newContent)}
+            folderPath={getFolderPath(formData.folder_id)}
           />
         )
       case 'pdf_worksheet':

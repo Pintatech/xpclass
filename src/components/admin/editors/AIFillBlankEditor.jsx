@@ -281,6 +281,95 @@ Trả lời bằng tiếng Việt với giải thích chi tiết, khuyến khíc
 
   const processBulkImport = () => {
     try {
+      // Detect separated Q&A format: numbered questions on top, numbered answers on bottom
+      const allBulkLines = bulkText.split('\n')
+      const numberedEntries = []
+      allBulkLines.forEach((line, idx) => {
+        const m = line.trim().match(/^(\d+)[.)]\s+(.+)/)
+        if (m) numberedEntries.push({ num: parseInt(m[1]), text: m[2].trim(), lineIdx: idx })
+      })
+
+      const numCounts = {}
+      numberedEntries.forEach(e => { numCounts[e.num] = (numCounts[e.num] || 0) + 1 })
+      const hasRepeatedNums = Object.values(numCounts).some(c => c >= 2)
+
+      if (hasRepeatedNums && numberedEntries.length >= 4) {
+        const seen = new Set()
+        let splitIdx = -1
+        for (let i = 0; i < numberedEntries.length; i++) {
+          if (seen.has(numberedEntries[i].num)) {
+            splitIdx = i
+            break
+          }
+          seen.add(numberedEntries[i].num)
+        }
+
+        const qEntries = numberedEntries.slice(0, splitIdx)
+        const aEntries = numberedEntries.slice(splitIdx)
+        const answerMap = {}
+        aEntries.forEach(a => { answerMap[a.num] = a.text })
+
+        // Collect intro (lines before the first question)
+        const firstQLineIdx = qEntries[0].lineIdx
+        const introText = allBulkLines.slice(0, firstQLineIdx)
+          .map(l => l.trim()).filter(l => l && !/^_{3,}$/.test(l)).join('\n')
+
+        const separatedQuestions = qEntries.map((q, i) => {
+          const answerText = answerMap[q.num] || ''
+          const answers = answerText.split(/[|/]/).map(a => a.trim()).filter(a => a)
+          return {
+            id: `q${Date.now()}_${i}`,
+            question: q.text,
+            expected_answers: answers.length > 0 ? answers : [answerText],
+            ai_prompt: '',
+            explanation: '',
+            settings: {
+              min_score: 70,
+              allow_partial_credit: true,
+              max_attempts: 3
+            }
+          }
+        })
+
+        if (introText && onIntroChange) {
+          onIntroChange(intro ? intro + '\n' + introText : introText)
+        }
+
+        // Auto-generate AI prompts
+        const questionsWithPrompts = separatedQuestions.map(q => ({
+          ...q,
+          ai_prompt: `Đánh giá câu trả lời điền vào chỗ trống cho câu hỏi: "${q.question}"
+
+Đáp án mong đợi: ${q.expected_answers.join(', ')}
+
+Yêu cầu đánh giá:
+1. Điểm số từ 0-100 dựa trên độ chính xác và sự hiểu biết
+2. Mức độ tin cậy từ 0-100
+3. Giải thích CHI TIẾT (2-4 câu) bao gồm:
+   - Tại sao câu trả lời đúng/sai
+   - So sánh với đáp án đúng
+   - Điểm mạnh hoặc điểm cần cải thiện
+   - Gợi ý học tập (nếu câu trả lời không hoàn hảo)
+
+Tiêu chí chấm điểm:
+- Khớp chính xác: 100 điểm
+- Khớp một phần: 50-90 điểm (dựa vào mức độ tương đồng)
+- Hiểu khái niệm đúng: được khen thưởng
+- Lỗi chính tả/ngữ pháp nhỏ: không bị phạt nặng
+- Hoàn toàn sai: 0-30 điểm
+
+Trả lời bằng tiếng Việt với giải thích chi tiết, khuyến khích học sinh.`
+        }))
+
+        const updatedQuestions = [...localQuestions, ...questionsWithPrompts]
+        setLocalQuestions(updatedQuestions)
+        onQuestionsChange(updatedQuestions)
+        setBulkText('')
+        setBulkImportMode(false)
+        alert(`Successfully imported ${separatedQuestions.length} questions!`)
+        return
+      }
+
       const lines = bulkText.split('\n').filter(line => line.trim())
       const newQuestions = []
 

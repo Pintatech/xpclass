@@ -13,12 +13,13 @@ import {
   Edit3,
   Mic,
   Headphones,
-  HelpCircle
+  HelpCircle,
+  Lock
 } from 'lucide-react'
 import CreateFolderModal from './CreateFolderModal'
 import EditFolderModal from './EditFolderModal'
 
-const FolderTree = ({ folders, folderCounts = {}, selectedFolder, onSelectFolder, onFolderUpdate, readOnly = false }) => {
+const FolderTree = ({ folders, folderCounts = {}, selectedFolder, onSelectFolder, onFolderUpdate, readOnly = false, isAdmin = false }) => {
   const [expandedFolders, setExpandedFolders] = useState(() => {
     try {
       const saved = JSON.parse(localStorage.getItem('exerciseBank_expandedFolders') || '[]')
@@ -137,6 +138,9 @@ const FolderTree = ({ folders, folderCounts = {}, selectedFolder, onSelectFolder
           >
             <Icon className={`w-4 h-4 mr-2 flex-shrink-0 ${getFolderColor(folder.color)}`} />
             <span className="text-sm font-medium truncate">{folder.name}</span>
+            {folder.read_only && (
+              <Lock className="w-3 h-3 ml-1 flex-shrink-0 text-gray-400" title="Read only" />
+            )}
             {folderCounts[folder.id] && (
               <span className="ml-auto text-xs text-gray-500 bg-gray-100 px-2 py-1 rounded-full">
                 {folderCounts[folder.id]}
@@ -291,6 +295,7 @@ const FolderTree = ({ folders, folderCounts = {}, selectedFolder, onSelectFolder
             setShowCreateModalFor(null)
             onFolderUpdate && onFolderUpdate()
           }}
+          isAdmin={isAdmin}
         />
       )}
       {editFolder && (
@@ -301,6 +306,7 @@ const FolderTree = ({ folders, folderCounts = {}, selectedFolder, onSelectFolder
             setEditFolder(null)
             onFolderUpdate && onFolderUpdate()
           }}
+          isAdmin={isAdmin}
         />
       )}
     </div>

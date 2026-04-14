@@ -401,7 +401,7 @@ const AdminDashboard = () => {
             <Routes>
               <Route index element={<AdminOverview />} />
 
-              <Route path="bank" element={<ExerciseBank />} />
+              <Route path="bank" element={<ExerciseBank isAdmin />} />
               <Route path="courses" element={<CourseManagement />} />
               <Route path="cohorts" element={<CohortsManagement />} />
               <Route path="enrollments" element={<StudentEnrollmentManagement />} />
@@ -417,7 +417,7 @@ const AdminDashboard = () => {
               <Route path="notifications" element={<NotificationManagement />} />
               <Route path="reports" element={<ReportManagement />} />
               {/* Redirect legacy exercises path to bank */}
-              <Route path="exercises" element={<ExerciseBank />} />
+              <Route path="exercises" element={<ExerciseBank isAdmin />} />
               <Route path="users" element={<UserManagement />} />
               <Route path="activities" element={<RecentActivities />} />
               <Route path="leaderboard" element={<LeaderboardSettings />} />

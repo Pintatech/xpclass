@@ -450,6 +450,71 @@ const FillBlankEditor = ({ questions, onQuestionsChange, settings, onSettingsCha
         }
       }
 
+      // Detect separated Q&A format: numbered questions on top, numbered answers on bottom
+      // e.g. "1. Statement\n___\n2. Statement\n___\n1. Answer\n2. Answer"
+      const allBulkLines = bulkText.split('\n')
+      const numberedEntries = []
+      allBulkLines.forEach((line, idx) => {
+        const m = line.trim().match(/^(\d+)[.)]\s+(.+)/)
+        if (m) numberedEntries.push({ num: parseInt(m[1]), text: m[2].trim(), lineIdx: idx })
+      })
+
+      const numCounts = {}
+      numberedEntries.forEach(e => { numCounts[e.num] = (numCounts[e.num] || 0) + 1 })
+      const hasRepeatedNums = Object.values(numCounts).some(c => c >= 2)
+
+      if (hasRepeatedNums && numberedEntries.length >= 4) {
+        const seen = new Set()
+        let splitIdx = -1
+        for (let i = 0; i < numberedEntries.length; i++) {
+          if (seen.has(numberedEntries[i].num)) {
+            splitIdx = i
+            break
+          }
+          seen.add(numberedEntries[i].num)
+        }
+
+        const qEntries = numberedEntries.slice(0, splitIdx)
+        const aEntries = numberedEntries.slice(splitIdx)
+        const answerMap = {}
+        const explanationMap = {}
+        aEntries.forEach(a => {
+          const hashMatch = a.text.match(/^(.*?)\s*#(.+)$/)
+          if (hashMatch) {
+            answerMap[a.num] = hashMatch[1].trim()
+            explanationMap[a.num] = hashMatch[2].trim()
+          } else {
+            answerMap[a.num] = a.text
+          }
+        })
+
+        // Collect intro (lines before the first question)
+        const firstQLineIdx = qEntries[0].lineIdx
+        const introText = allBulkLines.slice(0, firstQLineIdx)
+          .map(l => l.trim()).filter(l => l && !/^_{3,}$/.test(l)).join('\n')
+
+        const separatedQuestions = qEntries.map((q, i) => ({
+          id: `q${Date.now()}_${i}`,
+          question: q.text,
+          blanks: [{ text: '', answer: answerMap[q.num] || '', case_sensitive: false }],
+          explanation: explanationMap[q.num] || ''
+        }))
+
+        if (introText && onIntroChange) {
+          onIntroChange(intro ? intro + '\n' + introText : introText)
+        }
+
+        setLastBulkText(bulkText)
+        try { localStorage.setItem('xpclass_last_bulk_text_fill_blank', bulkText) } catch {}
+        const updatedQuestions = [...localQuestions, ...separatedQuestions]
+        setLocalQuestions(updatedQuestions)
+        onQuestionsChange(updatedQuestions)
+        setBulkText('')
+        setBulkImportMode(false)
+        alert(`Successfully imported ${separatedQuestions.length} questions!`)
+        return
+      }
+
       const lines = bulkText.split('\n').filter(line => line.trim())
       const newQuestions = []
 
