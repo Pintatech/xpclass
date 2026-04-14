@@ -101,6 +101,7 @@ const PetDisplay = () => {
   // Play animation state
   const [playAnimation, setPlayAnimation] = useState(null); // { xpGained: 10, phase: 'active' }
   const [trainingVideoLoaded, setTrainingVideoLoaded] = useState(false);
+  const [idleAnimation, setIdleAnimation] = useState(false); // plays idle video over pet
 
   // Chat state
   const [playDisabled, setPlayDisabled] = useState(false);
@@ -1424,7 +1425,7 @@ const PetDisplay = () => {
                 </div>
               )}
               {/* Rotating background - always visible, hidden when training video is playing */}
-              {!(playAnimation && trainingVideoLoaded) && (
+              {!(playAnimation && trainingVideoLoaded) && !idleAnimation && (
                 <div
                   className="absolute w-56 h-56 left-1/2 top-1/2 pointer-events-none"
                   style={{
@@ -1489,6 +1490,27 @@ const PetDisplay = () => {
                   onError={(e) => {
                     e.target.style.display = 'none';
                     setTrainingVideoLoaded(false);
+                  }}
+                />
+              )}
+              {/* Idle animation video - uses naming convention: base-idle.mp4 */}
+              {idleAnimation && activePet.image_url && (
+                <video
+                  src={(() => {
+                    let baseImage = activePet.image_url;
+                    if (activePet.evolution_stages && activePet.evolution_stage > 0) {
+                      const stage = activePet.evolution_stages.find(s => s.stage === activePet.evolution_stage);
+                      if (stage?.image_url) baseImage = stage.image_url;
+                    }
+                    return baseImage.replace(/\.([^.]+)$/, "-idle.mp4");
+                  })()}
+                  autoPlay
+                  playsInline
+                  className="absolute inset-0 w-full h-full object-contain z-20"
+                  onEnded={() => setIdleAnimation(false)}
+                  onError={(e) => {
+                    e.target.style.display = 'none';
+                    setIdleAnimation(false);
                   }}
                 />
               )}
@@ -2082,7 +2104,7 @@ const PetDisplay = () => {
             {/* Footer */}
             <div className="sticky bottom-0 bg-white/80 backdrop-blur-sm p-4 border-t border-gray-100">
               <button
-                onClick={() => setShowPetInfo(false)}
+                onClick={() => { setShowPetInfo(false); setIdleAnimation(true); }}
                 className="w-full bg-gradient-to-r from-blue-500 to-blue-600 hover:from-blue-600 hover:to-blue-700 text-white font-semibold py-2.5 transition-all text-sm shadow-md"
                 style={{ clipPath: 'polygon(8px 0, 100% 0, calc(100% - 8px) 100%, 0 100%)' }}
               >

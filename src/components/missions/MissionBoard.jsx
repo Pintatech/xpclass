@@ -16,7 +16,7 @@ const MISSION_IMAGE_MAP = {
   'swords': '/icon/dashboard/pvp.png',
   'gamepad-2': '/image/dashboard/pet-type.webp',
   'book-open': '/image/dashboard/match1.png',
-  'graduation-cap': '/pet-game/mole-whacked.png',
+  'graduation-cap': '/pet-game/whack/mole-whacked.png',
   'zap': '/image/chest/legendary-chest.png',
   'gem': '/pet-game/astro/alien1.png',
   'medal': '/image/dashboard/pet-train.svg',
@@ -269,6 +269,20 @@ const MissionBoard = () => {
   )
 }
 
+const formatDeadline = (endDate) => {
+  if (!endDate) return null
+  const end = new Date(endDate + 'T23:59:59+07:00')
+  const now = new Date()
+  const diff = end - now
+  if (diff <= 0) return 'Đã hết hạn'
+  const days = Math.floor(diff / (1000 * 60 * 60 * 24))
+  if (days > 1) return `Còn ${days} ngày`
+  const hours = Math.floor(diff / (1000 * 60 * 60))
+  if (hours > 0) return `Còn ${hours} giờ`
+  const minutes = Math.floor(diff / (1000 * 60))
+  return `Còn ${minutes} phút`
+}
+
 const MissionCard = ({ mission, tabConfig, onClaim, claiming, index, entered }) => {
   const missionImage = MISSION_IMAGE_MAP[mission.icon] || DEFAULT_MISSION_IMAGE
   const progress = mission.progress || 0
@@ -277,6 +291,7 @@ const MissionCard = ({ mission, tabConfig, onClaim, claiming, index, entered }) 
   const isClaimed = mission.status === 'claimed'
   const isCompleted = mission.status === 'completed'
   const isActive = mission.status === 'active'
+  const deadline = formatDeadline(mission.end_date)
 
   return (
     <div
@@ -390,6 +405,14 @@ const MissionCard = ({ mission, tabConfig, onClaim, claiming, index, entered }) 
             <p className={`text-sm mt-0.5 ${isClaimed ? 'text-emerald-500/70' : 'text-gray-400'}`}>
               {mission.description}
             </p>
+
+            {/* Deadline */}
+            {deadline && !isClaimed && (
+              <div className="flex items-center gap-1 mt-1">
+                <Clock className="w-3 h-3 text-amber-500" />
+                <span className="text-[11px] font-medium text-amber-600">{deadline}</span>
+              </div>
+            )}
 
             {/* Progress bar */}
             {!isCompleted && !isClaimed && (
