@@ -7,6 +7,9 @@ const EditSessionModal = ({ session, courseId, onClose, onUpdated }) => {
     title: '',
     session_number: 1,
     is_test: false,
+    time_limit_minutes: 30,
+    passing_score: 70,
+    max_attempts: 1,
     assigned_student_id: null,
     open_date: '',
     close_date: ''
@@ -22,6 +25,9 @@ const EditSessionModal = ({ session, courseId, onClose, onUpdated }) => {
         title: session.title || '',
         session_number: session.session_number || 1,
         is_test: session.is_test || false,
+        time_limit_minutes: session.time_limit_minutes ?? 30,
+        passing_score: session.passing_score ?? 70,
+        max_attempts: session.max_attempts ?? 1,
         assigned_student_id: session.assigned_student_id || null,
         open_date: session.open_date ? new Date(session.open_date).toISOString().slice(0, 16) : '',
         close_date: session.close_date ? new Date(session.close_date).toISOString().slice(0, 16) : ''
@@ -100,6 +106,9 @@ const EditSessionModal = ({ session, courseId, onClose, onUpdated }) => {
       const updateFields = {
         title: formData.title.trim(),
         is_test: formData.is_test,
+        time_limit_minutes: Math.max(1, parseInt(formData.time_limit_minutes) || 30),
+        passing_score: Math.max(0, Math.min(100, parseInt(formData.passing_score) || 70)),
+        max_attempts: Math.max(1, parseInt(formData.max_attempts) || 1),
         assigned_student_id: formData.assigned_student_id || null,
         open_date: formData.open_date ? new Date(formData.open_date).toISOString() : null,
         close_date: formData.close_date ? new Date(formData.close_date).toISOString() : null
@@ -224,6 +233,49 @@ const EditSessionModal = ({ session, courseId, onClose, onUpdated }) => {
               <span className={`absolute top-0.5 left-0.5 w-5 h-5 bg-white rounded-full transition-transform ${formData.is_test ? 'translate-x-5' : ''}`} />
             </button>
           </div>
+
+          {/* Test settings — shown only when Test Mode is on */}
+          {formData.is_test && (
+            <div className="grid grid-cols-3 gap-3 p-3 bg-orange-50/50 border border-orange-200 rounded-lg">
+              <div>
+                <label className="block text-xs font-medium text-gray-700 mb-1">
+                  Time (min)
+                </label>
+                <input
+                  type="number"
+                  min="1"
+                  value={formData.time_limit_minutes}
+                  onChange={(e) => handleChange('time_limit_minutes', e.target.value)}
+                  className="w-full px-2 py-1.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-transparent text-sm"
+                />
+              </div>
+              <div>
+                <label className="block text-xs font-medium text-gray-700 mb-1">
+                  Pass %
+                </label>
+                <input
+                  type="number"
+                  min="0"
+                  max="100"
+                  value={formData.passing_score}
+                  onChange={(e) => handleChange('passing_score', e.target.value)}
+                  className="w-full px-2 py-1.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-transparent text-sm"
+                />
+              </div>
+              <div>
+                <label className="block text-xs font-medium text-gray-700 mb-1">
+                  Attempts
+                </label>
+                <input
+                  type="number"
+                  min="1"
+                  value={formData.max_attempts}
+                  onChange={(e) => handleChange('max_attempts', e.target.value)}
+                  className="w-full px-2 py-1.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-transparent text-sm"
+                />
+              </div>
+            </div>
+          )}
 
           {/* Open / Close Dates */}
           <div className="grid grid-cols-2 gap-3">

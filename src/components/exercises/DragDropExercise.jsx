@@ -903,6 +903,11 @@ const DragDropExercise = ({ testMode = false, exerciseData = null, onAnswersColl
     }
     return (
       <div className="space-y-8" style={{ userSelect: 'none' }}>
+        {exercise?.content?.intro && String(exercise.content.intro).trim() && (
+          <div className="w-full max-w-4xl mx-auto rounded-lg p-4 md:p-6 bg-white shadow-sm border border-gray-200">
+            <RichTextWithAudio content={exercise.content.intro} allowImages={true} allowLinks={false} />
+          </div>
+        )}
         {allQuestions.map((question, qIndex) => {
           const qAnswer = userAnswers[qIndex] || {}
           const qItems = testShuffledRef.current[qIndex] || question.items || []

@@ -816,7 +816,7 @@ const Dashboard = () => {
       )}
 
       {/* Tournament + Recent Activities - Side by side on PC */}
-      {(profile?.role === 'user' || profile?.role === 'admin') && (
+      {(profile?.role === 'user' || profile?.role === 'admin' || profile?.role === 'teacher') && (
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6 mt-10">
           <div className="overflow-visible">
             <TournamentWidget />
