@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react'
-import { Trophy, Plus, ArrowLeft, Trash2, ChevronRight, Eye, Gamepad2, Users, Zap, Shuffle, GripVertical } from 'lucide-react'
+import { Trophy, Plus, ArrowLeft, Trash2, ChevronRight, Eye, Gamepad2, Users, Zap, Shuffle, GripVertical, X } from 'lucide-react'
 import { DndContext, closestCenter, PointerSensor, useSensor, useSensors } from '@dnd-kit/core'
 import { arrayMove, SortableContext, useSortable, verticalListSortingStrategy } from '@dnd-kit/sortable'
 import { CSS } from '@dnd-kit/utilities'
@@ -7,7 +7,7 @@ import { useTournament } from '../../hooks/useTournament'
 import { supabase } from '../../supabase/client'
 import TournamentBracket from './TournamentBracket'
 
-const SortableParticipant = ({ participant, index, total }) => {
+const SortableParticipant = ({ participant, index, total, onRemove }) => {
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id: participant.user_id })
   const style = { transform: CSS.Transform.toString(transform), transition, zIndex: isDragging ? 50 : undefined, opacity: isDragging ? 0.5 : 1 }
 
@@ -27,6 +27,15 @@ const SortableParticipant = ({ participant, index, total }) => {
       <span className="flex-1 text-gray-700 truncate">{participant.user?.full_name || 'Student'}</span>
       {index % 2 === 0 && index + 1 < total && (
         <span className="text-[9px] text-amber-600 font-bold">VS</span>
+      )}
+      {onRemove && (
+        <button
+          onClick={() => onRemove(participant)}
+          className="text-gray-300 hover:text-red-500 p-0.5 rounded transition-colors"
+          title="Xóa khỏi giải đấu"
+        >
+          <X className="w-3.5 h-3.5" />
+        </button>
       )}
     </div>
   )
@@ -664,6 +673,22 @@ const TournamentDetail = ({ tournamentId, onBack }) => {
     }
   }
 
+  const handleRemoveParticipant = async (participant) => {
+    const name = participant.user?.full_name || 'người chơi này'
+    if (!confirm(`Xóa ${name} khỏi giải đấu?`)) return
+    try {
+      const { error } = await supabase.from('tournament_participants')
+        .delete()
+        .eq('tournament_id', tournamentId)
+        .eq('user_id', participant.user_id)
+      if (error) throw error
+      await fetchTournament(tournamentId)
+    } catch (err) {
+      console.error('remove participant failed', err)
+      alert(err.message || 'Xóa thất bại')
+    }
+  }
+
   const handleShuffleParticipants = async () => {
     if (orderedParts.length < 2) return
     const shuffled = [...orderedParts]
@@ -828,7 +853,13 @@ const TournamentDetail = ({ tournamentId, onBack }) => {
                 <SortableContext items={orderedParts.map(p => p.user_id)} strategy={verticalListSortingStrategy}>
                   <div className="border border-purple-200 rounded-lg bg-white max-h-64 overflow-y-auto">
                     {orderedParts.map((p, i) => (
-                      <SortableParticipant key={p.user_id} participant={p} index={i} total={orderedParts.length} />
+                      <SortableParticipant
+                        key={p.user_id}
+                        participant={p}
+                        index={i}
+                        total={orderedParts.length}
+                        onRemove={handleRemoveParticipant}
+                      />
                     ))}
                   </div>
                 </SortableContext>
