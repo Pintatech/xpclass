@@ -146,7 +146,7 @@ const BountyDisplay = ({ roundRewards, totalRounds, itemsMap = {}, chestsMap = {
 }
 
 // ─── Registration Card (open tournament) ─────────────────────
-const RegistrationCard = ({ tournament, onRegister, onUnregister, isRegistered, registering, itemsMap, chestsMap }) => {
+const RegistrationCard = ({ tournament, onRegister, isRegistered, registering, itemsMap, chestsMap }) => {
   const participantCount = tournament.participant_count?.[0]?.count || 0
 
   return (
@@ -188,15 +188,11 @@ const RegistrationCard = ({ tournament, onRegister, onUnregister, isRegistered, 
       {/* Bounty */}
       <BountyDisplay roundRewards={tournament.round_rewards} totalRounds={Math.log2(tournament.bracket_size)} itemsMap={itemsMap} chestsMap={chestsMap} />
 
-      {/* Register / Unregister */}
+      {/* Register */}
       {isRegistered ? (
-        <button
-          onClick={() => onUnregister(tournament.id)}
-          disabled={registering}
-          className="w-full text-xs font-medium py-2 rounded-lg border-2 border-red-300 text-red-600 hover:bg-red-50 disabled:opacity-50 transition-colors"
-        >
-          {registering ? 'Đang xử lý...' : 'Hủy đăng ký'}
-        </button>
+        <div className="w-full text-xs font-bold py-2 rounded-lg bg-green-100 text-green-700 text-center">
+          Đã đăng ký ✓
+        </div>
       ) : (
         <button
           onClick={() => onRegister(tournament.id)}
@@ -261,7 +257,7 @@ const InlineBracket = ({ tournamentId, itemsMap, chestsMap }) => {
 // ─── Main Widget ─────────────────────────────────────────────
 const TournamentWidget = () => {
   const { user, profile } = useAuth()
-  const { fetchMyTournaments, fetchOpenTournaments, registerForTournament, unregisterFromTournament } = useTournament()
+  const { fetchMyTournaments, fetchOpenTournaments, registerForTournament } = useTournament()
   const [activeTournaments, setActiveTournaments] = useState([])
   const [openTournaments, setOpenTournaments] = useState([])
   const [myRegistrations, setMyRegistrations] = useState(new Set())
@@ -309,19 +305,6 @@ const TournamentWidget = () => {
     }
   }
 
-  const handleUnregister = async (tournamentId) => {
-    setRegError('')
-    setRegistering(true)
-    try {
-      await unregisterFromTournament(tournamentId)
-      await loadData()
-    } catch (err) {
-      setRegError(err.message)
-      setTimeout(() => setRegError(''), 4000)
-    } finally {
-      setRegistering(false)
-    }
-  }
 
   if (!loaded) return null
 
@@ -366,7 +349,6 @@ const TournamentWidget = () => {
                 tournament={t}
                 isRegistered={myRegistrations.has(t.id)}
                 onRegister={handleRegister}
-                onUnregister={handleUnregister}
                 registering={registering}
                 itemsMap={itemsMap}
                 chestsMap={chestsMap}
