@@ -412,19 +412,10 @@ export function useTournament() {
   // Fetch tournaments for a student (active ones, plus the most recent completed
   // one as a fallback so the widget doesn't go blank the moment a tournament ends —
   // it stays visible until a new active tournament takes its place).
-  const fetchMyTournaments = useCallback(async (userId) => {
-    const { data: myEntries } = await supabase
-      .from('tournament_participants')
-      .select('tournament_id')
-      .eq('user_id', userId)
-
-    if (!myEntries?.length) return []
-
-    const ids = myEntries.map(e => e.tournament_id)
+  const fetchMyTournaments = useCallback(async () => {
     const { data } = await supabase
       .from('tournaments')
       .select('*')
-      .in('id', ids)
       .in('status', ['active', 'completed'])
       .order('created_at', { ascending: false })
 
@@ -467,12 +458,6 @@ export function useTournament() {
     if (error) throw error
   }, [user])
 
-  // Unregister current user from a tournament
-  const unregisterFromTournament = useCallback(async (tournamentId) => {
-    if (!user?.id) throw new Error('Not logged in')
-    const { error } = await supabase.from('tournament_participants').delete().eq('tournament_id', tournamentId).eq('user_id', user.id)
-    if (error) throw error
-  }, [user])
 
   // Admin: start a registration-phase tournament (transition to active, generate bracket)
   const startTournament = useCallback(async (tournamentId) => {
@@ -529,7 +514,6 @@ export function useTournament() {
     fetchMyTournaments,
     fetchOpenTournaments,
     registerForTournament,
-    unregisterFromTournament,
     startTournament,
     checkMatchScores,
   }

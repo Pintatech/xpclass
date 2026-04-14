@@ -270,7 +270,7 @@ const TournamentWidget = () => {
   const loadData = async () => {
     if (!user?.id) return
     const [active, open, itemsRes, chestsRes, myEntriesRes] = await Promise.all([
-      fetchMyTournaments(user.id),
+      fetchMyTournaments(),
       fetchOpenTournaments(profile?.current_level),
       supabase.from('collectible_items').select('id, name, image_url').eq('is_active', true),
       supabase.from('chests').select('id, name, image_url').eq('is_active', true),
