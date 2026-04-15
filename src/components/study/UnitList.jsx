@@ -795,13 +795,13 @@ const UnitList = () => {
     try {
       const { data, error: fetchError } = await supabase
         .from('course_enrollments')
-        .select('student_id, student:users!student_id(id, full_name)')
+        .select('student_id, student:users!student_id(id, full_name, real_name)')
         .eq('course_id', currentId)
         .eq('is_active', true);
       if (fetchError) throw fetchError;
       setBulkPasteStudents((data || []).map(e => ({
         id: e.student?.id || e.student_id,
-        name: e.student?.full_name || 'Unknown',
+        name: e.student?.real_name || e.student?.full_name || 'Unknown',
       })));
     } catch (err) {
       console.error('Error fetching students:', err);
