@@ -350,8 +350,9 @@ const PetDisplay = () => {
     }
   }, [chatMessages]);
 
-  // Show random chat bubble periodically
+  // Show random chat bubble periodically (disabled temporarily)
   useEffect(() => {
+    return; // disabled temporarily
     if (!activePet) return;
 
     const showRandomMessage = () => {
@@ -1120,6 +1121,10 @@ const PetDisplay = () => {
             opacity: 0;
           }
         }
+        @keyframes petBob {
+          0%, 100% { transform: translateY(0); }
+          50% { transform: translateY(-6px); }
+        }
         @keyframes auraPulse {
           0% {
             transform: scale(0.3);
@@ -1436,6 +1441,7 @@ const PetDisplay = () => {
             <div
               ref={petContainerRef}
               className="w-48 h-48 mx-auto mb-4 flex items-center justify-center cursor-pointer hover:scale-105 transition-transform relative"
+              style={{ animation: 'petBob 2.5s ease-in-out infinite' }}
               onClick={() => setShowPetInfo(true)}
               title="Click to learn about the pet system"
             >
@@ -1621,20 +1627,19 @@ const PetDisplay = () => {
 
             {/* Food Bowl - Bottom Right */}
             <div className="absolute bottom-36 right-2 z-10">
-              <button
-                onClick={() => setShowFeedMenu(!showFeedMenu)}
-                className="w-12 h-12 hover:scale-110 transition-all"
-                title="Feed pet"
+              <div
+                className="w-12 h-12 transition-all cursor-default"
+                title="Food bowl"
               >
                 <img
                   src={profile?.active_bowl_url ? (profile.active_bowl_url.startsWith('http') ? profile.active_bowl_url : assetUrl(profile.active_bowl_url)) : "https://png.pngtree.com/png-clipart/20220111/original/pngtree-dog-food-bowl-png-image_7072429.png"}
                   alt="Food bowl"
                   className="w-full h-full object-contain drop-shadow-lg"
                 />
-              </button>
+              </div>
 
-              {/* Feed Menu - appears below the bowl */}
-              {showFeedMenu && (
+              {/* Feed Menu - disabled temporarily */}
+              {false && showFeedMenu && (
                 <>
                   {/* Overlay to close menu when clicking outside */}
                   <div

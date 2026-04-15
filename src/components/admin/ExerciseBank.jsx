@@ -394,7 +394,7 @@ const ExerciseBank = ({ readOnly = false, allowedTypes = null, isAdmin = false }
                       viewMode={viewMode}
                       onUpdate={fetchExercises}
                       onEdit={handleEditExercise}
-                      readOnly={(readOnly && !allowedTypes) || (selectedFolder?.read_only === true)}
+                      readOnly={(readOnly && !allowedTypes) || (!isAdmin && selectedFolder?.read_only === true)}
                       allowedTypes={allowedTypes}
                     />
                   ))}

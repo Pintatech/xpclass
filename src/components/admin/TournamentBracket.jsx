@@ -1,3 +1,4 @@
+import { useRef } from 'react'
 import { Trophy, User, Minus } from 'lucide-react'
 
 const ROUND_LABELS = {
@@ -14,22 +15,23 @@ function getRoundLabel(round, totalRounds) {
 
 const shortName = (fullName) => fullName?.split(' ').pop() || fullName
 
-const PlayerRow = ({ player, score, isWinner, participants }) => {
+const PlayerRow = ({ player, score, isWinner, participants, currentUserId }) => {
   const p = participants?.find(pp => pp.user_id === player)
   const name = shortName(p?.user?.full_name) || 'TBD'
   const avatar = p?.user?.avatar_url
   const seed = p?.seed
+  const isCurrentUser = currentUserId && player === currentUserId
 
   return (
-    <div className={`flex items-center gap-2 px-2 py-1.5 ${isWinner ? 'bg-green-50' : ''}`}>
+    <div className={`flex items-center gap-2 px-2 py-1.5 ${isWinner ? 'bg-green-50' : isCurrentUser ? 'bg-purple-50' : ''}`}>
       {avatar ? (
-        <img src={avatar} alt="" className="w-6 h-6 rounded-full object-cover flex-shrink-0" />
+        <img src={avatar} alt="" className={`w-6 h-6 rounded-full object-cover flex-shrink-0 ${isCurrentUser ? 'ring-2 ring-purple-400' : ''}`} />
       ) : (
-        <div className="w-6 h-6 rounded-full bg-gray-200 flex items-center justify-center flex-shrink-0">
-          {player ? <User className="w-3 h-3 text-gray-400" /> : <Minus className="w-3 h-3 text-gray-300" />}
+        <div className={`w-6 h-6 rounded-full flex items-center justify-center flex-shrink-0 ${isCurrentUser ? 'bg-purple-200 ring-2 ring-purple-400' : 'bg-gray-200'}`}>
+          {player ? <User className={`w-3 h-3 ${isCurrentUser ? 'text-purple-500' : 'text-gray-400'}`} /> : <Minus className="w-3 h-3 text-gray-300" />}
         </div>
       )}
-      <span className={`text-xs truncate flex-1 ${isWinner ? 'font-bold text-green-700' : player ? 'text-gray-700' : 'text-gray-400 italic'}`}>
+      <span className={`text-xs truncate flex-1 ${isWinner ? 'font-bold text-green-700' : isCurrentUser ? 'font-bold text-purple-700' : player ? 'text-gray-700' : 'text-gray-400 italic'}`}>
         {player ? name : 'TBD'}
         {seed && <span className="text-[10px] text-gray-400 ml-1">#{seed}</span>}
       </span>
@@ -42,7 +44,7 @@ const PlayerRow = ({ player, score, isWinner, participants }) => {
   )
 }
 
-const MatchCard = ({ match, participants, onRecordScore, compact }) => {
+const MatchCard = ({ match, participants, onRecordScore, compact, currentUserId }) => {
   const statusColors = {
     pending: 'border-gray-200 bg-gray-50',
     ready: 'border-amber-300 bg-amber-50',
@@ -56,6 +58,7 @@ const MatchCard = ({ match, participants, onRecordScore, compact }) => {
         score={match.player1_score}
         isWinner={match.winner_id && match.winner_id === match.player1_id}
         participants={participants}
+        currentUserId={currentUserId}
       />
       <div className="border-t border-gray-200" />
       <PlayerRow
@@ -63,6 +66,7 @@ const MatchCard = ({ match, participants, onRecordScore, compact }) => {
         score={match.player2_score}
         isWinner={match.winner_id && match.winner_id === match.player2_id}
         participants={participants}
+        currentUserId={currentUserId}
       />
       {onRecordScore && (match.status === 'ready' || match.status === 'completed') && (
         <button
@@ -76,7 +80,12 @@ const MatchCard = ({ match, participants, onRecordScore, compact }) => {
   )
 }
 
-const TournamentBracket = ({ matches, participants, totalRounds, currentRound, onRecordScore, compact }) => {
+const TournamentBracket = ({ matches, participants, totalRounds, currentRound, onRecordScore, compact, currentUserId }) => {
+  const roundRefs = useRef({})
+  const scrollToRound = (roundNum) => {
+    roundRefs.current[roundNum]?.scrollIntoView({ behavior: 'smooth', inline: 'center', block: 'nearest' })
+  }
+
   // Group matches by round
   const rounds = []
   for (let r = 1; r <= totalRounds; r++) {
@@ -95,10 +104,13 @@ const TournamentBracket = ({ matches, participants, totalRounds, currentRound, o
           const roundNum = rIdx + 1
           const matchSpacing = Math.pow(2, rIdx)
           return (
-            <div key={roundNum} className="flex flex-col items-center">
-              <div className="text-xs font-bold text-gray-500 uppercase tracking-wider mb-3">
+            <div key={roundNum} ref={el => roundRefs.current[roundNum] = el} className="flex flex-col items-center">
+              <button
+                onClick={() => scrollToRound(roundNum)}
+                className="text-xs font-bold text-gray-500 uppercase tracking-wider mb-3 hover:text-purple-600 transition-colors cursor-pointer"
+              >
                 {getRoundLabel(roundNum, totalRounds)}
-              </div>
+              </button>
               <div className="flex flex-col justify-around flex-1" style={{ gap: `${matchSpacing * 16}px` }}>
                 {roundMatches.map((match) => (
                   <MatchCard
@@ -107,6 +119,7 @@ const TournamentBracket = ({ matches, participants, totalRounds, currentRound, o
                     participants={participants}
                     onRecordScore={onRecordScore}
                     compact={compact}
+                    currentUserId={currentUserId}
                   />
                 ))}
               </div>
@@ -142,15 +155,18 @@ const TournamentBracket = ({ matches, participants, totalRounds, currentRound, o
         {rounds.map((roundMatches, rIdx) => {
           const roundNum = rIdx + 1
           return (
-            <div key={roundNum}>
-              <div className={`text-xs font-bold uppercase tracking-wider mb-2 px-1 ${roundNum === currentRound ? 'text-blue-600' : 'text-gray-400'}`}>
+            <div key={roundNum} ref={el => roundRefs.current[`m${roundNum}`] = el}>
+              <button
+                onClick={() => roundRefs.current[`m${roundNum}`]?.scrollIntoView({ behavior: 'smooth', block: 'center' })}
+                className={`text-xs font-bold uppercase tracking-wider mb-2 px-1 ${roundNum === currentRound ? 'text-blue-600' : 'text-gray-400'} hover:text-purple-600 transition-colors cursor-pointer`}
+              >
                 {getRoundLabel(roundNum, totalRounds)}
                 {roundNum === currentRound && (
                   <span className="ml-2 text-[10px] bg-blue-100 text-blue-600 px-1.5 py-0.5 rounded-full font-medium normal-case">
                     Đang diễn ra
                   </span>
                 )}
-              </div>
+              </button>
               <div className="space-y-2">
                 {roundMatches.map((match) => (
                   <MatchCard
@@ -158,6 +174,7 @@ const TournamentBracket = ({ matches, participants, totalRounds, currentRound, o
                     match={match}
                     participants={participants}
                     onRecordScore={onRecordScore}
+                    currentUserId={currentUserId}
                   />
                 ))}
               </div>

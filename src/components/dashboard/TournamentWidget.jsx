@@ -207,7 +207,7 @@ const RegistrationCard = ({ tournament, onRegister, isRegistered, registering, i
 }
 
 // ─── Inline Bracket (active tournament) ──────────────────────
-const InlineBracket = ({ tournamentId, itemsMap, chestsMap }) => {
+const InlineBracket = ({ tournamentId, itemsMap, chestsMap, currentUserId }) => {
   const { tournament, participants, matches, fetchTournament, loading } = useTournament()
 
   useEffect(() => {
@@ -248,6 +248,7 @@ const InlineBracket = ({ tournamentId, itemsMap, chestsMap }) => {
           totalRounds={tournament.total_rounds}
           currentRound={tournament.current_round}
           compact
+          currentUserId={currentUserId}
         />
       </div>
     </div>
@@ -359,7 +360,7 @@ const TournamentWidget = () => {
 
         {/* Active tournaments */}
         {activeTournaments.map(t => (
-          <InlineBracket key={t.id} tournamentId={t.id} itemsMap={itemsMap} chestsMap={chestsMap} />
+          <InlineBracket key={t.id} tournamentId={t.id} itemsMap={itemsMap} chestsMap={chestsMap} currentUserId={user?.id} />
         ))}
       </div>
     </div>
