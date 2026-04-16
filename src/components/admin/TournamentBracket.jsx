@@ -1,5 +1,29 @@
-import { useRef } from 'react'
+import { useRef, useState, useEffect } from 'react'
 import { Trophy, User, Minus } from 'lucide-react'
+
+// ─── Countdown to 10 PM ─────────────────────────────────────
+const useCountdownTo10PM = () => {
+  const getRemaining = () => {
+    const now = new Date()
+    const target = new Date(now)
+    target.setHours(22, 0, 0, 0)
+    if (now >= target) target.setDate(target.getDate() + 1)
+    return Math.max(0, Math.floor((target - now) / 1000))
+  }
+
+  const [seconds, setSeconds] = useState(getRemaining)
+
+  useEffect(() => {
+    const id = setInterval(() => setSeconds(getRemaining()), 1000)
+    return () => clearInterval(id)
+  }, [])
+
+  const h = Math.floor(seconds / 3600)
+  const m = Math.floor((seconds % 3600) / 60)
+  const s = seconds % 60
+  const pad = (n) => String(n).padStart(2, '0')
+  return `${pad(h)}:${pad(m)}:${pad(s)}`
+}
 
 const ROUND_LABELS = {
   1: { 1: 'Chung kết', 2: 'Bán kết', 3: 'Tứ kết', 4: 'Vòng 1' },
@@ -81,6 +105,7 @@ const MatchCard = ({ match, participants, onRecordScore, compact, currentUserId 
 }
 
 const TournamentBracket = ({ matches, participants, totalRounds, currentRound, onRecordScore, compact, currentUserId }) => {
+  const countdown = useCountdownTo10PM()
   const roundRefs = useRef({})
   const scrollToRound = (roundNum) => {
     roundRefs.current[roundNum]?.scrollIntoView({ behavior: 'smooth', inline: 'center', block: 'nearest' })
@@ -110,6 +135,11 @@ const TournamentBracket = ({ matches, participants, totalRounds, currentRound, o
                 className="text-xs font-bold text-gray-500 uppercase tracking-wider mb-3 hover:text-purple-600 transition-colors cursor-pointer"
               >
                 {getRoundLabel(roundNum, totalRounds)}
+                {roundNum === currentRound && (
+                  <span className="ml-1.5 text-[10px] font-mono font-semibold text-red-500 normal-case">
+                    ⏳ {countdown}
+                  </span>
+                )}
               </button>
               <div className="flex flex-col justify-around flex-1" style={{ gap: `${matchSpacing * 16}px` }}>
                 {roundMatches.map((match) => (
@@ -162,9 +192,14 @@ const TournamentBracket = ({ matches, participants, totalRounds, currentRound, o
               >
                 {getRoundLabel(roundNum, totalRounds)}
                 {roundNum === currentRound && (
-                  <span className="ml-2 text-[10px] bg-blue-100 text-blue-600 px-1.5 py-0.5 rounded-full font-medium normal-case">
-                    Đang diễn ra
-                  </span>
+                  <>
+                    <span className="ml-2 text-[10px] bg-blue-100 text-blue-600 px-1.5 py-0.5 rounded-full font-medium normal-case">
+                      Đang diễn ra
+                    </span>
+                    <span className="ml-1.5 text-[10px] font-mono font-semibold text-red-500">
+                      ⏳ {countdown}
+                    </span>
+                  </>
                 )}
               </button>
               <div className="space-y-2">
