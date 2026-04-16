@@ -25,6 +25,7 @@ const FillBlankEditor = ({ questions, onQuestionsChange, settings, onSettingsCha
   const [bulkImportMode, setBulkImportMode] = useState(false)
   const [bulkText, setBulkText] = useState('')
   const [lastBulkText, setLastBulkText] = useState('')
+  const [stripComments, setStripComments] = useState(false)
   const [urlModal, setUrlModal] = useState({ isOpen: false, type: '', questionIndex: -1 })
   const [urlInput, setUrlInput] = useState('')
   const [linkText, setLinkText] = useState('')
@@ -368,12 +369,17 @@ const FillBlankEditor = ({ questions, onQuestionsChange, settings, onSettingsCha
 
   const processBulkImport = () => {
     try {
+      // Optionally remove comments from the text
+      const textToProcess = stripComments
+        ? bulkText.replace(/\/\*[\s\S]*?\*\//g, '').replace(/\/[^/\n]+\//g, '')
+        : bulkText
+
       // Detect answer-key format: passage with (N) ________ (hint) + "Answer key:" + (N) [answer] #explanation
-      const answerKeyMatch = bulkText.match(/answer\s*key\s*:/i)
+      const answerKeyMatch = textToProcess.match(/answer\s*key\s*:/i)
       if (answerKeyMatch) {
-        const answerKeyIndex = bulkText.indexOf(answerKeyMatch[0])
-        const passageSection = bulkText.substring(0, answerKeyIndex).trim()
-        const answerSection = bulkText.substring(answerKeyIndex).trim()
+        const answerKeyIndex = textToProcess.indexOf(answerKeyMatch[0])
+        const passageSection = textToProcess.substring(0, answerKeyIndex).trim()
+        const answerSection = textToProcess.substring(answerKeyIndex).trim()
 
         // Parse answer key lines: (N) or N. or N) followed by [answer] #explanation
         const answers = {}
@@ -452,7 +458,7 @@ const FillBlankEditor = ({ questions, onQuestionsChange, settings, onSettingsCha
 
       // Detect separated Q&A format: numbered questions on top, numbered answers on bottom
       // e.g. "1. Statement\n___\n2. Statement\n___\n1. Answer\n2. Answer"
-      const allBulkLines = bulkText.split('\n')
+      const allBulkLines = textToProcess.split('\n')
       const numberedEntries = []
       allBulkLines.forEach((line, idx) => {
         const m = line.trim().match(/^(\d+)[.)]\s+(.+)/)
@@ -515,7 +521,7 @@ const FillBlankEditor = ({ questions, onQuestionsChange, settings, onSettingsCha
         return
       }
 
-      const lines = bulkText.split('\n').filter(line => line.trim())
+      const lines = textToProcess.split('\n').filter(line => line.trim())
       const newQuestions = []
 
       let questionCounter = 0
@@ -900,6 +906,17 @@ B. Fill in the blanks with the correct form.
 
 2. Water boils at [100] degrees Celsius.`}
           />
+          <div className="flex items-center gap-4 mt-2">
+            <label className="flex items-center gap-1.5 text-sm text-blue-700 cursor-pointer select-none">
+              <input
+                type="checkbox"
+                checked={stripComments}
+                onChange={(e) => setStripComments(e.target.checked)}
+                className="rounded"
+              />
+              Strip comments <span className="text-xs text-gray-500">({`/* */ and /…/`})</span>
+            </label>
+          </div>
           <div className="flex justify-between items-center mt-2">
             <button
               type="button"

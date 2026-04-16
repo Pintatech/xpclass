@@ -314,7 +314,8 @@ const SmartDragDropEditor = ({ questions, onQuestionsChange, intro, onIntroChang
 
   const processBulkImport = () => {
     try {
-      const lines = bulkText.split('\n').filter(line => line.trim())
+      const textToProcess = bulkText.replace(/\/\*[\s\S]*?\*\//g, '').replace(/\/\/[^\n]*/g, '')
+      const lines = textToProcess.split('\n').filter(line => line.trim())
       const newQuestions = []
 
       let questionCounter = 0
@@ -447,12 +448,21 @@ const SmartDragDropEditor = ({ questions, onQuestionsChange, intro, onIntroChang
             .map(word => word.trim())
             .filter(word => word.length > 0)
         }
-        // Regular line (no special format) - add to current question explanation if exists
+        // Regular line (no special format)
         else if (trimmedLine && currentQuestion && !trimmedLine.includes('[')) {
-          if (currentQuestion.explanation) {
-            currentQuestion.explanation += '\n' + trimmedLine
+          // If no items parsed yet, this is part of the question text (e.g. image comments)
+          if (currentQuestion.items.length === 0) {
+            if (currentQuestion.question) {
+              currentQuestion.question += '\n' + trimmedLine
+            } else {
+              currentQuestion.question = trimmedLine
+            }
           } else {
-            currentQuestion.explanation = trimmedLine
+            if (currentQuestion.explanation) {
+              currentQuestion.explanation += '\n' + trimmedLine
+            } else {
+              currentQuestion.explanation = trimmedLine
+            }
           }
         }
       })

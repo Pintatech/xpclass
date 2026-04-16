@@ -35,29 +35,62 @@ const CourseStatsSection = ({ courseId }) => {
         .from('units').select('id').eq('course_id', courseId);
       if (!units?.length) { setLoading(false); return; }
 
-      // 2. Latest non-test session
-      const { data: sessions } = await supabase
+      // 2. Get all active non-test sessions (sorted by session_number desc)
+      const { data: allSessions } = await supabase
         .from('sessions')
-        .select('id, title, session_number')
+        .select('id, title, session_number, assigned_student_id')
         .in('unit_id', units.map(u => u.id))
         .eq('is_active', true)
         .neq('is_test', true)
-        .order('session_number', { ascending: false })
-        .limit(1);
-      if (!sessions?.length) { setLoading(false); return; }
+        .order('session_number', { ascending: false });
+      if (!allSessions?.length) { setLoading(false); return; }
 
-      const session = sessions[0];
-      setLatestSession(session);
+      // Latest shared (non-personal) session
+      const latestShared = allSessions.find(s => !s.assigned_student_id);
+      setLatestSession(latestShared || allSessions[0]);
 
-      // 3. Exercises in this session
+      // Latest personal session per student (highest session_number)
+      const latestPersonalByStudent = {};
+      for (const s of allSessions) {
+        if (s.assigned_student_id && !latestPersonalByStudent[s.assigned_student_id]) {
+          latestPersonalByStudent[s.assigned_student_id] = s;
+        }
+      }
+
+      // Collect session IDs: latest shared + latest personal per student
+      const relevantSessions = [];
+      if (latestShared) relevantSessions.push(latestShared);
+      for (const s of Object.values(latestPersonalByStudent)) relevantSessions.push(s);
+      const sessionIds = relevantSessions.map(s => s.id);
+
+      // 3. Exercises for these sessions
       const { data: assignments } = await supabase
         .from('exercise_assignments')
-        .select('exercise_id')
-        .eq('session_id', session.id);
-      const exerciseIds = (assignments || []).map(a => a.exercise_id);
-      if (!exerciseIds.length) { setLoading(false); return; }
+        .select('exercise_id, session_id')
+        .in('session_id', sessionIds);
+      if (!assignments?.length) { setLoading(false); return; }
 
-      setTotalEx(exerciseIds.length);
+      // Shared exercise IDs (from the latest shared session)
+      const sharedSessionId = latestShared?.id;
+      const sharedExerciseIds = Array.from(new Set(
+        assignments.filter(a => a.session_id === sharedSessionId).map(a => a.exercise_id)
+      ));
+
+      // Personal exercises grouped by student (from their latest personal session)
+      const sessionToStudent = {};
+      for (const s of Object.values(latestPersonalByStudent)) {
+        sessionToStudent[s.id] = s.assigned_student_id;
+      }
+      const personalExByStudent = {};
+      for (const a of assignments) {
+        const studentId = sessionToStudent[a.session_id];
+        if (studentId) {
+          if (!personalExByStudent[studentId]) personalExByStudent[studentId] = new Set();
+          personalExByStudent[studentId].add(a.exercise_id);
+        }
+      }
+
+      setTotalEx(sharedExerciseIds.length);
 
       // 4. Enrolled students
       const { data: enrollments } = await supabase
@@ -67,20 +100,33 @@ const CourseStatsSection = ({ courseId }) => {
         .eq('is_active', true);
       const studentMap = {};
       (enrollments || []).forEach(e => {
-        studentMap[e.student_id] = { id: e.student_id, name: e.student?.real_name || e.student?.full_name || 'Unknown', completed: 0 };
+        const personalSet = personalExByStudent[e.student_id];
+        const personalCount = personalSet ? personalSet.size : 0;
+        studentMap[e.student_id] = {
+          id: e.student_id,
+          name: e.student?.real_name || e.student?.full_name || 'Unknown',
+          completed: 0,
+          total: sharedExerciseIds.length + personalCount
+        };
       });
 
-      // 5. Progress for these exercises
+      // 5. Progress for all exercises (shared + personal)
+      const allExerciseIds = Array.from(new Set(assignments.map(a => a.exercise_id)));
       const studentIds = Object.keys(studentMap);
-      if (studentIds.length) {
+      if (studentIds.length && allExerciseIds.length) {
         const { data: progress } = await supabase
           .from('user_progress')
           .select('user_id, exercise_id, status')
           .in('user_id', studentIds)
-          .in('exercise_id', exerciseIds);
+          .in('exercise_id', allExerciseIds);
         (progress || []).forEach(p => {
           if (p.status === 'completed' && studentMap[p.user_id]) {
-            studentMap[p.user_id].completed++;
+            // Only count if it's a shared exercise or this student's personal exercise
+            const isShared = sharedExerciseIds.includes(p.exercise_id);
+            const isPersonal = personalExByStudent[p.user_id]?.has(p.exercise_id);
+            if (isShared || isPersonal) {
+              studentMap[p.user_id].completed++;
+            }
           }
         });
       }
@@ -109,23 +155,26 @@ const CourseStatsSection = ({ courseId }) => {
             <div className="text-xs text-gray-400 py-2 text-center">Loading...</div>
           ) : studentList.length > 0 ? (
             <div className="space-y-1 max-h-32 overflow-y-auto">
-              {studentList.map(s => (
-                <div key={s.id} className="flex items-center gap-1.5 text-xs">
-                  {s.completed === totalEx ? (
-                    <CheckCircle className="w-3 h-3 text-green-500 flex-shrink-0" />
-                  ) : s.completed > 0 ? (
-                    <Clock className="w-3 h-3 text-yellow-500 flex-shrink-0" />
-                  ) : (
-                    <XCircle className="w-3 h-3 text-gray-300 flex-shrink-0" />
-                  )}
-                  <span className="text-gray-700 truncate flex-1">{s.name}</span>
-                  <span className={`font-medium whitespace-nowrap ${
-                    s.completed === totalEx ? 'text-green-600' : s.completed > 0 ? 'text-yellow-600' : 'text-gray-400'
-                  }`}>
-                    {s.completed}/{totalEx}
-                  </span>
-                </div>
-              ))}
+              {studentList.map(s => {
+                const sTotal = s.total ?? totalEx;
+                return (
+                  <div key={s.id} className="flex items-center gap-1.5 text-xs">
+                    {s.completed === sTotal ? (
+                      <CheckCircle className="w-3 h-3 text-green-500 flex-shrink-0" />
+                    ) : s.completed > 0 ? (
+                      <Clock className="w-3 h-3 text-yellow-500 flex-shrink-0" />
+                    ) : (
+                      <XCircle className="w-3 h-3 text-gray-300 flex-shrink-0" />
+                    )}
+                    <span className="text-gray-700 truncate flex-1">{s.name}</span>
+                    <span className={`font-medium whitespace-nowrap ${
+                      s.completed === sTotal ? 'text-green-600' : s.completed > 0 ? 'text-yellow-600' : 'text-gray-400'
+                    }`}>
+                      {s.completed}/{sTotal}
+                    </span>
+                  </div>
+                );
+              })}
             </div>
           ) : (
             <div className="text-xs text-gray-400 py-1">No data</div>
@@ -893,11 +942,11 @@ const Dashboard = () => {
 
       {/* Tournament + Recent Activities - Side by side on PC */}
       {(profile?.role === 'user' || profile?.role === 'admin' || profile?.role === 'teacher') && (
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6 mt-10">
-          <div className="overflow-visible">
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-6 mt-10">
+          <div className="lg:col-span-2 overflow-visible">
             <TournamentWidget />
           </div>
-          <div className="h-full">
+          <div className="self-start">
             <RecentActivities />
           </div>
         </div>

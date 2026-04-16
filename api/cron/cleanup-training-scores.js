@@ -12,7 +12,7 @@ export default async function handler(req, res) {
 
   try {
     const threeDaysAgo = new Date()
-    threeDaysAgo.setDate(threeDaysAgo.getDate() - 3)
+    threeDaysAgo.setDate(threeDaysAgo.getDate() - 10)
     const cutoff = threeDaysAgo.toISOString()
 
     const { data, error } = await supabase
