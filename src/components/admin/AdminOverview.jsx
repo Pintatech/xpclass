@@ -65,11 +65,12 @@ const AdminOverview = () => {
         return
       }
 
-      // Get sessions
+      // Get sessions (include assigned_student_id to filter personal sessions)
       const { data: sessions } = await supabase
         .from('sessions')
-        .select('id, unit_id')
+        .select('id, unit_id, assigned_student_id')
         .in('unit_id', unitIds)
+        .neq('is_test', true)
 
       const sessionIds = (sessions || []).map(s => s.id)
       if (sessionIds.length === 0) {
@@ -80,11 +81,37 @@ const AdminOverview = () => {
       // Get exercise IDs via assignments
       const { data: assignments } = await supabase
         .from('exercise_assignments')
-        .select('exercise_id')
+        .select('exercise_id, session_id')
         .in('session_id', sessionIds)
 
-      const exerciseIds = Array.from(new Set((assignments || []).map(a => a.exercise_id)))
-      if (exerciseIds.length === 0) {
+      if (!assignments || assignments.length === 0) {
+        setCourseStudents([])
+        return
+      }
+
+      // Build a map of session_id -> assigned_student_id for personal sessions
+      const sessionPersonalMap = {}
+      for (const s of sessions) {
+        if (s.assigned_student_id) sessionPersonalMap[s.id] = s.assigned_student_id
+      }
+
+      // Shared exercises (from sessions without assigned_student_id)
+      const sharedExerciseIds = Array.from(new Set(
+        assignments.filter(a => !sessionPersonalMap[a.session_id]).map(a => a.exercise_id)
+      ))
+
+      // Personal exercises grouped by student
+      const personalExercisesByStudent = {}
+      for (const a of assignments) {
+        const studentId = sessionPersonalMap[a.session_id]
+        if (studentId) {
+          if (!personalExercisesByStudent[studentId]) personalExercisesByStudent[studentId] = new Set()
+          personalExercisesByStudent[studentId].add(a.exercise_id)
+        }
+      }
+
+      const allExerciseIds = Array.from(new Set(assignments.map(a => a.exercise_id)))
+      if (allExerciseIds.length === 0) {
         setCourseStudents([])
         return
       }
@@ -115,20 +142,24 @@ const AdminOverview = () => {
         .from('user_progress')
         .select('user_id, exercise_id, status')
         .in('user_id', studentIds)
-        .in('exercise_id', exerciseIds)
+        .in('exercise_id', allExerciseIds)
 
-      // Calculate completion for each student
+      // Calculate completion for each student (shared + their personal exercises)
       const studentsWithCompletion = enrollments.map(enrollment => {
         const student = enrollment.student
-        const studentProgress = (progress || []).filter(p => p.user_id === student.id)
+        const personalSet = personalExercisesByStudent[student.id]
+        const studentExerciseIds = personalSet
+          ? [...sharedExerciseIds, ...personalSet]
+          : sharedExerciseIds
+        const studentProgress = (progress || []).filter(p => p.user_id === student.id && studentExerciseIds.includes(p.exercise_id))
         const completed = studentProgress.filter(p => p.status === 'completed').length
-        const completionRate = exerciseIds.length > 0 ? Math.round((completed / exerciseIds.length) * 100) : 0
+        const completionRate = studentExerciseIds.length > 0 ? Math.round((completed / studentExerciseIds.length) * 100) : 0
 
         return {
           ...student,
           completionRate,
           completed,
-          total: exerciseIds.length
+          total: studentExerciseIds.length
         }
       })
 
@@ -181,40 +212,45 @@ const AdminOverview = () => {
       const sessionToUnit = new Map();
       sessions.forEach(s => sessionToUnit.set(s.id, s.unit_id))
 
-      // Build mapping: exercise -> unit
+      // Build personal session map from sessions data
+      const sessionPersonal = {}
+      sessions.forEach(s => {
+        if (s.assigned_student_id) sessionPersonal[s.id] = s.assigned_student_id
+      })
+
+      // Build mapping: exercise -> unit, and track which exercises are personal
       const exerciseToUnit = new Map();
+      const exerciseToPersonal = new Map(); // exercise_id -> assigned_student_id or null
       exercisesData.forEach(e => {
         const unitId = sessionToUnit.get(e.session_id)
         if (unitId) exerciseToUnit.set(e.id, unitId)
+        exerciseToPersonal.set(e.id, sessionPersonal[e.session_id] || null)
       })
 
-      // Count exercises per unit
-      const unitExerciseCounts = new Map();
-      exercisesData.forEach(e => {
-        const unitId = exerciseToUnit.get(e.id)
-        if (unitId) {
-          unitExerciseCounts.set(unitId, (unitExerciseCounts.get(unitId) || 0) + 1)
-        }
-      })
-
-      // Count completed exercises per student per unit
+      // Count completed exercises per student per unit (only for exercises relevant to that student)
       const studentUnitCompleted = new Map();
       (progress || []).forEach(p => {
         const unitId = exerciseToUnit.get(p.exercise_id)
-        if (unitId && p.status === 'completed') {
+        const personalOwner = exerciseToPersonal.get(p.exercise_id)
+        if (unitId && p.status === 'completed' && (!personalOwner || personalOwner === p.user_id)) {
           const key = `${p.user_id}-${unitId}`
           studentUnitCompleted.set(key, (studentUnitCompleted.get(key) || 0) + 1)
         }
       })
 
-      // Build final progress map with percentages
+      // Build final progress map with per-student exercise counts
       const progressMap = new Map();
       enrollments.forEach(enrollment => {
         const student = enrollment.student
         unitsData.forEach(unit => {
           const key = `${student.id}-${unit.id}`
+          // Count exercises in this unit relevant to this student
+          const total = exercisesData.filter(e => {
+            const unitId = exerciseToUnit.get(e.id)
+            const personalOwner = exerciseToPersonal.get(e.id)
+            return unitId === unit.id && (!personalOwner || personalOwner === student.id)
+          }).length
           const completed = studentUnitCompleted.get(key) || 0
-          const total = unitExerciseCounts.get(unit.id) || 0
           const percentage = total > 0 ? Math.round((completed / total) * 100) : 0
 
           progressMap.set(key, {

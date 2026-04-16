@@ -708,9 +708,37 @@ const Profile = () => {
     }
   }
 
+  const NAME_COOLDOWN_MS = 3 * 24 * 60 * 60 * 1000 // 3 days
+
+  const getNameCooldownRemaining = () => {
+    if (!profile?.name_changed_at) return 0
+    const elapsed = Date.now() - new Date(profile.name_changed_at).getTime()
+    return Math.max(0, NAME_COOLDOWN_MS - elapsed)
+  }
+
+  const formatCooldown = (ms) => {
+    const hours = Math.floor(ms / (1000 * 60 * 60))
+    const days = Math.floor(hours / 24)
+    const remainingHours = hours % 24
+    if (days > 0) return `${days} ngày ${remainingHours} giờ`
+    return `${remainingHours} giờ`
+  }
+
   const handleSaveProfile = async () => {
     try {
-      await updateProfile(editData)
+      const nameChanged = editData.full_name !== profile?.full_name
+      if (nameChanged) {
+        const remaining = getNameCooldownRemaining()
+        if (remaining > 0) {
+          alert(`Bạn chỉ có thể đổi tên sau ${formatCooldown(remaining)} nữa.`)
+          return
+        }
+      }
+      const updates = { ...editData }
+      if (nameChanged) {
+        updates.name_changed_at = new Date().toISOString()
+      }
+      await updateProfile(updates)
       setIsEditing(false)
     } catch (error) {
       console.error('Error updating profile:', error)
@@ -844,7 +872,13 @@ const Profile = () => {
                       onChange={(e) => setEditData(prev => ({ ...prev, full_name: e.target.value }))}
                       className="px-3 py-1 text-gray-900 text-xl font-semibold border border-white/30"
                       style={{ clipPath: CLIP_BTN }}
+                      disabled={getNameCooldownRemaining() > 0}
                     />
+                    {getNameCooldownRemaining() > 0 && (
+                      <p className="text-yellow-200 text-xs mt-1">
+                        Đổi tên sau {formatCooldown(getNameCooldownRemaining())}
+                      </p>
+                    )}
                     {(profile?.role === 'admin' || profile?.role === 'teacher') && (
                       <p className="text-blue-100 flex items-center space-x-2">
                         <Mail className="w-4 h-4" />

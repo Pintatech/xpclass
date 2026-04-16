@@ -1031,6 +1031,11 @@ const UnitList = () => {
               </div>
             )}
 
+            {/* Incomplete red dot */}
+            {!isLocked && status !== 'completed' && status !== 'scheduled' && (
+              <span className="absolute top-0 right-0 z-40 w-2.5 h-2.5 bg-red-500 rounded-full ring-2 ring-white" />
+            )}
+
             {/* Test badge */}
             {session.is_test && (
               <div className="absolute top-1 left-1 z-40">
@@ -1702,6 +1707,13 @@ const UnitList = () => {
             </h3>
             <p className="text-sm text-gray-500 mb-4">
               Paste &ldquo;<span className="font-medium">{copiedSession.title}</span>&rdquo; as a personal session for:
+              {(copiedSession.open_date || copiedSession.close_date) && (
+                <span className="block text-xs text-gray-400 mt-1">
+                  {copiedSession.open_date && <>Start: {new Date(copiedSession.open_date).toLocaleString()}</>}
+                  {copiedSession.open_date && copiedSession.close_date && ' — '}
+                  {copiedSession.close_date && <>End: {new Date(copiedSession.close_date).toLocaleString()}</>}
+                </span>
+              )}
             </p>
 
             {bulkPasteStudents.length === 0 ? (

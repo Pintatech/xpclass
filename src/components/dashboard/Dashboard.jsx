@@ -149,6 +149,21 @@ const Dashboard = () => {
   const [challengeTarget, setChallengeTarget] = useState(null)
   const [pendingChallengeUserIds, setPendingChallengeUserIds] = useState({})
   const [pvpAvailable, setPvpAvailable] = useState(true)
+  const [courseCompletion, setCourseCompletion] = useState({})
+  const [tickedCourses, setTickedCourses] = useState(() => {
+    try {
+      const stored = JSON.parse(localStorage.getItem('teacher_ticked_courses') || '{}');
+      const now = Date.now();
+      const filtered = {};
+      for (const [id, ts] of Object.entries(stored)) {
+        if (now - ts < 3 * 24 * 60 * 60 * 1000) filtered[id] = ts;
+      }
+      if (Object.keys(filtered).length !== Object.keys(stored).length) {
+        localStorage.setItem('teacher_ticked_courses', JSON.stringify(filtered));
+      }
+      return filtered;
+    } catch { return {}; }
+  })
   const navigate = useNavigate()
 
   // Check PvP schedule
@@ -309,6 +324,7 @@ const Dashboard = () => {
         const assignedCourses = data?.map(assignment => assignment.courses).filter(Boolean) || []
         console.log('Fetched assigned courses for teacher:', assignedCourses)
         setCourses(assignedCourses)
+        fetchCourseCompletion(assignedCourses)
       } else {
         // Admin: fetch all courses
         let { data, error } = await supabase
@@ -560,6 +576,66 @@ const Dashboard = () => {
     } catch (error) {
       console.error('Error fetching course progress:', error)
     }
+  }
+
+  const fetchCourseCompletion = async (courseList) => {
+    try {
+      if (profile?.role !== 'teacher') return
+      const result = {}
+
+      for (const course of courseList) {
+        const { data: units } = await supabase.from('units').select('id').eq('course_id', course.id)
+        const unitIds = (units || []).map(u => u.id)
+        if (!unitIds.length) continue
+
+        const { data: sessions } = await supabase
+          .from('sessions').select('id, assigned_student_id')
+          .in('unit_id', unitIds).neq('is_test', true)
+        if (!sessions?.length) continue
+
+        const sessionPersonalMap = {}
+        sessions.forEach(s => { if (s.assigned_student_id) sessionPersonalMap[s.id] = s.assigned_student_id })
+
+        const { data: assignments } = await supabase
+          .from('exercise_assignments').select('exercise_id, session_id')
+          .in('session_id', sessions.map(s => s.id))
+        if (!assignments?.length) continue
+
+        const sharedExerciseIds = [...new Set(assignments.filter(a => !sessionPersonalMap[a.session_id]).map(a => a.exercise_id))]
+        const personalByStudent = {}
+        assignments.forEach(a => {
+          const sid = sessionPersonalMap[a.session_id]
+          if (sid) { (personalByStudent[sid] ||= new Set()).add(a.exercise_id) }
+        })
+
+        const { data: enrollments } = await supabase
+          .from('course_enrollments').select('student_id')
+          .eq('course_id', course.id).eq('is_active', true)
+        if (!enrollments?.length) continue
+
+        const studentIds = enrollments.map(e => e.student_id)
+        const allExIds = [...new Set(assignments.map(a => a.exercise_id))]
+
+        const { data: progress } = await supabase
+          .from('user_progress').select('user_id, exercise_id, status')
+          .in('user_id', studentIds).in('exercise_id', allExIds)
+
+        let totalCompletion = 0
+        studentIds.forEach(sid => {
+          const personal = personalByStudent[sid]
+          const studentExIds = personal ? [...sharedExerciseIds, ...personal] : sharedExerciseIds
+          if (!studentExIds.length) return
+          const completed = (progress || []).filter(p => p.user_id === sid && p.status === 'completed' && studentExIds.includes(p.exercise_id)).length
+          totalCompletion += Math.round((completed / studentExIds.length) * 100)
+        })
+
+        result[course.id] = {
+          avg: studentIds.length > 0 ? Math.round(totalCompletion / studentIds.length) : 0,
+          students: studentIds.length
+        }
+      }
+      setCourseCompletion(result)
+    } catch (err) { console.error('Error fetching course completion:', err) }
   }
 
   // Get greeting message based on Vietnam time
@@ -856,6 +932,32 @@ const Dashboard = () => {
                   }`}
                     style={{ clipPath: 'polygon(10px 0, 100% 0, 100% calc(100% - 10px), calc(100% - 10px) 100%, 0 100%, 0 10px)' }}
                   >
+                    {/* Teacher tick */}
+                    {profile?.role === 'teacher' && (
+                      <button
+                        className="absolute top-1 right-1 z-20 p-1"
+                        onClick={(e) => {
+                          e.preventDefault();
+                          e.stopPropagation();
+                          setTickedCourses(prev => {
+                            const next = { ...prev };
+                            if (next[course.id]) {
+                              delete next[course.id];
+                            } else {
+                              next[course.id] = Date.now();
+                            }
+                            localStorage.setItem('teacher_ticked_courses', JSON.stringify(next));
+                            return next;
+                          });
+                        }}
+                      >
+                        <CheckCircle
+                          size={22}
+                          className={tickedCourses[course.id] ? 'text-green-500' : 'text-white/50'}
+                        />
+                      </button>
+                    )}
+
                     {/* Corner brackets */}
                     <div className="absolute top-0 left-[10px] w-5 h-[1px] bg-gradient-to-r from-blue-300/40 to-transparent z-10" />
                     <div className="absolute top-0 left-[10px] w-[1px] h-5 bg-gradient-to-b from-blue-300/40 to-transparent z-10" />
@@ -878,6 +980,28 @@ const Dashboard = () => {
                         </div>
                       )}
                       
+                      {/* Teacher Circular Completion */}
+                      {profile?.role === 'teacher' && courseCompletion[course.id] && (() => {
+                        const pct = courseCompletion[course.id].avg
+                        const r = 18, c = 2 * Math.PI * r
+                        return (
+                          <div className="absolute bottom-2 left-2 z-10">
+                            <svg width="48" height="48" className="drop-shadow">
+                              <circle cx="24" cy="24" r={r} fill="rgba(0,0,0,0.5)" stroke="rgba(255,255,255,0.2)" strokeWidth="3" />
+                              <circle cx="24" cy="24" r={r} fill="none"
+                                stroke={pct >= 70 ? '#22c55e' : pct >= 30 ? '#eab308' : '#ef4444'}
+                                strokeWidth="3" strokeLinecap="round"
+                                strokeDasharray={c} strokeDashoffset={c - (c * pct / 100)}
+                                transform="rotate(-90 24 24)"
+                              />
+                              <text x="24" y="25" textAnchor="middle" dominantBaseline="middle"
+                                className="text-[10px] font-bold fill-white"
+                              >{pct}%</text>
+                            </svg>
+                          </div>
+                        )
+                      })()}
+
                       {/* Lock Overlay */}
                       {isLocked && (
                         <div className="absolute inset-0 bg-black bg-opacity-50 flex items-center justify-center">
