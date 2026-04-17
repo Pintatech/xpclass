@@ -255,9 +255,6 @@ export const ProgressProvider = ({ children }) => {
     const isAlreadyCompleted = isExerciseCompleted(exerciseId)
     console.log('Exercise already completed:', isAlreadyCompleted)
 
-    // Always check daily quest first, regardless of completion status
-    await checkDailyQuestCompletion(exerciseId)
-
     // Check if this is a daily challenge completion
     const challengeId = progressData.challengeId || null
     const challengeStartedAt = progressData.challengeStartedAt || null
@@ -812,100 +809,6 @@ export const ProgressProvider = ({ children }) => {
     return userProgress.reduce((total, p) => total + (p.time_spent || 0), 0)
   }
 
-  // Daily Quest functions
-  const checkDailyQuestCompletion = async (exerciseId) => {
-    if (!user) return
-
-    try {
-      console.log('🔍 Checking daily quest completion for exercise:', exerciseId)
-      
-      // Check if this exercise is a daily quest (using Vietnam date)
-      const vietnamToday = getVietnamDate()
-      const { data: questData, error: questError } = await supabase
-        .from('daily_quests')
-        .select('*')
-        .eq('user_id', user.id)
-        .eq('exercise_id', exerciseId)
-        .eq('quest_date', vietnamToday) // Use Vietnam date for quest logic
-        .eq('status', 'available')
-        .maybeSingle()
-
-      console.log('Quest data:', questData)
-      console.log('Quest error:', questError)
-
-      if (questError) {
-        // Gracefully ignore if table is missing
-        if (questError.message?.includes("Could not find the table") || questError.code === 'PGRST205') {
-          console.warn('daily_quests table not found, skipping quest check')
-          return
-        }
-        console.log('Error checking daily quest:', questError.message)
-        return
-      }
-
-      if (!questData) {
-        console.log('No available quest found for this exercise')
-        return
-      }
-
-      console.log('🎯 Found daily quest, marking as completed...')
-
-      // Chỉ đánh dấu quest là completed, KHÔNG trao XP ngay
-      const { error } = await supabase
-        .from('daily_quests')
-        .update({ 
-          status: 'completed',
-          updated_at: new Date().toISOString()
-        })
-        .eq('id', questData.id)
-
-      if (error) {
-        console.error('Error marking daily quest as completed:', error)
-      } else {
-        console.log('🎯 Daily quest marked as completed! User needs to claim reward.')
-      }
-    } catch (error) {
-      console.error('Error checking daily quest completion:', error)
-    }
-  }
-
-  const getDailyQuest = async () => {
-    if (!user) return null
-
-    try {
-      const { data, error } = await supabase
-        .rpc('get_today_daily_quest_simple', { user_uuid: user.id })
-
-      if (error) throw error
-      return data
-    } catch (error) {
-      console.error('Error fetching daily quest:', error)
-      return null
-    }
-  }
-
-  const claimDailyQuestReward = async (questId) => {
-    if (!user) return { success: false, error: 'No user logged in' }
-
-    try {
-      const { data, error } = await supabase
-        .rpc('claim_daily_quest_reward_simple', { quest_uuid: questId })
-
-      if (error) throw error
-
-      if (data.success) {
-        // Refresh user profile to get updated XP
-        await fetchUserProfile(user.id)
-        return { success: true, xpEarned: data.xp_earned }
-      }
-
-      return { success: false, error: data.error }
-    } catch (error) {
-      console.error('Error claiming daily quest reward:', error)
-      return { success: false, error: error.message }
-    }
-  }
-
   // ===== DAILY CHALLENGE FUNCTIONS =====
 
   const getTodayChallenge = async () => {
@@ -1012,9 +915,6 @@ export const ProgressProvider = ({ children }) => {
     getTotalStudyTime,
     fetchUserProgress,
     fetchUserAchievements,
-    checkDailyQuestCompletion,
-    getDailyQuest,
-    claimDailyQuestReward,
     // Daily Challenge functions
     getTodayChallenge,
     recordChallengeParticipation,

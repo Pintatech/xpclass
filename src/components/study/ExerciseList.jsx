@@ -6,7 +6,6 @@ import { usePermissions } from "../../hooks/usePermissions";
 import { useProgress } from "../../hooks/useProgress";
 import Button from "../ui/Button";
 import AssignExerciseModal from "./modals/AssignExerciseModal";
-import AssignToStudentModal from "../admin/AssignToStudentModal";
 import EditExerciseModal from "../admin/ExerciseBank/EditExerciseModal";
 import {
   DndContext,
@@ -61,7 +60,6 @@ import {
   Edit,
   Trash2,
   GripVertical,
-  UserPlus,
   Star,
   Map,
   List,
@@ -116,7 +114,6 @@ const ExerciseList = () => {
   const [error, setError] = useState(null);
   const [units, setUnits] = useState([]);
   const [showAssignExerciseModal, setShowAssignExerciseModal] = useState(false);
-  const [assignToStudentExercise, setAssignToStudentExercise] = useState(null);
   const [editingExercise, setEditingExercise] = useState(null);
   // Session reward states
   const [sessionRewards, setSessionRewards] = useState({});
@@ -1210,16 +1207,6 @@ const ExerciseList = () => {
             {/* Action Buttons */}
             {canCreateContent() && (
               <div className="flex items-center space-x-1">
-                <button
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    setAssignToStudentExercise(exercise);
-                  }}
-                  className="p-1 text-blue-400 hover:text-blue-600 hover:bg-blue-100 rounded transition-colors"
-                  title="Assign to individual student"
-                >
-                  <UserPlus className="w-4 h-4" />
-                </button>
                 {profile?.role === "admin" && (
                   <button
                     onClick={(e) => {
@@ -1863,13 +1850,6 @@ const ExerciseList = () => {
           onAssigned={handleExercisesAssigned}
         />
       )}
-
-      {/* Assign to Student Modal */}
-      <AssignToStudentModal
-        isOpen={!!assignToStudentExercise}
-        onClose={() => setAssignToStudentExercise(null)}
-        exercise={assignToStudentExercise}
-      />
 
       {/* Edit Exercise Modal */}
       <EditExerciseModal
