@@ -29,7 +29,7 @@ export default async function handler(req) {
       return jsonResponse(500, { error: 'GROQ_API_KEY not configured' })
     }
 
-    const reqBody = JSON.stringify({ model: 'moonshotai/kimi-k2-instruct', messages, max_tokens, temperature })
+    const reqBody = JSON.stringify({ model: 'openai/gpt-oss-120b', messages, max_tokens, temperature })
     let response
     for (let attempt = 0; attempt < 5; attempt++) {
       response = await fetch('https://api.groq.com/openai/v1/chat/completions', {

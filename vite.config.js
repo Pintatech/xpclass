@@ -163,7 +163,7 @@ function aiAnalyzePlugin() {
           for await (const chunk of req) chunks.push(chunk)
           const { messages, max_tokens = 2000, temperature = 0.3 } = JSON.parse(Buffer.concat(chunks).toString())
 
-          const reqBody = JSON.stringify({ model: 'moonshotai/kimi-k2-instruct', messages, max_tokens, temperature })
+          const reqBody = JSON.stringify({ model: 'openai/gpt-oss-120b', messages, max_tokens, temperature })
           let apiRes
           for (let attempt = 0; attempt < 3; attempt++) {
             apiRes = await fetch('https://api.groq.com/openai/v1/chat/completions', {
@@ -221,7 +221,7 @@ function petChatPlugin() {
         try {
           const chunks = []
           for await (const chunk of req) chunks.push(chunk)
-          const { messages, model = 'moonshotai/kimi-k2-instruct', max_tokens = 500, temperature = 0.7 } = JSON.parse(Buffer.concat(chunks).toString())
+          const { messages, model = 'openai/gpt-oss-120b', max_tokens = 500, temperature = 0.7 } = JSON.parse(Buffer.concat(chunks).toString())
 
           const apiRes = await fetch('https://api.groq.com/openai/v1/chat/completions', {
             method: 'POST',
