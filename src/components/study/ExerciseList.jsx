@@ -1777,8 +1777,8 @@ const ExerciseList = () => {
         )}
 
         {/* Session title overlay */}
-        <div className="absolute top-4 left-1/2 transform -translate-x-1/2 bg-white/90 backdrop-blur-sm rounded-lg shadow-lg px-6 py-3 z-50">
-          <h2 className="text-xl font-bold text-gray-900">{session.title}</h2>
+        <div className="absolute top-4 left-1/2 transform -translate-x-1/2 bg-white/90 backdrop-blur-sm rounded-lg shadow-lg px-4 py-2 md:px-6 md:py-3 z-0 md:z-50">
+          <h2 className="text-sm md:text-xl font-bold text-gray-900">{session.title}</h2>
         </div>
 
         {/* View Toggle Button - Only for admins/teachers */}
