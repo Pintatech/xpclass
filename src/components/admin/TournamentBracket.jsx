@@ -111,6 +111,91 @@ const TournamentBracket = ({ matches, participants, totalRounds, currentRound, o
     roundRefs.current[roundNum]?.scrollIntoView({ behavior: 'smooth', inline: 'center', block: 'nearest' })
   }
 
+  // Check if tournament has ended
+  const finalMatch = matches.find(m => m.round === totalRounds)
+  const isTournamentEnded = finalMatch && finalMatch.winner_id
+
+  if (isTournamentEnded) {
+    const winnerId = finalMatch.winner_id
+    const runnerUpId = winnerId === finalMatch.player1_id ? finalMatch.player2_id : finalMatch.player1_id
+    const semiMatches = matches.filter(m => m.round === totalRounds - 1)
+    const semiLoserIds = semiMatches.map(m => m.winner_id === m.player1_id ? m.player2_id : m.player1_id).filter(Boolean)
+
+    const winner = participants.find(p => p.user_id === winnerId)
+    const runnerUp = participants.find(p => p.user_id === runnerUpId)
+    const semiLosers = semiLoserIds.map(id => participants.find(p => p.user_id === id)).filter(Boolean)
+
+    return (
+      <div className={`w-full flex flex-col md:flex-row items-center md:items-end justify-center gap-6 md:gap-8 ${compact ? 'p-4' : 'p-8'}`}>
+        
+        {/* Runner Up - Left on PC, middle on mobile */}
+        {runnerUp && (
+          <div className="order-2 md:order-1 flex flex-col items-center">
+            <div className="text-xs font-bold text-slate-500 uppercase tracking-wider mb-2 md:mb-4">Á quân</div>
+            <div className={`bg-gradient-to-br from-slate-100 to-gray-200 border border-slate-300 rounded-xl ${compact ? 'p-3' : 'p-4'} text-center shadow-sm w-28 sm:w-32`}>
+              <div className="text-2xl mb-2">🥈</div>
+              {runnerUp.user?.avatar_url ? (
+                <img src={runnerUp.user.avatar_url} alt="" className="w-10 h-10 sm:w-12 sm:h-12 rounded-full mx-auto mb-2 border-2 border-slate-300 object-cover" />
+              ) : (
+                <div className="w-10 h-10 sm:w-12 sm:h-12 rounded-full mx-auto mb-2 bg-slate-200 flex items-center justify-center">
+                  <User className="w-5 h-5 sm:w-6 sm:h-6 text-slate-400" />
+                </div>
+              )}
+              <div className="text-xs sm:text-sm font-bold text-slate-700 truncate w-full">
+                {shortName(runnerUp.user?.full_name) || 'Runner-up'}
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Winner - Center on PC, top on mobile */}
+        <div className="order-1 md:order-2 flex flex-col items-center justify-center">
+          <div className="text-sm font-bold text-yellow-600 uppercase tracking-wider mb-4">
+            Nhà vô địch
+          </div>
+          <div className={`bg-gradient-to-br from-yellow-100 to-amber-100 border-2 border-yellow-400 rounded-2xl ${compact ? 'p-4' : 'p-6'} text-center shadow-md min-w-[160px]`}>
+            <Trophy className="w-12 h-12 text-yellow-500 mx-auto mb-3" />
+            {winner?.user?.avatar_url ? (
+              <img src={winner.user.avatar_url} alt="" className="w-16 h-16 rounded-full mx-auto mb-3 border-2 border-yellow-400 object-cover" />
+            ) : (
+              <div className="w-16 h-16 rounded-full mx-auto mb-3 bg-yellow-200 border-2 border-yellow-400 flex items-center justify-center">
+                <User className="w-8 h-8 text-yellow-500" />
+              </div>
+            )}
+            <div className="text-lg font-bold text-yellow-800">
+              {shortName(winner?.user?.full_name) || 'Winner'}
+            </div>
+          </div>
+        </div>
+
+        {/* Semi-finalists - Right on PC, bottom on mobile */}
+        {semiLosers.length > 0 && (
+          <div className="order-3 md:order-3 flex justify-center gap-4 sm:gap-6">
+            {semiLosers.map((p, idx) => (
+              <div key={p.user_id || idx} className="flex flex-col items-center">
+                <div className="text-xs font-bold text-orange-600 uppercase tracking-wider mb-2 md:mb-4">Hạng 3-4</div>
+                <div className={`bg-gradient-to-br from-orange-50 to-amber-100 border border-orange-200 rounded-xl ${compact ? 'p-3' : 'p-4'} text-center shadow-sm w-28 sm:w-32`}>
+                  <div className="text-2xl mb-2">🥉</div>
+                  {p.user?.avatar_url ? (
+                    <img src={p.user.avatar_url} alt="" className="w-10 h-10 sm:w-12 sm:h-12 rounded-full mx-auto mb-2 border-2 border-orange-200 object-cover" />
+                  ) : (
+                    <div className="w-10 h-10 sm:w-12 sm:h-12 rounded-full mx-auto mb-2 bg-orange-200 flex items-center justify-center">
+                      <User className="w-5 h-5 sm:w-6 sm:h-6 text-orange-400" />
+                    </div>
+                  )}
+                  <div className="text-xs sm:text-sm font-bold text-orange-800 truncate w-full">
+                    {shortName(p.user?.full_name) || 'Semi-finalist'}
+                  </div>
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
+
+      </div>
+    )
+  }
+
   // Group matches by round
   const rounds = []
   for (let r = 1; r <= totalRounds; r++) {
@@ -156,28 +241,6 @@ const TournamentBracket = ({ matches, participants, totalRounds, currentRound, o
             </div>
           )
         })}
-
-        {/* Winner display */}
-        {matches.some(m => m.round === totalRounds && m.winner_id) && (() => {
-          const finalMatch = matches.find(m => m.round === totalRounds)
-          const winner = participants.find(p => p.user_id === finalMatch?.winner_id)
-          return (
-            <div className="flex flex-col items-center justify-center ml-2">
-              <div className="text-xs font-bold text-yellow-600 uppercase tracking-wider mb-3">
-                Nhà vô địch
-              </div>
-              <div className="bg-gradient-to-br from-yellow-100 to-amber-100 border-2 border-yellow-400 rounded-xl p-3 text-center shadow-sm">
-                <Trophy className="w-8 h-8 text-yellow-500 mx-auto mb-1" />
-                {winner?.user?.avatar_url && (
-                  <img src={winner.user.avatar_url} alt="" className="w-10 h-10 rounded-full mx-auto mb-1 border-2 border-yellow-400" />
-                )}
-                <div className="text-sm font-bold text-yellow-800">
-                  {shortName(winner?.user?.full_name) || 'Winner'}
-                </div>
-              </div>
-            </div>
-          )
-        })()}
       </div>
 
       {/* Mobile: stacked rounds */}
