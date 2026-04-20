@@ -911,28 +911,6 @@ const Dashboard = () => {
         </div>
       )}
 
-      {/* My Assignments Button - Only for students */}
-      {/* {profile?.role === 'user' && (
-        <Card className="bg-gradient-to-r from-blue-500 to-blue-600 text-white hover:from-blue-600 hover:to-blue-700 transition-all cursor-pointer" onClick={() => navigate('/study/my-assignments')}>
-          <Card.Content className="p-4">
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-4">
-                <div className="w-14 h-14 rounded-lg bg-white/20 backdrop-blur-sm flex items-center justify-center">
-                  <ClipboardList className="w-7 h-7 text-white" />
-                </div>
-                <div>
-                  <div className="text-sm font-semibold opacity-90">Bài tập được giao</div>
-                  <div className="font-bold text-lg">My Assignments</div>
-                </div>
-              </div>
-              <Button className="bg-white text-blue-600 hover:bg-blue-50">
-                Xem ngay
-              </Button>
-            </div>
-          </Card.Content>
-        </Card>
-      )} */}
-
       {/* Pet Display - Full width */}
       {profile && (
         <div className="mb-6 mt-6">

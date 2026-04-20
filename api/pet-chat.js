@@ -22,7 +22,7 @@ export default async function handler(req) {
   }
 
   try {
-    const { messages, model = 'moonshotai/kimi-k2-instruct', max_tokens = 500, temperature = 0.7 } = await req.json()
+    const { messages, model = 'openai/gpt-oss-120b', max_tokens = 500, temperature = 0.7 } = await req.json()
 
     const apiRes = await fetch('https://api.groq.com/openai/v1/chat/completions', {
       method: 'POST',

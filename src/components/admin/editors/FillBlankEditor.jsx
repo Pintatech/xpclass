@@ -585,7 +585,7 @@ const FillBlankEditor = ({ questions, onQuestionsChange, settings, onSettingsCha
         withHintMatches.forEach((m) => {
           const answer = m[1]
           // m[2] is the hint text, which we preserve in the display
-          const answers = answer.split(/[|/,]/).map(a => a.trim()).filter(a => a)
+          const answers = answer.split(/[|/]/).map(a => a.trim()).filter(a => a)
           const answerText = answers.length > 0 ? answers.join('|') : answer
           blanks.push({ text: '', answer: answerText, case_sensitive: false })
         })
@@ -596,7 +596,7 @@ const FillBlankEditor = ({ questions, onQuestionsChange, settings, onSettingsCha
         const noHintMatches = [...fullText.matchAll(/\[([^\]]+)\](?!\s*\()/g)]
         noHintMatches.forEach((m) => {
           const answer = m[1]
-          const answers = answer.split(/[|/,]/).map(a => a.trim()).filter(a => a)
+          const answers = answer.split(/[|/]/).map(a => a.trim()).filter(a => a)
           const answerText = answers.length > 0 ? answers.join('|') : answer
           blanks.push({ text: '', answer: answerText, case_sensitive: false })
         })

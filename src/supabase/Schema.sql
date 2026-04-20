@@ -323,19 +323,6 @@ CREATE TABLE public.exercises (
   CONSTRAINT exercises_session_id_fkey FOREIGN KEY (session_id) REFERENCES public.sessions(id),
   CONSTRAINT exercises_folder_id_fkey FOREIGN KEY (folder_id) REFERENCES public.exercise_folders(id)
 );
-CREATE TABLE public.daily_quests (
-  id uuid NOT NULL DEFAULT uuid_generate_v4(),
-  user_id uuid NOT NULL,
-  exercise_id uuid NOT NULL,
-  quest_date date NOT NULL,
-  status text NOT NULL DEFAULT 'available'::text CHECK (status = ANY (ARRAY['available'::text, 'completed'::text, 'claimed'::text])),
-  reward_xp integer DEFAULT 10,
-  created_at timestamp with time zone DEFAULT now(),
-  updated_at timestamp with time zone DEFAULT now(),
-  CONSTRAINT daily_quests_pkey PRIMARY KEY (id),
-  CONSTRAINT daily_quests_user_id_fkey FOREIGN KEY (user_id) REFERENCES public.users(id) ON DELETE CASCADE,
-  CONSTRAINT daily_quests_exercise_id_fkey FOREIGN KEY (exercise_id) REFERENCES public.exercises(id)
-);
 CREATE TABLE public.exercise_assignments (
   id uuid NOT NULL DEFAULT uuid_generate_v4(),
   exercise_id uuid,
@@ -346,25 +333,6 @@ CREATE TABLE public.exercise_assignments (
   CONSTRAINT exercise_assignments_pkey PRIMARY KEY (id),
   CONSTRAINT exercise_assignments_exercise_id_fkey FOREIGN KEY (exercise_id) REFERENCES public.exercises(id),
   CONSTRAINT exercise_assignments_session_id_fkey FOREIGN KEY (session_id) REFERENCES public.sessions(id)
-);
-CREATE TABLE public.individual_exercise_assignments (
-  id uuid NOT NULL DEFAULT uuid_generate_v4(),
-  user_id uuid NOT NULL,
-  exercise_id uuid NOT NULL,
-  assigned_by uuid,
-  assigned_at timestamp with time zone DEFAULT now(),
-  due_date timestamp with time zone,
-  status text NOT NULL DEFAULT 'assigned'::text CHECK (status = ANY (ARRAY['assigned'::text, 'in_progress'::text, 'completed'::text])),
-  completed_at timestamp with time zone,
-  score integer CHECK (score >= 0 AND score <= 100),
-  notes text,
-  priority text DEFAULT 'medium'::text CHECK (priority = ANY (ARRAY['low'::text, 'medium'::text, 'high'::text])),
-  created_at timestamp with time zone DEFAULT now(),
-  updated_at timestamp with time zone DEFAULT now(),
-  CONSTRAINT individual_exercise_assignments_pkey PRIMARY KEY (id),
-  CONSTRAINT individual_exercise_assignments_user_id_fkey FOREIGN KEY (user_id) REFERENCES auth.users(id) ON DELETE CASCADE,
-  CONSTRAINT individual_exercise_assignments_exercise_id_fkey FOREIGN KEY (exercise_id) REFERENCES public.exercises(id),
-  CONSTRAINT individual_exercise_assignments_assigned_by_fkey FOREIGN KEY (assigned_by) REFERENCES auth.users(id) ON DELETE SET NULL
 );
 CREATE TABLE public.question_attempts (
   id uuid NOT NULL DEFAULT uuid_generate_v4(),

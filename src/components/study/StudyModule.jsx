@@ -2,7 +2,6 @@ import { Routes, Route, Navigate } from 'react-router-dom'
 import UnitList from './UnitList'
 import ExerciseList from './ExerciseList'
 import UnitSessionManager from './UnitSessionManager'
-import PersonalAssignments from './PersonalAssignments'
 import FlashcardExercise from '../exercises/FlashcardExercise'
 import MultipleChoiceExercise from '../exercises/MultipleChoiceExercise'
 import FillBlankExercise from '../exercises/FillBlankExercise'
@@ -33,9 +32,6 @@ const StudyModule = () => {
       <Route path="level/:levelId" element={<UnitList />} />
       <Route path="level/:levelId/unit/:unitId" element={<UnitSessionManager />} />
       <Route path="level/:levelId/unit/:unitId/session/:sessionId" element={<ExerciseList />} />
-
-      {/* Personal Assignments */}
-      <Route path="my-assignments" element={<PersonalAssignments />} />
 
       {/* Exercise routes */}
       <Route path="flashcard" element={<FlashcardExercise />} />

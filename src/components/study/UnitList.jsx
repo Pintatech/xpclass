@@ -38,7 +38,6 @@ import ClassWarPanel from "../classwar/ClassWarPanel";
 import ClassWarBanner from "../classwar/ClassWarBanner";
 import ClassWarModal from "../classwar/ClassWarModal";
 import ClassWarSetupModal from "../classwar/ClassWarSetupModal";
-import CoursePersonalAssignments from "./CoursePersonalAssignments";
 
 // Theme-based background images for unit cards
 const getThemeBackground = (colorTheme) => {
@@ -1267,11 +1266,6 @@ const UnitList = () => {
 
             {/* Center: existing content */}
             <div className="flex-1 min-w-0">
-          {/* Personal Assignments for Students */}
-          {profile?.role === 'user' && courseExerciseIdSet.size > 0 && (
-            <CoursePersonalAssignments courseExerciseIds={courseExerciseIdSet} />
-          )}
-
           {/* Teacher filter for personal content */}
           {canCreateContent() && Object.keys(studentNameMap).length > 0 && (
             <div className="flex items-center gap-2 mb-4 flex-wrap">
