@@ -184,15 +184,12 @@ const TournamentBracket = ({ matches, participants, teams = [], totalRounds, cur
     roundRefs.current[roundNum]?.scrollIntoView({ behavior: 'smooth', inline: 'center', block: 'nearest' })
   }
 
-<<<<<<< HEAD
-  // Detect team mode from matches
   const isTeamMode = matches.some(m => m.team1_id || m.team2_id)
-=======
-  // Check if tournament has ended
-  const finalMatch = matches.find(m => m.round === totalRounds)
-  const isTournamentEnded = finalMatch && finalMatch.winner_id
 
-  if (isTournamentEnded) {
+  const finalMatch = matches.find(m => m.round === totalRounds)
+  const isTournamentEnded = finalMatch && (finalMatch.winner_id || finalMatch.team_winner_id)
+
+  if (isTournamentEnded && !isTeamMode) {
     const winnerId = finalMatch.winner_id
     const runnerUpId = winnerId === finalMatch.player1_id ? finalMatch.player2_id : finalMatch.player1_id
     const semiMatches = matches.filter(m => m.round === totalRounds - 1)
@@ -272,7 +269,6 @@ const TournamentBracket = ({ matches, participants, teams = [], totalRounds, cur
       </div>
     )
   }
->>>>>>> 71102ccf1afaeb10add06e35888ebc60200462d1
 
   // Group matches by round
   const rounds = []
@@ -320,52 +316,28 @@ const TournamentBracket = ({ matches, participants, teams = [], totalRounds, cur
             </div>
           )
         })}
-<<<<<<< HEAD
 
-        {/* Winner display */}
-        {matches.some(m => m.round === totalRounds && (m.winner_id || m.team_winner_id)) && (() => {
-          const finalMatch = matches.find(m => m.round === totalRounds)
-          if (isTeamMode) {
-            const winnerTeam = teams.find(t => t.id === finalMatch?.team_winner_id)
-            return (
-              <div className="flex flex-col items-center justify-center ml-2">
-                <div className="text-xs font-bold text-yellow-600 uppercase tracking-wider mb-3">
-                  Đội vô địch
-                </div>
-                <div className="bg-gradient-to-br from-yellow-100 to-amber-100 border-2 border-yellow-400 rounded-xl p-3 text-center shadow-sm">
-                  <Trophy className="w-8 h-8 text-yellow-500 mx-auto mb-1" />
-                  <div className="text-sm font-bold text-yellow-800">
-                    {winnerTeam?.name || 'Winner'}
-                  </div>
-                  {winnerTeam?.members && (
-                    <div className="text-[10px] text-yellow-700 mt-1">
-                      {winnerTeam.members.map(m => shortName(m.user?.full_name)).filter(Boolean).join(', ')}
-                    </div>
-                  )}
-                </div>
-              </div>
-            )
-          }
-          const winner = participants.find(p => p.user_id === finalMatch?.winner_id)
+        {isTeamMode && finalMatch?.team_winner_id && (() => {
+          const winnerTeam = teams.find(t => t.id === finalMatch.team_winner_id)
           return (
             <div className="flex flex-col items-center justify-center ml-2">
               <div className="text-xs font-bold text-yellow-600 uppercase tracking-wider mb-3">
-                Nhà vô địch
+                Đội vô địch
               </div>
               <div className="bg-gradient-to-br from-yellow-100 to-amber-100 border-2 border-yellow-400 rounded-xl p-3 text-center shadow-sm">
                 <Trophy className="w-8 h-8 text-yellow-500 mx-auto mb-1" />
-                {winner?.user?.avatar_url && (
-                  <img src={winner.user.avatar_url} alt="" className="w-10 h-10 rounded-full mx-auto mb-1 border-2 border-yellow-400" />
-                )}
                 <div className="text-sm font-bold text-yellow-800">
-                  {shortName(winner?.user?.full_name) || 'Winner'}
+                  {winnerTeam?.name || 'Winner'}
                 </div>
+                {winnerTeam?.members && (
+                  <div className="text-[10px] text-yellow-700 mt-1">
+                    {winnerTeam.members.map(m => shortName(m.user?.full_name)).filter(Boolean).join(', ')}
+                  </div>
+                )}
               </div>
             </div>
           )
         })()}
-=======
->>>>>>> 71102ccf1afaeb10add06e35888ebc60200462d1
       </div>
 
       {/* Mobile: stacked rounds */}
