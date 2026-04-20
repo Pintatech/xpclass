@@ -5,9 +5,10 @@ import { useAuth } from '../../hooks/useAuth'
 import { useStudentLevels } from '../../hooks/useStudentLevels'
 import { getVietnamDate, utcToVietnamDate } from '../../utils/vietnamTime'
 import { SimpleBadge } from '../ui/StudentBadge'
-import { Trophy, Medal, Award, Crown, Star, RefreshCw } from 'lucide-react'
+import { Trophy, Medal, Award, Crown, Star, RefreshCw, Swords } from 'lucide-react'
 import AvatarWithFrame from '../ui/AvatarWithFrame'
 import { assetUrl } from '../../hooks/useBranding';
+import PvPRankBadge from '../pvp/PvPRankBadge'
 
 const CLIP_CARD = 'polygon(10px 0, 100% 0, 100% calc(100% - 10px), calc(100% - 10px) 100%, 0 100%, 0 10px)'
 const CLIP_SM = 'polygon(6px 0, 100% 0, 100% calc(100% - 6px), calc(100% - 6px) 100%, 0 100%, 0 6px)'
@@ -37,6 +38,9 @@ const Leaderboard = () => {
   const [trainingData, setTrainingData] = useState([])
   const [trainingLoading, setTrainingLoading] = useState(false)
   const [currentTrainingRank, setCurrentTrainingRank] = useState(null)
+  const [pvpRankedData, setPvpRankedData] = useState([])
+  const [pvpRankedLoading, setPvpRankedLoading] = useState(false)
+  const [currentPvpRank, setCurrentPvpRank] = useState(null)
   const { user } = useAuth()
   const { studentLevels } = useStudentLevels()
 
@@ -602,6 +606,56 @@ const Leaderboard = () => {
     }
   }, [timeframe, settingsLoaded])
 
+  // Fetch PvP ranked leaderboard (sorted by rank level desc, points desc, wins desc)
+  const fetchPvpRankedLeaderboard = async () => {
+    try {
+      setPvpRankedLoading(true)
+      const { data: users } = await supabase
+        .from('users')
+        .select('id, full_name, email, avatar_url, pvp_rank_level, pvp_rank_points, pvp_wins, pvp_losses, user_equipment(active_title, active_frame_ratio, hide_frame)')
+        .eq('role', 'user')
+        .gt('pvp_wins', 0)
+        .order('pvp_rank_level', { ascending: false })
+        .order('pvp_rank_points', { ascending: false })
+        .order('pvp_wins', { ascending: false })
+        .limit(50)
+
+      if (!users) { setPvpRankedData([]); return }
+
+      const flat = users.map(u => {
+        const { user_equipment, ...rest } = u
+        return { ...rest, ...user_equipment }
+      })
+
+      const formatted = flat.map((u, index) => ({
+        id: u.id,
+        rank: index + 1,
+        name: u.full_name || u.email?.split('@')[0] || 'Unknown',
+        avatar: u.avatar_url,
+        frame: u.hide_frame ? null : u.active_title,
+        frameRatio: u.active_frame_ratio,
+        rankLevel: u.pvp_rank_level || 1,
+        rankPoints: u.pvp_rank_points || 0,
+        wins: u.pvp_wins || 0,
+        losses: u.pvp_losses || 0,
+        isCurrentUser: u.id === user?.id,
+      }))
+
+      setPvpRankedData(formatted)
+      setCurrentPvpRank(formatted.find(u => u.id === user?.id) || null)
+    } catch (err) {
+      console.error('Error fetching PvP ranked leaderboard:', err)
+    } finally {
+      setPvpRankedLoading(false)
+    }
+  }
+
+  useEffect(() => {
+    if (timeframe === 'pvp_ranked' && settingsLoaded) {
+      fetchPvpRankedLeaderboard()
+    }
+  }, [timeframe, settingsLoaded])
+
   // Get all-time leaderboard (existing logic)
   const getAllTimeLeaderboard = async () => {
     const { data: users, error: usersError } = await supabase
@@ -864,7 +918,8 @@ const Leaderboard = () => {
             { key: 'month', label: 'Tháng này' },
             { key: 'training', label: competitionType === 'items' && competitionItemInfo
               ? competitionItemInfo.name
-              : GAME_LABELS[competitionGameType] || 'Competition' }
+              : GAME_LABELS[competitionGameType] || 'Competition' },
+            { key: 'pvp_ranked', label: 'PvP Ranked' },
           ].filter(option => visibleTabs.includes(option.key)).map((option) => (
             <button
               key={option.key}
@@ -1073,8 +1128,139 @@ const Leaderboard = () => {
         )
       )}
 
+      {/* PvP Ranked Leaderboard */}
+      {timeframe === 'pvp_ranked' && (
+        pvpRankedLoading ? (
+          <div className="flex justify-center py-8">
+            <div className="relative w-10 h-10">
+              <div className="absolute inset-0 border-2 border-blue-200 rounded-full animate-ping opacity-30" />
+              <RefreshCw className="w-10 h-10 animate-spin text-blue-400" />
+            </div>
+          </div>
+        ) : pvpRankedData.length === 0 ? (
+          <div className="relative text-center py-8 text-gray-400 bg-white border border-gray-200" style={{ clipPath: CLIP_CARD }}>
+            <CornerBrackets />
+            <Swords className="w-10 h-10 mx-auto mb-2 text-gray-300" />
+            <p className="text-sm">Chưa có ai chơi ranked</p>
+          </div>
+        ) : (
+          <>
+            {/* Top 3 Podium */}
+            <div className="grid grid-cols-3 gap-2 md:gap-4 mb-4 md:mb-8 items-end">
+              {pvpRankedData[1] && (
+                <div className="order-1">
+                  <div className="relative text-center p-2 md:p-6 bg-gradient-to-t from-gray-200/80 to-white border border-gray-200 overflow-hidden" style={{ clipPath: CLIP_CARD }}>
+                    <CornerBrackets />
+                    <div className="mx-auto mb-2 md:mb-4 relative z-10">
+                      <AvatarWithFrame avatarUrl={pvpRankedData[1].avatar} frameUrl={pvpRankedData[1].frame} frameRatio={pvpRankedData[1].frameRatio} size={80} className="mx-auto" fallback={pvpRankedData[1].name.charAt(0).toUpperCase()} />
+                    </div>
+                    <div className="font-semibold text-gray-900 text-xs md:text-base cursor-pointer hover:text-blue-600 transition-colors break-words text-center relative z-10" onClick={() => handleProfileClick(pvpRankedData[1].id)}>
+                      {pvpRankedData[1].name}
+                    </div>
+                    <div className="flex justify-center mt-2 relative z-10">
+                      <PvPRankBadge size="small" level={pvpRankedData[1].rankLevel} points={pvpRankedData[1].rankPoints} showName={false} showLP={false} />
+                    </div>
+                    <div className="text-[11px] text-gray-600 mt-1 relative z-10">
+                      {pvpRankedData[1].wins}W / {pvpRankedData[1].losses}L
+                    </div>
+                  </div>
+                </div>
+              )}
+              {pvpRankedData[0] && (
+                <div className="order-2">
+                  <div className="relative text-center p-2 md:p-6 bg-gradient-to-t from-yellow-100/80 to-white border border-yellow-200 md:transform md:scale-105 overflow-hidden" style={{ clipPath: CLIP_CARD }}>
+                    <CornerBrackets />
+                    <Crown className="w-6 h-6 md:w-8 md:h-8 text-yellow-500 mx-auto mb-1 md:mb-2 relative z-10" />
+                    <div className="mx-auto mb-2 md:mb-4 relative z-10">
+                      <AvatarWithFrame avatarUrl={pvpRankedData[0].avatar} frameUrl={pvpRankedData[0].frame} frameRatio={pvpRankedData[0].frameRatio} size={80} className="mx-auto" fallback={pvpRankedData[0].name.charAt(0).toUpperCase()} />
+                    </div>
+                    <div className="font-semibold text-gray-900 text-xs md:text-lg cursor-pointer hover:text-blue-600 transition-colors break-words text-center relative z-10" onClick={() => handleProfileClick(pvpRankedData[0].id)}>
+                      {pvpRankedData[0].name}
+                    </div>
+                    <div className="flex justify-center mt-2 relative z-10">
+                      <PvPRankBadge size="small" level={pvpRankedData[0].rankLevel} points={pvpRankedData[0].rankPoints} showName={false} showLP={false} />
+                    </div>
+                    <div className="text-[11px] text-gray-700 font-semibold mt-1 relative z-10">
+                      {pvpRankedData[0].wins}W / {pvpRankedData[0].losses}L
+                    </div>
+                  </div>
+                </div>
+              )}
+              {pvpRankedData[2] && (
+                <div className="order-3">
+                  <div className="relative text-center p-2 md:p-6 bg-gradient-to-t from-orange-100/80 to-white border border-orange-200 overflow-hidden" style={{ clipPath: CLIP_CARD }}>
+                    <CornerBrackets />
+                    <div className="mx-auto mb-2 md:mb-4 relative z-10">
+                      <AvatarWithFrame avatarUrl={pvpRankedData[2].avatar} frameUrl={pvpRankedData[2].frame} frameRatio={pvpRankedData[2].frameRatio} size={56} className="mx-auto" fallback={pvpRankedData[2].name.charAt(0).toUpperCase()} />
+                    </div>
+                    <div className="font-semibold text-gray-900 text-xs md:text-base cursor-pointer hover:text-blue-600 transition-colors break-words text-center relative z-10" onClick={() => handleProfileClick(pvpRankedData[2].id)}>
+                      {pvpRankedData[2].name}
+                    </div>
+                    <div className="flex justify-center mt-2 relative z-10">
+                      <PvPRankBadge size="small" level={pvpRankedData[2].rankLevel} points={pvpRankedData[2].rankPoints} showName={false} showLP={false} />
+                    </div>
+                    <div className="text-[11px] text-gray-600 mt-1 relative z-10">
+                      {pvpRankedData[2].wins}W / {pvpRankedData[2].losses}L
+                    </div>
+                  </div>
+                </div>
+              )}
+            </div>
+
+            {/* Ranked list */}
+            <div className="relative bg-white border border-gray-200 overflow-hidden" style={{ clipPath: CLIP_CARD }}>
+              <CornerBrackets />
+              <div className="divide-y divide-gray-100">
+                {pvpRankedData.slice(3, 20).map((entry) => (
+                  <div key={entry.id} className={`py-2 md:py-4 px-3 md:px-4 ${getRankColor(entry.rank)} flex items-center justify-between`}>
+                    <div className="flex items-center space-x-2 md:space-x-4">
+                      <div className="flex items-center justify-center w-6 md:w-8 h-6 md:h-8">
+                        {getRankIcon(entry.rank)}
+                      </div>
+                      <AvatarWithFrame avatarUrl={entry.avatar} frameUrl={entry.frame} frameRatio={entry.frameRatio} size={48} fallback={entry.name.charAt(0).toUpperCase()} />
+                      <div className="font-medium text-gray-900 cursor-pointer hover:text-blue-600 transition-colors" onClick={() => handleProfileClick(entry.id)}>
+                        {entry.name}
+                      </div>
+                    </div>
+                    <div className="flex items-center gap-3">
+                      <PvPRankBadge size="small" level={entry.rankLevel} points={entry.rankPoints} showName={false} showLP={false} />
+                      <div className="text-right">
+                        <div className="font-semibold text-sm text-gray-900">{entry.rankPoints} LP</div>
+                        <div className="text-[10px] text-gray-500">{entry.wins}W / {entry.losses}L</div>
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            {currentPvpRank && (
+              <div className="relative bg-gradient-to-r from-purple-50 to-indigo-50 border border-purple-200 overflow-hidden" style={{ clipPath: CLIP_CARD }}>
+                <CornerBrackets />
+                <div className="flex items-center justify-between p-4">
+                  <div className="flex items-center space-x-4">
+                    <AvatarWithFrame avatarUrl={currentPvpRank.avatar} frameUrl={currentPvpRank.frame} frameRatio={currentPvpRank.frameRatio} size={48} fallback={currentPvpRank.name.charAt(0).toUpperCase()} />
+                    <div>
+                      <div className="font-semibold text-gray-900">Bạn ({currentPvpRank.name})</div>
+                      <span className="text-sm text-gray-600">Hạng #{currentPvpRank.rank}</span>
+                    </div>
+                  </div>
+                  <div className="flex items-center gap-3">
+                    <PvPRankBadge size="small" level={currentPvpRank.rankLevel} points={currentPvpRank.rankPoints} showName={false} showLP={false} />
+                    <div className="text-right">
+                      <div className="font-semibold text-gray-900">{currentPvpRank.rankPoints} LP</div>
+                      <div className="text-[10px] text-gray-500">{currentPvpRank.wins}W / {currentPvpRank.losses}L</div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            )}
+          </>
+        )
+      )}
+
       {/* Champion Reward Banner */}
-      {timeframe !== 'daily_challenge' && timeframe !== 'training' && (
+      {timeframe !== 'daily_challenge' && timeframe !== 'training' && timeframe !== 'pvp_ranked' && (
         <>
       {/* Champion Reward Banner */}
       {(timeframe === 'week' || timeframe === 'month') && (() => {

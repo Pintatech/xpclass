@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useRef } from "react";
 import { createPortal } from "react-dom";
+import { useNavigate } from "react-router-dom";
 import { supabase } from "../../supabase/client";
 import { usePet, getPetLevelFromXp } from "../../hooks/usePet";
 import { useInventory } from "../../hooks/useInventory";
@@ -66,6 +67,7 @@ const PET_MESSAGES = [
 ];
 
 const PetDisplay = () => {
+  const navigate = useNavigate();
   const {
     activePet,
     feedPet,
@@ -2325,7 +2327,7 @@ const PetDisplay = () => {
 
               <button
                 onClick={() => setShowGame('quickmatch')}
-                className={`relative flex flex-col items-center gap-2 p-4 rounded-xl border-2 border-purple-200 hover:border-purple-400 hover:bg-purple-50 transition-all group ${isStaff() ? 'col-span-full' : 'col-span-2'}`}
+                className="relative flex flex-col items-center gap-2 p-4 rounded-xl border-2 border-purple-200 hover:border-purple-400 hover:bg-purple-50 transition-all group"
               >
                 <img src={assetUrl('/icon/dashboard/pvp.png')} alt="PvP" className="w-12 h-12 object-contain group-hover:scale-110 transition-transform" />
                 <div className="flex items-center gap-1">
@@ -2335,6 +2337,17 @@ const PetDisplay = () => {
                 {pvpWaitingCount > 0 && (
                   <span className="text-[11px] text-purple-500 font-semibold animate-pulse">{pvpWaitingCount} waiting</span>
                 )}
+              </button>
+
+              <button
+                onClick={() => { setShowGame(null); navigate('/pvp/rank'); }}
+                className="relative flex flex-col items-center gap-2 p-4 rounded-xl border-2 border-yellow-200 hover:border-yellow-400 hover:bg-yellow-50 transition-all group"
+              >
+                <img src={assetUrl('/icon/dashboard/pvp.png')} alt="Ranked" className="w-12 h-12 object-contain group-hover:scale-110 transition-transform" />
+                <div className="flex items-center gap-1">
+                  <span className="font-bold text-yellow-700 text-xs">Ranked</span>
+                  <span className="text-[10px] bg-yellow-500 text-white px-1.5 py-0.5 rounded font-bold">LP</span>
+                </div>
               </button>
 
             </div>

@@ -1,12 +1,14 @@
 import React, { useState, useEffect } from 'react';
 import { supabase } from '../../supabase/client';
-import { Save, RefreshCw, Play, Pause, Trophy, Settings, X, Gift, Compass } from 'lucide-react';
+import { Save, RefreshCw, Play, Pause, Trophy, Settings, X, Gift, Compass, Swords } from 'lucide-react';
 
 import { assetUrl } from '../../hooks/useBranding';
+import PvPSeasonsAdmin from './PvPSeasonsAdmin';
 const ALL_TABS = [
   { key: 'week', label: 'Tuần này (Weekly XP)' },
   { key: 'month', label: 'Tháng này (Monthly XP)' },
   { key: 'training', label: 'Competition' },
+  { key: 'pvp_ranked', label: 'PvP Ranked' },
 ];
 
 const GAME_TYPES = [
@@ -1200,6 +1202,15 @@ const LeaderboardSettings = () => {
           )}
           {saving ? 'Saving...' : 'Save'}
         </button>
+      </div>
+
+      {/* PvP Seasons */}
+      <div className="pt-6 mt-6 border-t border-gray-200">
+        <div className="flex items-center gap-2 mb-4">
+          <Swords className="w-5 h-5 text-purple-600" />
+          <h2 className="text-lg font-bold text-gray-900">PvP Seasons</h2>
+        </div>
+        <PvPSeasonsAdmin />
       </div>
     </div>
   );
