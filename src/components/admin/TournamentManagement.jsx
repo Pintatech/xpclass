@@ -98,12 +98,23 @@ const STATUS_LABELS = {
 }
 
 // ─── Score Recording Modal ───────────────────────────────────
-const ScoreModal = ({ match, participants, onSave, onClose }) => {
-  const p1 = participants.find(p => p.user_id === match.player1_id)
-  const p2 = participants.find(p => p.user_id === match.player2_id)
+const ScoreModal = ({ match, participants, teams = [], onSave, onClose }) => {
+  const isTeamMode = !!(match.team1_id || match.team2_id)
+  const t1 = isTeamMode ? teams.find(t => t.id === match.team1_id) : null
+  const t2 = isTeamMode ? teams.find(t => t.id === match.team2_id) : null
+  const p1 = !isTeamMode ? participants.find(p => p.user_id === match.player1_id) : null
+  const p2 = !isTeamMode ? participants.find(p => p.user_id === match.player2_id) : null
+
+  const side1Id = isTeamMode ? match.team1_id : match.player1_id
+  const side2Id = isTeamMode ? match.team2_id : match.player2_id
+  const side1Name = isTeamMode ? (t1?.name || 'Team 1') : (p1?.user?.full_name || 'Player 1')
+  const side2Name = isTeamMode ? (t2?.name || 'Team 2') : (p2?.user?.full_name || 'Player 2')
+  const side1Avatar = !isTeamMode ? p1?.user?.avatar_url : null
+  const side2Avatar = !isTeamMode ? p2?.user?.avatar_url : null
+
   const [p1Score, setP1Score] = useState(match.player1_score ?? '')
   const [p2Score, setP2Score] = useState(match.player2_score ?? '')
-  const [winnerId, setWinnerId] = useState(match.winner_id || '')
+  const [winnerId, setWinnerId] = useState(isTeamMode ? (match.team_winner_id || '') : (match.winner_id || ''))
   const [saving, setSaving] = useState(false)
 
   const handleSave = async () => {
@@ -113,7 +124,7 @@ const ScoreModal = ({ match, participants, onSave, onClose }) => {
       await onSave(match.id, {
         player1_score: parseInt(p1Score) || 0,
         player2_score: parseInt(p2Score) || 0,
-        winner_id: winnerId,
+        ...(isTeamMode ? { team_winner_id: winnerId } : { winner_id: winnerId }),
       })
       onClose()
     } catch (err) {
@@ -129,48 +140,75 @@ const ScoreModal = ({ match, participants, onSave, onClose }) => {
         <h3 className="text-sm font-bold text-gray-800 mb-4">Nhập kết quả trận đấu</h3>
 
         <div className="space-y-3">
-          {/* Player 1 */}
-          <div className={`flex items-center gap-3 p-2 rounded-lg border-2 cursor-pointer transition-colors ${winnerId === match.player1_id ? 'border-green-400 bg-green-50' : 'border-gray-200'}`}
-            onClick={() => setWinnerId(match.player1_id)}>
-            <input type="radio" checked={winnerId === match.player1_id} onChange={() => setWinnerId(match.player1_id)} className="accent-green-600" />
-            {p1?.user?.avatar_url ? (
-              <img src={p1.user.avatar_url} alt="" className="w-8 h-8 rounded-full object-cover" />
-            ) : (
-              <div className="w-8 h-8 rounded-full bg-gray-200" />
+          {/* Side 1 */}
+          <div className={`p-2 rounded-lg border-2 cursor-pointer transition-colors ${winnerId === side1Id ? 'border-green-400 bg-green-50' : 'border-gray-200'}`}
+            onClick={() => setWinnerId(side1Id)}>
+            <div className="flex items-center gap-3">
+              <input type="radio" checked={winnerId === side1Id} onChange={() => setWinnerId(side1Id)} className="accent-green-600" />
+              {side1Avatar ? (
+                <img src={side1Avatar} alt="" className="w-8 h-8 rounded-full object-cover" />
+              ) : (
+                <div className="w-8 h-8 rounded-full bg-indigo-100 flex items-center justify-center text-xs font-bold text-indigo-600">
+                  {isTeamMode ? 'T' : '?'}
+                </div>
+              )}
+              <span className="text-sm font-medium text-gray-700 flex-1 truncate">{side1Name}</span>
+              <input
+                type="number" min="0" value={p1Score}
+                onChange={e => setP1Score(e.target.value)}
+                className="w-16 text-center text-sm border rounded-lg px-2 py-1 focus:ring-2 focus:ring-blue-300 focus:border-blue-400 outline-none"
+                placeholder="Điểm"
+              />
+            </div>
+            {isTeamMode && t1?.members && (
+              <div className="mt-1 pl-9 text-[10px] text-gray-400">
+                {t1.members.map(m => m.user?.full_name?.split(' ').pop()).filter(Boolean).join(', ')}
+              </div>
             )}
-            <span className="text-sm font-medium text-gray-700 flex-1 truncate">{p1?.user?.full_name || 'Player 1'}</span>
-            <input
-              type="number"
-              min="0"
-              value={p1Score}
-              onChange={e => setP1Score(e.target.value)}
-              className="w-16 text-center text-sm border rounded-lg px-2 py-1 focus:ring-2 focus:ring-blue-300 focus:border-blue-400 outline-none"
-              placeholder="Điểm"
-            />
           </div>
 
           <div className="text-center text-xs font-bold text-gray-400">VS</div>
 
-          {/* Player 2 */}
-          <div className={`flex items-center gap-3 p-2 rounded-lg border-2 cursor-pointer transition-colors ${winnerId === match.player2_id ? 'border-green-400 bg-green-50' : 'border-gray-200'}`}
-            onClick={() => setWinnerId(match.player2_id)}>
-            <input type="radio" checked={winnerId === match.player2_id} onChange={() => setWinnerId(match.player2_id)} className="accent-green-600" />
-            {p2?.user?.avatar_url ? (
-              <img src={p2.user.avatar_url} alt="" className="w-8 h-8 rounded-full object-cover" />
-            ) : (
-              <div className="w-8 h-8 rounded-full bg-gray-200" />
+          {/* Side 2 */}
+          <div className={`p-2 rounded-lg border-2 cursor-pointer transition-colors ${winnerId === side2Id ? 'border-green-400 bg-green-50' : 'border-gray-200'}`}
+            onClick={() => setWinnerId(side2Id)}>
+            <div className="flex items-center gap-3">
+              <input type="radio" checked={winnerId === side2Id} onChange={() => setWinnerId(side2Id)} className="accent-green-600" />
+              {side2Avatar ? (
+                <img src={side2Avatar} alt="" className="w-8 h-8 rounded-full object-cover" />
+              ) : (
+                <div className="w-8 h-8 rounded-full bg-indigo-100 flex items-center justify-center text-xs font-bold text-indigo-600">
+                  {isTeamMode ? 'T' : '?'}
+                </div>
+              )}
+              <span className="text-sm font-medium text-gray-700 flex-1 truncate">{side2Name}</span>
+              <input
+                type="number" min="0" value={p2Score}
+                onChange={e => setP2Score(e.target.value)}
+                className="w-16 text-center text-sm border rounded-lg px-2 py-1 focus:ring-2 focus:ring-blue-300 focus:border-blue-400 outline-none"
+                placeholder="Điểm"
+              />
+            </div>
+            {isTeamMode && t2?.members && (
+              <div className="mt-1 pl-9 text-[10px] text-gray-400">
+                {t2.members.map(m => m.user?.full_name?.split(' ').pop()).filter(Boolean).join(', ')}
+              </div>
             )}
-            <span className="text-sm font-medium text-gray-700 flex-1 truncate">{p2?.user?.full_name || 'Player 2'}</span>
-            <input
-              type="number"
-              min="0"
-              value={p2Score}
-              onChange={e => setP2Score(e.target.value)}
-              className="w-16 text-center text-sm border rounded-lg px-2 py-1 focus:ring-2 focus:ring-blue-300 focus:border-blue-400 outline-none"
-              placeholder="Điểm"
-            />
           </div>
         </div>
+
+        {match.round_scores?.length > 0 && (
+          <div className="mt-4 p-2 bg-gray-50 border border-gray-200 rounded-lg">
+            <div className="text-[10px] font-semibold text-gray-500 uppercase mb-1">Chi tiết theo lượt</div>
+            <div className="flex flex-wrap gap-1">
+              {match.round_scores.map((rs, i) => (
+                <span key={i} className={`text-[10px] font-mono px-1.5 py-0.5 rounded ${rs.winner === 1 ? 'bg-green-100 text-green-700' : rs.winner === 2 ? 'bg-red-100 text-red-700' : 'bg-gray-200 text-gray-600'}`}>
+                  L{i + 1}: {rs.p1}-{rs.p2}
+                </span>
+              ))}
+            </div>
+          </div>
+        )}
 
         <div className="flex gap-2 mt-5">
           <button onClick={onClose} className="flex-1 text-sm text-gray-600 border rounded-lg py-2 hover:bg-gray-50">Hủy</button>
@@ -208,6 +246,10 @@ const CreateForm = ({ onCreated, onCancel }) => {
   const [mode, setMode] = useState('direct') // 'direct' = pick students now, 'registration' = open for sign-up
   const [allowedLevels, setAllowedLevels] = useState([]) // empty = all levels
   const [allLevels, setAllLevels] = useState([])
+  const [tournamentMode, setTournamentMode] = useState('solo') // 'solo' | 'team'
+  const [teamSize, setTeamSize] = useState(2)
+  const [teamAssignments, setTeamAssignments] = useState([]) // [{ name, memberIds[] }]
+  const [bestOf, setBestOf] = useState(1) // 1 = single best score, 3/5/7 = best-of-N rounds
 
   const selectedIds = selectedStudents.map(s => s.id)
   const totalRounds = Math.log2(bracketSize)
@@ -323,10 +365,27 @@ const CreateForm = ({ onCreated, onCancel }) => {
   const handleSubmit = async () => {
     setError('')
     if (!name.trim()) { setError('Nhập tên giải đấu'); return }
-    if (mode === 'direct' && selectedStudents.length !== bracketSize) {
-      setError(`Chọn đúng ${bracketSize} học sinh (đã chọn ${selectedStudents.length})`)
-      return
+
+    if (mode === 'direct') {
+      if (tournamentMode === 'team') {
+        // Validate team assignments
+        if (teamAssignments.length !== bracketSize) {
+          setError(`Cần đúng ${bracketSize} đội (hiện có ${teamAssignments.length})`)
+          return
+        }
+        const emptyTeam = teamAssignments.find(t => t.memberIds.length === 0)
+        if (emptyTeam) {
+          setError(`Đội "${emptyTeam.name}" chưa có thành viên`)
+          return
+        }
+      } else {
+        if (selectedStudents.length !== bracketSize) {
+          setError(`Chọn đúng ${bracketSize} học sinh (đã chọn ${selectedStudents.length})`)
+          return
+        }
+      }
     }
+
     setSaving(true)
     try {
       if (mode === 'registration') {
@@ -343,6 +402,9 @@ const CreateForm = ({ onCreated, onCancel }) => {
           round_rewards: roundRewards,
           entry_fee: entryFee,
           allowed_levels: allowedLevels.length > 0 ? allowedLevels : null,
+          mode: tournamentMode,
+          team_size: tournamentMode === 'team' ? teamSize : 1,
+          best_of: bestOf,
         })
         if (tErr) throw tErr
       } else {
@@ -350,9 +412,13 @@ const CreateForm = ({ onCreated, onCancel }) => {
           name: name.trim(),
           bracket_size: bracketSize,
           game_type: gameType,
-          studentIds: selectedIds,
+          studentIds: tournamentMode === 'solo' ? selectedIds : [],
           round_rewards: roundRewards,
           entry_fee: entryFee,
+          mode: tournamentMode,
+          team_size: tournamentMode === 'team' ? teamSize : 1,
+          teamAssignments: tournamentMode === 'team' ? teamAssignments : [],
+          best_of: bestOf,
         })
       }
       onCreated()
@@ -399,20 +465,81 @@ const CreateForm = ({ onCreated, onCancel }) => {
         </div>
       </div>
 
+      {/* Solo / Team toggle */}
+      <div>
+        <label className="block text-xs font-semibold text-gray-600 mb-1">Loại giải đấu</label>
+        <div className="flex gap-2">
+          <button onClick={() => { setTournamentMode('solo'); setTeamAssignments([]) }}
+            className={`px-4 py-1.5 rounded-lg text-xs font-medium transition-colors ${tournamentMode === 'solo' ? 'bg-blue-600 text-white' : 'bg-gray-100 text-gray-600 hover:bg-gray-200'}`}>
+            Solo
+          </button>
+          <button onClick={() => setTournamentMode('team')}
+            className={`px-4 py-1.5 rounded-lg text-xs font-medium transition-colors ${tournamentMode === 'team' ? 'bg-blue-600 text-white' : 'bg-gray-100 text-gray-600 hover:bg-gray-200'}`}>
+            Đội (Team)
+          </button>
+        </div>
+      </div>
+
+      {/* Team Size */}
+      {tournamentMode === 'team' && (
+        <div>
+          <label className="block text-xs font-semibold text-gray-600 mb-1">Số người / đội</label>
+          <div className="flex gap-2">
+            {[2, 3, 4].map(size => (
+              <button
+                key={size}
+                onClick={() => setTeamSize(size)}
+                className={`px-4 py-1.5 rounded-lg text-sm font-bold transition-colors ${teamSize === size ? 'bg-indigo-600 text-white' : 'bg-gray-100 text-gray-600 hover:bg-gray-200'}`}
+              >
+                {size}
+              </button>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {/* Best-of-N */}
+      <div>
+        <label className="block text-xs font-semibold text-gray-600 mb-1">Thể thức</label>
+        <div className="flex gap-2">
+          {[1, 3, 5, 7].map(n => (
+            <button
+              key={n}
+              onClick={() => setBestOf(n)}
+              className={`px-4 py-1.5 rounded-lg text-xs font-medium transition-colors ${bestOf === n ? 'bg-orange-600 text-white' : 'bg-gray-100 text-gray-600 hover:bg-gray-200'}`}
+            >
+              {n === 1 ? 'Điểm cao nhất' : `Bo${n}`}
+            </button>
+          ))}
+        </div>
+        {bestOf > 1 && (
+          <p className="text-[10px] text-gray-500 mt-1">
+            Mỗi trận đấu gồm {bestOf} lượt, thắng {Math.ceil(bestOf / 2)} lượt để thắng trận (VD: 3-2, 5-0)
+          </p>
+        )}
+      </div>
+
       {/* Bracket Size */}
       <div>
-        <label className="block text-xs font-semibold text-gray-600 mb-1">Số người chơi</label>
+        <label className="block text-xs font-semibold text-gray-600 mb-1">
+          {tournamentMode === 'team' ? 'Số đội' : 'Số người chơi'}
+        </label>
         <div className="flex gap-2">
           {[4, 8, 16, 32, 64].map(size => (
             <button
               key={size}
-              onClick={() => { setBracketSize(size); setSelectedStudents([]) }}
+              onClick={() => { setBracketSize(size); setSelectedStudents([]); setTeamAssignments([]) }}
               className={`px-4 py-1.5 rounded-lg text-sm font-bold transition-colors ${bracketSize === size ? 'bg-purple-600 text-white' : 'bg-gray-100 text-gray-600 hover:bg-gray-200'}`}
             >
               {size}
             </button>
           ))}
         </div>
+        {tournamentMode === 'team' && (
+          <p className="text-[10px] text-gray-500 mt-1">
+            {bracketSize} đội × {teamSize} người = {bracketSize * teamSize} học sinh
+          </p>
+        )}
       </div>
 
       {/* Entry Fee */}
@@ -487,8 +614,8 @@ const CreateForm = ({ onCreated, onCancel }) => {
           </select>
         </div>
 
-        {/* Bracket order + matchup preview */}
-        {selectedStudents.length > 0 && (
+        {/* Bracket order + matchup preview (solo mode only — team mode uses team assignment UI) */}
+        {selectedStudents.length > 0 && tournamentMode === 'solo' && (
           <div>
             <div className="flex items-center justify-between mb-1">
               <label className="text-xs font-semibold text-gray-600">
@@ -539,6 +666,115 @@ const CreateForm = ({ onCreated, onCancel }) => {
           </div>
         )}
       </>}
+
+      {/* Team Assignment (direct + team mode) */}
+      {mode === 'direct' && tournamentMode === 'team' && selectedStudents.length > 0 && (
+        <div>
+          <div className="flex items-center justify-between mb-1">
+            <label className="text-xs font-semibold text-gray-600">
+              Chia đội ({teamAssignments.length}/{bracketSize} đội)
+            </label>
+            <button
+              onClick={() => {
+                // Auto-assign students to teams
+                const teams = []
+                const students = [...selectedStudents]
+                for (let i = 0; i < Math.ceil(students.length / teamSize); i++) {
+                  teams.push({
+                    name: `Đội ${i + 1}`,
+                    memberIds: students.slice(i * teamSize, (i + 1) * teamSize).map(s => s.id),
+                  })
+                }
+                setTeamAssignments(teams)
+              }}
+              className="text-[10px] text-indigo-600 hover:underline"
+            >
+              Tự động chia đội
+            </button>
+          </div>
+          {teamAssignments.length > 0 ? (
+            <div className="space-y-2 max-h-72 overflow-y-auto">
+              {teamAssignments.map((team, ti) => (
+                <div key={ti} className="border rounded-lg p-2 bg-white">
+                  <div className="flex items-center gap-2 mb-1">
+                    <input
+                      value={team.name}
+                      onChange={e => {
+                        const next = [...teamAssignments]
+                        next[ti] = { ...next[ti], name: e.target.value }
+                        setTeamAssignments(next)
+                      }}
+                      className="text-sm font-bold text-gray-800 border-b border-transparent focus:border-indigo-300 outline-none flex-1 bg-transparent"
+                    />
+                    <span className="text-[10px] text-gray-400">{team.memberIds.length}/{teamSize}</span>
+                  </div>
+                  <div className="space-y-0.5">
+                    {team.memberIds.map(uid => {
+                      const student = selectedStudents.find(s => s.id === uid)
+                      return (
+                        <div key={uid} className="flex items-center gap-2 text-xs text-gray-600 pl-1">
+                          <span className="w-1.5 h-1.5 rounded-full bg-indigo-400" />
+                          <span className="flex-1 truncate">{student?.full_name || 'Unknown'}</span>
+                          <button
+                            onClick={() => {
+                              const next = [...teamAssignments]
+                              next[ti] = { ...next[ti], memberIds: next[ti].memberIds.filter(id => id !== uid) }
+                              if (next[ti].memberIds.length === 0) next.splice(ti, 1)
+                              setTeamAssignments(next)
+                            }}
+                            className="text-gray-300 hover:text-red-500"
+                          >
+                            <X className="w-3 h-3" />
+                          </button>
+                        </div>
+                      )
+                    })}
+                  </div>
+                  {/* Unassigned students dropdown to add */}
+                  {team.memberIds.length < teamSize && (() => {
+                    const assignedIds = new Set(teamAssignments.flatMap(t => t.memberIds))
+                    const unassigned = selectedStudents.filter(s => !assignedIds.has(s.id))
+                    if (unassigned.length === 0) return null
+                    return (
+                      <select
+                        value=""
+                        onChange={e => {
+                          if (!e.target.value) return
+                          const next = [...teamAssignments]
+                          next[ti] = { ...next[ti], memberIds: [...next[ti].memberIds, e.target.value] }
+                          setTeamAssignments(next)
+                        }}
+                        className="mt-1 w-full border rounded px-1 py-0.5 text-[10px] text-gray-500"
+                      >
+                        <option value="">+ Thêm thành viên</option>
+                        {unassigned.map(s => <option key={s.id} value={s.id}>{s.full_name}</option>)}
+                      </select>
+                    )
+                  })()}
+                </div>
+              ))}
+              {/* Add new team */}
+              {teamAssignments.length < bracketSize && (() => {
+                const assignedIds = new Set(teamAssignments.flatMap(t => t.memberIds))
+                const unassigned = selectedStudents.filter(s => !assignedIds.has(s.id))
+                if (unassigned.length === 0) return null
+                return (
+                  <button
+                    onClick={() => {
+                      setTeamAssignments(prev => [...prev, { name: `Đội ${prev.length + 1}`, memberIds: [] }])
+                    }}
+                    className="w-full border-2 border-dashed border-gray-200 rounded-lg py-2 text-xs text-gray-400 hover:border-indigo-300 hover:text-indigo-500 transition-colors"
+                  >
+                    + Thêm đội mới
+                  </button>
+                )
+              })()}
+            </div>
+          ) : (
+            <p className="text-[10px] text-gray-400">{"Bấm \"Tự động chia đội\" hoặc thêm đội thủ công"}</p>
+          )}
+        </div>
+      )}
 
       {/* Rewards per round */}
       <div>
@@ -620,7 +856,7 @@ const CreateForm = ({ onCreated, onCancel }) => {
 
 // ─── Tournament Detail View ──────────────────────────────────
 const TournamentDetail = ({ tournamentId, onBack }) => {
-  const { tournament, participants, matches, loading, fetchTournament, recordMatchResult, advanceRound, checkMatchScores, startTournament } = useTournament()
+  const { tournament, participants, matches, teams, loading, fetchTournament, recordMatchResult, advanceRound, checkMatchScores, startTournament } = useTournament()
   const [scoreMatch, setScoreMatch] = useState(null)
   const [advancing, setAdvancing] = useState(false)
   const [advanceError, setAdvanceError] = useState('')
@@ -802,8 +1038,21 @@ const TournamentDetail = ({ tournamentId, onBack }) => {
               <Gamepad2 className="w-3 h-3 inline mr-0.5" />{GAME_TYPE_LABELS[tournament.game_type]}
             </span>
             <span className="text-xs text-gray-500">
-              <Users className="w-3 h-3 inline mr-0.5" />{tournament.bracket_size} người
+              <Users className="w-3 h-3 inline mr-0.5" />
+              {tournament.mode === 'team'
+                ? `${tournament.bracket_size} đội × ${tournament.team_size} người`
+                : `${tournament.bracket_size} người`}
             </span>
+            {tournament.mode === 'team' && (
+              <span className="text-[10px] font-bold uppercase px-2 py-0.5 rounded-full bg-indigo-100 text-indigo-700">
+                Team
+              </span>
+            )}
+            {tournament.best_of > 1 && (
+              <span className="text-[10px] font-bold uppercase px-2 py-0.5 rounded-full bg-orange-100 text-orange-700">
+                Bo{tournament.best_of}
+              </span>
+            )}
             <span className="text-xs text-gray-500">
               Vòng {tournament.current_round}/{tournament.total_rounds}
             </span>
@@ -821,7 +1070,9 @@ const TournamentDetail = ({ tournamentId, onBack }) => {
         <div className="bg-purple-50 border border-purple-200 rounded-xl p-4 space-y-3">
           <div className="flex items-center justify-between">
             <div className="text-sm font-bold text-purple-800">
-              Đang mở đăng ký: {participants.length}/{tournament.bracket_size} người
+              {tournament.mode === 'team'
+                ? `Đang mở đăng ký: ${teams.length}/${tournament.bracket_size} đội`
+                : `Đang mở đăng ký: ${participants.length}/${tournament.bracket_size} người`}
             </div>
             {tournament.allowed_levels && tournament.allowed_levels.length > 0 && (
               <span className="text-[10px] text-purple-600 bg-purple-100 px-2 py-0.5 rounded-full">
@@ -830,9 +1081,43 @@ const TournamentDetail = ({ tournamentId, onBack }) => {
             )}
           </div>
           <div className="w-full bg-purple-200 rounded-full h-2">
-            <div className="bg-purple-600 h-2 rounded-full transition-all" style={{ width: `${(participants.length / tournament.bracket_size) * 100}%` }} />
+            <div className="bg-purple-600 h-2 rounded-full transition-all" style={{
+              width: `${tournament.mode === 'team'
+                ? (teams.length / tournament.bracket_size) * 100
+                : (participants.length / tournament.bracket_size) * 100}%`
+            }} />
           </div>
-          {orderedParts.length > 0 && (
+
+          {/* Team mode: show teams */}
+          {tournament.mode === 'team' && teams.length > 0 && (
+            <div className="space-y-2 max-h-64 overflow-y-auto">
+              {teams.map((team) => (
+                <div key={team.id} className="border border-purple-200 rounded-lg bg-white p-2">
+                  <div className="flex items-center justify-between mb-1">
+                    <span className="text-xs font-bold text-gray-800">{team.name}</span>
+                    <span className="text-[10px] text-gray-400">
+                      {(team.members || []).length}/{tournament.team_size}
+                    </span>
+                  </div>
+                  <div className="space-y-0.5">
+                    {(team.members || []).map(m => (
+                      <div key={m.user_id} className="flex items-center gap-2 text-xs text-gray-600 pl-1">
+                        {m.user?.avatar_url ? (
+                          <img src={m.user.avatar_url} alt="" className="w-4 h-4 rounded-full object-cover" />
+                        ) : (
+                          <span className="w-1.5 h-1.5 rounded-full bg-indigo-400" />
+                        )}
+                        <span className="truncate">{m.user?.full_name || 'Student'}</span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+
+          {/* Solo mode: participant reorder */}
+          {tournament.mode !== 'team' && orderedParts.length > 0 && (
             <div>
               <div className="flex items-center justify-between mb-1">
                 <span className="text-[10px] font-semibold text-purple-700">
@@ -869,14 +1154,18 @@ const TournamentDetail = ({ tournamentId, onBack }) => {
           <div className="flex items-center gap-3">
             <button
               onClick={handleStart}
-              disabled={starting || participants.length !== tournament.bracket_size}
+              disabled={starting || (tournament.mode === 'team' ? teams.length !== tournament.bracket_size : participants.length !== tournament.bracket_size)}
               className="bg-green-600 text-white text-sm font-medium px-4 py-2 rounded-lg hover:bg-green-700 disabled:opacity-40 disabled:cursor-not-allowed transition-colors flex items-center gap-2"
             >
               <Zap className="w-4 h-4" />
               {starting ? 'Đang bắt đầu...' : 'Bắt đầu giải đấu'}
             </button>
-            {participants.length !== tournament.bracket_size && (
-              <span className="text-xs text-purple-600">Cần đủ {tournament.bracket_size} người để bắt đầu</span>
+            {(tournament.mode === 'team' ? teams.length !== tournament.bracket_size : participants.length !== tournament.bracket_size) && (
+              <span className="text-xs text-purple-600">
+                {tournament.mode === 'team'
+                  ? `Cần đủ ${tournament.bracket_size} đội để bắt đầu`
+                  : `Cần đủ ${tournament.bracket_size} người để bắt đầu`}
+              </span>
             )}
           </div>
           {startError && <div className="text-xs text-red-600">{startError}</div>}
@@ -925,7 +1214,28 @@ const TournamentDetail = ({ tournamentId, onBack }) => {
       )}
 
       {/* Winner Banner */}
-      {tournament.status === 'completed' && tournament.winner_id && (() => {
+      {tournament.status === 'completed' && (tournament.winner_id || tournament.winning_team_id) && (() => {
+        if (tournament.mode === 'team') {
+          const winningTeam = teams.find(t => t.id === tournament.winning_team_id)
+          return (
+            <div className="bg-gradient-to-r from-yellow-50 to-amber-50 border-2 border-yellow-300 rounded-xl p-4 flex items-center gap-3">
+              <Trophy className="w-8 h-8 text-yellow-500" />
+              <div>
+                <div className="text-xs text-yellow-600 font-semibold uppercase">Đội vô địch</div>
+                <div className="text-lg font-bold text-yellow-800">{winningTeam?.name || 'Winner'}</div>
+                {winningTeam?.members && (
+                  <div className="text-[10px] text-yellow-700 mt-0.5">
+                    {winningTeam.members.map(m => m.user?.full_name?.split(' ').pop()).filter(Boolean).join(', ')}
+                  </div>
+                )}
+              </div>
+              <div className="ml-auto text-right text-xs text-yellow-700">
+                <div>+{tournament.round_rewards?.winner?.xp || 0} XP/người</div>
+                <div>+{tournament.round_rewards?.winner?.gems || 0} Gems/người</div>
+              </div>
+            </div>
+          )
+        }
         const winner = participants.find(p => p.user_id === tournament.winner_id)
         return (
           <div className="bg-gradient-to-r from-yellow-50 to-amber-50 border-2 border-yellow-300 rounded-xl p-4 flex items-center gap-3">
@@ -947,6 +1257,7 @@ const TournamentDetail = ({ tournamentId, onBack }) => {
         <TournamentBracket
           matches={matches}
           participants={participants}
+          teams={teams}
           totalRounds={tournament.total_rounds}
           currentRound={tournament.current_round}
           onRecordScore={tournament.status === 'active' ? (match) => setScoreMatch(match) : undefined}
@@ -958,6 +1269,7 @@ const TournamentDetail = ({ tournamentId, onBack }) => {
         <ScoreModal
           match={scoreMatch}
           participants={participants}
+          teams={teams}
           onSave={handleRecordScore}
           onClose={() => setScoreMatch(null)}
         />
@@ -1036,7 +1348,15 @@ const TournamentManagement = () => {
                     {STATUS_LABELS[t.status]}
                   </span>
                   <span className="text-[11px] text-gray-500">{GAME_TYPE_LABELS[t.game_type]}</span>
-                  <span className="text-[11px] text-gray-500">{t.bracket_size} người</span>
+                  <span className="text-[11px] text-gray-500">
+                    {t.mode === 'team' ? `${t.bracket_size} đội` : `${t.bracket_size} người`}
+                  </span>
+                  {t.mode === 'team' && (
+                    <span className="text-[10px] font-bold bg-indigo-100 text-indigo-700 px-1.5 py-0.5 rounded-full">Team</span>
+                  )}
+                  {t.best_of > 1 && (
+                    <span className="text-[10px] font-bold bg-orange-100 text-orange-700 px-1.5 py-0.5 rounded-full">Bo{t.best_of}</span>
+                  )}
                   <span className="text-[11px] text-gray-500">Vòng {t.current_round}/{t.total_rounds}</span>
                   {t.entry_fee > 0 && (
                     <span className="text-[11px] text-amber-600 font-medium">{t.entry_fee} XP</span>

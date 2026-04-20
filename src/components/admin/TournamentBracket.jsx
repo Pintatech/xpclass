@@ -1,5 +1,5 @@
 import { useRef, useState, useEffect } from 'react'
-import { Trophy, User, Minus } from 'lucide-react'
+import { Trophy, User, Minus, Users } from 'lucide-react'
 
 // ─── Countdown to 10 PM ─────────────────────────────────────
 const useCountdownTo10PM = () => {
@@ -23,10 +23,6 @@ const useCountdownTo10PM = () => {
   const s = seconds % 60
   const pad = (n) => String(n).padStart(2, '0')
   return `${pad(h)}:${pad(m)}:${pad(s)}`
-}
-
-const ROUND_LABELS = {
-  1: { 1: 'Chung kết', 2: 'Bán kết', 3: 'Tứ kết', 4: 'Vòng 1' },
 }
 
 function getRoundLabel(round, totalRounds) {
@@ -68,7 +64,60 @@ const PlayerRow = ({ player, score, isWinner, participants, currentUserId }) => 
   )
 }
 
-const MatchCard = ({ match, participants, onRecordScore, compact, currentUserId }) => {
+const TeamRow = ({ teamId, score, isWinner, teams, currentUserId }) => {
+  const team = teams?.find(t => t.id === teamId)
+  const name = team?.name || 'TBD'
+  const members = team?.members || []
+  const isCurrentUserTeam = currentUserId && members.some(m => m.user_id === currentUserId)
+
+  return (
+    <div className={`px-2 py-1.5 ${isWinner ? 'bg-green-50' : isCurrentUserTeam ? 'bg-purple-50' : ''}`}>
+      <div className="flex items-center gap-2">
+        <div className={`w-6 h-6 rounded-full flex items-center justify-center flex-shrink-0 ${
+          isCurrentUserTeam ? 'bg-purple-200 ring-2 ring-purple-400'
+          : isWinner ? 'bg-green-200'
+          : teamId ? 'bg-indigo-100' : 'bg-gray-200'
+        }`}>
+          {teamId ? <Users className={`w-3 h-3 ${isCurrentUserTeam ? 'text-purple-500' : isWinner ? 'text-green-600' : 'text-indigo-500'}`} /> : <Minus className="w-3 h-3 text-gray-300" />}
+        </div>
+        <span className={`text-xs truncate flex-1 ${
+          isWinner ? 'font-bold text-green-700'
+          : isCurrentUserTeam ? 'font-bold text-purple-700'
+          : teamId ? 'text-gray-700' : 'text-gray-400 italic'
+        }`}>
+          {teamId ? name : 'TBD'}
+        </span>
+        {score != null && (
+          <span className={`text-xs font-mono font-bold ${isWinner ? 'text-green-600' : 'text-gray-500'}`}>
+            {score}
+          </span>
+        )}
+      </div>
+      {teamId && members.length > 0 && (
+        <div className="text-[9px] text-gray-400 mt-0.5 pl-8 truncate">
+          {members.map(m => shortName(m.user?.full_name)).filter(Boolean).join(', ')}
+        </div>
+      )}
+    </div>
+  )
+}
+
+const RoundScoresBar = ({ roundScores }) => {
+  if (!roundScores?.length) return null
+  return (
+    <div className="flex items-center justify-center gap-1 px-1 py-0.5 bg-gray-100 border-t border-gray-200">
+      {roundScores.map((rs, i) => (
+        <span key={i} className={`text-[9px] font-mono px-1 rounded ${rs.winner === 1 ? 'text-green-700 bg-green-100' : rs.winner === 2 ? 'text-red-700 bg-red-100' : 'text-gray-500 bg-gray-200'}`}>
+          {rs.p1}-{rs.p2}
+        </span>
+      ))}
+    </div>
+  )
+}
+
+const MatchCard = ({ match, participants, teams, onRecordScore, compact, currentUserId }) => {
+  const isTeamMode = !!(match.team1_id || match.team2_id)
+  const hasRoundScores = match.round_scores?.length > 0
   const statusColors = {
     pending: 'border-gray-200 bg-gray-50',
     ready: 'border-amber-300 bg-amber-50',
@@ -76,22 +125,46 @@ const MatchCard = ({ match, participants, onRecordScore, compact, currentUserId 
   }
 
   return (
-    <div className={`border-2 rounded-lg overflow-hidden ${statusColors[match.status] || statusColors.pending} ${compact ? 'w-36' : 'w-44'}`}>
-      <PlayerRow
-        player={match.player1_id}
-        score={match.player1_score}
-        isWinner={match.winner_id && match.winner_id === match.player1_id}
-        participants={participants}
-        currentUserId={currentUserId}
-      />
-      <div className="border-t border-gray-200" />
-      <PlayerRow
-        player={match.player2_id}
-        score={match.player2_score}
-        isWinner={match.winner_id && match.winner_id === match.player2_id}
-        participants={participants}
-        currentUserId={currentUserId}
-      />
+    <div className={`border-2 rounded-lg overflow-hidden ${statusColors[match.status] || statusColors.pending} ${compact ? 'w-36' : isTeamMode ? 'w-48' : 'w-44'}`}>
+      {isTeamMode ? (
+        <>
+          <TeamRow
+            teamId={match.team1_id}
+            score={match.player1_score}
+            isWinner={(match.team_winner_id || match.winner_id) && (match.team_winner_id === match.team1_id)}
+            teams={teams}
+            currentUserId={currentUserId}
+          />
+          {hasRoundScores && <RoundScoresBar roundScores={match.round_scores} />}
+          <div className={hasRoundScores ? '' : 'border-t border-gray-200'} />
+          <TeamRow
+            teamId={match.team2_id}
+            score={match.player2_score}
+            isWinner={(match.team_winner_id || match.winner_id) && (match.team_winner_id === match.team2_id)}
+            teams={teams}
+            currentUserId={currentUserId}
+          />
+        </>
+      ) : (
+        <>
+          <PlayerRow
+            player={match.player1_id}
+            score={match.player1_score}
+            isWinner={match.winner_id && match.winner_id === match.player1_id}
+            participants={participants}
+            currentUserId={currentUserId}
+          />
+          {hasRoundScores && <RoundScoresBar roundScores={match.round_scores} />}
+          <div className={hasRoundScores ? '' : 'border-t border-gray-200'} />
+          <PlayerRow
+            player={match.player2_id}
+            score={match.player2_score}
+            isWinner={match.winner_id && match.winner_id === match.player2_id}
+            participants={participants}
+            currentUserId={currentUserId}
+          />
+        </>
+      )}
       {onRecordScore && (match.status === 'ready' || match.status === 'completed') && (
         <button
           onClick={() => onRecordScore(match)}
@@ -104,12 +177,15 @@ const MatchCard = ({ match, participants, onRecordScore, compact, currentUserId 
   )
 }
 
-const TournamentBracket = ({ matches, participants, totalRounds, currentRound, onRecordScore, compact, currentUserId }) => {
+const TournamentBracket = ({ matches, participants, teams = [], totalRounds, currentRound, onRecordScore, compact, currentUserId }) => {
   const countdown = useCountdownTo10PM()
   const roundRefs = useRef({})
   const scrollToRound = (roundNum) => {
     roundRefs.current[roundNum]?.scrollIntoView({ behavior: 'smooth', inline: 'center', block: 'nearest' })
   }
+
+  // Detect team mode from matches
+  const isTeamMode = matches.some(m => m.team1_id || m.team2_id)
 
   // Group matches by round
   const rounds = []
@@ -147,6 +223,7 @@ const TournamentBracket = ({ matches, participants, totalRounds, currentRound, o
                     key={match.id}
                     match={match}
                     participants={participants}
+                    teams={teams}
                     onRecordScore={onRecordScore}
                     compact={compact}
                     currentUserId={currentUserId}
@@ -158,8 +235,29 @@ const TournamentBracket = ({ matches, participants, totalRounds, currentRound, o
         })}
 
         {/* Winner display */}
-        {matches.some(m => m.round === totalRounds && m.winner_id) && (() => {
+        {matches.some(m => m.round === totalRounds && (m.winner_id || m.team_winner_id)) && (() => {
           const finalMatch = matches.find(m => m.round === totalRounds)
+          if (isTeamMode) {
+            const winnerTeam = teams.find(t => t.id === finalMatch?.team_winner_id)
+            return (
+              <div className="flex flex-col items-center justify-center ml-2">
+                <div className="text-xs font-bold text-yellow-600 uppercase tracking-wider mb-3">
+                  Đội vô địch
+                </div>
+                <div className="bg-gradient-to-br from-yellow-100 to-amber-100 border-2 border-yellow-400 rounded-xl p-3 text-center shadow-sm">
+                  <Trophy className="w-8 h-8 text-yellow-500 mx-auto mb-1" />
+                  <div className="text-sm font-bold text-yellow-800">
+                    {winnerTeam?.name || 'Winner'}
+                  </div>
+                  {winnerTeam?.members && (
+                    <div className="text-[10px] text-yellow-700 mt-1">
+                      {winnerTeam.members.map(m => shortName(m.user?.full_name)).filter(Boolean).join(', ')}
+                    </div>
+                  )}
+                </div>
+              </div>
+            )
+          }
           const winner = participants.find(p => p.user_id === finalMatch?.winner_id)
           return (
             <div className="flex flex-col items-center justify-center ml-2">
@@ -208,6 +306,7 @@ const TournamentBracket = ({ matches, participants, totalRounds, currentRound, o
                     key={match.id}
                     match={match}
                     participants={participants}
+                    teams={teams}
                     onRecordScore={onRecordScore}
                     currentUserId={currentUserId}
                   />

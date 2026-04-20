@@ -146,8 +146,14 @@ const BountyDisplay = ({ roundRewards, totalRounds, itemsMap = {}, chestsMap = {
 }
 
 // ─── Registration Card (open tournament) ─────────────────────
-const RegistrationCard = ({ tournament, onRegister, isRegistered, registering, itemsMap, chestsMap }) => {
+const RegistrationCard = ({ tournament, onRegister, onCreateTeam, onJoinTeam, isRegistered, registering, itemsMap, chestsMap, regTeams }) => {
   const participantCount = tournament.participant_count?.[0]?.count || 0
+  const isTeamMode = tournament.mode === 'team'
+  const [newTeamName, setNewTeamName] = useState('')
+  const [showCreateTeam, setShowCreateTeam] = useState(false)
+
+  // For team mode: find the user's team
+  const myTeam = isTeamMode ? (regTeams || []).find(t => t.tournamentId === tournament.id && t.isMine) : null
 
   return (
     <div className="space-y-2">
@@ -163,10 +169,21 @@ const RegistrationCard = ({ tournament, onRegister, isRegistered, registering, i
                 <Gamepad2 className="w-3 h-3 inline mr-0.5" />
                 {GAME_TYPE_LABELS[tournament.game_type] || tournament.game_type}
               </span>
-              <span className="text-[10px] text-gray-500">
-                <Users className="w-3 h-3 inline mr-0.5" />
-                {participantCount}/{tournament.bracket_size}
-              </span>
+              {isTeamMode ? (
+                <span className="text-[10px] text-indigo-600 font-bold">
+                  Team {tournament.team_size}v{tournament.team_size}
+                </span>
+              ) : (
+                <span className="text-[10px] text-gray-500">
+                  <Users className="w-3 h-3 inline mr-0.5" />
+                  {participantCount}/{tournament.bracket_size}
+                </span>
+              )}
+              {tournament.best_of > 1 && (
+                <span className="text-[10px] text-orange-600 font-bold">
+                  Bo{tournament.best_of}
+                </span>
+              )}
             </div>
           </div>
         </div>
@@ -188,19 +205,92 @@ const RegistrationCard = ({ tournament, onRegister, isRegistered, registering, i
       {/* Bounty */}
       <BountyDisplay roundRewards={tournament.round_rewards} totalRounds={Math.log2(tournament.bracket_size)} itemsMap={itemsMap} chestsMap={chestsMap} />
 
-      {/* Register */}
-      {isRegistered ? (
-        <div className="w-full text-xs font-bold py-2 rounded-lg bg-green-100 text-green-700 text-center">
-          Đã đăng ký ✓
-        </div>
-      ) : (
-        <button
-          onClick={() => onRegister(tournament.id)}
-          disabled={registering || participantCount >= tournament.bracket_size}
-          className="w-full text-xs font-bold py-2 rounded-lg bg-purple-600 text-white hover:bg-purple-700 disabled:opacity-50 transition-colors"
-        >
-          {registering ? 'Đang xử lý...' : participantCount >= tournament.bracket_size ? 'Đã đầy' : 'Đăng ký tham gia'}
-        </button>
+      {/* Solo registration */}
+      {!isTeamMode && (
+        isRegistered ? (
+          <div className="w-full text-xs font-bold py-2 rounded-lg bg-green-100 text-green-700 text-center">
+            Đã đăng ký ✓
+          </div>
+        ) : (
+          <button
+            onClick={() => onRegister(tournament.id)}
+            disabled={registering || participantCount >= tournament.bracket_size}
+            className="w-full text-xs font-bold py-2 rounded-lg bg-purple-600 text-white hover:bg-purple-700 disabled:opacity-50 transition-colors"
+          >
+            {registering ? 'Đang xử lý...' : participantCount >= tournament.bracket_size ? 'Đã đầy' : 'Đăng ký tham gia'}
+          </button>
+        )
+      )}
+
+      {/* Team registration */}
+      {isTeamMode && (
+        myTeam ? (
+          <div className="w-full text-xs font-bold py-2 rounded-lg bg-green-100 text-green-700 text-center">
+            Đội: {myTeam.teamName} ✓
+          </div>
+        ) : (
+          <div className="space-y-2">
+            {/* Existing teams to join */}
+            {(regTeams || []).filter(t => t.tournamentId === tournament.id && t.memberCount < tournament.team_size).length > 0 && (
+              <div className="space-y-1">
+                <span className="text-[10px] font-semibold text-gray-500">Tham gia đội:</span>
+                {regTeams
+                  .filter(t => t.tournamentId === tournament.id && t.memberCount < tournament.team_size)
+                  .map(t => (
+                    <button
+                      key={t.teamId}
+                      onClick={() => onJoinTeam(t.teamId)}
+                      disabled={registering}
+                      className="w-full flex items-center justify-between px-3 py-1.5 border rounded-lg hover:bg-indigo-50 transition-colors text-xs disabled:opacity-50"
+                    >
+                      <span className="font-medium text-gray-700">{t.teamName}</span>
+                      <span className="text-[10px] text-gray-400">{t.memberCount}/{tournament.team_size}</span>
+                    </button>
+                  ))}
+              </div>
+            )}
+
+            {/* Create new team */}
+            {showCreateTeam ? (
+              <div className="flex gap-2">
+                <input
+                  value={newTeamName}
+                  onChange={e => setNewTeamName(e.target.value)}
+                  placeholder="Tên đội..."
+                  className="flex-1 text-xs border rounded-lg px-2 py-1.5 focus:ring-2 focus:ring-indigo-300 outline-none"
+                  onKeyDown={e => {
+                    if (e.key === 'Enter' && newTeamName.trim()) {
+                      onCreateTeam(tournament.id, newTeamName.trim())
+                      setNewTeamName('')
+                      setShowCreateTeam(false)
+                    }
+                  }}
+                />
+                <button
+                  onClick={() => {
+                    if (newTeamName.trim()) {
+                      onCreateTeam(tournament.id, newTeamName.trim())
+                      setNewTeamName('')
+                      setShowCreateTeam(false)
+                    }
+                  }}
+                  disabled={registering || !newTeamName.trim()}
+                  className="text-xs font-bold px-3 py-1.5 rounded-lg bg-indigo-600 text-white hover:bg-indigo-700 disabled:opacity-50 transition-colors"
+                >
+                  Tạo
+                </button>
+              </div>
+            ) : (
+              <button
+                onClick={() => setShowCreateTeam(true)}
+                disabled={registering}
+                className="w-full text-xs font-bold py-2 rounded-lg bg-indigo-600 text-white hover:bg-indigo-700 disabled:opacity-50 transition-colors"
+              >
+                + Tạo đội mới
+              </button>
+            )}
+          </div>
+        )
       )}
     </div>
   )
@@ -208,7 +298,7 @@ const RegistrationCard = ({ tournament, onRegister, isRegistered, registering, i
 
 // ─── Inline Bracket (active tournament) ──────────────────────
 const InlineBracket = ({ tournamentId, itemsMap, chestsMap, currentUserId }) => {
-  const { tournament, participants, matches, fetchTournament, loading } = useTournament()
+  const { tournament, participants, matches, teams, fetchTournament, loading } = useTournament()
 
   useEffect(() => {
     if (tournamentId) fetchTournament(tournamentId)
@@ -236,6 +326,22 @@ const InlineBracket = ({ tournamentId, itemsMap, chestsMap, currentUserId }) => 
           <span className="text-[11px] text-gray-500">
             Vòng {tournament.current_round}/{tournament.total_rounds}
           </span>
+          {tournament.mode === 'team' && (
+            <>
+              <span className="text-gray-300">·</span>
+              <span className="text-[10px] font-bold bg-indigo-100 text-indigo-700 px-1.5 py-0.5 rounded-full">
+                Team {tournament.team_size}v{tournament.team_size}
+              </span>
+            </>
+          )}
+          {tournament.best_of > 1 && (
+            <>
+              <span className="text-gray-300">·</span>
+              <span className="text-[10px] font-bold bg-orange-100 text-orange-700 px-1.5 py-0.5 rounded-full">
+                Bo{tournament.best_of}
+              </span>
+            </>
+          )}
         </div>
         <BountyDisplay roundRewards={tournament.round_rewards} totalRounds={tournament.total_rounds} itemsMap={itemsMap} chestsMap={chestsMap} />
       </div>
@@ -245,6 +351,7 @@ const InlineBracket = ({ tournamentId, itemsMap, chestsMap, currentUserId }) => 
         <TournamentBracket
           matches={matches}
           participants={participants}
+          teams={teams}
           totalRounds={tournament.total_rounds}
           currentRound={tournament.current_round}
           compact
@@ -258,10 +365,11 @@ const InlineBracket = ({ tournamentId, itemsMap, chestsMap, currentUserId }) => 
 // ─── Main Widget ─────────────────────────────────────────────
 const TournamentWidget = () => {
   const { user, profile } = useAuth()
-  const { fetchMyTournaments, fetchOpenTournaments, registerForTournament } = useTournament()
+  const { fetchMyTournaments, fetchOpenTournaments, registerForTournament, createTeam, joinTeam } = useTournament()
   const [activeTournaments, setActiveTournaments] = useState([])
   const [openTournaments, setOpenTournaments] = useState([])
   const [myRegistrations, setMyRegistrations] = useState(new Set())
+  const [regTeams, setRegTeams] = useState([]) // [{ tournamentId, teamId, teamName, memberCount }]
   const [loaded, setLoaded] = useState(false)
   const [registering, setRegistering] = useState(false)
   const [regError, setRegError] = useState('')
@@ -284,6 +392,33 @@ const TournamentWidget = () => {
     const cm = {}; for (const c of (chestsRes.data || [])) cm[c.id] = { name: c.name, image_url: c.image_url }
     setItemsMap(im)
     setChestsMap(cm)
+
+    // Fetch team info for team-mode registration tournaments
+    const teamModeOpen = (open || []).filter(t => t.mode === 'team')
+    if (teamModeOpen.length > 0) {
+      const teamData = []
+      for (const t of teamModeOpen) {
+        const { data: tTeams } = await supabase
+          .from('tournament_teams')
+          .select('id, name, tournament_id, members:tournament_team_members(user_id)')
+          .eq('tournament_id', t.id)
+          .order('seed')
+        for (const team of (tTeams || [])) {
+          const members = team.members || []
+          teamData.push({
+            tournamentId: team.tournament_id,
+            teamId: team.id,
+            teamName: team.name,
+            memberCount: members.length,
+            isMine: members.some(m => m.user_id === user.id),
+          })
+        }
+      }
+      setRegTeams(teamData)
+    } else {
+      setRegTeams([])
+    }
+
     setLoaded(true)
   }
 
@@ -297,6 +432,34 @@ const TournamentWidget = () => {
     setRegistering(true)
     try {
       await registerForTournament(tournamentId)
+      await loadData()
+    } catch (err) {
+      setRegError(err.message)
+      setTimeout(() => setRegError(''), 4000)
+    } finally {
+      setRegistering(false)
+    }
+  }
+
+  const handleCreateTeam = async (tournamentId, teamName) => {
+    setRegError('')
+    setRegistering(true)
+    try {
+      await createTeam(tournamentId, teamName)
+      await loadData()
+    } catch (err) {
+      setRegError(err.message)
+      setTimeout(() => setRegError(''), 4000)
+    } finally {
+      setRegistering(false)
+    }
+  }
+
+  const handleJoinTeam = async (teamId) => {
+    setRegError('')
+    setRegistering(true)
+    try {
+      await joinTeam(teamId)
       await loadData()
     } catch (err) {
       setRegError(err.message)
@@ -350,9 +513,12 @@ const TournamentWidget = () => {
                 tournament={t}
                 isRegistered={myRegistrations.has(t.id)}
                 onRegister={handleRegister}
+                onCreateTeam={handleCreateTeam}
+                onJoinTeam={handleJoinTeam}
                 registering={registering}
                 itemsMap={itemsMap}
                 chestsMap={chestsMap}
+                regTeams={regTeams}
               />
             ))}
           </>

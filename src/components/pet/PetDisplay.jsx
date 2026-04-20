@@ -1628,8 +1628,9 @@ const PetDisplay = () => {
             {/* Food Bowl - Bottom Right */}
             <div className="absolute bottom-36 right-2 z-10">
               <div
-                className="w-12 h-12 transition-all cursor-default"
+                className="w-12 h-12 transition-all cursor-pointer hover:scale-110"
                 title="Food bowl"
+                onClick={() => setShowFeedMenu((v) => !v)}
               >
                 <img
                   src={profile?.active_bowl_url ? (profile.active_bowl_url.startsWith('http') ? profile.active_bowl_url : assetUrl(profile.active_bowl_url)) : "https://png.pngtree.com/png-clipart/20220111/original/pngtree-dog-food-bowl-png-image_7072429.png"}
@@ -1638,8 +1639,8 @@ const PetDisplay = () => {
                 />
               </div>
 
-              {/* Feed Menu - disabled temporarily */}
-              {false && showFeedMenu && (
+              {/* Feed Menu */}
+              {showFeedMenu && (
                 <>
                   {/* Overlay to close menu when clicking outside */}
                   <div

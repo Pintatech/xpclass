@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback, useRef } from 'react'
 import { useMissions } from '../../hooks/useMissions'
 import { useAuth } from '../../hooks/useAuth'
+import { useInventory } from '../../hooks/useInventory'
 import { assetUrl } from '../../hooks/useBranding'
 import ClaimCelebration from '../ui/ClaimCelebration'
 import {
@@ -80,6 +81,7 @@ const CLIP_BTN = 'polygon(8px 0, 100% 0, calc(100% - 8px) 100%, 0 100%)'
 const MissionBoard = () => {
   const { profile } = useAuth()
   const { missions, loading, unclaimedCount, fetchMissions, claimReward, claimAllRewards } = useMissions()
+  const { fetchUnopenedChests, fetchInventory } = useInventory()
   const [activeTab, setActiveTab] = useState('daily')
   const [claimingId, setClaimingId] = useState(null)
   const [claimingAll, setClaimingAll] = useState(false)
@@ -95,11 +97,17 @@ const MissionBoard = () => {
     return () => clearTimeout(t)
   }, [])
 
+  const refreshInventoryAfterClaim = () => {
+    fetchUnopenedChests()
+    fetchInventory()
+  }
+
   const handleClaim = async (userMissionId) => {
     setClaimingId(userMissionId)
     try {
       const result = await claimReward(userMissionId)
       if (result?.success) {
+        refreshInventoryAfterClaim()
         setClaimResult({
           xp: result.xp_earned,
           gems: result.gems_earned,
@@ -116,6 +124,7 @@ const MissionBoard = () => {
     try {
       const result = await claimAllRewards()
       if (result?.success && result.claimed_count > 0) {
+        refreshInventoryAfterClaim()
         setClaimResult({
           xp: result.total_xp,
           gems: result.total_gems,
