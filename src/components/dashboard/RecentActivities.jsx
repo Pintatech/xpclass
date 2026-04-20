@@ -17,13 +17,14 @@ const MISSION_IMAGE_MAP = {
   'swords': '/icon/dashboard/pvp.png',
   'gamepad-2': '/image/dashboard/pet-type.webp',
   'book-open': '/image/dashboard/match1.png',
-  'graduation-cap': '/pet-game/mole-whacked.png',
+  'graduation-cap': '/pet-game/whack/mole-whacked.png',
   'zap': '/image/chest/legendary-chest.png',
-  'gem': '/image/study/gem.png',
+  'gem': '/pet-game/astro/alien1.png',
   'medal': '/image/dashboard/pet-train.svg',
   'gift': '/image/dashboard/pet-scramble.jpg',
   'package-open': '/image/inventory/spaceships/phantom-voyager.png',
   'joystick': '/image/pet/game-win.png',
+  'fish': '/pet-display/game-logo/fish.png',
 }
 const DEFAULT_MISSION_IMAGE = '/icon/dashboard/wow.svg'
 const getMissionImage = (iconName) => MISSION_IMAGE_MAP[iconName] || DEFAULT_MISSION_IMAGE
