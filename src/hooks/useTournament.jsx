@@ -82,7 +82,7 @@ export function useTournament() {
   }, [])
 
   // Create tournament with bracket
-  const createTournament = useCallback(async ({ name, bracket_size, game_type, studentIds, round_rewards = {}, entry_fee = 0, mode = 'solo', team_size = 1, teamAssignments = [], best_of = 1 }) => {
+  const createTournament = useCallback(async ({ name, info = null, bracket_size, game_type, studentIds, round_rewards = {}, entry_fee = 0, mode = 'solo', team_size = 1, teamAssignments = [], best_of = 1 }) => {
     const total_rounds = Math.log2(bracket_size)
 
     if (mode === 'team') {
@@ -107,6 +107,7 @@ export function useTournament() {
       // 1. Insert tournament
       const { data: t, error: tErr } = await supabase.from('tournaments').insert({
         name,
+        info,
         bracket_size,
         game_type,
         total_rounds,
@@ -202,6 +203,7 @@ export function useTournament() {
 
     const { data: t, error: tErr } = await supabase.from('tournaments').insert({
       name,
+      info,
       bracket_size,
       game_type,
       total_rounds,

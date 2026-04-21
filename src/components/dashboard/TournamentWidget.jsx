@@ -202,6 +202,13 @@ const RegistrationCard = ({ tournament, onRegister, onCreateTeam, onJoinTeam, is
         <div className="bg-purple-500 h-1.5 rounded-full transition-all" style={{ width: `${(participantCount / tournament.bracket_size) * 100}%` }} />
       </div>
 
+      {/* Info / Description */}
+      {tournament.info && (
+        <div className="text-[11px] text-gray-600 whitespace-pre-wrap bg-purple-50/70 border border-purple-100 rounded-md px-2.5 py-1.5">
+          {tournament.info}
+        </div>
+      )}
+
       {/* Bounty */}
       <BountyDisplay roundRewards={tournament.round_rewards} totalRounds={Math.log2(tournament.bracket_size)} itemsMap={itemsMap} chestsMap={chestsMap} />
 
@@ -343,6 +350,11 @@ const InlineBracket = ({ tournamentId, itemsMap, chestsMap, currentUserId }) => 
             </>
           )}
         </div>
+        {tournament.info && (
+          <div className="mt-2 text-[11px] text-gray-600 whitespace-pre-wrap bg-purple-50/70 border border-purple-100 rounded-md px-2.5 py-1.5">
+            {tournament.info}
+          </div>
+        )}
         <BountyDisplay roundRewards={tournament.round_rewards} totalRounds={tournament.total_rounds} itemsMap={itemsMap} chestsMap={chestsMap} />
       </div>
 

@@ -230,6 +230,7 @@ const CreateForm = ({ onCreated, onCancel }) => {
   const { createTournament } = useTournament()
 
   const [name, setName] = useState('')
+  const [info, setInfo] = useState('')
   const [gameType, setGameType] = useState('wordtype')
   const [bracketSize, setBracketSize] = useState(8)
   const [courses, setCourses] = useState([])
@@ -393,6 +394,7 @@ const CreateForm = ({ onCreated, onCancel }) => {
         const total_rounds = Math.log2(bracketSize)
         const { error: tErr } = await supabase.from('tournaments').insert({
           name: name.trim(),
+          info: info.trim() || null,
           bracket_size: bracketSize,
           game_type: gameType,
           total_rounds,
@@ -410,6 +412,7 @@ const CreateForm = ({ onCreated, onCancel }) => {
       } else {
         await createTournament({
           name: name.trim(),
+          info: info.trim() || null,
           bracket_size: bracketSize,
           game_type: gameType,
           studentIds: tournamentMode === 'solo' ? selectedIds : [],
@@ -446,6 +449,18 @@ const CreateForm = ({ onCreated, onCancel }) => {
           onChange={e => setName(e.target.value)}
           className="w-full border rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-blue-300 focus:border-blue-400 outline-none"
           placeholder="VD: Giải Word Type mùa xuân"
+        />
+      </div>
+
+      {/* Info / Description */}
+      <div>
+        <label className="block text-xs font-semibold text-gray-600 mb-1">Thông tin / Mô tả (tùy chọn)</label>
+        <textarea
+          value={info}
+          onChange={e => setInfo(e.target.value)}
+          rows={3}
+          className="w-full border rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-blue-300 focus:border-blue-400 outline-none resize-none"
+          placeholder="VD: Luật chơi, lịch thi đấu, ghi chú cho học sinh..."
         />
       </div>
 
@@ -1062,6 +1077,11 @@ const TournamentDetail = ({ tournamentId, onBack }) => {
               </span>
             )}
           </div>
+          {tournament.info && (
+            <div className="mt-2 text-xs text-gray-600 whitespace-pre-wrap bg-gray-50 border border-gray-200 rounded-lg px-3 py-2">
+              {tournament.info}
+            </div>
+          )}
         </div>
       </div>
 
