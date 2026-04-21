@@ -4,7 +4,6 @@ import { supabase } from '../../supabase/client'
 import { useAuth } from '../../hooks/useAuth'
 import { useStudentLevels } from '../../hooks/useStudentLevels'
 import { getVietnamDate, utcToVietnamDate } from '../../utils/vietnamTime'
-import { SimpleBadge } from '../ui/StudentBadge'
 import { Trophy, Medal, Award, Crown, Star, RefreshCw, Swords } from 'lucide-react'
 import AvatarWithFrame from '../ui/AvatarWithFrame'
 import { assetUrl } from '../../hooks/useBranding';
@@ -30,7 +29,6 @@ const Leaderboard = () => {
   const [currentUserRank, setCurrentUserRank] = useState(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState(null)
-  const [showBadgeInfo, setShowBadgeInfo] = useState(null)
   const [countdownText, setCountdownText] = useState('')
   const [weeklyChampionRewards, setWeeklyChampionRewards] = useState([]) // top 1/2/3
   const [monthlyChampionRewards, setMonthlyChampionRewards] = useState([]) // top 1/2/3
@@ -202,14 +200,6 @@ const Leaderboard = () => {
     }
     fetchLeaderboardSettings()
   }, [])
-
-
-  // Handle badge click for mobile
-  const handleBadgeClick = (badge) => {
-    setShowBadgeInfo(badge)
-    // Auto-hide after 3 seconds
-    setTimeout(() => setShowBadgeInfo(null), 3000)
-  }
 
   // Handle profile navigation
   const handleProfileClick = (userId) => {
@@ -435,6 +425,8 @@ const Leaderboard = () => {
           xp: timeframe === 'all' ? (user.xp || 0) : timeframeXp,
           totalXp: user.xp || 0, // Always show total XP for level calculation
           level: levelInfo.level,
+          rankLevel: user.pvp_rank_level || 1,
+          rankPoints: user.pvp_rank_points || 0,
           badge: {
             ...levelInfo.badge,
             levelNumber: levelInfo.level
@@ -489,7 +481,7 @@ const Leaderboard = () => {
 
         const { data: users } = await supabase
           .from('users')
-          .select('id, full_name, email, avatar_url, xp, user_equipment(active_title, active_frame_ratio, hide_frame)')
+          .select('id, full_name, email, avatar_url, xp, pvp_rank_level, pvp_rank_points, user_equipment(active_title, active_frame_ratio, hide_frame)')
           .in('id', userIds)
           .eq('role', 'user')
 
@@ -515,6 +507,8 @@ const Leaderboard = () => {
             avatar: u.avatar_url,
             frame: u.hide_frame ? null : u.active_title,
             frameRatio: u.active_frame_ratio,
+            rankLevel: u.pvp_rank_level || 1,
+            rankPoints: u.pvp_rank_points || 0,
             badge: { ...levelInfo.badge, levelNumber: levelInfo.level },
             isCurrentUser: u.id === user?.id
           }
@@ -559,7 +553,7 @@ const Leaderboard = () => {
 
         const { data: users } = await supabase
           .from('users')
-          .select('id, full_name, email, avatar_url, xp, user_equipment(active_title, active_frame_ratio, hide_frame)')
+          .select('id, full_name, email, avatar_url, xp, pvp_rank_level, pvp_rank_points, user_equipment(active_title, active_frame_ratio, hide_frame)')
           .in('id', userIds)
           .eq('role', 'user')
 
@@ -585,6 +579,8 @@ const Leaderboard = () => {
             avatar: u.avatar_url,
             frame: u.hide_frame ? null : u.active_title,
             frameRatio: u.active_frame_ratio,
+            rankLevel: u.pvp_rank_level || 1,
+            rankPoints: u.pvp_rank_points || 0,
             badge: { ...levelInfo.badge, levelNumber: levelInfo.level },
             isCurrentUser: u.id === user?.id
           }
@@ -660,7 +656,7 @@ const Leaderboard = () => {
   const getAllTimeLeaderboard = async () => {
     const { data: users, error: usersError } = await supabase
       .from('users')
-      .select('id, email, full_name, xp, streak_count, avatar_url, user_equipment(active_title, active_frame_ratio, hide_frame)')
+      .select('id, email, full_name, xp, streak_count, avatar_url, pvp_rank_level, pvp_rank_points, user_equipment(active_title, active_frame_ratio, hide_frame)')
       .eq('role', 'user')
       .order('xp', { ascending: false })
       .limit(10)
@@ -699,7 +695,7 @@ const Leaderboard = () => {
     // First get all users
     const { data: users, error: usersError } = await supabase
       .from('users')
-      .select('id, email, full_name, xp, streak_count, avatar_url, user_equipment(active_title, active_frame_ratio, hide_frame)')
+      .select('id, email, full_name, xp, streak_count, avatar_url, pvp_rank_level, pvp_rank_points, user_equipment(active_title, active_frame_ratio, hide_frame)')
       .eq('role', 'user')
       .limit(500)
 
@@ -1028,6 +1024,9 @@ const Leaderboard = () => {
                         <div className="font-semibold text-gray-900 text-xs md:text-base cursor-pointer hover:text-blue-600 transition-colors break-words text-center relative z-10" onClick={() => handleProfileClick(trainingData[1].id)}>
                           {trainingData[1].name}
                         </div>
+                        <div className="hidden md:flex items-center justify-center mt-2 relative z-10">
+                          <PvPRankBadge size="small" level={trainingData[1].rankLevel} points={trainingData[1].rankPoints} showName={false} showLP={false} container={false} className="scale-110" />
+                        </div>
                         <div className="text-sm md:text-lg font-semibold text-gray-700 mt-1 md:mt-2 relative z-10">
                           {trainingData[1].xp}{competitionType !== 'items' && ' điểm'}
                         </div>
@@ -1047,6 +1046,9 @@ const Leaderboard = () => {
                         </div>
                         <div className="font-semibold text-gray-900 text-xs md:text-lg cursor-pointer hover:text-blue-600 transition-colors break-words text-center relative z-10" onClick={() => handleProfileClick(trainingData[0].id)}>
                           {trainingData[0].name}
+                        </div>
+                        <div className="hidden md:flex items-center justify-center mt-2 relative z-10">
+                          <PvPRankBadge size="small" level={trainingData[0].rankLevel} points={trainingData[0].rankPoints} showName={false} showLP={false} container={false} className="scale-125" />
                         </div>
                         <div className="text-sm md:text-xl font-semibold text-gray-900 mt-1 md:mt-2 relative z-10">
                           {trainingData[0].xp}{competitionType !== 'items' && ' điểm'}
@@ -1073,6 +1075,9 @@ const Leaderboard = () => {
                         <div className="font-semibold text-gray-900 text-xs md:text-base cursor-pointer hover:text-blue-600 transition-colors break-words text-center relative z-10" onClick={() => handleProfileClick(trainingData[2].id)}>
                           {trainingData[2].name}
                         </div>
+                        <div className="hidden md:flex items-center justify-center mt-2 relative z-10">
+                          <PvPRankBadge size="small" level={trainingData[2].rankLevel} points={trainingData[2].rankPoints} showName={false} showLP={false} container={false} className="scale-110" />
+                        </div>
                         <div className="text-sm md:text-lg font-semibold text-gray-700 mt-1 md:mt-2 relative z-10">
                           {trainingData[2].xp}{competitionType !== 'items' && ' điểm'}
                         </div>
@@ -1091,7 +1096,12 @@ const Leaderboard = () => {
                           <div className="flex items-center justify-center w-6 md:w-8 h-6 md:h-8">
                             {getRankIcon(entry.rank)}
                           </div>
-                          <AvatarWithFrame avatarUrl={entry.avatar} frameUrl={entry.frame} frameRatio={entry.frameRatio} size={48} fallback={entry.name.charAt(0).toUpperCase()} />
+                          <div className="relative">
+                            <AvatarWithFrame avatarUrl={entry.avatar} frameUrl={entry.frame} frameRatio={entry.frameRatio} size={48} fallback={entry.name.charAt(0).toUpperCase()} />
+                            <div className="absolute -bottom-2 -right-2 scale-75 md:scale-90 pointer-events-none">
+                              <PvPRankBadge size="small" level={entry.rankLevel} points={entry.rankPoints} showName={false} showLP={false} container={false} />
+                            </div>
+                          </div>
                           <div>
                             <div className="font-medium text-gray-900 cursor-pointer hover:text-blue-600 transition-colors" onClick={() => handleProfileClick(entry.id)}>
                               {entry.name}
@@ -1112,7 +1122,12 @@ const Leaderboard = () => {
                     <CornerBrackets />
                     <div className="flex items-center justify-between p-4">
                       <div className="flex items-center space-x-4">
-                        <AvatarWithFrame avatarUrl={currentTrainingRank.avatar} frameUrl={currentTrainingRank.frame} frameRatio={currentTrainingRank.frameRatio} size={48} fallback={currentTrainingRank.name.charAt(0).toUpperCase()} />
+                        <div className="relative">
+                          <AvatarWithFrame avatarUrl={currentTrainingRank.avatar} frameUrl={currentTrainingRank.frame} frameRatio={currentTrainingRank.frameRatio} size={48} fallback={currentTrainingRank.name.charAt(0).toUpperCase()} />
+                          <div className="absolute -bottom-2 -right-2 scale-75 md:scale-90 pointer-events-none">
+                            <PvPRankBadge size="small" level={currentTrainingRank.rankLevel} points={currentTrainingRank.rankPoints} showName={false} showLP={false} container={false} />
+                          </div>
+                        </div>
                         <div>
                           <div className="font-semibold text-gray-900">Bạn ({currentTrainingRank.name})</div>
                           <span className="text-sm text-gray-600">Hạng #{currentTrainingRank.rank}</span>
@@ -1367,14 +1382,8 @@ const Leaderboard = () => {
                 >
                   {leaderboardData[1].name}
                 </div>
-                <div className="hidden md:flex items-center justify-center mt-1 md:mt-2 relative z-10">
-                  <div
-                    title={leaderboardData[1].badge.name}
-                    onClick={() => handleBadgeClick(leaderboardData[1].badge)}
-                    className="cursor-pointer"
-                  >
-                    <SimpleBadge badge={leaderboardData[1].badge} size="xs" showName={false} />
-                  </div>
+                <div className="hidden md:flex items-center justify-center mt-2 relative z-10">
+                  <PvPRankBadge size="small" level={leaderboardData[1].rankLevel} points={leaderboardData[1].rankPoints} showName={false} showLP={false} container={false} className="scale-110" />
                 </div>
                 <div className="text-sm md:text-lg font-semibold text-gray-700 mt-1 md:mt-2 relative z-10">
                   <div className="flex items-center justify-center gap-1">
@@ -1414,14 +1423,8 @@ const Leaderboard = () => {
                 >
                   {leaderboardData[0].name}
                 </div>
-                <div className="hidden md:flex items-center justify-center mt-1 md:mt-2 relative z-10">
-                  <div
-                    title={leaderboardData[0].badge.name}
-                    onClick={() => handleBadgeClick(leaderboardData[0].badge)}
-                    className="cursor-pointer"
-                  >
-                    <SimpleBadge badge={leaderboardData[0].badge} size="medium" showName={false} />
-                  </div>
+                <div className="hidden md:flex items-center justify-center mt-2 relative z-10">
+                  <PvPRankBadge size="small" level={leaderboardData[0].rankLevel} points={leaderboardData[0].rankPoints} showName={false} showLP={false} container={false} className="scale-125" />
                 </div>
                 <div className="text-sm md:text-xl font-semibold text-gray-900 mt-1 md:mt-2 relative z-10">
                   <div className="flex items-center justify-center gap-1">
@@ -1464,14 +1467,8 @@ const Leaderboard = () => {
                 >
                   {leaderboardData[2].name}
                 </div>
-                <div className="hidden md:flex items-center justify-center mt-1 md:mt-2 relative z-10">
-                  <div
-                    title={leaderboardData[2].badge.name}
-                    onClick={() => handleBadgeClick(leaderboardData[2].badge)}
-                    className="cursor-pointer"
-                  >
-                    <SimpleBadge badge={leaderboardData[2].badge} size="small" showName={false} />
-                  </div>
+                <div className="hidden md:flex items-center justify-center mt-2 relative z-10">
+                  <PvPRankBadge size="small" level={leaderboardData[2].rankLevel} points={leaderboardData[2].rankPoints} showName={false} showLP={false} container={false} className="scale-110" />
                 </div>
                 <div className="text-sm md:text-lg font-semibold text-gray-700 mt-1 md:mt-2 relative z-10">
                   <div className="flex items-center justify-center gap-1">
@@ -1507,12 +1504,8 @@ const Leaderboard = () => {
                     size={48}
                     fallback={user.name.charAt(0).toUpperCase()}
                   />
-                  <div
-                    className="absolute -bottom-1 -right-1 cursor-pointer scale-75 md:scale-100"
-                    title={user.badge.name}
-                    onClick={() => handleBadgeClick(user.badge)}
-                  >
-                    <SimpleBadge badge={user.badge} size="xs" showName={false} />
+                  <div className="absolute -bottom-2 -right-2 scale-75 md:scale-90 pointer-events-none">
+                    <PvPRankBadge size="small" level={user.rankLevel} points={user.rankPoints} showName={false} showLP={false} container={false} />
                   </div>
                 </div>
 
@@ -1543,25 +1536,21 @@ const Leaderboard = () => {
           <CornerBrackets />
           <div className="flex items-center justify-between p-4">
             <div className="flex items-center space-x-4">
-              <AvatarWithFrame
-                avatarUrl={currentUserRank.avatar}
-                frameUrl={currentUserRank.frame}
-                frameRatio={currentUserRank.frameRatio}
-                size={48}
-                fallback={currentUserRank.name.charAt(0).toUpperCase()}
-              />
+              <div className="relative">
+                <AvatarWithFrame
+                  avatarUrl={currentUserRank.avatar}
+                  frameUrl={currentUserRank.frame}
+                  frameRatio={currentUserRank.frameRatio}
+                  size={48}
+                  fallback={currentUserRank.name.charAt(0).toUpperCase()}
+                />
+                <div className="absolute -bottom-2 -right-2 scale-75 md:scale-90 pointer-events-none">
+                  <PvPRankBadge size="small" level={currentUserRank.rankLevel} points={currentUserRank.rankPoints} showName={false} showLP={false} container={false} />
+                </div>
+              </div>
               <div>
                 <div className="font-semibold text-gray-900">Bạn ({currentUserRank.name})</div>
-                <div className="flex items-center space-x-2 mt-1">
-                  <span className="text-sm text-gray-600">Hạng #{currentUserRank.rank}</span>
-                  <div
-                    title={currentUserRank.badge.name}
-                    onClick={() => handleBadgeClick(currentUserRank.badge)}
-                    className="cursor-pointer"
-                  >
-                    <SimpleBadge badge={currentUserRank.badge} size="small" showName={false} />
-                  </div>
-                </div>
+                <span className="text-sm text-gray-600">Hạng #{currentUserRank.rank}</span>
               </div>
             </div>
             <div className="text-right">
@@ -1689,33 +1678,6 @@ const Leaderboard = () => {
         </div>
       )}
       </>
-      )}
-
-      {/* Badge Info Modal for Mobile */}
-      {showBadgeInfo && (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 md:hidden">
-          <div className="relative bg-white border border-gray-200 p-6 mx-4 max-w-sm w-full" style={{ clipPath: CLIP_CARD }}>
-            <CornerBrackets />
-            <div className="text-center">
-              <div className="mb-4">
-                <SimpleBadge badge={showBadgeInfo} size="large" showName={false} />
-              </div>
-              <h3 className="text-lg font-semibold text-gray-900 mb-2">
-                {showBadgeInfo.name}
-              </h3>
-              <p className="text-sm text-gray-600">
-                Tier: {showBadgeInfo.tier.charAt(0).toUpperCase() + showBadgeInfo.tier.slice(1)}
-              </p>
-              <button
-                onClick={() => setShowBadgeInfo(null)}
-                className="mt-4 px-6 py-2 bg-blue-600 text-white text-sm font-medium hover:bg-blue-700 transition-colors"
-                style={{ clipPath: CLIP_BTN }}
-              >
-                Đóng
-              </button>
-            </div>
-          </div>
-        </div>
       )}
     </div>
   )

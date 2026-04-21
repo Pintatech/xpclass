@@ -32,6 +32,19 @@ const GAME_LABELS = {
   fishing: 'Fishing',
 }
 
+const CLIP_CARD = 'polygon(10px 0, 100% 0, 100% calc(100% - 10px), calc(100% - 10px) 100%, 0 100%, 0 10px)'
+const CLIP_SM = 'polygon(6px 0, 100% 0, 100% calc(100% - 6px), calc(100% - 6px) 100%, 0 100%, 0 6px)'
+const CLIP_BTN = 'polygon(5px 0, 100% 0, 100% calc(100% - 5px), calc(100% - 5px) 100%, 0 100%, 0 5px)'
+
+const CornerBrackets = () => (
+  <>
+    <div className="absolute top-0 left-[10px] w-5 h-[1px] bg-gradient-to-r from-blue-300/40 to-transparent" />
+    <div className="absolute top-0 left-[10px] w-[1px] h-5 bg-gradient-to-b from-blue-300/40 to-transparent" />
+    <div className="absolute bottom-0 right-[10px] w-5 h-[1px] bg-gradient-to-l from-blue-300/40 to-transparent" />
+    <div className="absolute bottom-0 right-[10px] w-[1px] h-5 bg-gradient-to-t from-blue-300/40 to-transparent" />
+  </>
+)
+
 const RankedMatch = ({ onClose }) => {
   const { user, profile } = useAuth()
   const { activePet, drainPetEnergy, userEnergy } = usePet()
@@ -225,43 +238,45 @@ const RankedMatch = ({ onClose }) => {
   if (phase === 'playing') return renderGame()
 
   return createPortal(
-    <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-black/70 backdrop-blur-sm">
-      <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md mx-4 overflow-hidden relative">
+    <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-black/70 backdrop-blur-md p-4">
+      <div className="bg-gradient-to-br from-gray-900 via-purple-900 to-gray-900 border border-white/10 shadow-[0_0_40px_rgba(0,0,0,0.5)] w-full max-w-md overflow-hidden relative text-white" style={{ clipPath: CLIP_CARD }}>
+        <CornerBrackets />
         {phase === 'intro' && claimedRow ? (
           <button
             onClick={handleForfeit}
-            className="absolute top-3 right-3 px-3 py-1.5 rounded-full bg-red-500 hover:bg-red-600 text-white text-[11px] font-bold uppercase tracking-wide shadow z-20"
+            className="absolute top-3 right-3 px-3 py-1.5 bg-red-500/20 hover:bg-red-500/40 text-red-400 border border-red-500/50 text-[11px] font-bold uppercase tracking-wide transition-all z-20"
+            style={{ clipPath: CLIP_BTN }}
           >
             Forfeit
           </button>
         ) : (
-          <button onClick={safeClose} className="absolute top-3 right-3 p-1.5 rounded-full bg-white/90 hover:bg-white shadow z-20">
+          <button onClick={safeClose} className="absolute top-3 right-3 p-1.5 bg-white/10 hover:bg-white/20 border border-white/10 text-white/80 hover:text-white transition-all z-20" style={{ clipPath: CLIP_BTN }}>
             <X size={18} />
           </button>
         )}
 
         {/* Header */}
-        <div className="bg-gradient-to-r from-indigo-600 to-purple-600 p-5 text-white text-center">
+        <div className="bg-white/5 border-b border-white/10 p-5 text-white text-center">
           <div className="flex items-center justify-center gap-2 mb-1">
-            <Swords className="w-5 h-5" />
+            <Swords className="w-5 h-5 text-yellow-400" />
             <h2 className="text-xl font-bold">Ranked Match</h2>
           </div>
-          <p className="text-xs text-white/70">{GAME_LABELS[gameType] || gameType}</p>
+          <p className="text-xs text-white/60">{GAME_LABELS[gameType] || gameType}</p>
         </div>
 
         <div className="p-5 space-y-4">
           {phase === 'loading' && (
             <div className="text-center py-8">
-              <div className="inline-block w-10 h-10 border-4 border-indigo-200 border-t-indigo-600 rounded-full animate-spin" />
-              <p className="text-sm text-gray-500 mt-3">Finding opponents nearby...</p>
+              <div className="inline-block w-10 h-10 border-4 border-indigo-400/30 border-t-indigo-400 rounded-full animate-spin" />
+              <p className="text-sm text-white/60 mt-3">Finding opponents nearby...</p>
             </div>
           )}
 
           {phase === 'error' && (
             <div className="text-center py-6">
               <div className="text-4xl mb-2">😵</div>
-              <p className="text-sm text-red-600 mb-4">{error}</p>
-              <button onClick={safeClose} className="px-5 py-2 bg-gray-800 text-white rounded-lg text-sm font-bold">Close</button>
+              <p className="text-sm text-red-400 mb-4">{error}</p>
+              <button onClick={safeClose} className="px-5 py-2 bg-white/10 hover:bg-white/20 border border-white/10 text-white transition-all text-sm font-bold" style={{ clipPath: CLIP_BTN }}>Close</button>
             </div>
           )}
 
@@ -316,10 +331,10 @@ const IntroVsOpponent = ({ opponent, targetScore, myLevel, myPoints, gameType, l
     <>
       <div className="flex items-center justify-around gap-2">
         <div className="flex flex-col items-center">
-          <PvPRankBadge size="medium" showName showLP level={myLevel} points={myPoints} />
-          <span className="text-xs text-gray-500 mt-1">You</span>
+          <PvPRankBadge size="medium" showName showLP level={myLevel} points={myPoints} container={false} className="scale-110 mb-2" />
+          <span className="text-xs text-white/60 mt-1">You</span>
         </div>
-        <div className="text-3xl font-black text-red-500">VS</div>
+        <div className="text-3xl font-black text-red-400 drop-shadow-[0_0_8px_rgba(248,113,113,0.5)]">VS</div>
         <div className="flex flex-col items-center">
           <PvPRankBadge
             size="medium"
@@ -327,26 +342,28 @@ const IntroVsOpponent = ({ opponent, targetScore, myLevel, myPoints, gameType, l
             showLP
             level={opponent?.pvp_rank_level ?? 1}
             points={opponent?.pvp_rank_points ?? 0}
+            container={false}
+            className="scale-110 mb-2"
           />
-          <span className="text-xs text-gray-500 mt-1 truncate max-w-[80px]">{oppName}</span>
+          <span className="text-xs text-white/60 mt-1 truncate max-w-[80px]">{oppName}</span>
         </div>
       </div>
 
-      <div className="bg-amber-50 border border-amber-200 rounded-lg p-3">
-        <div className="flex items-center gap-2 text-amber-800">
+      <div className="bg-yellow-500/10 border border-yellow-400/30 rounded-lg p-3" style={{ clipPath: CLIP_SM }}>
+        <div className="flex items-center gap-2 text-yellow-400">
           <Trophy className="w-4 h-4" />
           <span className="text-sm font-bold">Beat this score: {targetScore}</span>
         </div>
-        <p className="text-xs text-amber-700 mt-1">
+        <p className="text-xs text-yellow-100/70 mt-1">
           Score higher than {oppName} to win LP and climb the ranked ladder.
         </p>
       </div>
 
       {(lpMultiplier != null && lpMultiplier < 1) && (
-        <div className="bg-orange-50 border border-orange-200 rounded-lg p-3 flex items-start gap-2">
-          <Clock className="w-4 h-4 text-orange-600 mt-0.5 flex-shrink-0" />
-          <div className="text-xs text-orange-700">
-            <strong>{Math.round(lpMultiplier * 100)}% LP on this match.</strong>
+        <div className="bg-orange-500/10 border border-orange-400/30 rounded-lg p-3 flex items-start gap-2" style={{ clipPath: CLIP_SM }}>
+          <Clock className="w-4 h-4 text-orange-400 mt-0.5 flex-shrink-0" />
+          <div className="text-xs text-orange-200/80">
+            <strong className="text-orange-400">{Math.round(lpMultiplier * 100)}% LP on this match.</strong>
             {' '}
             {lpMultiplier === 0
               ? 'You already played this opponent too many times recently.'
@@ -359,7 +376,8 @@ const IntroVsOpponent = ({ opponent, targetScore, myLevel, myPoints, gameType, l
 
       <button
         onClick={onStart}
-        className="w-full py-3 bg-gradient-to-r from-red-500 to-orange-500 text-white rounded-lg font-bold text-sm hover:from-red-600 hover:to-orange-600 shadow-lg"
+        className="w-full py-3 bg-gradient-to-r from-yellow-400 to-orange-500 hover:from-yellow-300 hover:to-orange-400 text-gray-900 font-black text-sm flex items-center justify-center gap-2 shadow-[0_0_15px_rgba(250,204,21,0.3)] transition-all active:scale-95"
+        style={{ clipPath: CLIP_BTN }}
       >
         Start Ranked Match ⚔️
       </button>
@@ -369,19 +387,20 @@ const IntroVsOpponent = ({ opponent, targetScore, myLevel, myPoints, gameType, l
 
 const IntroPostScore = ({ myLevel, myPoints, gameType, onStart }) => (
   <>
-    <div className="flex justify-center">
-      <PvPRankBadge size="large" showName showLP level={myLevel} points={myPoints} />
+    <div className="flex justify-center mt-4 mb-2">
+      <PvPRankBadge size="large" showName showLP level={myLevel} points={myPoints} container={false} className="scale-150 mb-6" />
     </div>
-    <div className="bg-blue-50 border border-blue-200 rounded-lg p-3 text-center">
-      <p className="text-sm font-bold text-blue-800">No opponents nearby right now</p>
-      <p className="text-xs text-blue-700 mt-1">
+    <div className="bg-blue-500/10 border border-blue-400/30 rounded-lg p-3 text-center" style={{ clipPath: CLIP_SM }}>
+      <p className="text-sm font-bold text-blue-300">No opponents nearby right now</p>
+      <p className="text-xs text-blue-100/70 mt-1">
         Post your best score! When someone plays ranked near your level, they'll have to beat it.
         LP is applied when they finish.
       </p>
     </div>
     <button
       onClick={onStart}
-      className="w-full py-3 bg-gradient-to-r from-indigo-500 to-purple-500 text-white rounded-lg font-bold text-sm hover:from-indigo-600 hover:to-purple-600 shadow-lg"
+      className="w-full py-3 bg-gradient-to-r from-yellow-400 to-orange-500 hover:from-yellow-300 hover:to-orange-400 text-gray-900 font-black text-sm flex items-center justify-center gap-2 shadow-[0_0_15px_rgba(250,204,21,0.3)] transition-all active:scale-95"
+      style={{ clipPath: CLIP_BTN }}
     >
       Play Ranked ({GAME_LABELS[gameType] || gameType})
     </button>
@@ -391,15 +410,15 @@ const IntroPostScore = ({ myLevel, myPoints, gameType, onStart }) => (
 const PostedResult = ({ score, gameType, onClose }) => (
   <div className="text-center space-y-3">
     <div className="text-4xl">📤</div>
-    <p className="text-lg font-bold text-gray-800">Score Posted!</p>
-    <div className="bg-indigo-50 border border-indigo-200 rounded-lg p-3 inline-block">
-      <div className="text-xs text-indigo-700">Your score</div>
-      <div className="text-3xl font-black text-indigo-900">{score}</div>
+    <p className="text-lg font-bold text-white">Score Posted!</p>
+    <div className="bg-blue-500/10 border border-blue-400/30 rounded-lg p-3 inline-block" style={{ clipPath: CLIP_SM }}>
+      <div className="text-xs text-blue-300 mb-1">Your score</div>
+      <div className="text-3xl font-black text-white drop-shadow-lg">{score}</div>
     </div>
-    <p className="text-xs text-gray-500 max-w-sm mx-auto">
+    <p className="text-xs text-white/60 max-w-sm mx-auto">
       When another player at your rank queues for {GAME_LABELS[gameType] || gameType}, they'll play against your score. We'll notify you with the result.
     </p>
-    <button onClick={onClose} className="mt-3 px-5 py-2 bg-gray-800 text-white rounded-lg text-sm font-bold">Close</button>
+    <button onClick={onClose} className="mt-3 px-6 py-2.5 bg-white/10 hover:bg-white/20 border border-white/10 text-white transition-all text-sm font-bold" style={{ clipPath: CLIP_BTN }}>Close</button>
   </div>
 )
 
@@ -416,51 +435,51 @@ const MatchResult = ({ result, myScore, opponent, onClose }) => {
 
   return (
     <div className="text-center space-y-3">
-      <div className="text-5xl">
+      <div className="text-5xl drop-shadow-lg">
         {won ? '🏆' : tie ? '🤝' : '😔'}
       </div>
-      <p className="text-xl font-black">
+      <p className="text-2xl font-black text-white">
         {won ? 'Victory!' : tie ? 'Draw' : 'Defeat'}
       </p>
 
-      <div className="flex justify-around items-center bg-gray-50 rounded-lg p-3">
+      <div className="flex justify-around items-center bg-white/5 border border-white/10 rounded-lg p-4" style={{ clipPath: CLIP_SM }}>
         <div>
-          <div className="text-xs text-gray-500">You</div>
-          <div className="text-2xl font-bold text-gray-900">{myScore}</div>
+          <div className="text-xs text-white/60 mb-1">You</div>
+          <div className="text-3xl font-black text-white drop-shadow-md">{myScore}</div>
         </div>
-        <div className="text-xl font-black text-red-400">VS</div>
+        <div className="text-xl font-black text-red-400 drop-shadow-[0_0_8px_rgba(248,113,113,0.5)]">VS</div>
         <div>
-          <div className="text-xs text-gray-500">{opponent?.full_name?.split(' ').pop() || 'Opponent'}</div>
-          <div className="text-2xl font-bold text-gray-900">{result.player1_score}</div>
+          <div className="text-xs text-white/60 mb-1 truncate max-w-[80px]">{opponent?.full_name?.split(' ').pop() || 'Opponent'}</div>
+          <div className="text-3xl font-black text-white drop-shadow-md">{result.player1_score}</div>
         </div>
       </div>
 
       {!tie && (
-        <div className={`rounded-lg p-3 border ${delta > 0 ? 'bg-green-50 border-green-200' : delta < 0 ? 'bg-red-50 border-red-200' : 'bg-gray-50 border-gray-200'}`}>
+        <div className={`rounded-lg p-3 border ${delta > 0 ? 'bg-green-500/10 border-green-400/30' : delta < 0 ? 'bg-red-500/10 border-red-400/30' : 'bg-white/5 border-white/10'}`} style={{ clipPath: CLIP_SM }}>
           <div className="flex items-center justify-center gap-2">
-            {delta > 0 ? <TrendingUp className="w-5 h-5 text-green-600" /> : delta < 0 ? <TrendingDown className="w-5 h-5 text-red-600" /> : null}
-            <span className={`text-lg font-black ${delta > 0 ? 'text-green-700' : delta < 0 ? 'text-red-700' : 'text-gray-700'}`}>
+            {delta > 0 ? <TrendingUp className="w-5 h-5 text-green-400" /> : delta < 0 ? <TrendingDown className="w-5 h-5 text-red-400" /> : null}
+            <span className={`text-xl font-black ${delta > 0 ? 'text-green-400 drop-shadow-[0_0_8px_rgba(74,222,128,0.3)]' : delta < 0 ? 'text-red-400 drop-shadow-[0_0_8px_rgba(248,113,113,0.3)]' : 'text-white/70'}`}>
               {delta > 0 ? '+' : ''}{delta} LP
             </span>
           </div>
           {result.lp_multiplier != null && result.lp_multiplier < 1 && delta !== 0 && (
-            <p className="text-[11px] text-gray-500 mt-1">
+            <p className="text-[11px] text-white/50 mt-1">
               LP reduced: {Math.round(result.lp_multiplier * 100)}% multiplier
             </p>
           )}
           {promoted && (
-            <p className="text-sm text-yellow-700 font-bold mt-2">
+            <p className="text-sm text-yellow-400 font-bold mt-2 drop-shadow-[0_0_8px_rgba(250,204,21,0.5)]">
               🎉 Promoted to {newBadge.badge_name}!
             </p>
           )}
         </div>
       )}
 
-      <div className="flex justify-center pt-2">
-        <PvPRankBadge size="medium" showName showLP level={newLevel} points={newPoints} />
+      <div className="flex justify-center pt-4 pb-2">
+        <PvPRankBadge size="medium" showName showLP level={newLevel} points={newPoints} container={false} className="scale-110" />
       </div>
 
-      <button onClick={onClose} className="mt-3 px-6 py-2 bg-gray-800 text-white rounded-lg text-sm font-bold">
+      <button onClick={onClose} className="w-full py-3 bg-white/10 hover:bg-white/20 border border-white/10 text-white transition-all text-sm font-bold" style={{ clipPath: CLIP_BTN }}>
         Done
       </button>
     </div>
