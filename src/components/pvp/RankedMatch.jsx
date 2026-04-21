@@ -43,6 +43,7 @@ const RankedMatch = ({ onClose }) => {
     claimRankedMatch,
     postRankedScore,
     completeRankedMatch,
+    forfeitRankedMatch,
   } = usePvPRank()
 
   const [phase, setPhase] = useState('loading') // loading | intro | playing | posted | result | error
@@ -126,6 +127,37 @@ const RankedMatch = ({ onClose }) => {
     setPhase('playing')
   }
 
+  const handleForfeit = async () => {
+    if (!claimedRow) return
+    if (!window.confirm('Forfeit this match? Your opponent wins and you lose LP.')) return
+    try {
+      const res = await forfeitRankedMatch(claimedRow.id)
+      setMyScore(0)
+      setResult({
+        winner_id: claimedRow.player1_id,
+        player1_score: claimedRow.player1_score,
+        player2_score: 0,
+        lp_multiplier: res?.lp_multiplier ?? claimedRow.lp_multiplier,
+        my_delta: res?.my_delta ?? 0,
+        my_new_level: res?.my_new_level,
+        my_new_points: res?.my_new_points,
+      })
+      setPhase('result')
+    } catch (err) {
+      console.error('Forfeit failed:', err)
+      setError(err.message || 'Failed to forfeit')
+      setPhase('error')
+    }
+  }
+
+  const safeClose = async () => {
+    // If the user claimed a match but didn't finish it, forfeit silently on close.
+    if (claimedRow && phase !== 'result' && phase !== 'posted') {
+      try { await forfeitRankedMatch(claimedRow.id) } catch { /* may already be completed */ }
+    }
+    onClose()
+  }
+
   const handleGameEnd = async (score) => {
     setMyScore(score)
     try {
@@ -195,9 +227,18 @@ const RankedMatch = ({ onClose }) => {
   return createPortal(
     <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-black/70 backdrop-blur-sm">
       <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md mx-4 overflow-hidden relative">
-        <button onClick={onClose} className="absolute top-3 right-3 p-1.5 rounded-full bg-white/90 hover:bg-white shadow z-20">
-          <X size={18} />
-        </button>
+        {phase === 'intro' && claimedRow ? (
+          <button
+            onClick={handleForfeit}
+            className="absolute top-3 right-3 px-3 py-1.5 rounded-full bg-red-500 hover:bg-red-600 text-white text-[11px] font-bold uppercase tracking-wide shadow z-20"
+          >
+            Forfeit
+          </button>
+        ) : (
+          <button onClick={safeClose} className="absolute top-3 right-3 p-1.5 rounded-full bg-white/90 hover:bg-white shadow z-20">
+            <X size={18} />
+          </button>
+        )}
 
         {/* Header */}
         <div className="bg-gradient-to-r from-indigo-600 to-purple-600 p-5 text-white text-center">
@@ -220,7 +261,7 @@ const RankedMatch = ({ onClose }) => {
             <div className="text-center py-6">
               <div className="text-4xl mb-2">😵</div>
               <p className="text-sm text-red-600 mb-4">{error}</p>
-              <button onClick={onClose} className="px-5 py-2 bg-gray-800 text-white rounded-lg text-sm font-bold">Close</button>
+              <button onClick={safeClose} className="px-5 py-2 bg-gray-800 text-white rounded-lg text-sm font-bold">Close</button>
             </div>
           )}
 

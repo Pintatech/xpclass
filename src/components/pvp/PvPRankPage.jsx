@@ -183,59 +183,61 @@ const PvPRankPage = () => {
           </div>
         )}
 
-        {/* Current rank card */}
-        <div className="bg-white/5 backdrop-blur border border-white/10 rounded-2xl p-6">
-          <div className="flex items-center gap-6">
-            <PvPRankBadge size="large" showName={false} showLP={false} />
-            <div className="flex-1 min-w-0">
-              <div className="text-xs text-white/60 uppercase tracking-wider mb-1">
-                Current Rank
-              </div>
-              <div className="text-2xl font-bold truncate">{rankName}</div>
-              <div className="text-sm text-white/70 mt-1">
-                Level {rankLevel} · {rankPoints} LP
-              </div>
-              <div className="mt-3">
-                <div className="w-full bg-white/10 rounded-full h-2 overflow-hidden">
-                  <div
-                    className="h-2 bg-gradient-to-r from-yellow-400 to-orange-400 rounded-full transition-all"
-                    style={{ width: `${Math.min(100, Math.max(0, rankPoints))}%` }}
-                  />
-                </div>
-                <div className="text-[11px] text-white/60 mt-1">
-                  {nextRankName
-                    ? `${100 - rankPoints} LP to ${nextRankName}`
-                    : 'Max rank reached'}
-                </div>
-              </div>
+        {/* Current rank */}
+        <div className="relative py-6 flex flex-col items-center">
+          {/* Ambient Lighting */}
+          <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-48 h-48 bg-yellow-500/20 rounded-full blur-[60px] pointer-events-none" />
+
+          <PvPRankBadge size="large" showName={false} showLP={false} container={false} className="scale-150 mb-6 relative z-10" />
+
+          <div className="relative z-10 text-center">
+            <div className="text-3xl font-black drop-shadow-lg">{rankName}</div>
+            <div className="text-sm text-white/70 mt-1 font-medium">
+              Level {rankLevel} <span className="mx-2 text-white/30">•</span> <span className="text-yellow-400 font-bold">{rankPoints} LP</span>
             </div>
           </div>
 
+          <div className="relative z-10 mt-6 w-full max-w-sm">
+            <div className="w-full bg-black/40 rounded-full h-2.5 overflow-hidden border border-white/10 shadow-inner">
+              <div
+                className="h-full bg-gradient-to-r from-yellow-400 to-orange-400 rounded-full transition-all relative"
+                style={{ width: `${Math.min(100, Math.max(0, rankPoints))}%` }}
+              >
+                <div className="absolute inset-0 bg-white/20 w-full h-1/2" />
+              </div>
+            </div>
+            <div className="text-center text-[10px] text-white/50 mt-2 uppercase tracking-widest font-bold">
+              {nextRankName
+                ? `${100 - rankPoints} LP to ${nextRankName}`
+                : 'Max rank reached'}
+            </div>
+          </div>
+        </div>
+
           {/* W/L stats */}
-          <div className="grid grid-cols-3 gap-3 mt-6">
-            <div className="bg-white/5 rounded-xl p-3 text-center">
+        <div className="grid grid-cols-3 gap-3">
+          <div className="bg-white/5 backdrop-blur border border-white/10 rounded-xl p-3 text-center">
               <div className="text-green-400 text-xl font-bold">{wins}</div>
-              <div className="text-[11px] text-white/60 uppercase">Wins</div>
+            <div className="text-[11px] text-white/60 uppercase font-bold mt-1">Wins</div>
             </div>
-            <div className="bg-white/5 rounded-xl p-3 text-center">
+          <div className="bg-white/5 backdrop-blur border border-white/10 rounded-xl p-3 text-center">
               <div className="text-red-400 text-xl font-bold">{losses}</div>
-              <div className="text-[11px] text-white/60 uppercase">Losses</div>
+            <div className="text-[11px] text-white/60 uppercase font-bold mt-1">Losses</div>
             </div>
-            <div className="bg-white/5 rounded-xl p-3 text-center">
+          <div className="bg-white/5 backdrop-blur border border-white/10 rounded-xl p-3 text-center">
               <div className="text-yellow-400 text-xl font-bold">{winRate}%</div>
-              <div className="text-[11px] text-white/60 uppercase">Win Rate</div>
+            <div className="text-[11px] text-white/60 uppercase font-bold mt-1">Win Rate</div>
             </div>
           </div>
 
           {/* Play button */}
           <button
             onClick={() => setShowRanked(true)}
-            className="mt-6 w-full bg-gradient-to-r from-yellow-400 to-orange-500 hover:from-yellow-300 hover:to-orange-400 text-gray-900 py-3 rounded-xl font-bold text-lg flex items-center justify-center gap-2 shadow-lg"
+          className="w-full bg-gradient-to-r from-yellow-400 to-orange-500 hover:from-yellow-300 hover:to-orange-400 text-gray-900 py-3.5 rounded-xl font-black text-lg flex items-center justify-center gap-2 shadow-[0_0_20px_rgba(250,204,21,0.3)] transition-all active:scale-95"
           >
-            <Swords className="w-5 h-5" />
-            Play Ranked Match
+          <Swords className="w-6 h-6" />
+          Play Ranked Match
           </button>
-        </div>
 
         {/* Pending waiting row */}
         {waitingRow && !waitingLoading && (

@@ -112,8 +112,12 @@ CREATE TABLE IF NOT EXISTS public.pvp_season_final_ranks (
   losses integer NOT NULL DEFAULT 0,
   rewards_claimed boolean NOT NULL DEFAULT false,
   claimed_at timestamptz,
+  created_at timestamptz NOT NULL DEFAULT now(),
   PRIMARY KEY (season_id, user_id)
 );
+
+ALTER TABLE public.pvp_season_final_ranks
+  ADD COLUMN IF NOT EXISTS created_at timestamptz NOT NULL DEFAULT now();
 
 -- 7. RLS ------------------------------------------------------
 ALTER TABLE public.pvp_seasons ENABLE ROW LEVEL SECURITY;
@@ -177,7 +181,7 @@ DECLARE
   v_pair_count integer;
 BEGIN
   -- Ensure season is active
-  SELECT id INTO v_season FROM pvp_seasons WHERE status = 'active' LIMIT 1;
+  SELECT s.id INTO v_season FROM pvp_seasons s WHERE s.status = 'active' LIMIT 1;
   IF v_season IS NULL THEN
     RAISE EXCEPTION 'No active PvP season';
   END IF;
@@ -277,13 +281,6 @@ BEGIN
     RAISE EXCEPTION 'User not found';
   END IF;
 
-  -- Clean up any existing waiting row from this user for this game_type (one at a time per game)
-  UPDATE ranked_matches
-    SET status = 'expired'
-    WHERE player1_id = p_user_id
-      AND game_type = p_game_type
-      AND status = 'waiting';
-
   INSERT INTO ranked_matches (
     season_id, game_type, player1_id, player1_score, player1_level,
     status, created_at, expires_at
@@ -359,6 +356,65 @@ BEGIN
   winner_id := v_winner;
   player1_score := v_row.player1_score;
   player2_score := p_score;
+  lp_multiplier := v_row.lp_multiplier;
+
+  SELECT COALESCE(h.delta, 0) AS delta,
+         COALESCE(h.new_level, u.pvp_rank_level) AS new_level,
+         COALESCE(h.new_points, u.pvp_rank_points) AS new_points
+    INTO v_result
+  FROM users u
+  LEFT JOIN pvp_rank_history h
+    ON h.user_id = u.id AND h.ranked_match_id = p_ranked_match_id
+  WHERE u.id = p_user_id;
+
+  my_delta := v_result.delta;
+  my_new_level := v_result.new_level;
+  my_new_points := v_result.new_points;
+  RETURN NEXT;
+END;
+$$;
+
+-- ============================================================
+-- 10b. RPC: forfeit_ranked_match — claimer bails; opponent wins
+-- ============================================================
+CREATE OR REPLACE FUNCTION public.forfeit_ranked_match(
+  p_ranked_match_id uuid,
+  p_user_id uuid
+) RETURNS TABLE (
+  winner_id uuid,
+  lp_multiplier numeric,
+  my_delta integer,
+  my_new_level integer,
+  my_new_points integer
+) LANGUAGE plpgsql SECURITY DEFINER AS $$
+DECLARE
+  v_row ranked_matches;
+  v_result record;
+BEGIN
+  SELECT * INTO v_row FROM ranked_matches WHERE ranked_matches.id = p_ranked_match_id FOR UPDATE;
+
+  IF v_row.id IS NULL THEN
+    RAISE EXCEPTION 'Match not found';
+  END IF;
+
+  IF v_row.status <> 'matched' THEN
+    RAISE EXCEPTION 'Match is not in matched state (status=%)', v_row.status;
+  END IF;
+
+  IF v_row.player2_id <> p_user_id THEN
+    RAISE EXCEPTION 'You are not the claimer of this match';
+  END IF;
+
+  UPDATE ranked_matches
+    SET player2_score = 0,
+        winner_id = v_row.player1_id,
+        status = 'completed',
+        completed_at = now()
+    WHERE ranked_matches.id = p_ranked_match_id;
+
+  PERFORM public.apply_pvp_rank_change(p_ranked_match_id, v_row.player1_id, p_user_id);
+
+  winner_id := v_row.player1_id;
   lp_multiplier := v_row.lp_multiplier;
 
   SELECT COALESCE(h.delta, 0) AS delta,
@@ -513,14 +569,47 @@ $$;
 -- ============================================================
 -- 13. RPC: expire_stale_ranked_matches
 -- ============================================================
+-- Two jobs:
+--   1. Expire 'waiting' rows past their 24h TTL.
+--   2. Auto-forfeit 'matched' rows that have been sitting for
+--      >10 minutes (claimer claimed but never completed — e.g.
+--      refreshed away, closed tab, crashed). Player 1 wins.
+-- Safe to call periodically (e.g. via pg_cron or edge function).
+-- ============================================================
 CREATE OR REPLACE FUNCTION public.expire_stale_ranked_matches()
 RETURNS integer LANGUAGE plpgsql SECURITY DEFINER AS $$
-DECLARE v_count integer;
+DECLARE
+  v_count integer := 0;
+  v_expired integer;
+  v_stale ranked_matches;
 BEGIN
   UPDATE ranked_matches
     SET status = 'expired'
     WHERE status = 'waiting' AND expires_at < now();
-  GET DIAGNOSTICS v_count = ROW_COUNT;
+  GET DIAGNOSTICS v_expired = ROW_COUNT;
+  v_count := v_count + v_expired;
+
+  FOR v_stale IN
+    SELECT * FROM ranked_matches
+    WHERE status = 'matched'
+      AND matched_at < now() - interval '10 minutes'
+    FOR UPDATE SKIP LOCKED
+  LOOP
+    UPDATE ranked_matches
+      SET player2_score = 0,
+          winner_id = v_stale.player1_id,
+          status = 'completed',
+          completed_at = now()
+      WHERE ranked_matches.id = v_stale.id;
+
+    PERFORM public.apply_pvp_rank_change(
+      v_stale.id,
+      v_stale.player1_id,
+      v_stale.player2_id
+    );
+    v_count := v_count + 1;
+  END LOOP;
+
   RETURN v_count;
 END;
 $$;

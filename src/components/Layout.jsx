@@ -77,11 +77,11 @@ const Layout = () => {
 
   const isTestPage = location.pathname.startsWith('/study/test-runner')
   const isAdminPage = location.pathname.startsWith('/admin')
-  const isFullWidthPage = location.pathname === '/teacher/exercise-bank' || location.pathname === '/pets'
+  const isFullWidthPage = location.pathname === '/teacher/exercise-bank' || location.pathname === '/pets' || location.pathname === '/pvp/rank'
 
   const hideBottomNav = exercisePaths.some(p => location.pathname.startsWith(p)) || isSessionPage || isTestPage
   const isLiveBattle = location.pathname.startsWith('/teacher/live-battle')
-  const isStudyPage = location.pathname.startsWith('/study') || location.pathname.startsWith('/pets')
+  const isStudyPage = location.pathname.startsWith('/study') || location.pathname.startsWith('/pets') || location.pathname === '/pvp/rank'
   const hideSidebar = exercisePaths.some(p => location.pathname.startsWith(p)) || isTestPage || isLiveBattle || isStudyPage
   const isInsideCourse = /\/study\/(course|level)\//.test(location.pathname) || exercisePaths.some(p => location.pathname.startsWith(p))
   const isCoursePage = /\/study\/(course|level)\/[^/]+$/.test(location.pathname)

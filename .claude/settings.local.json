@@ -74,7 +74,8 @@
       "Bash(ls -1 /c/Users/NAME/Downloads/xpclass/src/hooks/*.jsx)",
       "Bash(sed 's/CREATE TABLE.* //')",
       "Bash(sed 's/ .*//')",
-      "Bash(awk '{print $3}')"
+      "Bash(awk '{print $3}')",
+      "WebFetch(domain:api.anthropic.com)"
     ],
     "deny": [],
     "ask": []

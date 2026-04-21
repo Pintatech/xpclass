@@ -46,6 +46,16 @@ export const usePvPRank = () => {
     return data && data.length > 0 ? data[0] : null
   }, [user?.id, fetchUserProfile])
 
+  const forfeitRankedMatch = useCallback(async (rankedMatchId) => {
+    const { data, error } = await supabase.rpc('forfeit_ranked_match', {
+      p_ranked_match_id: rankedMatchId,
+      p_user_id: user.id,
+    })
+    if (error) throw error
+    if (fetchUserProfile) fetchUserProfile(user.id).catch(() => {})
+    return data && data.length > 0 ? data[0] : null
+  }, [user?.id, fetchUserProfile])
+
   return {
     rankLevel,
     rankPoints,
@@ -56,6 +66,7 @@ export const usePvPRank = () => {
     claimRankedMatch,
     postRankedScore,
     completeRankedMatch,
+    forfeitRankedMatch,
   }
 }
 

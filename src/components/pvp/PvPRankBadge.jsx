@@ -20,6 +20,7 @@ const PvPRankBadge = ({
   size = 'medium',
   showName = true,
   showLP = true,
+  container = true,
   // Optional overrides (for leaderboard rows — pass level/points directly)
   level = null,
   points = null,
@@ -48,19 +49,20 @@ const PvPRankBadge = ({
       <div className="relative">
         <div className={`
           ${classes.badge}
-          bg-gradient-to-br ${TIER_GRADIENTS[tier]}
-          rounded-full flex items-center justify-center
-          shadow-lg border-2 border-white relative
+          ${container ? `bg-gradient-to-br ${TIER_GRADIENTS[tier]} shadow-lg border-2 border-white rounded-full` : ''}
+          flex items-center justify-center relative
         `}>
           {badge.badge_icon?.startsWith('http') ? (
-            <img src={badge.badge_icon} alt={badge.badge_name} className="w-full h-full object-cover rounded-full" />
+            <img src={badge.badge_icon} alt={badge.badge_name} className={`w-full h-full ${container ? 'object-cover rounded-full' : 'object-contain drop-shadow-xl'}`} />
           ) : (
-            <span className="font-bold text-white drop-shadow-sm">{badge.badge_icon}</span>
+            <span className={`font-bold text-white drop-shadow-sm ${!container ? 'text-[2.5em]' : ''}`}>{badge.badge_icon}</span>
           )}
         </div>
-        <div className={`absolute -bottom-1 -right-1 ${classes.number} bg-white text-gray-800 font-bold rounded-full flex items-center justify-center border shadow-sm`}>
-          {badge.level_number}
-        </div>
+        {container && (
+          <div className={`absolute -bottom-1 -right-1 ${classes.number} bg-white text-gray-800 font-bold rounded-full flex items-center justify-center border shadow-sm`}>
+            {badge.level_number}
+          </div>
+        )}
       </div>
 
       {showName && (
