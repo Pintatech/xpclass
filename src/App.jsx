@@ -33,7 +33,6 @@ import UnitReportPage from './components/teacher/reports/UnitReportPage'
 import WeaknessAnalysis from './components/teacher/WeaknessAnalysis'
 import GuestEntry from './components/guest/GuestEntry'
 import GuestSessionRunner from './components/guest/GuestSessionRunner'
-import PvPRankPage from './components/pvp/PvPRankPage'
 
 
 function App() {
@@ -65,7 +64,6 @@ function App() {
                 <Route path="inventory" element={<Inventory />} />
                 <Route path="pets" element={<PetInventory />} />
                 <Route path="missions" element={<MissionBoard />} />
-                <Route path="pvp/rank" element={<PvPRankPage />} />
                 <Route path="profile/:userId" element={<Profile />} />
                 <Route path="admin/*" element={
                   <ProtectedRoute requireAdmin>

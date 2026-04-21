@@ -503,6 +503,11 @@ const TournamentWidget = () => {
     )
   }
 
+  // If there are open tournaments, only show active ones, not completed ones.
+  const tournamentsToShow = openTournaments.length > 0
+    ? activeTournaments.filter(t => t.status === 'active')
+    : activeTournaments;
+
   return (
     <div className="relative bg-white border border-gray-200 p-6 h-full overflow-hidden shadow-sm"
       style={{ clipPath: CLIP_CARD }}
@@ -537,7 +542,7 @@ const TournamentWidget = () => {
         )}
 
         {/* Active tournaments */}
-        {activeTournaments.map(t => (
+        {tournamentsToShow.map(t => (
           <InlineBracket key={t.id} tournamentId={t.id} itemsMap={itemsMap} chestsMap={chestsMap} currentUserId={user?.id} />
         ))}
       </div>

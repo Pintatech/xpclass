@@ -1,7 +1,7 @@
 import { useState, useRef, useEffect } from 'react'
 import { Link, useLocation } from 'react-router-dom'
 import { useAuth } from '../../hooks/useAuth'
-import { usePvPRank } from '../../hooks/usePvPRank'
+import { useStudentLevels } from '../../hooks/useStudentLevels'
 import {
   LogOut,
   Shield,
@@ -13,7 +13,6 @@ import { useInventory } from '../../hooks/useInventory'
 import { useMissions } from '../../hooks/useMissions'
 import { useNotifications } from '../../hooks/useNotifications'
 import NotificationPanel from '../notifications/NotificationPanel'
-import PvPRankBadge from '../pvp/PvPRankBadge'
 
 import { assetUrl, useBranding } from '../../hooks/useBranding';
 
@@ -22,7 +21,7 @@ const CLIP_CARD = 'polygon(8px 0, 100% 0, 100% calc(100% - 8px), calc(100% - 8px
 const LeftSidebar = ({ onOpenReport }) => {
   const { profile, signOut, isAdmin, isTeacher } = useAuth()
   const { branding } = useBranding()
-  const { currentBadge: pvpBadge } = usePvPRank()
+  const { currentBadge } = useStudentLevels()
   const { newItemCount } = useInventory()
   const { unclaimedCount: missionBadge } = useMissions()
   const { notifications, unreadCount, markAsRead, markAllAsRead } = useNotifications()
@@ -145,17 +144,30 @@ const LeftSidebar = ({ onOpenReport }) => {
           </nav>
 
           {/* User Badge & XP */}
-          {profile && (
+          {profile && currentBadge && (
             <div className="px-4 py-3 border-b border-gray-200">
               <div className="flex items-center space-x-3 p-3 bg-gradient-to-r from-blue-50 to-purple-50 border border-blue-100"
                 style={{ clipPath: CLIP_CARD }}
               >
                 <div className="flex items-center justify-center">
-                  <PvPRankBadge size="small" showName={false} showLP={false} container={false} className="scale-125 mx-1" />
+                  {currentBadge.icon.startsWith('http') ? (
+                    <img
+                      src={currentBadge.icon}
+                      alt={currentBadge.name}
+                      className="w-10 h-10 object-contain"
+                      onError={(e) => {
+                        e.target.style.display = 'none'
+                        e.target.nextSibling.style.display = 'inline'
+                      }}
+                    />
+                  ) : null}
+                  <span className="text-2xl" style={{ display: currentBadge.icon.startsWith('http') ? 'none' : 'inline' }}>
+                    {currentBadge.icon}
+                  </span>
                 </div>
                 <div>
                   <div className="text-sm font-semibold text-gray-900">
-                    {pvpBadge?.badge_name || 'Unranked'}
+                    {currentBadge.name}
                   </div>
                   <div className="text-xs text-gray-600 flex items-center gap-1">
                     {profile.xp || 0}

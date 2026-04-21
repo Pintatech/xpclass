@@ -67,7 +67,7 @@ export const AuthProvider = ({ children }) => {
       const fetchPromise = Promise.all([
         supabase
           .from('users')
-          .select('id, email, full_name, role, xp, gems, level, current_level, streak_count, last_activity_date, avatar_url, name_changed_at, is_banned, pvp_rank_level, pvp_rank_points, pvp_wins, pvp_losses')
+          .select('id, email, full_name, role, xp, gems, level, current_level, streak_count, last_activity_date, avatar_url, name_changed_at, is_banned')
           .eq('id', userId)
           .single(),
         supabase
@@ -216,13 +216,13 @@ export const AuthProvider = ({ children }) => {
       if (Object.keys(userUpdates).length > 0) {
         promises.push(
           supabase.from('users').update(userUpdates).eq('id', user.id)
-            .select('id, email, full_name, role, xp, gems, level, current_level, streak_count, last_activity_date, avatar_url, name_changed_at, is_banned, pvp_rank_level, pvp_rank_points, pvp_wins, pvp_losses')
+            .select('id, email, full_name, role, xp, gems, level, current_level, streak_count, last_activity_date, avatar_url, name_changed_at, is_banned')
             .single()
         )
       } else {
         promises.push(
           supabase.from('users')
-            .select('id, email, full_name, role, xp, gems, level, current_level, streak_count, last_activity_date, avatar_url, name_changed_at, is_banned, pvp_rank_level, pvp_rank_points, pvp_wins, pvp_losses')
+            .select('id, email, full_name, role, xp, gems, level, current_level, streak_count, last_activity_date, avatar_url, name_changed_at, is_banned')
             .eq('id', user.id).single()
         )
       }
