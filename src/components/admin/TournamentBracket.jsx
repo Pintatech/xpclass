@@ -107,7 +107,7 @@ const RoundScoresBar = ({ roundScores }) => {
   return (
     <div className="flex items-center justify-center gap-1 px-1 py-0.5 bg-gray-100 border-t border-gray-200">
       {roundScores.map((rs, i) => (
-        <span key={i} className={`text-[9px] font-mono px-1 rounded ${rs.winner === 1 ? 'text-green-700 bg-green-100' : rs.winner === 2 ? 'text-red-700 bg-red-100' : 'text-gray-500 bg-gray-200'}`}>
+        <span key={i} className={`text-[9px] font-mono px-1 rounded ${rs.winner === 1 ? 'text-emerald-700 bg-emerald-100' : rs.winner === 2 ? 'text-sky-700 bg-sky-100' : 'text-gray-500 bg-gray-200'}`}>
           {rs.p1}-{rs.p2}
         </span>
       ))}
@@ -115,7 +115,7 @@ const RoundScoresBar = ({ roundScores }) => {
   )
 }
 
-const MatchCard = ({ match, participants, teams, onRecordScore, compact, currentUserId }) => {
+const MatchCard = ({ match, participants, teams, onRecordScore, compact, currentUserId, bestOf }) => {
   const isTeamMode = !!(match.team1_id || match.team2_id)
   const hasRoundScores = match.round_scores?.length > 0
   const statusColors = {
@@ -124,13 +124,16 @@ const MatchCard = ({ match, participants, teams, onRecordScore, compact, current
     completed: 'border-green-300 bg-white',
   }
 
+  const cap = bestOf > 1 ? Math.floor(bestOf / 2) + 1 : null
+  const capScore = (s) => (s != null && cap != null ? Math.min(s, cap) : s)
+
   return (
     <div className={`border-2 rounded-lg overflow-hidden ${statusColors[match.status] || statusColors.pending} ${compact ? 'w-36' : isTeamMode ? 'w-48' : 'w-44'}`}>
       {isTeamMode ? (
         <>
           <TeamRow
             teamId={match.team1_id}
-            score={match.player1_score}
+            score={capScore(match.player1_score)}
             isWinner={(match.team_winner_id || match.winner_id) && (match.team_winner_id === match.team1_id)}
             teams={teams}
             currentUserId={currentUserId}
@@ -139,7 +142,7 @@ const MatchCard = ({ match, participants, teams, onRecordScore, compact, current
           <div className={hasRoundScores ? '' : 'border-t border-gray-200'} />
           <TeamRow
             teamId={match.team2_id}
-            score={match.player2_score}
+            score={capScore(match.player2_score)}
             isWinner={(match.team_winner_id || match.winner_id) && (match.team_winner_id === match.team2_id)}
             teams={teams}
             currentUserId={currentUserId}
@@ -149,7 +152,7 @@ const MatchCard = ({ match, participants, teams, onRecordScore, compact, current
         <>
           <PlayerRow
             player={match.player1_id}
-            score={match.player1_score}
+            score={capScore(match.player1_score)}
             isWinner={match.winner_id && match.winner_id === match.player1_id}
             participants={participants}
             currentUserId={currentUserId}
@@ -158,7 +161,7 @@ const MatchCard = ({ match, participants, teams, onRecordScore, compact, current
           <div className={hasRoundScores ? '' : 'border-t border-gray-200'} />
           <PlayerRow
             player={match.player2_id}
-            score={match.player2_score}
+            score={capScore(match.player2_score)}
             isWinner={match.winner_id && match.winner_id === match.player2_id}
             participants={participants}
             currentUserId={currentUserId}
@@ -177,7 +180,7 @@ const MatchCard = ({ match, participants, teams, onRecordScore, compact, current
   )
 }
 
-const TournamentBracket = ({ matches, participants, teams = [], totalRounds, currentRound, onRecordScore, compact, currentUserId }) => {
+const TournamentBracket = ({ matches, participants, teams = [], totalRounds, currentRound, onRecordScore, compact, currentUserId, bestOf }) => {
   const countdown = useCountdownTo10PM()
   const roundRefs = useRef({})
   const scrollToRound = (roundNum) => {
@@ -310,6 +313,7 @@ const TournamentBracket = ({ matches, participants, teams = [], totalRounds, cur
                     onRecordScore={onRecordScore}
                     compact={compact}
                     currentUserId={currentUserId}
+                    bestOf={bestOf}
                   />
                 ))}
               </div>
@@ -371,6 +375,7 @@ const TournamentBracket = ({ matches, participants, teams = [], totalRounds, cur
                     teams={teams}
                     onRecordScore={onRecordScore}
                     currentUserId={currentUserId}
+                    bestOf={bestOf}
                   />
                 ))}
               </div>

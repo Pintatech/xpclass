@@ -582,6 +582,9 @@ export function useTournament() {
             if (winner === 1) t1Wins++
             if (winner === 2) t2Wins++
           }
+          const needed = Math.floor(bestOf / 2) + 1
+          t1Wins = Math.min(t1Wins, needed)
+          t2Wins = Math.min(t2Wins, needed)
 
           const partial = {}
           if (t1Wins !== match.player1_score) partial.player1_score = t1Wins
@@ -671,6 +674,9 @@ export function useTournament() {
           if (winner === 1) p1Wins++
           if (winner === 2) p2Wins++
         }
+        const needed = Math.floor(bestOf / 2) + 1
+        p1Wins = Math.min(p1Wins, needed)
+        p2Wins = Math.min(p2Wins, needed)
 
         const partial = {}
         if (p1Wins !== match.player1_score) partial.player1_score = p1Wins

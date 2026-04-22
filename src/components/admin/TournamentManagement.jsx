@@ -202,7 +202,7 @@ const ScoreModal = ({ match, participants, teams = [], onSave, onClose }) => {
             <div className="text-[10px] font-semibold text-gray-500 uppercase mb-1">Chi tiết theo lượt</div>
             <div className="flex flex-wrap gap-1">
               {match.round_scores.map((rs, i) => (
-                <span key={i} className={`text-[10px] font-mono px-1.5 py-0.5 rounded ${rs.winner === 1 ? 'bg-green-100 text-green-700' : rs.winner === 2 ? 'bg-red-100 text-red-700' : 'bg-gray-200 text-gray-600'}`}>
+                <span key={i} className={`text-[10px] font-mono px-1.5 py-0.5 rounded ${rs.winner === 1 ? 'bg-emerald-100 text-emerald-700' : rs.winner === 2 ? 'bg-sky-100 text-sky-700' : 'bg-gray-200 text-gray-600'}`}>
                   L{i + 1}: {rs.p1}-{rs.p2}
                 </span>
               ))}
@@ -1294,6 +1294,7 @@ const TournamentDetail = ({ tournamentId, onBack }) => {
           teams={teams}
           totalRounds={tournament.total_rounds}
           currentRound={tournament.current_round}
+          bestOf={tournament.best_of}
           onRecordScore={tournament.status === 'active' ? (match) => setScoreMatch(match) : undefined}
         />
       </div>

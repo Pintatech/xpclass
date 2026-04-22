@@ -366,6 +366,7 @@ const InlineBracket = ({ tournamentId, itemsMap, chestsMap, currentUserId }) => 
           teams={teams}
           totalRounds={tournament.total_rounds}
           currentRound={tournament.current_round}
+          bestOf={tournament.best_of}
           compact
           currentUserId={currentUserId}
         />
