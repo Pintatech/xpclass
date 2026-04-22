@@ -890,6 +890,20 @@ const TournamentDetail = ({ tournamentId, onBack }) => {
     checkMatchScores(tournamentId).catch(() => {}).finally(() => fetchTournament(tournamentId))
   }, [tournamentId, fetchTournament, checkMatchScores])
 
+  // Poll for score updates while the tournament is active (admin leaves this page open all day)
+  useEffect(() => {
+    if (!tournamentId || tournament?.status !== 'active') return
+    const id = setInterval(async () => {
+      try {
+        const result = await checkMatchScores(tournamentId)
+        if (result?.updated > 0) await fetchTournament(tournamentId)
+      } catch {
+        // swallow — next tick will retry
+      }
+    }, 30000)
+    return () => clearInterval(id)
+  }, [tournamentId, tournament?.status, fetchTournament, checkMatchScores])
+
   useEffect(() => {
     setOrderedParts(participants)
   }, [participants])
