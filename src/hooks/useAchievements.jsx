@@ -157,7 +157,7 @@ export const useAchievements = () => {
           return { success: false, message: 'Thành tựu này đã được nhận rồi' }
         }
 
-        // Record exists in DB, use the RPC as normal
+        // Record exists in DB, use the RPC — it awards XP + gems atomically
         const { data, error } = await supabase.rpc('claim_achievement_xp', {
           user_id_param: user.id,
           achievement_id_param: achievementId
@@ -170,7 +170,12 @@ export const useAchievements = () => {
           if (result.success) {
             await fetchUserAchievements()
             await fetchUserProfile(user.id)
-            return { success: true, xpAwarded: result.xp_awarded, message: result.message }
+            return {
+              success: true,
+              xpAwarded: result.xp_awarded,
+              gemsAwarded: result.gems_awarded || 0,
+              message: result.message
+            }
           } else {
             return { success: false, message: result.message }
           }
@@ -179,14 +184,15 @@ export const useAchievements = () => {
         return { success: false, message: 'Unknown error' }
       } else {
         // Record doesn't exist in DB — achievement was unlocked via frontend calculation
-        // Manually insert record, award XP, and mark as claimed
-        const { data: achievement } = await supabase
+        // Manually insert record, award XP + gems, and mark as claimed
+        const { data: achievementRewards } = await supabase
           .from('achievements')
-          .select('xp_reward')
+          .select('xp_reward, gem_reward')
           .eq('id', achievementId)
           .single()
 
-        const xpReward = achievement?.xp_reward || 0
+        const xpReward = achievementRewards?.xp_reward || 0
+        const gemReward = achievementRewards?.gem_reward || 0
 
         // Double-check no record was inserted between our first check and now
         const { data: recheck } = await supabase
@@ -213,25 +219,30 @@ export const useAchievements = () => {
 
         if (insertError) throw insertError
 
-        // Award XP to user profile
-        if (xpReward > 0) {
+        // Award XP + gems to user profile
+        if (xpReward > 0 || gemReward > 0) {
           const { data: userData } = await supabase
             .from('users')
-            .select('xp')
+            .select('xp, gems')
             .eq('id', user.id)
             .single()
 
-          const { error: xpError } = await supabase
+          const { error: updateError } = await supabase
             .from('users')
-            .update({ xp: (userData?.xp || 0) + xpReward })
+            .update({
+              xp: (userData?.xp || 0) + xpReward,
+              gems: (userData?.gems || 0) + gemReward
+            })
             .eq('id', user.id)
 
-          if (xpError) throw xpError
+          if (updateError) throw updateError
         }
+
+        const gemsAwarded = gemReward
 
         await fetchUserAchievements()
         await fetchUserProfile(user.id)
-        return { success: true, xpAwarded: xpReward, message: 'XP awarded' }
+        return { success: true, xpAwarded: xpReward, gemsAwarded, message: 'Reward claimed' }
       }
     } catch (err) {
       console.error('Error claiming achievement XP:', err)

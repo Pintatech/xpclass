@@ -567,12 +567,49 @@ const Profile = () => {
 
       if (error) throw error
 
+      // Fetch auxiliary counts needed for pet/shop/wild-catch achievement criteria
+      const [
+        { count: petCount },
+        { count: petEvolvedCount },
+        { count: wildCatchCount },
+        { data: shopItemsOwned }
+      ] = await Promise.all([
+        supabase
+          .from('user_pets')
+          .select('id', { count: 'exact', head: true })
+          .eq('user_id', userIdToFetch),
+        supabase
+          .from('user_pets')
+          .select('id', { count: 'exact', head: true })
+          .eq('user_id', userIdToFetch)
+          .eq('evolution_stage', 2),
+        supabase
+          .from('wild_area_logs')
+          .select('id', { count: 'exact', head: true })
+          .eq('user_id', userIdToFetch)
+          .eq('action', 'catch_success'),
+        supabase
+          .from('user_purchases')
+          .select('shop_items(category)')
+          .eq('user_id', userIdToFetch)
+      ])
+
+      const shopCounts = { avatar: 0, frame: 0, spaceship: 0, hammer: 0, boat: 0 }
+      ;(shopItemsOwned || []).forEach(p => {
+        const cat = p.shop_items?.category
+        if (cat && Object.prototype.hasOwnProperty.call(shopCounts, cat)) shopCounts[cat]++
+      })
+
       // Get user stats for progress calculation
       const targetProfile = targetUserId ? viewedProfile : profile
       const userStats = {
         completedExercises: stats.exercisesCompleted || 0,
         currentStreak: stats.streakCount || 0,
-        totalXp: stats.totalXP || targetProfile?.xp || 0
+        totalXp: stats.totalXP || targetProfile?.xp || 0,
+        petCount: petCount || 0,
+        petEvolvedCount: petEvolvedCount || 0,
+        wildCatchCount: wildCatchCount || 0,
+        shopCounts
       }
 
       console.log('User stats for achievement calculation:', userStats)
@@ -604,6 +641,24 @@ const Profile = () => {
             case 'daily_exercises':
               calculatedUnlocked = false // This criteria is not implemented yet
               break
+            case 'pet_owned':
+              calculatedUnlocked = userStats.petCount >= achievement.criteria_value
+              break
+            case 'pet_evolved':
+              calculatedUnlocked = userStats.petEvolvedCount >= achievement.criteria_value
+              break
+            case 'wild_catch_success':
+              calculatedUnlocked = userStats.wildCatchCount >= achievement.criteria_value
+              break
+            case 'avatar_owned':
+            case 'frame_owned':
+            case 'spaceship_owned':
+            case 'hammer_owned':
+            case 'boat_owned': {
+              const cat = achievement.criteria_type.replace('_owned', '')
+              calculatedUnlocked = (userStats.shopCounts[cat] || 0) >= achievement.criteria_value
+              break
+            }
             default:
               calculatedUnlocked = false
           }
@@ -691,7 +746,7 @@ const Profile = () => {
       if (result.success) {
         setClaimResult({
           xp: result.xpAwarded || 0,
-          gems: achievement.gem_reward || 0,
+          gems: result.gemsAwarded || 0,
           title: achievement.title
         })
         // Refresh achievements list using Profile's own fetch
@@ -1088,14 +1143,19 @@ const Profile = () => {
                     {achievement.isClaimed && (
                       <div className="text-xs text-green-600 mt-1">✓ Đã nhận</div>
                     )}
-                    {!achievement.isClaimed && isOwnProfile && achievement.xp_reward > 0 && (
+                    {!achievement.isClaimed && isOwnProfile && (achievement.xp_reward > 0 || achievement.gem_reward > 0) && (
                       <button
                         onClick={() => handleClaimAchievementXP(achievement.id)}
                         disabled={claimingAchievement[achievement.id]}
                         className="mt-1 flex items-center justify-center gap-1 px-2 py-1 text-xs bg-green-600 hover:bg-green-700 text-white rounded transition-colors disabled:opacity-50"
                       >
                         <Gift className="w-3 h-3" />
-                        {claimingAchievement[achievement.id] ? '...' : `Nhận ${achievement.xp_reward} XP`}
+                        {claimingAchievement[achievement.id]
+                          ? '...'
+                          : `Nhận ${[
+                              achievement.xp_reward > 0 ? `${achievement.xp_reward} XP` : null,
+                              achievement.gem_reward > 0 ? `${achievement.gem_reward} 💎` : null,
+                            ].filter(Boolean).join(' + ')}`}
                       </button>
                     )}
                   </div>
@@ -1669,14 +1729,19 @@ const Profile = () => {
                         {achievement.isClaimed && (
                           <div className="text-xs text-green-600 mt-1">✓ Đã nhận</div>
                         )}
-                        {!achievement.isClaimed && isOwnProfile && achievement.xp_reward > 0 && (
+                        {!achievement.isClaimed && isOwnProfile && (achievement.xp_reward > 0 || achievement.gem_reward > 0) && (
                           <button
                             onClick={() => handleClaimAchievementXP(achievement.id)}
                             disabled={claimingAchievement[achievement.id]}
                             className="mt-1 mx-auto flex items-center gap-1 px-2 py-1 text-xs bg-green-600 hover:bg-green-700 text-white rounded transition-colors disabled:opacity-50"
                           >
                             <Gift className="w-3 h-3" />
-                            {claimingAchievement[achievement.id] ? '...' : `Nhận ${achievement.xp_reward} XP`}
+                            {claimingAchievement[achievement.id]
+                              ? '...'
+                              : `Nhận ${[
+                                  achievement.xp_reward > 0 ? `${achievement.xp_reward} XP` : null,
+                                  achievement.gem_reward > 0 ? `${achievement.gem_reward} 💎` : null,
+                                ].filter(Boolean).join(' + ')}`}
                           </button>
                         )}
                       </div>
