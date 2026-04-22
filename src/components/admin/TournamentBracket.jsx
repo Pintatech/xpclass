@@ -102,11 +102,24 @@ const TeamRow = ({ teamId, score, isWinner, teams, currentUserId }) => {
   )
 }
 
-const RoundScoresBar = ({ roundScores }) => {
+const RoundScoresBar = ({ roundScores, bestOf }) => {
   if (!roundScores?.length) return null
+  const needed = bestOf > 1 ? Math.floor(bestOf / 2) + 1 : null
+  let visible = roundScores
+  if (needed) {
+    let p1 = 0, p2 = 0
+    for (let i = 0; i < roundScores.length; i++) {
+      if (roundScores[i].winner === 1) p1++
+      else if (roundScores[i].winner === 2) p2++
+      if (p1 >= needed || p2 >= needed) {
+        visible = roundScores.slice(0, i + 1)
+        break
+      }
+    }
+  }
   return (
-    <div className="flex items-center justify-center gap-1 px-1 py-0.5 bg-gray-100 border-t border-gray-200">
-      {roundScores.map((rs, i) => (
+    <div className="flex flex-wrap items-center justify-center gap-1 px-1 py-0.5 bg-gray-100 border-t border-gray-200">
+      {visible.map((rs, i) => (
         <span key={i} className={`text-[9px] font-mono px-1 rounded ${rs.winner === 1 ? 'text-emerald-700 bg-emerald-100' : rs.winner === 2 ? 'text-sky-700 bg-sky-100' : 'text-gray-500 bg-gray-200'}`}>
           {rs.p1}-{rs.p2}
         </span>
@@ -118,6 +131,7 @@ const RoundScoresBar = ({ roundScores }) => {
 const MatchCard = ({ match, participants, teams, onRecordScore, compact, currentUserId, bestOf }) => {
   const isTeamMode = !!(match.team1_id || match.team2_id)
   const hasRoundScores = match.round_scores?.length > 0
+  const [expanded, setExpanded] = useState(false)
   const statusColors = {
     pending: 'border-gray-200 bg-gray-50',
     ready: 'border-amber-300 bg-amber-50',
@@ -126,9 +140,13 @@ const MatchCard = ({ match, participants, teams, onRecordScore, compact, current
 
   const cap = bestOf > 1 ? Math.floor(bestOf / 2) + 1 : null
   const capScore = (s) => (s != null && cap != null ? Math.min(s, cap) : s)
+  const showBreakdown = hasRoundScores && expanded
 
   return (
-    <div className={`border-2 rounded-lg overflow-hidden ${statusColors[match.status] || statusColors.pending} ${compact ? 'w-36' : isTeamMode ? 'w-48' : 'w-44'}`}>
+    <div
+      onClick={hasRoundScores ? () => setExpanded(e => !e) : undefined}
+      className={`border-2 rounded-lg overflow-hidden ${statusColors[match.status] || statusColors.pending} ${compact ? 'w-36' : isTeamMode ? 'w-48' : 'w-44'} ${hasRoundScores ? 'cursor-pointer' : ''}`}
+    >
       {isTeamMode ? (
         <>
           <TeamRow
@@ -138,8 +156,8 @@ const MatchCard = ({ match, participants, teams, onRecordScore, compact, current
             teams={teams}
             currentUserId={currentUserId}
           />
-          {hasRoundScores && <RoundScoresBar roundScores={match.round_scores} />}
-          <div className={hasRoundScores ? '' : 'border-t border-gray-200'} />
+          {showBreakdown && <RoundScoresBar roundScores={match.round_scores} bestOf={bestOf} />}
+          <div className={showBreakdown ? '' : 'border-t border-gray-200'} />
           <TeamRow
             teamId={match.team2_id}
             score={capScore(match.player2_score)}
@@ -157,8 +175,8 @@ const MatchCard = ({ match, participants, teams, onRecordScore, compact, current
             participants={participants}
             currentUserId={currentUserId}
           />
-          {hasRoundScores && <RoundScoresBar roundScores={match.round_scores} />}
-          <div className={hasRoundScores ? '' : 'border-t border-gray-200'} />
+          {showBreakdown && <RoundScoresBar roundScores={match.round_scores} bestOf={bestOf} />}
+          <div className={showBreakdown ? '' : 'border-t border-gray-200'} />
           <PlayerRow
             player={match.player2_id}
             score={capScore(match.player2_score)}
@@ -170,7 +188,7 @@ const MatchCard = ({ match, participants, teams, onRecordScore, compact, current
       )}
       {onRecordScore && (match.status === 'ready' || match.status === 'completed') && (
         <button
-          onClick={() => onRecordScore(match)}
+          onClick={(e) => { e.stopPropagation(); onRecordScore(match) }}
           className="w-full text-[10px] font-medium text-blue-600 bg-blue-50 hover:bg-blue-100 py-1 transition-colors"
         >
           {match.status === 'completed' ? 'Sửa điểm' : 'Nhập điểm'}
