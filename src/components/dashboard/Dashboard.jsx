@@ -199,6 +199,9 @@ const Dashboard = () => {
   const [pendingChallengeUserIds, setPendingChallengeUserIds] = useState({})
   const [pvpAvailable, setPvpAvailable] = useState(true)
   const [courseCompletion, setCourseCompletion] = useState({})
+  const [isDesktop, setIsDesktop] = useState(() =>
+    typeof window !== 'undefined' && window.matchMedia('(min-width: 768px)').matches
+  )
   const [tickedCourses, setTickedCourses] = useState(() => {
     try {
       const stored = JSON.parse(localStorage.getItem('teacher_ticked_courses') || '{}');
@@ -214,6 +217,14 @@ const Dashboard = () => {
     } catch { return {}; }
   })
   const navigate = useNavigate()
+
+  // Track desktop breakpoint for avatar sizing
+  useEffect(() => {
+    const mql = window.matchMedia('(min-width: 768px)')
+    const handler = (e) => setIsDesktop(e.matches)
+    mql.addEventListener('change', handler)
+    return () => mql.removeEventListener('change', handler)
+  }, [])
 
   // Check PvP schedule
   useEffect(() => {
@@ -760,7 +771,7 @@ const Dashboard = () => {
                   avatarUrl={profile?.avatar_url}
                   frameUrl={profile?.hide_frame ? null : profile?.active_title}
                   frameRatio={profile?.active_frame_ratio}
-                  size={86}
+                  size={isDesktop ? 110 : 86}
                   fallback={profile?.full_name?.[0]?.toUpperCase() || profile?.email?.[0]?.toUpperCase() || 'U'}
                   onClick={() => navigate(`/profile/${profile?.id}?avatarSelector=true`)}
                 />

@@ -33,10 +33,14 @@ const Leaderboard = () => {
   const [countdownText, setCountdownText] = useState('')
   const [weeklyChampionRewards, setWeeklyChampionRewards] = useState([]) // top 1/2/3
   const [monthlyChampionRewards, setMonthlyChampionRewards] = useState([]) // top 1/2/3
+  const [pvpChampionRewards, setPvpChampionRewards] = useState([]) // top 1/2/3
   const [previousChampions, setPreviousChampions] = useState([])
   const [trainingData, setTrainingData] = useState([])
   const [trainingLoading, setTrainingLoading] = useState(false)
   const [currentTrainingRank, setCurrentTrainingRank] = useState(null)
+  const [pvpData, setPvpData] = useState([])
+  const [pvpLoading, setPvpLoading] = useState(false)
+  const [currentPvpRank, setCurrentPvpRank] = useState(null)
   const { user } = useAuth()
   const { studentLevels } = useStudentLevels()
 
@@ -230,8 +234,10 @@ const Leaderboard = () => {
 
       const weeklyRewards = (rewardConfigs || []).filter(r => r.timeframe === 'weekly')
       const monthlyRewards = (rewardConfigs || []).filter(r => r.timeframe === 'monthly')
+      const pvpRewards = (rewardConfigs || []).filter(r => r.timeframe === 'pvp')
       setWeeklyChampionRewards(weeklyRewards)
       setMonthlyChampionRewards(monthlyRewards)
+      setPvpChampionRewards(pvpRewards)
 
       // Fetch previous champions (only from ranks with achievements/badges = top 1-3)
       const achievementIds = (rewardConfigs || [])
@@ -295,7 +301,7 @@ const Leaderboard = () => {
 
     let timer
     const start = () => {
-      if (timeframe !== 'week' && timeframe !== 'month' && timeframe !== 'training') {
+      if (timeframe !== 'week' && timeframe !== 'month' && timeframe !== 'training' && timeframe !== 'pvp') {
         setCountdownText('')
         return
       }
@@ -309,8 +315,11 @@ const Leaderboard = () => {
           // No end date set — no countdown
           setCountdownText('')
           return
+        } else if (timeframe === 'month') {
+          end = getEndOfMonthVN(now)
         } else {
-          end = timeframe === 'week' ? getEndOfWeekVN(now) : getEndOfMonthVN(now)
+          // week or pvp — both reset at end of VN week
+          end = getEndOfWeekVN(now)
         }
         const diff = end - now
         if (diff <= 0) {
@@ -602,6 +611,119 @@ const Leaderboard = () => {
     }
   }, [timeframe, settingsLoaded])
 
+  useEffect(() => {
+    if (timeframe === 'pvp') {
+      fetchPvpLeaderboard()
+    }
+  }, [timeframe])
+
+  // PvP leaderboard — each distinct opponent a user has defeated counts once (this week, VN time)
+  const fetchPvpLeaderboard = async () => {
+    try {
+      setPvpLoading(true)
+
+      // Monday 00:00 VN time of the current week
+      const vietnamToday = getVietnamDate()
+      const currentDate = new Date(vietnamToday)
+      const dayOfWeek = currentDate.getDay()
+      const daysFromMonday = dayOfWeek === 0 ? 6 : dayOfWeek - 1
+      const weekStart = new Date(currentDate)
+      weekStart.setDate(weekStart.getDate() - daysFromMonday)
+      const weekStartISO = weekStart.toISOString().split('T')[0] + 'T00:00:00+07:00'
+
+      // Paginate completed challenges from this week
+      let matches = []
+      let page = 0
+      const PAGE_SIZE = 1000
+      while (true) {
+        const { data: batch, error } = await supabase
+          .from('pvp_challenges')
+          .select('challenger_id, opponent_id, winner_id, created_at')
+          .eq('status', 'completed')
+          .not('winner_id', 'is', null)
+          .gte('created_at', weekStartISO)
+          .range(page * PAGE_SIZE, (page + 1) * PAGE_SIZE - 1)
+        if (error) throw error
+        if (!batch || batch.length === 0) break
+        matches = matches.concat(batch)
+        if (batch.length < PAGE_SIZE) break
+        page++
+      }
+
+      if (matches.length === 0) {
+        setPvpData([])
+        setCurrentPvpRank(null)
+        return
+      }
+
+      // Build win and loss maps keyed by "<opponent>|<vietnamDate>" so each pairing per day counts once
+      const winMap = {}
+      const lossMap = {}
+      matches.forEach(m => {
+        const winner = m.winner_id
+        const loser = winner === m.challenger_id ? m.opponent_id : m.challenger_id
+        if (!winner || !loser) return
+        const day = utcToVietnamDate(m.created_at)
+        if (!winMap[winner]) winMap[winner] = new Set()
+        winMap[winner].add(`${loser}|${day}`)
+        if (!lossMap[loser]) lossMap[loser] = new Set()
+        lossMap[loser].add(`${winner}|${day}`)
+      })
+
+      const userIds = Array.from(new Set([...Object.keys(winMap), ...Object.keys(lossMap)]))
+      if (userIds.length === 0) {
+        setPvpData([])
+        setCurrentPvpRank(null)
+        return
+      }
+
+      const { data: users } = await supabase
+        .from('users')
+        .select('id, full_name, email, avatar_url, xp, user_equipment(active_title, active_frame_ratio, hide_frame)')
+        .in('id', userIds)
+        .eq('role', 'user')
+
+      if (!users) { setPvpData([]); setCurrentPvpRank(null); return }
+
+      const flatUsers = users.map(u => {
+        const { user_equipment, ...rest } = u
+        return { ...rest, ...user_equipment }
+      })
+
+      const sorted = flatUsers
+        .map(u => ({
+          ...u,
+          wins: winMap[u.id]?.size || 0,
+          losses: lossMap[u.id]?.size || 0,
+        }))
+        .sort((a, b) => b.wins - a.wins || a.losses - b.losses)
+        .slice(0, 50)
+
+      const formatted = sorted.map((u, index) => {
+        const levelInfo = getUserLevelInfo(u.xp || 0)
+        return {
+          id: u.id,
+          rank: index + 1,
+          name: u.full_name || u.email?.split('@')[0] || 'Unknown',
+          wins: u.wins,
+          losses: u.losses,
+          avatar: u.avatar_url,
+          frame: u.hide_frame ? null : u.active_title,
+          frameRatio: u.active_frame_ratio,
+          badge: { ...levelInfo.badge, levelNumber: levelInfo.level },
+          isCurrentUser: u.id === user?.id
+        }
+      })
+
+      setPvpData(formatted)
+      setCurrentPvpRank(formatted.find(u => u.id === user?.id) || null)
+    } catch (err) {
+      console.error('Error fetching pvp leaderboard:', err)
+    } finally {
+      setPvpLoading(false)
+    }
+  }
+
   // Get all-time leaderboard (existing logic)
   const getAllTimeLeaderboard = async () => {
     const { data: users, error: usersError } = await supabase
@@ -848,6 +970,72 @@ const Leaderboard = () => {
     )
   }
 
+  const renderChampionBanner = (rewards) => {
+    if (!rewards || rewards.length === 0) return null
+    const grouped = []
+    rewards.forEach(r => {
+      if (r.rank <= 3) {
+        grouped.push({ ranks: [r.rank], ...r })
+      } else {
+        const prev = grouped[grouped.length - 1]
+        if (prev && prev.ranks[0] > 3 && prev.xp_reward === r.xp_reward && prev.gem_reward === r.gem_reward && prev.item_id === r.item_id && prev.chest_id === r.chest_id) {
+          prev.ranks.push(r.rank)
+        } else {
+          grouped.push({ ranks: [r.rank], ...r })
+        }
+      }
+    })
+    const rankIcons = { 1: '🏆', 2: '🥈', 3: '🥉' }
+    const rankStyles = {
+      1: { bg: 'bg-gradient-to-r from-yellow-50 to-amber-50', border: 'border-yellow-200', xpColor: 'text-yellow-600' },
+      2: { bg: 'bg-gradient-to-r from-gray-50 to-slate-50', border: 'border-gray-300', xpColor: 'text-gray-600' },
+      3: { bg: 'bg-gradient-to-r from-orange-50 to-amber-50', border: 'border-orange-200', xpColor: 'text-orange-600' },
+    }
+    const defaultStyle = { bg: 'bg-gray-50', border: 'border-gray-200', xpColor: 'text-gray-500' }
+    return (
+      <div className="flex flex-wrap justify-center gap-2">
+        {grouped.map((g) => {
+          const firstRank = g.ranks[0]
+          const style = rankStyles[firstRank] || defaultStyle
+          const label = g.ranks.length === 1
+            ? (rankIcons[firstRank] || `#${firstRank}`)
+            : `${g.ranks[0]}-${g.ranks[g.ranks.length - 1]}`
+          return (
+            <div key={g.ranks.join('-')} className={`inline-flex items-center gap-2 ${style.bg} border ${style.border} px-4 py-3 text-sm`}
+              style={{ clipPath: CLIP_SM }}
+            >
+              <span className="text-base">{label}</span>
+              <span className="text-gray-700">
+                {g.xp_reward > 0 && <strong className={`${style.xpColor} inline-flex items-center gap-1`}>{g.xp_reward} <img src={assetUrl('/image/study/xp.png')} alt="XP" className="w-4 h-4" /></strong>}
+                {g.xp_reward > 0 && g.gem_reward > 0 && ' + '}
+                {g.gem_reward > 0 && <strong className="text-blue-500 inline-flex items-center gap-1">{g.gem_reward} <img src={assetUrl('/image/study/gem.png')} alt="Gem" className="w-4 h-4" /></strong>}
+                {g.collectible_items && <>
+                  {(g.xp_reward > 0 || g.gem_reward > 0) && ' + '}
+                  <strong className="text-purple-500 inline-flex items-center gap-1">
+                    {g.item_quantity > 1 && `${g.item_quantity}x `}{g.collectible_items.name}
+                  </strong>
+                </>}
+                {g.chests && <>
+                  {(g.xp_reward > 0 || g.gem_reward > 0 || g.collectible_items) && ' + '}
+                  <strong className="text-amber-600 inline-flex items-center gap-1">
+                    {g.chests.name}
+                  </strong>
+                </>}
+              </span>
+            </div>
+          )
+        })}
+        {countdownText && (
+          <div className="inline-flex items-center gap-1 bg-gray-50 border border-gray-200 px-3 py-3 text-sm text-gray-400"
+            style={{ clipPath: CLIP_SM }}
+          >
+            {countdownText}
+          </div>
+        )}
+      </div>
+    )
+  }
+
   return (
     <div className="space-y-8">
       {/* Header */}
@@ -865,7 +1053,9 @@ const Leaderboard = () => {
             { key: 'training', label: competitionType === 'items' && competitionItemInfo
               ? competitionItemInfo.name
               : GAME_LABELS[competitionGameType] || 'Competition' }
-          ].filter(option => visibleTabs.includes(option.key)).map((option) => (
+          ].filter(option => visibleTabs.includes(option.key)).concat([
+            { key: 'pvp', label: 'PvP' }
+          ]).map((option) => (
             <button
               key={option.key}
               onClick={() => setTimeframe(option.key)}
@@ -1073,77 +1263,207 @@ const Leaderboard = () => {
         )
       )}
 
-      {/* Champion Reward Banner */}
-      {timeframe !== 'daily_challenge' && timeframe !== 'training' && (
-        <>
-      {/* Champion Reward Banner */}
-      {(timeframe === 'week' || timeframe === 'month') && (() => {
-        const rewards = timeframe === 'week' ? weeklyChampionRewards : monthlyChampionRewards
-        if (rewards.length === 0) return null
-        // Group rewards: top 1-3 individual, then group consecutive ranks with same xp/gems/item
-        const grouped = []
-        rewards.forEach(r => {
-          if (r.rank <= 3) {
-            grouped.push({ ranks: [r.rank], ...r })
-          } else {
-            const prev = grouped[grouped.length - 1]
-            if (prev && prev.ranks[0] > 3 && prev.xp_reward === r.xp_reward && prev.gem_reward === r.gem_reward && prev.item_id === r.item_id && prev.chest_id === r.chest_id) {
-              prev.ranks.push(r.rank)
-            } else {
-              grouped.push({ ranks: [r.rank], ...r })
-            }
-          }
-        })
-        const rankIcons = { 1: '🏆', 2: '🥈', 3: '🥉' }
-        const rankStyles = {
-          1: { bg: 'bg-gradient-to-r from-yellow-50 to-amber-50', border: 'border-yellow-200', xpColor: 'text-yellow-600' },
-          2: { bg: 'bg-gradient-to-r from-gray-50 to-slate-50', border: 'border-gray-300', xpColor: 'text-gray-600' },
-          3: { bg: 'bg-gradient-to-r from-orange-50 to-amber-50', border: 'border-orange-200', xpColor: 'text-orange-600' },
-        }
-        const defaultStyle = { bg: 'bg-gray-50', border: 'border-gray-200', xpColor: 'text-gray-500' }
-        return (
-          <div className="flex flex-wrap justify-center gap-2">
-            {grouped.map((g) => {
-              const firstRank = g.ranks[0]
-              const style = rankStyles[firstRank] || defaultStyle
-              const label = g.ranks.length === 1
-                ? (rankIcons[firstRank] || `#${firstRank}`)
-                : `${g.ranks[0]}-${g.ranks[g.ranks.length - 1]}`
-              return (
-                <div key={g.ranks.join('-')} className={`inline-flex items-center gap-2 ${style.bg} border ${style.border} px-4 py-3 text-sm`}
-                  style={{ clipPath: CLIP_SM }}
-                >
-                  <span className="text-base">{label}</span>
-                  <span className="text-gray-700">
-                    {g.xp_reward > 0 && <strong className={`${style.xpColor} inline-flex items-center gap-1`}>{g.xp_reward} <img src={assetUrl('/image/study/xp.png')} alt="XP" className="w-4 h-4" /></strong>}
-                    {g.xp_reward > 0 && g.gem_reward > 0 && ' + '}
-                    {g.gem_reward > 0 && <strong className="text-blue-500 inline-flex items-center gap-1">{g.gem_reward} <img src={assetUrl('/image/study/gem.png')} alt="Gem" className="w-4 h-4" /></strong>}
-                    {g.collectible_items && <>
-                      {(g.xp_reward > 0 || g.gem_reward > 0) && ' + '}
-                      <strong className="text-purple-500 inline-flex items-center gap-1">
-                        {g.item_quantity > 1 && `${g.item_quantity}x `}{g.collectible_items.name}
-                      </strong>
-                    </>}
-                    {g.chests && <>
-                      {(g.xp_reward > 0 || g.gem_reward > 0 || g.collectible_items) && ' + '}
-                      <strong className="text-amber-600 inline-flex items-center gap-1">
-                        {g.chests.name}
-                      </strong>
-                    </>}
-                  </span>
+      {/* PvP Leaderboard — each opponent counted once */}
+      {timeframe === 'pvp' && (
+        pvpLoading ? (
+          <div className="flex justify-center py-8">
+            <div className="relative w-10 h-10">
+              <div className="absolute inset-0 border-2 border-blue-200 rounded-full animate-ping opacity-30" />
+              <RefreshCw className="w-10 h-10 animate-spin text-blue-400" />
+            </div>
+          </div>
+        ) : pvpData.length === 0 ? (
+          <>
+            {renderChampionBanner(pvpChampionRewards)}
+            <div className="relative text-center py-8 text-gray-400 bg-white border border-gray-200" style={{ clipPath: CLIP_CARD }}>
+              <CornerBrackets />
+              <Trophy className="w-10 h-10 mx-auto mb-2 text-gray-300" />
+              <p className="text-sm">Chưa có trận PvP nào kết thúc</p>
+            </div>
+          </>
+        ) : (
+          <>
+            {renderChampionBanner(pvpChampionRewards)}
+            <p className="text-center text-xs text-gray-500">Tuần này · tối đa 1 trận thắng/thua mỗi đối thủ mỗi ngày · xếp hạng theo thắng (giảm) rồi thua (tăng)</p>
+
+            {/* Top 3 Podium */}
+            <div className="grid grid-cols-3 gap-2 md:gap-4 mb-4 md:mb-8 items-end">
+              {/* 2nd Place */}
+              {pvpData[1] && (
+                <div className="order-1">
+                  <div className="relative text-center p-2 md:p-6 bg-gradient-to-t from-gray-200/80 to-white border border-gray-200 overflow-hidden"
+                    style={{ clipPath: CLIP_CARD }}
+                  >
+                    <CornerBrackets />
+                    <div className="mx-auto mb-2 md:mb-4 relative z-10">
+                      <AvatarWithFrame avatarUrl={pvpData[1].avatar} frameUrl={pvpData[1].frame} frameRatio={pvpData[1].frameRatio} size={80} className="mx-auto" fallback={pvpData[1].name.charAt(0).toUpperCase()} />
+                    </div>
+                    <div className="font-semibold text-gray-900 text-xs md:text-base cursor-pointer hover:text-blue-600 transition-colors break-words text-center relative z-10" onClick={() => handleProfileClick(pvpData[1].id)}>
+                      {pvpData[1].name}
+                    </div>
+                    <div className="text-sm md:text-lg font-semibold text-gray-700 mt-1 md:mt-2 relative z-10">
+                      <span className="text-green-600">{pvpData[1].wins}W</span>
+                      <span className="text-gray-400 mx-1">·</span>
+                      <span className="text-red-500">{pvpData[1].losses}L</span>
+                    </div>
+                  </div>
                 </div>
-              )
-            })}
-            {countdownText && (
-              <div className="inline-flex items-center gap-1 bg-gray-50 border border-gray-200 px-3 py-3 text-sm text-gray-400"
-                style={{ clipPath: CLIP_SM }}
-              >
-                {countdownText}
+              )}
+              {/* 1st Place */}
+              {pvpData[0] && (
+                <div className="order-2">
+                  <div className="relative text-center p-2 md:p-6 bg-gradient-to-t from-yellow-100/80 to-white border border-yellow-200 md:transform md:scale-105 overflow-hidden"
+                    style={{ clipPath: CLIP_CARD }}
+                  >
+                    <CornerBrackets />
+                    <Crown className="w-6 h-6 md:w-8 md:h-8 text-yellow-500 mx-auto mb-1 md:mb-2 relative z-10" />
+                    <div className="mx-auto mb-2 md:mb-4 relative z-10">
+                      <AvatarWithFrame avatarUrl={pvpData[0].avatar} frameUrl={pvpData[0].frame} frameRatio={pvpData[0].frameRatio} size={80} className="mx-auto" fallback={pvpData[0].name.charAt(0).toUpperCase()} />
+                    </div>
+                    <div className="font-semibold text-gray-900 text-xs md:text-lg cursor-pointer hover:text-blue-600 transition-colors break-words text-center relative z-10" onClick={() => handleProfileClick(pvpData[0].id)}>
+                      {pvpData[0].name}
+                    </div>
+                    <div className="text-sm md:text-xl font-semibold text-gray-900 mt-1 md:mt-2 relative z-10">
+                      <span className="text-green-600">{pvpData[0].wins}W</span>
+                      <span className="text-gray-400 mx-1">·</span>
+                      <span className="text-red-500">{pvpData[0].losses}L</span>
+                    </div>
+                    <div className="hidden md:flex items-center justify-center mt-2 text-yellow-600 relative z-10">
+                      <Star size={16} fill="currentColor" />
+                      <span className="ml-1 text-sm">Vua PvP</span>
+                    </div>
+                  </div>
+                </div>
+              )}
+              {/* 3rd Place */}
+              {pvpData[2] && (
+                <div className="order-3">
+                  <div className="relative text-center p-2 md:p-6 bg-gradient-to-t from-orange-100/80 to-white border border-orange-200 overflow-hidden"
+                    style={{ clipPath: CLIP_CARD }}
+                  >
+                    <CornerBrackets />
+                    <div className="mx-auto mb-2 md:mb-4 relative z-10">
+                      <AvatarWithFrame avatarUrl={pvpData[2].avatar} frameUrl={pvpData[2].frame} frameRatio={pvpData[2].frameRatio} size={56} className="mx-auto" fallback={pvpData[2].name.charAt(0).toUpperCase()} />
+                    </div>
+                    <div className="font-semibold text-gray-900 text-xs md:text-base cursor-pointer hover:text-blue-600 transition-colors break-words text-center relative z-10" onClick={() => handleProfileClick(pvpData[2].id)}>
+                      {pvpData[2].name}
+                    </div>
+                    <div className="text-sm md:text-lg font-semibold text-gray-700 mt-1 md:mt-2 relative z-10">
+                      <span className="text-green-600">{pvpData[2].wins}W</span>
+                      <span className="text-gray-400 mx-1">·</span>
+                      <span className="text-red-500">{pvpData[2].losses}L</span>
+                    </div>
+                  </div>
+                </div>
+              )}
+            </div>
+
+            {/* Full Ranked List */}
+            <div className="relative bg-white border border-gray-200 overflow-hidden" style={{ clipPath: CLIP_CARD }}>
+              <CornerBrackets />
+              <div className="divide-y divide-gray-100">
+                {pvpData.slice(3, 10).map((entry) => (
+                  <div key={entry.id} className={`py-2 md:py-4 px-3 md:px-4 ${getRankColor(entry.rank)} flex items-center justify-between`}>
+                    <div className="flex items-center space-x-2 md:space-x-4">
+                      <div className="flex items-center justify-center w-6 md:w-8 h-6 md:h-8">
+                        {getRankIcon(entry.rank)}
+                      </div>
+                      <AvatarWithFrame avatarUrl={entry.avatar} frameUrl={entry.frame} frameRatio={entry.frameRatio} size={48} fallback={entry.name.charAt(0).toUpperCase()} />
+                      <div>
+                        <div className="font-medium text-gray-900 cursor-pointer hover:text-blue-600 transition-colors" onClick={() => handleProfileClick(entry.id)}>
+                          {entry.name}
+                        </div>
+                      </div>
+                    </div>
+                    <div className="text-right">
+                      <div className="font-semibold text-sm">
+                        <span className="text-green-600">{entry.wins}W</span>
+                        <span className="text-gray-400 mx-1">·</span>
+                        <span className="text-red-500">{entry.losses}L</span>
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            {/* Your Rank */}
+            {currentPvpRank && (
+              <div className="relative bg-gradient-to-r from-purple-50 to-indigo-50 border border-purple-200 overflow-hidden" style={{ clipPath: CLIP_CARD }}>
+                <CornerBrackets />
+                <div className="flex items-center justify-between p-4">
+                  <div className="flex items-center space-x-4">
+                    <AvatarWithFrame avatarUrl={currentPvpRank.avatar} frameUrl={currentPvpRank.frame} frameRatio={currentPvpRank.frameRatio} size={48} fallback={currentPvpRank.name.charAt(0).toUpperCase()} />
+                    <div>
+                      <div className="font-semibold text-gray-900">Bạn ({currentPvpRank.name})</div>
+                      <span className="text-sm text-gray-600">Hạng #{currentPvpRank.rank}</span>
+                    </div>
+                  </div>
+                  <div className="font-semibold text-lg">
+                    <span className="text-green-600">{currentPvpRank.wins}W</span>
+                    <span className="text-gray-400 mx-1">·</span>
+                    <span className="text-red-500">{currentPvpRank.losses}L</span>
+                  </div>
+                </div>
               </div>
             )}
-          </div>
+
+            {/* Previous PvP Champions */}
+            {(() => {
+              const pvpAchievementIds = pvpChampionRewards.filter(r => r.achievement_id).map(r => r.achievement_id)
+              const pvpPrev = previousChampions.filter(c => pvpAchievementIds.includes(c.achievement_id))
+              if (pvpPrev.length === 0) return null
+              return (
+                <div className="relative bg-white border border-gray-200 overflow-hidden" style={{ clipPath: CLIP_CARD }}>
+                  <CornerBrackets />
+                  <div className="px-5 pt-4 pb-1">
+                    <h3 className="text-base font-semibold text-gray-900 uppercase tracking-wide">Top PvP tuần trước</h3>
+                    <div className="h-[2px] w-12 bg-gradient-to-r from-yellow-400 to-transparent mt-1" />
+                  </div>
+                  <div className="divide-y divide-gray-100">
+                    {pvpPrev.map((champion, index) => {
+                      const earnedDate = new Date(champion.earned_at)
+                      const dateStr = earnedDate.toLocaleDateString('vi-VN', { day: '2-digit', month: '2-digit', year: 'numeric', timeZone: 'Asia/Ho_Chi_Minh' })
+                      const matchedReward = pvpChampionRewards.find(r => r.achievement_id === champion.achievement_id)
+                      const rank = matchedReward?.rank || 1
+                      const rankIcon = rank === 3 ? '🥉' : rank === 2 ? '🥈' : '🏆'
+                      const rankLabel = `Top ${rank}`
+                      return (
+                        <div key={index} className="flex items-center justify-between px-4 py-3">
+                          <div className="flex items-center gap-3">
+                            <AvatarWithFrame
+                              avatarUrl={champion.users?.avatar_url}
+                              frameUrl={champion.users?.hide_frame ? null : champion.users?.active_title}
+                              frameRatio={champion.users?.active_frame_ratio}
+                              size={40}
+                              fallback={champion.users?.full_name?.charAt(0)?.toUpperCase() || '?'}
+                            />
+                            <div>
+                              <div className="font-medium text-gray-900">{champion.users?.full_name || 'Unknown'}</div>
+                              <div className="text-xs text-gray-400">{dateStr}</div>
+                            </div>
+                          </div>
+                          <div className="flex items-center gap-1 text-yellow-500">
+                            <span className="text-base">{rankIcon}</span>
+                            <span className="text-xs font-medium">{rankLabel}</span>
+                          </div>
+                        </div>
+                      )
+                    })}
+                  </div>
+                </div>
+              )
+            })()}
+          </>
         )
-      })()}
+      )}
+
+      {/* Champion Reward Banner */}
+      {timeframe !== 'daily_challenge' && timeframe !== 'training' && timeframe !== 'pvp' && (
+        <>
+      {/* Champion Reward Banner */}
+      {(timeframe === 'week' || timeframe === 'month') &&
+        renderChampionBanner(timeframe === 'week' ? weeklyChampionRewards : monthlyChampionRewards)}
 
       {/* Top 3 Podium */}
       {leaderboardData.length > 0 && (
