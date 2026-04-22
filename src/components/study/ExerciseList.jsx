@@ -72,6 +72,9 @@ import StudentStatsPopover from "../ui/StudentStatsPopover";
 import useClassStats from "../../hooks/useClassStats";
 
 import { assetUrl } from '../../hooks/useBranding';
+// Every map theme in mapThemes.js exposes 11 node positions per page
+const EXERCISES_PER_MAP_PAGE = 11;
+
 // Returns indices of positions where real exercises should be placed
 // customMappings comes from the theme config in mapThemes.js
 function getExerciseIndices(count, positions, customMappings) {
@@ -136,6 +139,8 @@ const ExerciseList = () => {
   const [draggingNode, setDraggingNode] = useState(null);
   const [draggingControlPoint, setDraggingControlPoint] = useState(null);
   const [pickedExerciseIndex, setPickedExerciseIndex] = useState(null);
+  const [mapPage, setMapPage] = useState(0);
+  const didInitMapPage = useRef(false);
   const mapContainerRef = useRef(null);
   // Desktop detection for responsive node positions
   const [isDesktop, setIsDesktop] = useState(
@@ -676,6 +681,20 @@ const ExerciseList = () => {
       document.removeEventListener("mouseup", handleMouseUp);
     };
   }, [positionEditorMode, handleNodeDrag]);
+
+  // Jump to the page containing the first incomplete exercise on initial load
+  useEffect(() => {
+    if (didInitMapPage.current) return;
+    if (exercises.length === 0) return;
+    const idx = exercises.findIndex((ex) => {
+      const p = userProgress.find((pr) => pr.exercise_id === ex.id);
+      return !p || p.status !== "completed";
+    });
+    if (idx > 0) {
+      setMapPage(Math.floor(idx / EXERCISES_PER_MAP_PAGE));
+    }
+    didInitMapPage.current = true;
+  }, [exercises, userProgress]);
 
   const getExerciseIcon = (exerciseType) => {
     const IconImg = ({ src, className = "" }) => (
@@ -1296,20 +1315,30 @@ const ExerciseList = () => {
       ? mapTheme.desktopControlPoints
       : mapTheme.controlPoints;
 
-  // Generate all 11 levels (real exercises + dummy nodes)
+  const exercisesPerPage = EXERCISES_PER_MAP_PAGE;
+  const totalMapPages = Math.max(1, Math.ceil(exercises.length / exercisesPerPage));
+  const currentMapPage = Math.min(mapPage, totalMapPages - 1);
+
+  // Generate the 11 levels for the current page (real exercises + dummy nodes)
   const generateLevels = () => {
+    const pageStart = currentMapPage * exercisesPerPage;
+    const pageExercises = exercises.slice(
+      pageStart,
+      pageStart + exercisesPerPage,
+    );
+
     // Use desktop mappings on PC, mobile mappings on mobile
     const customMappings =
       isDesktop && mapTheme.desktopCustomMappings
         ? mapTheme.desktopCustomMappings
         : mapTheme.customMappings;
     const exerciseIndices = getExerciseIndices(
-      exercises.length,
+      pageExercises.length,
       allPositions,
       customMappings,
     );
 
-    // Find the first incomplete exercise index
+    // Find the first incomplete exercise index (across all pages)
     const currentExerciseIndex = exercises.findIndex((ex) => {
       const p = userProgress.find((pr) => pr.exercise_id === ex.id);
       return !p || p.status !== "completed";
@@ -1320,8 +1349,9 @@ const ExerciseList = () => {
     const levels = allPositions.map((pos, posIndex) => {
       const isRealExercise = exerciseIndices.includes(posIndex);
 
-      if (isRealExercise && exerciseCounter < exercises.length) {
-        const exercise = exercises[exerciseCounter];
+      if (isRealExercise && exerciseCounter < pageExercises.length) {
+        const exercise = pageExercises[exerciseCounter];
+        const absoluteIndex = pageStart + exerciseCounter;
         const progress = userProgress.find(
           (p) => p.exercise_id === exercise.id,
         );
@@ -1329,12 +1359,12 @@ const ExerciseList = () => {
           progress?.status === "completed"
             ? getStarCount(progress?.score, progress?.status, progress?.max_score)
             : 0;
-        const isCurrent = exerciseCounter === currentExerciseIndex;
+        const isCurrent = absoluteIndex === currentExerciseIndex;
 
         const node = {
           id: exercise.id,
           positionIndex: posIndex,
-          exerciseNumber: exerciseCounter + 1,
+          exerciseNumber: absoluteIndex + 1,
           title: exercise.title,
           x: pos.x,
           y: pos.y,
@@ -1638,6 +1668,37 @@ const ExerciseList = () => {
                 );
               })}
             </div>
+
+            {/* Page controls when a session has more than one map page worth of exercises */}
+            {totalMapPages > 1 && (
+              <div
+                className={`absolute right-4 z-40 flex items-center gap-2 bg-white/90 backdrop-blur rounded-full shadow-lg px-2 py-1.5 ${
+                  canCreateContent() ? "bottom-20" : "bottom-4"
+                }`}
+              >
+                <button
+                  onClick={() => setMapPage((p) => Math.max(0, p - 1))}
+                  disabled={currentMapPage === 0}
+                  className="p-1 rounded-full text-gray-700 hover:bg-gray-100 disabled:opacity-40 disabled:cursor-not-allowed"
+                  aria-label="Previous page"
+                >
+                  <ArrowLeft className="w-5 h-5" />
+                </button>
+                <span className="text-xs font-medium text-gray-800 min-w-[2.5rem] text-center">
+                  {currentMapPage + 1} / {totalMapPages}
+                </span>
+                <button
+                  onClick={() =>
+                    setMapPage((p) => Math.min(totalMapPages - 1, p + 1))
+                  }
+                  disabled={currentMapPage >= totalMapPages - 1}
+                  className="p-1 rounded-full text-gray-700 hover:bg-gray-100 disabled:opacity-40 disabled:cursor-not-allowed"
+                  aria-label="Next page"
+                >
+                  <ArrowLeft className="w-5 h-5 rotate-180" />
+                </button>
+              </div>
+            )}
           </>
         )}
 
