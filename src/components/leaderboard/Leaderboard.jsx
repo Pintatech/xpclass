@@ -1284,7 +1284,7 @@ const Leaderboard = () => {
         ) : (
           <>
             {renderChampionBanner(pvpChampionRewards)}
-            <p className="text-center text-xs text-gray-500">Tuần này · tối đa 1 trận thắng/thua mỗi đối thủ mỗi ngày · xếp hạng theo thắng (giảm) rồi thua (tăng)</p>
+            <p className="text-center text-xs text-gray-500">Tuần này · tối đa 1 trận thắng/thua mỗi đối thủ mỗi ngày</p>
 
             {/* Top 3 Podium */}
             <div className="grid grid-cols-3 gap-2 md:gap-4 mb-4 md:mb-8 items-end">
