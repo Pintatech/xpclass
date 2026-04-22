@@ -574,6 +574,7 @@ export function useTournament() {
 
           const roundScores = []
           let t1Wins = 0, t2Wins = 0
+          const needed = Math.floor(bestOf / 2) + 1
           for (let i = 0; i < completedRounds; i++) {
             const s1 = t1Arrays.reduce((sum, p) => sum + p[i], 0)
             const s2 = t2Arrays.reduce((sum, p) => sum + p[i], 0)
@@ -581,10 +582,8 @@ export function useTournament() {
             roundScores.push({ p1: s1, p2: s2, winner })
             if (winner === 1) t1Wins++
             if (winner === 2) t2Wins++
+            if (t1Wins >= needed || t2Wins >= needed) break
           }
-          const needed = Math.floor(bestOf / 2) + 1
-          t1Wins = Math.min(t1Wins, needed)
-          t2Wins = Math.min(t2Wins, needed)
 
           const partial = {}
           if (t1Wins !== match.player1_score) partial.player1_score = t1Wins
@@ -666,6 +665,7 @@ export function useTournament() {
         const roundScores = []
         let p1Wins = 0, p2Wins = 0
         const completedRounds = Math.min(p1Plays.length, p2Plays.length)
+        const needed = Math.floor(bestOf / 2) + 1
         for (let i = 0; i < completedRounds; i++) {
           const s1 = p1Plays[i].score
           const s2 = p2Plays[i].score
@@ -673,10 +673,8 @@ export function useTournament() {
           roundScores.push({ p1: s1, p2: s2, winner })
           if (winner === 1) p1Wins++
           if (winner === 2) p2Wins++
+          if (p1Wins >= needed || p2Wins >= needed) break
         }
-        const needed = Math.floor(bestOf / 2) + 1
-        p1Wins = Math.min(p1Wins, needed)
-        p2Wins = Math.min(p2Wins, needed)
 
         const partial = {}
         if (p1Wins !== match.player1_score) partial.player1_score = p1Wins
