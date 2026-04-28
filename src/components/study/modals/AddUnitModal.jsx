@@ -27,7 +27,7 @@ const AddUnitModal = ({ levelId, onClose, onCreated }) => {
     try {
       const { data, error: fetchError } = await supabase
         .from('course_enrollments')
-        .select('student_id, student:users!student_id(id, full_name)')
+        .select('student_id, student:users!student_id(id, full_name, real_name)')
         .eq('course_id', levelId)
         .eq('is_active', true)
 
@@ -35,7 +35,7 @@ const AddUnitModal = ({ levelId, onClose, onCreated }) => {
 
       const studentList = (data || []).map(e => ({
         id: e.student?.id || e.student_id,
-        name: e.student?.full_name || 'Unknown'
+        name: e.student?.real_name || e.student?.full_name || 'Unknown'
       }))
       setStudents(studentList)
     } catch (err) {

@@ -40,7 +40,7 @@ const AddSessionModal = ({ unitId, courseId, parentAssignedStudentId, onClose, o
     try {
       const { data, error: fetchError } = await supabase
         .from('course_enrollments')
-        .select('student_id, student:users!student_id(id, full_name)')
+        .select('student_id, student:users!student_id(id, full_name, real_name)')
         .eq('course_id', courseId)
         .eq('is_active', true)
 
@@ -48,7 +48,7 @@ const AddSessionModal = ({ unitId, courseId, parentAssignedStudentId, onClose, o
 
       const studentList = (data || []).map(e => ({
         id: e.student?.id || e.student_id,
-        name: e.student?.full_name || 'Unknown'
+        name: e.student?.real_name || e.student?.full_name || 'Unknown'
       }))
       setStudents(studentList)
     } catch (err) {

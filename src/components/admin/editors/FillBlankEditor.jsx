@@ -887,6 +887,13 @@ const FillBlankEditor = ({ questions, onQuestionsChange, settings, onSettingsCha
             <br />
             Explanation: Add a line starting with # after a question
           </p>
+          <div className="text-sm text-blue-700 mb-3 p-2 bg-blue-100 border border-blue-200 rounded">
+            <strong>Separated Q&A formats also supported</strong> — put questions and answers in different sections:
+            <br />
+            <span className="font-medium">Option 1:</span> Numbered questions on top, numbered answers on the bottom (e.g. <code>1. The capital is ___</code> … <code>1. Paris #explanation</code>). Auto-detected when a number repeats.
+            <br />
+            <span className="font-medium">Option 2:</span> Passage with numbered blanks like <code>(1) ___</code>, followed by an <code>Answer key:</code> line and entries like <code>(1) [answer] #explanation</code>.
+          </div>
           <textarea
             value={bulkText}
             onChange={(e) => setBulkText(e.target.value)}

@@ -781,7 +781,12 @@ const Profile = () => {
 
   const handleSaveProfile = async () => {
     try {
-      const nameChanged = editData.full_name !== profile?.full_name
+      const trimmedName = (editData.full_name || '').trim()
+      if (!trimmedName) {
+        alert('Tên không được để trống.')
+        return
+      }
+      const nameChanged = trimmedName !== profile?.full_name
       if (nameChanged) {
         const remaining = getNameCooldownRemaining()
         if (remaining > 0) {
@@ -789,7 +794,7 @@ const Profile = () => {
           return
         }
       }
-      const updates = { ...editData }
+      const updates = { ...editData, full_name: trimmedName }
       if (nameChanged) {
         updates.name_changed_at = new Date().toISOString()
       }
