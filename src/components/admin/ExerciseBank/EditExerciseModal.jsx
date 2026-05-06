@@ -209,6 +209,7 @@ const EditExerciseModal = ({ isOpen, onClose, exercise, onUpdate }) => {
             onQuestionsChange={(questions) => handleContentChange({ ...content, questions })}
             intro={content.intro || ''}
             onIntroChange={(intro) => handleContentChange({ ...content, intro })}
+            folderPath={getFolderPath(formData.folder_id)}
           />
         )
       case 'pronunciation':

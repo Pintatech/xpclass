@@ -162,7 +162,25 @@ const MultipleChoiceEditor = ({ questions, onQuestionsChange, settings, onSettin
 
   const insertAtCursor = (index, textToInsert) => {
     const textarea = questionInputRefs.current[index]
+    if (index === -1) {
+      const current = intro || ''
+      if (!textarea) {
+        onIntroChange && onIntroChange(current + (current ? '\n\n' : '') + textToInsert)
+        return
+      }
+      const start = textarea.selectionStart || 0
+      const end = textarea.selectionEnd || 0
+      const newValue = current.slice(0, start) + textToInsert + current.slice(end)
+      onIntroChange && onIntroChange(newValue)
+      setTimeout(() => {
+        textarea.focus()
+        const caret = start + textToInsert.length
+        textarea.setSelectionRange(caret, caret)
+      }, 0)
+      return
+    }
     const current = localQuestions[index]
+    if (!current) return
     if (!textarea) {
       updateQuestion(index, 'question', (current.question || '') + (current.question ? '\n\n' : '') + textToInsert)
       return
@@ -439,30 +457,37 @@ const MultipleChoiceEditor = ({ questions, onQuestionsChange, settings, onSettin
     const items = e.clipboardData?.items
     if (!items) return
     for (const item of items) {
-      if (item.type.startsWith('image/')) {
-        e.preventDefault()
-        const file = item.getAsFile()
-        if (!file) return
-        try {
-          const basePath = folderPath ? `exercise_bank/${folderPath}` : 'exercise_bank'
-          const path = `${basePath}/${Date.now()}_${Math.random().toString(36).slice(2)}_pasted.${file.type.split('/')[1]}`
-          const { error: uploadError } = await supabase.storage
-            .from('exercise-files')
-            .upload(path, file, { cacheControl: '3600', upsert: true })
-          if (uploadError) throw uploadError
-          const { data: publicData } = supabase.storage
-            .from('exercise-files')
-            .getPublicUrl(path)
-          const publicUrl = publicData?.publicUrl
-          if (!publicUrl) throw new Error('Cannot get public URL')
+      const isImage = item.type.startsWith('image/')
+      const isAudio = item.type.startsWith('audio/')
+      if (!isImage && !isAudio) continue
+      e.preventDefault()
+      const file = item.getAsFile()
+      if (!file) return
+      try {
+        const basePath = folderPath ? `exercise_bank/${folderPath}` : 'exercise_bank'
+        const ext = file.type.split('/')[1] || (isImage ? 'png' : 'mp3')
+        const path = `${basePath}/${Date.now()}_${Math.random().toString(36).slice(2)}_pasted.${ext}`
+        const { error: uploadError } = await supabase.storage
+          .from('exercise-files')
+          .upload(path, file, { cacheControl: '3600', upsert: true })
+        if (uploadError) throw uploadError
+        const { data: publicData } = supabase.storage
+          .from('exercise-files')
+          .getPublicUrl(path)
+        const publicUrl = publicData?.publicUrl
+        if (!publicUrl) throw new Error('Cannot get public URL')
+        if (isImage) {
           const sizeStyle = getImageSizeStyle()
           insertAtCursor(index, `<img src="${publicUrl}" alt="" ${sizeStyle} />`)
-        } catch (err) {
-          console.error('Image paste upload failed:', err)
-          alert('Failed to upload pasted image')
+        } else {
+          const audioAttrs = getAudioAttributes()
+          insertAtCursor(index, `<audio src="${publicUrl}" ${audioAttrs}></audio>`)
         }
-        return
+      } catch (err) {
+        console.error('Paste upload failed:', err)
+        alert(`Failed to upload pasted ${isImage ? 'image' : 'audio'}`)
       }
+      return
     }
   }
 

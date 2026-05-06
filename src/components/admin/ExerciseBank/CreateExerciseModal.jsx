@@ -327,6 +327,7 @@ const CreateExerciseModal = ({ folders, selectedFolder, onClose, onCreated, allo
                 onQuestionsChange={(questions) => handleContentChange('questions', questions)}
                 intro={formData.content.intro || ''}
                 onIntroChange={(intro) => handleContentChange('intro', intro)}
+                folderPath={getFolderPath(formData.folder_id)}
               />
             )}
 

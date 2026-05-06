@@ -18,7 +18,7 @@ import RichTextRenderer from '../../ui/RichTextRenderer'
 import { handleRichTextShortcut } from '../../../hooks/useRichTextShortcuts'
 import { supabase } from '../../../supabase/client'
 
-const SimpleDropdownEditor = ({ questions, onQuestionsChange, intro, onIntroChange }) => {
+const SimpleDropdownEditor = ({ questions, onQuestionsChange, intro, onIntroChange, folderPath }) => {
   const [localQuestions, setLocalQuestions] = useState(questions || [])
   const questionTextareasRef = useRef({})
   const explanationTextareasRef = useRef({})
@@ -184,6 +184,44 @@ const SimpleDropdownEditor = ({ questions, onQuestionsChange, intro, onIntroChan
     if (audioAutoplay) attributes.push('autoplay')
     if (audioLoop) attributes.push('loop')
     return attributes.join(' ')
+  }
+
+  const handleImagePaste = async (e, index) => {
+    const items = e.clipboardData?.items
+    if (!items) return
+    for (const item of items) {
+      const isImage = item.type.startsWith('image/')
+      const isAudio = item.type.startsWith('audio/')
+      if (!isImage && !isAudio) continue
+      e.preventDefault()
+      const file = item.getAsFile()
+      if (!file) return
+      try {
+        const ext = file.type.split('/')[1] || (isImage ? 'png' : 'mp3')
+        const basePath = folderPath ? `exercise_bank/${folderPath}` : 'exercise_bank'
+        const path = `${basePath}/${Date.now()}_${Math.random().toString(36).slice(2)}_pasted.${ext}`
+        const { error: uploadError } = await supabase.storage
+          .from('exercise-files')
+          .upload(path, file, { cacheControl: '3600', upsert: true })
+        if (uploadError) throw uploadError
+        const { data: publicData } = supabase.storage
+          .from('exercise-files')
+          .getPublicUrl(path)
+        const publicUrl = publicData?.publicUrl
+        if (!publicUrl) throw new Error('Cannot get public URL')
+        if (isImage) {
+          const sizeStyle = getImageSizeStyle()
+          insertAtCursor(index, 'question', `<img src="${publicUrl}" alt="" ${sizeStyle} />`)
+        } else {
+          const audioAttrs = getAudioAttributes()
+          insertAtCursor(index, 'question', `<audio src="${publicUrl}" ${audioAttrs}></audio>`)
+        }
+      } catch (err) {
+        console.error('Paste upload failed:', err)
+        alert(`Failed to upload pasted ${isImage ? 'image' : 'audio'}`)
+      }
+      return
+    }
   }
 
   const handleUrlSubmit = () => {
@@ -411,6 +449,7 @@ const SimpleDropdownEditor = ({ questions, onQuestionsChange, intro, onIntroChan
           value={intro || ''}
           onChange={(e) => onIntroChange && onIntroChange(e.target.value)}
           onKeyDown={(e) => handleRichTextShortcut(e, introTextareaRef.current, intro || '', (v) => onIntroChange && onIntroChange(v))}
+          onPaste={(e) => handleImagePaste(e, -1)}
           className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
           rows={2}
           placeholder="Enter introductory text for the dropdown exercise..."
@@ -470,6 +509,7 @@ const SimpleDropdownEditor = ({ questions, onQuestionsChange, intro, onIntroChan
                 value={question.question}
                 onChange={(e) => updateQuestion(qIndex, 'question', e.target.value)}
                 onKeyDown={(e) => handleRichTextShortcut(e, questionTextareasRef.current[qIndex], question.question, (v) => updateQuestion(qIndex, 'question', v))}
+                onPaste={(e) => handleImagePaste(e, qIndex)}
                 className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent font-mono text-sm"
                 rows={4}
                 placeholder="Example: The cat [sat, =sits, sitting] on the mat."

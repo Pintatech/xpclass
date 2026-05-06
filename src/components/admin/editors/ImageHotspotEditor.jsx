@@ -77,6 +77,52 @@ const ImageHotspotEditor = ({ content, onContentChange, folderPath }) => {
     }
   }
 
+  const handleQuestionPaste = async (e) => {
+    const items = e.clipboardData?.items
+    if (!items) return
+    for (const item of items) {
+      const isImage = item.type.startsWith('image/')
+      const isAudio = item.type.startsWith('audio/')
+      if (!isImage && !isAudio) continue
+      e.preventDefault()
+      const file = item.getAsFile()
+      if (!file) return
+      try {
+        const ext = file.type.split('/')[1] || (isImage ? 'png' : 'mp3')
+        const basePath = folderPath ? `exercise_bank/${folderPath}` : 'exercise_bank'
+        const path = `${basePath}/${Date.now()}_${Math.random().toString(36).slice(2)}_pasted.${ext}`
+        const { error: uploadError } = await supabase.storage
+          .from('exercise-files')
+          .upload(path, file, { cacheControl: '3600', upsert: true })
+        if (uploadError) throw uploadError
+        const { data: publicData } = supabase.storage
+          .from('exercise-files')
+          .getPublicUrl(path)
+        const publicUrl = publicData?.publicUrl
+        if (!publicUrl) throw new Error('Cannot get public URL')
+        if (isImage) {
+          let sizeStyle = ''
+          if (imageSize === 'small') sizeStyle = 'style="width: 200px"'
+          else if (imageSize === 'medium') sizeStyle = 'style="width: 400px"'
+          else if (imageSize === 'large') sizeStyle = 'style="width: 600px"'
+          else if (imageSize === 'full') sizeStyle = 'style="width: 100%"'
+          else if (imageSize === 'custom' && customSize) sizeStyle = `style="width: ${customSize}px"`
+          insertAtCursor(`<img src="${publicUrl}" alt="" ${sizeStyle} />`)
+        } else {
+          const attrs = []
+          if (audioControls.controls) attrs.push('controls')
+          if (audioControls.autoplay) attrs.push('autoplay')
+          if (audioControls.loop) attrs.push('loop')
+          insertAtCursor(`<audio src="${publicUrl}" ${attrs.join(' ')}></audio>`)
+        }
+      } catch (err) {
+        console.error('Paste upload failed:', err)
+        alert(`Failed to upload pasted ${isImage ? 'image' : 'audio'}`)
+      }
+      return
+    }
+  }
+
   // Update parent when content changes
   useEffect(() => {
     const updatedContent = {
@@ -446,6 +492,7 @@ const ImageHotspotEditor = ({ content, onContentChange, folderPath }) => {
           value={question}
           onChange={(e) => setQuestion(e.target.value)}
           onKeyDown={(e) => handleRichTextShortcut(e, questionTextareaRef.current, question, setQuestion)}
+          onPaste={handleQuestionPaste}
           placeholder="Label the parts of the diagram by clicking a label then clicking the correct location."
           rows={4}
           className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent font-mono text-sm"

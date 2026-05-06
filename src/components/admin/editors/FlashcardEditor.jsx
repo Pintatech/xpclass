@@ -139,17 +139,20 @@ const FlashcardEditor = ({ cards, onCardsChange, folderPath }) => {
   }
 
 
-  const handleImagePaste = async (e, index) => {
+  const handleFilePaste = async (e, index, kind) => {
     const items = e.clipboardData?.items
     if (!items) return
+    const mimePrefix = kind === 'audio' ? 'audio/' : 'image/'
+    const cardField = kind === 'audio' ? 'audioUrl' : 'image'
     for (const item of items) {
-      if (item.type.startsWith('image/')) {
+      if (item.type.startsWith(mimePrefix)) {
         e.preventDefault()
         const file = item.getAsFile()
         if (!file) return
         try {
+          const ext = file.type.split('/')[1] || (kind === 'audio' ? 'mp3' : 'png')
           const basePath = folderPath ? `exercise_bank/${folderPath}` : 'exercise_bank'
-          const path = `${basePath}/${Date.now()}_${Math.random().toString(36).slice(2)}_pasted.${file.type.split('/')[1]}`
+          const path = `${basePath}/${Date.now()}_${Math.random().toString(36).slice(2)}_pasted.${ext}`
           const { error: uploadError } = await supabase.storage
             .from('exercise-files')
             .upload(path, file, { cacheControl: '3600', upsert: true })
@@ -159,10 +162,10 @@ const FlashcardEditor = ({ cards, onCardsChange, folderPath }) => {
             .getPublicUrl(path)
           const publicUrl = publicData?.publicUrl
           if (!publicUrl) throw new Error('Cannot get public URL')
-          updateCard(index, 'image', publicUrl)
+          updateCard(index, cardField, publicUrl)
         } catch (err) {
-          console.error('Image paste upload failed:', err)
-          alert('Failed to upload pasted image')
+          console.error('Paste upload failed:', err)
+          alert(`Failed to upload pasted ${kind}`)
         }
         return
       }
@@ -393,7 +396,7 @@ const FlashcardEditor = ({ cards, onCardsChange, folderPath }) => {
                   type="url"
                   value={card.image || ''}
                   onChange={(e) => updateCard(index, 'image', e.target.value)}
-                  onPaste={(e) => handleImagePaste(e, index)}
+                  onPaste={(e) => handleFilePaste(e, index, 'image')}
                   className="flex-1 p-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
                   placeholder="Paste image or URL here"
                 />
@@ -417,8 +420,9 @@ const FlashcardEditor = ({ cards, onCardsChange, folderPath }) => {
                 type="url"
                 value={card.audioUrl || ''}
                 onChange={(e) => updateCard(index, 'audioUrl', e.target.value)}
+                onPaste={(e) => handleFilePaste(e, index, 'audio')}
                 className="w-full p-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
-                placeholder="https://example.com/audio.mp3"
+                placeholder="Paste audio file or URL here"
               />
               {card.audioUrl && (
                 <audio src={card.audioUrl} controls className="mt-2 w-full" />

@@ -536,11 +536,6 @@ const SmartDragDropEditor = ({ questions, onQuestionsChange, intro, onIntroChang
     })
   }
 
-  const appendToField = (index, field, snippet) => {
-    const current = localQuestions[index]?.[field] || ''
-    updateQuestion(index, field, (current + (current ? '\n' : '') + snippet).trim())
-  }
-
   const insertAtCursor = (index, field, snippet) => {
     // Handle intro (index === -1)
     if (index === -1) {
@@ -565,7 +560,18 @@ const SmartDragDropEditor = ({ questions, onQuestionsChange, intro, onIntroChang
     }
 
     const textarea = questionTextareasRef.current[index]
-    const current = localQuestions[index]?.[field] || ''
+    const question = localQuestions[index]
+    if (!question) return
+
+    // For the question field, the textarea shows the editable form (toEditableText)
+    // and writes go through updateQuestionText to re-derive drop zones.
+    // Other fields write directly via updateQuestion (matched by question.id).
+    const isQuestionField = field === 'question'
+    const current = isQuestionField ? toEditableText(question) : (question[field] || '')
+    const writeBack = (newValue) => {
+      if (isQuestionField) updateQuestionText(question.id, newValue)
+      else updateQuestion(question.id, field, newValue)
+    }
 
     if (textarea && typeof textarea.selectionStart === 'number' && typeof textarea.selectionEnd === 'number') {
       const start = textarea.selectionStart
@@ -573,7 +579,7 @@ const SmartDragDropEditor = ({ questions, onQuestionsChange, intro, onIntroChang
       const before = current.slice(0, start)
       const after = current.slice(end)
       const newValue = `${before}${snippet}${after}`
-      updateQuestion(index, field, newValue)
+      writeBack(newValue)
       // Restore caret after update
       setTimeout(() => {
         try {
@@ -583,11 +589,10 @@ const SmartDragDropEditor = ({ questions, onQuestionsChange, intro, onIntroChang
             ta.focus()
             ta.setSelectionRange(pos, pos)
           }
-        } catch {}
+        } catch { /* ignore caret restore failures */ }
       }, 0)
     } else {
-      // Fallback to append when we cannot detect caret
-      appendToField(index, field, snippet)
+      writeBack(current + (current ? '\n' : '') + snippet)
     }
   }
 
@@ -672,31 +677,37 @@ const SmartDragDropEditor = ({ questions, onQuestionsChange, intro, onIntroChang
     const items = e.clipboardData?.items
     if (!items) return
     for (const item of items) {
-      if (item.type.startsWith('image/')) {
-        e.preventDefault()
-        const file = item.getAsFile()
-        if (!file) return
-        try {
-          const basePath = folderPath ? `exercise_bank/${folderPath}` : 'exercise_bank'
-          const path = `${basePath}/${Date.now()}_${Math.random().toString(36).slice(2)}_pasted.${file.type.split('/')[1]}`
-          const { error: uploadError } = await supabase.storage
-            .from('exercise-files')
-            .upload(path, file, { cacheControl: '3600', upsert: true })
-          if (uploadError) throw uploadError
-          const { data: publicData } = supabase.storage
-            .from('exercise-files')
-            .getPublicUrl(path)
-          const publicUrl = publicData?.publicUrl
-          if (!publicUrl) throw new Error('Cannot get public URL')
+      const isImage = item.type.startsWith('image/')
+      const isAudio = item.type.startsWith('audio/')
+      if (!isImage && !isAudio) continue
+      e.preventDefault()
+      const file = item.getAsFile()
+      if (!file) return
+      try {
+        const ext = file.type.split('/')[1] || (isImage ? 'png' : 'mp3')
+        const basePath = folderPath ? `exercise_bank/${folderPath}` : 'exercise_bank'
+        const path = `${basePath}/${Date.now()}_${Math.random().toString(36).slice(2)}_pasted.${ext}`
+        const { error: uploadError } = await supabase.storage
+          .from('exercise-files')
+          .upload(path, file, { cacheControl: '3600', upsert: true })
+        if (uploadError) throw uploadError
+        const { data: publicData } = supabase.storage
+          .from('exercise-files')
+          .getPublicUrl(path)
+        const publicUrl = publicData?.publicUrl
+        if (!publicUrl) throw new Error('Cannot get public URL')
+        if (isImage) {
           const sizeStyle = getImageSizeStyle()
-          const imgTag = `<img src="${publicUrl}" alt="" ${sizeStyle} />`
-          insertAtCursor(index, 'question', imgTag)
-        } catch (err) {
-          console.error('Image paste upload failed:', err)
-          alert('Failed to upload pasted image')
+          insertAtCursor(index, 'question', `<img src="${publicUrl}" alt="" ${sizeStyle} />`)
+        } else {
+          const audioAttrs = getAudioAttributes()
+          insertAtCursor(index, 'question', `<audio src="${publicUrl}" ${audioAttrs}></audio>`)
         }
-        return
+      } catch (err) {
+        console.error('Paste upload failed:', err)
+        alert(`Failed to upload pasted ${isImage ? 'image' : 'audio'}`)
       }
+      return
     }
   }
 

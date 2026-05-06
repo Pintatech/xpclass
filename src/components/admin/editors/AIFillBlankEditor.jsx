@@ -154,31 +154,37 @@ const AIFillBlankEditor = ({ questions, onQuestionsChange, intro, onIntroChange,
     const items = e.clipboardData?.items
     if (!items) return
     for (const item of items) {
-      if (item.type.startsWith('image/')) {
-        e.preventDefault()
-        const file = item.getAsFile()
-        if (!file) return
-        try {
-          const basePath = folderPath ? `exercise_bank/${folderPath}` : 'exercise_bank'
-          const path = `${basePath}/${Date.now()}_${Math.random().toString(36).slice(2)}_pasted.${file.type.split('/')[1]}`
-          const { error: uploadError } = await supabase.storage
-            .from('exercise-files')
-            .upload(path, file, { cacheControl: '3600', upsert: true })
-          if (uploadError) throw uploadError
-          const { data: publicData } = supabase.storage
-            .from('exercise-files')
-            .getPublicUrl(path)
-          const publicUrl = publicData?.publicUrl
-          if (!publicUrl) throw new Error('Cannot get public URL')
+      const isImage = item.type.startsWith('image/')
+      const isAudio = item.type.startsWith('audio/')
+      if (!isImage && !isAudio) continue
+      e.preventDefault()
+      const file = item.getAsFile()
+      if (!file) return
+      try {
+        const ext = file.type.split('/')[1] || (isImage ? 'png' : 'mp3')
+        const basePath = folderPath ? `exercise_bank/${folderPath}` : 'exercise_bank'
+        const path = `${basePath}/${Date.now()}_${Math.random().toString(36).slice(2)}_pasted.${ext}`
+        const { error: uploadError } = await supabase.storage
+          .from('exercise-files')
+          .upload(path, file, { cacheControl: '3600', upsert: true })
+        if (uploadError) throw uploadError
+        const { data: publicData } = supabase.storage
+          .from('exercise-files')
+          .getPublicUrl(path)
+        const publicUrl = publicData?.publicUrl
+        if (!publicUrl) throw new Error('Cannot get public URL')
+        if (isImage) {
           const sizeStyle = getImageSizeStyle()
-          const imgTag = `<img src="${publicUrl}" alt="" ${sizeStyle} />`
-          appendToField(index, 'question', imgTag)
-        } catch (err) {
-          console.error('Image paste upload failed:', err)
-          alert('Failed to upload pasted image')
+          appendToField(index, 'question', `<img src="${publicUrl}" alt="" ${sizeStyle} />`)
+        } else {
+          const audioAttrs = getAudioAttributes()
+          appendToField(index, 'question', `<audio src="${publicUrl}" ${audioAttrs}></audio>`)
         }
-        return
+      } catch (err) {
+        console.error('Paste upload failed:', err)
+        alert(`Failed to upload pasted ${isImage ? 'image' : 'audio'}`)
       }
+      return
     }
   }
 
