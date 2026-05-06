@@ -33,6 +33,7 @@ import UnitReportPage from './components/teacher/reports/UnitReportPage'
 import WeaknessAnalysis from './components/teacher/WeaknessAnalysis'
 import GuestEntry from './components/guest/GuestEntry'
 import GuestSessionRunner from './components/guest/GuestSessionRunner'
+import { FEATURES } from './config/features'
 
 
 function App() {
@@ -60,10 +61,10 @@ function App() {
                 <Route path="leaderboard" element={<Leaderboard />} />
                 <Route path="progress" element={<Progress />} />
                 <Route path="profile" element={<Profile />} />
-                <Route path="shop" element={<Shop />} />
-                <Route path="inventory" element={<Inventory />} />
-                <Route path="pets" element={<PetInventory />} />
-                <Route path="missions" element={<MissionBoard />} />
+                {FEATURES.shop && <Route path="shop" element={<Shop />} />}
+                {FEATURES.inventory && <Route path="inventory" element={<Inventory />} />}
+                {FEATURES.pets && <Route path="pets" element={<PetInventory />} />}
+                {FEATURES.missions && <Route path="missions" element={<MissionBoard />} />}
                 <Route path="profile/:userId" element={<Profile />} />
                 <Route path="admin/*" element={
                   <ProtectedRoute requireAdmin>

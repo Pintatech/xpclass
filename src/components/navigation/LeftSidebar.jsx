@@ -10,6 +10,7 @@ import {
   MessageSquarePlus
 } from 'lucide-react'
 import { useInventory } from '../../hooks/useInventory'
+import { FEATURES } from '../../config/features'
 import { useMissions } from '../../hooks/useMissions'
 import { useNotifications } from '../../hooks/useNotifications'
 import NotificationPanel from '../notifications/NotificationPanel'
@@ -42,12 +43,12 @@ const LeftSidebar = ({ onOpenReport }) => {
   const navItems = [
     { path: '/', imageSrc: assetUrl('/icon/navigation/home.svg'), label: 'Trang chủ' },
     { path: '/leaderboard', imageSrc: assetUrl('/icon/navigation/leaderboard.svg'), label: 'Xếp hạng' },
-    { path: '/pets', label: 'Thú cưng',imageSrc: assetUrl('/icon/navigation/pet.svg') },
-    { path: '/inventory',  imageSrc: assetUrl('/icon/navigation/inventory.svg'), label: 'Kho đồ', badge: newItemCount },
-    { path: '/missions', imageSrc: assetUrl('/icon/navigation/mission.svg'), label: 'Nhiệm vụ', badge: missionBadge },
+    FEATURES.pets && { path: '/pets', label: 'Thú cưng',imageSrc: assetUrl('/icon/navigation/pet.svg') },
+    FEATURES.inventory && { path: '/inventory',  imageSrc: assetUrl('/icon/navigation/inventory.svg'), label: 'Kho đồ', badge: newItemCount },
+    FEATURES.missions && { path: '/missions', imageSrc: assetUrl('/icon/navigation/mission.svg'), label: 'Nhiệm vụ', badge: missionBadge },
     { path: '/progress', imageSrc: assetUrl('/icon/navigation/progress.svg'), label: 'Tiến độ' },
-    { path: '/shop', imageSrc: assetUrl('/icon/navigation/shop.svg'), label: 'Cửa hàng'},
-  ]
+    FEATURES.shop && { path: '/shop', imageSrc: assetUrl('/icon/navigation/shop.svg'), label: 'Cửa hàng'},
+  ].filter(Boolean)
 
   const handleSignOut = async () => {
     await signOut()

@@ -16,6 +16,7 @@ import ExerciseHeader from '../ui/ExerciseHeader'
 import CelebrationScreen from '../ui/CelebrationScreen'
 import PetTutorBubble from '../pet/PetTutorBubble'
 import { getPetTutorExplanation } from '../../utils/petChatService'
+import { FEATURES } from '../../config/features'
 import TeacherExerciseNav from '../ui/TeacherExerciseNav'
 
 import { assetUrl } from '../../hooks/useBranding';
@@ -1108,7 +1109,7 @@ const MultipleChoiceExercise = ({ testMode = false, exerciseData = null, onAnswe
                     )}
 
                     {/* Pet Tutor - Ask Pet button (only for wrong answers) */}
-                    {selectedAnswer !== currentQuestion.correct_answer && activePet && (
+                    {FEATURES.pets && selectedAnswer !== currentQuestion.correct_answer && activePet && (
                       <div className="space-y-3">
                         {!showPetTutor ? (
                           <div className="flex items-center gap-3">

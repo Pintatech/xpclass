@@ -15,6 +15,7 @@ import ExerciseHeader from '../ui/ExerciseHeader'
 import AudioPlayer from '../ui/AudioPlayer'
 import CelebrationScreen from '../ui/CelebrationScreen'
 import PetTutorBubble from '../pet/PetTutorBubble'
+import { FEATURES } from '../../config/features'
 import { getPetTutorExplanation } from '../../utils/petChatService'
 import TeacherExerciseNav from '../ui/TeacherExerciseNav'
 
@@ -1629,7 +1630,7 @@ const FillBlankExercise = ({ testMode = false, exerciseData = null, onAnswersCol
             </div>
 
             {/* Pet Tutor - Ask Pet button (only for wrong answers) */}
-            {score < 100 && activePet && (
+            {FEATURES.pets && score < 100 && activePet && (
               <div className="mb-3">
                 {!showPetTutor ? (
                   <div className="flex items-center gap-3">

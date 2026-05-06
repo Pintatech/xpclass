@@ -8,6 +8,7 @@ import TournamentWidget from './TournamentWidget'
 import AvatarWithFrame from '../ui/AvatarWithFrame'
 import PetDisplay from '../pet/PetDisplay'
 import PvPChallengeModal from '../pvp/PvPChallengeModal'
+import { FEATURES } from '../../config/features'
 import { fetchPvpSchedule, checkPvpAvailability } from '../../utils/pvpSchedule'
 
 import { assetUrl, useBranding } from '../../hooks/useBranding';
@@ -923,7 +924,7 @@ const Dashboard = () => {
       )}
 
       {/* Pet Display - Full width */}
-      {profile && (
+      {FEATURES.pets && profile && (
         <div className="mb-6 mt-6">
           <PetDisplay />
         </div>

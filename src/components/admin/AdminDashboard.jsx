@@ -57,6 +57,7 @@ import ReportManagement from './ReportManagement';
 import ClassWarManagement from './ClassWarManagement';
 import TournamentManagement from './TournamentManagement';
 import { useCohorts } from '../../hooks/useCohorts';
+import { FEATURES } from '../../config/features';
 
 const AdminDashboard = () => {
   const { user, isAdmin } = useAuth();
@@ -234,10 +235,10 @@ const AdminDashboard = () => {
     { id: 'levels', label: 'Student Levels', icon: BarChart3 },
     { id: 'achievements', label: 'Achievements', icon: Trophy },
     { id: 'daily-challenges', label: 'Daily Challenges', icon: Trophy },
-    { id: 'missions', label: 'Missions', icon: Target },
-    { id: 'shop', label: 'Shop', icon: ShoppingBag },
-    { id: 'inventory', label: 'Inventory', icon: Package },
-    { id: 'pets', label: 'Pet Management', icon: Cat },
+    FEATURES.missions && { id: 'missions', label: 'Missions', icon: Target },
+    FEATURES.shop && { id: 'shop', label: 'Shop', icon: ShoppingBag },
+    FEATURES.inventory && { id: 'inventory', label: 'Inventory', icon: Package },
+    FEATURES.pets && { id: 'pets', label: 'Pet Management', icon: Cat },
     { id: 'giftcodes', label: 'Gift Codes', icon: Gift },
     { id: 'notifications', label: 'Notifications', icon: Bell },
     { id: 'reports', label: 'Reports', icon: MessageSquarePlus },
@@ -249,7 +250,7 @@ const AdminDashboard = () => {
     { id: 'avatar-approval', label: 'Avatar Approval', icon: ImagePlus },
     { id: 'analytics', label: 'Analytics', icon: BarChart3 },
     { id: 'branding', label: 'Branding', icon: Palette }
-  ];
+  ].filter(Boolean);
 
   return (
     <div className="min-h-screen bg-gray-50 flex">
@@ -409,10 +410,10 @@ const AdminDashboard = () => {
               <Route path="levels" element={<StudentLevelsManagement />} />
               <Route path="achievements" element={<AchievementManagement />} />
               <Route path="daily-challenges" element={<DailyChallengeManagement />} />
-              <Route path="missions" element={<MissionManagement />} />
-              <Route path="shop" element={<ShopManagement />} />
-              <Route path="inventory" element={<InventoryManagement />} />
-              <Route path="pets" element={<PetManagement />} />
+              {FEATURES.missions && <Route path="missions" element={<MissionManagement />} />}
+              {FEATURES.shop && <Route path="shop" element={<ShopManagement />} />}
+              {FEATURES.inventory && <Route path="inventory" element={<InventoryManagement />} />}
+              {FEATURES.pets && <Route path="pets" element={<PetManagement />} />}
               <Route path="giftcodes" element={<GiftcodeManagement />} />
               <Route path="notifications" element={<NotificationManagement />} />
               <Route path="reports" element={<ReportManagement />} />

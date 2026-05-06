@@ -11,6 +11,7 @@ import LoadingSpinner from './ui/LoadingSpinner'
 import OnlineUsers from './navigation/OnlineUsers'
 import PvPIncomingBanner from './pvp/PvPIncomingBanner'
 import ReportModal from './reports/ReportModal'
+import { FEATURES } from '../config/features'
 
 const Layout = () => {
   const { loading, user } = useAuth()
@@ -93,8 +94,8 @@ const Layout = () => {
   return (
     <div className="min-h-screen bg-white">
       {/* Item Drop Notification (global) */}
-      <ItemDropNotification />
-      <ChestDropNotification />
+      {FEATURES.inventory && <ItemDropNotification />}
+      {FEATURES.inventory && <ChestDropNotification />}
       <NotificationModal />
       {!isInsideCourse && <PvPIncomingBanner />}
 
