@@ -38,6 +38,7 @@ import ClassWarPanel from "../classwar/ClassWarPanel";
 import ClassWarBanner from "../classwar/ClassWarBanner";
 import ClassWarModal from "../classwar/ClassWarModal";
 import ClassWarSetupModal from "../classwar/ClassWarSetupModal";
+import { FEATURES } from "../../config/features";
 
 // Theme-based background images for unit cards
 const getThemeBackground = (colorTheme) => {
@@ -1235,7 +1236,7 @@ const UnitList = () => {
         {/* Content Area */}
         <div className="flex-1 overflow-y-auto p-6">
           {/* Mobile: Class War Banner */}
-          {activeWar && (
+          {FEATURES.classwar && activeWar && (
             <div className="lg:hidden">
               <ClassWarBanner
                 war={activeWar}
@@ -1249,7 +1250,7 @@ const UnitList = () => {
 
           <div className="flex gap-4">
             {/* Desktop: Left Team Panel */}
-            {activeWar && (
+            {FEATURES.classwar && activeWar && (
               <div className="hidden lg:block w-64 shrink-0">
                 <ClassWarPanel
                   team="A"
@@ -1555,7 +1556,7 @@ const UnitList = () => {
             </div>{/* end flex-1 min-w-0 (center content) */}
 
             {/* Desktop: Right Team Panel */}
-            {activeWar && (
+            {FEATURES.classwar && activeWar && (
               <div className="hidden lg:block w-64 shrink-0">
                 <ClassWarPanel
                   team="B"
@@ -1572,7 +1573,7 @@ const UnitList = () => {
           </div>{/* end flex gap-4 */}
 
           {/* Mobile: Class War Modal */}
-          {showWarModal && activeWar && (
+          {FEATURES.classwar && showWarModal && activeWar && (
             <ClassWarModal
               war={activeWar}
               teamA={teamA}
@@ -1590,7 +1591,7 @@ const UnitList = () => {
       </div>
 
       {/* Class War Setup Modal */}
-      {showWarSetup && (
+      {FEATURES.classwar && showWarSetup && (
         <ClassWarSetupModal
           courseId={currentId}
           existingWar={activeWar}

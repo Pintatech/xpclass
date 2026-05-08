@@ -245,8 +245,8 @@ const AdminDashboard = () => {
     { id: 'users', label: 'Users', icon: Users },
     { id: 'activities', label: 'Activities', icon: Activity },
     { id: 'leaderboard', label: 'Leaderboard', icon: Trophy },
-    { id: 'class-war', label: 'Class War', icon: Swords },
-    { id: 'tournaments', label: 'Tournaments', icon: GitMerge },
+    FEATURES.classwar && { id: 'class-war', label: 'Class War', icon: Swords },
+    FEATURES.tournaments && { id: 'tournaments', label: 'Tournaments', icon: GitMerge },
     { id: 'avatar-approval', label: 'Avatar Approval', icon: ImagePlus },
     { id: 'analytics', label: 'Analytics', icon: BarChart3 },
     { id: 'branding', label: 'Branding', icon: Palette }
@@ -422,8 +422,8 @@ const AdminDashboard = () => {
               <Route path="users" element={<UserManagement />} />
               <Route path="activities" element={<RecentActivities />} />
               <Route path="leaderboard" element={<LeaderboardSettings />} />
-              <Route path="class-war" element={<ClassWarManagement />} />
-              <Route path="tournaments" element={<TournamentManagement />} />
+              {FEATURES.classwar && <Route path="class-war" element={<ClassWarManagement />} />}
+              {FEATURES.tournaments && <Route path="tournaments" element={<TournamentManagement />} />}
               <Route path="avatar-approval" element={<AvatarApproval />} />
               <Route path="analytics" element={<AnalyticsView stats={stats} />} />
               <Route path="branding" element={<BrandingSettings />} />

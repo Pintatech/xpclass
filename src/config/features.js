@@ -10,4 +10,6 @@ export const FEATURES = {
   inventory: flag(import.meta.env.VITE_INVENTORY_ENABLED),
   shop: flag(import.meta.env.VITE_SHOP_ENABLED),
   missions: flag(import.meta.env.VITE_MISSIONS_ENABLED),
+  tournaments: flag(import.meta.env.VITE_TOURNAMENTS_ENABLED),
+  classwar: flag(import.meta.env.VITE_CLASSWAR_ENABLED),
 }
