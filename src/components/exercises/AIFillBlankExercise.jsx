@@ -12,6 +12,7 @@ import RichTextRenderer from '../ui/RichTextRenderer'
 import ExerciseHeader from '../ui/ExerciseHeader'
 import CelebrationScreen from '../ui/CelebrationScreen'
 import TeacherExerciseNav from '../ui/TeacherExerciseNav'
+import QuestionReportButton from '../reports/QuestionReportButton'
 
 import { assetUrl } from '../../hooks/useBranding';
 // Theme-based side decoration images for PC
@@ -575,12 +576,21 @@ const AIFillBlankExercise = ({ testMode = false, exerciseData = null, onAnswersC
         <div className="bg-white rounded-lg shadow-md p-6 border border-gray-200 mt-8">
           {/* Question */}
           <div className="mb-8">
-            <div className="text-lg text-gray-800 mb-4 leading-relaxed">
-              <RichTextRenderer
-                content={currentQuestion.question}
-                allowImages={true}
-                allowLinks={true}
-                style={{ whiteSpace: 'pre-wrap' }}
+            <div className="flex items-start justify-between gap-3 mb-4">
+              <div className="text-lg text-gray-800 leading-relaxed flex-1 min-w-0">
+                <RichTextRenderer
+                  content={currentQuestion.question}
+                  allowImages={true}
+                  allowLinks={true}
+                  style={{ whiteSpace: 'pre-wrap' }}
+                />
+              </div>
+              <QuestionReportButton
+                exercise={exercise}
+                question={currentQuestion}
+                questionIndex={currentQuestionIndex}
+                userAnswer={userAnswer}
+                className="flex-shrink-0"
               />
             </div>
             

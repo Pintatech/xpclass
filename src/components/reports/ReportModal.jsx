@@ -18,13 +18,32 @@ const STATUS_LABELS = {
   closed: { label: 'Đã đóng', color: 'bg-gray-100 text-gray-700', icon: X }
 }
 
-const ReportModal = ({ isOpen, onClose }) => {
+const buildContextFooter = (ctx) => {
+  if (!ctx) return ''
+  const folderLine = ctx.folderPath
+    ? `Vị trí trong Exercise Bank: ${ctx.folderPath}${ctx.exerciseTitle ? ` / ${ctx.exerciseTitle}` : ''}`
+    : (ctx.inBank === false
+        ? `Vị trí: KHÔNG có trong Exercise Bank (exercise riêng của session)`
+        : (ctx.exerciseTitle ? `Exercise: ${ctx.exerciseTitle}` : null))
+  const lines = [
+    '',
+    '---',
+    '[Context — auto-added]',
+    folderLine,
+    ctx.exerciseType ? `Type: ${ctx.exerciseType}` : null,
+    (ctx.questionIndex !== undefined && ctx.questionIndex !== null) ? `Question #${ctx.questionIndex + 1}${ctx.questionPreview ? `: ${ctx.questionPreview}` : ''}` : (ctx.questionPreview ? `Question: ${ctx.questionPreview}` : null),
+    ctx.userAnswer !== undefined && ctx.userAnswer !== null && ctx.userAnswer !== '' ? `User answer: ${typeof ctx.userAnswer === 'string' ? ctx.userAnswer : JSON.stringify(ctx.userAnswer)}` : null
+  ].filter(Boolean)
+  return lines.join('\n')
+}
+
+const ReportModal = ({ isOpen, onClose, prefill = null, attachmentRequired = true, contextInfo = null }) => {
   const { myReports, submitReport, fetchMyReports, fetchMessages, userReplyToReport, loading } = useReports()
   const { user } = useAuth()
   const [tab, setTab] = useState('new') // 'new' | 'history'
-  const [category, setCategory] = useState('bug')
-  const [subject, setSubject] = useState('')
-  const [message, setMessage] = useState('')
+  const [category, setCategory] = useState(prefill?.category || 'bug')
+  const [subject, setSubject] = useState(prefill?.subject || '')
+  const [message, setMessage] = useState(prefill?.message || '')
   const [attachment, setAttachment] = useState(null) // File object
   const [attachmentPreview, setAttachmentPreview] = useState(null)
   const [submitting, setSubmitting] = useState(false)
@@ -66,35 +85,44 @@ const ReportModal = ({ isOpen, onClose }) => {
 
   const handleSubmit = async (e) => {
     e.preventDefault()
-    if (!subject.trim() || !message.trim() || !attachment) return
+    if (!subject.trim() || !message.trim()) return
+    if (attachmentRequired && !attachment) return
 
     try {
       setSubmitting(true)
 
-      // Upload attachment
-      const ext = attachment.name.split('.').pop()
-      const path = `${user.id}/${Date.now()}.${ext}`
-      const { error: uploadError } = await supabase.storage
-        .from('report-attachments')
-        .upload(path, attachment, { cacheControl: '3600', upsert: false })
-      if (uploadError) throw uploadError
+      let screenshotUrl = null
+      if (attachment) {
+        const ext = attachment.name.split('.').pop()
+        const path = `${user.id}/${Date.now()}.${ext}`
+        const { error: uploadError } = await supabase.storage
+          .from('report-attachments')
+          .upload(path, attachment, { cacheControl: '3600', upsert: false })
+        if (uploadError) throw uploadError
 
-      const { data: publicData } = supabase.storage
-        .from('report-attachments')
-        .getPublicUrl(path)
+        const { data: publicData } = supabase.storage
+          .from('report-attachments')
+          .getPublicUrl(path)
+        screenshotUrl = publicData.publicUrl
+      }
+
+      const finalMessage = message.trim() + buildContextFooter(contextInfo)
 
       await submitReport({
         category,
         subject: subject.trim(),
-        message: message.trim(),
-        screenshotUrl: publicData.publicUrl
+        message: finalMessage,
+        screenshotUrl
       })
       setSuccess(true)
-      setSubject('')
-      setMessage('')
-      setCategory('bug')
+      setSubject(prefill?.subject || '')
+      setMessage(prefill?.message || '')
+      setCategory(prefill?.category || 'bug')
       removeAttachment()
-      setTimeout(() => setSuccess(false), 3000)
+      setTimeout(() => {
+        setSuccess(false)
+        if (contextInfo) onClose?.()
+      }, 1500)
     } catch (err) {
       alert('Gửi báo cáo thất bại: ' + err.message)
     } finally {
@@ -208,6 +236,31 @@ const ReportModal = ({ isOpen, onClose }) => {
                 </div>
               )}
 
+              {contextInfo && (
+                <div className="p-3 bg-blue-50 border border-blue-200 rounded-lg text-xs text-blue-800 space-y-0.5">
+                  <div className="font-semibold text-blue-900 mb-1">Báo cáo về câu hỏi</div>
+                  {contextInfo.folderPath ? (
+                    <div>
+                      <span className="font-medium">Vị trí:</span> {contextInfo.folderPath}
+                      {contextInfo.exerciseTitle && <> / <span className="font-semibold">{contextInfo.exerciseTitle}</span></>}
+                    </div>
+                  ) : contextInfo.inBank === false ? (
+                    <div className="text-amber-700"><span className="font-medium">Vị trí:</span> không có trong Exercise Bank</div>
+                  ) : contextInfo.exerciseTitle && (
+                    <div><span className="font-medium">Bài tập:</span> {contextInfo.exerciseTitle}</div>
+                  )}
+                  {contextInfo.exerciseType && (
+                    <div><span className="font-medium">Loại:</span> {contextInfo.exerciseType}</div>
+                  )}
+                  {(contextInfo.questionIndex !== undefined && contextInfo.questionIndex !== null) && (
+                    <div><span className="font-medium">Câu số:</span> #{contextInfo.questionIndex + 1}</div>
+                  )}
+                  {contextInfo.questionPreview && (
+                    <div className="truncate"><span className="font-medium">Nội dung:</span> {contextInfo.questionPreview}</div>
+                  )}
+                </div>
+              )}
+
               {/* Category */}
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-2">Loại báo cáo</label>
@@ -260,10 +313,10 @@ const ReportModal = ({ isOpen, onClose }) => {
                 />
               </div>
 
-              {/* Attachment (required) */}
+              {/* Attachment */}
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Ảnh / Video <span className="text-red-500">*</span>
+                  Ảnh / Video {attachmentRequired ? <span className="text-red-500">*</span> : <span className="text-gray-400 text-xs font-normal">(tuỳ chọn)</span>}
                 </label>
                 <input
                   ref={fileInputRef}
@@ -302,7 +355,7 @@ const ReportModal = ({ isOpen, onClose }) => {
               {/* Submit */}
               <button
                 type="submit"
-                disabled={submitting || !subject.trim() || !message.trim() || !attachment}
+                disabled={submitting || !subject.trim() || !message.trim() || (attachmentRequired && !attachment)}
                 className="w-full py-2.5 bg-orange-500 text-white rounded-xl font-medium hover:bg-orange-600 transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
               >
                 {submitting ? (

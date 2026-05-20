@@ -18,6 +18,7 @@ import PetTutorBubble from '../pet/PetTutorBubble'
 import { FEATURES } from '../../config/features'
 import { getPetTutorExplanation } from '../../utils/petChatService'
 import TeacherExerciseNav from '../ui/TeacherExerciseNav'
+import QuestionReportButton from '../reports/QuestionReportButton'
 
 import { assetUrl } from '../../hooks/useBranding';
 // Theme-based side decoration images for PC c
@@ -1543,6 +1544,14 @@ const FillBlankExercise = ({ testMode = false, exerciseData = null, onAnswersCol
 
       {/* Question */}
       <div className="w-full max-w-4xl min-w-0 mx-auto rounded-lg p-4 md:p-8 bg-white shadow-md border border-gray-200">
+        <div className="flex justify-end -mt-1 -mr-1 mb-2">
+          <QuestionReportButton
+            exercise={exercise}
+            question={currentQuestion}
+            questionIndex={currentQuestionIndex}
+            userAnswer={userAnswers?.[currentQuestionIndex]}
+          />
+        </div>
         {/* Intro above question (optional) */}
         {currentQuestion.intro && String(currentQuestion.intro).trim() && (
           <div className="mb-4">
