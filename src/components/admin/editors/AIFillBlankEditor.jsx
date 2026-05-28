@@ -21,6 +21,7 @@ const AIFillBlankEditor = ({ questions, onQuestionsChange, intro, onIntroChange,
   const [audioControls, setAudioControls] = useState(true)
   const [audioAutoplay, setAudioAutoplay] = useState(false)
   const [audioLoop, setAudioLoop] = useState(false)
+  const [audioPlaybackRate, setAudioPlaybackRate] = useState(1)
 
   useEffect(() => {
     setLocalQuestions(questions || [])
@@ -104,6 +105,7 @@ const AIFillBlankEditor = ({ questions, onQuestionsChange, intro, onIntroChange,
     setAudioControls(true)
     setAudioAutoplay(false)
     setAudioLoop(false)
+    setAudioPlaybackRate(1)
   }
 
   const applyAlignment = (index, field, alignment) => {
@@ -147,6 +149,7 @@ const AIFillBlankEditor = ({ questions, onQuestionsChange, intro, onIntroChange,
     if (audioControls) attrs.push('controls')
     if (audioAutoplay) attrs.push('autoplay')
     if (audioLoop) attrs.push('loop')
+    if (audioPlaybackRate && audioPlaybackRate !== 1) attrs.push(`data-playback-rate="${audioPlaybackRate}"`)
     return attrs.join(' ')
   }
 
@@ -219,6 +222,7 @@ const AIFillBlankEditor = ({ questions, onQuestionsChange, intro, onIntroChange,
     setAudioControls(true)
     setAudioAutoplay(false)
     setAudioLoop(false)
+    setAudioPlaybackRate(1)
   }
 
   const addExpectedAnswer = (questionIndex) => {
@@ -993,6 +997,21 @@ B. Combine these sentences using a relative clause.
                       <input type="checkbox" checked={audioLoop} onChange={(e) => setAudioLoop(e.target.checked)} className="rounded" />
                       <span className="text-sm text-gray-700">Lặp lại (loop)</span>
                     </label>
+                    <label className="flex items-center gap-2 text-sm">
+                      <span className="text-gray-700">Tốc độ phát:</span>
+                      <select
+                        value={audioPlaybackRate}
+                        onChange={(e) => setAudioPlaybackRate(parseFloat(e.target.value))}
+                        className="px-2 py-1 border border-gray-300 rounded text-sm"
+                      >
+                        <option value={0.5}>0.5x</option>
+                        <option value={0.75}>0.75x</option>
+                        <option value={1}>1x</option>
+                        <option value={1.25}>1.25x</option>
+                        <option value={1.5}>1.5x</option>
+                        <option value={2}>2x</option>
+                      </select>
+                    </label>
                   </div>
                 </div>
               )}
@@ -1017,7 +1036,7 @@ B. Combine these sentences using a relative clause.
                       />
                     </div>
                   ) : urlModal.type === 'audio' ? (
-                    <audio src={urlInput} controls={audioControls} loop={audioLoop} className="w-full"
+                    <audio ref={(el) => { if (el) el.playbackRate = audioPlaybackRate }} src={urlInput} controls={audioControls} loop={audioLoop} className="w-full"
                       onError={(e) => { e.target.style.display = 'none' }} />
                   ) : (
                     <a href={urlInput} target="_blank" rel="noopener noreferrer" className="text-blue-600 hover:underline text-sm">

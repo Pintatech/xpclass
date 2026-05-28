@@ -31,7 +31,7 @@ const ImageHotspotEditor = ({ content, onContentChange, folderPath }) => {
   const [urlInput, setUrlInput] = useState('')
   const [imageSize, setImageSize] = useState('medium')
   const [customSize, setCustomSize] = useState('400')
-  const [audioControls, setAudioControls] = useState({ controls: true, autoplay: false, loop: false })
+  const [audioControls, setAudioControls] = useState({ controls: true, autoplay: false, loop: false, playbackRate: 1 })
 
   const [uploading, setUploading] = useState(false)
   const canvasRef = useRef(null)
@@ -392,7 +392,7 @@ const ImageHotspotEditor = ({ content, onContentChange, folderPath }) => {
   const handleOpenAudioModal = () => {
     setUrlModal({ isOpen: true, type: 'audio' })
     setUrlInput('')
-    setAudioControls({ controls: true, autoplay: false, loop: false })
+    setAudioControls({ controls: true, autoplay: false, loop: false, playbackRate: 1 })
   }
 
   const handleUrlSubmit = () => {
@@ -413,6 +413,7 @@ const ImageHotspotEditor = ({ content, onContentChange, folderPath }) => {
       if (audioControls.controls) attrs.push('controls')
       if (audioControls.autoplay) attrs.push('autoplay')
       if (audioControls.loop) attrs.push('loop')
+      if (audioControls.playbackRate && audioControls.playbackRate !== 1) attrs.push(`data-playback-rate="${audioControls.playbackRate}"`)
       const audioAttrs = attrs.join(' ')
 
       insertAtCursor(`<audio src="${trimmedUrl}" ${audioAttrs}></audio>`)
@@ -990,6 +991,21 @@ const ImageHotspotEditor = ({ content, onContentChange, folderPath }) => {
                       />
                       <span className="text-sm">Loop</span>
                     </label>
+                    <label className="flex items-center gap-2">
+                      <span className="text-sm">Playback speed:</span>
+                      <select
+                        value={audioControls.playbackRate}
+                        onChange={(e) => setAudioControls({ ...audioControls, playbackRate: parseFloat(e.target.value) })}
+                        className="px-2 py-1 border border-gray-300 rounded text-sm"
+                      >
+                        <option value={0.5}>0.5x</option>
+                        <option value={0.75}>0.75x</option>
+                        <option value={1}>1x</option>
+                        <option value={1.25}>1.25x</option>
+                        <option value={1.5}>1.5x</option>
+                        <option value={2}>2x</option>
+                      </select>
+                    </label>
                   </div>
                 </div>
               )}
@@ -1009,6 +1025,7 @@ const ImageHotspotEditor = ({ content, onContentChange, folderPath }) => {
                     />
                   ) : (
                     <audio
+                      ref={(el) => { if (el) el.playbackRate = audioControls.playbackRate || 1 }}
                       src={urlInput.replace(branding.baseSiteUrl, '/proxy-image')}
                       controls
                       className="w-full"

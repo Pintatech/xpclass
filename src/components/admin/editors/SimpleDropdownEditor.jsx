@@ -34,6 +34,7 @@ const SimpleDropdownEditor = ({ questions, onQuestionsChange, intro, onIntroChan
   const [audioControls, setAudioControls] = useState(true)
   const [audioAutoplay, setAudioAutoplay] = useState(false)
   const [audioLoop, setAudioLoop] = useState(false)
+  const [audioPlaybackRate, setAudioPlaybackRate] = useState(1)
 
   useEffect(() => {
     setLocalQuestions(questions || [])
@@ -160,6 +161,7 @@ const SimpleDropdownEditor = ({ questions, onQuestionsChange, intro, onIntroChan
     setAudioControls(true)
     setAudioAutoplay(false)
     setAudioLoop(false)
+    setAudioPlaybackRate(1)
   }
 
   const handleInsertLink = (index) => {
@@ -183,6 +185,7 @@ const SimpleDropdownEditor = ({ questions, onQuestionsChange, intro, onIntroChan
     if (audioControls) attributes.push('controls')
     if (audioAutoplay) attributes.push('autoplay')
     if (audioLoop) attributes.push('loop')
+    if (audioPlaybackRate && audioPlaybackRate !== 1) attributes.push(`data-playback-rate="${audioPlaybackRate}"`)
     return attributes.join(' ')
   }
 
@@ -256,6 +259,7 @@ const SimpleDropdownEditor = ({ questions, onQuestionsChange, intro, onIntroChan
     setAudioControls(true)
     setAudioAutoplay(false)
     setAudioLoop(false)
+    setAudioPlaybackRate(1)
   }
 
   const applyAlignment = (index, field, alignment) => {
@@ -432,7 +436,7 @@ const SimpleDropdownEditor = ({ questions, onQuestionsChange, intro, onIntroChan
           <button type="button" onClick={() => { setUrlModal({ isOpen: true, type: 'image', questionIndex: -1 }); setUrlInput(''); setLinkText(''); setImageSize('medium'); setCustomWidth(''); setCustomHeight('') }} className="px-2 py-1 text-xs bg-gray-100 hover:bg-gray-200 rounded inline-flex items-center gap-1">
             <ImageIcon className="w-3 h-3" /> Image
           </button>
-          <button type="button" onClick={() => { setUrlModal({ isOpen: true, type: 'audio', questionIndex: -1 }); setUrlInput(''); setLinkText(''); setImageSize('medium'); setCustomWidth(''); setCustomHeight(''); setAudioControls(true); setAudioAutoplay(false); setAudioLoop(false) }} className="px-2 py-1 text-xs bg-gray-100 hover:bg-gray-200 rounded inline-flex items-center gap-1">
+          <button type="button" onClick={() => { setUrlModal({ isOpen: true, type: 'audio', questionIndex: -1 }); setUrlInput(''); setLinkText(''); setImageSize('medium'); setCustomWidth(''); setCustomHeight(''); setAudioControls(true); setAudioAutoplay(false); setAudioLoop(false); setAudioPlaybackRate(1) }} className="px-2 py-1 text-xs bg-gray-100 hover:bg-gray-200 rounded inline-flex items-center gap-1">
             <Music className="w-3 h-3" /> Audio
           </button>
           <button type="button" onClick={() => { setUrlModal({ isOpen: true, type: 'link', questionIndex: -1 }); setUrlInput(''); setLinkText('Reference') }} className="px-2 py-1 text-xs bg-gray-100 hover:bg-gray-200 rounded inline-flex items-center gap-1">
@@ -617,6 +621,21 @@ const SimpleDropdownEditor = ({ questions, onQuestionsChange, intro, onIntroChan
                 <label className="flex items-center gap-2 text-sm"><input type="checkbox" checked={audioControls} onChange={(e) => setAudioControls(e.target.checked)} /> Show controls</label>
                 <label className="flex items-center gap-2 text-sm"><input type="checkbox" checked={audioAutoplay} onChange={(e) => setAudioAutoplay(e.target.checked)} /> Autoplay</label>
                 <label className="flex items-center gap-2 text-sm"><input type="checkbox" checked={audioLoop} onChange={(e) => setAudioLoop(e.target.checked)} /> Loop</label>
+                <label className="flex items-center gap-2 text-sm">
+                  Playback speed:
+                  <select
+                    value={audioPlaybackRate}
+                    onChange={(e) => setAudioPlaybackRate(parseFloat(e.target.value))}
+                    className="px-2 py-1 border border-gray-300 rounded text-sm"
+                  >
+                    <option value={0.5}>0.5x</option>
+                    <option value={0.75}>0.75x</option>
+                    <option value={1}>1x</option>
+                    <option value={1.25}>1.25x</option>
+                    <option value={1.5}>1.5x</option>
+                    <option value={2}>2x</option>
+                  </select>
+                </label>
               </div>
             )}
             {urlInput && (
@@ -625,7 +644,7 @@ const SimpleDropdownEditor = ({ questions, onQuestionsChange, intro, onIntroChan
                 {urlModal.type === 'image' ? (
                   <img src={urlInput} alt="Preview" className="max-w-full rounded border" />
                 ) : urlModal.type === 'audio' ? (
-                  <audio src={urlInput} controls={audioControls} autoPlay={audioAutoplay} loop={audioLoop} className="w-full" />
+                  <audio ref={(el) => { if (el) el.playbackRate = audioPlaybackRate }} src={urlInput} controls={audioControls} autoPlay={audioAutoplay} loop={audioLoop} className="w-full" />
                 ) : (
                   <a href={urlInput} target="_blank" rel="noreferrer" className="text-blue-600 hover:underline">{linkText || urlInput}</a>
                 )}

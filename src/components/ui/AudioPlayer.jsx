@@ -24,7 +24,8 @@ const AudioPlayer = ({
   disabled = false,
   seekable = false,
   externalPlayCount,
-  onPlay
+  onPlay,
+  playbackRate = 1
 }) => {
   const [internalPlayCount, setInternalPlayCount] = useState(0)
   const [isPlaying, setIsPlaying] = useState(false)
@@ -54,6 +55,8 @@ const AudioPlayer = ({
     // Create audio element if it doesn't exist
     if (!audioRef.current) {
       audioRef.current = new Audio(audioUrl)
+      audioRef.current.playbackRate = playbackRate
+      audioRef.current.defaultPlaybackRate = playbackRate
 
       // Set up event listeners
       audioRef.current.addEventListener('ended', () => {
@@ -103,6 +106,14 @@ const AudioPlayer = ({
       setIsPlaying(false)
     }
   }
+
+  // Keep the live audio element in sync when playbackRate prop changes
+  useEffect(() => {
+    if (audioRef.current) {
+      audioRef.current.playbackRate = playbackRate
+      audioRef.current.defaultPlaybackRate = playbackRate
+    }
+  }, [playbackRate])
 
   // Reset audio player when audioUrl changes
   useEffect(() => {

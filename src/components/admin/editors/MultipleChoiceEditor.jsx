@@ -76,6 +76,7 @@ const MultipleChoiceEditor = ({ questions, onQuestionsChange, settings, onSettin
   const [audioAutoplay, setAudioAutoplay] = useState(false)
   const [audioLoop, setAudioLoop] = useState(false)
   const [audioMaxPlays, setAudioMaxPlays] = useState(0)
+  const [audioPlaybackRate, setAudioPlaybackRate] = useState(1)
   const [collapsedQuestions, setCollapsedQuestions] = useState({})
   const [undoHistory, setUndoHistory] = useState({})
   const [redoHistory, setRedoHistory] = useState({})
@@ -364,6 +365,7 @@ const MultipleChoiceEditor = ({ questions, onQuestionsChange, settings, onSettin
     setAudioControls(true)
     setAudioAutoplay(false)
     setAudioLoop(false)
+    setAudioPlaybackRate(1)
   }
 
   const handleInsertTable = (index) => {
@@ -497,6 +499,7 @@ const MultipleChoiceEditor = ({ questions, onQuestionsChange, settings, onSettin
     if (audioAutoplay) attributes.push('autoplay')
     if (audioLoop) attributes.push('loop')
     if (audioMaxPlays > 0) attributes.push(`data-max-plays="${audioMaxPlays}"`)
+    if (audioPlaybackRate && audioPlaybackRate !== 1) attributes.push(`data-playback-rate="${audioPlaybackRate}"`)
     return attributes.join(' ')
   }
 
@@ -562,6 +565,7 @@ const MultipleChoiceEditor = ({ questions, onQuestionsChange, settings, onSettin
       setAudioAutoplay(false)
       setAudioLoop(false)
       setAudioMaxPlays(0)
+      setAudioPlaybackRate(1)
     } catch (error) {
       alert('Vui lòng nhập URL hợp lệ (bắt đầu bằng http:// hoặc https://)')
     }
@@ -578,6 +582,7 @@ const MultipleChoiceEditor = ({ questions, onQuestionsChange, settings, onSettin
     setAudioAutoplay(false)
     setAudioLoop(false)
     setAudioMaxPlays(0)
+    setAudioPlaybackRate(1)
   }
 
   const markdownToHtml = (text) => {
@@ -1776,6 +1781,22 @@ Good morning in Vietnamese is {1:MC:=Chào buổi sáng#Correct explanation~Chà
                       />
                       <span className="text-gray-500">{audioMaxPlays === 0 ? '(không giới hạn)' : 'lần'}</span>
                     </label>
+
+                    <label className="flex items-center gap-2 text-sm">
+                      Tốc độ phát:
+                      <select
+                        value={audioPlaybackRate}
+                        onChange={(e) => setAudioPlaybackRate(parseFloat(e.target.value))}
+                        className="px-2 py-1 border border-gray-300 rounded text-sm"
+                      >
+                        <option value={0.5}>0.5x</option>
+                        <option value={0.75}>0.75x</option>
+                        <option value={1}>1x (bình thường)</option>
+                        <option value={1.25}>1.25x</option>
+                        <option value={1.5}>1.5x</option>
+                        <option value={2}>2x</option>
+                      </select>
+                    </label>
                   </div>
                 </div>
               )}
@@ -1815,8 +1836,9 @@ Good morning in Vietnamese is {1:MC:=Chào buổi sáng#Correct explanation~Chà
                     </div>
                   ) : urlModal.type === 'audio' ? (
                     <div>
-                      <audio 
-                        src={urlInput} 
+                      <audio
+                        ref={(el) => { if (el) el.playbackRate = audioPlaybackRate }}
+                        src={urlInput}
                         controls={audioControls}
                         autoPlay={audioAutoplay}
                         loop={audioLoop}
@@ -1830,9 +1852,10 @@ Good morning in Vietnamese is {1:MC:=Chào buổi sáng#Correct explanation~Chà
                         Không thể tải âm thanh
                       </div>
                       <div className="text-xs text-gray-500 mt-1">
-                        Tùy chọn: {audioControls ? 'Controls' : 'Không controls'} | 
-                        {audioAutoplay ? ' Autoplay' : ' Không autoplay'} | 
-                        {audioLoop ? ' Loop' : ' Không loop'}
+                        Tùy chọn: {audioControls ? 'Controls' : 'Không controls'} |
+                        {audioAutoplay ? ' Autoplay' : ' Không autoplay'} |
+                        {audioLoop ? ' Loop' : ' Không loop'} |
+                        Tốc độ {audioPlaybackRate}x
                       </div>
                     </div>
                   ) : (

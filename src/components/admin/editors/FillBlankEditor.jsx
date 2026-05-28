@@ -36,6 +36,7 @@ const FillBlankEditor = ({ questions, onQuestionsChange, settings, onSettingsCha
   const [audioAutoplay, setAudioAutoplay] = useState(false)
   const [audioLoop, setAudioLoop] = useState(false)
   const [audioMaxPlays, setAudioMaxPlays] = useState(0)
+  const [audioPlaybackRate, setAudioPlaybackRate] = useState(1)
   const questionTextareasRef = useRef({})
   const introTextareaRef = useRef(null)
   const introFileInputRef = useRef(null)
@@ -244,6 +245,7 @@ const FillBlankEditor = ({ questions, onQuestionsChange, settings, onSettingsCha
     setAudioAutoplay(false)
     setAudioLoop(false)
     setAudioMaxPlays(0)
+    setAudioPlaybackRate(1)
   }
 
   const handleInsertLink = (index) => {
@@ -268,6 +270,7 @@ const FillBlankEditor = ({ questions, onQuestionsChange, settings, onSettingsCha
     if (audioAutoplay) attributes.push('autoplay')
     if (audioLoop) attributes.push('loop')
     if (audioMaxPlays > 0) attributes.push(`data-max-plays="${audioMaxPlays}"`)
+    if (audioPlaybackRate && audioPlaybackRate !== 1) attributes.push(`data-playback-rate="${audioPlaybackRate}"`)
     return attributes.join(' ')
   }
 
@@ -304,6 +307,7 @@ const FillBlankEditor = ({ questions, onQuestionsChange, settings, onSettingsCha
     setAudioAutoplay(false)
     setAudioLoop(false)
     setAudioMaxPlays(0)
+    setAudioPlaybackRate(1)
   }
 
 
@@ -850,7 +854,7 @@ const FillBlankEditor = ({ questions, onQuestionsChange, settings, onSettingsCha
           <button type="button" onClick={() => { setUrlModal({ isOpen: true, type: 'image', questionIndex: -1 }); setUrlInput(''); setLinkText(''); setImageSize('medium'); setCustomWidth(''); setCustomHeight('') }} className="px-2 py-1 text-xs bg-gray-100 hover:bg-gray-200 rounded inline-flex items-center gap-1">
             <ImageIcon className="w-3 h-3" /> Image
           </button>
-          <button type="button" onClick={() => { setUrlModal({ isOpen: true, type: 'audio', questionIndex: -1 }); setUrlInput(''); setLinkText(''); setImageSize('medium'); setCustomWidth(''); setCustomHeight(''); setAudioControls(true); setAudioAutoplay(false); setAudioLoop(false); setAudioMaxPlays(0) }} className="px-2 py-1 text-xs bg-gray-100 hover:bg-gray-200 rounded inline-flex items-center gap-1">
+          <button type="button" onClick={() => { setUrlModal({ isOpen: true, type: 'audio', questionIndex: -1 }); setUrlInput(''); setLinkText(''); setImageSize('medium'); setCustomWidth(''); setCustomHeight(''); setAudioControls(true); setAudioAutoplay(false); setAudioLoop(false); setAudioMaxPlays(0); setAudioPlaybackRate(1) }} className="px-2 py-1 text-xs bg-gray-100 hover:bg-gray-200 rounded inline-flex items-center gap-1">
             <Music className="w-3 h-3" /> Audio
           </button>
           <button type="button" onClick={() => { setUrlModal({ isOpen: true, type: 'link', questionIndex: -1 }); setUrlInput(''); setLinkText('Reference') }} className="px-2 py-1 text-xs bg-gray-100 hover:bg-gray-200 rounded inline-flex items-center gap-1">
@@ -1188,6 +1192,21 @@ B. Fill in the blanks with the correct form.
                   />
                   <span className="text-gray-500">{audioMaxPlays === 0 ? '(không giới hạn)' : 'lần'}</span>
                 </label>
+                <label className="flex items-center gap-2 text-sm">
+                  Tốc độ phát:
+                  <select
+                    value={audioPlaybackRate}
+                    onChange={(e) => setAudioPlaybackRate(parseFloat(e.target.value))}
+                    className="px-2 py-1 border border-gray-300 rounded text-sm"
+                  >
+                    <option value={0.5}>0.5x</option>
+                    <option value={0.75}>0.75x</option>
+                    <option value={1}>1x</option>
+                    <option value={1.25}>1.25x</option>
+                    <option value={1.5}>1.5x</option>
+                    <option value={2}>2x</option>
+                  </select>
+                </label>
               </div>
             )}
             {urlInput && (
@@ -1196,7 +1215,7 @@ B. Fill in the blanks with the correct form.
                 {urlModal.type === 'image' ? (
                   <img src={urlInput} alt="Preview" className="max-w-full rounded border" />
                 ) : urlModal.type === 'audio' ? (
-                  <audio src={urlInput} controls={audioControls} autoPlay={audioAutoplay} loop={audioLoop} className="w-full" />
+                  <audio ref={(el) => { if (el) el.playbackRate = audioPlaybackRate }} src={urlInput} controls={audioControls} autoPlay={audioAutoplay} loop={audioLoop} className="w-full" />
                 ) : (
                   <a href={urlInput} target="_blank" rel="noreferrer" className="text-blue-600 hover:underline">{linkText || urlInput}</a>
                 )}
