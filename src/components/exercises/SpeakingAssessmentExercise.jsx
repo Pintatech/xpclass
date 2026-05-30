@@ -7,7 +7,7 @@ import { supabase } from '../../supabase/client'
 import { saveRecentExercise } from '../../utils/recentExercise'
 import LoadingSpinner from '../ui/LoadingSpinner'
 import { RichTextWithAudio } from '../ui/RichTextRenderer'
-import { Mic, Square, ArrowRight, ArrowLeft, Star, RefreshCw, CheckCircle, MessageSquare } from 'lucide-react'
+import { Mic, Square, ArrowRight, ArrowLeft, Star, RefreshCw, CheckCircle, XCircle, MessageSquare } from 'lucide-react'
 import { assetUrl } from '../../hooks/useBranding'
 import TeacherExerciseNav from '../ui/TeacherExerciseNav'
 
@@ -134,6 +134,68 @@ Provide evaluation in JSON calibrated to the student's level:
   if (parsed.overall_score === undefined) throw new Error('Invalid response shape')
   return parsed
 }
+
+// Call AI to check a closed-ended answer against the teacher's accepted answers
+export const scoreClosedAnswerWithLLM = async (prompt, spokenText, expectedAnswers, level) => {
+  const levelConfig = getLevelConfig(level)
+  const accepted = (expectedAnswers || []).join(' | ')
+
+  const userPrompt = `You are checking a student's spoken answer to a closed-ended question (e.g. naming a picture).
+
+Student level: ${levelConfig.label} (${levelConfig.ageRange})
+Scoring guidance: ${levelConfig.aiContext}
+
+Question: "${prompt}"
+Accepted answers (any of these, or a close/equivalent variation, should count as correct): ${accepted}
+
+Student's spoken response (auto-transcribed, may contain transcription errors): "${spokenText}"
+
+Be LENIENT and student-friendly. Treat as correct when the student clearly says the right thing, including:
+- the answer with or without articles ("shirt", "a shirt", "it's a shirt")
+- full sentences vs single words
+- obvious synonyms or equivalent phrasings
+- minor transcription, spelling, or pronunciation slips
+
+Respond ONLY in valid JSON:
+{
+  "correct": true or false,
+  "overall_score": number 0-100 (100 = clearly correct; 40-70 if close but flawed; low if wrong),
+  "correct_answer": "the simplest accepted answer to show the student",
+  "feedback": "1-2 short, encouraging, age-appropriate sentences. Praise if correct; gently give the answer if not.",
+  "pronunciation_tip": "one short tip about pronunciation or phrasing, or an empty string"
+}`
+
+  const response = await fetch('/api/pet-chat', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      messages: [
+        { role: 'system', content: 'You check closed-ended spoken answers leniently and encourage young learners. Always respond in valid JSON.' },
+        { role: 'user', content: userPrompt },
+      ],
+      max_tokens: 600,
+      temperature: 0.2,
+    }),
+  })
+
+  if (!response.ok) throw new Error('LLM request failed')
+  const data = await response.json()
+  const content = data.choices[0].message.content
+  const jsonMatch = content.match(/\{[\s\S]*\}/)
+  if (!jsonMatch) throw new Error('No JSON in response')
+  const parsed = JSON.parse(jsonMatch[0])
+  if (parsed.correct === undefined) throw new Error('Invalid response shape')
+  return { closed: true, ...parsed }
+}
+
+const closedFallbackResult = (msg = '') => ({
+  closed: true,
+  correct: false,
+  overall_score: 0,
+  correct_answer: '',
+  feedback: msg || 'AI analysis is temporarily unavailable. Please try again.',
+  pronunciation_tip: '',
+})
 
 const fallbackResult = (msg = '') => ({
   overall_score: 50,
@@ -473,17 +535,17 @@ const SpeakingAssessmentExercise = () => {
   const analyzeWithAI = async (spokenText) => {
     const q = questions[currentQuestionIndex]
     if (!spokenText || !q) return
+    const isClosed = q.answer_mode === 'closed' && (q.expected_answers?.length > 0)
     setIsAnalyzing(true)
     let aiScoreResult
     try {
-      aiScoreResult = await scoreSpeechWithLLM(
-        q.prompt, spokenText, q.key_points, q.evaluation_criteria,
-        exercise?.content?.level
-      )
+      aiScoreResult = isClosed
+        ? await scoreClosedAnswerWithLLM(q.prompt, spokenText, q.expected_answers, exercise?.content?.level)
+        : await scoreSpeechWithLLM(q.prompt, spokenText, q.key_points, q.evaluation_criteria, exercise?.content?.level)
       setAiResult(aiScoreResult)
     } catch (err) {
       console.error('AI scoring error:', err)
-      aiScoreResult = fallbackResult()
+      aiScoreResult = isClosed ? closedFallbackResult() : fallbackResult()
       setAiResult(aiScoreResult)
     } finally {
       setIsAnalyzing(false)
@@ -596,7 +658,17 @@ const SpeakingAssessmentExercise = () => {
                     <RichTextWithAudio content={q.prompt} allowImages={true} />
                   </div>
                   {q.instructions && <p className="text-sm text-gray-600 mb-2">{q.instructions}</p>}
-                  {q.key_points?.length > 0 && (
+                  {q.answer_mode === 'closed' && q.expected_answers?.length > 0 && (
+                    <div className="mt-2">
+                      <p className="text-xs font-medium text-green-700 mb-1">Accepted answers:</p>
+                      <div className="flex flex-wrap gap-1">
+                        {q.expected_answers.map((ans, i) => (
+                          <span key={i} className="px-2 py-0.5 bg-green-100 text-green-700 text-xs rounded-full">{ans}</span>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+                  {q.answer_mode !== 'closed' && q.key_points?.length > 0 && (
                     <div className="flex flex-wrap gap-1 mt-2">
                       {q.key_points.map((kp, i) => (
                         <span key={i} className="px-2 py-0.5 bg-purple-100 text-purple-700 text-xs rounded-full">{kp}</span>
@@ -812,8 +884,65 @@ const SpeakingAssessmentExercise = () => {
                   </div>
                 )}
 
-                {/* Results */}
-                {showResults && aiResult && (
+                {/* Closed-answer results */}
+                {showResults && aiResult && aiResult.closed && (
+                  <div className="space-y-4">
+                    {transcription && (
+                      <div className="p-3 bg-gray-50 border border-gray-200 rounded-lg">
+                        <p className="text-xs font-semibold text-gray-500 mb-1">You said:</p>
+                        <p className="text-sm text-gray-800 italic">"{transcription}"</p>
+                      </div>
+                    )}
+
+                    <div className={`p-6 rounded-lg border text-center ${aiResult.correct ? 'bg-green-50 border-green-200' : 'bg-red-50 border-red-200'}`}>
+                      <div className="flex justify-center mb-2">
+                        {aiResult.correct
+                          ? <CheckCircle className="w-14 h-14 text-green-500" />
+                          : <XCircle className="w-14 h-14 text-red-500" />}
+                      </div>
+                      <p className={`text-2xl font-bold ${aiResult.correct ? 'text-green-700' : 'text-red-700'}`}>
+                        {aiResult.correct ? 'Correct!' : 'Not quite'}
+                      </p>
+                      {aiResult.correct_answer && (
+                        <p className="text-sm text-gray-600 mt-1">
+                          Answer: <span className="font-semibold text-gray-800">{aiResult.correct_answer}</span>
+                        </p>
+                      )}
+                    </div>
+
+                    {aiResult.feedback && (
+                      <div className="p-4 bg-blue-50 border border-blue-200 rounded-lg">
+                        <p className="text-sm text-blue-700">{aiResult.feedback}</p>
+                      </div>
+                    )}
+                    {aiResult.pronunciation_tip && (
+                      <div className="p-4 bg-purple-50 border border-purple-200 rounded-lg">
+                        <p className="text-sm font-semibold text-purple-800 mb-1">Pronunciation tip</p>
+                        <p className="text-sm text-purple-700">{aiResult.pronunciation_tip}</p>
+                      </div>
+                    )}
+
+                    <div className="flex gap-3 justify-between pt-2">
+                      <button
+                        onClick={() => { setTranscription(''); setAiResult(null); setShowResults(false); finalTranscriptRef.current = '' }}
+                        className="flex items-center gap-2 px-4 py-2 text-gray-600 border border-gray-300 rounded-lg hover:bg-gray-50"
+                      >
+                        <RefreshCw className="w-4 h-4" /> Try Again
+                      </button>
+                      <button
+                        onClick={handleNextQuestion}
+                        className="flex items-center gap-2 px-6 py-2 bg-purple-600 hover:bg-purple-700 text-white rounded-lg font-medium"
+                      >
+                        {currentQuestionIndex < questions.length - 1
+                          ? <><span>Next</span><ArrowRight className="w-4 h-4" /></>
+                          : <span>Finish</span>}
+                      </button>
+                    </div>
+                  </div>
+                )}
+
+                {/* Open-response results */}
+                {showResults && aiResult && !aiResult.closed && (
                   <div className="space-y-4">
                     {transcription && (
                       <div className="p-3 bg-gray-50 border border-gray-200 rounded-lg">

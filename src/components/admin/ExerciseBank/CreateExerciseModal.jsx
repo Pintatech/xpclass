@@ -377,6 +377,7 @@ const CreateExerciseModal = ({ folders, selectedFolder, onClose, onCreated, allo
                 level={formData.content.level || 'middle'}
                 onQuestionsChange={(questions) => handleContentChange('questions', questions)}
                 onLevelChange={(level) => handleContentChange('level', level)}
+                folderPath={getFolderPath(formData.folder_id)}
               />
             )}
 
