@@ -328,7 +328,7 @@ const SmartDragDropEditor = ({ questions, onQuestionsChange, intro, onIntroChang
       lines.forEach((line) => {
         const trimmedLine = line.trim()
 
-        const isQuestion = trimmedLine.match(/^(Q:?|Quest(ion)?\s*\d+\s*:?|\d+\.?\s)/i)
+        const isQuestion = trimmedLine.match(/^(Q\s*\d+\s*[.:)]?|Q[.:)]|Quest(ion)?\s*\d+\s*[.:)]?|\d+\.?\s)/i)
 
         // Before first question appears, collect into intro
         if (!firstQuestionSeen && !isQuestion) {
@@ -345,7 +345,7 @@ const SmartDragDropEditor = ({ questions, onQuestionsChange, intro, onIntroChang
           }
 
           // Start new question - extract the question title
-          const questionTitle = trimmedLine.replace(/^(Q:?|Quest(ion)?\s*\d+\s*:?|\d+\.?\s)\s*/i, '')
+          const questionTitle = trimmedLine.replace(/^(Q\s*\d+\s*[.:)]?|Q[.:)]|Quest(ion)?\s*\d+\s*[.:)]?|\d+\.?\s)\s*/i, '')
           // Extract parenthesized content into question field, rest stays as explanation
           const parenMatch = questionTitle.match(/^\(([^)]+)\)\s*(.*)$/)
           const questionText = parenMatch ? parenMatch[1].trim() : ''

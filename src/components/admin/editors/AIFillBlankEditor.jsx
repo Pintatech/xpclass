@@ -435,7 +435,7 @@ Trả lời bằng tiếng Việt với giải thích chi tiết, khuyến khíc
       lines.forEach((line) => {
         const trimmedLine = line.trim()
 
-        const isQuestion = trimmedLine.match(/^\d+\.?\s+/) || trimmedLine.match(/^Quest(?:ion)?\s*\d+[.:]?\s*/i)
+        const isQuestion = trimmedLine.match(/^\d+\.?\s+/) || trimmedLine.match(/^Q(?:uest(?:ion)?)?\s*\d+[.:)]?\s*/i)
         const isInstruction = trimmedLine.match(/^[A-Z]\.\s+/)
 
         // Before first numbered question appears, collect into intro

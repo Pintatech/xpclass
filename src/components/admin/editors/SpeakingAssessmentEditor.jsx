@@ -319,9 +319,9 @@ const SpeakingAssessmentEditor = ({ questions, level, onQuestionsChange, onLevel
               value={q.prompt}
               onChange={(e) => updateField(idx, 'prompt', e.target.value)}
               onPaste={(e) => handlePromptPaste(idx, e)}
-              rows={3}
+              rows={5}
               placeholder="e.g. Describe a memorable trip you have taken."
-              className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-purple-400 resize-none"
+              className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-purple-400 resize-y min-h-[80px]"
             />
             <p className="text-[11px] text-gray-400 mt-1">
               Click Image or Audio to paste a link (and pick a size) or upload a file. You can also paste a copied image/audio straight into the box. Students see it above the recording button.

@@ -717,7 +717,7 @@ const MultipleChoiceEditor = ({ questions, onQuestionsChange, settings, onSettin
       const introLines = []
 
       // Regex for question prefixes: Q:, Question 1, Quest 1, Câu 1, Câu hỏi 1, or just number with . ) : -
-      const questionRegex = /^(Q\s*[.:)\u002D]|Question\s*\d+|Quest\s*\d+|Câu\s*(hỏi\s*)?\d+|C\d+\s*[.:)\u002D]|\d+[.:)\u002D])/i
+      const questionRegex = /^(Q\s*\d*[.:)\u002D]|Question\s*\d+|Quest\s*\d+|Câu\s*(hỏi\s*)?\d+|C\d+\s*[.:)\u002D]|\d+[.:)\u002D])/i
       // Regex for option prefixes: A. A: A) (A) (a) or numbered options
       const optionRegex = /^\(?[A-Za-z]\)?[\s]*[.):\u002D]\s*|^\(?[A-Za-z]\)\s+|^\d+[.)\u002D]\s*/
       // Regex for answer/correct line: "Answer: A", "Đáp án: A", "Correct: B"
@@ -755,7 +755,7 @@ const MultipleChoiceEditor = ({ questions, onQuestionsChange, settings, onSettin
           }
           currentQuestion = {
             id: `q${Date.now()}_${index}`,
-            question: trimmedLine.replace(/^(Q\s*[.:)\u002D]|Question\s*\d+\s*[.:)\u002D]?\s*|Quest\s*\d+\s*[.:)\u002D]?\s*|Câu\s*(hỏi\s*)?\d+\s*[.:)\u002D]?\s*|C\d+\s*[.:)\u002D]\s*|\d+[.:)\u002D]\s*)/i, ''),
+            question: trimmedLine.replace(/^(Q\s*\d*[.:)\u002D]|Question\s*\d+\s*[.:)\u002D]?\s*|Quest\s*\d+\s*[.:)\u002D]?\s*|Câu\s*(hỏi\s*)?\d+\s*[.:)\u002D]?\s*|C\d+\s*[.:)\u002D]\s*|\d+[.:)\u002D]\s*)/i, ''),
             options: [],
             correct_answer: 0,
             explanation: '',

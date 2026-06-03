@@ -632,7 +632,7 @@ const FillBlankEditor = ({ questions, onQuestionsChange, settings, onSettingsCha
       lines.forEach((line) => {
         const trimmedLine = line.trim()
 
-        const isQuestion = trimmedLine.match(/^\d+\.?\s+/) || trimmedLine.match(/^Quest(?:ion)?\s*\d+[.:]?\s*/i)
+        const isQuestion = trimmedLine.match(/^\d+\.?\s+/) || trimmedLine.match(/^Q(?:uest(?:ion)?)?\s*\d+[.:)]?\s*/i)
         const isInstruction = trimmedLine.match(/^[A-Z]\.\s+/)
         const isExplanation = trimmedLine.match(/^#\s*/)
 
