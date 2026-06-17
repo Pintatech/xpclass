@@ -75,7 +75,11 @@
       "Bash(sed 's/CREATE TABLE.* //')",
       "Bash(sed 's/ .*//')",
       "Bash(awk '{print $3}')",
-      "Bash(rm -f /tmp/t.mjs)"
+      "Bash(rm -f /tmp/t.mjs)",
+      "WebFetch(domain:api.anthropic.com)",
+      "Read(//c/Users/Calvin_PC/.claude/projects/c--Users-Calvin-PC-Downloads-xpclass/fd042304-5c9e-4533-9b5e-6cc5f6d1dc4b/tool-results/**)",
+      "Bash(mkdir -p design_extract)",
+      "Bash(tar -tzf webfetch-1780559940666-askcu4.bin)"
     ],
     "deny": [],
     "ask": []
