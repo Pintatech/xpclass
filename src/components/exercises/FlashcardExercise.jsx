@@ -1345,10 +1345,10 @@ const FlashcardExercise = () => {
                         <img
                           src={currentFlashcard?.image}
                           alt={currentFlashcard?.front}
-                          className="w-full h-full object-cover"
+                          className="w-full h-full object-contain"
                         />
                         {/* Overlay with front text */}
-                        <div className="absolute inset-0 bg-black/40 flex items-center justify-center px-4">
+                        <div className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/70 to-transparent flex items-end justify-center px-4 pb-6 pt-12">
                           <div className="text-center text-white">
                             <h2 className="text-2xl sm:text-3xl md:text-4xl lg:text-5xl font-bold mb-2 drop-shadow-lg break-words max-w-full">
                               {currentFlashcard?.front}
@@ -1481,7 +1481,7 @@ const FlashcardExercise = () => {
                         )}
                         {/* Text overlay - only for non-TikTok/YouTube videos */}
                         {!getTikTokVideoId(currentFlashcard?.videoUrls?.[currentVideoIndex]) && !getYouTubeVideoId(currentFlashcard?.videoUrls?.[currentVideoIndex]) && (
-                          <div className="absolute inset-0 bg-black/30 flex items-center justify-center px-4 pointer-events-none">
+                          <div className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/60 to-transparent flex items-end justify-center px-4 pb-6 pt-12 pointer-events-none">
                             <div className="text-center text-white">
                               <h2 className="text-2xl sm:text-3xl md:text-4xl lg:text-5xl font-bold mb-2 drop-shadow-lg break-words max-w-full">
                                 {currentFlashcard?.front}
@@ -1548,10 +1548,10 @@ const FlashcardExercise = () => {
                         <img
                           src={currentFlashcard?.image}
                           alt={currentFlashcard?.back}
-                          className="w-full h-full object-cover"
+                          className="w-full h-full object-contain"
                         />
                         {/* Overlay with back text */}
-                        <div className="absolute inset-0 bg-black/40 flex items-center justify-center px-4">
+                        <div className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/70 to-transparent flex items-end justify-center px-4 pb-6 pt-12">
                           <div className="text-center text-white">
                             <h2 className="text-2xl sm:text-3xl md:text-4xl lg:text-5xl font-bold mb-2 drop-shadow-lg break-words max-w-full">
                               {currentFlashcard?.back}
