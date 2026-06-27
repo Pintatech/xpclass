@@ -1005,22 +1005,34 @@ const Leaderboard = () => {
               style={{ clipPath: CLIP_SM }}
             >
               <span className="text-base">{label}</span>
-              <span className="text-gray-700">
-                {g.xp_reward > 0 && <strong className={`${style.xpColor} inline-flex items-center gap-1`}>{g.xp_reward} <img src={assetUrl('/image/study/xp.png')} alt="XP" className="w-4 h-4" /></strong>}
-                {g.xp_reward > 0 && g.gem_reward > 0 && ' + '}
-                {g.gem_reward > 0 && <strong className="text-blue-500 inline-flex items-center gap-1">{g.gem_reward} <img src={assetUrl('/image/study/gem.png')} alt="Gem" className="w-4 h-4" /></strong>}
-                {g.collectible_items && <>
-                  {(g.xp_reward > 0 || g.gem_reward > 0) && ' + '}
-                  <strong className="text-purple-500 inline-flex items-center gap-1">
-                    {g.item_quantity > 1 && `${g.item_quantity}x `}{g.collectible_items.name}
-                  </strong>
-                </>}
-                {g.chests && <>
-                  {(g.xp_reward > 0 || g.gem_reward > 0 || g.collectible_items) && ' + '}
-                  <strong className="text-amber-600 inline-flex items-center gap-1">
-                    {g.chests.name}
-                  </strong>
-                </>}
+              <span className="inline-flex items-center gap-1.5 text-gray-700">
+                {g.xp_reward > 0 && (
+                  <span className="inline-flex items-center gap-0.5" title={`${g.xp_reward} XP`}>
+                    <strong className={style.xpColor}>{g.xp_reward}</strong>
+                    <img src={assetUrl('/image/study/xp.png')} alt="XP" className="w-4 h-4" />
+                  </span>
+                )}
+                {g.gem_reward > 0 && (
+                  <span className="inline-flex items-center gap-0.5" title={`${g.gem_reward} Gems`}>
+                    <strong className="text-blue-500">{g.gem_reward}</strong>
+                    <img src={assetUrl('/image/study/gem.png')} alt="Gem" className="w-4 h-4" />
+                  </span>
+                )}
+                {g.collectible_items && (
+                  <span className="inline-flex items-center" title={`${g.item_quantity > 1 ? `${g.item_quantity}x ` : ''}${g.collectible_items.name}`}>
+                    {g.collectible_items.image_url
+                      ? <img src={g.collectible_items.image_url} alt={g.collectible_items.name} className="w-6 h-6 object-contain" />
+                      : <strong className="text-purple-500">{g.collectible_items.name}</strong>}
+                    {g.item_quantity > 1 && <span className="text-xs font-bold text-purple-500 ml-0.5">x{g.item_quantity}</span>}
+                  </span>
+                )}
+                {g.chests && (
+                  <span className="inline-flex items-center" title={g.chests.name}>
+                    {g.chests.image_url
+                      ? <img src={g.chests.image_url} alt={g.chests.name} className="w-6 h-6 object-contain" />
+                      : <strong className="text-amber-600">{g.chests.name}</strong>}
+                  </span>
+                )}
               </span>
             </div>
           )
