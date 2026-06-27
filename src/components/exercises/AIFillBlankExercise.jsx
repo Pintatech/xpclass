@@ -10,6 +10,7 @@ import LoadingSpinner from '../ui/LoadingSpinner'
 import { callAIScoring as localAIScoring } from '../../utils/aiScoringService'
 import RichTextRenderer from '../ui/RichTextRenderer'
 import ExerciseHeader from '../ui/ExerciseHeader'
+import AudioPlayer from '../ui/AudioPlayer'
 import CelebrationScreen from '../ui/CelebrationScreen'
 import TeacherExerciseNav from '../ui/TeacherExerciseNav'
 import QuestionReportButton from '../reports/QuestionReportButton'
@@ -349,6 +350,35 @@ const AIFillBlankExercise = ({ testMode = false, exerciseData = null, onAnswersC
     }
   }
 
+  // Extract <audio> tags from rich-text content so we can render AudioPlayer separately
+  const extractAudioUrls = (htmlContent) => {
+    if (!htmlContent) return []
+    const parser = new DOMParser()
+    const doc = parser.parseFromString(htmlContent, 'text/html')
+    const audioElements = doc.querySelectorAll('audio')
+    const audioData = []
+    audioElements.forEach(el => {
+      const src = el.getAttribute('src') || el.querySelector('source')?.getAttribute('src')
+      if (src) {
+        audioData.push({
+          url: src,
+          seekable: el.getAttribute('data-seekable') === 'true',
+          maxPlays: parseInt(el.getAttribute('data-max-plays') || '0', 10)
+        })
+      }
+    })
+    return audioData
+  }
+
+  // Strip audio tags from HTML to avoid duplicate players
+  const stripAudioTags = (htmlContent) => {
+    if (!htmlContent) return ''
+    const parser = new DOMParser()
+    const doc = parser.parseFromString(htmlContent, 'text/html')
+    doc.querySelectorAll('audio').forEach(el => el.remove())
+    return doc.body.innerHTML
+  }
+
   const resetQuestion = (questionIndex) => {
     setUserAnswers(prev => ({
       ...prev,
@@ -414,6 +444,10 @@ const AIFillBlankExercise = ({ testMode = false, exerciseData = null, onAnswersC
   const aiScore = aiScores[currentQuestionIndex]
   const showResult = showResults[currentQuestionIndex]
 
+  // Audio embedded in rich-text content
+  const exerciseIntroAudio = extractAudioUrls(exercise?.content?.intro)
+  const currentQuestionAudio = extractAudioUrls(currentQuestion?.question)
+
   // testMode: simplified render for TestRunner
   if (testMode) {
     const questions = exercise?.content?.questions || []
@@ -421,15 +455,31 @@ const AIFillBlankExercise = ({ testMode = false, exerciseData = null, onAnswersC
       <div className="space-y-6">
         {exercise?.content?.intro && String(exercise.content.intro).trim() && (
           <div className="bg-blue-50 rounded-lg p-4 border border-blue-200">
-            <RichTextRenderer content={exercise.content.intro} allowImages allowLinks />
+            <RichTextRenderer content={stripAudioTags(exercise.content.intro)} allowImages allowLinks />
+            {exerciseIntroAudio.length > 0 && (
+              <div className="mt-3 space-y-2">
+                {exerciseIntroAudio.map((audio, index) => (
+                  <AudioPlayer key={index} audioUrl={audio.url} seekable={audio.seekable} maxPlays={audio.maxPlays} variant="outline" />
+                ))}
+              </div>
+            )}
           </div>
         )}
-        {questions.map((q, idx) => (
+        {questions.map((q, idx) => {
+          const qAudio = extractAudioUrls(q.question)
+          return (
           <div key={idx} className="space-y-3">
             <div className="flex items-start gap-3">
               <span className="flex-shrink-0 w-7 h-7 bg-blue-100 text-blue-700 rounded-full flex items-center justify-center font-bold text-xs">{idx + 1}</span>
               <div className="flex-1">
-                <RichTextRenderer content={q.question} allowImages allowLinks />
+                <RichTextRenderer content={stripAudioTags(q.question)} allowImages allowLinks />
+                {qAudio.length > 0 && (
+                  <div className="mt-2 space-y-2">
+                    {qAudio.map((audio, index) => (
+                      <AudioPlayer key={index} audioUrl={audio.url} seekable={audio.seekable} maxPlays={audio.maxPlays} variant="outline" />
+                    ))}
+                  </div>
+                )}
               </div>
             </div>
             <textarea
@@ -440,7 +490,7 @@ const AIFillBlankExercise = ({ testMode = false, exerciseData = null, onAnswersC
               placeholder="Type your answer here..."
             />
           </div>
-        ))}
+          )})}
       </div>
     )
   }
@@ -474,16 +524,32 @@ const AIFillBlankExercise = ({ testMode = false, exerciseData = null, onAnswersC
         </div>
         {exercise?.content?.intro && String(exercise.content.intro).trim() && (
           <div className="mb-6 bg-blue-50 rounded-lg p-4 border border-blue-200">
-            <RichTextRenderer content={exercise.content.intro} allowImages={true} allowLinks={false} />
+            <RichTextRenderer content={stripAudioTags(exercise.content.intro)} allowImages={true} allowLinks={false} />
+            {exerciseIntroAudio.length > 0 && (
+              <div className="mt-4 space-y-2">
+                {exerciseIntroAudio.map((audio, index) => (
+                  <AudioPlayer key={index} audioUrl={audio.url} seekable={audio.seekable} maxPlays={audio.maxPlays} variant="outline" />
+                ))}
+              </div>
+            )}
           </div>
         )}
         <div className="space-y-6">
-          {exercise.content.questions.map((q, idx) => (
+          {exercise.content.questions.map((q, idx) => {
+            const qAudio = extractAudioUrls(q.question)
+            return (
             <div key={idx} className="bg-white rounded-lg shadow-md p-6 border border-gray-200">
               <div className="flex items-start gap-3 mb-3">
                 <span className="flex-shrink-0 w-8 h-8 bg-blue-100 text-blue-700 rounded-full flex items-center justify-center font-bold text-sm">{idx + 1}</span>
                 <div className="flex-1">
-                  <RichTextRenderer content={q.question} allowImages={true} allowLinks={true} />
+                  <RichTextRenderer content={stripAudioTags(q.question)} allowImages={true} allowLinks={true} />
+                  {qAudio.length > 0 && (
+                    <div className="mt-3 space-y-2">
+                      {qAudio.map((audio, index) => (
+                        <AudioPlayer key={index} audioUrl={audio.url} seekable={audio.seekable} maxPlays={audio.maxPlays} variant="outline" />
+                      ))}
+                    </div>
+                  )}
                 </div>
               </div>
               {q.expected_answers && q.expected_answers.length > 0 && (
@@ -492,7 +558,7 @@ const AIFillBlankExercise = ({ testMode = false, exerciseData = null, onAnswersC
                 </div>
               )}
             </div>
-          ))}
+          )})}
         </div>
       </div>
     )
@@ -565,11 +631,18 @@ const AIFillBlankExercise = ({ testMode = false, exerciseData = null, onAnswersC
         {exercise?.content?.intro && String(exercise.content.intro).trim() && (
           <div className="mb-6 bg-blue-50 rounded-lg p-4 border border-blue-200">
             <RichTextRenderer
-              content={exercise.content.intro}
+              content={stripAudioTags(exercise.content.intro)}
               allowImages={true}
               allowLinks={false}
               style={{ whiteSpace: 'pre-wrap' }}
             />
+            {exerciseIntroAudio.length > 0 && (
+              <div className="mt-4 space-y-2">
+                {exerciseIntroAudio.map((audio, index) => (
+                  <AudioPlayer key={index} audioUrl={audio.url} seekable={audio.seekable} maxPlays={audio.maxPlays} variant="outline" />
+                ))}
+              </div>
+            )}
           </div>
         )}
 
@@ -579,11 +652,18 @@ const AIFillBlankExercise = ({ testMode = false, exerciseData = null, onAnswersC
             <div className="flex items-start justify-between gap-3 mb-4">
               <div className="text-lg text-gray-800 leading-relaxed flex-1 min-w-0">
                 <RichTextRenderer
-                  content={currentQuestion.question}
+                  content={stripAudioTags(currentQuestion.question)}
                   allowImages={true}
                   allowLinks={true}
                   style={{ whiteSpace: 'pre-wrap' }}
                 />
+                {currentQuestionAudio.length > 0 && (
+                  <div className="mt-4 space-y-2">
+                    {currentQuestionAudio.map((audio, index) => (
+                      <AudioPlayer key={index} audioUrl={audio.url} seekable={audio.seekable} maxPlays={audio.maxPlays} variant="outline" />
+                    ))}
+                  </div>
+                )}
               </div>
               <QuestionReportButton
                 exercise={exercise}
