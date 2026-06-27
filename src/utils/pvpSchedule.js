@@ -1,19 +1,11 @@
-import { supabase } from '../supabase/client'
+import { getSettings } from './siteSettings'
 
 /**
- * Fetch PvP schedule settings from site_settings.
+ * Fetch PvP schedule settings from the shared site_settings cache.
  * Returns { pvpEnabled, pvpStartTime, pvpEndTime }
  */
 export async function fetchPvpSchedule() {
-  const { data } = await supabase
-    .from('site_settings')
-    .select('setting_key, setting_value')
-    .in('setting_key', ['pvp_enabled', 'pvp_start_time', 'pvp_end_time'])
-
-  const settings = {}
-  data?.forEach((row) => {
-    settings[row.setting_key] = row.setting_value
-  })
+  const settings = await getSettings(['pvp_enabled', 'pvp_start_time', 'pvp_end_time'])
 
   return {
     pvpEnabled: settings.pvp_enabled !== 'false', // default true if not set

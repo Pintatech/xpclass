@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { supabase } from '../../supabase/client';
 import { Save, RefreshCw, RotateCcw, Palette, Globe, Image, Type } from 'lucide-react';
 import { useBranding } from '../../hooks/useBranding';
+import { invalidateSiteSettings } from '../../utils/siteSettings';
 
 const SETTING_FIELDS = [
   { key: 'branding_app_name', label: 'App Name', type: 'text', icon: Type, description: 'Shown in browser tab and headers' },
@@ -72,6 +73,7 @@ const BrandingSettings = () => {
         if (error) throw error;
       }
 
+      invalidateSiteSettings();
       showNotification('Branding saved! Changes are live.');
       refetch();
     } catch (err) {

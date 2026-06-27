@@ -8,6 +8,7 @@ import { SimpleBadge } from '../ui/StudentBadge'
 import { Trophy, Medal, Award, Crown, Star, RefreshCw } from 'lucide-react'
 import AvatarWithFrame from '../ui/AvatarWithFrame'
 import { assetUrl } from '../../hooks/useBranding';
+import { getSettings } from '../../utils/siteSettings';
 
 const CLIP_CARD = 'polygon(10px 0, 100% 0, 100% calc(100% - 10px), calc(100% - 10px) 100%, 0 100%, 0 10px)'
 const CLIP_SM = 'polygon(6px 0, 100% 0, 100% calc(100% - 6px), calc(100% - 6px) 100%, 0 100%, 0 6px)'
@@ -81,22 +82,22 @@ const Leaderboard = () => {
   useEffect(() => {
     const fetchLeaderboardSettings = async () => {
       try {
-        const { data } = await supabase
-          .from('site_settings')
-          .select('setting_key, setting_value')
-          .in('setting_key', [
-            'leaderboard_visible_tabs',
-            'leaderboard_default_tab',
-            'leaderboard_competition_active',
-            'leaderboard_competition_type',
-            'leaderboard_competition_game_type',
-            'leaderboard_competition_item_id',
-            'leaderboard_competition_rewards',
-            'leaderboard_competition_reward_threshold',
-            'leaderboard_competition_reward_xp',
-            'leaderboard_competition_max_attempts',
-            'leaderboard_competition_end_date',
-          ])
+        const settingsMap = await getSettings([
+          'leaderboard_visible_tabs',
+          'leaderboard_default_tab',
+          'leaderboard_competition_active',
+          'leaderboard_competition_type',
+          'leaderboard_competition_game_type',
+          'leaderboard_competition_item_id',
+          'leaderboard_competition_rewards',
+          'leaderboard_competition_reward_threshold',
+          'leaderboard_competition_reward_xp',
+          'leaderboard_competition_max_attempts',
+          'leaderboard_competition_end_date',
+        ])
+        const data = Object.entries(settingsMap)
+          .filter(([, value]) => value !== undefined)
+          .map(([setting_key, setting_value]) => ({ setting_key, setting_value }))
 
         let tabs = ['week', 'month', 'training']
         let defaultTab = 'training'
@@ -762,148 +763,41 @@ const Leaderboard = () => {
     return { users: flatUsers, userXpCounts, exerciseCounts }
   }
 
-  // Get timeframe-based leaderboard
+  // Get timeframe-based leaderboard.
+  // Aggregation runs server-side in the get_leaderboard RPC (Postgres) which
+  // returns only the top 50 pre-computed rows. This avoids shipping thousands
+  // of raw user_progress / session_reward_claims rows to the client just to
+  // sum them in JS — previously the dominant source of PostgREST egress.
   const getTimeframeLeaderboard = async (period, startDate) => {
-    // First get all users
-    const { data: users, error: usersError } = await supabase
-      .from('users')
-      .select('id, email, full_name, xp, streak_count, avatar_url, user_equipment(active_title, active_frame_ratio, hide_frame)')
-      .eq('role', 'user')
-      .limit(500)
+    const startDateOnly = startDate.split('T')[0]
 
-    if (usersError) throw usersError
-
-    const flatUsers = users.map(u => {
-      const { user_equipment, ...rest } = u
-      return { ...rest, ...user_equipment }
+    const { data: rows, error: rpcError } = await supabase.rpc('get_leaderboard', {
+      p_period: period,
+      p_start_date: startDateOnly,
     })
 
-    const userIds = flatUsers.map(u => u.id)
+    if (rpcError) throw rpcError
 
-    // Get user progress in the timeframe (no FK join - fetch exercises separately for reliability)
-    let progressQuery = supabase
-      .from('user_progress')
-      .select('user_id, exercise_id, completed_at, score, max_score')
-      .eq('status', 'completed')
-      .in('user_id', userIds)
-
-    if (period === 'today') {
-      const startOfDay = new Date(startDate + 'T00:00:00+07:00').toISOString()
-      const endOfDay = new Date(startDate + 'T23:59:59+07:00').toISOString()
-      progressQuery = progressQuery.gte('completed_at', startOfDay)
-                                  .lte('completed_at', endOfDay)
-    } else {
-      const startOfPeriod = new Date(startDate + 'T00:00:00+07:00').toISOString()
-      progressQuery = progressQuery.gte('completed_at', startOfPeriod)
-    }
-
-    // Paginate to avoid Supabase 1000-row default limit
-    let progressData = []
-    let page = 0
-    const PAGE_SIZE = 1000
-    while (true) {
-      const { data: batch, error: batchError } = await progressQuery
-        .range(page * PAGE_SIZE, (page + 1) * PAGE_SIZE - 1)
-        .order('completed_at', { ascending: true })
-      if (batchError) throw batchError
-      progressData = progressData.concat(batch)
-      if (batch.length < PAGE_SIZE) break
-      page++
-    }
-
-    // Fetch xp_reward for all exercises referenced in progress data
-    const exerciseIds = [...new Set(progressData.map(p => p.exercise_id).filter(Boolean))]
-    const exerciseXpMap = {}
-    if (exerciseIds.length > 0) {
-      const { data: exercisesData } = await supabase
-        .from('exercises')
-        .select('id, xp_reward')
-        .in('id', exerciseIds)
-
-      exercisesData?.forEach(e => { exerciseXpMap[e.id] = e.xp_reward || 10 })
-    }
-
-    // Fetch chest XP from session_reward_claims for the timeframe
-    let chestQuery = supabase
-      .from('session_reward_claims')
-      .select('user_id, xp_awarded, claimed_at')
-      .in('user_id', userIds)
-      .gt('xp_awarded', 0)
-
-    if (period === 'today') {
-      const startOfDay = new Date(startDate + 'T00:00:00+07:00').toISOString()
-      const endOfDay = new Date(startDate + 'T23:59:59+07:00').toISOString()
-      chestQuery = chestQuery.gte('claimed_at', startOfDay)
-                             .lte('claimed_at', endOfDay)
-    } else {
-      const startOfPeriod = new Date(startDate + 'T00:00:00+07:00').toISOString()
-      chestQuery = chestQuery.gte('claimed_at', startOfPeriod)
-    }
-
-    const { data: chestData, error: chestError } = await chestQuery.limit(10000)
-
-    if (chestError) throw chestError
-
-    // Calculate XP earned in timeframe per user
     const userXpCounts = {}
     const exerciseCounts = {}
 
-    // Exercise XP with bonus tiers
-    progressData.forEach((progress) => {
-      const vietnamDate = utcToVietnamDate(progress.completed_at)
-
-      let includeInTimeframe = false
-      if (period === 'today') {
-        includeInTimeframe = vietnamDate === startDate
-      } else if (period === 'week') {
-        const compareDate = startDate.split('T')[0]
-        includeInTimeframe = vietnamDate >= compareDate
-      } else if (period === 'month') {
-        const compareDate = startDate.split('T')[0]
-        includeInTimeframe = vietnamDate >= compareDate
-      }
-
-      if (includeInTimeframe) {
-        const baseXp = exerciseXpMap[progress.exercise_id] || 10
-        const scorePercent = progress.max_score > 0
-          ? (progress.score / progress.max_score) * 100
-          : 0
-        let xpToAdd = baseXp
-        if (scorePercent >= 95) xpToAdd = Math.round(baseXp * 1.5)
-        else if (scorePercent >= 90) xpToAdd = Math.round(baseXp * 1.3)
-
-        userXpCounts[progress.user_id] = (userXpCounts[progress.user_id] || 0) + xpToAdd
-        exerciseCounts[progress.user_id] = (exerciseCounts[progress.user_id] || 0) + 1
+    const users = (rows || []).map((r) => {
+      userXpCounts[r.id] = Number(r.timeframe_xp) || 0
+      exerciseCounts[r.id] = Number(r.exercise_count) || 0
+      return {
+        id: r.id,
+        email: r.email,
+        full_name: r.full_name,
+        xp: r.total_xp || 0,
+        streak_count: r.streak_count,
+        avatar_url: r.avatar_url,
+        active_title: r.active_title,
+        active_frame_ratio: r.active_frame_ratio,
+        hide_frame: r.hide_frame,
       }
     })
 
-    // Add chest XP
-    chestData?.forEach((claim) => {
-      const vietnamDate = utcToVietnamDate(claim.claimed_at)
-
-      let includeInTimeframe = false
-      if (period === 'today') {
-        includeInTimeframe = vietnamDate === startDate
-      } else if (period === 'week') {
-        const compareDate = startDate.split('T')[0]
-        includeInTimeframe = vietnamDate >= compareDate
-      } else if (period === 'month') {
-        const compareDate = startDate.split('T')[0]
-        includeInTimeframe = vietnamDate >= compareDate
-      }
-
-      if (includeInTimeframe) {
-        userXpCounts[claim.user_id] = (userXpCounts[claim.user_id] || 0) + claim.xp_awarded
-      }
-    })
-
-    // Sort users by timeframe XP
-    const filteredUsers = flatUsers
-      .filter(user => userXpCounts[user.id] > 0) // Only show users with XP in timeframe
-      .sort((a, b) => (userXpCounts[b.id] || 0) - (userXpCounts[a.id] || 0))
-      .slice(0, 50)
-
-    return { users: filteredUsers, userXpCounts, exerciseCounts }
+    return { users, userXpCounts, exerciseCounts }
   }
 
   const getRankIcon = (rank) => {

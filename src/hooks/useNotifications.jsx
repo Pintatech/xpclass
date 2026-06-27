@@ -3,7 +3,7 @@ import { supabase } from '../supabase/client'
 import { useAuth } from './useAuth'
 
 export const useNotifications = () => {
-  const { user, profile } = useAuth()
+  const { user } = useAuth()
   const [notifications, setNotifications] = useState([])
   const [unreadCount, setUnreadCount] = useState(0)
   const [loading, setLoading] = useState(true)
@@ -14,92 +14,17 @@ export const useNotifications = () => {
     if (!user) return
 
     try {
-      // 1. Fetch user-specific notifications
-      const { data: userNotifs, error: userError } = await supabase
-        .from('notifications')
-        .select('*')
-        .eq('user_id', user.id)
-        .order('created_at', { ascending: false })
-        .limit(50)
+      // Single server-side call: get_notifications merges user-specific,
+      // broadcast, and cohort-targeted notifications, resolves read status,
+      // dedupes, filters mission_reward, and caps at 50 — replacing the
+      // 3-4 round-trips this used to make every poll.
+      const { data, error } = await supabase.rpc('get_notifications', {
+        p_user_id: user.id,
+      })
 
-      if (userError) throw userError
+      if (error) throw error
 
-      // 2. Fetch broadcast notifications (user_id IS NULL, no cohort)
-      const { data: broadcastNotifs, error: broadcastError } = await supabase
-        .from('notifications')
-        .select('*')
-        .is('user_id', null)
-        .is('cohort_id', null)
-        .order('created_at', { ascending: false })
-        .limit(20)
-
-      if (broadcastError) throw broadcastError
-
-      // 3. Fetch cohort-targeted notifications
-      let cohortNotifs = []
-      if (profile?.id) {
-        const { data: memberships } = await supabase
-          .from('cohort_members')
-          .select('cohort_id')
-          .eq('student_id', profile.id)
-          .eq('is_active', true)
-
-        if (memberships && memberships.length > 0) {
-          const cohortIds = memberships.map(m => m.cohort_id)
-          const { data: cNotifs } = await supabase
-            .from('notifications')
-            .select('*')
-            .is('user_id', null)
-            .in('cohort_id', cohortIds)
-            .order('created_at', { ascending: false })
-            .limit(20)
-
-          cohortNotifs = cNotifs || []
-        }
-      }
-
-      // 4. Fetch read status for broadcast/cohort notifications
-      const broadcastAndCohortIds = [...(broadcastNotifs || []), ...cohortNotifs].map(n => n.id)
-      let readNotifIds = new Set()
-
-      if (broadcastAndCohortIds.length > 0) {
-        const { data: reads } = await supabase
-          .from('notification_reads')
-          .select('notification_id')
-          .eq('user_id', user.id)
-          .in('notification_id', broadcastAndCohortIds)
-
-        if (reads) {
-          readNotifIds = new Set(reads.map(r => r.notification_id))
-        }
-      }
-
-      // 5. Merge and mark read status
-      const allNotifs = [
-        ...(userNotifs || []),
-        ...(broadcastNotifs || []).map(n => ({
-          ...n,
-          is_read: readNotifIds.has(n.id)
-        })),
-        ...cohortNotifs.map(n => ({
-          ...n,
-          is_read: readNotifIds.has(n.id)
-        }))
-      ]
-
-      // Sort by created_at DESC, deduplicate, and filter out mission claim notifications
-      // (mission rewards already show a celebration overlay on claim)
-      const seen = new Set()
-      const merged = allNotifs
-        .sort((a, b) => new Date(b.created_at) - new Date(a.created_at))
-        .filter(n => {
-          if (seen.has(n.id)) return false
-          seen.add(n.id)
-          if (n.type === 'mission_reward') return false
-          return true
-        })
-        .slice(0, 50)
-
+      const merged = data || []
       setNotifications(merged)
       setUnreadCount(merged.filter(n => !n.is_read).length)
     } catch (err) {
@@ -108,7 +33,7 @@ export const useNotifications = () => {
     } finally {
       setLoading(false)
     }
-  }, [user, profile])
+  }, [user])
 
   const markAsRead = async (notificationId) => {
     if (!user) return
@@ -233,16 +158,42 @@ export const useNotifications = () => {
   }
 
   useEffect(() => {
-    if (user) {
-      fetchNotifications()
-      // Poll every 60 seconds
-      pollInterval.current = setInterval(fetchNotifications, 60000)
-    }
+    if (!user) return
 
-    return () => {
+    // Poll every 2 minutes, and only while the tab is actually visible.
+    // Idle/backgrounded tabs were firing 3-4 notification queries per minute
+    // each — a top source of PostgREST egress. Pausing on hidden tabs and
+    // halving the interval cuts that dramatically with no UX cost (we do an
+    // immediate catch-up fetch whenever the tab becomes visible again).
+    const POLL_MS = 120000
+
+    const startPolling = () => {
+      if (pollInterval.current) clearInterval(pollInterval.current)
+      pollInterval.current = setInterval(fetchNotifications, POLL_MS)
+    }
+    const stopPolling = () => {
       if (pollInterval.current) {
         clearInterval(pollInterval.current)
+        pollInterval.current = null
       }
+    }
+
+    const handleVisibility = () => {
+      if (document.visibilityState === 'visible') {
+        fetchNotifications() // catch up on anything missed while hidden
+        startPolling()
+      } else {
+        stopPolling()
+      }
+    }
+
+    fetchNotifications()
+    if (document.visibilityState === 'visible') startPolling()
+    document.addEventListener('visibilitychange', handleVisibility)
+
+    return () => {
+      stopPolling()
+      document.removeEventListener('visibilitychange', handleVisibility)
     }
   }, [user, fetchNotifications])
 

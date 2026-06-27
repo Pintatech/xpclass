@@ -32,6 +32,7 @@ import PetFishingGame from "./games/PetFishingGame";
 
 import { assetUrl } from '../../hooks/useBranding';
 import { fetchPvpSchedule, checkPvpAvailability } from '../../utils/pvpSchedule';
+import { getSettings, getSetting } from '../../utils/siteSettings';
 // Pet chat messages - replace with your own!
 const PET_MESSAGES = [
   // English Idioms
@@ -144,16 +145,8 @@ const PetDisplay = () => {
     const checkChestEligibility = async () => {
       if (!user?.id) return;
 
-      // Fetch chest settings
-      const { data: settings } = await supabase
-        .from('site_settings')
-        .select('setting_key, setting_value')
-        .in('setting_key', ['chest_enabled', 'chest_start_time', 'chest_end_time', 'chest_daily_limit']);
-
-      if (!settings) return;
-
-      const map = {};
-      settings.forEach(s => { map[s.setting_key] = s.setting_value; });
+      // Fetch chest settings (shared cache)
+      const map = await getSettings(['chest_enabled', 'chest_start_time', 'chest_end_time', 'chest_daily_limit']);
 
       // Check if chest feature is enabled
       if (map['chest_enabled'] !== 'true') {
@@ -216,15 +209,7 @@ const PetDisplay = () => {
     const checkMazeEligibility = async () => {
       if (!user?.id) return;
 
-      const { data: settings } = await supabase
-        .from('site_settings')
-        .select('setting_key, setting_value')
-        .in('setting_key', ['maze_enabled', 'maze_start_time', 'maze_end_time', 'maze_daily_limit']);
-
-      if (!settings) return;
-
-      const map = {};
-      settings.forEach(s => { map[s.setting_key] = s.setting_value; });
+      const map = await getSettings(['maze_enabled', 'maze_start_time', 'maze_end_time', 'maze_daily_limit']);
 
       if (map['maze_enabled'] === 'false') {
         setMazeBlocked(true);
@@ -281,31 +266,22 @@ const PetDisplay = () => {
   // Fetch enabled training games
   useEffect(() => {
     const fetchEnabledGames = async () => {
-      const { data } = await supabase
-        .from('site_settings')
-        .select('setting_value')
-        .eq('setting_key', 'pet_training_enabled_games')
-        .single()
-      if (data?.setting_value) {
-        try { setEnabledGames(JSON.parse(data.setting_value)) } catch {}
+      const value = await getSetting('pet_training_enabled_games')
+      if (value) {
+        try { setEnabledGames(JSON.parse(value)) } catch {}
       }
     }
     fetchEnabledGames()
 
     // Fetch active competition game type
     const fetchCompetition = async () => {
-      const { data } = await supabase
-        .from('site_settings')
-        .select('setting_key, setting_value')
-        .in('setting_key', [
-          'leaderboard_competition_active',
-          'leaderboard_competition_type',
-          'leaderboard_competition_game_type',
-          'leaderboard_competition_end_date',
-        ])
-      if (data) {
-        const m = {}
-        data.forEach(s => { m[s.setting_key] = s.setting_value })
+      const m = await getSettings([
+        'leaderboard_competition_active',
+        'leaderboard_competition_type',
+        'leaderboard_competition_game_type',
+        'leaderboard_competition_end_date',
+      ])
+      {
         const isActive = m['leaderboard_competition_active'] !== 'false'
         const compType = m['leaderboard_competition_type'] || 'game'
         const endDate = m['leaderboard_competition_end_date'] || ''
@@ -672,20 +648,14 @@ const PetDisplay = () => {
   const recordAttemptStart = async (gameType) => {
     if (!gameType || !user?.id) return;
 
-    // Check attempt limit during active competition
-    const { data: settings } = await supabase
-      .from('site_settings')
-      .select('setting_key, setting_value')
-      .in('setting_key', [
-        'leaderboard_competition_active',
-        'leaderboard_competition_type',
-        'leaderboard_competition_game_type',
-        'leaderboard_competition_max_attempts',
-        'leaderboard_competition_end_date',
-      ]);
-
-    const settingsMap = {};
-    settings?.forEach(s => { settingsMap[s.setting_key] = s.setting_value; });
+    // Check attempt limit during active competition (shared cache)
+    const settingsMap = await getSettings([
+      'leaderboard_competition_active',
+      'leaderboard_competition_type',
+      'leaderboard_competition_game_type',
+      'leaderboard_competition_max_attempts',
+      'leaderboard_competition_end_date',
+    ]);
 
     const isActive = settingsMap['leaderboard_competition_active'] !== 'false';
     const compType = settingsMap['leaderboard_competition_type'] || 'game';

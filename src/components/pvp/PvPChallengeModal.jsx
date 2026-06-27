@@ -20,6 +20,7 @@ import PvPRealtimeMatchGame from './PvPRealtimeMatchGame'
 
 import { assetUrl } from '../../hooks/useBranding'
 import { fetchPvpSchedule, checkPvpAvailability } from '../../utils/pvpSchedule'
+import { getSetting } from '../../utils/siteSettings'
 
 const TAUNT_GIF_BASE = assetUrl('/gif/taunt')
 
@@ -212,13 +213,9 @@ const PvPChallengeModal = ({ opponent, onClose }) => {
     }
     checkPending()
     const fetchEnabledGames = async () => {
-      const { data } = await supabase
-        .from('site_settings')
-        .select('setting_value')
-        .eq('setting_key', 'pet_training_enabled_games')
-        .single()
-      if (data?.setting_value) {
-        try { setEnabledGames(JSON.parse(data.setting_value)) } catch {}
+      const value = await getSetting('pet_training_enabled_games')
+      if (value) {
+        try { setEnabledGames(JSON.parse(value)) } catch {}
       }
     }
     fetchEnabledGames()

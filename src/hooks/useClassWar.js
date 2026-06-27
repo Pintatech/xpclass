@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import { supabase } from '../supabase/client';
 import { useAuth } from './useAuth';
+import { getSettings } from '../utils/siteSettings';
 
 const useClassWar = (courseId) => {
   const { user } = useAuth();
@@ -220,20 +221,12 @@ const useClassWar = (courseId) => {
       setTeamAXP(teamAData.reduce((sum, m) => sum + m.xp, 0));
       setTeamBXP(teamBData.reduce((sum, m) => sum + m.xp, 0));
 
-      // Fetch reward settings
-      const { data: rewardSettings } = await supabase
-        .from('site_settings')
-        .select('setting_key, setting_value')
-        .in('setting_key', ['class_war_winner_rewards', 'class_war_loser_rewards']);
+      // Fetch reward settings (shared cache)
+      const rewardMap = await getSettings(['class_war_winner_rewards', 'class_war_loser_rewards']);
       const emptyR = { xp: 0, gems: 0, items: [] };
       let winR = emptyR, losR = emptyR;
-      (rewardSettings || []).forEach(s => {
-        try {
-          const v = JSON.parse(s.setting_value);
-          if (s.setting_key === 'class_war_winner_rewards') winR = { ...emptyR, ...v };
-          if (s.setting_key === 'class_war_loser_rewards') losR = { ...emptyR, ...v };
-        } catch {}
-      });
+      try { if (rewardMap.class_war_winner_rewards) winR = { ...emptyR, ...JSON.parse(rewardMap.class_war_winner_rewards) }; } catch {}
+      try { if (rewardMap.class_war_loser_rewards) losR = { ...emptyR, ...JSON.parse(rewardMap.class_war_loser_rewards) }; } catch {}
       // Enrich items with image_url from collectible_items
       const allItems = [...(winR.items || []), ...(losR.items || [])];
       const missingIds = allItems.filter(i => !i.image_url && i.item_id).map(i => i.item_id);

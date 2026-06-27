@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { supabase } from '../../supabase/client';
 import { Swords, Save, Gift, Trophy } from 'lucide-react';
+import { invalidateSiteSettings } from '../../utils/siteSettings';
 
 const emptyReward = () => ({ xp: 0, gems: 0, items: [] });
 
@@ -77,6 +78,7 @@ const ClassWarManagement = () => {
         }
       }
 
+      invalidateSiteSettings();
       showNotification('Reward settings saved!');
     } catch (err) {
       console.error('Error saving settings:', err);

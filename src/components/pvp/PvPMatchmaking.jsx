@@ -8,6 +8,7 @@ import { assetUrl } from '../../hooks/useBranding'
 import PvPRealtimeWordType from './PvPRealtimeWordType'
 import PvPRealtimeWordScramble from './PvPRealtimeWordScramble'
 import PvPRealtimeMatchGame from './PvPRealtimeMatchGame'
+import { getSetting } from '../../utils/siteSettings'
 
 const PvPMatchmaking = ({ onClose, wordBank = [] }) => {
   const { user, profile } = useAuth()
@@ -39,14 +40,11 @@ const PvPMatchmaking = ({ onClose, wordBank = [] }) => {
     let cancelled = false
 
     const joinQueue = async () => {
-      // Fetch configured game type
-      const { data: setting } = await supabase.from('site_settings')
-        .select('setting_value')
-        .eq('setting_key', 'quickmatch_game_type')
-        .single()
-      if (setting?.setting_value) {
-        gameTypeRef.current = setting.setting_value
-        setGameType(setting.setting_value)
+      // Fetch configured game type (shared cache)
+      const quickmatchGameType = await getSetting('quickmatch_game_type')
+      if (quickmatchGameType) {
+        gameTypeRef.current = quickmatchGameType
+        setGameType(quickmatchGameType)
       }
 
       if (cancelled) return

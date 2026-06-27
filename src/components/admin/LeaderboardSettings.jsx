@@ -3,6 +3,7 @@ import { supabase } from '../../supabase/client';
 import { Save, RefreshCw, Play, Pause, Trophy, Settings, X, Gift, Compass } from 'lucide-react';
 
 import { assetUrl } from '../../hooks/useBranding';
+import { invalidateSiteSettings } from '../../utils/siteSettings';
 const ALL_TABS = [
   { key: 'week', label: 'Tuần này (Weekly XP)' },
   { key: 'month', label: 'Tháng này (Monthly XP)' },
@@ -295,6 +296,7 @@ const LeaderboardSettings = () => {
         if (error) throw error;
       }
 
+      invalidateSiteSettings(); // students pick up new config on next read
       setDefaultTab(effectiveDefault);
       showNotification('Settings saved successfully!');
     } catch (err) {
@@ -466,6 +468,7 @@ const LeaderboardSettings = () => {
       console.error('Error ending competition:', err);
       showNotification('Error ending competition: ' + err.message, 'error');
     } finally {
+      invalidateSiteSettings(); // competition_active changed — refresh students' cache
       setEnding(false);
     }
   };
