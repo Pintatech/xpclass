@@ -82,7 +82,9 @@
       "Bash(tar -tzf webfetch-1780559940666-askcu4.bin)",
       "Bash(awk -F'limit\\\\\\\\\\(' '{n=$2+0; if\\(n>=500\\) print}')",
       "Bash(awk -F: '{print $1}')",
-      "Bash(awk '{n=$2; gsub\\(/[^0-9]/,\"\",n\\); if\\(n+0>=500\\) print}')"
+      "Bash(awk '{n=$2; gsub\\(/[^0-9]/,\"\",n\\); if\\(n+0>=500\\) print}')",
+      "Bash(curl -s -o /dev/null -w \"%{http_code}\" \"https://bhlpjvcplrofixogcrqp.supabase.co/storage/v1/object/public/shop-assets/bowls/pet-bowl.png\")",
+      "Bash(curl -s -I \"https://bhlpjvcplrofixogcrqp.supabase.co/storage/v1/object/public/shop-assets/bowls/pet-bowl.png\")"
     ],
     "deny": [],
     "ask": []

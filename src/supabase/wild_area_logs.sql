@@ -26,17 +26,20 @@ CREATE INDEX IF NOT EXISTS idx_wild_area_logs_created_at ON public.wild_area_log
 -- RLS
 ALTER TABLE public.wild_area_logs ENABLE ROW LEVEL SECURITY;
 
+DROP POLICY IF EXISTS "Admins can read all wild area logs" ON public.wild_area_logs;
 CREATE POLICY "Admins can read all wild area logs"
   ON public.wild_area_logs FOR SELECT
   USING (
     EXISTS (SELECT 1 FROM public.users WHERE id = auth.uid() AND role = 'admin')
   );
 
+DROP POLICY IF EXISTS "Users can read own wild area logs" ON public.wild_area_logs;
 CREATE POLICY "Users can read own wild area logs"
   ON public.wild_area_logs FOR SELECT
   USING (user_id = auth.uid());
 
 -- Service role / RPC can insert
+DROP POLICY IF EXISTS "Service can insert wild area logs" ON public.wild_area_logs;
 CREATE POLICY "Service can insert wild area logs"
   ON public.wild_area_logs FOR INSERT
   WITH CHECK (true);

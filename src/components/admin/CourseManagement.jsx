@@ -336,11 +336,11 @@ const CourseManagement = () => {
                     </td>
 
                     <td className="px-6 py-4">
-                      {course.course_teachers && course.course_teachers.length > 0 ? (
+                      {course.course_teachers && course.course_teachers.some(ct => ct.teacher) ? (
                         <div className="space-y-1">
-                          {course.course_teachers.map((ct, index) => (
+                          {course.course_teachers.filter(ct => ct.teacher).map((ct, index) => (
                             <div key={index}>
-                              <div className="text-sm font-medium text-gray-900">{ct.teacher.full_name}</div>
+                              <div className="text-sm font-medium text-gray-900">{ct.teacher?.full_name || 'Unknown teacher'}</div>
                             </div>
                           ))}
                         </div>
