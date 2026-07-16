@@ -406,7 +406,7 @@ const Profile = () => {
       new Date(a.created_at) > new Date(latest.created_at) ? a : latest
     )
     const uploadedAt = new Date(mostRecent.created_at)
-    const unlockAt = new Date(uploadedAt.getTime() + 7 * 24 * 60 * 60 * 1000)
+    const unlockAt = new Date(uploadedAt.getTime() + 3 * 24 * 60 * 60 * 1000)
     const now = new Date()
     if (now >= unlockAt) return 0
     return Math.ceil((unlockAt - now) / (24 * 60 * 60 * 1000))
@@ -427,8 +427,8 @@ const Profile = () => {
       alert('File ảnh không được vượt quá 2MB')
       return
     }
-    if (customAvatars.length >= 3) {
-      alert('Bạn chỉ được tải tối đa 3 avatar. Vui lòng xóa avatar cũ trước khi tải ảnh mới.')
+    if (customAvatars.length >= 20) {
+      alert('Bạn chỉ được tải tối đa 20 avatar. Vui lòng xóa avatar cũ trước khi tải ảnh mới.')
       return
     }
     if (uploadCooldownDays > 0) {
@@ -1474,17 +1474,17 @@ const Profile = () => {
               <div className="flex items-center justify-between mb-3">
                 <h4 className="text-sm font-semibold text-gray-700">Avatar tự tải lên</h4>
                 <label className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-sm font-medium cursor-pointer transition-colors ${
-                  uploadingAvatar || customAvatars.length >= 3 || uploadCooldownDays > 0
+                  uploadingAvatar || customAvatars.length >= 20 || uploadCooldownDays > 0
                     ? 'bg-gray-200 text-gray-400 cursor-not-allowed'
                     : 'bg-blue-600 text-white hover:bg-blue-700'
                 }`}>
                   <Upload className="w-4 h-4" />
-                  {uploadingAvatar ? 'Đang tải...' : customAvatars.length >= 3 ? 'Tối đa 3 avatar' : uploadCooldownDays > 0 ? `Chờ ${uploadCooldownDays} ngày` : 'Tải ảnh lên'}
+                  {uploadingAvatar ? 'Đang tải...' : customAvatars.length >= 20 ? 'Tối đa 20 avatar' : uploadCooldownDays > 0 ? `Chờ ${uploadCooldownDays} ngày` : 'Tải ảnh lên'}
                   <input
                     type="file"
                     accept="image/*"
                     onChange={handleAvatarUpload}
-                    disabled={uploadingAvatar || customAvatars.length >= 3 || uploadCooldownDays > 0}
+                    disabled={uploadingAvatar || customAvatars.length >= 20 || uploadCooldownDays > 0}
                     className="hidden"
                   />
                 </label>
