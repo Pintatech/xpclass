@@ -22,7 +22,7 @@ const AudioPlayer = ({
   onPlayComplete,
   onLimitReached,
   disabled = false,
-  seekable = false,
+  seekable = true,
   externalPlayCount,
   onPlay,
   playbackRate = 1
@@ -52,35 +52,9 @@ const AudioPlayer = ({
       return
     }
 
-    // Create audio element if it doesn't exist
+    // Audio element is created eagerly (see effect below); bail if not ready
     if (!audioRef.current) {
-      audioRef.current = new Audio(audioUrl)
-      audioRef.current.playbackRate = playbackRate
-      audioRef.current.defaultPlaybackRate = playbackRate
-
-      // Set up event listeners
-      audioRef.current.addEventListener('ended', () => {
-        setIsPlaying(false)
-        setProgress(0)
-        if (onPlayComplete) {
-          onPlayComplete()
-        }
-      })
-
-      audioRef.current.addEventListener('pause', () => {
-        setIsPlaying(false)
-      })
-
-      audioRef.current.addEventListener('play', () => {
-        setIsPlaying(true)
-      })
-
-      audioRef.current.addEventListener('timeupdate', () => {
-        if (audioRef.current.duration) {
-          const currentProgress = (audioRef.current.currentTime / audioRef.current.duration) * 100
-          setProgress(currentProgress)
-        }
-      })
+      return
     }
 
     // Play the audio
@@ -115,30 +89,54 @@ const AudioPlayer = ({
     }
   }, [playbackRate])
 
-  // Reset audio player when audioUrl changes
+  // Create the audio element eagerly whenever the source changes, so the
+  // progress bar is seekable before the user presses play.
   useEffect(() => {
-    // Stop current audio if playing
-    if (audioRef.current) {
-      audioRef.current.pause()
-      audioRef.current = null
+    if (!audioUrl) return
+
+    const audio = new Audio(audioUrl)
+    audio.playbackRate = playbackRate
+    audio.defaultPlaybackRate = playbackRate
+    audioRef.current = audio
+
+    const handleEnded = () => {
+      setIsPlaying(false)
+      setProgress(0)
+      if (onPlayComplete) {
+        onPlayComplete()
+      }
+    }
+    const handlePauseEvent = () => setIsPlaying(false)
+    const handlePlayEvent = () => setIsPlaying(true)
+    const handleTimeUpdate = () => {
+      if (audio.duration) {
+        setProgress((audio.currentTime / audio.duration) * 100)
+      }
     }
 
-    // Reset state
+    audio.addEventListener('ended', handleEnded)
+    audio.addEventListener('pause', handlePauseEvent)
+    audio.addEventListener('play', handlePlayEvent)
+    audio.addEventListener('timeupdate', handleTimeUpdate)
+
+    // Reset state for the new source
     setIsPlaying(false)
     setProgress(0)
     setInternalPlayCount(0)
     setHasReachedLimit(false)
-  }, [audioUrl])
 
-  // Cleanup on unmount
-  useEffect(() => {
     return () => {
-      if (audioRef.current) {
-        audioRef.current.pause()
+      audio.pause()
+      audio.removeEventListener('ended', handleEnded)
+      audio.removeEventListener('pause', handlePauseEvent)
+      audio.removeEventListener('play', handlePlayEvent)
+      audio.removeEventListener('timeupdate', handleTimeUpdate)
+      if (audioRef.current === audio) {
         audioRef.current = null
       }
     }
-  }, [])
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [audioUrl])
 
   const isDisabled = disabled || hasReachedLimit
 
@@ -170,10 +168,11 @@ const AudioPlayer = ({
         <div
           className={`relative w-full h-2 bg-gray-200 rounded-full overflow-hidden ${seekable ? 'cursor-pointer' : ''}`}
           onClick={seekable ? (e) => {
-            if (!audioRef.current) return
+            const audio = audioRef.current
+            if (!audio || !audio.duration || isNaN(audio.duration)) return
             const rect = e.currentTarget.getBoundingClientRect()
             const seekRatio = Math.max(0, Math.min(1, (e.clientX - rect.left) / rect.width))
-            audioRef.current.currentTime = seekRatio * audioRef.current.duration
+            audio.currentTime = seekRatio * audio.duration
             setProgress(seekRatio * 100)
           } : undefined}
         >

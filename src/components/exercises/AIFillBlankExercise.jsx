@@ -362,7 +362,7 @@ const AIFillBlankExercise = ({ testMode = false, exerciseData = null, onAnswersC
       if (src) {
         audioData.push({
           url: src,
-          seekable: el.getAttribute('data-seekable') === 'true',
+          seekable: el.getAttribute('data-seekable') !== 'false',
           maxPlays: parseInt(el.getAttribute('data-max-plays') || '0', 10)
         })
       }
