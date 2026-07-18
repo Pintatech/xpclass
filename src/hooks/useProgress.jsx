@@ -209,38 +209,24 @@ export const ProgressProvider = ({ children }) => {
   }
 
   const addXP = async (xpAmount) => {
-    if (!user || !profile) return
+    if (!user) return
 
     try {
-      const newXP = (profile.xp || 0) + xpAmount
-      const newLevel = calculateLevel(newXP)
+      // Atomic server-side increment (xp = xp + delta) avoids lost updates when
+      // other awards run concurrently or the local profile is stale.
+      const { data, error } = await supabase.rpc('increment_user_currency', {
+        p_user_id: user.id,
+        p_xp: xpAmount,
+        p_gems: 0
+      })
 
-      // Try update xp + level; if 'level' column is missing, retry with only xp
-      let { error } = await supabase
-        .from('users')
-        .update({
-          xp: newXP,
-          level: newLevel,
-          updated_at: new Date().toISOString()
-        })
-        .eq('id', user.id)
-
-      if (error) {
-        console.warn('Primary users update failed, retrying without level:', error?.message)
-        const retry = await supabase
-          .from('users')
-          .update({
-            xp: newXP,
-            updated_at: new Date().toISOString()
-          })
-          .eq('id', user.id)
-        if (retry.error) throw retry.error
-      }
+      if (error) throw error
 
       // Refresh profile
       await fetchUserProfile(user.id)
 
-      return { xp: newXP, level: newLevel }
+      const row = Array.isArray(data) ? data[0] : data
+      return { xp: row?.xp, level: row?.level }
     } catch (error) {
       console.error('Error adding XP:', error)
       return null
@@ -720,23 +706,21 @@ export const ProgressProvider = ({ children }) => {
   }
 
   const addGems = async (gemAmount) => {
-    if (!user || !profile) return null
+    if (!user) return null
 
     try {
-      const newGems = (profile.gems || 0) + gemAmount
-
-      const { error } = await supabase
-        .from('users')
-        .update({
-          gems: newGems,
-          updated_at: new Date().toISOString()
-        })
-        .eq('id', user.id)
+      // Atomic server-side increment avoids clobbering concurrent gem awards.
+      const { data, error } = await supabase.rpc('increment_user_currency', {
+        p_user_id: user.id,
+        p_xp: 0,
+        p_gems: gemAmount
+      })
 
       if (error) throw error
 
       await fetchUserProfile(user.id)
-      return newGems
+      const row = Array.isArray(data) ? data[0] : data
+      return row?.gems
     } catch (error) {
       console.error('Error adding gems:', error)
       return null
@@ -744,28 +728,25 @@ export const ProgressProvider = ({ children }) => {
   }
 
   const spendGems = async (gemAmount) => {
-    if (!user || !profile) return { success: false, error: 'No user logged in' }
-
-    const currentGems = profile.gems || 0
-    if (currentGems < gemAmount) {
-      return { success: false, error: 'Not enough gems' }
-    }
+    if (!user) return { success: false, error: 'No user logged in' }
 
     try {
-      const newGems = currentGems - gemAmount
-
-      const { error } = await supabase
-        .from('users')
-        .update({
-          gems: newGems,
-          updated_at: new Date().toISOString()
-        })
-        .eq('id', user.id)
+      // The balance check and deduction happen atomically in the DB, so it can't
+      // over-spend or race with concurrent awards on a stale local balance.
+      const { data, error } = await supabase.rpc('spend_user_gems', {
+        p_user_id: user.id,
+        p_amount: gemAmount
+      })
 
       if (error) throw error
 
+      const row = Array.isArray(data) ? data[0] : data
+      if (!row?.success) {
+        return { success: false, error: 'Not enough gems', gems: row?.gems }
+      }
+
       await fetchUserProfile(user.id)
-      return { success: true, gems: newGems }
+      return { success: true, gems: row.gems }
     } catch (error) {
       console.error('Error spending gems:', error)
       return { success: false, error: error.message }
@@ -773,28 +754,23 @@ export const ProgressProvider = ({ children }) => {
   }
 
   const spendXP = async (xpAmount) => {
-    if (!user || !profile) return { success: false, error: 'No user logged in' }
-
-    const currentXP = profile.xp || 0
-    if (currentXP < xpAmount) {
-      return { success: false, error: 'Not enough XP' }
-    }
+    if (!user) return { success: false, error: 'No user logged in' }
 
     try {
-      const newXP = currentXP - xpAmount
-
-      const { error } = await supabase
-        .from('users')
-        .update({
-          xp: newXP,
-          updated_at: new Date().toISOString()
-        })
-        .eq('id', user.id)
+      const { data, error } = await supabase.rpc('spend_user_xp', {
+        p_user_id: user.id,
+        p_amount: xpAmount
+      })
 
       if (error) throw error
 
+      const row = Array.isArray(data) ? data[0] : data
+      if (!row?.success) {
+        return { success: false, error: 'Not enough XP', xp: row?.xp }
+      }
+
       await fetchUserProfile(user.id)
-      return { success: true, xp: newXP }
+      return { success: true, xp: row.xp }
     } catch (error) {
       console.error('Error spending XP:', error)
       return { success: false, error: error.message }

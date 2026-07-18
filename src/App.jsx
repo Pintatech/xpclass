@@ -1,4 +1,4 @@
-import React from 'react'
+import React, { Suspense, lazy } from 'react'
 import { BrowserRouter as Router, Routes, Route, Outlet } from 'react-router-dom'
 import { AuthProvider } from './hooks/useAuth'
 import { ProgressProvider } from './hooks/useProgress'
@@ -35,6 +35,10 @@ import GuestEntry from './components/guest/GuestEntry'
 import GuestSessionRunner from './components/guest/GuestSessionRunner'
 import { FEATURES } from './config/features'
 
+// Phaser is heavy (~1MB) — lazy-load the game routes so they never touch the main bundle.
+const EvoGame = lazy(() => import('./components/games/evo/EvoGame'))
+const PlatformerGame = lazy(() => import('./components/games/platformer/PlatformerGame'))
+
 
 function App() {
   return (
@@ -51,6 +55,20 @@ function App() {
               <Route path="/register" element={<RegisterPage />} />
               <Route path="/guest" element={<GuestEntry />} />
               <Route path="/guest/session" element={<GuestSessionRunner />} />
+              <Route path="/game/evo" element={
+                <ProtectedRoute>
+                  <Suspense fallback={<div className="fixed inset-0 bg-[#0b1220]" />}>
+                    <EvoGame />
+                  </Suspense>
+                </ProtectedRoute>
+              } />
+              <Route path="/game/platformer" element={
+                <ProtectedRoute>
+                  <Suspense fallback={<div className="fixed inset-0 bg-sky-300" />}>
+                    <PlatformerGame />
+                  </Suspense>
+                </ProtectedRoute>
+              } />
               <Route path="/" element={
                 <ProtectedRoute>
                   <Layout />

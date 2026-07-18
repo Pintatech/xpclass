@@ -84,7 +84,10 @@
       "Bash(awk -F: '{print $1}')",
       "Bash(awk '{n=$2; gsub\\(/[^0-9]/,\"\",n\\); if\\(n+0>=500\\) print}')",
       "Bash(curl -s -o /dev/null -w \"%{http_code}\" \"https://bhlpjvcplrofixogcrqp.supabase.co/storage/v1/object/public/shop-assets/bowls/pet-bowl.png\")",
-      "Bash(curl -s -I \"https://bhlpjvcplrofixogcrqp.supabase.co/storage/v1/object/public/shop-assets/bowls/pet-bowl.png\")"
+      "Bash(curl -s -I \"https://bhlpjvcplrofixogcrqp.supabase.co/storage/v1/object/public/shop-assets/bowls/pet-bowl.png\")",
+      "PowerShell(npm install phaser@^3.80.1)",
+      "PowerShell(npm run build 2>&1)",
+      "WebSearch"
     ],
     "deny": [],
     "ask": []

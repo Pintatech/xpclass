@@ -715,6 +715,12 @@ const AIFillBlankExercise = ({ testMode = false, exerciseData = null, onAnswersC
                 <p className="text-sm text-gray-700">
                   <strong>AI Explanation:</strong> {aiScore.explanation}
                 </p>
+                {currentQuestion.expected_answers && currentQuestion.expected_answers.length > 0 && (
+                  <p className="text-sm text-gray-700 mt-2">
+                    <strong>{language === 'vi' ? 'Đáp án gợi ý:' : 'Suggested answer:'}</strong>{' '}
+                    {currentQuestion.expected_answers.join(', ')}
+                  </p>
+                )}
               </div>
             )}
 
