@@ -533,15 +533,15 @@ Trả lời bằng tiếng Việt với giải thích chi tiết, khuyến khíc
             className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
           >
             <Plus className="w-4 h-4" />
-            Bulk Import
+            Bulk
           </button>
           <button
             type="button"
             onClick={addQuestion}
-            className="flex items-center gap-2 px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700"
+            className="flex items-center gap-2 px-4 py-2 bg-orange-600 text-white rounded-lg hover:bg-orange-700"
           >
             <Plus className="w-4 h-4" />
-            Add Question
+            Add
           </button>
         </div>
       </div>

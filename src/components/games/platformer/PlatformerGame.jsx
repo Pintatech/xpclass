@@ -6,7 +6,7 @@ import { supabase } from '../../../supabase/client'
 import { useAuth } from '../../../hooks/useAuth'
 import PlatformerScene from './PlatformerScene'
 
-const INITIAL = { word: '', round: 1, roundsTotal: 8, correct: 0, wrong: 0, lastResult: null, coins: 0, coinTotal: 0, deaths: 0, won: false }
+const INITIAL = { word: '', round: 1, roundsTotal: 8, totalRounds: 8, level: 1, levelsTotal: 1, correct: 0, wrong: 0, lastResult: null, coins: 0, coinTotal: 0, deaths: 0, won: false }
 
 // 2D platformer vocab quiz: a word shows on top; attack the monster with the correct meaning.
 // Phaser owns the canvas; React owns the HUD overlay on top of it.
@@ -101,6 +101,11 @@ export default function PlatformerGame({ wordBank }) {
       {/* HUD overlay (React) */}
       <div className="absolute top-0 left-0 right-0 p-4 pointer-events-none">
         <div className="flex items-center gap-3">
+          {stats.levelsTotal > 1 && (
+            <div className="flex items-center gap-1.5 bg-black/25 backdrop-blur rounded-full px-3.5 py-1.5 text-white font-bold">
+              Level {stats.level} / {stats.levelsTotal}
+            </div>
+          )}
           <div className="flex items-center gap-1.5 bg-black/25 backdrop-blur rounded-full px-3.5 py-1.5 text-white font-bold">
             Round {stats.round} / {stats.roundsTotal}
           </div>
@@ -148,11 +153,11 @@ export default function PlatformerGame({ wordBank }) {
       {stats.won && (
         <div className="absolute inset-0 z-20 flex items-center justify-center bg-black/50 backdrop-blur-sm">
           <div className="bg-white rounded-3xl shadow-2xl p-8 text-center max-w-sm w-full mx-4">
-            <div className="text-6xl mb-3">{stats.correct === stats.roundsTotal ? '🏆' : '⚔️'}</div>
+            <div className="text-6xl mb-3">{stats.correct === stats.totalRounds ? '🏆' : '⚔️'}</div>
             <h2 className="text-2xl font-black text-gray-800 mb-1">Quiz Complete!</h2>
             <p className="text-gray-500 mb-5">
-              You got <span className="font-bold text-emerald-600">{stats.correct}/{stats.roundsTotal}</span> correct
-              {stats.correct === stats.roundsTotal ? ' — perfect!' : '.'}
+              You got <span className="font-bold text-emerald-600">{stats.correct}/{stats.totalRounds}</span> correct
+              {stats.correct === stats.totalRounds ? ' — perfect!' : '.'}
             </p>
             <div className="flex flex-col gap-2">
               <button

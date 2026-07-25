@@ -807,7 +807,7 @@ const SmartDragDropEditor = ({ questions, onQuestionsChange, intro, onIntroChang
           <button
             type="button"
             onClick={addQuestion}
-            className="flex items-center gap-2 px-3 py-2 text-sm bg-blue-600 text-white hover:bg-blue-700 rounded-lg"
+            className="flex items-center gap-2 px-3 py-2 text-sm bg-orange-600 text-white hover:bg-orange-700 rounded-lg"
           >
             <Plus className="w-4 h-4" />
             Add
@@ -815,9 +815,9 @@ const SmartDragDropEditor = ({ questions, onQuestionsChange, intro, onIntroChang
           <button
             type="button"
             onClick={() => setBulkImportMode(!bulkImportMode)}
-            className="flex items-center gap-2 px-3 py-2 text-sm bg-gray-100 hover:bg-gray-200 rounded-lg"
+            className="flex items-center gap-2 px-3 py-2 text-sm text-white bg-blue-600 hover:bg-blue-800 rounded-lg"
           >
-            <Upload className="w-4 h-4" />
+            <Plus className="w-4 h-4" />
             Bulk
           </button>
           {localQuestions.length > 0 && (

@@ -770,7 +770,7 @@ const FillBlankEditor = ({ questions, onQuestionsChange, settings, onSettingsCha
             className="flex items-center gap-2 px-3 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 text-sm"
           >
             <Plus className="w-4 h-4" />
-            Bulk Import
+            Bulk
           </button>
           {localQuestions.length > 0 && (
             <button
@@ -788,7 +788,7 @@ const FillBlankEditor = ({ questions, onQuestionsChange, settings, onSettingsCha
             className="flex items-center gap-2 px-3 py-2 bg-orange-600 text-white rounded-lg hover:bg-orange-700 text-sm"
           >
             <Plus className="w-4 h-4" />
-            Add Question
+            Add
           </button>
         </div>
       </div>
