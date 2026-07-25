@@ -499,22 +499,9 @@ export function useLiveBattle() {
     })
 
     // Award XP to each participant
-    const userIds = updatedParts.map(p => p.user_id)
-    const { data: usersData } = await supabase
-      .from('users')
-      .select('id, xp')
-      .in('id', userIds)
-
-    const xpMap = {}
-    ;(usersData || []).forEach(u => { xpMap[u.id] = u.xp || 0 })
-
     for (const p of updatedParts) {
       if (p.xp_awarded > 0) {
-        const currentXp = xpMap[p.user_id] || 0
-        await supabase
-          .from('users')
-          .update({ xp: currentXp + p.xp_awarded, updated_at: new Date().toISOString() })
-          .eq('id', p.user_id)
+        await supabase.rpc('increment_user_currency', { p_user_id: p.user_id, p_xp: p.xp_awarded, p_gems: 0 })
       }
 
       // Update participant record

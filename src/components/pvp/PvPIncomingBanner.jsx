@@ -722,17 +722,7 @@ const PvPResponseModal = ({ challenge, onClose }) => {
 
       const winnerId = draw ? null : won ? user.id : challenge.challenger_id;
       if (winnerId) {
-        const { data: winner } = await supabase
-          .from("users")
-          .select("xp")
-          .eq("id", winnerId)
-          .single();
-        if (winner) {
-          await supabase
-            .from("users")
-            .update({ xp: (winner.xp || 0) + 10 })
-            .eq("id", winnerId);
-        }
+        await supabase.rpc("increment_user_currency", { p_user_id: winnerId, p_xp: 10, p_gems: 0 });
         // Update mission progress for PvP win
         supabase
           .rpc("update_mission_progress", {

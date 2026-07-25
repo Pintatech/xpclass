@@ -255,10 +255,7 @@ const PvPRealtimeWordType = ({
       // Award XP to winner
       const myWinnerId = score > opponentProgressRef.current.score ? user.id : null
       if (myWinnerId) {
-        const { data: winnerData } = await supabase.from('users').select('xp').eq('id', myWinnerId).single()
-        if (winnerData) {
-          await supabase.from('users').update({ xp: (winnerData.xp || 0) + 10 }).eq('id', myWinnerId)
-        }
+        await supabase.rpc('increment_user_currency', { p_user_id: myWinnerId, p_xp: 10, p_gems: 0 })
         await supabase.rpc('update_mission_progress', {
           p_user_id: myWinnerId,
           p_goal_type: 'win_quickmatch',

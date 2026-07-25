@@ -99,8 +99,7 @@ export function useTournament() {
           }
         }
         for (const uid of allMemberIds) {
-          const { data: u } = await supabase.from('users').select('xp').eq('id', uid).single()
-          await supabase.from('users').update({ xp: (u.xp || 0) - entry_fee }).eq('id', uid)
+          await supabase.rpc('spend_user_xp', { p_user_id: uid, p_amount: entry_fee })
         }
       }
 
@@ -196,8 +195,7 @@ export function useTournament() {
         }
       }
       for (const uid of shuffled) {
-        const { data: u } = await supabase.from('users').select('xp').eq('id', uid).single()
-        await supabase.from('users').update({ xp: (u.xp || 0) - entry_fee }).eq('id', uid)
+        await supabase.rpc('spend_user_xp', { p_user_id: uid, p_amount: entry_fee })
       }
     }
 
@@ -430,13 +428,7 @@ export function useTournament() {
 
         for (const uid of memberIds) {
           if (xpReward > 0 || gemReward > 0) {
-            const { data: u } = await supabase.from('users').select('xp, gems').eq('id', uid).single()
-            if (u) {
-              await supabase.from('users').update({
-                xp: (u.xp || 0) + xpReward,
-                gems: (u.gems || 0) + gemReward,
-              }).eq('id', uid)
-            }
+            await supabase.rpc('increment_user_currency', { p_user_id: uid, p_xp: xpReward, p_gems: gemReward })
           }
           if (r.item_id) {
             const qty = r.item_quantity || 1
@@ -474,13 +466,7 @@ export function useTournament() {
         const gemReward = r.gems || 0
 
         if (xpReward > 0 || gemReward > 0) {
-          const { data: u } = await supabase.from('users').select('xp, gems').eq('id', p.user_id).single()
-          if (u) {
-            await supabase.from('users').update({
-              xp: (u.xp || 0) + xpReward,
-              gems: (u.gems || 0) + gemReward,
-            }).eq('id', p.user_id)
-          }
+          await supabase.rpc('increment_user_currency', { p_user_id: p.user_id, p_xp: xpReward, p_gems: gemReward })
         }
         if (r.item_id) {
           const qty = r.item_quantity || 1
@@ -866,7 +852,7 @@ export function useTournament() {
         for (const uid of allMemberIds) {
           const { data: u } = await supabase.from('users').select('xp, full_name').eq('id', uid).single()
           if (!u || (u.xp || 0) < t.entry_fee) throw new Error(`${u?.full_name || 'Học sinh'} không đủ ${t.entry_fee} XP`)
-          await supabase.from('users').update({ xp: (u.xp || 0) - t.entry_fee }).eq('id', uid)
+          await supabase.rpc('spend_user_xp', { p_user_id: uid, p_amount: t.entry_fee })
         }
       }
 
@@ -903,7 +889,7 @@ export function useTournament() {
         for (const uid of playerIds) {
           const { data: u } = await supabase.from('users').select('xp, full_name').eq('id', uid).single()
           if (!u || (u.xp || 0) < t.entry_fee) throw new Error(`${u?.full_name || 'Học sinh'} không đủ ${t.entry_fee} XP`)
-          await supabase.from('users').update({ xp: (u.xp || 0) - t.entry_fee }).eq('id', uid)
+          await supabase.rpc('spend_user_xp', { p_user_id: uid, p_amount: t.entry_fee })
         }
       }
 

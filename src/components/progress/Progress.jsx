@@ -228,11 +228,12 @@ const Progress = () => {
       const achievement = fallbackAchievements.find(a => a.id === achievementId)
       if (achievement && !claimedFallbackAchievements.has(achievementId)) {
         try {
-          // Update user XP directly in the database
-          const { error } = await supabase
-            .from('users')
-            .update({ xp: (profile?.xp || 0) + achievement.xp_reward })
-            .eq('id', user.id)
+          // Update user XP atomically to avoid clobbering concurrent awards
+          const { error } = await supabase.rpc('increment_user_currency', {
+            p_user_id: user.id,
+            p_xp: achievement.xp_reward,
+            p_gems: 0
+          })
 
           if (error) throw error
 

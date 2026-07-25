@@ -266,17 +266,11 @@ const PvPChallengeModal = ({ opponent, onClose }) => {
         opponent_score: 0,
         winner_id: challengerId || null,
       }).eq('id', challengeId)
-      // Subtract 10 XP from decliner
-      const { data: me } = await supabase.from('users').select('xp').eq('id', user.id).single()
-      if (me) {
-        await supabase.from('users').update({ xp: Math.max((me.xp || 0) - 10, 0) }).eq('id', user.id)
-      }
+      // Subtract 10 XP from decliner (floors at 0)
+      await supabase.rpc('increment_user_currency', { p_user_id: user.id, p_xp: -10, p_gems: 0 })
       // Award 10 XP to challenger
       if (challengerId) {
-        const { data: winner } = await supabase.from('users').select('xp').eq('id', challengerId).single()
-        if (winner) {
-          await supabase.from('users').update({ xp: (winner.xp || 0) + 10 }).eq('id', challengerId)
-        }
+        await supabase.rpc('increment_user_currency', { p_user_id: challengerId, p_xp: 10, p_gems: 0 })
         supabase.rpc('update_mission_progress', {
           p_user_id: challengerId,
           p_goal_type: 'win_pvp',

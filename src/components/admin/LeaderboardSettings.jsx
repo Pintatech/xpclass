@@ -343,8 +343,7 @@ const LeaderboardSettings = () => {
         const qualifiers = sorted.filter(([, score]) => rewardThreshold > 0 ? score >= rewardThreshold : false);
         if (rewardXP > 0 && qualifiers.length > 0) {
           for (const [userId] of qualifiers) {
-            const { data: userData } = await supabase.from('users').select('xp').eq('id', userId).single();
-            await supabase.from('users').update({ xp: (userData?.xp || 0) + rewardXP }).eq('id', userId);
+            await supabase.rpc('increment_user_currency', { p_user_id: userId, p_xp: rewardXP, p_gems: 0 });
           }
         }
 
@@ -373,16 +372,9 @@ const LeaderboardSettings = () => {
 
           awardedUserIds.push(userId);
 
-          // Award gems
-          if (reward.gems > 0) {
-            const { data: userData } = await supabase.from('users').select('gems').eq('id', userId).single();
-            await supabase.from('users').update({ gems: (userData?.gems || 0) + reward.gems }).eq('id', userId);
-          }
-
-          // Award XP (rank-specific, separate from qualifier XP)
-          if (reward.xp > 0) {
-            const { data: userData } = await supabase.from('users').select('xp').eq('id', userId).single();
-            await supabase.from('users').update({ xp: (userData?.xp || 0) + reward.xp }).eq('id', userId);
+          // Award gems and XP (rank-specific, separate from qualifier XP)
+          if (reward.gems > 0 || reward.xp > 0) {
+            await supabase.rpc('increment_user_currency', { p_user_id: userId, p_xp: reward.xp || 0, p_gems: reward.gems || 0 });
           }
 
           // Award inventory items
