@@ -10,6 +10,32 @@ import { usePermissions } from './usePermissions';
 const cache = new Map();
 const CACHE_TTL = 5 * 60 * 1000; // 5 minutes
 
+// PostgREST caps rows per response and truncates silently — no error, just a
+// short result. Course-wide queries here blow past that cap, so every one of
+// them pages instead of assuming a single response holds everything.
+const PAGE_SIZE = 500;
+
+/**
+ * Runs a query to exhaustion, paging past the row cap.
+ * `buildQuery` must return a fresh query builder on each call.
+ */
+const fetchAllPages = async (buildQuery) => {
+  const all = [];
+  let from = 0;
+
+  for (;;) {
+    const { data, error } = await buildQuery().range(from, from + PAGE_SIZE - 1);
+    if (error) throw error;
+
+    const rows = data || [];
+    all.push(...rows);
+    if (rows.length < PAGE_SIZE) break;
+    from += rows.length;
+  }
+
+  return all;
+};
+
 /**
  * Hook that fetches and caches class-wide stats for a course.
  * Returns session-level AND exercise-level completion data with student details.
@@ -50,11 +76,13 @@ const useClassStats = (courseId) => {
 
     try {
       // 1. Enrolled students with names — single query
-      const { data: enrollments } = await supabase
+      const { data: enrollments, error: enrollmentsError } = await supabase
         .from('course_enrollments')
         .select('student_id, student:users!student_id(id, full_name, real_name)')
         .eq('course_id', courseId)
         .eq('is_active', true);
+
+      if (enrollmentsError) throw enrollmentsError;
 
       const studentMap = {};
       (enrollments || []).forEach(e => {
@@ -71,10 +99,12 @@ const useClassStats = (courseId) => {
       }
 
       // 2. Units → Sessions — two queries
-      const { data: units } = await supabase
+      const { data: units, error: unitsError } = await supabase
         .from('units')
         .select('id')
         .eq('course_id', courseId);
+
+      if (unitsError) throw unitsError;
       const unitIds = (units || []).map(u => u.id);
 
       if (unitIds.length === 0) {
@@ -84,10 +114,12 @@ const useClassStats = (courseId) => {
         return;
       }
 
-      const { data: sessions } = await supabase
+      const { data: sessions, error: sessionsError } = await supabase
         .from('sessions')
         .select('id')
         .in('unit_id', unitIds);
+
+      if (sessionsError) throw sessionsError;
       const sessionIds = (sessions || []).map(s => s.id);
 
       if (sessionIds.length === 0) {
@@ -97,11 +129,13 @@ const useClassStats = (courseId) => {
         return;
       }
 
-      // 3. All exercise assignments — single query
-      const { data: assignments } = await supabase
-        .from('exercise_assignments')
-        .select('session_id, exercise_id')
-        .in('session_id', sessionIds);
+      // 3. All exercise assignments across the course
+      const assignments = await fetchAllPages(() =>
+        supabase
+          .from('exercise_assignments')
+          .select('session_id, exercise_id')
+          .in('session_id', sessionIds)
+      );
 
       const sessionExercises = {};
       const allExerciseIds = new Set();
@@ -120,16 +154,30 @@ const useClassStats = (courseId) => {
         return;
       }
 
-      // 4. All user progress — single query (the big one, but still just one)
-      const { data: progress } = await supabase
-        .from('user_progress')
-        .select('user_id, exercise_id, status, score, max_score')
-        .in('user_id', studentIds)
-        .in('exercise_id', exerciseIdArray);
+      // 4. All user progress — the big one. Chunk the exercise ids so the GET url
+      // stays well short of its length limit, and page within each chunk.
+      const chunkSize = Math.max(1, Math.floor(PAGE_SIZE / studentIds.length));
+      const progress = [];
+
+      for (let i = 0; i < exerciseIdArray.length; i += chunkSize) {
+        const chunk = exerciseIdArray.slice(i, i + chunkSize);
+        const rows = await fetchAllPages(() =>
+          supabase
+            .from('user_progress')
+            .select('user_id, exercise_id, status, score, max_score')
+            .in('user_id', studentIds)
+            .in('exercise_id', chunk)
+        );
+        progress.push(...rows);
+      }
+
+      console.log(
+        `📊 class stats: ${studentIds.length} students × ${exerciseIdArray.length} exercises → ${progress.length} progress rows`
+      );
 
       // Build lookup: `userId-exerciseId` -> { status, score, max_score }
       const progressMap = {};
-      (progress || []).forEach(p => {
+      progress.forEach(p => {
         progressMap[`${p.user_id}-${p.exercise_id}`] = {
           status: p.status,
           score: p.score,

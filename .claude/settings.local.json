@@ -107,7 +107,17 @@
       "Bash(PORT=3005 node probe5.js)",
       "PowerShell(Add-Type -AssemblyName System.Drawing; foreach \\($f in 'block.png','block_used.png'\\) { $img = [System.Drawing.Image]::FromFile\\(\"c:\\\\Users\\\\Calvin_PC\\\\Downloads\\\\xpclass\\\\public\\\\game\\\\tiles\\\\$f\"\\); \"$f : $\\($img.Width\\) x $\\($img.Height\\)\"; $img.Dispose\\(\\) })",
       "PowerShell(Add-Type -AssemblyName System.Drawing; $bmp = New-Object System.Drawing.Bitmap\\(\"c:\\\\Users\\\\Calvin_PC\\\\Downloads\\\\xpclass\\\\public\\\\game\\\\tiles\\\\block.png\"\\); $minX=$bmp.Width; $minY=$bmp.Height; $maxX=-1; $maxY=-1; for \\($y=0; $y -lt $bmp.Height; $y++\\) { for \\($x=0; $x -lt $bmp.Width; $x++\\) { if \\($bmp.GetPixel\\($x,$y\\).A -gt 10\\) { if \\($x -lt $minX\\) {$minX=$x}; if \\($x -gt $maxX\\) {$maxX=$x}; if \\($y -lt $minY\\) {$minY=$y}; if \\($y -gt $maxY\\) {$maxY=$y} } } }; \"opaque box: x $minX..$maxX, y $minY..$maxY \\(visible $\\($maxX-$minX+1\\) x $\\($maxY-$minY+1\\) of $\\($bmp.Width\\) x $\\($bmp.Height\\)\\)\"; $bmp.Dispose\\(\\))",
-      "PowerShell($j = Get-Content \"c:\\\\Users\\\\Calvin_PC\\\\Downloads\\\\xpclass\\\\public\\\\game\\\\maps\\\\world.json\" -Raw | ConvertFrom-Json; $layer = $j.layers | Where-Object { $_.type -eq 'objectgroup' }; $layer.objects | ForEach-Object { \"name=$\\($_.name\\) x=$\\($_.x\\) y=$\\($_.y\\) w=$\\($_.width\\) h=$\\($_.height\\) point=$\\($_.point\\) gid=$\\($_.gid\\)\" })"
+      "PowerShell($j = Get-Content \"c:\\\\Users\\\\Calvin_PC\\\\Downloads\\\\xpclass\\\\public\\\\game\\\\maps\\\\world.json\" -Raw | ConvertFrom-Json; $layer = $j.layers | Where-Object { $_.type -eq 'objectgroup' }; $layer.objects | ForEach-Object { \"name=$\\($_.name\\) x=$\\($_.x\\) y=$\\($_.y\\) w=$\\($_.width\\) h=$\\($_.height\\) point=$\\($_.point\\) gid=$\\($_.gid\\)\" })",
+      "Bash(ls \"C:\\\\Users\\\\Calvin_PC\\\\Downloads\" 2>&1)",
+      "Read(//c/Users/Calvin_PC/Downloads/**)",
+      "Bash(npm create *)",
+      "Read(//c/Users/Calvin_PC/Downloads/readingblock/**)",
+      "Bash(npm install *)",
+      "Bash(npx tailwindcss *)",
+      "Bash(rm -rf node_modules package-lock.json)",
+      "Bash(rm -f .oxlintrc.json)",
+      "Bash(npm pkg *)",
+      "Bash(git init *)"
     ],
     "deny": [],
     "ask": []
