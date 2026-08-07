@@ -127,6 +127,9 @@ const PetBombParty = ({
   const [screenShake, setScreenShake] = useState(0)
   const [particles, setParticles] = useState([])
   const [missedPrompts, setMissedPrompts] = useState([])
+  // Visible viewport, tracked so the on-screen keyboard doesn't cover the bomb
+  // and the input. 100dvh excludes browser chrome but NOT the virtual keyboard.
+  const [viewport, setViewport] = useState(null)
 
   const dictRef = useRef(null)
   const promptsRef = useRef([])
@@ -202,6 +205,23 @@ const PetBombParty = ({
       (wordBankProp || []).map((w) => String(w.word || '').toLowerCase()).filter(Boolean)
     )
   }, [wordBankProp])
+
+  // When the keyboard opens, visualViewport.height shrinks to the region the
+  // student can actually see, and offsetTop shifts if the page scrolled. Pin
+  // the overlay to that box so the layout reflows above the keyboard instead
+  // of sliding underneath it.
+  useEffect(() => {
+    const vp = window.visualViewport
+    if (!vp) return
+    const update = () => setViewport({ h: vp.height, top: vp.offsetTop })
+    update()
+    vp.addEventListener('resize', update)
+    vp.addEventListener('scroll', update)
+    return () => {
+      vp.removeEventListener('resize', update)
+      vp.removeEventListener('scroll', update)
+    }
+  }, [])
 
   const spawnParticles = useCallback((count, colors) => {
     const spawned = Array.from({ length: count }, (_, i) => ({
@@ -494,12 +514,26 @@ const PetBombParty = ({
     }
   }, [])
 
+  // Below this the bomb + fuse + input + meter no longer fit at full size,
+  // which is exactly the situation once a phone keyboard is up.
+  const compact = viewport ? viewport.h < 620 : false
+  // Everything except the bomb costs ~220px in compact mode, so the bomb gets
+  // whatever is left. Continuous rather than stepped, so a 667px phone with the
+  // keyboard up (~317px visible) still fits instead of overflowing.
+  const bombPx = compact ? Math.max(88, Math.min(160, viewport.h - 228)) : 208
   const syllable = prompt?.s?.toUpperCase() || ''
+  const syllablePx = Math.round(bombPx * (syllable.length > 2 ? 0.125 : 0.15))
   const typedLower = typedValue.trim().toLowerCase()
   const matchesSyllable = prompt && typedLower.includes(prompt.s)
 
   return createPortal(
-    <div className="fixed inset-0 z-50 select-none overflow-hidden bg-black/70 flex items-center justify-center">
+    <div
+      className="fixed left-0 right-0 z-50 select-none overflow-hidden bg-black/70 flex items-center justify-center"
+      style={{
+        top: viewport ? `${viewport.top}px` : 0,
+        height: viewport ? `${viewport.h}px` : '100dvh',
+      }}
+    >
       <style>{`
         @keyframes bpFloat { 0%,100% { transform: translateY(0) } 50% { transform: translateY(-8px) } }
         @keyframes bpPopIn { 0% { transform: scale(0.4); opacity: 0 } 60% { transform: scale(1.15) } 100% { transform: scale(1); opacity: 1 } }
@@ -790,7 +824,8 @@ const PetBombParty = ({
                   src={assetUrl(BOMB_IMG)}
                   alt=""
                   draggable={false}
-                  className="w-52 h-52 object-contain drop-shadow-2xl select-none pointer-events-none"
+                  className="object-contain drop-shadow-2xl select-none pointer-events-none"
+                  style={{ width: `${bombPx}px`, height: `${bombPx}px`, transition: 'width .2s, height .2s' }}
                 />
                 {/* The bomb body is low-left in the 700x700 frame (the fuse and
                     spark fill the upper right), so the syllable is centred on
@@ -801,7 +836,7 @@ const PetBombParty = ({
                     left: '42.5%',
                     top: '59.5%',
                     transform: 'translate(-50%, -50%)',
-                    fontSize: syllable.length > 2 ? '1.6rem' : '1.95rem',
+                    fontSize: `${syllablePx}px`,
                     textShadow: '0 2px 6px rgba(0,0,0,0.9)',
                   }}
                 >
@@ -810,7 +845,7 @@ const PetBombParty = ({
               </div>
 
               {/* Fuse bar */}
-              <div className="w-full max-w-[260px] h-2.5 rounded-full bg-black/30 overflow-hidden mt-5">
+              <div className={`w-full max-w-[260px] h-2.5 rounded-full bg-black/30 overflow-hidden ${compact ? 'mt-2' : 'mt-5'}`}>
                 {/* width is driven imperatively by the rAF loop — no transition,
                     or it would fight the per-frame writes */}
                 <div
@@ -828,11 +863,11 @@ const PetBombParty = ({
               {/* Fuse count — textContent is driven imperatively by the rAF loop */}
               <div
                 ref={fuseNumRef}
-                className={`mt-2 font-black tabular-nums leading-none transition-colors ${
+                className={`font-black tabular-nums leading-none transition-colors ${compact ? 'mt-1' : 'mt-2'} ${
                   danger ? 'text-red-300' : 'text-white'
                 }`}
                 style={{
-                  fontSize: '2rem',
+                  fontSize: compact ? '1.4rem' : '2rem',
                   textShadow: '0 2px 6px rgba(0,0,0,0.5)',
                   animation: danger ? 'bpPulse 0.4s ease-in-out infinite' : 'none',
                 }}
@@ -854,7 +889,7 @@ const PetBombParty = ({
               )}
 
               {/* Feedback */}
-              <div className="h-6 mt-3">
+              <div className={`h-6 ${compact ? 'mt-1' : 'mt-3'}`}>
                 {feedback && (
                   <span
                     className={`text-sm font-bold ${
@@ -869,7 +904,7 @@ const PetBombParty = ({
             </div>
 
             {/* === INPUT === */}
-            <div className="px-5 pb-4 z-10">
+            <div className={`px-5 z-10 ${compact ? 'pb-2' : 'pb-4'}`}>
               <input
                 ref={inputRef}
                 type="text"
@@ -887,7 +922,7 @@ const PetBombParty = ({
                 autoCapitalize="off"
                 spellCheck={false}
                 placeholder={`a word with "${syllable}"…`}
-                className={`w-full text-center text-2xl font-black tracking-wide rounded-2xl px-4 py-3.5 bg-white/95 outline-none border-4 transition-colors lowercase ${
+                className={`w-full text-center text-2xl font-black tracking-wide rounded-2xl px-4 bg-white/95 outline-none border-4 transition-colors lowercase ${compact ? 'py-2' : 'py-3.5'} ${
                   typedLower.length === 0
                     ? 'border-white/30 text-gray-800'
                     : matchesSyllable
@@ -897,7 +932,7 @@ const PetBombParty = ({
               />
 
               {/* Alphabet meter */}
-              <div className="mt-3 flex flex-wrap justify-center gap-[3px]">
+              <div className={`flex flex-wrap justify-center gap-[3px] ${compact ? 'mt-1.5' : 'mt-3'}`}>
                 {ALPHABET.map((ch) => (
                   <span
                     key={ch}
@@ -909,9 +944,12 @@ const PetBombParty = ({
                   </span>
                 ))}
               </div>
-              <p className="text-center text-[10px] text-white/50 mt-1.5">
-                {ALPHABET.length - usedLetters.size} letters to a free life
-              </p>
+              {/* Dropped when the keyboard is up — the meter itself still reads fine. */}
+              {!compact && (
+                <p className="text-center text-[10px] text-white/50 mt-1.5">
+                  {ALPHABET.length - usedLetters.size} letters to a free life
+                </p>
+              )}
             </div>
           </div>
         )}
