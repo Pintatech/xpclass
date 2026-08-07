@@ -181,3 +181,6 @@ Thumbs.db
 # Supabase
 .supabase/
 .vercel
+
+# Bomb Party word-list source downloads (regenerate with npm run build:bombparty-words)
+scripts/.cache/

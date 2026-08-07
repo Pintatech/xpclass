@@ -72,6 +72,7 @@ const Leaderboard = () => {
     astroblast: 'Astro Blast',
     matchgame: 'Match Up',
     wordtype: 'Word Type',
+    bombparty: 'Bomb Defuse',
     sayitright: 'Say It Right',
     quizrush: 'Quiz Rush',
     angrypet: 'Angry Pet',

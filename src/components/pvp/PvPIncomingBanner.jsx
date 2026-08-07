@@ -630,6 +630,7 @@ import PetAstroBlast from "../pet/games/PetAstroBlast";
 import PetMatchGame from "../pet/games/PetMatchGame";
 import PetFlappyGame from "../pet/games/PetFlappyGame";
 import PetWordType from "../pet/games/PetWordType";
+import PetBombParty from "../pet/games/PetBombParty";
 import PetSayItRight from "../pet/games/PetSayItRight";
 import PetQuizRush from "../pet/games/PetQuizRush";
 import PetAngryPet from "../pet/games/PetAngryPet";
@@ -859,6 +860,14 @@ const PvPResponseModal = ({ challenge, onClose }) => {
         }
         return (
           <PetWordType
+            {...commonProps}
+            onGameEnd={handleGameEnd}
+            wordBank={wordBank}
+          />
+        );
+      case "bombparty":
+        return (
+          <PetBombParty
             {...commonProps}
             onGameEnd={handleGameEnd}
             wordBank={wordBank}

@@ -21,6 +21,7 @@ import PetWhackMole from "./games/PetWhackMole";
 import PetAstroBlast from "./games/PetAstroBlast";
 import PetMatchGame from "./games/PetMatchGame";
 import PetWordType from "./games/PetWordType";
+import PetBombParty from "./games/PetBombParty";
 import PetSayItRight from "./games/PetSayItRight";
 import PetQuizRush from "./games/PetQuizRush";
 import PetQuizBossBattle from "./games/PetQuizBossBattle";
@@ -108,10 +109,10 @@ const PetDisplay = () => {
   const [playDisabled, setPlayDisabled] = useState(false);
   const [playCooldown, setPlayCooldown] = useState(0);
   const [showGame, setShowGame] = useState(null); // null | 'picker' | 'catch' | 'flappy' | 'scramble' | 'whackmole' | 'astroblast' | 'matchgame' | 'quizrush' | 'bossbattle' | 'angrypet'
-  const [gameLeaderboards, setGameLeaderboards] = useState({ whackmole: [], scramble: [], astroblast: [], matchgame: [], wordtype: [], sayitright: [], quizrush: [], bossbattle: [], angrypet: [], fishing: [] });
+  const [gameLeaderboards, setGameLeaderboards] = useState({ whackmole: [], scramble: [], astroblast: [], matchgame: [], wordtype: [], bombparty: [], sayitright: [], quizrush: [], bossbattle: [], angrypet: [], fishing: [] });
   const [wordBank, setWordBank] = useState([]);
   const [questionBank, setQuestionBank] = useState([]);
-  const [enabledGames, setEnabledGames] = useState(['scramble', 'whackmole', 'astroblast', 'matchgame', 'wordtype', 'sayitright', 'quizrush', 'bossbattle', 'angrypet', 'catch', 'fishing']);
+  const [enabledGames, setEnabledGames] = useState(['scramble', 'whackmole', 'astroblast', 'matchgame', 'wordtype', 'bombparty', 'sayitright', 'quizrush', 'bossbattle', 'angrypet', 'catch', 'fishing']);
   const [competitionGame, setCompetitionGame] = useState(null); // game type with active competition
   const [chestEnabled, setChestEnabled] = useState(false); // whether chest can appear in games
   const [mazeBlocked, setMazeBlocked] = useState(false); // whether maze adventure is blocked
@@ -2229,16 +2230,19 @@ const PetDisplay = () => {
                 <span className="font-bold text-gray-800 text-xs">Word Type</span>
               </button>
               )}
-              {(isStaff() || enabledGames.includes('sayitright')) && (
+              {(isStaff() || enabledGames.includes('bombparty')) && (
               <button
-                onClick={() => { drainPetEnergy(10); recordAttemptStart('sayitright'); fetchGameLeaderboard('sayitright'); setShowGame('sayitright'); }}
-                className={`relative flex flex-col items-center gap-2 p-4 border-2 transition-all group overflow-hidden ${competitionGame === 'sayitright' ? 'border-yellow-400 bg-yellow-50 ring-2 ring-yellow-300' : 'border-orange-200 hover:border-orange-400 hover:bg-orange-50'}`}
+                onClick={() => { drainPetEnergy(10); recordAttemptStart('bombparty'); fetchGameLeaderboard('bombparty'); setShowGame('bombparty'); }}
+                className={`relative flex flex-col items-center gap-2 p-4 border-2 transition-all group overflow-hidden ${competitionGame === 'bombparty' ? 'border-yellow-400 bg-yellow-50 ring-2 ring-yellow-300' : 'border-purple-200 hover:border-purple-400 hover:bg-purple-50'}`}
               >
-                {competitionGame === 'sayitright' && <span className="absolute -top-2 -right-2 text-lg">🏆</span>}
-                <img src={assetUrl('/pet-display/game-logo/say.png')} alt="Say It Right" className="w-20 h-20 object-contain rounded-lg group-hover:scale-110 transition-transform" />
-                <span className="font-bold text-gray-800 text-xs">Say It Right</span>
+                {competitionGame === 'bombparty' && <span className="absolute -top-2 -right-2 text-lg">🏆</span>}
+                <img src={assetUrl('/pet-game/bomb/bomb.png')} alt="Bomb Defuse" className="w-20 h-20 object-contain group-hover:scale-110 transition-transform" />
+                <span className="font-bold text-gray-800 text-xs">Bomb Defuse</span>
               </button>
               )}
+              {/* Say It Right is hidden from the training picker. The game itself
+                  is still wired up (PvP, leaderboards, admin toggle) — only this
+                  entry point is removed. */}
               {(isStaff() || enabledGames.includes('quizrush')) && (
               <button
                 onClick={() => { drainPetEnergy(10); recordAttemptStart('quizrush'); fetchGameLeaderboard('quizrush'); setShowGame('quizrush'); }}
@@ -2505,6 +2509,26 @@ const PetDisplay = () => {
           leaderboard={gameLeaderboards.wordtype}
           chestEnabled={chestEnabled}
           onGameEnd={(score, extra) => handleGameEnd(score, 'wordtype', extra)}
+          onClose={() => setShowGame(null)}
+        />
+      )}
+
+      {/* Bomb Defuse Mini-Game */}
+      {showGame === 'bombparty' && (
+        <PetBombParty
+          petImageUrl={(() => {
+            let baseImage = activePet.image_url;
+            if (activePet.evolution_stages && activePet.evolution_stage > 0) {
+              const stage = activePet.evolution_stages.find(s => s.stage === activePet.evolution_stage);
+              if (stage?.image_url) baseImage = stage.image_url;
+            }
+            return baseImage;
+          })()}
+          petName={activePet.nickname || activePet.name}
+          wordBank={wordBank}
+          currentLevel={profile?.current_level || 1}
+          leaderboard={gameLeaderboards.bombparty}
+          onGameEnd={(score, extra) => handleGameEnd(score, 'bombparty', extra)}
           onClose={() => setShowGame(null)}
         />
       )}

@@ -10,6 +10,7 @@ import PetAstroBlast from '../pet/games/PetAstroBlast'
 import PetMatchGame from '../pet/games/PetMatchGame'
 import PetFlappyGame from '../pet/games/PetFlappyGame'
 import PetWordType from '../pet/games/PetWordType'
+import PetBombParty from '../pet/games/PetBombParty'
 import PetSayItRight from '../pet/games/PetSayItRight'
 import PetQuizRush from '../pet/games/PetQuizRush'
 import PetAngryPet from '../pet/games/PetAngryPet'
@@ -161,6 +162,7 @@ const GAMES = [
   { id: 'matchgame', name: 'Match Up', icon: assetUrl('/image/dashboard/match1.png'), description: 'Match words & meanings!' },
   { id: 'flappy', name: 'Flappy Pet', icon: assetUrl('/image/dashboard/flap.png'), description: 'Fly and collect fruits!' },
   { id: 'wordtype', name: 'Word Type', icon: assetUrl('/image/dashboard/pet-type.webp'), description: 'Type the correct word!' },
+  { id: 'bombparty', name: 'Bomb Defuse', icon: assetUrl('/pet-game/bomb/bomb.png'), description: 'Type a word with the syllable!' },
   { id: 'sayitright', name: 'Say It Right', icon: null, emoji: '🎤', description: 'Pronounce the word!' },
   { id: 'quizrush', name: 'Quiz Rush', icon: null, emoji: '❓', description: 'Answer questions fast!' },
   { id: 'angrypet', name: 'Angry Pet', icon: assetUrl('/pet-game/angry/Slingshot.png'), description: 'Launch at the answer!' },
@@ -455,6 +457,8 @@ const PvPChallengeModal = ({ opponent, onClose }) => {
           />
         }
         return <PetWordType {...commonProps} onGameEnd={(s) => handleGameEnd(s)} wordBank={wordBank} />
+      case 'bombparty':
+        return <PetBombParty {...commonProps} onGameEnd={(s) => handleGameEnd(s)} wordBank={wordBank} />
       case 'sayitright':
         return <PetSayItRight {...commonProps} onGameEnd={(s) => handleGameEnd(s)} wordBank={wordBank} />
       case 'quizrush':
