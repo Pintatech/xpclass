@@ -3,6 +3,8 @@ import { createPortal } from 'react-dom'
 import { X, Heart, Loader2, Volume2, VolumeX, Star } from 'lucide-react'
 
 import { assetUrl } from '../../../hooks/useBranding'
+import wordsDictUrl from '../../../assets/bombparty/words.dict?url'
+import promptsUrl from '../../../assets/bombparty/prompts.json?url'
 
 const MAX_LIVES = 3
 const LIVES_CAP = 5
@@ -42,9 +44,12 @@ const tierForRound = (r) => {
 let DICT_CACHE = null
 let PROMPTS_CACHE = null
 
-// These two ship in public/, not the Supabase ui-assets bucket that assetUrl
-// points at — so they resolve against the Vite base, not the CDN.
-const wordAssetUrl = (file) => `${import.meta.env.BASE_URL}game/bombparty/${file}`
+// Imported with ?url so Vite emits them as hashed files under /assets/ and
+// gives us back the URL. They must NOT live in public/: vercel.json rewrites
+// /(.*) to /index.html, so every public/ passthrough returns the HTML shell
+// with a 200 instead of the file. /assets/ is exempt because it is emitted by
+// the build. These imports are just strings — the bytes are still fetched
+// lazily at runtime, not bundled into the JS.
 
 // words.dict is prefix-delta encoded by scripts/build-bombparty-words.mjs: the
 // list is sorted, so each line is (number of chars shared with the previous
@@ -62,13 +67,22 @@ function decodeDict(text) {
 
 async function loadWordAssets() {
   if (DICT_CACHE && PROMPTS_CACHE) return { dict: DICT_CACHE, prompts: PROMPTS_CACHE }
-  const [wordsRes, promptsRes] = await Promise.all([
-    fetch(wordAssetUrl('words.dict')),
-    fetch(wordAssetUrl('prompts.json')),
-  ])
+  const [wordsRes, promptsRes] = await Promise.all([fetch(wordsDictUrl), fetch(promptsUrl)])
   if (!wordsRes.ok || !promptsRes.ok) throw new Error('word assets unavailable')
-  DICT_CACHE = decodeDict(await wordsRes.text())
-  PROMPTS_CACHE = await promptsRes.json()
+
+  const text = await wordsRes.text()
+  // A misrouted request can return the SPA shell with a 200, so res.ok is not
+  // enough — parsing that as a dictionary yields garbage and silently rejects
+  // every word the player types. Fail loudly instead.
+  if (text.startsWith('<')) throw new Error('word list returned HTML, not the dictionary')
+  const dict = decodeDict(text)
+  if (dict.size < 1000) throw new Error(`word list looks truncated (${dict.size} entries)`)
+
+  const prompts = await promptsRes.json()
+  if (!Array.isArray(prompts) || prompts.length === 0) throw new Error('prompt table is empty')
+
+  DICT_CACHE = dict
+  PROMPTS_CACHE = prompts
   return { dict: DICT_CACHE, prompts: PROMPTS_CACHE }
 }
 

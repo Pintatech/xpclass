@@ -18,7 +18,8 @@
  *                 has 150+ answers a learner plausibly knows, even though far
  *                 more obscure answers are also accepted.
  *
- * Outputs to public/game/bombparty/:
+ * Outputs to src/assets/bombparty/ (NOT public/ — vercel.json rewrites every
+ * public passthrough to index.html, so those files 404 into the SPA shell):
  *   words.dict   - full validation dictionary, prefix-delta encoded (see below)
  *   prompts.json - [{ s, n, tier }] syllables with their COMMON answer counts
  */
@@ -28,7 +29,7 @@ import { fileURLToPath } from 'url'
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url))
 const CACHE = path.join(__dirname, '.cache')
-const OUT = path.join(__dirname, '..', 'public', 'game', 'bombparty')
+const OUT = path.join(__dirname, '..', 'src', 'assets', 'bombparty')
 
 const SOURCES = {
   'enable1.txt': 'https://raw.githubusercontent.com/dolph/dictionary/master/enable1.txt',
