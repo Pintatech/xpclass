@@ -12,9 +12,18 @@ const MAX_FALL_SPEED = 9
 // Fruit
 const FRUIT_SIZE = 48
 const FRUIT_SPEED_START = 2.0
-const FRUIT_SPEED_MAX = 3.5
-const FRUIT_SPAWN_DISTANCE = 260 // px between fruit waves
-const FRUITS_PER_WAVE = 3
+const FRUIT_SPEED_MAX = 3.7
+// Seconds to reach top speed. Deliberately shorter than GAME_DURATION so the
+// last stretch of the run is played at full pace instead of still ramping
+// toward it — the old ramp was spread over 90s and never finished.
+const SPEED_RAMP_SECONDS = 45
+const FRUIT_SPAWN_DISTANCE = 260 // px between fruit waves, at the start
+const FRUIT_SPAWN_DISTANCE_MIN = 240 // …and once the ramp tops out
+const FRUITS_PER_WAVE = 4
+// Fruit centres closer than this leave the pet (56px wide, ~42px hit radius)
+// no gap to weave through, so a short viewport drops back to three fruits
+// rather than serving a wave that cannot be flown cleanly.
+const MIN_FRUIT_SPACING = 90
 
 // Pet
 const PET_SIZE = 56
@@ -104,6 +113,7 @@ const PetFlappyGame = ({ petImageUrl, petName, wordBank: wordBankProp, onGameEnd
   const chestSpawnedRef = useRef(false)
   const chestWaveRef = useRef(0)
   const petHpRef = useRef(PET_MAX_HP)
+  const speedTierRef = useRef(0)
 
   // Flap / jump
   const flap = useCallback(() => {
@@ -139,13 +149,17 @@ const PetFlappyGame = ({ petImageUrl, petName, wordBank: wordBankProp, onGameEnd
     const groundY = gameHeight - 60
     const minY = 60
     const usableHeight = groundY - minY
-    const correctIndex = Math.floor(Math.random() * FRUITS_PER_WAVE)
+    // A thin word bank can't fill four fruits — build the wave from however
+    // many distractors actually exist rather than spawning blank labels.
     const wrongWords = pickWrongWords(wordBank, currentWord.word, FRUITS_PER_WAVE - 1)
+    const fitsInHeight = Math.max(2, Math.floor(usableHeight / MIN_FRUIT_SPACING) - 1)
+    const fruitCount = Math.min(FRUITS_PER_WAVE, wrongWords.length + 1, fitsInHeight)
+    const correctIndex = Math.floor(Math.random() * fruitCount)
 
     let wrongIdx = 0
     const fruits = []
-    for (let i = 0; i < FRUITS_PER_WAVE; i++) {
-      const yNorm = (minY + (usableHeight / (FRUITS_PER_WAVE + 1)) * (i + 1)) / gameHeight
+    for (let i = 0; i < fruitCount; i++) {
+      const yNorm = (minY + (usableHeight / (fruitCount + 1)) * (i + 1)) / gameHeight
       const emoji = FRUIT_EMOJIS[Math.floor(Math.random() * FRUIT_EMOJIS.length)]
       fruits.push({
         y: yNorm,
@@ -285,6 +299,7 @@ const PetFlappyGame = ({ petImageUrl, petName, wordBank: wordBankProp, onGameEnd
     chestSpawnedRef.current = false
     chestWaveRef.current = 3 + Math.floor(Math.random() * 6)
     petHpRef.current = PET_MAX_HP
+    speedTierRef.current = 0
     setPetHp(PET_MAX_HP)
     setChestCollected(false)
     setChestPopup(false)
@@ -335,8 +350,22 @@ const PetFlappyGame = ({ petImageUrl, petName, wordBank: wordBankProp, onGameEnd
       const groundY = 1 - 60 / gameHeight
 
       const elapsed = (timestamp - gameStartTimeRef.current) / 1000
-      const progress = Math.min(elapsed / 90, 1)
+      const progress = Math.min(elapsed / SPEED_RAMP_SECONDS, 1)
       const fruitSpeed = FRUIT_SPEED_START + (FRUIT_SPEED_MAX - FRUIT_SPEED_START) * progress
+      // Waves also arrive closer together as the run speeds up
+      const spawnDistance = FRUIT_SPAWN_DISTANCE - (FRUIT_SPAWN_DISTANCE - FRUIT_SPAWN_DISTANCE_MIN) * progress
+
+      // Announce each speed step so the ramp is something the player feels
+      // rather than just quietly suffers.
+      const speedTier = progress >= 1 ? 3 : progress >= 0.66 ? 2 : progress >= 0.33 ? 1 : 0
+      if (speedTier > speedTierRef.current) {
+        speedTierRef.current = speedTier
+        const y = gameHeight * 0.28
+        const el = createFloatEl(speedTier === 3 ? 'MAX SPEED!' : 'SPEED UP!', gameWidth / 2, y, '#f97316')
+        el.style.fontSize = '22px'
+        floatsContainerRef.current?.appendChild(el)
+        floatingTextsRef.current.push({ el, y, opacity: 1 })
+      }
 
       // --- Update pet physics ---
       petVelocityRef.current += GRAVITY * dt
@@ -499,7 +528,7 @@ const PetFlappyGame = ({ petImageUrl, petName, wordBank: wordBankProp, onGameEnd
       // --- Spawn next wave only after current is resolved ---
       const allResolved = fruitsRef.current.length === 0 || fruitsRef.current.every(w => w.resolved)
       distanceSinceLastWaveRef.current += fruitSpeedNorm * gameWidth
-      if (allResolved && distanceSinceLastWaveRef.current >= FRUIT_SPAWN_DISTANCE) {
+      if (allResolved && distanceSinceLastWaveRef.current >= spawnDistance) {
         const wave = spawnWave(gameHeight)
         if (wave) {
           wave.fruits.forEach(fruit => {
