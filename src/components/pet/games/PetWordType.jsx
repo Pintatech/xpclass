@@ -4,10 +4,28 @@ import { X, Star, Volume2, VolumeX, Heart } from 'lucide-react'
 
 import { assetUrl } from '../../../hooks/useBranding';
 
-const GAME_DURATION = 76
 const POINTS_PER_WORD = 10
 const STREAK_BONUS = 5
-const PET_MAX_HP = 5
+const START_LIVES = 3
+const LIVES_CAP = 5
+// Words typed with no hint and no wrong letter that refill a life.
+const COMBO_FOR_LIFE = 8
+// Revealing a letter now burns clock as well as points.
+const HINT_TIME_COST = 1.5
+// Survival: the per-word clock shrinks as the run goes on. Long words start
+// with proportionally more time — a 9-letter word on an early 12s clock would
+// otherwise be pure luck — but the floor applies to the total, so every word
+// converges on the same 3s however long it is.
+const FIRST_WORD_SECONDS = 12
+const MIN_WORD_SECONDS = 3
+const fuseForWord = (n, wordLen = 5) =>
+  Math.max(MIN_WORD_SECONDS, FIRST_WORD_SECONDS + Math.max(0, wordLen - 4) * 0.4 - (n - 1) * 0.3)
+// Realtime PvP compares two scores head to head, so both players still have to
+// stop at the same moment — that mode keeps a hard cap on top of survival.
+const PVP_TIME_CAP = 76
+
+const fuseColor = (remaining) =>
+  remaining <= 3 ? '#ef4444' : remaining <= 5 ? '#f97316' : remaining <= 8 ? '#eab308' : '#22c55e'
 
 const shuffle = (arr) => {
   const a = [...arr]
@@ -40,20 +58,21 @@ const pickGameWords = (source, level = 1) => {
   return picked
 }
 
+// Words typed before the pet runs out of lives.
 const STAR_THRESHOLDS = {
-  1: [15, 17, 20],
-  2: [20, 22, 25],
-  3: [23, 25, 28],
-  4: [25, 28, 30],
+  1: [12, 20, 28],
+  2: [15, 24, 32],
+  3: [18, 28, 36],
+  4: [20, 32, 40],
 }
 
 const PetWordType = ({ petImageUrl, petName, onGameEnd, onClose, wordBank: wordBankProp = [], hideClose = false, scoreToBeat = null, leaderboard = [], chestEnabled = false, pvpOpponentPetUrl = null, initialWords = null, onProgressUpdate = null, opponentProgress = null, isRealtimePvP = false, currentLevel = 1 }) => {
-  const thresholds = STAR_THRESHOLDS[currentLevel] || [7, 10, 14]
+  const thresholds = STAR_THRESHOLDS[currentLevel] || [12, 20, 28]
   const [star1Goal, star2Goal, star3Goal] = thresholds
   const passGoal = star1Goal
   const [phase, setPhase] = useState('ready')
   const [displayScore, setDisplayScore] = useState(0)
-  const [displayTime, setDisplayTime] = useState(GAME_DURATION)
+  const [pvpTimeLeft, setPvpTimeLeft] = useState(PVP_TIME_CAP)
   const [words, setWords] = useState([])
   const [wordIndex, setWordIndex] = useState(0)
   const [typedValue, setTypedValue] = useState('')
@@ -72,12 +91,23 @@ const PetWordType = ({ petImageUrl, petName, onGameEnd, onClose, wordBank: wordB
   const [chestPopup, setChestPopup] = useState(false)
   const [isChestWord, setIsChestWord] = useState(false)
   const [chestTimer, setChestTimer] = useState(0)
-  const [petHp, setPetHp] = useState(PET_MAX_HP)
+  const [lives, setLives] = useState(START_LIVES)
+  const [combo, setCombo] = useState(0)
+  const [lifeGained, setLifeGained] = useState(false)
+  const [timeUp, setTimeUp] = useState(false)
+  // Flips once per word rather than per frame — the fuse itself is written
+  // straight to the DOM in the rAF loop.
+  const [danger, setDanger] = useState(false)
 
   const scoreRef = useRef(0)
-  const timerRef = useRef(null)
   const streakRef = useRef(0)
   const audioCache = useRef({})
+  const livesRef = useRef(START_LIVES)
+  const comboRef = useRef(0)
+  const wordsCompletedRef = useRef(0)
+  // True once the player used a hint or typed a wrong letter on this word —
+  // it breaks the clean run that buys a life back.
+  const flawedRef = useRef(false)
 
   const inputRef = useRef(null)
   const containerRef = useRef(null)
@@ -87,6 +117,19 @@ const PetWordType = ({ petImageUrl, petName, onGameEnd, onClose, wordBank: wordB
   const chestSpawnedRef = useRef(false)
   const chestWordRef = useRef(0)
   const wordStartRef = useRef(Date.now())
+  // Fuse state lives in refs: it animates at 60fps and a setState per frame
+  // would re-render the letter grid and restart its animations.
+  const wordNumRef = useRef(0)
+  const fuseEndRef = useRef(0)
+  const fuseMaxRef = useRef(FIRST_WORD_SECONDS)
+  const fuseBarRef = useRef(null)
+  const fuseNumRef = useRef(null)
+  const runningRef = useRef(false)
+  const dangerRef = useRef(false)
+  // Set once the run is over, so a pending word-transition timeout can't
+  // restart the clock after the PvP cap (or the last life) ended the game.
+  const endedRef = useRef(false)
+  const mountedRef = useRef(true)
 
   const playSound = useCallback((url, volume = 0.5, rate = 1) => {
     try {
@@ -101,31 +144,87 @@ const PetWordType = ({ petImageUrl, petName, onGameEnd, onClose, wordBank: wordB
 
   const currentWord = words[wordIndex]
 
+  const paintFuse = useCallback((remaining, max) => {
+    const pct = max > 0 ? Math.max(0, Math.min(1, remaining / max)) : 0
+    const color = fuseColor(remaining)
+    if (fuseBarRef.current) {
+      fuseBarRef.current.style.width = `${pct * 100}%`
+      fuseBarRef.current.style.background = color
+    }
+    if (fuseNumRef.current) {
+      fuseNumRef.current.textContent = remaining >= 10 ? String(Math.ceil(remaining)) : remaining.toFixed(1)
+      fuseNumRef.current.style.color = remaining <= 5 ? color : '#ffffff'
+    }
+  }, [])
+
+  // Arm the clock for the word about to be shown.
+  const startFuse = useCallback((wordLen) => {
+    wordNumRef.current += 1
+    const duration = fuseForWord(wordNumRef.current, wordLen)
+    fuseMaxRef.current = duration
+    fuseEndRef.current = performance.now() + duration * 1000
+    // Paint a full clock immediately so the new word never flashes the old one.
+    paintFuse(duration, duration)
+    dangerRef.current = false
+    setDanger(false)
+    wordStartRef.current = Date.now()
+    runningRef.current = true
+  }, [paintFuse])
+
   const advanceWord = useCallback(() => {
+    if (endedRef.current) return
     setTypedValue('')
     setFeedback(null)
     setHintRevealed(0)
-    wordStartRef.current = Date.now()
+    flawedRef.current = false
+
     const nextIdx = wordIndex + 1
+    let nextWord
     if (nextIdx < words.length) {
+      nextWord = words[nextIdx]
       setWordIndex(nextIdx)
     } else {
-      const source = wordBankProp
-      const moreWords = pickGameWords(source, currentLevel)
+      const moreWords = pickGameWords(wordBankProp, currentLevel)
+      nextWord = moreWords[0]
       setWords(moreWords)
       setWordIndex(0)
     }
+    startFuse(nextWord?.word?.length || 5)
     setTimeout(() => inputRef.current?.focus(), 50)
-  }, [wordIndex, words, wordBankProp, currentLevel])
+  }, [wordIndex, words, wordBankProp, currentLevel, startFuse])
+
+  const endGame = useCallback(() => {
+    if (endedRef.current) return
+    endedRef.current = true
+    runningRef.current = false
+    setPhase('results')
+  }, [])
+
+  // Every life loss funnels through here so the combo meter, the death check
+  // and the heart animation stay in one place. Returns true if the run is over.
+  const loseLife = useCallback(() => {
+    comboRef.current = 0
+    setCombo(0)
+    flawedRef.current = true
+    const remaining = livesRef.current - 1
+    livesRef.current = remaining
+    setLives(remaining)
+    if (remaining <= 0) {
+      runningRef.current = false
+      return true
+    }
+    return false
+  }, [])
 
   const handleCheck = useCallback(() => {
-    if (phase !== 'playing' || !currentWord) return
+    if (phase !== 'playing' || !currentWord || !runningRef.current) return
 
     const answer = typedValue.trim().toLowerCase()
     const correct = currentWord.word.toLowerCase()
 
     if (answer === correct) {
-      // CORRECT
+      // CORRECT — freeze the clock for the celebration beat
+      runningRef.current = false
       const newStreak = streakRef.current + 1
       streakRef.current = newStreak
       setStreak(newStreak)
@@ -151,7 +250,32 @@ const PetWordType = ({ petImageUrl, petName, onGameEnd, onClose, wordBank: wordB
 
       scoreRef.current += points
       setDisplayScore(scoreRef.current)
-      setWordsCompleted(prev => prev + 1)
+      wordsCompletedRef.current += 1
+      setWordsCompleted(wordsCompletedRef.current)
+
+      // Clean-typing meter — a run of words with no hint and no wrong letter
+      // buys a life back, which is the only way survival goes long.
+      let gainedLife = false
+      if (flawedRef.current) {
+        comboRef.current = 0
+        setCombo(0)
+      } else {
+        const newCombo = comboRef.current + 1
+        if (newCombo >= COMBO_FOR_LIFE) {
+          comboRef.current = 0
+          setCombo(0)
+          if (livesRef.current < LIVES_CAP) {
+            livesRef.current += 1
+            setLives(livesRef.current)
+            gainedLife = true
+            setLifeGained(true)
+            setTimeout(() => setLifeGained(false), 1600)
+          }
+        } else {
+          comboRef.current = newCombo
+          setCombo(newCombo)
+        }
+      }
 
       if (chestEnabled && !chestSpawnedRef.current && wordsCompleted + 1 >= chestWordRef.current && currentWord.word.length >= 6) {
         chestSpawnedRef.current = true
@@ -169,7 +293,7 @@ const PetWordType = ({ petImageUrl, petName, onGameEnd, onClose, wordBank: wordB
 
       setFeedback('correct')
 
-      setWordPopup({ points, streak: newStreak })
+      setWordPopup({ points, streak: newStreak, gainedLife })
       setTimeout(() => setWordPopup(null), 1200)
 
       // Celebration particles
@@ -187,7 +311,10 @@ const PetWordType = ({ petImageUrl, petName, onGameEnd, onClose, wordBank: wordB
 
       if (!muted) playSound(assetUrl('/sound/scram-correct.mp3'), 0.4)
 
-      setTimeout(() => advanceWord(), 600)
+      setTimeout(() => {
+        if (!mountedRef.current || endedRef.current) return
+        advanceWord()
+      }, 600)
     } else {
       // WRONG
       streakRef.current = 0
@@ -198,13 +325,9 @@ const PetWordType = ({ petImageUrl, petName, onGameEnd, onClose, wordBank: wordB
 
       if (!muted) playSound(assetUrl('/sound/flappy-hit.mp3'), 0.4)
 
-      const newPetHp = petHp - 1
-      setPetHp(newPetHp)
-
-      if (newPetHp <= 0) {
+      if (loseLife()) {
         setTimeout(() => {
-          clearInterval(timerRef.current)
-          setPhase('defeated')
+          if (mountedRef.current) endGame()
         }, 800)
         return
       }
@@ -216,7 +339,7 @@ const PetWordType = ({ petImageUrl, petName, onGameEnd, onClose, wordBank: wordB
         inputRef.current?.focus()
       }, 600)
     }
-  }, [phase, currentWord, typedValue, hintRevealed, advanceWord, muted, petHp])
+  }, [phase, currentWord, typedValue, hintRevealed, advanceWord, muted, loseLife, endGame, playSound, chestEnabled, wordsCompleted, wordIndex, onProgressUpdate])
 
   // Auto-submit when all letters are typed
   useEffect(() => {
@@ -227,7 +350,8 @@ const PetWordType = ({ petImageUrl, petName, onGameEnd, onClose, wordBank: wordB
   }, [typedValue, phase, currentWord, feedback, handleCheck])
 
   const handleSkip = useCallback(() => {
-    if (!currentWord) return
+    if (!currentWord || !runningRef.current) return
+    runningRef.current = false
     // Skipping chest word = chest lost
     if (chestEnabled && !chestSpawnedRef.current && wordsCompleted === chestWordRef.current - 1) {
       chestSpawnedRef.current = true
@@ -238,24 +362,24 @@ const PetWordType = ({ petImageUrl, petName, onGameEnd, onClose, wordBank: wordB
     setStreak(0)
     setSkippedWords(prev => [...prev, currentWord])
 
-    const newPetHp = petHp - 1
-    setPetHp(newPetHp)
-
-    if (newPetHp <= 0) {
+    if (loseLife()) {
       setTimeout(() => {
-        clearInterval(timerRef.current)
-        setPhase('defeated')
+        if (mountedRef.current) endGame()
       }, 800)
       return
     }
 
     advanceWord()
-  }, [currentWord, advanceWord])
+  }, [currentWord, advanceWord, chestEnabled, wordsCompleted, loseLife, endGame])
 
   const handleRevealHint = useCallback(() => {
-    if (!currentWord) return
+    if (!currentWord || !runningRef.current) return
     const maxReveal = Math.max(1, currentWord.word.length - 1)
     const newRevealed = Math.min(hintRevealed + 1, maxReveal)
+    // A hint costs clock as well as the no-hint bonus, and breaks the clean run.
+    fuseEndRef.current -= HINT_TIME_COST * 1000
+    flawedRef.current = true
+    shakeRef.current = 6
     setHintRevealed(newRevealed)
     // Pre-fill typed value with revealed letters
     const revealed = currentWord.word.slice(0, newRevealed)
@@ -266,29 +390,67 @@ const PetWordType = ({ petImageUrl, petName, onGameEnd, onClose, wordBank: wordB
     setTimeout(() => inputRef.current?.focus(), 50)
   }, [currentWord, hintRevealed])
 
+  // The word clock ran out: lose a life, bank the word for practice, move on.
+  const handleTimeUp = useCallback(() => {
+    if (!runningRef.current) return
+    runningRef.current = false
+    setTimeUp(true)
+    setTypedValue('')
+    setFeedback(null)
+    streakRef.current = 0
+    setStreak(0)
+    shakeRef.current = 16
+    setScreenShake(16)
+    if (currentWord) setSkippedWords(prev => [...prev, currentWord])
+    // Timing out on the chest word loses the chest
+    if (isChestWord && !chestSpawnedRef.current) {
+      chestSpawnedRef.current = true
+      setIsChestWord(false)
+      setChestTimer(0)
+    }
+    if (!muted) playSound(assetUrl('/sound/flappy-hit.mp3'), 0.5)
+
+    const dead = loseLife()
+    setTimeout(() => {
+      if (!mountedRef.current || endedRef.current) return
+      setTimeUp(false)
+      if (dead) endGame()
+      else advanceWord()
+    }, 1000)
+  }, [currentWord, isChestWord, muted, playSound, loseLife, endGame, advanceWord])
+
   const startGame = useCallback(() => {
     const gameWords = initialWords || pickGameWords(wordBankProp, currentLevel)
     setWords(gameWords)
     setWordIndex(0)
     setDisplayScore(0)
-    setDisplayTime(GAME_DURATION)
+    setPvpTimeLeft(PVP_TIME_CAP)
     setWordsCompleted(0)
     setSkippedWords([])
     setTypedValue('')
     setHintRevealed(0)
     setFeedback(null)
+    setTimeUp(false)
+    setLifeGained(false)
 
+    endedRef.current = false
     scoreRef.current = 0
     streakRef.current = 0
+    wordsCompletedRef.current = 0
+    comboRef.current = 0
+    flawedRef.current = false
+    wordNumRef.current = 0
+    livesRef.current = START_LIVES
     setStreak(0)
+    setCombo(0)
+    setLives(START_LIVES)
     chestSpawnedRef.current = false
     chestWordRef.current = 3 + Math.floor(Math.random() * 5)
     setChestCollected(false)
     setChestPopup(false)
     setIsChestWord(false)
     setChestTimer(0)
-    setPetHp(PET_MAX_HP)
-    wordStartRef.current = Date.now()
+    startFuse(gameWords[0]?.word?.length || 5)
     setPhase('playing')
 
     try {
@@ -300,7 +462,7 @@ const PetWordType = ({ petImageUrl, petName, onGameEnd, onClose, wordBank: wordB
     } catch {}
 
     setTimeout(() => inputRef.current?.focus(), 200)
-  }, [wordBankProp, currentLevel])
+  }, [wordBankProp, currentLevel, initialWords, startFuse])
 
   // Auto-start for realtime PvP (skip the ready screen)
   useEffect(() => {
@@ -309,21 +471,20 @@ const PetWordType = ({ petImageUrl, petName, onGameEnd, onClose, wordBank: wordB
     }
   }, [isRealtimePvP])
 
-  // Timer
+  // Realtime PvP only: a shared wall clock so both players stop together.
   useEffect(() => {
-    if (phase !== 'playing') return
-    timerRef.current = setInterval(() => {
-      setDisplayTime(prev => {
-        if (prev <= 1) {
-          clearInterval(timerRef.current)
-          setPhase('results')
-          return 0
-        }
-        return prev - 1
-      })
-    }, 1000)
-    return () => clearInterval(timerRef.current)
-  }, [phase])
+    if (!isRealtimePvP || phase !== 'playing') return
+    const deadline = Date.now() + PVP_TIME_CAP * 1000
+    const interval = setInterval(() => {
+      const left = Math.max(0, Math.round((deadline - Date.now()) / 1000))
+      setPvpTimeLeft(left)
+      if (left <= 0) {
+        clearInterval(interval)
+        endGame()
+      }
+    }, 250)
+    return () => clearInterval(interval)
+  }, [isRealtimePvP, phase, endGame])
 
   // Start chest timer when reaching chest word
   useEffect(() => {
@@ -354,7 +515,7 @@ const PetWordType = ({ petImageUrl, petName, onGameEnd, onClose, wordBank: wordB
 
   // Stop music on results
   useEffect(() => {
-    if ((phase === 'results' || phase === 'defeated') && bgMusicRef.current) {
+    if (phase === 'results' && bgMusicRef.current) {
       bgMusicRef.current.pause()
       bgMusicRef.current = null
     }
@@ -362,21 +523,20 @@ const PetWordType = ({ petImageUrl, petName, onGameEnd, onClose, wordBank: wordB
 
   // Play end-of-game sounds
   useEffect(() => {
-    if (phase === 'results') {
-      if (wordsCompleted >= passGoal) {
-        playSound(assetUrl('/pet-game/angry/angry-birds-level-complete.mp3'), 0.5)
-      } else {
-        playSound(assetUrl('/sound/craft_fail.mp3'), 0.5)
-      }
-    }
-    if (phase === 'defeated') {
+    if (phase !== 'results') return
+    if (wordsCompletedRef.current >= passGoal) {
+      playSound(assetUrl('/pet-game/angry/angry-birds-level-complete.mp3'), 0.5)
+    } else {
       playSound(assetUrl('/sound/craft_fail.mp3'), 0.5)
     }
-  }, [phase, playSound, wordsCompleted, passGoal])
+  }, [phase, playSound, passGoal])
 
   // Cleanup on unmount
   useEffect(() => {
+    mountedRef.current = true
     return () => {
+      mountedRef.current = false
+      runningRef.current = false
       if (bgMusicRef.current) {
         bgMusicRef.current.pause()
         bgMusicRef.current = null
@@ -384,27 +544,38 @@ const PetWordType = ({ petImageUrl, petName, onGameEnd, onClose, wordBank: wordB
     }
   }, [])
 
-  // Particle + shake animation
+  // Word clock + shake + particle decay, all on one rAF loop
   useEffect(() => {
     if (phase !== 'playing') return
     const animate = () => {
       shakeRef.current = Math.max(0, shakeRef.current - 0.5)
       setScreenShake(shakeRef.current)
-      setParticles(prev => prev
-        .map(p => ({
-          ...p,
-          x: p.x + p.vx,
-          y: p.y + p.vy,
-          vy: p.vy + 0.15,
-          opacity: p.opacity - 0.02,
-        }))
-        .filter(p => p.opacity > 0)
-      )
+      // Returning `prev` unchanged lets React bail out instead of re-rendering
+      // every frame on an empty particle list.
+      setParticles(prev => (
+        prev.length === 0
+          ? prev
+          : prev
+              .map(p => ({ ...p, x: p.x + p.vx, y: p.y + p.vy, vy: p.vy + 0.15, opacity: p.opacity - 0.02 }))
+              .filter(p => p.opacity > 0)
+      ))
+      if (runningRef.current) {
+        const remaining = Math.max(0, (fuseEndRef.current - performance.now()) / 1000)
+        paintFuse(remaining, fuseMaxRef.current)
+        // Relative near the floor, or a 3s word would start fully red and the
+        // danger tint would just stay on for the rest of the run.
+        const isDanger = remaining <= Math.min(3, fuseMaxRef.current * 0.4)
+        if (isDanger !== dangerRef.current) {
+          dangerRef.current = isDanger
+          setDanger(isDanger)
+        }
+        if (remaining <= 0) handleTimeUp()
+      }
       animFrameRef.current = requestAnimationFrame(animate)
     }
     animFrameRef.current = requestAnimationFrame(animate)
     return () => { if (animFrameRef.current) cancelAnimationFrame(animFrameRef.current) }
-  }, [phase])
+  }, [phase, paintFuse, handleTimeUp])
 
   // Focus input when playing starts
   useEffect(() => {
@@ -484,13 +655,27 @@ const PetWordType = ({ petImageUrl, petName, onGameEnd, onClose, wordBank: wordB
           50% { transform: scale(1.4); opacity: 0.5; }
           100% { transform: scale(0); opacity: 0; }
         }
+        @keyframes typeLifeUp {
+          0% { transform: scale(0.5) translateY(0); opacity: 0; }
+          30% { transform: scale(1.2); opacity: 1; }
+          100% { transform: scale(1) translateY(-40px); opacity: 0; }
+        }
+        @keyframes typeTimeUp {
+          0% { transform: scale(0.6); opacity: 0; }
+          25% { transform: scale(1.15); opacity: 1; }
+          75% { transform: scale(1); opacity: 1; }
+          100% { transform: scale(1.05); opacity: 0; }
+        }
       `}</style>
 
       <div
         ref={containerRef}
         className="relative w-full max-w-[400px] h-full max-h-[100dvh] overflow-hidden rounded-none sm:rounded-2xl sm:max-h-[90vh] sm:shadow-2xl"
         style={{
-          background: 'linear-gradient(135deg, #0ea5e9 0%, #6366f1 50%, #a855f7 100%)',
+          background: danger && phase === 'playing'
+            ? 'linear-gradient(135deg, #7f1d1d 0%, #b91c1c 50%, #ea580c 100%)'
+            : 'linear-gradient(135deg, #0ea5e9 0%, #6366f1 50%, #a855f7 100%)',
+          transition: 'background 0.4s ease',
           transform: screenShake > 0 ? `translate(${Math.sin(screenShake * 2) * 3}px, ${Math.cos(screenShake * 2) * 3}px)` : 'none',
         }}
       >
@@ -500,7 +685,7 @@ const PetWordType = ({ petImageUrl, petName, onGameEnd, onClose, wordBank: wordB
       <div className="absolute bottom-[-15%] left-[-10%] w-80 h-80 rounded-full bg-white/5 pointer-events-none" />
 
       {/* Close Button */}
-      {phase !== 'results' && phase !== 'defeated' && !hideClose && (
+      {phase !== 'results' && !hideClose && (
         <button
           onClick={onClose}
           className="absolute top-4 left-4 z-50 bg-white/80 backdrop-blur rounded-full p-2 shadow-lg hover:bg-white transition-colors"
@@ -537,7 +722,8 @@ const PetWordType = ({ petImageUrl, petName, onGameEnd, onClose, wordBank: wordB
               See the meaning, type the word!
             </p>
             <p className="text-sm text-white/60">
-              Train {petName}'s vocabulary!
+              Survival: every word is faster. A timeout or a skip costs a heart —
+              {' '}{COMBO_FOR_LIFE} clean words win one back.
             </p>
           </div>
 
@@ -624,7 +810,7 @@ const PetWordType = ({ petImageUrl, petName, onGameEnd, onClose, wordBank: wordB
                   </div>
 
                   {!isRealtimePvP && (
-                    <div className="flex flex-col items-center gap-0.5">
+                    <div className="flex flex-col items-center gap-0.5 relative">
                       {petImageUrl && (
                         <img src={petImageUrl} alt={petName}
                           className="w-10 h-10 object-contain drop-shadow-md"
@@ -632,58 +818,30 @@ const PetWordType = ({ petImageUrl, petName, onGameEnd, onClose, wordBank: wordB
                         />
                       )}
                       <div className="flex gap-0.5">
-                        {Array.from({ length: PET_MAX_HP }).map((_, i) => (
-                          <Heart key={i} className={`w-3.5 h-3.5 transition-all ${i < petHp ? 'text-red-400 fill-red-400' : 'text-gray-600/40'}`}
-                            style={i === petHp ? { animation: 'bbHeartLose 0.5s ease-out' } : {}}
+                        {Array.from({ length: Math.max(START_LIVES, lives) }).map((_, i) => (
+                          <Heart key={i} className={`w-3.5 h-3.5 transition-all ${i < lives ? 'text-red-400 fill-red-400' : 'text-gray-600/40'}`}
+                            style={i === lives ? { animation: 'bbHeartLose 0.5s ease-out' } : {}}
                           />
                         ))}
                       </div>
+                      {/* Clean-typing meter → free life */}
+                      <div className="w-12 h-1 rounded-full bg-white/15 overflow-hidden mt-0.5">
+                        <div className="h-full rounded-full transition-all duration-300"
+                          style={{
+                            width: `${(combo / COMBO_FOR_LIFE) * 100}%`,
+                            background: 'linear-gradient(90deg, #34d399, #6ee7b7)',
+                          }}
+                        />
+                      </div>
+                      {lifeGained && (
+                        <div className="absolute -top-2 left-1/2 -translate-x-1/2 text-green-300 font-black text-sm whitespace-nowrap pointer-events-none"
+                          style={{ animation: 'typeLifeUp 1.6s ease-out forwards' }}
+                        >
+                          +1 LIFE!
+                        </div>
+                      )}
                     </div>
                   )}
-
-                {/* Timer */}
-                {(() => {
-                  const pct = displayTime / GAME_DURATION
-                  const radius = 22
-                  const circumference = 2 * Math.PI * radius
-                  const offset = circumference * (1 - pct)
-                  const color = displayTime <= 5 ? '#ef4444' : displayTime <= 10 ? '#f97316' : displayTime <= 20 ? '#eab308' : '#22c55e'
-                  return (
-                    <div
-                      className="relative flex items-center justify-center"
-                      style={{
-                        animation: displayTime <= 5
-                          ? 'timerUrgent 0.5s ease-in-out infinite'
-                          : displayTime <= 10
-                            ? 'timerUrgent 1s ease-in-out infinite'
-                            : 'none'
-                      }}
-                    >
-                      <svg width="56" height="56" className="drop-shadow-lg" style={{ transform: 'rotate(-90deg)' }}>
-                        <circle cx="28" cy="28" r={radius} fill="rgba(0,0,0,0.3)" stroke="rgba(255,255,255,0.15)" strokeWidth="5" />
-                        <circle
-                          cx="28" cy="28" r={radius}
-                          fill="none"
-                          stroke={color}
-                          strokeWidth="5"
-                          strokeLinecap="round"
-                          strokeDasharray={circumference}
-                          strokeDashoffset={offset}
-                          style={{ transition: 'stroke-dashoffset 1s linear, stroke 0.5s ease' }}
-                        />
-                      </svg>
-                      <span
-                        className="absolute font-black text-white"
-                        style={{
-                          fontSize: displayTime < 10 ? '18px' : '16px',
-                          textShadow: `0 0 8px ${color}80, 0 1px 2px rgba(0,0,0,0.3)`,
-                        }}
-                      >
-                        {displayTime}
-                      </span>
-                    </div>
-                  )
-                })()}
 
                 {/* Mute */}
                 <button
@@ -707,6 +865,14 @@ const PetWordType = ({ petImageUrl, petName, onGameEnd, onClose, wordBank: wordB
                 }`}>
                   <img src={assetUrl('/icon/profile/streak.svg')} alt="streak" className="w-3.5 h-3.5" />{streak}x
                 </div>
+                <span className="text-white/40 text-[10px] font-semibold uppercase tracking-wider">
+                  Word {wordsCompleted + 1}
+                </span>
+                {isRealtimePvP && (
+                  <span className={`text-xs font-bold ml-auto ${pvpTimeLeft <= 10 ? 'text-red-300' : 'text-white/40'}`}>
+                    ⏱ {pvpTimeLeft}s
+                  </span>
+                )}
               </div>
 
             </div>
@@ -725,6 +891,21 @@ const PetWordType = ({ petImageUrl, petName, onGameEnd, onClose, wordBank: wordB
                       <img src={assetUrl('/icon/profile/streak.svg')} alt="streak" className="w-4 h-4" />{wordPopup.streak}x streak
                     </div>
                   )}
+                </div>
+              </div>
+            )}
+
+            {/* Time-up banner */}
+            {timeUp && (
+              <div className="absolute inset-0 z-20 flex items-center justify-center pointer-events-none">
+                <div className="flex flex-col items-center gap-2" style={{ animation: 'typeTimeUp 1s ease-out forwards' }}>
+                  <div className="text-4xl font-black text-red-300 drop-shadow-lg">TIME UP!</div>
+                  <div className="bg-white/90 rounded-xl px-4 py-1.5 text-lg font-black text-gray-800 uppercase tracking-wide">
+                    {currentWord?.word}
+                  </div>
+                  <div className="flex items-center gap-1 bg-red-500 text-white rounded-full px-4 py-1.5 text-sm font-bold shadow-lg">
+                    <Heart className="w-4 h-4 fill-white" /> -1 life
+                  </div>
                 </div>
               </div>
             )}
@@ -798,7 +979,28 @@ const PetWordType = ({ petImageUrl, petName, onGameEnd, onClose, wordBank: wordB
                     )
                   })}
                 </div>
-                <span className="text-white/30 text-xs">({currentWord.word.length} letters)</span>
+                {/* Word clock — width and text written imperatively by the rAF
+                    loop, sitting right under the blanks so the countdown is in
+                    the same glance as the letters being typed. */}
+                <div
+                  className="w-full max-w-xs flex items-center gap-2 -mt-1"
+                  style={{ animation: danger ? 'timerUrgent 0.5s ease-in-out infinite' : 'none' }}
+                >
+                  <div className="flex-1 h-2.5 rounded-full bg-black/25 overflow-hidden shadow-inner">
+                    <div
+                      ref={fuseBarRef}
+                      className="h-full rounded-full"
+                      style={{ width: '100%', background: '#22c55e' }}
+                    />
+                  </div>
+                  <span
+                    ref={fuseNumRef}
+                    className="font-black tabular-nums text-white text-lg min-w-[34px] text-right"
+                    style={{ textShadow: '0 1px 3px rgba(0,0,0,0.4)' }}
+                  />
+                </div>
+
+                <span className="text-white/30 text-xs -mt-2">({currentWord.word.length} letters)</span>
 
                 {/* Hidden input to capture keyboard */}
                 <input
@@ -822,6 +1024,9 @@ const PetWordType = ({ petImageUrl, petName, onGameEnd, onClose, wordBank: wordB
                         const expected = currentWord.word[ci].toLowerCase()
                         const typed = newVal[ci].toLowerCase()
                         if (typed !== expected) {
+                          // A wrong letter costs no life — the clock is the
+                          // punishment — but it does break the clean run.
+                          flawedRef.current = true
                           // Wrong letter kills chest
                           if (isChestWord && !chestSpawnedRef.current) {
                             chestSpawnedRef.current = true
@@ -887,7 +1092,7 @@ const PetWordType = ({ petImageUrl, petName, onGameEnd, onClose, wordBank: wordB
                   className="text-xs text-white/40 hover:text-white/70 transition-colors"
                   disabled={hintRevealed >= currentWord.word.length - 1}
                 >
-                  Reveal letter ({hintRevealed}/{currentWord.word.length - 1})
+                  Reveal letter −{HINT_TIME_COST}s ({hintRevealed}/{currentWord.word.length - 1})
                 </button>
               </>
           </div>
@@ -900,7 +1105,7 @@ const PetWordType = ({ petImageUrl, petName, onGameEnd, onClose, wordBank: wordB
               onClick={handleSkip}
               className="text-xs text-white/50 hover:text-white/80 underline transition-colors"
             >
-              Skip
+              Skip (−1 ♥)
             </button>
           </div>
 
@@ -962,62 +1167,6 @@ const PetWordType = ({ petImageUrl, petName, onGameEnd, onClose, wordBank: wordB
         </div>
       )}
 
-      {/* Defeated Phase */}
-      {phase === 'defeated' && (
-        <div className="absolute inset-0 flex flex-col items-center justify-start overflow-y-auto p-6 z-50">
-          <div className="bg-white rounded-3xl shadow-2xl max-w-sm w-full p-8 text-center my-auto"
-            style={{ animation: 'typeResultsFadeIn 0.5s ease-out' }}
-          >
-            <div className="inline-flex items-center justify-center w-20 h-20 rounded-full bg-red-100 mb-4"
-              style={{ animation: 'typeScorePopIn 0.6s ease-out 0.3s both' }}
-            >
-              <Heart className="w-10 h-10 text-red-400" />
-            </div>
-
-            <h2 className="text-2xl font-bold text-gray-800 mb-1">Defeated!</h2>
-            <p className="text-gray-500 mb-5">{petName} ran out of lives!</p>
-
-            <div className="rounded-2xl p-5 mb-5 border bg-gradient-to-br from-gray-50 to-gray-100 border-gray-200"
-              style={{ animation: 'typeScorePopIn 0.6s ease-out 0.5s both' }}
-            >
-              <p className="text-5xl font-black text-gray-400">{wordsCompleted}</p>
-              <p className="text-sm font-semibold mt-1 text-gray-400">words completed</p>
-            </div>
-
-            {skippedWords.length > 0 && (
-              <div className="mb-5 text-left">
-                <p className="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-2 text-center">Words to Practice</p>
-                <div className="max-h-[180px] overflow-y-auto rounded-xl border border-gray-100 divide-y divide-gray-50">
-                  {skippedWords.map((w, i) => (
-                    <div key={i} className="flex items-center gap-2 px-3 py-2">
-                      <span className="font-bold text-sm text-gray-800">{w.word}</span>
-                      <span className="text-xs text-gray-400 ml-auto">{w.hint}</span>
-                    </div>
-                  ))}
-                </div>
-              </div>
-            )}
-
-            <p className="text-sm text-gray-600 mb-6">Try to keep your lives! Wrong answers cost a heart.</p>
-
-            <div className="flex flex-col gap-2">
-              <button
-                onClick={() => { setPhase('ready'); setDisplayScore(0); setWordsCompleted(0) }}
-                className="w-full py-3.5 bg-gradient-to-b from-indigo-500 to-indigo-600 hover:from-indigo-600 hover:to-indigo-700 text-white rounded-full font-bold text-lg shadow-lg border-b-4 border-indigo-700 active:border-b-0 active:mt-1 transition-all"
-              >
-                Try Again
-              </button>
-              <button
-                onClick={onClose}
-                className="w-full py-2.5 text-gray-400 hover:text-gray-600 font-medium transition-colors"
-              >
-                Close
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
-
       {/* Results Phase */}
       {phase === 'results' && (
         <div className="absolute inset-0 flex flex-col items-center justify-start overflow-y-auto p-6 z-50">
@@ -1063,12 +1212,12 @@ const PetWordType = ({ petImageUrl, petName, onGameEnd, onClose, wordBank: wordB
             ) : (
               <>
                 <h2 className="text-2xl font-bold text-gray-800 mb-1">
-                  {starsEarned >= 3 ? 'Perfect Score!' : starsEarned >= 2 ? 'Great Job!' : starsEarned >= 1 ? 'Training Complete!' : 'Not Enough Words!'}
+                  {starsEarned >= 3 ? 'Unstoppable!' : starsEarned >= 2 ? 'Great Survival!' : starsEarned >= 1 ? 'Training Complete!' : 'Out of Lives!'}
                 </h2>
                 <p className="text-gray-500 mb-5">
                   {starsEarned >= 1
-                    ? `${petName} learned ${wordsCompleted} words!`
-                    : `${petName} only learned ${wordsCompleted}/${passGoal} words`}
+                    ? `${petName} survived ${wordsCompleted} words!`
+                    : `${petName} only typed ${wordsCompleted}/${passGoal} words`}
                 </p>
                 <div
                   className={`rounded-2xl p-5 mb-5 border ${
@@ -1087,7 +1236,8 @@ const PetWordType = ({ petImageUrl, petName, onGameEnd, onClose, wordBank: wordB
                     starsEarned >= 3 ? 'text-yellow-400'
                     : starsEarned >= 1 ? 'text-indigo-400'
                     : 'text-gray-400'
-                  }`}>words completed</p>
+                  }`}>words survived</p>
+                <p className="text-xs text-gray-400 mt-1">{displayScore} points</p>
                 </div>
               </>
             )}
@@ -1109,11 +1259,11 @@ const PetWordType = ({ petImageUrl, petName, onGameEnd, onClose, wordBank: wordB
 
             <p className="text-sm text-gray-600 mb-6">
               {starsEarned >= 3
-                ? 'Typing master! Perfect performance!'
+                ? 'Typing master! Nothing gets past you.'
                 : starsEarned >= 2
-                  ? `Amazing! Get ${star3Goal} words for 3 stars!`
+                  ? `Amazing! Survive ${star3Goal} words for 3 stars!`
                   : starsEarned >= 1
-                    ? `Good job! Get ${star2Goal} words for 2 stars!`
+                    ? `Good job! Survive ${star2Goal} words for 2 stars!`
                     : `Need at least ${star1Goal} words to earn a star. Try again!`}
             </p>
 

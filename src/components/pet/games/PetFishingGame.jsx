@@ -15,6 +15,21 @@ const STAR_THRESHOLDS = {
 }
 const BASE_FISH_SPEED = 0.7
 const SPEED_BY_LEVEL = { 1: 1, 2: 1.15, 3: 1.3, 4: 1.5 }
+
+// ── Difficulty waves ──────────────────────────────────────────────────────
+// The run ramps with rounds spawned rather than with the clock, so a player
+// who is clearing rounds quickly is the one who gets the harder game. These
+// stack on top of the per-account SPEED_BY_LEVEL multiplier.
+const ROUNDS_PER_WAVE = 4
+const MAX_WAVE = 6
+const EXTRA_FISH_FROM_WAVE = 3 // a fifth fish joins the shoal here
+const waveForRound = (r) => Math.min(MAX_WAVE, 1 + Math.floor((r - 1) / ROUNDS_PER_WAVE))
+// Fish swim faster…
+const speedMulForWave = (w) => 1 + (w - 1) * 0.13
+// …the water gets choppier, so they are harder to tap accurately…
+const wobbleForWave = (w) => 6 + (w - 1) * 1.6
+// …and help gets rarer.
+const powerupChanceForWave = (w) => Math.max(0.06, POWERUP_CHANCE - (w - 1) * 0.018)
 const FISH_EMOJIS = ['🐟', '🐠', '🐡', '🦈', '🐙', '🦀', '🦞', '🦐', '🐳', '🐋']
 const FISH_BASE_POINTS = {
   '🐟': 10, '🐠': 10, '🐡': 10, 
@@ -63,6 +78,8 @@ const PetFishingGame = ({ petImageUrl, petName, onGameEnd, onClose, wordBank: wo
   const [chestPopup, setChestPopup] = useState(false)
   const [isChestRound, setIsChestRound] = useState(false)
   const [chestTimer, setChestTimer] = useState(0)
+  const [wave, setWave] = useState(1)
+  const [waveFlash, setWaveFlash] = useState(null)
 
   // Power-ups
   const [powerups, setPowerups] = useState([]) // floating power-up items
@@ -83,6 +100,8 @@ const PetFishingGame = ({ petImageUrl, petName, onGameEnd, onClose, wordBank: wo
   const audioCache = useRef({})
   const currentTargetRef = useRef(null)
   const roundIndexRef = useRef(0)
+  const waveRef = useRef(1)
+  const maxWaveRef = useRef(1)
   const chestSpawnedRef = useRef(false)
   const evaluateCatchRef = useRef(null)
   const pendingMissRef = useRef(null) // fish that swam off, pending penalty
@@ -114,16 +133,35 @@ const PetFishingGame = ({ petImageUrl, petName, onGameEnd, onClose, wordBank: wo
 
     const words = wordBankProp
     if (words.length === 0) return
+
+    // Advance the wave before building the round so speed, shoal size and
+    // chop all come from the same difficulty step.
+    const round = roundIndexRef.current + 1
+    roundIndexRef.current = round
+    // Local, not the `wave` state — that value is a render behind this spawn.
+    const waveNow = waveForRound(round)
+    if (waveNow !== waveRef.current) {
+      waveRef.current = waveNow
+      maxWaveRef.current = Math.max(maxWaveRef.current, waveNow)
+      setWave(waveNow)
+      if (round > 1) {
+        setWaveFlash(waveNow)
+        setTimeout(() => setWaveFlash(null), 1300)
+      }
+    }
+    const waveSpeed = speedMulForWave(waveNow)
+    const wobbleAmp = wobbleForWave(waveNow)
+
     const target = words[Math.floor(Math.random() * words.length)]
     currentTargetRef.current = target
     setCurrentHint(target.hint)
 
-    const count = Math.min(FISH_PER_ROUND, words.length)
+    const fishThisRound = waveNow >= EXTRA_FISH_FROM_WAVE ? FISH_PER_ROUND + 1 : FISH_PER_ROUND
+    const count = Math.min(fishThisRound, words.length)
     const distractors = shuffle(words.filter(w => w.word !== target.word)).slice(0, count - 1)
     const allWords = shuffle([target, ...distractors])
 
     const roundId = Date.now()
-    roundIndexRef.current += 1
 
     // Water zone: 45%-90% of container height (below the dock/pet at top)
     const waterTop = containerH * 0.45
@@ -133,13 +171,14 @@ const PetFishingGame = ({ petImageUrl, petName, onGameEnd, onClose, wordBank: wo
     const emojiPool = shuffle([...FISH_EMOJIS])
 
     allWords.forEach((w, i) => {
-      const delay = i * 150
+      // Later waves send the shoal in tighter together, leaving less time to scan
+      const delay = i * Math.max(90, 150 - (waveNow - 1) * 15)
       setTimeout(() => {
         // Alternate direction
         const goingRight = i % 2 === 0
         const startX = goingRight ? -100 : containerW + 100
         const laneY = waterTop + laneHeight * i + laneHeight / 2 + (Math.random() - 0.5) * 20
-        const speed = (BASE_FISH_SPEED + Math.random() * 1.0) * speedMul
+        const speed = (BASE_FISH_SPEED + Math.random() * 1.0) * speedMul * waveSpeed
         const vx = goingRight ? speed : -speed
 
         const isCorrect = w.word === target.word
@@ -162,6 +201,7 @@ const PetFishingGame = ({ petImageUrl, petName, onGameEnd, onClose, wordBank: wo
           scale: 1,
           emoji: emojiPool[i % emojiPool.length],
           wiggleOffset: Math.random() * Math.PI * 2,
+          wobbleAmp,
           spawnTime: performance.now(),
         }
         if (isChestFish) {
@@ -173,11 +213,11 @@ const PetFishingGame = ({ petImageUrl, petName, onGameEnd, onClose, wordBank: wo
     })
 
     // Maybe spawn a power-up
-    if (Math.random() < POWERUP_CHANCE && !activePowerupRef.current) {
+    if (Math.random() < powerupChanceForWave(waveNow) && !activePowerupRef.current) {
       const pu = POWERUPS[Math.floor(Math.random() * POWERUPS.length)]
       const goingRight = Math.random() > 0.5
       const puY = waterTop + Math.random() * (waterBottom - waterTop)
-      const puSpeed = (BASE_FISH_SPEED + 0.5) * speedMul
+      const puSpeed = (BASE_FISH_SPEED + 0.5) * speedMul * waveSpeed
       setPowerups(prev => [...prev, {
         id: `pu-${Date.now()}`,
         ...pu,
@@ -207,6 +247,10 @@ const PetFishingGame = ({ petImageUrl, petName, onGameEnd, onClose, wordBank: wo
     scoreRef.current = 0
     streakRef.current = 0
     roundIndexRef.current = 0
+    waveRef.current = 1
+    maxWaveRef.current = 1
+    setWave(1)
+    setWaveFlash(null)
     chestSpawnedRef.current = false
     chestRoundRef.current = 5 + Math.floor(Math.random() * 10)
     setChestCollected(false)
@@ -409,9 +453,10 @@ const PetFishingGame = ({ petImageUrl, petName, onGameEnd, onClose, wordBank: wo
             const wobble = Math.sin(now / 500 + f.wiggleOffset) * 3
             return { ...f, x: f.x + f.vx * 0.5 * dt, y: f.baseY + wobble }
           }
-          // Normal swimming (slow if power-up active)
+          // Normal swimming (slow if power-up active). The wobble amplitude is
+          // baked in per fish at spawn, so it rises with the wave.
           const slowMul = activePowerupRef.current?.type === 'slow' ? 0.35 : 1
-          const wobble = Math.sin(now / 500 + f.wiggleOffset) * 6
+          const wobble = Math.sin(now / 500 + f.wiggleOffset) * (f.wobbleAmp ?? 6)
           return {
             ...f,
             x: f.x + f.vx * dt * slowMul,
@@ -760,6 +805,12 @@ const PetFishingGame = ({ petImageUrl, petName, onGameEnd, onClose, wordBank: wo
           50% { transform: scale(1.03); }
         }
         @keyframes bbHeartLose { 0% { transform: scale(1); opacity: 1; } 50% { transform: scale(1.4); opacity: 0.5; } 100% { transform: scale(0); opacity: 0; } }
+        @keyframes waveFlashIn {
+          0% { transform: scale(0.5); opacity: 0; letter-spacing: 0.5em; }
+          20% { transform: scale(1.1); opacity: 1; letter-spacing: 0.15em; }
+          70% { transform: scale(1); opacity: 1; letter-spacing: 0.15em; }
+          100% { transform: scale(1.05); opacity: 0; letter-spacing: 0.3em; }
+        }
         @keyframes timerUrgent {
           0%, 100% { transform: scale(1) rotate(0deg); }
           15% { transform: scale(1.1) rotate(-3deg); }
@@ -831,7 +882,8 @@ const PetFishingGame = ({ petImageUrl, petName, onGameEnd, onClose, wordBank: wo
               Tap a fish to hook it and reel it in!
             </p>
             <p className="text-sm text-white/60">
-              Train {petName}&apos;s patience!
+              Every {ROUNDS_PER_WAVE} rounds the next wave rolls in: faster fish in
+              choppier water — and a bigger shoal from wave {EXTRA_FISH_FROM_WAVE}.
             </p>
           </div>
 
@@ -1003,6 +1055,20 @@ const PetFishingGame = ({ petImageUrl, petName, onGameEnd, onClose, wordBank: wo
             </div>
           )}
 
+          {/* Wave-up flash */}
+          {waveFlash && (
+            <div className="absolute inset-0 z-30 flex items-center justify-center pointer-events-none">
+              <div className="flex flex-col items-center gap-1" style={{ animation: 'waveFlashIn 1.3s ease-out forwards' }}>
+                <span className="text-4xl font-black text-cyan-200" style={{ textShadow: '0 0 18px rgba(34,211,238,0.8), 0 2px 6px rgba(0,0,0,0.6)' }}>
+                  WAVE {waveFlash}
+                </span>
+                <span className="text-sm font-bold text-white/80">
+                  {waveFlash === EXTRA_FISH_FROM_WAVE ? 'The shoal is growing!' : 'Faster fish, choppier water!'}
+                </span>
+              </div>
+            </div>
+          )}
+
           {/* TOP HUD */}
           <div className="absolute top-0 left-0 right-0 p-4 z-10 pointer-events-none">
             <div className="w-full max-w-md mx-auto flex flex-col items-center gap-2 pointer-events-auto">
@@ -1115,6 +1181,11 @@ const PetFishingGame = ({ petImageUrl, petName, onGameEnd, onClose, wordBank: wo
                   streak >= 3 ? 'bg-yellow-400 text-yellow-900' : 'bg-white/15 text-white/70'
                 }`}>
                   <img src={assetUrl('/icon/profile/streak.svg')} alt="streak" className="w-3.5 h-3.5" />{streak}x
+                </div>
+                <div className={`rounded-full px-2.5 py-1 text-[10px] font-black uppercase tracking-wider shrink-0 ${
+                  wave >= MAX_WAVE ? 'bg-red-500/80 text-white' : wave >= EXTRA_FISH_FROM_WAVE ? 'bg-orange-500/70 text-white' : 'bg-white/15 text-white/70'
+                }`}>
+                  W{wave}
                 </div>
                 <div className="flex-1 bg-white/10 backdrop-blur rounded-xl px-4 py-2 text-center min-w-0"
                   style={{ animation: currentHint ? 'hintPulse 2s ease-in-out infinite' : 'none' }}
@@ -1357,6 +1428,9 @@ const PetFishingGame = ({ petImageUrl, petName, onGameEnd, onClose, wordBank: wo
               <p className={`text-sm font-semibold mt-1 ${
                 starsEarned >= 3 ? 'text-yellow-400' : starsEarned >= 1 ? 'text-cyan-400' : 'text-gray-400'
               }`}>fish caught</p>
+              <p className="text-xs text-gray-400 mt-1">
+                {displayScore} points · reached wave {maxWaveRef.current}
+              </p>
             </div>
 
             {/* Missed Words */}

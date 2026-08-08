@@ -9,6 +9,21 @@ const GAME_DURATION = 76
 const WORDS_PER_ROUND = 4 // how many words fall per round
 const GRAVITY = 0 // no acceleration, constant fall speed
 const PET_MAX_HP = 5
+
+// ── Difficulty waves ──────────────────────────────────────────────────────
+// The run ramps with rounds spawned rather than with the clock, so a player
+// who is clearing rounds quickly is the one who gets the harder game.
+const ROUNDS_PER_WAVE = 4
+const MAX_WAVE = 6
+const EXTRA_WORD_FROM_WAVE = 3 // a fifth asteroid joins the field here
+const waveForRound = (r) => Math.min(MAX_WAVE, 1 + Math.floor((r - 1) / ROUNDS_PER_WAVE))
+// Asteroids fall faster…
+const speedMulForWave = (w) => 1 + (w - 1) * 0.13
+// …and the word stays hidden ("???") deeper into the screen, so the reading
+// window shrinks from both ends at once.
+const revealYForWave = (w) => 130 + (w - 1) * 14
+// …while help gets rarer.
+const powerupChanceForWave = (w) => Math.max(0.06, POWERUP_CHANCE - (w - 1) * 0.018)
 const STAR_THRESHOLDS = {
   1: [15, 18, 23],
   2: [18, 23, 27],
@@ -57,6 +72,8 @@ const PetAstroBlast = ({ petImageUrl, petName, onGameEnd, onClose, shipSkinUrl, 
   const [feedback, setFeedback] = useState(null) // { type: 'correct'|'wrong', word, x, y }
   const [streak, setStreak] = useState(0)
   const [petHp, setPetHp] = useState(PET_MAX_HP)
+  const [wave, setWave] = useState(1)
+  const [waveFlash, setWaveFlash] = useState(null)
 
   const [slashTrail, setSlashTrail] = useState([])
   const [muted, setMuted] = useState(false)
@@ -95,6 +112,8 @@ const PetAstroBlast = ({ petImageUrl, petName, onGameEnd, onClose, shipSkinUrl, 
   }, [])
   const currentTargetRef = useRef(null)
   const roundIndexRef = useRef(0)
+  const waveRef = useRef(1)
+  const maxWaveRef = useRef(1)
   const chestSpawnedRef = useRef(false)
   const chestRoundRef = useRef(0)
   const uidRef = useRef(0)
@@ -110,33 +129,52 @@ const PetAstroBlast = ({ petImageUrl, petName, onGameEnd, onClose, shipSkinUrl, 
 
     const containerW = containerRef.current?.clientWidth || 400
 
+    // Advance the wave before building the round so speed, reveal depth and
+    // asteroid count all come from the same difficulty step.
+    const round = roundIndexRef.current + 1
+    roundIndexRef.current = round
+    // Local, not the `wave` state — that value is a render behind this spawn.
+    const waveNow = waveForRound(round)
+    if (waveNow !== waveRef.current) {
+      waveRef.current = waveNow
+      maxWaveRef.current = Math.max(maxWaveRef.current, waveNow)
+      setWave(waveNow)
+      if (round > 1) {
+        setWaveFlash(waveNow)
+        setTimeout(() => setWaveFlash(null), 1300)
+      }
+    }
+    const speedMul = speedMulForWave(waveNow)
+    const revealY = revealYForWave(waveNow)
+
     // Pick target
     const words = wordBankProp
     const target = words[Math.floor(Math.random() * words.length)]
     currentTargetRef.current = target
     setCurrentHint(target.hint)
 
-    // Pick distractors (different words)
-    const distractors = shuffle(words.filter(w => w.word !== target.word)).slice(0, WORDS_PER_ROUND - 1)
+    // Pick distractors (different words) — one more of them from wave 3 on
+    const wordsThisRound = waveNow >= EXTRA_WORD_FROM_WAVE ? WORDS_PER_ROUND + 1 : WORDS_PER_ROUND
+    const distractors = shuffle(words.filter(w => w.word !== target.word)).slice(0, wordsThisRound - 1)
     const allWords = shuffle([target, ...distractors])
 
     // Spawn words from the top — they fall downward like asteroids
     const roundId = Date.now()
-    roundIndexRef.current += 1
 
     // Shuffle skin indices so no duplicates per round
     const skinCount = asteroidSkinUrls?.length || 1
     const skinIndices = shuffle(Array.from({ length: skinCount }, (_, idx) => idx))
 
     allWords.forEach((w, i) => {
-      const delay = i * 100 // 100ms between each word drop
+      // The field also tightens up: later waves drop the asteroids closer together
+      const delay = i * Math.max(60, 100 - (waveNow - 1) * 10)
       setTimeout(() => {
         // Each word drops from a different horizontal zone
         const zoneWidth = containerW / allWords.length
         const launchX = zoneWidth * i + zoneWidth / 2 + (Math.random() - 0.5) * 20
         // Level 5+ gets original speed; lower levels get slower (−0.3 per level below 5, min 1.0)
         const levelScale = Math.min(currentLevel - 5, 0) * 0.3
-        const vy = 2.5 + levelScale + Math.random() * 1.0
+        const vy = (2.5 + levelScale + Math.random() * 1.0) * speedMul
         // Slight horizontal drift
         const vx = (Math.random() - 0.5) * 1.2
 
@@ -148,6 +186,7 @@ const PetAstroBlast = ({ petImageUrl, petName, onGameEnd, onClose, shipSkinUrl, 
           hint: w.hint,
           isCorrect,
           isChest: isChestWord,
+          revealY,
           x: launchX,
           y: -50,
           vx,
@@ -170,7 +209,7 @@ const PetAstroBlast = ({ petImageUrl, petName, onGameEnd, onClose, shipSkinUrl, 
     })
 
     // Maybe spawn a power-up
-    if (Math.random() < POWERUP_CHANCE && !activePowerupRef.current) {
+    if (Math.random() < powerupChanceForWave(waveNow) && !activePowerupRef.current) {
       const pu = POWERUPS[Math.floor(Math.random() * POWERUPS.length)]
       const puX = 40 + Math.random() * (containerW - 80)
       setPowerups(prev => [...prev, {
@@ -200,6 +239,10 @@ const PetAstroBlast = ({ petImageUrl, petName, onGameEnd, onClose, shipSkinUrl, 
     scoreRef.current = 0
     streakRef.current = 0
     roundIndexRef.current = 0
+    waveRef.current = 1
+    maxWaveRef.current = 1
+    setWave(1)
+    setWaveFlash(null)
     chestSpawnedRef.current = false
     chestRoundRef.current = 5 + Math.floor(Math.random() * 10)
     setChestCollected(false)
@@ -334,8 +377,9 @@ const PetAstroBlast = ({ petImageUrl, petName, onGameEnd, onClose, shipSkinUrl, 
           // Bounce off edges
           if (newX < 50) { newX = 50; newVx = Math.abs(newVx) * 0.5 }
           if (newX > containerW - 50) { newX = containerW - 50; newVx = -Math.abs(newVx) * 0.5 }
-          // Fall 2x faster while word is hidden (mystery phase y <= 130)
-          const mysteryMul = w.y <= 130 ? 1.5 : 1
+          // Fall faster while the word is still hidden — the mystery phase runs
+          // deeper each wave, so the reading window shrinks as the run goes on.
+          const mysteryMul = w.y <= (w.revealY ?? 130) ? 1.5 : 1
           return {
             ...w,
             x: newX,
@@ -706,6 +750,12 @@ const PetAstroBlast = ({ petImageUrl, petName, onGameEnd, onClose, shipSkinUrl, 
           50% { transform: translateX(-50%) translateY(-3px); }
         }
         @keyframes bbHeartLose { 0% { transform: scale(1); opacity: 1; } 50% { transform: scale(1.4); opacity: 0.5; } 100% { transform: scale(0); opacity: 0; } }
+        @keyframes waveFlashIn {
+          0% { transform: scale(0.5); opacity: 0; letter-spacing: 0.5em; }
+          20% { transform: scale(1.1); opacity: 1; letter-spacing: 0.15em; }
+          70% { transform: scale(1); opacity: 1; letter-spacing: 0.15em; }
+          100% { transform: scale(1.05); opacity: 0; letter-spacing: 0.3em; }
+        }
         @keyframes timerUrgent {
           0%, 100% { transform: scale(1) rotate(0deg); }
           15% { transform: scale(1.1) rotate(-3deg); }
@@ -761,7 +811,8 @@ const PetAstroBlast = ({ petImageUrl, petName, onGameEnd, onClose, shipSkinUrl, 
               Blast the correct asteroid as it falls!
             </p>
             <p className="text-sm text-white/60">
-              Train {petName}&apos;s reflexes!
+              Every {ROUNDS_PER_WAVE} rounds the next wave hits: faster rocks that
+              hide their word for longer — and an extra asteroid from wave {EXTRA_WORD_FROM_WAVE}.
             </p>
           </div>
 
@@ -897,7 +948,7 @@ const PetAstroBlast = ({ petImageUrl, petName, onGameEnd, onClose, shipSkinUrl, 
                       textShadow: '0 1px 3px rgba(0,0,0,0.9), 0 0 10px rgba(0,0,0,0.5)',
                     }}
                   >
-                    {w.y > 130 ? w.word : '???'}
+                    {w.y > (w.revealY ?? 130) ? w.word : '???'}
                   </div>
                 </div>
               ) : (
@@ -960,7 +1011,7 @@ const PetAstroBlast = ({ petImageUrl, petName, onGameEnd, onClose, shipSkinUrl, 
                       textShadow: '0 1px 3px rgba(0,0,0,0.9), 0 0 10px rgba(0,0,0,0.5)',
                     }}
                   >
-                    {w.y > 130 ? w.word : '???'}
+                    {w.y > (w.revealY ?? 130) ? w.word : '???'}
                   </div>
                 </div>
               )}
@@ -998,6 +1049,20 @@ const PetAstroBlast = ({ petImageUrl, petName, onGameEnd, onClose, shipSkinUrl, 
               >
                 {feedback.type === 'correct' ? 'BLAST!' : 'MISS!'}
               </span>
+            </div>
+          )}
+
+          {/* Wave-up flash */}
+          {waveFlash && (
+            <div className="absolute inset-0 z-30 flex items-center justify-center pointer-events-none">
+              <div className="flex flex-col items-center gap-1" style={{ animation: 'waveFlashIn 1.3s ease-out forwards' }}>
+                <span className="text-4xl font-black text-orange-300" style={{ textShadow: '0 0 18px rgba(249,115,22,0.8), 0 2px 6px rgba(0,0,0,0.6)' }}>
+                  WAVE {waveFlash}
+                </span>
+                <span className="text-sm font-bold text-white/80">
+                  {waveFlash === EXTRA_WORD_FROM_WAVE ? 'Extra asteroid incoming!' : 'Faster asteroids!'}
+                </span>
+              </div>
             </div>
           )}
 
@@ -1132,6 +1197,11 @@ const PetAstroBlast = ({ petImageUrl, petName, onGameEnd, onClose, shipSkinUrl, 
                   streak >= 3 ? 'bg-yellow-400 text-yellow-900' : 'bg-white/15 text-white/70'
                 }`}>
                   <img src={assetUrl('/icon/profile/streak.svg')} alt="streak" className="w-3.5 h-3.5" />{streak}x
+                </div>
+                <div className={`rounded-full px-2.5 py-1 text-[10px] font-black uppercase tracking-wider shrink-0 ${
+                  wave >= MAX_WAVE ? 'bg-red-500/80 text-white' : wave >= EXTRA_WORD_FROM_WAVE ? 'bg-orange-500/70 text-white' : 'bg-white/15 text-white/70'
+                }`}>
+                  W{wave}
                 </div>
                 <div className="flex-1 bg-white/10 backdrop-blur rounded-xl px-4 py-2 text-center min-w-0"
                   style={{ animation: currentHint ? 'hintPulse 2s ease-in-out infinite' : 'none' }}
@@ -1385,6 +1455,9 @@ const PetAstroBlast = ({ petImageUrl, petName, onGameEnd, onClose, shipSkinUrl, 
               <p className={`text-sm font-semibold mt-1 ${
                 starsEarned >= 3 ? 'text-yellow-400' : starsEarned >= 1 ? 'text-red-400' : 'text-gray-400'
               }`}>words blasted</p>
+              <p className="text-xs text-gray-400 mt-1">
+                {displayScore} points · reached wave {maxWaveRef.current}
+              </p>
             </div>
 
             {/* Missed Words */}
