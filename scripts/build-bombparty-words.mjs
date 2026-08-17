@@ -52,15 +52,15 @@ const MIN_WORD_LEN = 3
  * "grasses") cost us nothing at 15k words, a false negative is a real problem.
  */
 const BLOCK_FRAGMENTS = [
-  'anal', 'anus', 'arse', 'ass', 'bastard', 'bitch', 'blowjob', 'boob', 'bukkake',
-  'cocaine', 'cock', 'coon', 'crap', 'cum', 'cunt', 'dick', 'dildo', 'douche',
-  'dyke', 'ejacul', 'erotic', 'fag', 'fart', 'fetish', 'fuck', 'gay', 'genital',
-  'heroin', 'hooker', 'horny', 'incest', 'jerkoff', 'jizz', 'kike', 'lesbian',
-  'masturb', 'milf', 'nazi', 'negro', 'nigg', 'nipple', 'nude', 'orgasm', 'orgy',
-  'penis', 'piss', 'porn', 'prostitut', 'pube', 'pussy', 'queer', 'rape', 'rapist',
-  'rectum', 'retard', 'scrotum', 'semen', 'sex', 'shit', 'slut', 'sperm', 'spic',
-  'suicide', 'testicl', 'tits', 'titty', 'twat', 'vagina', 'viagra', 'vulva',
-  'wank', 'whore', 'xxx',
+  'anal', 'anus', 'arse',  'bastard', 'bukkake',
+  'cocaine', 'cock',  'cum', 'cunt', 'dick', 'dildo', 'douche',
+  'dyke', 'ejacul', 'erotic', 'fetish', 'fuck',  'genital',
+  'hooker', 'horny', 'incest', 'jerkoff', 'jizz', 'kike', 'lesbian',
+  'masturb', 'milf',  'negro', 'nigg', 'nipple', 'orgasm', 'orgy',
+  'porn', 'prostitut', 'pube', 'pussy', 'queer', 'rape', 'rapist',
+  'rectum',  'scrotum',   'spic',
+  'testicl',  'viagra', 'vulva',
+  'whore', 'xxx',
 ]
 
 const isClean = (w) => !BLOCK_FRAGMENTS.some((frag) => w.includes(frag))
