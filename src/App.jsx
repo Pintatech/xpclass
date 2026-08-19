@@ -10,6 +10,7 @@ import Layout from './components/Layout'
 import Dashboard from './components/dashboard/Dashboard'
 import LoginPage from './components/auth/LoginPage'
 import RegisterPage from './components/auth/RegisterPage'
+import NiceTryPage from './components/auth/NiceTryPage'
 import StudyModule from './components/study/StudyModule'
 import Leaderboard from './components/leaderboard/Leaderboard'
 import Progress from './components/progress/Progress'
@@ -27,6 +28,7 @@ import StudentLessonHistory from './components/teacher/reports/StudentLessonHist
 import ProtectedRoute from './components/auth/ProtectedRoute'
 import { TeacherCourseProvider } from './hooks/useTeacherCourseContext'
 import { MissionsProvider } from './hooks/useMissions'
+import { REGISTER_PATH } from './config/registration'
 import MissionBoard from './components/missions/MissionBoard'
 import LiveBattlePage from './components/livebattle/LiveBattlePage'
 import UnitReportPage from './components/teacher/reports/UnitReportPage'
@@ -52,7 +54,9 @@ function App() {
           <Router future={{ v7_startTransition: true, v7_relativeSplatPath: true }}>
             <Routes>
               <Route path="/login" element={<LoginPage />} />
-              <Route path="/register" element={<RegisterPage />} />
+              {/* /register is a decoy; the real form lives at REGISTER_PATH */}
+              <Route path="/register" element={<NiceTryPage />} />
+              <Route path={REGISTER_PATH} element={<RegisterPage />} />
               <Route path="/guest" element={<GuestEntry />} />
               <Route path="/guest/session" element={<GuestSessionRunner />} />
               <Route path="/game/evo" element={

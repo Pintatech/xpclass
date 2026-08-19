@@ -12,6 +12,7 @@ import PDFWorksheetExercise from '../exercises/PDFWorksheetExercise'
 import { Clock, AlertTriangle, Send, CheckCircle, XCircle, ChevronRight, ChevronDown, FileText, Play, ArrowLeft, UserPlus } from 'lucide-react'
 import RichTextRenderer from '../ui/RichTextRenderer'
 import { callAIScoring } from '../../utils/aiScoringService'
+import { REGISTER_PATH } from '../../config/registration'
 
 const exerciseTypeLabels = {
   multiple_choice: 'Multiple Choice',
@@ -705,7 +706,7 @@ const GuestSessionRunner = () => {
               Tao tai khoan de theo doi tien trinh hoc tap va nhan XP!
             </p>
             <button
-              onClick={() => navigate('/register')}
+              onClick={() => navigate(REGISTER_PATH)}
               className="w-full px-6 py-3 bg-blue-600 text-white rounded-xl font-medium hover:bg-blue-700 transition-colors flex items-center justify-center gap-2"
             >
               <UserPlus size={18} /> Dang ky ngay
