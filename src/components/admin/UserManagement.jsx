@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useCallback } from 'react'
 import Card from '../ui/Card'
 import Button from '../ui/Button'
 import { Link } from 'react-router-dom'
@@ -16,17 +16,32 @@ import {
   Trash2,
   AlertCircle,
   Gift,
-  X
+  X,
+  ChevronLeft,
+  ChevronRight
 } from 'lucide-react'
 import BulkUserImport from './BulkUserImport'
+
+const PAGE_SIZE = 50
+
+// Only the columns the table actually renders. select('*') pulled every column
+// of every user on mount.
+const USER_COLUMNS =
+  'id, email, full_name, real_name, username, role, current_level, xp, gems, is_banned, streak_count, last_activity_date, total_practice_time, created_at'
 
 const UserManagement = () => {
   const { user: currentUser } = useAuth()
   const [searchTerm, setSearchTerm] = useState('')
+  const [debouncedSearch, setDebouncedSearch] = useState('')
   const [filterRole, setFilterRole] = useState('all')
-  const [filterCohort, setFilterCohort] = useState('all')
+  const [filterCohort, setFilterCohort] = useState('all') // a cohort id, or 'all'
+  const [page, setPage] = useState(0)
+  const [totalCount, setTotalCount] = useState(0)
+  const [cohortOptions, setCohortOptions] = useState([])
+  const [stats, setStats] = useState({ total: 0, active: 0, admins: 0, teachers: 0, newThisMonth: 0 })
   const [users, setUsers] = useState([])
   const [loading, setLoading] = useState(true)
+  const [refreshing, setRefreshing] = useState(false)
   const [error, setError] = useState(null)
   const [notification, setNotification] = useState(null)
   const [editingUser, setEditingUser] = useState(null)
@@ -53,27 +68,73 @@ const UserManagement = () => {
   const [giftTab, setGiftTab] = useState('gift') // 'gift' | 'inventory'
 
   useEffect(() => {
-    fetchUsers()
-  }, [])
+    const timer = setTimeout(() => {
+      setDebouncedSearch(searchTerm.trim())
+      setPage(0)
+    }, 300)
+    return () => clearTimeout(timer)
+  }, [searchTerm])
 
   const showNotification = (message, type = 'success') => {
     setNotification({ message, type })
     setTimeout(() => setNotification(null), 5000)
   }
 
-  const fetchUsers = async () => {
-    try {
-      setLoading(true)
-      setError(null)
+  const fetchUsers = useCallback(async () => {
+    setRefreshing(true)
+    setError(null)
 
-      const { data, error } = await supabase
+    try {
+      // The cohort filter runs server-side: resolve the cohort to its members
+      // first, which is a far smaller id list than every user in the system.
+      let cohortStudentIds = null
+      if (filterCohort !== 'all') {
+        const { data: members, error: membersError } = await supabase
+          .from('cohort_members')
+          .select('student_id')
+          .eq('cohort_id', filterCohort)
+          .eq('is_active', true)
+
+        if (membersError) throw membersError
+
+        cohortStudentIds = (members || []).map(m => m.student_id)
+        if (cohortStudentIds.length === 0) {
+          setUsers([])
+          setTotalCount(0)
+          return
+        }
+      }
+
+      let query = supabase
         .from('users')
-        .select('*')
+        .select(USER_COLUMNS, { count: 'exact' })
         .order('created_at', { ascending: false })
+        .range(page * PAGE_SIZE, page * PAGE_SIZE + PAGE_SIZE - 1)
+
+      if (filterRole !== 'all') query = query.eq('role', filterRole)
+      if (cohortStudentIds) query = query.in('id', cohortStudentIds)
+
+      if (debouncedSearch) {
+        // Strip the characters PostgREST uses to delimit an `or` filter.
+        const term = debouncedSearch.replace(/[,()%*]/g, ' ').trim()
+        if (term) {
+          query = query.or(
+            `full_name.ilike.%${term}%,email.ilike.%${term}%,username.ilike.%${term}%,real_name.ilike.%${term}%`
+          )
+        }
+      }
+
+      const { data, error, count } = await query
 
       if (error) throw error
 
-      // Fetch cohort memberships for all users
+      // Fall back to page 0 if this page ran off the end (e.g. after a delete).
+      if ((data || []).length === 0 && page > 0) {
+        setPage(0)
+        return
+      }
+
+      // Cohort memberships for this page only, not for every user in the table.
       const userIds = (data || []).map(u => u.id)
       let membershipsMap = {}
       if (userIds.length > 0) {
@@ -93,7 +154,7 @@ const UserManagement = () => {
       }
 
       // Format user data
-      const formattedUsers = data.map(user => {
+      const formattedUsers = (data || []).map(user => {
         const lastActivityDate = user.last_activity_date || new Date(user.created_at).toISOString().split('T')[0]
         const daysSinceActivity = Math.floor((new Date() - new Date(lastActivityDate)) / (1000 * 60 * 60 * 24))
 
@@ -118,14 +179,69 @@ const UserManagement = () => {
       })
 
       setUsers(formattedUsers)
+      setTotalCount(count || 0)
     } catch (err) {
       console.error('Error fetching users:', err)
       setError('Failed to load users: ' + err.message)
       showNotification('Error loading users: ' + err.message, 'error')
     } finally {
       setLoading(false)
+      setRefreshing(false)
     }
-  }
+  }, [page, debouncedSearch, filterRole, filterCohort])
+
+  // Totals come from count-only queries so the cards stay accurate across pages.
+  const fetchStats = useCallback(async () => {
+    const activeCutoff = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString().split('T')[0]
+    const monthStart = new Date()
+    monthStart.setDate(1)
+    monthStart.setHours(0, 0, 0, 0)
+
+    const countOf = build => build(supabase.from('users').select('id', { count: 'exact', head: true }))
+
+    try {
+      const [total, active, admins, teachers, newThisMonth] = await Promise.all([
+        countOf(q => q),
+        countOf(q => q.gte('last_activity_date', activeCutoff).eq('is_banned', false)),
+        countOf(q => q.eq('role', 'admin')),
+        countOf(q => q.eq('role', 'teacher')),
+        countOf(q => q.gte('created_at', monthStart.toISOString()))
+      ])
+
+      setStats({
+        total: total.count || 0,
+        active: active.count || 0,
+        admins: admins.count || 0,
+        teachers: teachers.count || 0,
+        newThisMonth: newThisMonth.count || 0
+      })
+    } catch (err) {
+      console.error('Error fetching user stats:', err)
+    }
+  }, [])
+
+  const refresh = useCallback(() => {
+    fetchUsers()
+    fetchStats()
+  }, [fetchUsers, fetchStats])
+
+  useEffect(() => {
+    fetchUsers()
+  }, [fetchUsers])
+
+  useEffect(() => {
+    fetchStats()
+
+    supabase
+      .from('cohorts')
+      .select('id, name')
+      .eq('is_active', true)
+      .order('name')
+      .then(({ data, error: cohortError }) => {
+        if (cohortError) console.error('Error fetching cohorts:', cohortError)
+        else setCohortOptions(data || [])
+      })
+  }, [fetchStats])
 
   const handleUpdateUserRole = async (userId, newRole) => {
     // Prevent changing own role
@@ -143,7 +259,7 @@ const UserManagement = () => {
       if (error) throw error
 
       showNotification(`User role updated to ${getRoleLabel(newRole)}`)
-      fetchUsers() // Refresh the list
+      refresh() // Refresh the list
     } catch (err) {
       console.error('Error updating user role:', err)
       showNotification('Error updating user role: ' + err.message, 'error')
@@ -170,7 +286,7 @@ const UserManagement = () => {
       if (error) throw error
 
       showNotification(`User "${userName}" deleted successfully`)
-      fetchUsers() // Refresh the list
+      refresh() // Refresh the list
     } catch (err) {
       console.error('Error deleting user:', err)
       showNotification('Error deleting user: ' + err.message, 'error')
@@ -186,7 +302,8 @@ const UserManagement = () => {
 
       if (error) throw error
       showNotification('Real name updated')
-      fetchUsers()
+      // Patch the row in place; refetching the page for one field is wasteful.
+      setUsers(prev => prev.map(u => (u.id === userId ? { ...u, realName: realName || '' } : u)))
     } catch (err) {
       console.error('Error updating real name:', err)
       showNotification('Error updating real name: ' + err.message, 'error')
@@ -213,7 +330,7 @@ const UserManagement = () => {
       if (error) throw error
 
       showNotification(`User "${userName}" ${currentlyBanned ? 'unbanned' : 'banned'} successfully`)
-      fetchUsers()
+      refresh()
     } catch (err) {
       console.error('Error toggling ban:', err)
       showNotification('Error updating ban status: ' + err.message, 'error')
@@ -371,15 +488,7 @@ const UserManagement = () => {
     }
   }
 
-  const allCohorts = [...new Set(users.flatMap(u => u.cohorts))].sort()
-
-  const filteredUsers = users.filter(user => {
-    const matchesSearch = user.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                         user.email.toLowerCase().includes(searchTerm.toLowerCase())
-    const matchesRole = filterRole === 'all' || user.role === filterRole
-    const matchesCohort = filterCohort === 'all' || user.cohorts.includes(filterCohort)
-    return matchesSearch && matchesRole && matchesCohort
-  })
+  const totalPages = Math.max(1, Math.ceil(totalCount / PAGE_SIZE))
 
   const getStatusColor = (status) => {
     switch (status) {
@@ -488,7 +597,7 @@ const UserManagement = () => {
         <Card.Header>
           <div className="flex items-center gap-4">
             <h3 className="text-lg font-semibold text-gray-900 whitespace-nowrap">
-              User ({filteredUsers.length})
+              User ({totalCount})
             </h3>
 
             {/* Search */}
@@ -508,7 +617,7 @@ const UserManagement = () => {
               <Filter className="w-5 h-5 text-gray-400" />
               <select
                 value={filterRole}
-                onChange={(e) => setFilterRole(e.target.value)}
+                onChange={(e) => { setFilterRole(e.target.value); setPage(0) }}
                 className="input min-w-[120px]"
               >
                 <option value="all">Tất cả</option>
@@ -521,12 +630,12 @@ const UserManagement = () => {
             {/* Cohort Filter */}
             <select
               value={filterCohort}
-              onChange={(e) => setFilterCohort(e.target.value)}
+              onChange={(e) => { setFilterCohort(e.target.value); setPage(0) }}
               className="input min-w-[120px]"
             >
               <option value="all">Tất cả Cohort</option>
-              {allCohorts.map(c => (
-                <option key={c} value={c}>{c}</option>
+              {cohortOptions.map(c => (
+                <option key={c.id} value={c.id}>{c.name}</option>
               ))}
             </select>
 
@@ -539,7 +648,7 @@ const UserManagement = () => {
           </div>
         </Card.Header>
         <Card.Content className="p-0">
-          <div className="overflow-x-auto">
+          <div className={`overflow-x-auto transition-opacity ${refreshing ? 'opacity-50' : ''}`}>
             <table className="w-full">
               <thead className="bg-gray-50 border-b">
                 <tr>
@@ -552,7 +661,7 @@ const UserManagement = () => {
                 </tr>
               </thead>
               <tbody className="divide-y">
-                {filteredUsers.map((user) => (
+                {users.map((user) => (
                   <tr key={user.id} className="hover:bg-gray-50">
                     <td className="py-4 px-6">
                       <div className="flex items-center space-x-3">
@@ -650,7 +759,41 @@ const UserManagement = () => {
                 ))}
               </tbody>
             </table>
+            {users.length === 0 && !refreshing && (
+              <div className="py-12 text-center text-gray-500">
+                Không tìm thấy người dùng nào
+              </div>
+            )}
           </div>
+
+          {totalPages > 1 && (
+            <div className="flex items-center justify-between border-t px-6 py-3">
+              <div className="text-sm text-gray-600">
+                {page * PAGE_SIZE + 1}–{Math.min((page + 1) * PAGE_SIZE, totalCount)} / {totalCount}
+              </div>
+              <div className="flex items-center gap-2">
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => setPage(prev => Math.max(0, prev - 1))}
+                  disabled={page === 0 || refreshing}
+                >
+                  <ChevronLeft className="w-4 h-4" />
+                </Button>
+                <span className="text-sm text-gray-600 whitespace-nowrap">
+                  Trang {page + 1} / {totalPages}
+                </span>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => setPage(prev => Math.min(totalPages - 1, prev + 1))}
+                  disabled={page >= totalPages - 1 || refreshing}
+                >
+                  <ChevronRight className="w-4 h-4" />
+                </Button>
+              </div>
+            </div>
+          )}
         </Card.Content>
       </Card>
 
@@ -658,14 +801,14 @@ const UserManagement = () => {
       <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
         <Card className="p-4">
           <div className="text-center">
-            <div className="text-2xl font-bold text-gray-900">{users.length}</div>
+            <div className="text-2xl font-bold text-gray-900">{stats.total}</div>
             <div className="text-sm text-gray-600">Tổng người dùng</div>
           </div>
         </Card>
         <Card className="p-4">
           <div className="text-center">
             <div className="text-2xl font-bold text-green-600">
-              {users.filter(u => u.status === 'active').length}
+              {stats.active}
             </div>
             <div className="text-sm text-gray-600">Đang hoạt động</div>
           </div>
@@ -673,7 +816,7 @@ const UserManagement = () => {
         <Card className="p-4">
           <div className="text-center">
             <div className="text-2xl font-bold text-purple-600">
-              {users.filter(u => u.role === 'admin').length}
+              {stats.admins}
             </div>
             <div className="text-sm text-gray-600">Quản trị viên</div>
           </div>
@@ -681,7 +824,7 @@ const UserManagement = () => {
         <Card className="p-4">
           <div className="text-center">
             <div className="text-2xl font-bold text-green-600">
-              {users.filter(u => u.role === 'teacher').length}
+              {stats.teachers}
             </div>
             <div className="text-sm text-gray-600">Giáo viên</div>
           </div>
@@ -689,12 +832,7 @@ const UserManagement = () => {
         <Card className="p-4">
           <div className="text-center">
             <div className="text-2xl font-bold text-blue-600">
-              {users.filter(u => {
-                const joinDate = new Date(u.joinDate);
-                const thisMonth = new Date();
-                thisMonth.setDate(1);
-                return joinDate >= thisMonth;
-              }).length}
+              {stats.newThisMonth}
             </div>
             <div className="text-sm text-gray-600">Mới tháng này</div>
           </div>
@@ -949,7 +1087,7 @@ const UserManagement = () => {
         <BulkUserImport
           onClose={() => setShowBulkImport(false)}
           onSuccess={() => {
-            fetchUsers()
+            refresh()
             showNotification('Users imported successfully!')
           }}
         />

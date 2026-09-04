@@ -18,7 +18,6 @@ import Profile from './components/profile/Profile'
 import Shop from './components/shop/Shop'
 import Inventory from './components/inventory/Inventory'
 import PetInventory from './components/pet/PetInventory'
-import AdminDashboard from './components/admin/AdminDashboard'
 import TeacherDashboard from './components/teacher/TeacherDashboard'
 import TeacherExerciseBank from './components/teacher/TeacherExerciseBank'
 import CourseReport from './components/teacher/CourseReport'
@@ -40,6 +39,10 @@ import { FEATURES } from './config/features'
 // Phaser is heavy (~1MB) — lazy-load the game routes so they never touch the main bundle.
 const EvoGame = lazy(() => import('./components/games/evo/EvoGame'))
 const PlatformerGame = lazy(() => import('./components/games/platformer/PlatformerGame'))
+
+// The admin panel statically pulls in ~30 management screens that only admins
+// ever open — keep the whole subtree out of the main bundle.
+const AdminDashboard = lazy(() => import('./components/admin/AdminDashboard'))
 
 
 function App() {
@@ -90,7 +93,13 @@ function App() {
                 <Route path="profile/:userId" element={<Profile />} />
                 <Route path="admin/*" element={
                   <ProtectedRoute requireAdmin>
-                    <AdminDashboard />
+                    <Suspense fallback={
+                      <div className="flex items-center justify-center h-64">
+                        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
+                      </div>
+                    }>
+                      <AdminDashboard />
+                    </Suspense>
                   </ProtectedRoute>
                 } />
                 <Route path="teacher" element={<TeacherDashboard />} />
