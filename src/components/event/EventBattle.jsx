@@ -23,6 +23,13 @@ const FIGHTER_SCALE = 3
 const IMPACT_AT = 0.4
 const SETTLE = 220
 
+// Served from our own origin rather than the ui-assets bucket, like the rest of
+// the event art. The elsewhere-in-the-repo idiom is a fresh Audio() per play,
+// but a swing has to be heard on the frame it lands, and the first one would
+// still be fetching — so this is loaded once when the battle opens.
+const SLASH_SRC = `${import.meta.env.BASE_URL}event/sfx/sword-slash.mp3`
+const SLASH_VOLUME = 0.45
+
 const shuffle = (arr) => {
   const a = [...arr]
   for (let i = a.length - 1; i > 0; i--) {
@@ -146,6 +153,7 @@ const EventBattle = ({
   const [heroState, setHeroState] = useState({ action: 'idle', travel: 0, back: false, flash: false })
   const [monsterState, setMonsterState] = useState({ action: 'idle', travel: 0, back: false, flash: false })
 
+  const slashRef = useRef(null)
   const chainRef = useRef(0)
   // HP is mirrored in refs because the end-of-exchange check runs from a
   // timeout, where the state variables it closed over are already stale.
@@ -168,6 +176,31 @@ const EventBattle = ({
     if (!question) return []
     return shuffle(question.choices.map((text, i) => ({ text, index: i })))
   }, [question])
+
+  // Hero swings only — the monster's blows land on their own hit flash and
+  // shake, and giving both sides the same slash made every exchange sound the
+  // same whether you had answered right or wrong.
+  useEffect(() => {
+    const audio = new Audio(SLASH_SRC)
+    audio.preload = 'auto'
+    audio.volume = SLASH_VOLUME
+    slashRef.current = audio
+    return () => { slashRef.current = null }
+  }, [])
+
+  const playSlash = useCallback(() => {
+    const audio = slashRef.current
+    if (!audio) return
+    // Restarting beats overlapping: swings are ~1.5s apart, and a new slash
+    // cutting off the tail of the last one is what a fresh hit should sound
+    // like. Rejects if the browser is still withholding autoplay.
+    try {
+      audio.currentTime = 0
+      audio.play().catch(() => {})
+    } catch {
+      // Some browsers throw on currentTime before enough is buffered.
+    }
+  }, [])
 
   useEffect(() => {
     const all = []
@@ -265,6 +298,7 @@ const EventBattle = ({
       total = chargeAndStrike('hero', swing, () => {
         // The streak bonus doubles the swing before armour, so it stays worth
         // chasing however much DEF the monster has stacked up.
+        playSlash()
         const damage = damageFrom(heroAtk, foe.def, streak >= 2 ? 2 : 1)
         monsterHpRef.current -= damage
         setMonsterHp(monsterHpRef.current)
