@@ -7,6 +7,15 @@ import RecentActivities from './RecentActivities'
 import TournamentWidget from './TournamentWidget'
 import AvatarWithFrame from '../ui/AvatarWithFrame'
 import PetDisplay from '../pet/PetDisplay'
+import EventCharacter from '../event/EventCharacter'
+import EventCharacterPicker from '../event/EventCharacterPicker'
+import { EVENT_ENABLED } from '../../config/eventCharacter'
+import { useEventCharacter } from '../../hooks/useEventCharacter'
+import { useEventStats } from '../../hooks/useEventStats'
+import HeroCarousel from './HeroCarousel'
+import { getMonster } from '../../config/eventMonsters'
+import EventBattle from '../event/EventBattle'
+import EventStatsPanel from '../event/EventStatsPanel'
 import PvPChallengeModal from '../pvp/PvPChallengeModal'
 import { FEATURES } from '../../config/features'
 import { fetchPvpSchedule, checkPvpAvailability } from '../../utils/pvpSchedule'
@@ -187,6 +196,27 @@ const CourseStatsSection = ({ courseId }) => {
 };
 const Dashboard = () => {
   const { profile } = useAuth()
+  const { character: eventCharacter, chooseCharacter } = useEventCharacter(profile?.id)
+  const eventStats = useEventStats(profile?.id, eventCharacter.id)
+  const eventMonster = getMonster('golem')
+  const [battleOpen, setBattleOpen] = useState(false)
+  const [statsOpen, setStatsOpen] = useState(false)
+  const [battleQuestions, setBattleQuestions] = useState([])
+
+  // Same bank the pet quiz games draw from, filtered to the student's level.
+  // Gated on the stat sheet having loaded: EventBattle reads the hero's stats
+  // once at mount, so opening early would fight the battle on base stats and
+  // silently throw away every point the student has spent.
+  const openEventBattle = async () => {
+    if (eventStats.loading) return
+    const { data } = await supabase
+      .from('pet_question_bank')
+      .select('question, choices, answer_index')
+      .eq('is_active', true)
+      .lte('min_level', profile?.current_level || 1)
+    setBattleQuestions(data || [])
+    setBattleOpen(true)
+  }
   const { branding } = useBranding()
   const { canCreateContent } = usePermissions()
   const [courses, setCourses] = useState([])
@@ -197,6 +227,7 @@ const Dashboard = () => {
   const [onlineUsers, setOnlineUsers] = useState([])
   const [offlineUsers, setOfflineUsers] = useState([])
   const [challengeTarget, setChallengeTarget] = useState(null)
+  const [pickerOpen, setPickerOpen] = useState(false)
   const [pendingChallengeUserIds, setPendingChallengeUserIds] = useState({})
   const [pvpAvailable, setPvpAvailable] = useState(true)
   const [courseCompletion, setCourseCompletion] = useState({})
@@ -739,7 +770,10 @@ const Dashboard = () => {
           {/* Dark overlay for better text readability */}
           <div className="absolute inset-0 bg-black/30" />
 
-          {/* Content overlay */}
+          <HeroCarousel>
+            {/* Panel 1 — profile */}
+            <div className="absolute inset-0">
+            {/* Content overlay */}
           <div className="absolute inset-0 flex flex-col justify-between p-6">
             {/* XP and Streak stats */}
             <div className="flex justify-between">
@@ -788,6 +822,64 @@ const Dashboard = () => {
               </div>
             </div>
           </div>
+
+          {/* Event character — click opens the stat sheet, button above swaps
+              who it is */}
+          {EVENT_ENABLED && (
+            <div className="absolute bottom-0 left-3 md:left-8 z-20 flex flex-col items-center">
+              <button
+                onClick={() => setPickerOpen(true)}
+                className="mb-1 rounded-full bg-white/80 px-2 py-0.5 text-[10px] font-semibold text-gray-700 backdrop-blur-sm hover:bg-white"
+              >
+                Đổi nhân vật
+              </button>
+              {/* The sprite opens the stat sheet rather than swinging. Its own
+                  click-to-attack is off (interactive={false}) so the two don't
+                  both fire — the picker tiles wrap it the same way. */}
+              <button
+                onClick={() => setStatsOpen(true)}
+                aria-label={`${eventCharacter.name} — xem chỉ số`}
+                className="cursor-pointer rounded transition-transform duration-100 active:scale-95 focus:outline-none focus-visible:ring-2 focus-visible:ring-yellow-300"
+              >
+                <EventCharacter
+                  key={eventCharacter.id}
+                  config={eventCharacter}
+                  scale={isDesktop ? 2.5 : 1.75}
+                  interactive={false}
+                />
+              </button>
+            </div>
+          )}
+            </div>
+
+            {/* Panel 2 — event monster. Centred so it clears the carousel
+                controls bottom-right and the caption bottom-left. */}
+            <div className="absolute inset-0">
+              <div className="absolute inset-0 flex items-end justify-center">
+                <EventCharacter
+                  config={eventMonster}
+                  scale={isDesktop ? 2.5 : 1.75}
+                />
+              </div>
+              <div className="pointer-events-none absolute inset-0 flex flex-col justify-end p-6 text-white">
+                <div className="text-xs font-semibold uppercase tracking-wider opacity-80">Sự kiện</div>
+                <h5 className="text-2xl md:text-3xl font-bold drop-shadow-lg">
+                  {eventMonster.name} xuất hiện!
+                </h5>
+                <div className="h-[2px] w-20 bg-gradient-to-r from-white/50 to-transparent mt-1 mb-1" />
+                <p className="text-base md:text-lg opacity-90 drop-shadow-md">
+                  Đánh bại nó để nhận thưởng.
+                </p>
+                <button
+                  onClick={openEventBattle}
+                  disabled={eventStats.loading}
+                  className="pointer-events-auto mt-2 w-fit rounded-lg bg-red-600 px-4 py-2 text-sm font-bold text-white shadow-lg hover:bg-red-700 disabled:opacity-60"
+                >
+                  Chiến đấu
+                </button>
+              </div>
+            </div>
+          </HeroCarousel>
         </div>
       </div>
 
@@ -865,6 +957,34 @@ const Dashboard = () => {
       )}
 
       {/* PvP Challenge Modal */}
+      {battleOpen && (
+        <EventBattle
+          hero={eventCharacter}
+          heroStats={eventStats.stats}
+          heroLevel={eventStats.level}
+          monster={eventMonster}
+          questions={battleQuestions}
+          background={`${import.meta.env.BASE_URL}event/bg/bg3.png`}
+          onClose={() => setBattleOpen(false)}
+          onFinish={eventStats.awardBattle}
+        />
+      )}
+
+      {statsOpen && (
+        <EventStatsPanel
+          character={eventCharacter}
+          stats={eventStats}
+          onClose={() => setStatsOpen(false)}
+        />
+      )}
+
+      {pickerOpen && (
+        <EventCharacterPicker
+          characterId={eventCharacter.id}
+          onChoose={chooseCharacter}
+          onClose={() => setPickerOpen(false)}
+        />
+      )}
       {challengeTarget && (
         <PvPChallengeModal
           opponent={challengeTarget}

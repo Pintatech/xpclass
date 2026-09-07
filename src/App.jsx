@@ -34,6 +34,7 @@ import UnitReportPage from './components/teacher/reports/UnitReportPage'
 import WeaknessAnalysis from './components/teacher/WeaknessAnalysis'
 import GuestEntry from './components/guest/GuestEntry'
 import GuestSessionRunner from './components/guest/GuestSessionRunner'
+import SpriteLab from './components/event/SpriteLab'
 import { FEATURES } from './config/features'
 
 // Phaser is heavy (~1MB) — lazy-load the game routes so they never touch the main bundle.
@@ -85,6 +86,7 @@ function App() {
                 <Route path="study/*" element={<StudyModule />} />
                 <Route path="leaderboard" element={<Leaderboard />} />
                 <Route path="progress" element={<Progress />} />
+                <Route path="event/sprite-lab" element={<SpriteLab />} />
                 <Route path="profile" element={<Profile />} />
                 {FEATURES.shop && <Route path="shop" element={<Shop />} />}
                 {FEATURES.inventory && <Route path="inventory" element={<Inventory />} />}

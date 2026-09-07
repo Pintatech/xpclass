@@ -85,7 +85,11 @@ dist
 
 # Gatsby files
 .cache/
-public
+# Vite serves public/ as source static assets (this entry came from a Gatsby
+# template, where public/ is build output instead). Kept ignored to avoid
+# pulling in the whole existing asset pile, but event art has to ship.
+public/*
+!public/event/
 
 # Storybook build outputs
 .out
@@ -184,3 +188,6 @@ Thumbs.db
 
 # Bomb Party word-list source downloads (regenerate with npm run build:bombparty-words)
 scripts/.cache/
+
+# Supabase CLI scratch (created by `npx supabase`)
+supabase/.temp/
