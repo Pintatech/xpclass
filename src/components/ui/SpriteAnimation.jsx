@@ -33,6 +33,10 @@ const useSheetDims = (src) => {
  *
  * With loop={false} the last frame is held and onComplete fires once, which
  * is what lets a one-shot attack hand control back to the idle loop.
+ *
+ * reverse={true} walks the same frames backwards. A death sheet played that way
+ * is an entrance: the monster assembles out of the empty frame it crumbled to,
+ * and the held final frame is the one it stands up in.
  */
 const SpriteAnimation = ({
   src,
@@ -41,6 +45,7 @@ const SpriteAnimation = ({
   frameCount,
   fps = 12,
   loop = true,
+  reverse = false,
   playing = true,
   scale = 1,
   flip = false,
@@ -99,8 +104,10 @@ const SpriteAnimation = ({
 
   const w = frameWidth * scale
   const h = frameHeight * scale
-  const col = safeFrame % cols
-  const row = Math.floor(safeFrame / cols)
+  // The counter always runs forwards; only the frame it points at is mirrored.
+  const shownFrame = reverse ? total - 1 - safeFrame : safeFrame
+  const col = shownFrame % cols
+  const row = Math.floor(shownFrame / cols)
   const ready = dims && !dims.error
 
   return (

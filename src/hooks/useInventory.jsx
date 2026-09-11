@@ -140,6 +140,54 @@ export const InventoryProvider = ({ children }) => {
     }
   }
 
+  // Loot for a won event battle. Deliberately does NOT set lastItemDrop: the
+  // battle is a full-screen portal above the toast, so the toast would play
+  // out unseen behind it. EventBattle shows the drop on its own victory screen
+  // and this just banks it — the badge and the inventory list still update.
+  //
+  // Returns both halves of the payout: a win can pay any number of items, a
+  // chest, both or neither, and the two sides are rolled independently by the
+  // RPC. An item that dropped twice arrives once with a quantity of 2.
+  const rollEventBattleDrop = async (monsterId, firstClear = true) => {
+    if (!user) return null
+    try {
+      const { data, error } = await supabase.rpc('roll_event_battle_drop', {
+        p_monster_id: monsterId,
+        p_won: true,
+        p_first_clear: firstClear,
+      })
+
+      if (error) throw error
+
+      const drops = data?.items || (data?.item ? [data.item] : [])
+      if (!drops.length && !data?.chest) return null
+
+      // Both refreshes are started and NOT waited on. The server has already
+      // banked everything by the time the RPC returns; these two only pull the
+      // local cache back into line, and each is a round trip of its own. Waiting
+      // on them put two extra trips in front of the battle's victory screen —
+      // which is what was costing a first clear its drop on the arena floor,
+      // since a first clear is exactly the win that has something to show. Both
+      // swallow their own errors, so neither can reject into this try.
+      if (drops.length) {
+        const eggs = drops.reduce((n, i) => n + (i.item_type === 'egg' ? (i.quantity || 1) : 0), 0)
+        const rest = drops.reduce((n, i) => n + (i.item_type === 'egg' ? 0 : (i.quantity || 1)), 0)
+        setNewCounts(prev => ({ ...prev, eggs: prev.eggs + eggs, items: prev.items + rest }))
+        fetchInventory()
+      }
+
+      // The chest is banked unopened, so the badge counts it from the refetch
+      // rather than from here — fetchUnopenedChests already tracks its own
+      // delta and would double-count a manual bump.
+      if (data.chest) fetchUnopenedChests()
+
+      return { items: drops, chest: data.chest || null }
+    } catch (error) {
+      console.error('Error rolling for battle drop:', error)
+      return null
+    }
+  }
+
   const openChest = async (userChestId) => {
     if (!user) return null
     try {
@@ -262,6 +310,7 @@ export const InventoryProvider = ({ children }) => {
     fetchInventory,
     fetchUnopenedChests,
     rollForItemDrop,
+    rollEventBattleDrop,
     openChest,
     craftRecipe,
     clearCraftResult,

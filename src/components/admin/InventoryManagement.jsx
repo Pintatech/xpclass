@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react'
 import { supabase } from '../../supabase/client'
+import { EVENT_MONSTERS } from '../../config/eventMonsters'
 import Card from '../ui/Card'
 import Button from '../ui/Button'
 import {
@@ -665,6 +666,7 @@ const InventoryManagement = () => {
           onSave={handleSaveDropConfig}
           saving={saving}
           items={items}
+          chests={chests}
         />
       )}
 
@@ -1217,15 +1219,160 @@ const RecipeForm = ({ formData, setFormData, onSubmit, onClose, editing, saving,
   )
 }
 
-const DropConfigEditor = ({ dropConfig, onSave, saving, items }) => {
+// The two kinds of win a battle can end in. They are stored as sibling blocks
+// under the battle config, and a monster may carry a block of each name too.
+const battleOutcomes = [
+  { key: 'first_clear', label: 'First Clear', hint: 'The first time this stage is beaten.' },
+  { key: 'repeat', label: 'Repeat Win', hint: 'Every rematch after that.' }
+]
+
+// Empty is how the drop config spells "not set", and the roll walks up to the
+// next level when it finds one. A null, an empty list or an empty block written
+// into the JSON would instead be read as a setting — and a `null` where the SQL
+// expects an object is a jsonb null rather than a missing key, which stops the
+// fallback chain dead. So a cleared field is deleted rather than blanked, at
+// every depth, on the way to the textarea.
+const pruneEmpty = (value) => {
+  if (!value || typeof value !== 'object' || Array.isArray(value)) return value
+  const next = {}
+  Object.entries(value).forEach(([key, raw]) => {
+    const cleaned = pruneEmpty(raw)
+    if (cleaned == null) return
+    if (typeof cleaned === 'object' && Object.keys(cleaned).length === 0) return
+    next[key] = cleaned
+  })
+  return next
+}
+
+// How many random draws a win gets. 0 is a real setting, not a mistake: it means
+// the win pays only what it owes outright — the guaranteed items and the chest —
+// with nothing drawn at random on top. That is why the parse cannot lean on
+// `|| 1`, which would read a deliberate 0 as "unset" and quietly hand back a
+// random item.
+const clampRolls = (raw) => {
+  const n = parseInt(raw, 10)
+  return Number.isNaN(n) ? 0 : Math.min(10, Math.max(0, n))
+}
+
+// One list of items, used for every pool in the battle config — the shared one,
+// an outcome's, and a monster's.
+const ItemPool = ({ value, items, onChange, inputClass, empty }) => {
+  const list = value || []
+  return (
+    <div className="space-y-2">
+      {list.length === 0 && <p className="text-xs text-gray-400 italic">{empty}</p>}
+      {list.map((itemId, idx) => {
+        const item = items.find(i => i.id === itemId)
+        return (
+          <div key={`${itemId}-${idx}`} className="flex items-center gap-2">
+            {item?.image_url && <img src={item.image_url} alt="" className="w-6 h-6 object-contain flex-shrink-0" />}
+            <span className="flex-1 text-sm text-gray-700 truncate">{item ? item.name : itemId}</span>
+            {item && <span className="text-xs text-gray-400 capitalize">{item.rarity}</span>}
+            <button type="button" onClick={() => onChange(list.filter((_, i) => i !== idx))}
+              className="w-8 h-8 flex items-center justify-center text-red-400 hover:text-red-600 hover:bg-red-50 rounded">
+              <Trash2 size={14} />
+            </button>
+          </div>
+        )
+      })}
+      <select value="" onChange={e => {
+        if (e.target.value && !list.includes(e.target.value)) onChange([...list, e.target.value])
+      }} className={`${inputClass} w-full`}>
+        <option value="">+ Add item...</option>
+        {items.filter(i => !list.includes(i.id)).map(item => (
+          <option key={item.id} value={item.id}>{item.name}</option>
+        ))}
+      </select>
+    </div>
+  )
+}
+
+// One named chest, handed over separately from the item. The chest itself is
+// picked here rather than a rarity to roll for: a chest already carries its own
+// loot table, so choosing between three epic chests at random would be rolling
+// on a roll, and the reward set for a stage would not be the one given.
+//
+// No chest chosen is off, which is what every level defaults to.
+const ChestPicker = ({ chest, chests, onChange, inputClass, inherited }) => {
+  const set = chest || {}
+  const chestId = set.chest_id || ''
+  const chance = set.chance
+  const chosen = chests.find(c => c.id === chestId)
+  return (
+    <div className="flex flex-wrap items-center gap-2">
+      <select value={chestId}
+        onChange={e => onChange(e.target.value
+          ? { ...set, chest_id: e.target.value, chance: set.chance ?? 1 }
+          : { ...set, chest_id: null })}
+        className={`${inputClass} w-52`}>
+        <option value="">{inherited ? 'Inherit' : 'No chest'}</option>
+        {/* A chest that has since been deactivated stays listed while it is the
+            one configured, or the select would show a blank with no clue why. */}
+        {chests.filter(c => c.is_active || c.id === chestId).map(c => (
+          <option key={c.id} value={c.id}>{c.name} ({c.chest_type})</option>
+        ))}
+      </select>
+      {chestId && (
+        <>
+          <input type="number" value={chance ?? 1} min="0" max="1" step="0.01"
+            onChange={e => onChange({ ...set, chance: parseFloat(e.target.value) || 0 })}
+            className={`${inputClass} w-24`} />
+          <span className="text-xs text-gray-400">
+            {chance === 0 ? 'never' : `${((chance ?? 1) * 100).toFixed(0)}% of wins`}
+          </span>
+        </>
+      )}
+      {/* Configured then deleted or deactivated: the roll pays nothing rather
+          than substituting another chest, so this has to be visible. */}
+      {chestId && !chosen?.is_active && (
+        <span className="text-xs font-medium text-red-500">chest no longer active — pays nothing</span>
+      )}
+    </div>
+  )
+}
+
+// What a collapsed monster row says about itself, so a table of eight can be
+// read without opening any of them.
+const monsterLootSummary = (entry) => {
+  const parts = []
+  const count = (o) => (o?.included_items || []).length + (o?.guaranteed_items || []).length
+  const first = count(entry.first_clear)
+  const repeat = count(entry.repeat)
+  const both = count(entry)
+  if (first) parts.push(`${first} on first clear`)
+  if (repeat) parts.push(`${repeat} on repeat`)
+  if (both) parts.push(`${both} on any win`)
+  const rolls = entry.first_clear?.rolls ?? entry.rolls
+  if (rolls === 0) parts.push('no random draw')
+  else if (rolls > 1) parts.push(`×${rolls} rolls`)
+  const chance = entry.first_clear?.base_chance ?? entry.base_chance
+  if (chance != null) parts.push(`${(chance * 100).toFixed(0)}% first clear`)
+  if (entry.first_clear?.chest?.chest_id) parts.push('chest on first clear')
+  else if (entry.chest?.chest_id || entry.repeat?.chest?.chest_id) parts.push('chest')
+  return parts.length ? parts.join(' · ') : 'inherits everything'
+}
+
+const DropConfigEditor = ({ dropConfig, onSave, saving, items, chests }) => {
   const defaultExercise = { base_chance: 0.30, rarity_weights: { common: 60, uncommon: 25, rare: 12, epic: 3 }, included_items: [] }
   const defaultMilestone = { session_complete: 'common', streak_7: 'uncommon', streak_30: 'rare', challenge_win_top3: 'uncommon' }
+  // Mirrors the seed in add_event_stage_ladder.sql, so an unsaved config shows
+  // the same odds the database would roll with.
+  const defaultBattle = {
+    base_chance: 0.5,
+    first_clear: { base_chance: 1.0 },
+    repeat: { base_chance: 0.2 },
+    monsters: {},
+    included_items: []
+  }
 
   const [exerciseConfig, setExerciseConfig] = useState(
     JSON.stringify(dropConfig['exercise_drop_rate']?.config_value || defaultExercise, null, 2)
   )
   const [milestoneConfig, setMilestoneConfig] = useState(
     JSON.stringify(dropConfig['milestone_chests']?.config_value || defaultMilestone, null, 2)
+  )
+  const [battleConfig, setBattleConfig] = useState(
+    JSON.stringify(dropConfig['event_battle_drop_rate']?.config_value || defaultBattle, null, 2)
   )
 
   const parseExercise = () => {
@@ -1234,11 +1381,32 @@ const DropConfigEditor = ({ dropConfig, onSave, saving, items }) => {
   const parseMilestone = () => {
     try { return JSON.parse(milestoneConfig) } catch { return defaultMilestone }
   }
+  const parseBattle = () => {
+    try { return JSON.parse(battleConfig) } catch { return defaultBattle }
+  }
   const updateExercise = (obj) => setExerciseConfig(JSON.stringify(obj, null, 2))
   const updateMilestone = (obj) => setMilestoneConfig(JSON.stringify(obj, null, 2))
+  const updateBattle = (obj) => setBattleConfig(JSON.stringify(pruneEmpty(obj), null, 2))
+
+  // Which monster's drop table is open. Only one at a time — eight expanded
+  // tables is a wall of item pickers with nothing to tell them apart.
+  const [openMonster, setOpenMonster] = useState(null)
+
+  const setOutcome = (slot, patch) =>
+    updateBattle({ ...battle, [slot]: { ...(battle[slot] || {}), ...patch } })
+
+  const setMonsterEntry = (id, patch) => {
+    const monsters = { ...(battle.monsters || {}) }
+    monsters[id] = { ...(monsters[id] || {}), ...patch }
+    updateBattle({ ...battle, monsters })
+  }
+
+  const setMonsterOutcome = (id, slot, patch) =>
+    setMonsterEntry(id, { [slot]: { ...(battle.monsters?.[id]?.[slot] || {}), ...patch } })
 
   const exercise = parseExercise()
   const milestone = parseMilestone()
+  const battle = parseBattle()
   const rarities = ['common', 'uncommon', 'rare', 'epic']
   const chestTypes = ['common', 'uncommon', 'rare', 'epic', 'legendary']
   const totalRarityWeight = rarities.reduce((sum, r) => sum + (Number(exercise.rarity_weights?.[r]) || 0), 0)
@@ -1323,6 +1491,235 @@ const DropConfigEditor = ({ dropConfig, onSave, saving, items }) => {
           className="mt-4"
         >
           {saving ? 'Saving...' : 'Save Exercise Config'}
+        </Button>
+      </Card>
+
+      <Card className="p-6">
+        <h3 className="text-lg font-semibold text-gray-900 mb-2">Event Battle Loot</h3>
+        <p className="text-sm text-gray-500 mb-1">Controls what a won event battle pays out. Losing never drops.</p>
+        <p className="text-xs text-gray-500 mb-4">
+          Everything below is optional and falls back to the level above it. A monster uses its own settings first,
+          then the outcome (first clear or repeat), then these defaults — so you only fill in what should differ.
+        </p>
+
+        <div className="mb-4">
+          <label className="block text-sm font-medium text-gray-700 mb-1">Default Drop Chance</label>
+          <div className="flex flex-wrap items-center gap-2">
+            <input type="number" value={battle.base_chance ?? 0.5} min="0" max="1" step="0.01"
+              onChange={e => updateBattle({ ...battle, base_chance: parseFloat(e.target.value) || 0 })}
+              className={`${inputClass} w-28`} />
+            <span className="text-sm text-gray-500">({((battle.base_chance || 0) * 100).toFixed(0)}%)</span>
+            <span className="ml-3 text-sm text-gray-700">×</span>
+            <input type="number" value={battle.rolls ?? 0} min="0" max="10" step="1"
+              onChange={e => updateBattle({ ...battle, rolls: clampRolls(e.target.value) })}
+              className={`${inputClass} w-20`} />
+            <span className="text-sm text-gray-500">rolls</span>
+          </div>
+          <p className="text-xs text-gray-500 mt-1">
+            Rolls are RANDOM draws from the pool, on top of whatever is guaranteed. Each is a separate
+            draw at that chance, so 3 rolls at 50% average 1.5 items rather than promising 3, and the same
+            item drawn twice stacks as ×2. <strong>Rolls default to 0</strong>, so a win pays only what its
+            config names — leave it there unless you want random items as well, and remember an empty pool
+            means the whole catalogue.
+          </p>
+        </div>
+
+        <div className="mt-4">
+          <label className="block text-sm font-medium text-gray-700 mb-2">Shared Item Pool</label>
+          <p className="text-xs text-gray-500 mb-2">The pool any monster without a list of its own draws from. Every item in a pool is equally likely — rarity colours the item but does not weight the draw, so what a monster can pay is exactly what its list says. If empty, all active items can drop. Kept separate from the exercise list, so a monster kill and a finished exercise can pay out different things.</p>
+          <ItemPool
+            value={battle.included_items}
+            items={items}
+            inputClass={inputClass}
+            empty="All active items can drop."
+            onChange={list => updateBattle({ ...battle, included_items: list })}
+          />
+        </div>
+
+        <div className="mt-4">
+          <label className="block text-sm font-medium text-gray-700 mb-2">Default Chest</label>
+          <p className="text-xs text-gray-500 mb-2">
+            One named chest, given separately from the item, so a win can pay both, either or neither. The chance
+            beside it is how often the win hands it over — 1 for every time.
+          </p>
+          <ChestPicker
+            chest={battle.chest}
+            chests={chests}
+            inputClass={inputClass}
+            onChange={c => updateBattle({ ...battle, chest: c })}
+          />
+        </div>
+
+        <div className="mt-6 grid gap-4 md:grid-cols-2">
+          {battleOutcomes.map(({ key, label, hint }) => {
+            const outcome = battle[key] || {}
+            return (
+              <div key={key} className="border border-gray-200 rounded-lg p-4">
+                <h4 className="text-sm font-semibold text-gray-900">{label}</h4>
+                <p className="text-xs text-gray-500 mb-3">{hint}</p>
+
+                <label className="block text-xs font-medium text-gray-700 mb-1">Drop Chance &amp; Rolls</label>
+                <div className="flex flex-wrap items-center gap-2 mb-3">
+                  <input type="number" value={outcome.base_chance ?? ''} min="0" max="1" step="0.01"
+                    placeholder={`${battle.base_chance ?? 0.5}`}
+                    onChange={e => setOutcome(key, { base_chance: e.target.value === '' ? null : (parseFloat(e.target.value) || 0) })}
+                    className={`${inputClass} w-24`} />
+                  <span className="text-xs text-gray-400">×</span>
+                  <input type="number" value={outcome.rolls ?? ''} min="0" max="10" step="1"
+                    placeholder={`${battle.rolls ?? 0}`}
+                    onChange={e => setOutcome(key, { rolls: e.target.value === '' ? null : clampRolls(e.target.value) })}
+                    className={`${inputClass} w-20`} />
+                  <span className="text-xs text-gray-400">
+                    {outcome.base_chance == null && outcome.rolls == null
+                      ? 'inherits default'
+                      : `${((outcome.base_chance ?? battle.base_chance ?? 0.5) * 100).toFixed(0)}% × ${outcome.rolls ?? battle.rolls ?? 0}`}
+                  </span>
+                </div>
+
+                <label className="block text-xs font-medium text-gray-700 mb-1">Always Drops</label>
+                <ItemPool
+                  value={outcome.guaranteed_items}
+                  items={items}
+                  inputClass={inputClass}
+                  empty="Nothing guaranteed."
+                  onChange={list => setOutcome(key, { guaranteed_items: list })}
+                />
+
+                <label className="block text-xs font-medium text-gray-700 mt-3 mb-1">Item Pool</label>
+                <ItemPool
+                  value={outcome.included_items}
+                  items={items}
+                  inputClass={inputClass}
+                  empty="Uses the shared pool."
+                  onChange={list => setOutcome(key, { included_items: list })}
+                />
+
+                <label className="block text-xs font-medium text-gray-700 mt-3 mb-1">Chest</label>
+                <ChestPicker
+                  chest={outcome.chest}
+                  chests={chests}
+                  inputClass={inputClass}
+                  inherited={Boolean(battle.chest?.chest_id)}
+                  onChange={c => setOutcome(key, { chest: c })}
+                />
+              </div>
+            )
+          })}
+        </div>
+
+        <div className="mt-6">
+          <label className="block text-sm font-medium text-gray-700 mb-1">Per-Monster Loot</label>
+          <p className="text-xs text-gray-500 mb-2">
+            Give a monster its own drop table. Put one item in its first-clear pool and set that chance to 1
+            to hand it over as a guaranteed reward the first time the stage is beaten, and leave the repeat pool
+            with the ordinary items every rematch after that should pay. The chest under each is rolled on top
+            of the item, so a boss can pay a trophy and a chest for the same win.
+          </p>
+          <div className="border border-gray-200 rounded-lg divide-y divide-gray-200">
+            {Object.values(EVENT_MONSTERS).map((m) => {
+              const entry = battle.monsters?.[m.id] || {}
+              const open = openMonster === m.id
+              const summary = monsterLootSummary(entry)
+              return (
+                <div key={m.id}>
+                  <button
+                    type="button"
+                    onClick={() => setOpenMonster(open ? null : m.id)}
+                    className="w-full flex items-center gap-3 px-3 py-2.5 text-left hover:bg-gray-50"
+                  >
+                    <span className="w-32 text-sm font-medium text-gray-800 truncate">{m.name}</span>
+                    <span className="flex-1 text-xs text-gray-500 truncate">{summary}</span>
+                    {open ? <ChevronUp size={16} className="text-gray-400" /> : <ChevronDown size={16} className="text-gray-400" />}
+                  </button>
+
+                  {open && (
+                    <div className="px-3 pb-4 pt-1 bg-gray-50 grid gap-4 md:grid-cols-2">
+                      {battleOutcomes.map(({ key, label }) => {
+                        const slot = entry[key] || {}
+                        // A bare monster chance still counts as its first-clear
+                        // chance, which is where the setting used to live.
+                        const inherited = key === 'first_clear'
+                          ? (entry.base_chance ?? battle.first_clear?.base_chance ?? battle.base_chance ?? 0.5)
+                          : (battle.repeat?.base_chance ?? battle.base_chance ?? 0.5)
+                        return (
+                          <div key={key}>
+                            <h5 className="text-xs font-semibold text-gray-700 mb-2">{label}</h5>
+
+                            <div className="flex flex-wrap items-center gap-2 mb-2">
+                              <input type="number" value={slot.base_chance ?? ''} min="0" max="1" step="0.01"
+                                placeholder={`${inherited}`}
+                                onChange={e => setMonsterOutcome(m.id, key, {
+                                  base_chance: e.target.value === '' ? null : (parseFloat(e.target.value) || 0)
+                                })}
+                                className={`${inputClass} w-24`} />
+                              <span className="text-xs text-gray-400">×</span>
+                              <input type="number" value={slot.rolls ?? ''} min="0" max="10" step="1"
+                                placeholder={`${battle[key]?.rolls ?? battle.rolls ?? 0}`}
+                                onChange={e => setMonsterOutcome(m.id, key, {
+                                  rolls: e.target.value === '' ? null : clampRolls(e.target.value)
+                                })}
+                                className={`${inputClass} w-20`} />
+                              <span className="text-xs text-gray-400">
+                                {slot.base_chance == null && slot.rolls == null ? 'inherits' : 'chance × rolls'}
+                              </span>
+                            </div>
+
+                            <p className="text-[11px] font-medium text-gray-500 mb-1">Always drops</p>
+                            <ItemPool
+                              value={slot.guaranteed_items}
+                              items={items}
+                              inputClass={inputClass}
+                              empty="Nothing guaranteed."
+                              onChange={list => setMonsterOutcome(m.id, key, { guaranteed_items: list })}
+                            />
+
+                            <p className="text-[11px] font-medium text-gray-500 mb-1 mt-2">Item pool</p>
+                            <ItemPool
+                              value={slot.included_items}
+                              items={items}
+                              inputClass={inputClass}
+                              empty={(entry.included_items || []).length ? "Uses this monster's pool." : 'Uses the shared pool.'}
+                              onChange={list => setMonsterOutcome(m.id, key, { included_items: list })}
+                            />
+
+                            <div className="mt-2">
+                              <ChestPicker
+                                chest={slot.chest}
+                                chests={chests}
+                                inputClass={inputClass}
+                                inherited={Boolean(entry.chest?.chest_id || battle[key]?.chest?.chest_id || battle.chest?.chest_id)}
+                                onChange={c => setMonsterOutcome(m.id, key, { chest: c })}
+                              />
+                            </div>
+                          </div>
+                        )
+                      })}
+
+                      <div className="md:col-span-2">
+                        <label className="block text-xs font-medium text-gray-700 mb-1">Both Outcomes</label>
+                        <p className="text-xs text-gray-500 mb-2">Items this monster can drop whichever kind of win it was. The pools above take priority over this one.</p>
+                        <ItemPool
+                          value={entry.included_items}
+                          items={items}
+                          inputClass={inputClass}
+                          empty="Uses the shared pool."
+                          onChange={list => setMonsterEntry(m.id, { included_items: list })}
+                        />
+                      </div>
+                    </div>
+                  )}
+                </div>
+              )
+            })}
+          </div>
+        </div>
+
+        <Button
+          onClick={() => onSave('event_battle_drop_rate', battleConfig)}
+          disabled={saving}
+          className="mt-4"
+        >
+          {saving ? 'Saving...' : 'Save Battle Config'}
         </Button>
       </Card>
 

@@ -26,6 +26,7 @@ import {
   Target,
   MessageSquarePlus,
   Swords,
+  ListChecks,
   GitMerge
 } from 'lucide-react';
 import { supabase } from '../../supabase/client';
@@ -46,6 +47,7 @@ import ShopManagement from './ShopManagement';
 import InventoryManagement from './InventoryManagement';
 import DailyChallengeManagement from './DailyChallengeManagement';
 import PetManagement from './PetManagement';
+import EventQuestionManagement from './EventQuestionManagement';
 import GiftcodeManagement from './GiftcodeManagement';
 import NotificationManagement from './NotificationManagement';
 import RecentActivities from './RecentActivities';
@@ -239,6 +241,7 @@ const AdminDashboard = () => {
     FEATURES.shop && { id: 'shop', label: 'Shop', icon: ShoppingBag },
     FEATURES.inventory && { id: 'inventory', label: 'Inventory', icon: Package },
     FEATURES.pets && { id: 'pets', label: 'Pet Management', icon: Cat },
+    { id: 'event-questions', label: 'Event Questions', icon: ListChecks },
     { id: 'giftcodes', label: 'Gift Codes', icon: Gift },
     { id: 'notifications', label: 'Notifications', icon: Bell },
     { id: 'reports', label: 'Reports', icon: MessageSquarePlus },
@@ -414,6 +417,7 @@ const AdminDashboard = () => {
               {FEATURES.shop && <Route path="shop" element={<ShopManagement />} />}
               {FEATURES.inventory && <Route path="inventory" element={<InventoryManagement />} />}
               {FEATURES.pets && <Route path="pets" element={<PetManagement />} />}
+              <Route path="event-questions" element={<EventQuestionManagement />} />
               <Route path="giftcodes" element={<GiftcodeManagement />} />
               <Route path="notifications" element={<NotificationManagement />} />
               <Route path="reports" element={<ReportManagement />} />

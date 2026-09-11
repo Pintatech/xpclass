@@ -165,6 +165,18 @@
   .sl-flicker      { animation: sl-text-flicker 4s linear infinite; }
   .sl-header-enter { animation: sl-header-entrance 0.8s ease-out both; }
   .sl-slide-right  { animation: sl-slide-right 0.5s ease-out both; }
+  .sl-scan         { animation: sl-scan-line 4s linear infinite; }
+  .sl-reward-glow  { animation: sl-reward-glow 2s ease-in-out infinite; }
+
+  /* A clip-path clips the element's box-shadow away with everything else, so a
+     glow around a clipped panel has to be drawn by an unclipped parent — and
+     drop-shadow, unlike box-shadow, follows the clipped silhouette instead of
+     tracing a rectangle around it. */
+  @keyframes sl-glow-drop {
+    0%, 100% { filter: drop-shadow(0 0 10px rgba(34,211,238,0.30)); }
+    50%      { filter: drop-shadow(0 0 22px rgba(34,211,238,0.55)); }
+  }
+  .sl-glow-drop { animation: sl-glow-drop 3s ease-in-out infinite; }
 
   /* Mission claim confetti */
   @keyframes confetti {
@@ -195,6 +207,79 @@
 
   .animate-float-up {
     animation: float-up 0.8s ease-out forwards;
+  }
+
+  /* Battle loot landing on the victory screen */
+  @keyframes loot-pop {
+    0%   { opacity: 0; transform: translateY(-14px) scale(0.85); }
+    60%  { opacity: 1; transform: translateY(3px) scale(1.04); }
+    100% { opacity: 1; transform: translateY(0) scale(1); }
+  }
+
+  .animate-loot-pop {
+    animation: loot-pop 0.45s cubic-bezier(0.34, 1.56, 0.64, 1) forwards;
+  }
+
+  /* Loot bouncing out of the monster that dropped it, then waiting to be
+     picked up. The keyframes carry the -50% themselves, so the element is
+     centred by the animation rather than by a translate utility. */
+  @keyframes loot-drop {
+    0%   { opacity: 0; transform: translate(-50%, -48px) scale(0.5); }
+    55%  { opacity: 1; transform: translate(-50%, 5px) scale(1.1); }
+    75%  { transform: translate(-50%, -7px) scale(0.97); }
+    100% { opacity: 1; transform: translate(-50%, 0) scale(1); }
+  }
+
+  @keyframes loot-bob {
+    0%, 100% { transform: translate(-50%, 0); }
+    50%      { transform: translate(-50%, -6px); }
+  }
+
+  /* The prompt over a drop that is waiting to be picked up. It arrives after
+     the loot has landed rather than with it, so the eye goes to the prize
+     first and to the instruction only if the prize did not explain itself. */
+  @keyframes loot-hint {
+    0%, 45% { opacity: 0; transform: translate(-50%, 6px); }
+    100%    { opacity: 1; transform: translate(-50%, 0); }
+  }
+
+  .animate-loot-hint {
+    animation: loot-hint 1.4s ease-out forwards;
+  }
+
+  @keyframes loot-collect {
+    0%   { opacity: 1; transform: translate(-50%, 0) scale(1); }
+    30%  { opacity: 1; transform: translate(-50%, -8px) scale(1.2); }
+    100% { opacity: 0; transform: translate(-50%, -52px) scale(0.7); }
+  }
+
+  .animate-loot-drop {
+    animation: loot-drop 0.55s cubic-bezier(0.22, 1.2, 0.36, 1) forwards,
+               loot-bob 1.8s ease-in-out 0.6s infinite;
+  }
+
+  .animate-loot-collect {
+    animation: loot-collect 0.42s ease-in forwards;
+  }
+
+  /* Entrance for a creature with no death sheet to run backwards. */
+  @keyframes spawn-fade {
+    0%   { opacity: 0; transform: translateY(6px) scale(0.94); }
+    100% { opacity: 1; transform: translateY(0) scale(1); }
+  }
+
+  .animate-spawn-fade {
+    animation: spawn-fade 0.5s ease-out;
+  }
+
+  /* One monster's scene giving way to another's in the hero banner */
+  @keyframes scene-fade {
+    from { opacity: 0; }
+    to   { opacity: 1; }
+  }
+
+  .animate-scene-fade {
+    animation: scene-fade 0.45s ease-out;
   }
 
   .btn {

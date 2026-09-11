@@ -134,7 +134,7 @@ const SpriteLab = () => {
               </div>
             )}
             <div className="mt-1 text-xs text-gray-500">
-              Chia hết không có nghĩa là đúng: sheet Hiệp Sĩ chia hết cho 50 nhưng frame thật rộng 100.
+              Chia hết không có nghĩa là đúng: sheet Luna chia hết cho 50 nhưng frame thật rộng 100.
               Nếu nhân vật bị cắt đôi giữa hai frame là khung đang sai.
             </div>
             {dropped && <div className="mt-1 text-gray-500">Đang xem file thả vào: {dropped.name}</div>}

@@ -29,7 +29,7 @@
 export const EVENT_CHARACTERS = {
   'warrior-woman': {
     id: 'warrior-woman',
-    name: 'Nữ Chiến Binh',
+    name: 'Mai',
     basePath: '/event/warrior-woman',
     frameWidth: 80,
     frameHeight: 64,
@@ -52,7 +52,7 @@ export const EVENT_CHARACTERS = {
 
   knight: {
     id: 'knight',
-    name: 'Hiệp Sĩ',
+    name: 'Luna',
     basePath: '/event/knight',
     frameWidth: 100,
     frameHeight: 64,
@@ -74,7 +74,7 @@ export const EVENT_CHARACTERS = {
 
   'male-hero': {
     id: 'male-hero',
-    name: 'Kiếm Khách',
+    name: 'Kai',
     basePath: '/event/male-hero',
     frameWidth: 128,
     frameHeight: 128,
@@ -102,7 +102,7 @@ export const EVENT_CHARACTERS = {
   // It has no walk cycle — run doubles for both.
   adventurer: {
     id: 'adventurer',
-    name: 'Nhà Thám Hiểm',
+    name: 'Milo',
     basePath: '/event/adventurer',
     frameWidth: 50,
     frameHeight: 37,
@@ -123,40 +123,6 @@ export const EVENT_CHARACTERS = {
     attackChain: ['attack1', 'attack2', 'attack3']
   },
 
-  // Hand-Combat is an expansion moveset for the same adventurer, so it shares
-  // that pack's frame box and ground line. It ships no idle of its own and
-  // borrows the sword pack's, whose frames are ~19px wide — a neutral stance
-  // rather than a drawn weapon, so it reads correctly for a brawler. Its source
-  // PNGs are palette-indexed where the sword pack's are RGBA.
-  brawler: {
-    id: 'brawler',
-    name: 'Võ Sĩ',
-    basePath: '/event/brawler',
-    frameWidth: 50,
-    frameHeight: 37,
-    content: { top: 1, bottom: 35 },
-    body: { left: 13, right: 33 },
-    scale: 1,
-    animations: {
-      idle:      { file: 'idle.png',      frames: 4,  fps: 8 },
-      walk:      { file: 'walk.png',      frames: 6,  fps: 10 },
-      run:       { file: 'run.png',       frames: 6,  fps: 12 },
-      attack1:   { file: 'attack1.png',   frames: 13, fps: 16 },
-      attack2:   { file: 'attack2.png',   frames: 8,  fps: 14 },
-      runattack: { file: 'runattack.png', frames: 7,  fps: 14 },
-      crouch:    { file: 'crouch.png',    frames: 6,  fps: 10 },
-      wallrun:   { file: 'wallrun.png',   frames: 6,  fps: 12 },
-      hit:       { file: 'hit.png',       frames: 7,  fps: 10 },
-      getup:     { file: 'getup.png',     frames: 7,  fps: 10 },
-      // Airborne moves — their feet stop at y=30 and never reach the ground
-      // line at 35, so they can't play from a standing idle without the
-      // character hopping and snapping back. Kept for previewing only.
-      dropkick:  { file: 'dropkick.png',  frames: 4,  fps: 14 }
-    },
-    // Punch and kick are the only two ground attacks this pack has.
-    attackChain: ['attack1', 'attack2']
-  },
-
   // Red Cape Knight (Jump_Button). Drawn far larger than the rest — the figure
   // is 99px tall against ~30px for the warriors — so it has to shrink rather
   // than grow. It is true pixel art (27 colours, no soft edges) but not chunky,
@@ -165,7 +131,7 @@ export const EVENT_CHARACTERS = {
   // ground mid-animation and so stay out of the click chain.
   'red-knight': {
     id: 'red-knight',
-    name: 'Kỵ Sĩ Áo Đỏ',
+    name: 'Zoe',
     basePath: '/event/red-knight',
     frameWidth: 192,
     frameHeight: 128,
@@ -209,7 +175,7 @@ export const EVENT_CHARACTERS = {
   // re-copy of the other folder, no config change.
   'pixel-knight': {
     id: 'pixel-knight',
-    name: 'Kỵ Sĩ Thép',
+    name: 'Finn',
     basePath: '/event/pixel-knight',
     frameWidth: 96,
     frameHeight: 84,
@@ -284,4 +250,18 @@ export const spriteMetrics = (config, name, scale, flip = false) => {
     shiftX: (offset?.x || 0) * renderScale * (flip ? -1 : 1),
     shiftY: (offset?.y || 0) * renderScale
   }
+}
+
+/**
+ * Which sheet plays a character's entrance, or null if it has none.
+ *
+ * An arrival the artist drew beats one improvised out of the death sheet — the
+ * bat pack draws the thing waking up. Otherwise `die` run backwards has the
+ * creature pull itself together out of nothing and stand up. Shared so the hero
+ * banner and the battle make the same entrance for the same character.
+ */
+export const arrivalOf = (config) => {
+  const arrival = config?.arrival || (config?.animations?.die ? { animation: 'die', reverse: true } : null)
+  if (!arrival || !config.animations[arrival.animation]) return null
+  return { animation: arrival.animation, reverse: Boolean(arrival.reverse) }
 }

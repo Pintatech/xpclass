@@ -1,6 +1,6 @@
 import { useAuth } from '../../hooks/useAuth'
 import { supabase } from '../../supabase/client'
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useMemo } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import { getRecentExercise } from '../../utils/recentExercise'
 import RecentActivities from './RecentActivities'
@@ -9,12 +9,19 @@ import AvatarWithFrame from '../ui/AvatarWithFrame'
 import PetDisplay from '../pet/PetDisplay'
 import EventCharacter from '../event/EventCharacter'
 import EventCharacterPicker from '../event/EventCharacterPicker'
-import { EVENT_ENABLED } from '../../config/eventCharacter'
+import EventShop from '../event/EventShop'
+import EventCrafting from '../event/EventCrafting'
+import { EVENT_ENABLED, animationSrc } from '../../config/eventCharacter'
+import { preloadSheets } from '../ui/spriteSheetCache'
 import { useEventCharacter } from '../../hooks/useEventCharacter'
-import { useEventStats } from '../../hooks/useEventStats'
+import { useEventLadder } from '../../hooks/useEventLadder'
 import HeroCarousel from './HeroCarousel'
-import { getMonster } from '../../config/eventMonsters'
+import { useCarouselPanel } from './panelContext'
+import { MAX_LEVEL, levelFromClears, roundSizeFor, stageFor, stageMonster, stageQuestionTypes } from '../../config/eventLadder'
+import { STORY_MIN_LEVEL } from '../../config/eventQuestions'
+import { monsterBackground, monsterIntro } from '../../config/eventMonsters'
 import EventBattle from '../event/EventBattle'
+import EventCutscene from '../event/EventCutscene'
 import EventStatsPanel from '../event/EventStatsPanel'
 import PvPChallengeModal from '../pvp/PvPChallengeModal'
 import { FEATURES } from '../../config/features'
@@ -22,7 +29,8 @@ import { fetchPvpSchedule, checkPvpAvailability } from '../../utils/pvpSchedule'
 
 import { assetUrl, useBranding } from '../../hooks/useBranding';
 import { usePermissions } from '../../hooks/usePermissions';
-import { CheckCircle, Clock, XCircle, ChevronDown } from 'lucide-react';
+import { useInventory } from '../../hooks/useInventory';
+import { CheckCircle, Clock, XCircle, ChevronDown, Hammer, ShoppingBag } from 'lucide-react';
 
 // Collapsible student exercise stats for latest session — only fetches on first open
 const CourseStatsSection = ({ courseId }) => {
@@ -194,31 +202,457 @@ const CourseStatsSection = ({ courseId }) => {
     </div>
   );
 };
+/**
+ * The monster in the hero banner. Split out so it can read the carousel: the
+ * panel stays mounted off-screen, so sliding back to it has to be what triggers
+ * the entrance, not mounting.
+ *
+ * Always mirrored: the sheets are drawn facing right, and standing at the right
+ * edge it should be looking back across the banner, the way the battle turns it
+ * to face the hero.
+ */
+const EventMonsterSprite = ({ config, scale }) => {
+  const { active } = useCarouselPanel()
+  return <EventCharacter key={config.id} config={config} scale={scale} spawn={active} flip interactive={false} />
+}
+
+/**
+ * The monster's own scene behind a day's panel, so a rung of the ladder is a
+ * place and not just a creature.
+ *
+ * A week of these is mounted at once, so only the panels within reach of the
+ * one on screen paint theirs — otherwise opening the dashboard fetches seven
+ * full-bleed photographs to show one. A panel is `near` a slide before it is
+ * arrived at, which is enough warning for the image to be there.
+ *
+ * The scrim is here because this covers the banner's shared black/30: that
+ * overlay is painted under the carousel, so without one the caption would be
+ * white text on open sky.
+ */
+const EventMonsterScene = ({ config }) => {
+  const { near } = useCarouselPanel()
+
+  return (
+    <div className="absolute inset-0 overflow-hidden">
+      {near && (
+        <div
+          className="animate-scene-fade absolute inset-0 bg-cover bg-center"
+          style={{ backgroundImage: `url(${monsterBackground(config)})` }}
+        />
+      )}
+      <div className="absolute inset-0 bg-gradient-to-t from-black/75 via-black/30 to-black/10" />
+    </div>
+  )
+}
+
+// The hero's arrival on a day's panel: parked this far off the left edge, then
+// run in over this long — after a beat, so the caption has landed and the
+// carousel has finished sliding before anything moves.
+const RUN_IN = { distance: 180, ms: 700, delay: 320 }
+
+/**
+ * The student's own fighter, running onto the day's panel to face what is
+ * standing at the other end of it. Replays every time the panel comes round,
+ * which is what makes it an arrival rather than scenery.
+ *
+ * Remounted to change sheets: EventCharacter reads `idleAnimation` once, when it
+ * mounts, so a key is what swaps the run cycle for the idle. The travel is a
+ * transform on the wrapper over the same span the cycle plays for, so the legs
+ * and the distance stay one movement.
+ */
+const EventHeroRunIn = ({ config, scale }) => {
+  const { active } = useCarouselPanel()
+  const [phase, setPhase] = useState('off') // off | running | idle
+  const moving = config.animations.run ? 'run' : config.animations.walk ? 'walk' : null
+
+  // Both sheets before the run needs them, or the first stride of every panel
+  // is a blank box while the strip is fetched.
+  useEffect(() => {
+    preloadSheets([moving, 'idle'].filter(Boolean).map((n) => animationSrc(config, n)))
+  }, [config, moving])
+
+  useEffect(() => {
+    if (!active) {
+      setPhase('off')
+      return
+    }
+    if (!moving) {
+      setPhase('idle')
+      return
+    }
+    const start = setTimeout(() => setPhase('running'), RUN_IN.delay)
+    const stop = setTimeout(() => setPhase('idle'), RUN_IN.delay + RUN_IN.ms)
+    return () => { clearTimeout(start); clearTimeout(stop) }
+  }, [active, moving])
+
+  const off = phase === 'off'
+
+  return (
+    <div
+      className="absolute bottom-0 left-3 z-10 md:left-8"
+      style={{
+        transform: `translateX(${off ? -RUN_IN.distance : 0}px)`,
+        opacity: off ? 0 : 1,
+        // Only the run is animated; arriving and being reset are instant, so
+        // sliding away does not drag the sprite back across the panel.
+        transition: phase === 'running'
+          ? `transform ${RUN_IN.ms}ms linear, opacity 200ms ease-out`
+          : 'none'
+      }}
+    >
+      <EventCharacter
+        key={phase}
+        config={config}
+        idleAnimation={phase === 'running' ? moving : 'idle'}
+        scale={scale}
+        interactive={false}
+      />
+    </div>
+  )
+}
+
+/**
+ * One day of the ladder, as its own slide. The whole week is browsable —
+ * a locked day still shows what is waiting there and says why its button is
+ * dead, which is the point of being able to slide onto it.
+ */
+const EventStagePanel = ({ stage, hero, totalDays, ignoreCalendar, scale, busy, onFight }) => {
+  const monster = stageMonster(stage)
+
+  // Clipped so the hero can wait off the left edge without hanging over the
+  // panel beside it in the strip.
+  return (
+    <div className="absolute inset-0 overflow-hidden">
+      <EventMonsterScene config={monster} />
+
+      {/* Right edge, facing back at the caption. The padding keeps it out from
+          under the carousel arrow halfway down that edge. */}
+      <div className="absolute inset-0 flex items-end justify-end pr-4 md:pr-12">
+        <EventMonsterSprite config={monster} scale={scale} />
+      </div>
+
+      {/* Centred between the two of them, with side padding wide enough to be
+          standing room: the hero holds the left edge, the monster the right. */}
+      <div className="pointer-events-none absolute inset-0 flex flex-col items-center justify-end p-6 px-16 text-center text-white md:px-24">
+        <div className="flex items-center gap-2 text-xs font-semibold uppercase tracking-wider opacity-80">
+          <span>Sự kiện · Ngày {stage.day}/{totalDays}</span>
+          {stage.cleared && (
+            <span className="rounded bg-emerald-500/30 px-1.5 py-0.5 text-[10px] text-emerald-200">
+              Đã hạ gục
+            </span>
+          )}
+          {ignoreCalendar && (
+            <span className="rounded bg-yellow-400/25 px-1.5 py-0.5 text-[10px] text-yellow-200">
+              Admin · mở khoá toàn bộ
+            </span>
+          )}
+        </div>
+        <h5 className="text-2xl md:text-3xl font-bold drop-shadow-lg">
+          {monster.name}{stage.boss ? ' — Trùm cuối!' : ' xuất hiện!'}
+        </h5>
+        <div className="mt-1 mb-1 h-[2px] w-20 bg-gradient-to-r from-transparent via-white/50 to-transparent" />
+        <p className="text-base md:text-lg opacity-90 drop-shadow-md">
+          {eventStageMessage(stage)}
+        </p>
+
+        <button
+          onClick={onFight}
+          disabled={busy || !stage.playable}
+          className="pointer-events-auto mt-2 w-fit rounded-lg bg-red-600 px-4 py-2 text-sm font-bold text-white shadow-lg hover:bg-red-700 disabled:opacity-60"
+        >
+          {stage.cleared ? 'Đánh lại' : 'Chiến đấu'}
+        </button>
+      </div>
+
+      {/* After the caption, so it stands in front of it rather than behind. */}
+      {hero && <EventHeroRunIn config={hero} scale={scale} />}
+    </div>
+  )
+}
+
+/** Why a day of the ladder can or cannot be fought, in one line. */
+const eventStageMessage = (stage) => {
+  if (!stage) return 'Sự kiện chưa bắt đầu.'
+  if (stage.cleared) return 'Đã hạ gục — đánh lại chỉ nhận thưởng nhỏ.'
+  if (stage.playable) return 'Đánh bại nó để nhận thưởng.'
+  return stage.lockedBy === 'calendar'
+    ? `Mở vào ngày ${stage.day} của sự kiện.`
+    : 'Hãy hạ gục quái của ngày trước đã.'
+}
+
 const Dashboard = () => {
   const { profile } = useAuth()
   const { character: eventCharacter, chooseCharacter } = useEventCharacter(profile?.id)
-  const eventStats = useEventStats(profile?.id, eventCharacter.id)
-  const eventMonster = getMonster('golem')
+  const permissions = usePermissions()
+  // Staff reach any day whenever they like: an event is hard to check the day
+  // before it opens if the dashboard will only show you day one, and harder
+  // still if seeing day five means winning four fights first. The same two
+  // overrides are honoured by record_event_stage_clear, so a stage they can
+  // click is a stage the database will let them bank.
+  const isStaff = permissions.isAdmin || profile?.role === 'admin'
+  const ladder = useEventLadder(profile?.id, { ignoreCalendar: isStaff, ignoreOrder: isStaff })
+  // A level is a monster beaten, and that is all it is: no sheet, no points, no
+  // XP row to load. It is derived here and shown; nothing in a fight reads it.
+  const eventLevel = levelFromClears(ladder.clearedCount)
+  const { rollEventBattleDrop } = useInventory()
+  // Frozen for the length of a battle, so finishing one credits the stage it was
+  // actually fought on even if the ladder reloads underneath.
+  const [fightStage, setFightStage] = useState(null)
   const [battleOpen, setBattleOpen] = useState(false)
+  // The monster's intro clip, while it is playing. A fight with a clip opens on
+  // it and the arena is not mounted until it is over or skipped — see
+  // startEventBattle.
+  const [cutscene, setCutscene] = useState(null)
   const [statsOpen, setStatsOpen] = useState(false)
+  const [shopOpen, setShopOpen] = useState(false)
+  const [craftOpen, setCraftOpen] = useState(false)
   const [battleQuestions, setBattleQuestions] = useState([])
+  // The passage this fight reads, or null for a round of loose questions.
+  const [battleStory, setBattleStory] = useState(null)
 
-  // Same bank the pet quiz games draw from, filtered to the student's level.
-  // Gated on the stat sheet having loaded: EventBattle reads the hero's stats
-  // once at mount, so opening early would fight the battle on base stats and
-  // silently throw away every point the student has spent.
-  const openEventBattle = async () => {
-    if (eventStats.loading) return
-    const { data } = await supabase
-      .from('pet_question_bank')
-      .select('question, choices, answer_index')
+  // Each panel reads its own stage now, so the only monster this level still
+  // has to name is the one being fought. Memoised because EventBattle keys its
+  // sprite preload and its scaled-monster maths on this object — a fresh one
+  // every render would refetch the sheets mid-fight.
+  // A replay's monster is the same creature on far less health — a speaking
+  // round is five phrases, not eighteen. See REPLAY_MONSTER_HP.
+  const battleMonster = useMemo(
+    () => stageMonster(fightStage || stageFor(1), { replay: Boolean(fightStage?.cleared) }),
+    [fightStage]
+  )
+
+  /**
+   * Which passage this fight opens on, if any.
+   *
+   * THE DAY NAMES ITS OWN STORY. A passage carries the `stage_day` it belongs
+   * to, so the week is seven texts read in order rather than whichever one a
+   * lottery turned up — a student who fights day 3 twice reads the same story
+   * twice, which is the point of a story.
+   *
+   * A day may hold more than one, split by `min_level`, and the highest band at
+   * or below the student is the one they read. So day 3 can be an easier text
+   * for a level-2 reader and a harder one for a level-3 reader without either
+   * meeting a passage out of turn, and a level-4 reader — who has no band of
+   * their own — still gets the hardest one written rather than nothing.
+   *
+   * A story only qualifies if it can carry the WHOLE round on its own: the day
+   * asks one kind of question, and a passage with three multiple-choice
+   * questions cannot fill a round that asks for nine of them. Topping the round
+   * up from the loose bank was the other option and is worse — questions about
+   * a text the student has just read, mixed with questions about nothing, is a
+   * round that quietly stops being a reading exercise halfway through. An
+   * understocked band is therefore skipped and the band below it tried instead,
+   * and a day no band can carry falls back to the loose bank rather than opening
+   * a thin fight. That is the compatibility promise the story migration was
+   * written on, and the reason `story_id` is nullable.
+   */
+  const pickEventStory = async (day, level, pool, roundSize) => {
+    // How much of this day's question type each passage can actually field. The
+    // pool is already cut to the day's types and the student's level, so a count
+    // here is a count of questions this fight could really ask.
+    const counts = new Map()
+    for (const q of pool) {
+      if (!q.story_id) continue
+      counts.set(q.story_id, (counts.get(q.story_id) || 0) + 1)
+    }
+    if (!counts.size) return null
+
+    // Every band this student may read on this day, hardest first. Filtered on
+    // the passage's own level and active flag rather than the questions': a
+    // story may be held back while the questions written for it are not.
+    //
+    // A database that has not run the story migration has no `stage_day` to
+    // filter on, and PostgREST fails the whole select over the one missing
+    // column — which lands here as a day with no passage, so the fight is a
+    // loose round and nothing breaks.
+    const { data, error } = await supabase
+      .from('event_stories')
+      .select('id, title, body, image_url')
       .eq('is_active', true)
-      .lte('min_level', profile?.current_level || 1)
-    setBattleQuestions(data || [])
+      .eq('stage_day', day)
+      .lte('min_level', level)
+      .order('min_level', { ascending: false })
+
+    if (error) return null
+    return (data || []).find((s) => (counts.get(s.id) || 0) >= roundSize) || null
+  }
+
+  /**
+   * A replay's phrases: this day's, in this student's band.
+   *
+   * Two narrowings, in order, on rows the query has already cut to the day (or
+   * to no day at all).
+   *
+   * DAY. A day's own phrases win outright wherever they exist. Untagged rows
+   * are a fallback for a day nobody has written yet, not a pool to be blended
+   * in — mixing them would mean a day that HAS five phrases of its own still
+   * asks three generic ones, and the week would stop feeling written.
+   *
+   * BAND. Then the highest `min_level` at or below the student, and only that
+   * one. This is the same rule the passages use, and for the same reason: the
+   * bank query is a `lte`, so without it a level-3 reader would be handed the
+   * level-2 sentences as well and the two levels would quietly converge on the
+   * same easy pool. Falling to the next band down rather than demanding an
+   * exact match is what keeps a level-5 student — who has no band of their own
+   * — reading the hardest thing written instead of nothing.
+   */
+  const replayPool = (rows, day, level) => {
+    const own = rows.filter((r) => r.stage_day === day)
+    const pool = own.length ? own : rows.filter((r) => !r.stage_day)
+    if (!pool.length) return pool
+
+    const band = Math.max(...pool.map((r) => r.min_level ?? 1).filter((l) => l <= level))
+    return Number.isFinite(band) ? pool.filter((r) => (r.min_level ?? 1) === band) : pool
+  }
+
+  // The event's own bank — not the pet one, which can only describe a stem with
+  // four choices. Each day asks a different KIND of question, so the rows are
+  // filtered to the types this stage uses (one for a normal day, every kind the
+  // week taught for the boss) as well as to the student's level.
+  //
+  // From level 2 a fight opens on a STORY: the student reads the passage that
+  // belongs to this DAY, then answers questions about it, so a round is one
+  // piece of reading rather than nine unrelated stems. The day still decides HOW
+  // it is asked; the passage decides WHAT it is about.
+  //
+  // Level 1 never reads. A beginner is given the LOOSE questions — the ones
+  // attached to no passage — because a page of English before the first question
+  // is a wall to a child still sounding out the questions themselves. Where
+  // reading starts is STORY_MIN_LEVEL, a knob in config/eventQuestions.js.
+  //
+  // Gated only on the ladder, which is what says whether this stage can be
+  // fought at all. There is nothing else to wait for: every student walks in
+  // with the same three lives and the same one damage.
+  const openEventBattle = async (stage) => {
+    if (ladder.loading || !stage?.playable) return
+
+    const level = profile?.current_level || 1
+    // A cleared stage fought again is a SPEAKING round: the day's reading and
+    // typing are replaced outright, so a redo is its own exercise rather than
+    // the same fight for a smaller prize. See REPLAY_QUESTION_TYPES.
+    const replay = Boolean(stage.cleared)
+    const types = stageQuestionTypes(stage, { replay })
+    // What the fight can ask at the outside: a kill's worth of right answers
+    // plus the mistakes allowed on the way. A story has to cover all of it to be
+    // worth opening on — and a replay's is much smaller, because a speaking
+    // round does not inherit the week's climb.
+    const roundSize = roundSizeFor(stage, { replay })
+
+    // The whole eligible pool comes back and the battle shuffles it down to a
+    // round, so the same day is a different ten questions each time it is
+    // fought rather than the first ten the table happens to return.
+    const columns = 'id, type, question, payload, image_url, seconds'
+
+    /**
+     * The eligible rows, and whether passages are even possible on this
+     * database.
+     *
+     * Two columns here arrived in later migrations — `story_id` and
+     * `stage_day` — and PostgREST fails an entire select over one that is
+     * missing. So the select is tried richest-first and degrades: a database
+     * that never ran those migrations runs the day exactly as it ran before
+     * they existed, rather than opening a fight with no questions in it.
+     *
+     * The DAY filter is replay-only and needs `stage_day`, so it falls away in
+     * the same step. `stage_day.is.null` is in the `or` on purpose: untagged
+     * phrases are the shared pool a day with none of its own falls back to.
+     */
+    const fetchPool = async (askTypes) => {
+      const base = (cols) => supabase
+        .from('event_question_bank')
+        .select(cols)
+        .eq('is_active', true)
+        .in('type', askTypes)
+        .lte('min_level', level)
+
+      const attempts = replay
+        ? [[`${columns}, story_id, stage_day`, true], [`${columns}, story_id`, false], [columns, false]]
+        : [[`${columns}, story_id`, false], [columns, false]]
+
+      for (const [cols, byDay] of attempts) {
+        let query = base(cols)
+        if (byDay) query = query.or(`stage_day.eq.${stage.day},stage_day.is.null`)
+        const { data, error } = await query
+        if (!error) return { rows: data || [], stories: cols.includes('story_id') }
+      }
+      return { rows: [], stories: false }
+    }
+
+    let { rows, stories } = await fetchPool(types)
+    // A replay narrowed to this day and this level band; see replayPool.
+    if (replay) rows = replayPool(rows, stage.day, level)
+
+    // A speaking round with nothing to say. The spoken bank is written after
+    // the week is, and an empty pool is not a gentle failure — the battle opens
+    // and ends immediately as "exhausted", which reads to a student as the game
+    // being broken. So a redo with no spoken questions quietly becomes an
+    // ordinary redo of the day instead.
+    if (replay && !rows.length) ({ rows, stories } = await fetchPool(stageQuestionTypes(stage)))
+
+    const pool = rows
+    const story = !stories || level < STORY_MIN_LEVEL
+      ? null
+      : await pickEventStory(stage.day, level, pool, roundSize)
+
+    // With no passage the round is LOOSE questions only — never the pool as a
+    // whole. A story's questions are about a text, and "Where does Mai find her
+    // cat?" asked with no Mai on screen cannot be answered by anyone who has not
+    // already read it. On a database that has not run the story migration no row
+    // carries a story_id at all, so this keeps every row and the day runs
+    // exactly as it did before passages existed.
+    setBattleQuestions(
+      story ? pool.filter((q) => q.story_id === story.id) : pool.filter((q) => !q.story_id)
+    )
+    setBattleStory(story)
+    setFightStage(stage)
+
+    // Straight into the arena unless this monster has an introduction to make.
+    const intro = monsterIntro(stageMonster(stage))
+    if (intro) setCutscene(intro)
+    else setBattleOpen(true)
+  }
+
+  // What the cutscene hands over to, whether it played out or was skipped: the
+  // clip is theatre and refusing to watch it costs a student nothing.
+  const startEventBattle = () => {
+    setCutscene(null)
     setBattleOpen(true)
   }
+
+  // What a finished fight was worth. The loot is the inventory's business and
+  // the tally is the stat sheet's; the battle needs both back so its victory
+  // screen can show what the fight paid.
+  //
+  // The clear is banked FIRST, because everything else hangs off whether this
+  // was the first time this stage went down, and only the database can settle
+  // that — two devices cannot both claim it. A first clear is also the level:
+  // recording it grows the ladder's cleared set, which is the whole of what a
+  // level counts, so nothing here has to award anything for a student to gain
+  // one.
+  const finishEventBattle = async (result) => {
+    const stage = fightStage
+    const clear = result.won && stage ? await ladder.recordClear(stage.day) : null
+    const firstClear = clear ? Boolean(clear.first_clear) : true
+
+    const drop = FEATURES.inventory && result.won
+      // Keyed on the base monster, not the tier-2 variant, so one entry in the
+      // drop config covers both of a monster's days.
+      ? await rollEventBattleDrop(stage?.monster || result.monster?.id, firstClear)
+      : null
+
+    // A monster beaten for the first time is a level. Read off `clear`, which is
+    // null unless the fight was WON and the database recorded it — not off
+    // `firstClear`, which falls back to true for a fight that banked nothing and
+    // so announced a level-up on every defeat.
+    return {
+      loot: drop?.items || [],
+      chest: drop?.chest || null,
+      firstClear,
+      levelUp: Boolean(clear?.first_clear) && eventLevel < MAX_LEVEL
+    }
+  }
   const { branding } = useBranding()
-  const { canCreateContent } = usePermissions()
+  const { canCreateContent } = permissions
   const [courses, setCourses] = useState([])
   const [loading, setLoading] = useState(true)
   const [recent, setRecent] = useState(null)
@@ -730,6 +1164,9 @@ const Dashboard = () => {
     } catch (err) { console.error('Error fetching course completion:', err) }
   }
 
+  // Greeting is hidden in the hero for now; kept here, and commented out so it
+  // does not read as dead code, for whenever it goes back.
+  /*
   // Get greeting message based on Vietnam time
   const getGreetingMessage = () => {
     // Get Vietnam hour
@@ -747,6 +1184,7 @@ const Dashboard = () => {
       return "Buổi tối vui vẻ, học thôi nào! 🌙"
     }
   }
+  */
 
   return (
     <div className="space-y-8 md:pt-8">
@@ -810,6 +1248,8 @@ const Dashboard = () => {
                   fallback={profile?.full_name?.[0]?.toUpperCase() || profile?.email?.[0]?.toUpperCase() || 'U'}
                   onClick={() => navigate(`/profile/${profile?.id}?avatarSelector=true`)}
                 />
+                {/* Greeting hidden for now — uncomment with getGreetingMessage
+                    above to bring it back.
                 <div>
                   <h5 className="text-2xl md:text-3xl font-bold drop-shadow-lg">
                     Chào {profile?.full_name || 'Học viên'}! 👋
@@ -819,20 +1259,44 @@ const Dashboard = () => {
                     {getGreetingMessage()}
                   </p>
                 </div>
+                */}
               </div>
             </div>
           </div>
 
           {/* Event character — click opens the stat sheet, button above swaps
-              who it is */}
+              who it is. Stood a fifth of the way across rather than on the left
+              edge, so it clears the avatar sitting in the corner. */}
           {EVENT_ENABLED && (
-            <div className="absolute bottom-0 left-3 md:left-8 z-20 flex flex-col items-center">
-              <button
-                onClick={() => setPickerOpen(true)}
-                className="mb-1 rounded-full bg-white/80 px-2 py-0.5 text-[10px] font-semibold text-gray-700 backdrop-blur-sm hover:bg-white"
-              >
-                Đổi nhân vật
-              </button>
+            <div className="absolute bottom-0 left-[20%] z-20 flex -translate-x-1/2 flex-col items-center">
+              <div className="mb-1 flex items-center gap-1">
+                <button
+                  onClick={() => setPickerOpen(true)}
+                  className="rounded-full bg-white/80 px-2 py-0.5 text-[10px] font-semibold text-gray-700 backdrop-blur-sm hover:bg-white"
+                >
+                  Đổi nhân vật
+                </button>
+                {/* A window, not a till — the shop is display-only, so this
+                    opens a catalogue rather than a checkout. */}
+                <button
+                  onClick={() => setShopOpen(true)}
+                  className="flex items-center gap-1 rounded-full bg-amber-400/90 px-2 py-0.5 text-[10px] font-semibold text-amber-950 backdrop-blur-sm hover:bg-amber-300"
+                >
+                  <ShoppingBag className="h-3 w-3" />
+                  Cửa hàng
+                </button>
+                {/* The bench itself, not a way to the inventory page: the table
+                    opens here and crafts here. */}
+                {FEATURES.inventory && (
+                  <button
+                    onClick={() => setCraftOpen(true)}
+                    className="flex items-center gap-1 rounded-full bg-purple-500/90 px-2 py-0.5 text-[10px] font-semibold text-white backdrop-blur-sm hover:bg-purple-400"
+                  >
+                    <Hammer className="h-3 w-3" />
+                    Chế tạo
+                  </button>
+                )}
+              </div>
               {/* The sprite opens the stat sheet rather than swinging. Its own
                   click-to-attack is off (interactive={false}) so the two don't
                   both fire — the picker tiles wrap it the same way. */}
@@ -852,33 +1316,20 @@ const Dashboard = () => {
           )}
             </div>
 
-            {/* Panel 2 — event monster. Centred so it clears the carousel
-                controls bottom-right and the caption bottom-left. */}
-            <div className="absolute inset-0">
-              <div className="absolute inset-0 flex items-end justify-center">
-                <EventCharacter
-                  config={eventMonster}
-                  scale={isDesktop ? 2.5 : 1.75}
-                />
-              </div>
-              <div className="pointer-events-none absolute inset-0 flex flex-col justify-end p-6 text-white">
-                <div className="text-xs font-semibold uppercase tracking-wider opacity-80">Sự kiện</div>
-                <h5 className="text-2xl md:text-3xl font-bold drop-shadow-lg">
-                  {eventMonster.name} xuất hiện!
-                </h5>
-                <div className="h-[2px] w-20 bg-gradient-to-r from-white/50 to-transparent mt-1 mb-1" />
-                <p className="text-base md:text-lg opacity-90 drop-shadow-md">
-                  Đánh bại nó để nhận thưởng.
-                </p>
-                <button
-                  onClick={openEventBattle}
-                  disabled={eventStats.loading}
-                  className="pointer-events-auto mt-2 w-fit rounded-lg bg-red-600 px-4 py-2 text-sm font-bold text-white shadow-lg hover:bg-red-700 disabled:opacity-60"
-                >
-                  Chiến đấu
-                </button>
-              </div>
-            </div>
+            {/* Panels 2..n — one per day of the ladder, in order, so the week is
+                something you slide through rather than a strip of buttons. */}
+            {ladder.stages.map((stage) => (
+              <EventStagePanel
+                key={stage.day}
+                stage={stage}
+                hero={EVENT_ENABLED ? eventCharacter : null}
+                totalDays={ladder.totalDays}
+                ignoreCalendar={ladder.ignoreCalendar}
+                scale={isDesktop ? 2.5 : 1.75}
+                busy={ladder.loading}
+                onFight={() => openEventBattle(stage)}
+              />
+            ))}
           </HeroCarousel>
         </div>
       </div>
@@ -957,23 +1408,32 @@ const Dashboard = () => {
       )}
 
       {/* PvP Challenge Modal */}
+      {cutscene && (
+        <EventCutscene
+          src={cutscene}
+          poster={monsterBackground(battleMonster)}
+          onDone={startEventBattle}
+        />
+      )}
+
       {battleOpen && (
         <EventBattle
           hero={eventCharacter}
-          heroStats={eventStats.stats}
-          heroLevel={eventStats.level}
-          monster={eventMonster}
+          heroLevel={eventLevel}
+          monster={battleMonster}
           questions={battleQuestions}
-          background={`${import.meta.env.BASE_URL}event/bg/bg3.png`}
+          story={battleStory}
+          background={monsterBackground(battleMonster)}
           onClose={() => setBattleOpen(false)}
-          onFinish={eventStats.awardBattle}
+          onFinish={finishEventBattle}
         />
       )}
 
       {statsOpen && (
         <EventStatsPanel
           character={eventCharacter}
-          stats={eventStats}
+          level={eventLevel}
+          clears={ladder.clearedCount}
           onClose={() => setStatsOpen(false)}
         />
       )}
@@ -985,6 +1445,10 @@ const Dashboard = () => {
           onClose={() => setPickerOpen(false)}
         />
       )}
+
+      {shopOpen && <EventShop onClose={() => setShopOpen(false)} />}
+
+      {craftOpen && <EventCrafting onClose={() => setCraftOpen(false)} />}
       {challengeTarget && (
         <PvPChallengeModal
           opponent={challengeTarget}
