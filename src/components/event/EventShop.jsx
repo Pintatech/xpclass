@@ -95,12 +95,7 @@ const EventShop = ({ onClose }) => {
                   <ItemImage item={item} />
 
                   <div className="min-w-0 flex-1">
-                    <span
-                      className={`inline-block rounded px-1.5 py-0.5 text-[9px] font-semibold tracking-wider ${rarity.badge}`}
-                    >
-                      {rarity.label}
-                    </span>
-                    <h3 className="mt-0.5 text-sm font-bold leading-tight text-gray-800">
+                    <h3 className="text-sm font-bold leading-tight text-gray-800">
                       {item.name}
                     </h3>
                     {item.description && (
