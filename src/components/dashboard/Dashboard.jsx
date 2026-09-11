@@ -373,7 +373,7 @@ const EventStagePanel = ({ stage, hero, totalDays, ignoreCalendar, scale, busy, 
 /** Why a day of the ladder can or cannot be fought, in one line. */
 const eventStageMessage = (stage) => {
   if (!stage) return 'Sự kiện chưa bắt đầu.'
-  if (stage.cleared) return 'Đã hạ gục — đánh lại chỉ nhận thưởng nhỏ.'
+  if (stage.cleared) return 'Đã hạ gục — đánh lại nhận nguyên liệu.'
   if (stage.playable) return 'Đánh bại nó để nhận thưởng.'
   return stage.lockedBy === 'calendar'
     ? `Mở vào ngày ${stage.day} của sự kiện.`

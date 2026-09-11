@@ -27,6 +27,11 @@ BEGIN
   IF NOT EXISTS (SELECT 1 FROM public.event_stories WHERE id = v_story) THEN
     RAISE EXCEPTION 'No event_stories row with id %. Create the passage first, then re-run.', v_story;
   END IF;
+  -- And it must be the day 1 / level 3 passage, not merely A passage: a wrong
+  -- but existing id would pass the check above and attach these to another night.
+  IF NOT EXISTS (SELECT 1 FROM public.event_stories WHERE id = v_story AND stage_day = 1 AND min_level = 3) THEN
+    RAISE EXCEPTION 'Passage % is not the day 1 / level 3 one. Wrong id?', v_story;
+  END IF;
 
   INSERT INTO public.event_question_bank (type, question, payload, category, min_level, story_id)
   SELECT 'multiple_choice', v.question, v.payload::jsonb, 'reading', 3, v_story

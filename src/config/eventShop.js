@@ -23,7 +23,7 @@ export const EVENT_SHOP_ITEMS = [
     id: 'legendary-frame',
     name: 'Lootbox đồ chơi',
     description: 'Đồ chơi random',
-    price: '500 bánh nướng',
+    price: '??? bánh nướng',
     rarity: 'legendary',
     image: 'https://png.pngtree.com/element_our/20190602/ourlarge/pngtree-cartoon-brown-treasure-chest-illustration-image_1409643.jpg',
     note: ' '
@@ -32,7 +32,7 @@ export const EVENT_SHOP_ITEMS = [
     id: 'event-title',
     name: 'Lootbox đồ dùng học tập',
     description: 'Đồ dùng học tập random',
-    price: '300 bánh nướng',
+    price: '??? bánh nướng',
     rarity: 'epic',
     image: 'https://img.magnific.com/free-vector/vector-cartoon-style-icon-pirat-gold-treasure-wooden-chest-isolated-white-background_134830-1840.jpg',
     note: ' '
@@ -41,7 +41,7 @@ export const EVENT_SHOP_ITEMS = [
     id: 'mystery-chest',
     name: 'Rương Bí Ẩn',
     description: 'Một rương vật phẩm ngẫu nhiên của sự kiện.',
-    price: '150 bánh nướng',
+    price: '??? bánh nướng',
     rarity: 'rare',
     image: 'https://i.pinimg.com/736x/a2/98/5e/a2985ee62f1d3169abbaf6aaa188379c.jpg'
   }
