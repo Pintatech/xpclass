@@ -76,7 +76,7 @@ export const HERO_ATK = 1
  * Ten on day one and one more each day, so the last day asks for sixteen. That
  * is the entire difficulty curve of the event, and it is this line.
  */
-export const MONSTER_HP_DAY_1 = 1
+export const MONSTER_HP_DAY_1 = 10
 export const monsterHpFor = (day) => MONSTER_HP_DAY_1 + Math.max(0, (day || 1) - 1)
 
 /**
