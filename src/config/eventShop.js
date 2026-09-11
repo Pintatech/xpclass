@@ -21,30 +21,96 @@
 export const EVENT_SHOP_ITEMS = [
   {
     id: 'legendary-frame',
-    name: 'Lootbox đồ chơi',
-    description: 'Đồ chơi random',
+    name: 'Lootbox 1',
+    description: 'Vật phẩm random',
     price: '??? bánh nướng',
     rarity: 'legendary',
-    image: 'https://png.pngtree.com/element_our/20190602/ourlarge/pngtree-cartoon-brown-treasure-chest-illustration-image_1409643.jpg',
+    image: 'https://bhlpjvcplrofixogcrqp.supabase.co/storage/v1/object/public/event/prize/1.png',
     note: ' '
   },
   {
-    id: 'event-title',
-    name: 'Lootbox đồ dùng học tập',
-    description: 'Đồ dùng học tập random',
+    id: 'legendary-frame',
+    name: 'Lootbox 2',
+    description: 'Vật phẩm random',
     price: '??? bánh nướng',
-    rarity: 'epic',
-    image: 'https://img.magnific.com/free-vector/vector-cartoon-style-icon-pirat-gold-treasure-wooden-chest-isolated-white-background_134830-1840.jpg',
+    rarity: 'legendary',
+    image: 'https://bhlpjvcplrofixogcrqp.supabase.co/storage/v1/object/public/event/prize/2.png',
     note: ' '
-  },
-  {
-    id: 'mystery-chest',
-    name: 'Rương Bí Ẩn',
-    description: 'Một rương vật phẩm ngẫu nhiên của sự kiện.',
+  },{
+    id: 'legendary-frame',
+    name: 'Lootbox 3',
+    description: 'Vật phẩm random',
     price: '??? bánh nướng',
-    rarity: 'rare',
-    image: 'https://i.pinimg.com/736x/a2/98/5e/a2985ee62f1d3169abbaf6aaa188379c.jpg'
+    rarity: 'legendary',
+    image: 'https://bhlpjvcplrofixogcrqp.supabase.co/storage/v1/object/public/event/prize/3.png',
+    note: ' '
   }
+  ,{
+    id: 'legendary-frame',
+    name: 'Lootbox 4',
+    description: 'Vật phẩm random',
+    price: '??? bánh nướng',
+    rarity: 'legendary',
+    image: 'https://bhlpjvcplrofixogcrqp.supabase.co/storage/v1/object/public/event/prize/4.png',
+    note: ' '
+  },{
+    id: 'legendary-frame',
+    name: 'Lootbox 5',
+    description: 'Vật phẩm random',
+    price: '??? bánh nướng',
+    rarity: 'legendary',
+    image: 'https://bhlpjvcplrofixogcrqp.supabase.co/storage/v1/object/public/event/prize/5.png',
+    note: ' '
+  },{
+    id: 'legendary-frame',
+    name: 'Lootbox 6',
+    description: 'Vật phẩm random',
+    price: '??? bánh nướng',
+    rarity: 'legendary',
+    image: 'https://bhlpjvcplrofixogcrqp.supabase.co/storage/v1/object/public/event/prize/6.png',
+    note: ' '
+  },{
+    id: 'legendary-frame',
+    name: 'Lootbox 7',
+    description: 'Vật phẩm random',
+    price: '??? bánh nướng',
+    rarity: 'legendary',
+    image: 'https://bhlpjvcplrofixogcrqp.supabase.co/storage/v1/object/public/event/prize/7.png',
+    note: ' '
+  },{
+    id: 'legendary-frame',
+    name: 'Lootbox 8',
+    description: 'Vật phẩm random',
+    price: '??? bánh nướng',
+    rarity: 'legendary',
+    image: 'https://bhlpjvcplrofixogcrqp.supabase.co/storage/v1/object/public/event/prize/8.png',
+    note: ' '
+  },{
+    id: 'legendary-frame',
+    name: 'Lootbox 9',
+    description: 'Vật phẩm random',
+    price: '??? bánh nướng',
+    rarity: 'legendary',
+    image: 'https://bhlpjvcplrofixogcrqp.supabase.co/storage/v1/object/public/event/prize/9.png',
+    note: ' '
+  },{
+    id: 'legendary-frame',
+    name: 'Lootbox 10',
+    description: 'Vật phẩm random',
+    price: '??? bánh nướng',
+    rarity: 'legendary',
+    image: 'https://bhlpjvcplrofixogcrqp.supabase.co/storage/v1/object/public/event/prize/10.png',
+    note: ' '
+  },
+    {
+    id: 'legendary-frame',
+    name: 'Túi quà trung thu',
+    description: 'Kẹo bánh trung thu',
+    price: '7 viên ngọc',
+    rarity: 'legendary',
+    image: 'https://bhlpjvcplrofixogcrqp.supabase.co/storage/v1/object/public/inventory-assets/mid-autumn-26/tui-keo.png',
+    note: ' '
+  },
   // A stat-reset potion used to sit here. There are no stats to reset — every
   // fighter has the same three lives and the same one damage — so it went with
   // them rather than staying on a shelf promising something that cannot happen.

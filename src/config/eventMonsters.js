@@ -256,7 +256,7 @@ export const EVENT_MONSTERS = {
   // entrance: he burns away in a magenta pillar and steps back out of it.
   ninja: {
     id: 'ninja',
-    name: 'Onikage',
+    name: 'Onikega',
     basePath: '/event/monsters/ninja',
     background: bg('bg7.jpg'),
     // Day 7 of the ladder, which is what the file is numbered for.
