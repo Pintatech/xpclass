@@ -30,7 +30,7 @@ import { fetchPvpSchedule, checkPvpAvailability } from '../../utils/pvpSchedule'
 import { assetUrl, useBranding } from '../../hooks/useBranding';
 import { usePermissions } from '../../hooks/usePermissions';
 import { useInventory } from '../../hooks/useInventory';
-import { CheckCircle, Clock, XCircle, ChevronDown, Hammer, ShoppingBag } from 'lucide-react';
+import { CheckCircle, Clock, XCircle, ChevronDown, Hammer, Lock, ShoppingBag } from 'lucide-react';
 
 // Collapsible student exercise stats for latest session — only fetches on first open
 const CourseStatsSection = ({ courseId }) => {
@@ -312,12 +312,23 @@ const EventHeroRunIn = ({ config, scale }) => {
 }
 
 /**
- * One day of the ladder, as its own slide. The whole week is browsable —
- * a locked day still shows what is waiting there and says why its button is
- * dead, which is the point of being able to slide onto it.
+ * One day of the ladder, as its own slide. The whole week stays browsable — a
+ * locked day still shows that something is waiting there and says why its
+ * button is dead, which is the point of being able to slide onto it.
+ *
+ * What a day the CALENDAR has not reached does not show is WHICH something. Its
+ * monster is drawn as a silhouette and its name held back until the morning it
+ * opens, so sliding ahead is a week to look forward to rather than a week
+ * already seen — day seven's boss especially, which is the one reveal the
+ * ladder has to spend and was being given away on day one.
+ *
+ * Only the calendar lock hides anything. A day locked by `previous` has already
+ * arrived and is being withheld for a reason the student can do something about;
+ * hiding that one would just be answering "beat yesterday first" with a riddle.
  */
 const EventStagePanel = ({ stage, hero, totalDays, ignoreCalendar, scale, busy, onFight }) => {
   const monster = stageMonster(stage)
+  const unseen = stage.lockedBy === 'calendar'
 
   // Clipped so the hero can wait off the left edge without hanging over the
   // panel beside it in the strip.
@@ -327,7 +338,21 @@ const EventStagePanel = ({ stage, hero, totalDays, ignoreCalendar, scale, busy, 
 
       {/* Right edge, facing back at the caption. The padding keeps it out from
           under the carousel arrow halfway down that edge. */}
-      <div className="absolute inset-0 flex items-end justify-end pr-4 md:pr-12">
+      {/* The blackout is a filter on the wrapper rather than anything the sprite
+          knows about, so it covers the animation whole — every frame, and the
+          drop-shadow the sheet draws itself with. The rim light is what keeps it
+          off the scrim at the bottom of the scene, where a pure black shape on
+          black/75 is not a silhouette so much as a hole.
+
+          aria-hidden because EventCharacter labels itself with the monster's
+          name: the shape is the whole point and the name is the thing being
+          withheld, so the caption's lock carries this for a screen reader
+          instead. */}
+      <div
+        className="absolute inset-0 flex items-end justify-end pr-4 md:pr-12"
+        aria-hidden={unseen ? 'true' : undefined}
+        style={unseen ? { filter: 'brightness(0) opacity(0.82) drop-shadow(0 0 12px rgba(255,255,255,0.3))' } : undefined}
+      >
         <EventMonsterSprite config={monster} scale={scale} />
       </div>
 
@@ -347,8 +372,17 @@ const EventStagePanel = ({ stage, hero, totalDays, ignoreCalendar, scale, busy, 
             </span>
           )}
         </div>
-        <h5 className="text-2xl md:text-3xl font-bold drop-shadow-lg">
-          {monster.name}{stage.boss ? ' — Trùm cuối!' : ' xuất hiện!'}
+        <h5 className="flex items-center gap-2 text-2xl md:text-3xl font-bold drop-shadow-lg">
+          {unseen ? (
+            <>
+              <Lock className="h-6 w-6 opacity-80" />
+              {/* Not the boss line either: "Trùm cuối" on day seven would give
+                  away the one thing the silhouette is holding back. */}
+              <span className="tracking-[0.2em]"></span>
+            </>
+          ) : (
+            <>{monster.name}{stage.boss ? ' — Trùm cuối!' : ' xuất hiện!'}</>
+          )}
         </h5>
         <div className="mt-1 mb-1 h-[2px] w-20 bg-gradient-to-r from-transparent via-white/50 to-transparent" />
         <p className="text-base md:text-lg opacity-90 drop-shadow-md">
@@ -414,8 +448,9 @@ const Dashboard = () => {
   // has to name is the one being fought. Memoised because EventBattle keys its
   // sprite preload and its scaled-monster maths on this object — a fresh one
   // every render would refetch the sheets mid-fight.
-  // A replay's monster is the same creature on far less health — a speaking
-  // round is five phrases, not eighteen. See REPLAY_MONSTER_HP.
+  // A replay's monster is the same creature on less health, climbing its own
+  // shallower ladder — day seven asks twelve spoken phrases where a first clear
+  // asks sixteen read ones. See REPLAY_HP_BY_DAY.
   const battleMonster = useMemo(
     () => stageMonster(fightStage || stageFor(1), { replay: Boolean(fightStage?.cleared) }),
     [fightStage]
@@ -1510,7 +1545,36 @@ const Dashboard = () => {
       {/* Pet Display - Full width */}
       {FEATURES.pets && profile && (
         <div className="mb-6 mt-6">
-          <PetDisplay />
+          <PetDisplay
+            // The ladder a second time, in the empty half of the pet card: the
+            // enemy days only, without the profile slide the banner opens on.
+            // Built here rather than inside PetDisplay because the fight is all
+            // Dashboard state — the questions, the cutscene, the stage frozen
+            // for the length of a battle — and none of it is the pet's business.
+            //
+            // The same panels as the banner, not a cut-down copy of them: two
+            // drawings of one monster is two things to keep in step, and the
+            // day this one fell behind would be the day a student saw a monster
+            // here they could not fight there.
+            aside={EVENT_ENABLED && ladder.stages.length > 0 ? (
+              <HeroCarousel>
+                {ladder.stages.map((stage) => (
+                  <EventStagePanel
+                    key={stage.day}
+                    stage={stage}
+                    hero={eventCharacter}
+                    totalDays={ladder.totalDays}
+                    ignoreCalendar={ladder.ignoreCalendar}
+                    // Smaller than the banner's: this box is about half as wide,
+                    // and the sprite has to leave the caption its room.
+                    scale={isDesktop ? 1.6 : 1.35}
+                    busy={ladder.loading}
+                    onFight={() => openEventBattle(stage)}
+                  />
+                ))}
+              </HeroCarousel>
+            ) : null}
+          />
         </div>
       )}
 

@@ -69,12 +69,22 @@ export const QUESTION_TYPES = [
     id: 'pronunciation',
     label: 'Đọc to',
     hint: 'Bấm micro và đọc to câu này.',
-    // The longest clock in the catalogue, and it is still tight: the microphone
-    // has to be allowed, the phrase read, and a child who fluffs the first word
-    // deserves the breath it takes to start again. The seconds are SPEAKING
-    // time only — the battle holds the clock while the audio is being sent away
-    // and graded, because a slow network is not a slow student.
-    seconds: 45
+    // The SHORTEST clock in the catalogue, on the shortest task: the phrase is
+    // one line, and a child who has read it says it in three or four seconds.
+    // Forty-five was the old number and it was not generous, it was dead air —
+    // the student finishes speaking, taps stop, and the round moves on, so the
+    // rest of the clock was only ever spent by someone who had not started.
+    //
+    // The seconds are SPEAKING time only. The battle holds the clock while the
+    // audio is sent away and graded (see onBusy), because a slow network is not
+    // a slow student.
+    //
+    // What it does NOT hold the clock for is the microphone permission prompt:
+    // getUserMedia is called inside the timed window, so the first spoken
+    // question of a session spends some of its ten seconds on a browser dialog.
+    // That is the one case this number is tight for, and the reason to raise it
+    // if it turns out to bite — a row may override it with its own `seconds`.
+    seconds: 10
   }
 ]
 

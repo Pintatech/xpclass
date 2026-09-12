@@ -14,17 +14,24 @@ import {
   SECONDS_RANGE,
   secondsIssues
 } from '../../config/eventQuestions'
-import { HERO_LIVES, REPLAY_MONSTER_HP, STAGES, maxRoundQuestions, monsterHpFor } from '../../config/eventLadder'
+import { HERO_LIVES, REPLAY_HP_BY_DAY, STAGES, maxRoundQuestions, monsterHpFor, replayHpFor } from '../../config/eventLadder'
 
 // A fight runs until the monster dies or the student is out of lives, so the
 // longest one the week can throw is the last day's monster plus two mistakes.
 // A type stocked to here can never run a day dry.
 const ROUND_CAP = maxRoundQuestions()
 
-// What one day's REDO asks at the outside. Flat across the week, unlike the
-// days themselves — a speaking round does not inherit the ladder's climb — so
-// it is one number a teacher can stock every day to.
-const REPLAY_ROUND = REPLAY_MONSTER_HP + HERO_LIVES - 1
+// What one day's REDO asks at the outside. This climbs like the days do — on a
+// shallower curve of its own, see REPLAY_HP_BY_DAY — so unlike the reading
+// types there is no single number to stock every day to, and the hint below has
+// to name the day being edited.
+const replayRound = (day) => replayHpFor(day) + HERO_LIVES - 1
+// The span, for the shared pool, which has no day of its own to be counted
+// against and must therefore cover the worst one.
+const REPLAY_ROUND_RANGE = [
+  Math.min(...REPLAY_HP_BY_DAY),
+  Math.max(...REPLAY_HP_BY_DAY)
+].map((hp) => hp + HERO_LIVES - 1)
 
 /**
  * The event battle's question bank.
@@ -302,9 +309,16 @@ const PayloadEditor = ({ type, payload, onChange, day, onDayChange }) => {
           {/* The shared pool is a fallback, not a blend: a day with phrases of
               its own never draws these. Said here because "mọi ngày" otherwise
               reads as "and also every day", which is the opposite. */}
+          {/* Named for the day being edited rather than as one figure for the
+              week: the redo ladder climbs, so "mỗi ngày cần N" would be wrong on
+              six days out of seven. The shared pool gets the span instead — it
+              can be drawn on any day that has none of its own, so the only safe
+              number for it is the worst day's. */}
           <p className="mt-1 text-xs text-gray-500">
-            Câu dùng chung chỉ xuất hiện ở những ngày chưa có câu riêng. Mỗi ngày
-            cần {REPLAY_ROUND} câu cho một cấp độ.
+            Câu dùng chung chỉ xuất hiện ở những ngày chưa có câu riêng.{' '}
+            {day
+              ? `Ngày ${day} cần ${replayRound(day)} câu cho một cấp độ.`
+              : `Mỗi ngày cần ${REPLAY_ROUND_RANGE[0]}–${REPLAY_ROUND_RANGE[1]} câu cho một cấp độ, tuỳ ngày.`}
           </p>
         </div>
         <div>

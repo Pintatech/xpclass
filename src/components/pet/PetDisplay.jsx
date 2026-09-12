@@ -67,7 +67,13 @@ const PET_MESSAGES = [
   "I believe in you! Let's learn together! 📚",
 ];
 
-const PetDisplay = () => {
+/**
+ * `aside` fills the right-hand half, which otherwise stands empty: the column was
+ * built for the chat panel, and the chat stays closed until it is asked for. Whatever
+ * is passed is positioned against a box this component sizes, so an `absolute inset-0`
+ * child — a HeroCarousel, say — lands where it should.
+ */
+const PetDisplay = ({ aside = null }) => {
   const {
     activePet,
     feedPet,
@@ -1766,7 +1772,20 @@ const PetDisplay = () => {
         </div>
 
         {/* Pet Actions */}
-        <div className="flex-1 p-4 space-y-4">
+        {/* The column is padded for the chat panel; the aside fills it corner to
+            corner instead, so it is positioned against the padding box rather
+            than laid out inside it — the one way to cover ground the padding has
+            already reserved. min-h is what gives it a size at all once it is out
+            of flow: the two columns stretch to each other on md and up, but a
+            phone stacks them and leaves this one holding nothing. */}
+        <div className={`flex-1 p-4 space-y-4 ${aside && !showChat ? 'relative min-h-[320px]' : ''}`}>
+          {/* Yields the column when the chat is opened rather than splitting it.
+              Both want the whole half, and the chat is the one the student
+              actually asked for — this is only here because nothing else was. */}
+          {aside && !showChat && (
+            <div className="absolute inset-0 overflow-hidden">{aside}</div>
+          )}
+
           {/* Chat Panel */}
           {showChat && (
             <div className="bg-white p-4 border-2 border-pink-200"

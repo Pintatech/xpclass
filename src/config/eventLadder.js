@@ -109,7 +109,7 @@ export const levelFromClears = (clears = 0) => Math.min(MAX_LEVEL, 1 + Math.max(
  */
 export const stageMonster = (stage, { replay = false } = {}) => ({
   ...getMonster(stage.monster),
-  hp: replay ? REPLAY_MONSTER_HP : monsterHpFor(stage.day)
+  hp: replay ? replayHpFor(stage.day) : monsterHpFor(stage.day)
 })
 
 /**
@@ -156,22 +156,39 @@ export const LADDER_QUESTION_TYPES = [
 export const REPLAY_QUESTION_TYPES = ['pronunciation']
 
 /**
- * How many right answers a REPLAY takes — flat, and much shorter than the day
- * it replays.
+ * How many right answers a REPLAY takes, day by day.
  *
- * The ladder's climb is deliberate: day seven asks for more than day one, and
- * that is the whole difficulty curve. A speaking round must not inherit it.
- * Reading eighteen phrases aloud into a phone is not a harder version of the
- * same exercise, it is a different and worse one — the child is hoarse, the
- * novelty is gone, and every phrase is another roll of the dice on the
- * recogniser mishearing them.
+ * It climbs, but on its OWN curve rather than the ladder's — 8 to 12 across the
+ * week where a first clear runs 10 to 16, and in steps of two days so the rise
+ * is something a child notices twice rather than every morning.
  *
- * It also decides how much writing a day's speaking round costs: with three
- * hit points and two allowed mistakes a day needs five phrases per level band,
- * not eighteen. That is the difference between a teacher filling in the week
- * and a teacher giving up on it.
+ * The reason it cannot simply mirror `monsterHpFor` is that a spoken round is
+ * limited by different things than a read one. Reading eighteen phrases aloud
+ * into a phone is not a harder version of the same exercise, it is a different
+ * and worse one: the child is hoarse, the novelty is gone, and — the part that
+ * is arithmetic rather than taste — every phrase is another roll of the dice on
+ * the recogniser mishearing them. At two allowed mistakes, needing sixteen
+ * successes in a row loses a PERFECT reader about a quarter of the time on a
+ * ten-percent error rate. Twelve is where that curve is still kind.
+ *
+ * The boss skips eleven on purpose. Day seven should feel like a step up rather
+ * than one more morning, and the jump is the cheapest way to say so.
+ *
+ * It also sets what a day's speaking round costs to WRITE: a day needs
+ * `hp + HERO_LIVES - 1` phrases per level band to be sure of never running dry,
+ * so this array is also the stocking order — see roundSizeFor, which the admin
+ * screen counts banks against.
  */
-export const REPLAY_MONSTER_HP = 3
+export const REPLAY_HP_BY_DAY = [8, 8, 9, 9, 10, 10, 12]
+
+/**
+ * A day's replay hit points. Clamped rather than trusting the caller, because
+ * an unknown day here would be `undefined` hit points and a fight that can
+ * never end — and re-cutting STAGES without re-cutting the array above is the
+ * obvious way to arrive at one.
+ */
+export const replayHpFor = (day) =>
+  REPLAY_HP_BY_DAY[Math.min(Math.max(day || 1, 1), REPLAY_HP_BY_DAY.length) - 1]
 
 /**
  * The question types a stage may draw from, as a list the bank query can hand

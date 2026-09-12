@@ -6,6 +6,7 @@ import { preloadSheets } from '../ui/spriteSheetCache'
 import { animationSrc, arrivalOf, bodyPad, spriteMetrics } from '../../config/eventCharacter'
 import { questionType, secondsFor } from '../../config/eventQuestions'
 import { HERO_ATK, HERO_LIVES } from '../../config/eventLadder'
+import { celebrate, primeCelebration } from '../../utils/celebrate'
 import { promptFor } from './prompts'
 import { shuffle } from './prompts/shared'
 
@@ -433,6 +434,11 @@ const EventBattle = ({
     audio.preload = 'auto'
     audio.volume = SLASH_VOLUME
     slashRef.current = audio
+
+    // The win fanfare is the shared celebration's, not ours — warmed here so the
+    // first win of a session still lands on the frame the monster falls.
+    primeCelebration()
+
     return () => { slashRef.current = null }
   }, [])
 
@@ -479,6 +485,11 @@ const EventBattle = ({
       setFoeFaded(true)
     }
     setPhase(won ? 'victory' : 'defeat')
+
+    // Fanfare and confetti on the blow that lands, not when the result panel
+    // opens — the panel waits on the payout and the pickup, and a celebration
+    // that arrives that late is scoring a moment that has already passed.
+    if (won) celebrate()
 
     // Nothing is announced until the corpse has finished crumbling, or the fade
     // has taken the place of one.
