@@ -19,7 +19,7 @@ import HeroCarousel from './HeroCarousel'
 import { useCarouselPanel } from './panelContext'
 import { MAX_LEVEL, levelFromClears, roundSizeFor, stageFor, stageMonster, stageQuestionTypes } from '../../config/eventLadder'
 import { STORY_MIN_LEVEL } from '../../config/eventQuestions'
-import { monsterBackground, monsterIntro } from '../../config/eventMonsters'
+import { monsterBackground, monsterIntro, monsterMusic } from '../../config/eventMonsters'
 import EventBattle from '../event/EventBattle'
 import EventCutscene from '../event/EventCutscene'
 import EventStatsPanel from '../event/EventStatsPanel'
@@ -454,6 +454,15 @@ const Dashboard = () => {
   const battleMonster = useMemo(
     () => stageMonster(fightStage || stageFor(1), { replay: Boolean(fightStage?.cleared) }),
     [fightStage]
+  )
+
+  // Music on a first run at a stage, silence on a rerun — the same line the
+  // rest of the ladder is drawn on. A theme belongs to MEETING a monster; a
+  // rerun is practice, and practice is quiet enough to think in. Null is a
+  // silent fight, which is also what a day whose track is not uploaded gets.
+  const battleMusic = useMemo(
+    () => (fightStage?.cleared ? null : monsterMusic(battleMonster)),
+    [fightStage, battleMonster]
   )
 
   /**
@@ -1458,6 +1467,7 @@ const Dashboard = () => {
           monster={battleMonster}
           questions={battleQuestions}
           story={battleStory}
+          music={battleMusic}
           background={monsterBackground(battleMonster)}
           onClose={() => setBattleOpen(false)}
           onFinish={finishEventBattle}

@@ -24,11 +24,15 @@
  * to pay.
  */
 const bg = (file) => `${import.meta.env.BASE_URL}event/bg/${file}`
-// The cutscenes live in the 'event' storage bucket rather than in public/,
-// because `npm run deploy` pushes dist to a git branch and these are megabytes
-// each. Its own bucket, not the ui-assets one assetUrl points at.
-const VIDEO_BASE = 'https://bhlpjvcplrofixogcrqp.supabase.co/storage/v1/object/public/event/video'
-const clip = (file) => `${VIDEO_BASE}/${file}`
+// The cutscenes and the battle music live in the 'event' storage bucket rather
+// than in public/, because `npm run deploy` pushes dist to a git branch and
+// these are megabytes each. Its own bucket, not the ui-assets one assetUrl
+// points at.
+const EVENT_BUCKET = 'https://bhlpjvcplrofixogcrqp.supabase.co/storage/v1/object/public/event'
+const clip = (file) => `${EVENT_BUCKET}/video/${file}`
+// A day's battle theme, numbered for the ladder day exactly as its cutscene is.
+// Heard on the first run at a stage and not on a rerun — see monsterMusic.
+const track = (file) => `${EVENT_BUCKET}/music/${file}`
 
 export const EVENT_MONSTERS = {
   // Golems_Free_Version / Golem_1 / Blue, the White_Swoosh_VFX variant — the
@@ -47,6 +51,7 @@ export const EVENT_MONSTERS = {
     background: bg('bg1.jpg'),
     // Day 4 of the ladder, which is what the file is numbered for.
     intro: '4.mp4',
+    music: track('4.mp3'),
     frameWidth: 71,
     frameHeight: 25,
     content: { top: 3, bottom: 24 },
@@ -73,6 +78,7 @@ export const EVENT_MONSTERS = {
     background: bg('bg2.jpg'),
     // Day 2 of the ladder, which is what the file is numbered for.
     intro: '2.mp4',
+    music: track('2.mp3'),
     frameWidth: 90,
     frameHeight: 64,
     content: { top: 19, bottom: 63 },
@@ -108,6 +114,7 @@ export const EVENT_MONSTERS = {
     background: bg('bg3.jpg'),
     // Day 6 of the ladder, which is what the file is numbered for.
     intro: '6.mp4',
+    music: track('6.mp3'),
     frameWidth: 32,
     frameHeight: 32,
     // Its feet are on row 26 in idle, so that is the floor. The slash reaches two
@@ -145,6 +152,7 @@ export const EVENT_MONSTERS = {
     background: bg('bg4.jpg'),
     // Day 1 of the ladder, which is what the file is numbered for.
     intro: '1.mp4',
+    music: track('1.mp3'),
     frameWidth: 64,
     frameHeight: 64,
     content: { top: 9, bottom: 56 },
@@ -186,6 +194,7 @@ export const EVENT_MONSTERS = {
     background: bg('bg5.jpg'),
     // Day 5 of the ladder, which is what the file is numbered for.
     intro: '5.mp4',
+    music: track('5.mp3'),
     frameWidth: 64,
     frameHeight: 64,
     content: { top: 18, bottom: 47 },
@@ -217,6 +226,7 @@ export const EVENT_MONSTERS = {
     background: bg('bg6.jpg'),
     // Day 3 of the ladder, which is what the file is numbered for.
     intro: '3.mp4',
+    music: track('3.mp3'),
     frameWidth: 79,
     frameHeight: 69,
     // The art fills its frame to the last row, so there is no room below it to
@@ -261,6 +271,7 @@ export const EVENT_MONSTERS = {
     background: bg('bg7.jpg'),
     // Day 7 of the ladder, which is what the file is numbered for.
     intro: '7.mp4',
+    music: track('7.mp3'),
     frameWidth: 96,
     frameHeight: 64,
     content: { top: 15, bottom: 55 },
@@ -297,6 +308,16 @@ export const EVENT_MONSTERS = {
 export const DEFAULT_MONSTER_BG = bg('bg1.jpg')
 
 export const monsterBackground = (config) => config?.background || DEFAULT_MONSTER_BG
+
+/**
+ * A monster's battle theme, or null if it has none.
+ *
+ * No default, unlike the background: a stage whose track has not been uploaded
+ * yet is fought in silence rather than to another day's music. Whether it is
+ * PLAYED is not decided here — the dashboard passes it only on a first run at a
+ * stage, so the music is part of meeting a monster and a rerun is practice.
+ */
+export const monsterMusic = (config) => config?.music || null
 
 /**
  * The clip that introduces a monster, played before the fight it opens.

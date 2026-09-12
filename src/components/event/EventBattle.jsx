@@ -35,6 +35,19 @@ const SPAWN_FADE = 500
 // still be fetching — so this is loaded once when the battle opens.
 const SLASH_SRC = `${import.meta.env.BASE_URL}event/sfx/sword-slash.mp3`
 const SLASH_VOLUME = 0.45
+// The monster has no sword. Pitched a little under the hero's slash so a miss
+// is heard as a blow taken rather than one landed.
+const PUNCH_SRC = `${import.meta.env.BASE_URL}event/sfx/punch.mp3`
+const PUNCH_VOLUME = 0.4
+
+// The battle theme sits well under both blows: it is the room the fight happens
+// in, and a child reading a passage aloud over it has to stay the loudest thing
+// on the screen.
+const MUSIC_VOLUME = 0.22
+// How long the theme takes to duck away once the fight is decided. The victory
+// fanfare fires on the blow that lands, so the music has to be leaving by then
+// rather than cut dead under it.
+const MUSIC_FADE = 700
 
 // A drop lands on the floor where the monster fell and has to be clicked up: the
 // result panel does not appear until it is. The banking is already done — this
@@ -261,10 +274,13 @@ const StoryPanel = ({ story, first, timeLeft, onClose }) => (
           className="mx-auto mb-3 max-h-28 w-auto rounded-lg object-contain md:max-h-36"
         />
       )}
-      {/* Blank lines are paragraphs; that is the whole of the format, because
-          the passage is written in a plain textarea by a teacher. */}
+      {/* Blank lines are paragraphs and single newlines are line breaks; that
+          is the whole of the format, because the passage is written in a plain
+          textarea by a teacher. `whitespace-pre-line` is what keeps those
+          single newlines — without it a line-per-sentence passage reflows into
+          one unreadable block. */}
       {story.body.split(/\n\s*\n/).map((para, i) => (
-        <p key={i} className="mb-2 text-sm leading-relaxed text-white/90 md:text-base">
+        <p key={i} className="mb-3 whitespace-pre-line text-sm leading-relaxed text-white/90 md:text-base">
           {para.trim()}
         </p>
       ))}
@@ -296,6 +312,11 @@ const EventBattle = ({
   // The passage every question in this round is about, or null for a round of
   // loose questions. The caller decides which — see openEventBattle.
   story = null,
+  // This stage's battle theme, or null for a silent fight. The CALLER decides
+  // whether there is one: a first run at a stage gets its music and a rerun
+  // does not, the same way a rerun gets its own hit points and question types.
+  // Nothing here knows which kind of run this is.
+  music = null,
   background,
   onClose,
   onFinish
@@ -370,6 +391,8 @@ const EventBattle = ({
   const [monsterState, setMonsterState] = useState({ action: foeArrival?.animation || 'idle', travel: 0, back: false, flash: false })
 
   const slashRef = useRef(null)
+  const punchRef = useRef(null)
+  const musicRef = useRef(null)
   const chainRef = useRef(0)
   // HP is mirrored in refs because the end-of-exchange check runs from a
   // timeout, where the state variables it closed over are already stale.
@@ -426,28 +449,35 @@ const EventBattle = ({
   // default for its type.
   const seconds = secondsFor(question)
 
-  // Hero swings only — the monster's blows land on their own hit flash and
-  // shake, and giving both sides the same slash made every exchange sound the
-  // same whether you had answered right or wrong.
+  // A side per sound: the hero's sword, the monster's fist. They must not share
+  // one — an exchange that sounded the same whether you had answered right or
+  // wrong is the reason the monster was silent before it had a punch of its own.
   useEffect(() => {
-    const audio = new Audio(SLASH_SRC)
-    audio.preload = 'auto'
-    audio.volume = SLASH_VOLUME
-    slashRef.current = audio
+    const load = (src, volume) => {
+      const audio = new Audio(src)
+      audio.preload = 'auto'
+      audio.volume = volume
+      return audio
+    }
+    slashRef.current = load(SLASH_SRC, SLASH_VOLUME)
+    punchRef.current = load(PUNCH_SRC, PUNCH_VOLUME)
 
     // The win fanfare is the shared celebration's, not ours — warmed here so the
     // first win of a session still lands on the frame the monster falls.
     primeCelebration()
 
-    return () => { slashRef.current = null }
+    return () => {
+      slashRef.current = null
+      punchRef.current = null
+    }
   }, [])
 
-  const playSlash = useCallback(() => {
-    const audio = slashRef.current
+  const playHit = useCallback((ref) => {
+    const audio = ref.current
     if (!audio) return
-    // Restarting beats overlapping: swings are ~1.5s apart, and a new slash
-    // cutting off the tail of the last one is what a fresh hit should sound
-    // like. Rejects if the browser is still withholding autoplay.
+    // Restarting beats overlapping: blows are ~1.5s apart, and a new one cutting
+    // off the tail of the last is what a fresh hit should sound like. Rejects if
+    // the browser is still withholding autoplay.
     try {
       audio.currentTime = 0
       audio.play().catch(() => {})
@@ -455,6 +485,58 @@ const EventBattle = ({
       // Some browsers throw on currentTime before enough is buffered.
     }
   }, [])
+
+  /**
+   * Duck the theme out and leave it out. Idempotent — the fight can end on a
+   * kill, a death or an empty question pool, and unmounting calls it again.
+   *
+   * A fade rather than a pause: the fanfare fires on the blow that lands, and a
+   * theme cut dead on that frame is heard as a glitch rather than an ending.
+   */
+  const stopMusic = useCallback(() => {
+    const audio = musicRef.current
+    if (!audio) return
+    musicRef.current = null
+
+    const TICK = 50
+    const drop = audio.volume / Math.max(1, Math.round(MUSIC_FADE / TICK))
+    const fade = setInterval(() => {
+      const next = audio.volume - drop
+      if (next <= 0.01) {
+        clearInterval(fade)
+        audio.pause()
+        // Dropping the source frees the download; a fight can be reopened and
+        // the next one builds its own element.
+        audio.src = ''
+      } else {
+        audio.volume = next
+      }
+    }, TICK)
+  }, [])
+
+  /**
+   * The stage's theme, for as long as the fight lasts.
+   *
+   * Autoplay is not a risk here even though the browser blocks it: this mounts
+   * behind a tapped Fight button, and on most days behind a cutscene the
+   * student also tapped through. A rejected play is swallowed all the same —
+   * silence is a fine fight, and there is no audio the student has to hear.
+   */
+  useEffect(() => {
+    if (!music) return undefined
+
+    const audio = new Audio(music)
+    audio.loop = true
+    audio.volume = MUSIC_VOLUME
+    audio.play().catch(() => {})
+    musicRef.current = audio
+
+    return () => {
+      musicRef.current = null
+      audio.pause()
+      audio.src = ''
+    }
+  }, [music])
 
   useEffect(() => {
     const all = []
@@ -478,6 +560,10 @@ const EventBattle = ({
 
   const finish = useCallback((won, by = won ? 'kill' : 'death') => {
     setEndedBy(by)
+    // The fight is over the moment this runs; what follows — the crumble, the
+    // payout, the drop on the floor — is the aftermath, and it is not fought to
+    // music.
+    stopMusic()
     const dies = won && monster.animations.die
     if (dies) setMonsterState((s) => ({ ...s, action: 'die' }))
     else if (won) {
@@ -546,7 +632,7 @@ const EventBattle = ({
     })
 
     after(PAYOUT_TIMEOUT, showResult)
-  }, [correctCount, qIndex, onFinish, monster, after])
+  }, [correctCount, qIndex, onFinish, monster, after, stopMusic])
 
   // The drop waits to be picked up. It used to give way to the result panel on a
   // timer, which meant the panel slid over the loot while the student was still
@@ -650,7 +736,7 @@ const EventBattle = ({
         // monster's hit points are the right answers it takes to kill. With a
         // x2 on three in a row, a flawless day seven died in nine questions
         // instead of sixteen, and the day-to-day ramp flattened with it.
-        playSlash()
+        playHit(slashRef)
         const damage = heroAtk
         monsterHpRef.current = Math.max(0, monsterHpRef.current - damage)
         setMonsterHp(monsterHpRef.current)
@@ -665,6 +751,7 @@ const EventBattle = ({
     } else {
       setStreak(0)
       total = chargeAndStrike('monster', monster.animations.attack ? 'attack' : 'idle', () => {
+        playHit(punchRef)
         // A wrong answer costs a life. Not doubled on a run of them, unlike the
         // hero's streak: at three lives a doubled miss is most of a fighter, and
         // being punished twice over for a bad patch is not what a reading

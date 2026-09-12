@@ -17,7 +17,7 @@ const rarityBg = {
   legendary: 'bg-yellow-50',
 }
 
-const MAX_SLOTS = 6
+const MAX_SLOTS = 7
 
 const CraftingTable = ({ recipes, inventory, getItemQuantity, onCraft, crafting }) => {
   // slots: array of { item_id, item, quantity }
