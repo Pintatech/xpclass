@@ -1,11 +1,12 @@
 import React, { useState, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import { supabase } from '../../supabase/client';
 import { useAuth } from '../../hooks/useAuth';
 import StudentExerciseMatrix from './reports/StudentExerciseMatrix';
 import UnitProgressView from './reports/UnitProgressView';
 import LessonReportView from './reports/LessonReportView';
 import TestResultsView from './reports/TestResultsView';
+import EventProgressView from './reports/EventProgressView';
 import {
   BookOpen,
   Users,
@@ -16,7 +17,8 @@ import {
   BarChart3,
   FileText,
   Video,
-  TrendingDown
+  TrendingDown,
+  Swords
 } from 'lucide-react';
 import VideoSubmissionReview from './VideoSubmissionReview';
 
@@ -32,7 +34,8 @@ const TeacherDashboard = () => {
   const [courseSessionIds, setCourseSessionIds] = useState([]);
   const [loading, setLoading] = useState(false);
   const [expandedStudent, setExpandedStudent] = useState(null);
-  const [currentView, setCurrentView] = useState('overview'); // 'overview', 'matrix', or 'unit-progress'
+  const [searchParams] = useSearchParams();
+  const [currentView, setCurrentView] = useState(searchParams.get('view') || 'overview'); // 'overview', 'matrix', 'unit-progress', 'event', ...
   const [hasLoadedCourses, setHasLoadedCourses] = useState(false);
   const [statsMode, setStatsMode] = useState('shared'); // 'shared' or 'personal'
   const [personalExerciseIds, setPersonalExerciseIds] = useState({}); // { studentId: [exerciseIds] }
@@ -573,6 +576,17 @@ const TeacherDashboard = () => {
                     <Video className="w-4 h-4" />
                     <span>Video Reviews</span>
                   </button>
+                  <button
+                    onClick={() => setCurrentView('event')}
+                    className={`flex items-center space-x-2 px-4 py-2 rounded-lg transition-colors ${
+                      currentView === 'event'
+                        ? 'bg-blue-600 text-white'
+                        : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                    }`}
+                  >
+                    <Swords className="w-4 h-4" />
+                    <span>Event</span>
+                  </button>
                 </div>
               </div>
             )}
@@ -797,6 +811,11 @@ const TeacherDashboard = () => {
       {/* Video Submission Reviews */}
       {selectedCourse && currentView === 'video-reviews' && (
         <VideoSubmissionReview selectedCourse={selectedCourse} />
+      )}
+
+      {/* Event Ladder Progress */}
+      {selectedCourse && currentView === 'event' && (
+        <EventProgressView selectedCourse={selectedCourse} />
       )}
 
       {/* No Courses */}

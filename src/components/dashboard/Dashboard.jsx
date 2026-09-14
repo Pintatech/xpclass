@@ -30,7 +30,7 @@ import { fetchPvpSchedule, checkPvpAvailability } from '../../utils/pvpSchedule'
 import { assetUrl, useBranding } from '../../hooks/useBranding';
 import { usePermissions } from '../../hooks/usePermissions';
 import { useInventory } from '../../hooks/useInventory';
-import { CheckCircle, Clock, XCircle, ChevronDown, Hammer, Lock, ShoppingBag } from 'lucide-react';
+import { CheckCircle, Clock, XCircle, ChevronDown, Hammer, Lock, ShoppingBag, Users } from 'lucide-react';
 
 // Collapsible student exercise stats for latest session — only fetches on first open
 const CourseStatsSection = ({ courseId }) => {
@@ -1338,6 +1338,16 @@ const Dashboard = () => {
                   >
                     <Hammer className="h-3 w-3" />
                     Chế tạo
+                  </button>
+                )}
+                {/* Staff only: who in the class has cleared which day. */}
+                {(isStaff || profile?.role === 'teacher') && (
+                  <button
+                    onClick={() => navigate('/teacher?view=event')}
+                    className="flex items-center gap-1 rounded-full bg-blue-500/90 px-2 py-0.5 text-[10px] font-semibold text-white backdrop-blur-sm hover:bg-blue-400"
+                  >
+                    <Users className="h-3 w-3" />
+                    Tiến độ lớp
                   </button>
                 )}
               </div>
