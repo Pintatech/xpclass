@@ -18,7 +18,7 @@ import { getMonster } from './eventMonsters'
 import { MIXED, questionTypesFor } from './eventQuestions'
 
 /** Local date the ladder opens on. Day 1 is this day. */
-export const EVENT_START = '2026-09-14'
+export const EVENT_START = '2026-09-13'
 
 /**
  * Day → which monster, and which kind of question it asks.
