@@ -358,6 +358,9 @@ const EventBattle = ({
   const [endedBy, setEndedBy] = useState(null)
   const [qIndex, setQIndex] = useState(0)
   const [correctCount, setCorrectCount] = useState(0)
+  // Questions waved past ungraded (see `skip`), so the exhausted ending can say
+  // why the round ran out rather than blaming the student's answers.
+  const [skippedCount, setSkippedCount] = useState(0)
   const [streak, setStreak] = useState(0)
   // Answers are locked until both entrances are done, so the first click can't
   // send a half-assembled hero across the arena.
@@ -789,6 +792,28 @@ const EventBattle = ({
     })
   }
 
+  /**
+   * A question that could not be graded — the spoken type, with no microphone or
+   * a transcription that failed. Neither fighter swings: a broken mic must not
+   * cost a life, and it must not deal damage either, or denying the microphone
+   * becomes a way to win a replay (and its loot) without saying a word.
+   *
+   * The round is drawn only as long as a fight needs, so skips eat into it, and
+   * enough of them run it out — the exhausted ending, a loss that pays nothing.
+   */
+  const skip = () => {
+    if (locked || !question) return
+    setSkippedCount((n) => n + 1)
+    setResult(null)
+    setTimedOut(false)
+    if (lastQuestion) {
+      setLocked(true)
+      finish(false, 'exhausted')
+    } else {
+      setQIndex((i) => i + 1)
+    }
+  }
+
   const over = phase !== 'playing'
 
   // The countdown reaches `resolve` through a ref rather than naming it as a
@@ -1029,6 +1054,11 @@ const EventBattle = ({
                 Hết câu hỏi — cần {needed} câu đúng để hạ {monster.name}
               </p>
             )}
+            {endedBy === 'exhausted' && skippedCount > 0 && (
+              <p className="mt-1 text-xs text-white/50">
+                Bỏ qua {skippedCount} câu vì không chấm được giọng nói
+              </p>
+            )}
             {/* No points to hand out any more — a level is a monster beaten and
                 nothing else, so this says that and stops. */}
             {levelUp && phase === 'victory' && (
@@ -1183,6 +1213,7 @@ const EventBattle = ({
               disabled={locked}
               result={result}
               onAnswer={resolve}
+              onSkip={skip}
               onBusy={setPromptBusy}
             />
           </>

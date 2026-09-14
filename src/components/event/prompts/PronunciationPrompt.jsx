@@ -11,15 +11,14 @@ import { scoreSpeech, speechAvailable, transcribeSpeech } from '../../../utils/s
  * the only one that can fail for reasons the student had no part in: a refused
  * microphone, a missing API key, a network that drops the audio. Every one of
  * those SKIPS the question rather than marking it wrong, because a battle costs
- * a life for a wrong answer and none of those are the child's fault. The battle
- * is told through the same onAnswer it always uses; `null` for the response is
- * what a skipped question looks like on the way out.
+ * a life for a wrong answer and none of those are the child's fault. A skip goes
+ * out through `onSkip`, not `onAnswer`: it deals no damage either way.
  *
  * It is also the only prompt that goes away and comes back. Transcription takes
  * seconds, so it holds the clock through `onBusy` while it waits — the seconds
  * on a spoken question are speaking time, not upload time.
  */
-const PronunciationPrompt = ({ question, disabled, result, onAnswer, onBusy }) => {
+const PronunciationPrompt = ({ question, disabled, result, onAnswer, onSkip, onBusy }) => {
   const phrase = question.payload?.text || ''
   const pass = speechPassFor(question.payload)
 
@@ -98,10 +97,10 @@ const PronunciationPrompt = ({ question, disabled, result, onAnswer, onBusy }) =
     }
   }
 
-  // A question that cannot be graded is waved through as RIGHT. Wrong would
-  // cost a life for a broken microphone; right is the generous reading, and a
-  // replay pays nothing that could be farmed by breaking one on purpose.
-  const skip = () => onAnswer(true, null)
+  // A question that cannot be graded is neither right nor wrong. Wrong would
+  // cost a life for a broken microphone; right would let a student deny the
+  // microphone on purpose and tap through a replay for its loot.
+  const skip = () => onSkip?.()
 
   const shown = result?.response
 
