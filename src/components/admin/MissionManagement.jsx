@@ -220,6 +220,7 @@ const MissionManagement = () => {
   }
 
   return (
+    <>
     <div className="space-y-6">
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
@@ -320,6 +321,7 @@ const MissionManagement = () => {
           })
         )}
       </div>
+    </div>
 
       {/* Create/Edit Modal */}
       {showModal && (
@@ -557,7 +559,7 @@ const MissionManagement = () => {
           </div>
         </div>
       )}
-    </div>
+    </>
   )
 }
 

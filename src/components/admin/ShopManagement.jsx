@@ -219,6 +219,7 @@ const ShopManagement = () => {
   }
 
   return (
+    <>
     <div className="space-y-6">
       {/* Header */}
       <div className="flex items-start justify-between gap-4">
@@ -400,6 +401,7 @@ const ShopManagement = () => {
           <Button onClick={() => handleOpenModal()}>Thêm vật phẩm</Button>
         </Card>
       )}
+    </div>
 
       {/* Modal */}
       {showModal && (
@@ -542,7 +544,7 @@ const ShopManagement = () => {
           </div>
         </div>
       )}
-    </div>
+    </>
   )
 }
 

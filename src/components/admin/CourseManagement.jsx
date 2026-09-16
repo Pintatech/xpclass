@@ -234,6 +234,7 @@ const CourseManagement = () => {
   };
 
   return (
+    <>
     <div className="space-y-6">
       {/* Header */}
       <div className="flex justify-between items-center">
@@ -406,6 +407,7 @@ const CourseManagement = () => {
           </div>
         )}
       </div>
+    </div>
 
       {/* Modal */}
       {showModal && (
@@ -438,7 +440,7 @@ const CourseManagement = () => {
           </div>
         </div>
       )}
-    </div>
+    </>
   );
 };
 

@@ -441,7 +441,7 @@ const SpeakingAssessmentEditor = ({ questions, level, onQuestionsChange, onLevel
 
       {/* Media modal (link + size / audio options, with upload fallback) */}
       {mediaModal && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4" onClick={closeMediaModal}>
+        <div className="fixed inset-0 !mt-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4" onClick={closeMediaModal}>
           <div className="bg-white rounded-lg max-w-md w-full p-6 max-h-[90vh] overflow-y-auto" onClick={(e) => e.stopPropagation()}>
             <div className="flex justify-between items-center mb-4">
               <h3 className="text-lg font-semibold">

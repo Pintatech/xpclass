@@ -529,7 +529,7 @@ const FlashcardEditor = ({ cards, onCardsChange, folderPath }) => {
 
       {/* CSV Import Modal */}
       {showCSVImport && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+        <div className="fixed inset-0 !mt-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
           <div className="bg-white rounded-lg max-w-4xl w-full mx-4 max-h-[90vh] overflow-y-auto">
             <div className="p-6">
               <div className="flex justify-between items-center mb-4">

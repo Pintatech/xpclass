@@ -424,6 +424,7 @@ const InventoryManagement = () => {
   }
 
   return (
+    <>
     <div className="space-y-6">
 
       {error && (
@@ -669,6 +670,7 @@ const InventoryManagement = () => {
           chests={chests}
         />
       )}
+    </div>
 
       {/* ===== MODAL ===== */}
       {showModal && (
@@ -711,7 +713,7 @@ const InventoryManagement = () => {
           </div>
         </div>
       )}
-    </div>
+    </>
   )
 }
 

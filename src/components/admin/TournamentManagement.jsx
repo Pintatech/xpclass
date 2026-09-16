@@ -135,7 +135,7 @@ const ScoreModal = ({ match, participants, teams = [], onSave, onClose }) => {
   }
 
   return (
-    <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4" onClick={onClose}>
+    <div className="fixed inset-0 !mt-0 bg-black/50 z-50 flex items-center justify-center p-4" onClick={onClose}>
       <div className="bg-white rounded-xl shadow-xl max-w-sm w-full p-5" onClick={e => e.stopPropagation()}>
         <h3 className="text-sm font-bold text-gray-800 mb-4">Nhập kết quả trận đấu</h3>
 

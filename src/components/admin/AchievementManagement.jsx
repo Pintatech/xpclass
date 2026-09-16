@@ -211,6 +211,7 @@ const AchievementManagement = () => {
   }
 
   return (
+    <>
     <div className="space-y-6">
       {/* Header */}
       <div className="flex items-center justify-between">
@@ -328,6 +329,7 @@ const AchievementManagement = () => {
           </Button>
         </Card>
       )}
+    </div>
 
       {/* Modal */}
       {showModal && (
@@ -564,7 +566,7 @@ const AchievementManagement = () => {
           </div>
         </div>
       )}
-    </div>
+    </>
   )
 }
 

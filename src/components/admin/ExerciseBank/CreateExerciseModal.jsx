@@ -135,7 +135,7 @@ const CreateExerciseModal = ({ folders, selectedFolder, onClose, onCreated, allo
   }
 
   return (
-    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+    <div className="fixed inset-0 !mt-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
       <div className={`bg-white rounded-lg shadow-xl w-full max-h-[90vh] flex flex-col ${formData.exercise_type === 'pdf_worksheet' || formData.exercise_type === 'image_hotspot' ? 'max-w-6xl' : 'max-w-4xl'}`}>
         {/* Form */}
         <form onSubmit={handleSubmit} className="flex flex-col flex-1 min-h-0">
