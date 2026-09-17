@@ -34,6 +34,8 @@ import UnitReportPage from './components/teacher/reports/UnitReportPage'
 import WeaknessAnalysis from './components/teacher/WeaknessAnalysis'
 import GuestEntry from './components/guest/GuestEntry'
 import GuestSessionRunner from './components/guest/GuestSessionRunner'
+import FlashcardExercise from './components/exercises/FlashcardExercise'
+import PronunciationExercise from './components/exercises/PronunciationExercise'
 import SpriteLab from './components/event/SpriteLab'
 import { FEATURES } from './config/features'
 
@@ -63,6 +65,10 @@ function App() {
               <Route path={REGISTER_PATH} element={<RegisterPage />} />
               <Route path="/guest" element={<GuestEntry />} />
               <Route path="/guest/session" element={<GuestSessionRunner />} />
+              {/* Public demo links: the same exercise screens, no login and no
+                  progress tracking. Share as /demo/... with the usual query params. */}
+              <Route path="/demo/flashcard" element={<FlashcardExercise />} />
+              <Route path="/demo/pronunciation" element={<PronunciationExercise />} />
               <Route path="/game/evo" element={
                 <ProtectedRoute>
                   <Suspense fallback={<div className="fixed inset-0 bg-[#0b1220]" />}>
