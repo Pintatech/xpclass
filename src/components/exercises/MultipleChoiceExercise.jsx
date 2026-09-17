@@ -1388,6 +1388,12 @@ const MultipleChoiceExercise = ({ testMode = false, exerciseData = null, onAnswe
             wrongQuestionsCount={isRetryMode ? 0 : wrongQuestions.length}
             onRetryWrongQuestions={handleRetryWrongQuestions}
             onBackToList={() => {
+              // Public demo (/demo/multiple-choice): the exercise list is behind
+              // auth, so just dismiss and leave the guest on the exercise.
+              if (!user) {
+                setIsQuizComplete(false)
+                return
+              }
               if (session && session.units) {
                 navigate(`/study/course/${session.units.course_id}/unit/${session.unit_id}/session/${sessionId}`)
               } else {

@@ -36,6 +36,8 @@ import GuestEntry from './components/guest/GuestEntry'
 import GuestSessionRunner from './components/guest/GuestSessionRunner'
 import FlashcardExercise from './components/exercises/FlashcardExercise'
 import PronunciationExercise from './components/exercises/PronunciationExercise'
+import MultipleChoiceExercise from './components/exercises/MultipleChoiceExercise'
+import FillBlankExercise from './components/exercises/FillBlankExercise'
 import SpriteLab from './components/event/SpriteLab'
 import { FEATURES } from './config/features'
 
@@ -69,6 +71,8 @@ function App() {
                   progress tracking. Share as /demo/... with the usual query params. */}
               <Route path="/demo/flashcard" element={<FlashcardExercise />} />
               <Route path="/demo/pronunciation" element={<PronunciationExercise />} />
+              <Route path="/demo/multiple-choice" element={<MultipleChoiceExercise />} />
+              <Route path="/demo/fill-blank" element={<FillBlankExercise />} />
               <Route path="/game/evo" element={
                 <ProtectedRoute>
                   <Suspense fallback={<div className="fixed inset-0 bg-[#0b1220]" />}>

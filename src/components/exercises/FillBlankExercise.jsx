@@ -784,6 +784,13 @@ const FillBlankExercise = ({ testMode = false, exerciseData = null, onAnswersCol
   }, [showResults, showAllQuestions, handleNext])
 
   const handleBackToSession = () => {
+    // Public demo (/demo/fill-blank): the exercise list is behind auth, so
+    // just dismiss the celebration and leave the guest on the exercise.
+    if (!user) {
+      setExerciseCompleted(false)
+      return
+    }
+
     const urlParams = new URLSearchParams(location.search)
     const sessionId = urlParams.get('sessionId')
     const courseId = urlParams.get('courseId')
