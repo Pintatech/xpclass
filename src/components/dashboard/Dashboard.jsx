@@ -1371,12 +1371,16 @@ const Dashboard = () => {
             </div>
 
             {/* Panels 2..n — one per day of the ladder, in order, so the week is
-                something you slide through rather than a strip of buttons. */}
-            {ladder.stages.map((stage) => (
+                something you slide through rather than a strip of buttons.
+                Gated on the flag like the aside is: with the event over these
+                are the monsters themselves, not just the hero standing in
+                front of them, so the whole strip goes rather than emptying out
+                into panels nobody can fight. */}
+            {EVENT_ENABLED && ladder.stages.map((stage) => (
               <EventStagePanel
                 key={stage.day}
                 stage={stage}
-                hero={EVENT_ENABLED ? eventCharacter : null}
+                hero={eventCharacter}
                 totalDays={ladder.totalDays}
                 ignoreCalendar={ladder.ignoreCalendar}
                 scale={isDesktop ? 2.5 : 1.75}

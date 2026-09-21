@@ -198,7 +198,9 @@ export const EVENT_CHARACTERS = {
   }
 }
 
-export const EVENT_ENABLED = true
+// The event has ended — off hides the hero, the day panels and the pet-page
+// aside. Flip back to true to run it again; nothing else has to change.
+export const EVENT_ENABLED = false
 export const DEFAULT_CHARACTER_ID = 'warrior-woman'
 
 export const CHARACTER_LIST = Object.values(EVENT_CHARACTERS)
