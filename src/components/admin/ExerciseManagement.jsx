@@ -47,6 +47,7 @@ const ExerciseManagement = () => {
     'image_hotspot': { icon: Image, label: 'Image Hotspot', color: 'cyan' },
     'pdf_worksheet': { icon: Edit3, label: 'PDF Worksheet', color: 'rose' },
     'video_upload': { icon: Video, label: 'Video Upload', color: 'teal' },
+    'face_filter_video': { icon: Video, label: 'Fun Filter Video', color: 'pink' },
   }
 
   useEffect(() => {

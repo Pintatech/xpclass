@@ -757,6 +757,7 @@ const ExerciseList = () => {
         />
       ),
       video_upload: (props) => <Video {...props} />,
+      face_filter_video: (props) => <Video {...props} />,
     };
     return icons[exerciseType] || ((props) => <BookOpen {...props} />);
   };
@@ -771,6 +772,7 @@ const ExerciseList = () => {
       pdf_worksheet: "text-rose-600 bg-rose-100",
       speaking_assessment: "text-violet-600 bg-violet-100",
       video_upload: "text-teal-600 bg-teal-100",
+      face_filter_video: "text-pink-600 bg-pink-100",
     };
     return colors[exerciseType] || "text-gray-600 bg-gray-100";
   };
@@ -871,6 +873,7 @@ const ExerciseList = () => {
       pdf_worksheet: "/study/pdf-worksheet",
       speaking_assessment: "/study/speaking-assessment",
       video_upload: "/study/video-upload",
+      face_filter_video: "/study/filter-video",
     };
 
     const basePath = paths[exercise.exercise_type] || "/study/flashcard";

@@ -45,6 +45,7 @@ const StudyModule = () => {
       <Route path="pdf-worksheet" element={<PDFWorksheetExercise />} />
       <Route path="speaking-assessment" element={<SpeakingAssessmentExercise />} />
       <Route path="video-upload" element={<VideoUploadExercise />} />
+      <Route path="filter-video" element={<VideoUploadExercise key="face_filter_video" exerciseType="face_filter_video" />} />
     </Routes>
   )
 }

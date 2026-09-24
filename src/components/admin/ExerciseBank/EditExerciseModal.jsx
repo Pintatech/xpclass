@@ -260,8 +260,10 @@ const EditExerciseModal = ({ isOpen, onClose, exercise, onUpdate }) => {
           />
         )
       case 'video_upload':
+      case 'face_filter_video':
         return (
           <VideoUploadEditor
+            recordMode={formData.exercise_type === 'face_filter_video'}
             questions={content.questions || []}
             level={content.level || 'middle'}
             skipScoring={content.skip_scoring || false}

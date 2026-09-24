@@ -4,7 +4,7 @@ import { useAuth } from '../../../hooks/useAuth';
 import { CheckCircle, XCircle, Clock, Minus, RotateCcw, Eye, X, ChevronDown, ChevronLeft, ChevronRight, RefreshCw, Video, Send, Star, FileText, User } from 'lucide-react';
 import SingleExerciseReview from './SingleExerciseReview';
 
-const VIDEO_TYPES = ['video', 'video_upload', 'speaking', 'speaking_assessment'];
+const VIDEO_TYPES = ['video', 'video_upload', 'face_filter_video', 'speaking', 'speaking_assessment'];
 
 const StudentExerciseMatrix = ({ selectedCourse, initialSessionId }) => {
   const { user, isAdmin } = useAuth();

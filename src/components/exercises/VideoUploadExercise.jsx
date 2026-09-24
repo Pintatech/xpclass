@@ -11,6 +11,7 @@ import { Upload, ArrowRight, ArrowLeft, Star, RefreshCw, CheckCircle, Video, X, 
 import { assetUrl } from '../../hooks/useBranding'
 import TeacherExerciseNav from '../ui/TeacherExerciseNav'
 import { LEVELS, scoreSpeechWithLLM } from './SpeakingAssessmentExercise'
+import FaceFilterRecorder from './FaceFilterRecorder'
 
 const themeSideImages = {
   blue: { left: assetUrl('/image/theme_question/ice_left.png'), right: assetUrl('/image/theme_question/ice_right.png') },
@@ -37,7 +38,10 @@ const fallbackResult = (msg = '') => ({
   sample_improvement: '',
 })
 
-const VideoUploadExercise = () => {
+// exerciseType 'face_filter_video' swaps the file upload for a live camera recorder with fun face filters
+const VideoUploadExercise = ({ exerciseType = 'video_upload' }) => {
+  const isFilterMode = exerciseType === 'face_filter_video'
+  const routePath = isFilterMode ? '/study/filter-video' : '/study/video-upload'
   const location = useLocation()
   const navigate = useNavigate()
   const { user } = useAuth()
@@ -169,7 +173,7 @@ const VideoUploadExercise = () => {
         .from('exercises')
         .select('*')
         .eq('id', exerciseId)
-        .eq('exercise_type', 'video_upload')
+        .eq('exercise_type', exerciseType)
         .single()
       if (error) throw error
       setExercise(data)
@@ -177,7 +181,7 @@ const VideoUploadExercise = () => {
       setQuestions(qs)
       if (qs.length) {
         try {
-          saveRecentExercise({ ...data, continuePath: `/study/video-upload?exerciseId=${data.id}&sessionId=${sessionId}` })
+          saveRecentExercise({ ...data, continuePath: `${routePath}?exerciseId=${data.id}&sessionId=${sessionId}` })
         } catch { }
       }
     } catch (err) {
@@ -461,7 +465,7 @@ const VideoUploadExercise = () => {
         {isTeacherView && sessionId && <TeacherExerciseNav sessionId={sessionId} currentExerciseId={exerciseId} />}
         <div className="flex items-center justify-between mb-6">
           <div>
-            <h2 className="text-2xl font-bold text-gray-900">{exercise?.title || 'Video Upload'}</h2>
+            <h2 className="text-2xl font-bold text-gray-900">{exercise?.title || (isFilterMode ? 'Fun Filter Video' : 'Video Upload')}</h2>
             {exercise?.content?.level && (() => { const lc = getLevelConfig(exercise.content.level); return (
               <span className={`inline-flex items-center gap-1 mt-1 px-2 py-0.5 rounded-full text-xs font-medium border ${lc.color}`}>
                 {lc.emoji} {lc.label} · {lc.ageRange}
@@ -491,7 +495,7 @@ const VideoUploadExercise = () => {
               <div className="flex items-start gap-3">
                 <span className="flex-shrink-0 w-8 h-8 bg-teal-100 text-teal-700 rounded-full flex items-center justify-center font-bold text-sm">{idx + 1}</span>
                 <div className="flex-1">
-                  <p className="text-xs font-medium text-teal-600 uppercase tracking-wide mb-1">Video Upload Task</p>
+                  <p className="text-xs font-medium text-teal-600 uppercase tracking-wide mb-1">{isFilterMode ? 'Filter Video Task' : 'Video Upload Task'}</p>
                   <div className="text-lg font-semibold text-gray-900 mb-2">
                     <RichTextRenderer content={q.prompt} allowImages={true} />
                   </div>
@@ -503,7 +507,8 @@ const VideoUploadExercise = () => {
                       ))}
                     </div>
                   )}
-                  {q.max_file_size_mb && <p className="text-xs text-gray-500 mt-2">Max file size: {q.max_file_size_mb} MB</p>}
+                  {isFilterMode && <p className="text-xs text-gray-500 mt-2">Max length: {q.max_duration_seconds || 60}s</p>}
+                  {!isFilterMode && q.max_file_size_mb && <p className="text-xs text-gray-500 mt-2">Max file size: {q.max_file_size_mb} MB</p>}
                 </div>
               </div>
             </div>
@@ -643,7 +648,12 @@ const VideoUploadExercise = () => {
                       </div>
                     )}
 
-                    {!selectedFile ? (
+                    {!selectedFile && isFilterMode ? (
+                      <FaceFilterRecorder
+                        maxSeconds={currentQuestion.max_duration_seconds || 60}
+                        onRecorded={handleFileSelect}
+                      />
+                    ) : !selectedFile ? (
                       <div
                         onDrop={handleDrop}
                         onDragOver={handleDragOver}
@@ -682,11 +692,19 @@ const VideoUploadExercise = () => {
                           <button
                             onClick={clearFile}
                             className="absolute top-2 right-2 p-1.5 bg-black/60 hover:bg-black/80 text-white rounded-full transition-colors"
-                            title="Remove video"
+                            title={isFilterMode ? 'Record again' : 'Remove video'}
                           >
                             <X className="w-4 h-4" />
                           </button>
                         </div>
+                        {isFilterMode && (
+                          <button
+                            onClick={clearFile}
+                            className="w-full flex items-center justify-center gap-2 px-4 py-2 text-gray-600 border border-gray-300 rounded-lg hover:bg-gray-50 text-sm"
+                          >
+                            <RefreshCw className="w-4 h-4" /> Record Again
+                          </button>
+                        )}
                         <div className="flex items-center justify-between text-sm text-gray-600">
                           <span className="truncate max-w-xs">{selectedFile.name}</span>
                           <span>{(selectedFile.size / (1024 * 1024)).toFixed(1)} MB</span>

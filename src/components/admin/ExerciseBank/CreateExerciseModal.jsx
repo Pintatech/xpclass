@@ -1,6 +1,6 @@
 import React, { useState } from 'react'
 import { supabase } from '../../../supabase/client'
-import { BookOpen, Edit3, Mic, HelpCircle, Tag, Copy, Brain, ChevronDown, Image, FileText, Video, Plus } from 'lucide-react'
+import { BookOpen, Edit3, Mic, HelpCircle, Tag, Copy, Brain, ChevronDown, Image, FileText, Video, Plus, Sparkles } from 'lucide-react'
 import { EXERCISE_CATEGORIES, EXERCISE_TAGS, ALL_TAGS } from '../../../constants/exerciseTags'
 import FlashcardEditor from '../editors/FlashcardEditor'
 import MultipleChoiceEditor from '../editors/MultipleChoiceEditor'
@@ -42,6 +42,7 @@ const CreateExerciseModal = ({ folders, selectedFolder, onClose, onCreated, allo
     { value: 'pdf_worksheet', label: 'PDF Worksheet', icon: FileText },
     { value: 'speaking_assessment', label: 'Speaking Assessment', icon: Mic },
     { value: 'video_upload', label: 'Video Upload', icon: Video },
+    { value: 'face_filter_video', label: 'Fun Filter Video', icon: Sparkles },
   ]
   const exerciseTypes = allowedTypes
     ? allExerciseTypes.filter(t => allowedTypes.includes(t.value))
@@ -381,8 +382,10 @@ const CreateExerciseModal = ({ folders, selectedFolder, onClose, onCreated, allo
               />
             )}
 
-            {formData.exercise_type === 'video_upload' && (
+            {(formData.exercise_type === 'video_upload' || formData.exercise_type === 'face_filter_video') && (
               <VideoUploadEditor
+                key={formData.exercise_type}
+                recordMode={formData.exercise_type === 'face_filter_video'}
                 questions={formData.content.questions || []}
                 level={formData.content.level || 'middle'}
                 skipScoring={formData.content.skip_scoring || false}

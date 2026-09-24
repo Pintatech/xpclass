@@ -9,9 +9,11 @@ const emptyQuestion = (idx = 0) => ({
   key_points: [],
   evaluation_criteria: '',
   max_file_size_mb: 50,
+  max_duration_seconds: 60,
 })
 
-const VideoUploadEditor = ({ questions, level, skipScoring, onQuestionsChange, onLevelChange, onSkipScoringChange }) => {
+// recordMode: students record in-app with face filters (face_filter_video) instead of uploading a file
+const VideoUploadEditor = ({ questions, level, skipScoring, recordMode = false, onQuestionsChange, onLevelChange, onSkipScoringChange }) => {
   const [localQuestions, setLocalQuestions] = useState(
     (questions || []).length ? questions : [emptyQuestion(0)]
   )
@@ -96,8 +98,8 @@ const VideoUploadEditor = ({ questions, level, skipScoring, onQuestionsChange, o
       {/* Skip scoring toggle */}
       <div className="flex items-center justify-between p-3 bg-amber-50 border border-amber-200 rounded-lg">
         <div>
-          <span className="text-sm font-medium text-gray-700">Upload Only (No AI Scoring)</span>
-          <p className="text-xs text-gray-500">Students just upload their video and move on — no transcription or feedback shown.</p>
+          <span className="text-sm font-medium text-gray-700">{recordMode ? 'Submit Only (No AI Scoring)' : 'Upload Only (No AI Scoring)'}</span>
+          <p className="text-xs text-gray-500">Students just {recordMode ? 'record' : 'upload'} their video and move on — no transcription or feedback shown.</p>
         </div>
         <button
           type="button"
@@ -112,7 +114,7 @@ const VideoUploadEditor = ({ questions, level, skipScoring, onQuestionsChange, o
 
       {/* Questions */}
       <div className="flex items-center justify-between">
-        <h3 className="text-sm font-semibold text-gray-700">Video Upload Questions</h3>
+        <h3 className="text-sm font-semibold text-gray-700">{recordMode ? 'Filter Video Questions' : 'Video Upload Questions'}</h3>
         <button
           type="button"
           onClick={addQuestion}
@@ -204,6 +206,19 @@ const VideoUploadEditor = ({ questions, level, skipScoring, onQuestionsChange, o
             />
           </div>
 
+          {recordMode ? (
+          <div>
+            <label className="block text-xs font-medium text-gray-600 mb-1">Max Recording Length (seconds)</label>
+            <input
+              type="number"
+              min="5"
+              max="180"
+              value={q.max_duration_seconds || 60}
+              onChange={(e) => updateField(idx, 'max_duration_seconds', parseInt(e.target.value) || 60)}
+              className="w-28 border border-gray-300 rounded-lg px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-teal-400"
+            />
+          </div>
+          ) : (
           <div>
             <label className="block text-xs font-medium text-gray-600 mb-1">Max File Size (MB)</label>
             <input
@@ -215,6 +230,7 @@ const VideoUploadEditor = ({ questions, level, skipScoring, onQuestionsChange, o
               className="w-28 border border-gray-300 rounded-lg px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-teal-400"
             />
           </div>
+          )}
         </div>
       ))}
 
