@@ -914,8 +914,8 @@ const Profile = () => {
         {/* Dark overlay for better text readability */}
         <div className="absolute inset-0 bg-black/30" />
         <div className="p-6 relative z-10">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center space-x-4">
+          <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+            <div className="flex items-center space-x-4 min-w-0">
               <AvatarWithFrame
                 avatarUrl={selectedAvatar}
                 frameUrl={currentProfile?.hide_frame ? null : currentProfile?.active_title}
@@ -924,7 +924,7 @@ const Profile = () => {
                 fallback={currentProfile?.full_name?.[0]?.toUpperCase() || currentProfile?.email?.[0]?.toUpperCase() || 'U'}
                 onClick={isOwnProfile ? () => setShowAvatarSelector(true) : undefined}
               />
-              <div>
+              <div className="min-w-0 flex-1">
                 {isEditing ? (
                   <div className="space-y-2">
                     <input
@@ -932,7 +932,7 @@ const Profile = () => {
                       placeholder="Tên đầy đủ"
                       value={editData.full_name}
                       onChange={(e) => setEditData(prev => ({ ...prev, full_name: e.target.value }))}
-                      className="px-3 py-1 text-gray-900 text-xl font-semibold border border-white/30"
+                      className="w-full max-w-xs px-3 py-1 text-gray-900 text-xl font-semibold border border-white/30"
                       style={{ clipPath: CLIP_BTN }}
                       disabled={getNameCooldownRemaining() > 0}
                     />
@@ -965,7 +965,7 @@ const Profile = () => {
             </div>
 
             {isOwnProfile && (
-              <div className="text-right">
+              <div className="shrink-0 sm:text-right">
                 {isEditing ? (
                   <div className="space-x-2">
                     <button onClick={handleSaveProfile} className="px-4 py-2 text-sm font-medium text-white border border-white/50 hover:bg-white/20 transition-colors" style={{ clipPath: CLIP_BTN }}>
