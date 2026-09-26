@@ -7,7 +7,7 @@ import { useProgress } from '../../hooks/useProgress'
 import { useFeedback } from '../../hooks/useFeedback'
 import { usePet } from '../../hooks/usePet'
 import { saveRecentExercise } from '../../utils/recentExercise'
-import { splitAnswers, firstAnswer } from '../../utils/splitAnswers'
+import { splitAnswers, firstAnswer, matchesAnswer } from '../../utils/splitAnswers'
 import LoadingSpinner from '../ui/LoadingSpinner'
 import { Check, X, RotateCcw, HelpCircle, ArrowLeft, MessageCircle } from 'lucide-react'
 import RichTextRenderer from '../ui/RichTextRenderer'
@@ -349,15 +349,8 @@ const FillBlankExercise = ({ testMode = false, exerciseData = null, onAnswersCol
   }
 
   const checkAnswer = (blankIndex) => {
-    const userAnswer = (userAnswers[currentQuestionIndex]?.[blankIndex] || '').trim()
-    const correctAnswers = splitAnswers(currentQuestion.blanks[blankIndex].answer)
-    const caseSensitive = currentQuestion.blanks[blankIndex].case_sensitive
-
-    if (caseSensitive) {
-      return correctAnswers.some(answer => userAnswer === answer)
-    } else {
-      return correctAnswers.some(answer => userAnswer.toLowerCase() === answer.toLowerCase())
-    }
+    const blank = currentQuestion.blanks[blankIndex]
+    return matchesAnswer(userAnswers[currentQuestionIndex]?.[blankIndex], blank.answer, blank.case_sensitive)
   }
 
   const getBlankStatus = (blankIndex) => {
@@ -405,10 +398,7 @@ const FillBlankExercise = ({ testMode = false, exerciseData = null, onAnswersCol
       if (exerciseId && user) {
         const blankAttempts = currentQuestion.blanks.map((blank, blankIndex) => {
           const userAnswer = (userAnswers[currentQuestionIndex]?.[blankIndex] || '').trim()
-          const correctAnswersList = splitAnswers(blank.answer)
-          const isBlankCorrect = blank.case_sensitive
-            ? correctAnswersList.some(a => userAnswer === a)
-            : correctAnswersList.some(a => userAnswer.toLowerCase() === a.toLowerCase())
+          const isBlankCorrect = matchesAnswer(userAnswer, blank.answer, blank.case_sensitive)
           return {
             exercise_id: exerciseId,
             exercise_type: 'fill_blank',
@@ -508,15 +498,8 @@ const FillBlankExercise = ({ testMode = false, exerciseData = null, onAnswersCol
     // Calculate scores for all questions
     const scores = questions.map((question, qIndex) => {
       const correctAnswers = question.blanks.filter((_, blankIndex) => {
-        const userAnswer = userAnswers[qIndex]?.[blankIndex] || ''
-        const correctAnswers = splitAnswers(question.blanks[blankIndex].answer)
-        const caseSensitive = question.blanks[blankIndex].case_sensitive
-
-        if (caseSensitive) {
-          return correctAnswers.some(answer => userAnswer === answer)
-        } else {
-          return correctAnswers.some(answer => userAnswer.toLowerCase() === answer.toLowerCase())
-        }
+        const blank = question.blanks[blankIndex]
+        return matchesAnswer(userAnswers[qIndex]?.[blankIndex], blank.answer, blank.case_sensitive)
       }).length
       return (correctAnswers / question.blanks.length) * 100
     })
@@ -537,10 +520,7 @@ const FillBlankExercise = ({ testMode = false, exerciseData = null, onAnswersCol
         const attempts = questions.flatMap((question, qIndex) =>
           question.blanks.map((blank, blankIndex) => {
             const userAnswer = (userAnswers[qIndex]?.[blankIndex] || '').trim()
-            const correctAnswersList = splitAnswers(blank.answer)
-            const isBlankCorrect = blank.case_sensitive
-              ? correctAnswersList.some(a => userAnswer === a)
-              : correctAnswersList.some(a => userAnswer.toLowerCase() === a.toLowerCase())
+            const isBlankCorrect = matchesAnswer(userAnswer, blank.answer, blank.case_sensitive)
             return {
               exercise_id: exerciseId,
               exercise_type: 'fill_blank',
@@ -965,15 +945,8 @@ const FillBlankExercise = ({ testMode = false, exerciseData = null, onAnswersCol
 
   const checkAnswerForQuestion = (questionIndex, blankIndex) => {
     const question = questions[questionIndex]
-    const userAnswer = (userAnswers[questionIndex]?.[blankIndex] || '').trim()
-    const correctAnswers = splitAnswers(question.blanks[blankIndex].answer)
-    const caseSensitive = question.blanks[blankIndex].case_sensitive
-
-    if (caseSensitive) {
-      return correctAnswers.some(answer => userAnswer === answer)
-    } else {
-      return correctAnswers.some(answer => userAnswer.toLowerCase() === answer.toLowerCase())
-    }
+    const blank = question.blanks[blankIndex]
+    return matchesAnswer(userAnswers[questionIndex]?.[blankIndex], blank.answer, blank.case_sensitive)
   }
 
   const calculateBlankWidthForQuestion = (questionIndex, blankIndex) => {
@@ -1388,13 +1361,7 @@ const FillBlankExercise = ({ testMode = false, exerciseData = null, onAnswersCol
                       newUserAnswers[qIndex] = {}
                       question.blanks.forEach((blank, blankIndex) => {
                         const userAnswer = userAnswers[qIndex]?.[blankIndex] || ''
-                        const correctAnswers = splitAnswers(blank.answer)
-                        const caseSensitive = blank.case_sensitive
-
-                        // Check if answer is correct
-                        const isCorrect = caseSensitive
-                          ? correctAnswers.some(answer => userAnswer === answer)
-                          : correctAnswers.some(answer => userAnswer.toLowerCase() === answer.toLowerCase())
+                        const isCorrect = matchesAnswer(userAnswer, blank.answer, blank.case_sensitive)
 
                         // Keep correct answers, clear wrong ones
                         newUserAnswers[qIndex][blankIndex] = isCorrect ? userAnswer : ''
