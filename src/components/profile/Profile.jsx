@@ -617,7 +617,9 @@ const Profile = () => {
 
       // Process achievements with proper unlock calculation
       const processedAchievements = allAchievements.map(achievement => {
-        const userAchievement = userAchievements?.find(ua => ua.achievement_id === achievement.id)
+        // Prefer a claimed row in case duplicates exist
+        const matches = userAchievements?.filter(ua => ua.achievement_id === achievement.id) || []
+        const userAchievement = matches.find(ua => ua.claimed_at) || matches[0]
 
         // Calculate if achievement should be unlocked based on criteria (same logic as AchievementBadgeBar)
         let calculatedUnlocked = false

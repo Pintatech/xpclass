@@ -137,7 +137,8 @@ const AchievementModal = ({ isOpen, onClose, achievements, userStats, onClaimXP,
     }
 
     // Check if achievement is claimed
-    const userAchievement = userAchievements.find(ua => ua.achievement_id === achievement.id)
+    const userAchievement = userAchievements.find(ua => ua.achievement_id === achievement.id && ua.claimed_at)
+      || userAchievements.find(ua => ua.achievement_id === achievement.id)
     const claimed = userAchievement?.claimed_at !== null
 
     return {

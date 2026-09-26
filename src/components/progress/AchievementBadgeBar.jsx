@@ -130,7 +130,8 @@ const AchievementBadgeBar = ({ achievements, userStats, onClaimXP, userAchieveme
             <div className="space-y-3">
               {unlockedAchievements.slice(0, 3).map((achievement) => {
                 const IconComponent = getIconComponent(achievement.icon)
-                const userAchievement = userAchievements.find(ua => ua.achievement_id === achievement.id)
+                const userAchievement = userAchievements.find(ua => ua.achievement_id === achievement.id && ua.claimed_at)
+                  || userAchievements.find(ua => ua.achievement_id === achievement.id)
                 const claimed = userAchievement?.claimed_at !== null || claimedFallbackAchievements.has(achievement.id)
 
                 return (

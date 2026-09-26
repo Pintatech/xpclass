@@ -143,17 +143,19 @@ export const useAchievements = () => {
     claimingSet.current.add(achievementId)
 
     try {
-      // Check if user_achievements record exists
-      const { data: existing } = await supabase
+      // Check if user_achievements records exist. Don't use .single(): it errors
+      // when duplicate rows exist, which made us fall through and re-award forever.
+      const { data: existingRows, error: existingError } = await supabase
         .from('user_achievements')
         .select('id, claimed_at')
         .eq('user_id', user.id)
         .eq('achievement_id', achievementId)
-        .single()
 
-      if (existing) {
+      if (existingError) throw existingError
+
+      if (existingRows.length > 0) {
         // Already claimed — block duplicate
-        if (existing.claimed_at) {
+        if (existingRows.some(r => r.claimed_at)) {
           return { success: false, message: 'Thành tựu này đã được nhận rồi' }
         }
 
@@ -195,14 +197,14 @@ export const useAchievements = () => {
         const gemReward = achievementRewards?.gem_reward || 0
 
         // Double-check no record was inserted between our first check and now
-        const { data: recheck } = await supabase
+        const { data: recheck, error: recheckError } = await supabase
           .from('user_achievements')
-          .select('id, claimed_at')
+          .select('id')
           .eq('user_id', user.id)
           .eq('achievement_id', achievementId)
-          .single()
 
-        if (recheck) {
+        if (recheckError) throw recheckError
+        if (recheck.length > 0) {
           return { success: false, message: 'Thành tựu này đã được nhận rồi' }
         }
 
@@ -257,8 +259,10 @@ export const useAchievements = () => {
   const getAchievementProgress = (achievement) => {
     if (!user) return { progress: 0, unlocked: false, claimed: false }
 
-    const userAchievement = userAchievements.find(ua => ua.achievement_id === achievement.id)
-    
+    // Prefer a claimed row in case duplicates exist
+    const matches = userAchievements.filter(ua => ua.achievement_id === achievement.id)
+    const userAchievement = matches.find(ua => ua.claimed_at) || matches[0]
+
     if (userAchievement) {
       return { 
         progress: 100, 
