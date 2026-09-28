@@ -9,10 +9,9 @@ import DropdownExercise from '../exercises/DropdownExercise'
 import ImageHotspotExercise from '../exercises/ImageHotspotExercise'
 import AIFillBlankExercise from '../exercises/AIFillBlankExercise'
 import PDFWorksheetExercise from '../exercises/PDFWorksheetExercise'
-import { Clock, AlertTriangle, Send, CheckCircle, XCircle, ChevronRight, ChevronDown, FileText, Play, ArrowLeft, UserPlus } from 'lucide-react'
+import { Clock, AlertTriangle, Send, CheckCircle, XCircle, ChevronRight, ChevronDown, FileText, Play, ArrowLeft } from 'lucide-react'
 import RichTextRenderer from '../ui/RichTextRenderer'
 import { callAIScoring } from '../../utils/aiScoringService'
-import { REGISTER_PATH } from '../../config/registration'
 
 const exerciseTypeLabels = {
   multiple_choice: 'Multiple Choice',
@@ -697,21 +696,6 @@ const GuestSessionRunner = () => {
               )}
             </div>
           )}
-
-          {/* Register CTA */}
-          <div className="bg-white rounded-2xl shadow-sm border-2 border-blue-200 p-6 text-center">
-            <UserPlus className="w-10 h-10 text-blue-600 mx-auto mb-3" />
-            <h3 className="font-bold text-gray-900 mb-1">Dang ky tai khoan</h3>
-            <p className="text-gray-500 text-sm mb-4">
-              Tao tai khoan de theo doi tien trinh hoc tap va nhan XP!
-            </p>
-            <button
-              onClick={() => navigate(REGISTER_PATH)}
-              className="w-full px-6 py-3 bg-blue-600 text-white rounded-xl font-medium hover:bg-blue-700 transition-colors flex items-center justify-center gap-2"
-            >
-              <UserPlus size={18} /> Dang ky ngay
-            </button>
-          </div>
 
           {/* Action buttons */}
           <div className="flex gap-3">
