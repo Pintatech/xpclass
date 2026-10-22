@@ -455,7 +455,8 @@ const CourseModal = ({ course, teachers, onSave, onCancel, loading }) => {
     unlock_requirement: course?.unlock_requirement || 0,
     thumbnail_url: course?.thumbnail_url || '',
     teacher_ids: course?.course_teachers?.map(ct => ct.teacher.id) || [],
-    is_active: course?.is_active ?? true
+    is_active: course?.is_active ?? true,
+    is_guest_accessible: course?.is_guest_accessible ?? false
   });
   const [errors, setErrors] = useState({});
   const [uploading, setUploading] = useState(false);
@@ -733,6 +734,20 @@ const CourseModal = ({ course, teachers, onSave, onCancel, loading }) => {
             <div className="text-xs text-gray-500 ml-auto">
               {formData.is_active ? '✅ Unlocked' : '🔒 Locked'}
             </div>
+          </div>
+
+          {/* Guest Access */}
+          <div className="flex items-center gap-3 p-4 bg-gray-50 rounded-lg">
+            <input
+              type="checkbox"
+              id="is_guest_accessible"
+              checked={formData.is_guest_accessible}
+              onChange={(e) => handleInputChange('is_guest_accessible', e.target.checked)}
+              className="w-4 h-4 text-blue-600 bg-gray-100 border-gray-300 rounded focus:ring-blue-500"
+            />
+            <label htmlFor="is_guest_accessible" className="text-sm font-medium text-gray-700">
+              Guest access (visitors can try this course at /guest without logging in)
+            </label>
           </div>
 
           <div className="flex justify-end gap-3 pt-4 border-t border-gray-200">

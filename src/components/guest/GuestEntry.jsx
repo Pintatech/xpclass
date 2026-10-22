@@ -11,6 +11,7 @@ const GuestEntry = () => {
   const [sessions, setSessions] = useState([])
   const [units, setUnits] = useState([])
   const [course, setCourse] = useState(null)
+  const [guestCourses, setGuestCourses] = useState([])
   const [step, setStep] = useState('name') // 'name' | 'pick'
   const [guestId, setGuestId] = useState(null)
   const [attempts, setAttempts] = useState([])
@@ -34,55 +35,66 @@ const GuestEntry = () => {
 
   const fetchDemoCourse = async () => {
     try {
-      // Get demo course ID from site settings
+      // Courses flagged for guest access, plus the legacy demo_course_id setting
+      const { data: flagged } = await supabase
+        .from('courses')
+        .select('*')
+        .eq('is_guest_accessible', true)
+        .eq('is_active', true)
+        .order('level_number')
+
+      const list = flagged || []
+
       const { data: setting } = await supabase
         .from('site_settings')
         .select('setting_value')
         .eq('setting_key', 'demo_course_id')
-        .single()
+        .maybeSingle()
 
-      if (!setting?.setting_value) {
-        setLoading(false)
-        return
-      }
-
-      const courseId = setting.setting_value
-
-      // Fetch course info
-      const { data: courseData } = await supabase
-        .from('courses')
-        .select('*')
-        .eq('id', courseId)
-        .single()
-
-      setCourse(courseData)
-
-      // Fetch units for this course
-      const { data: unitsData } = await supabase
-        .from('units')
-        .select('*')
-        .eq('course_id', courseId)
-        .eq('is_active', true)
-        .order('unit_number')
-
-      setUnits(unitsData || [])
-
-      // Fetch all sessions for these units
-      if (unitsData?.length) {
-        const unitIds = unitsData.map(u => u.id)
-        const { data: sessionsData } = await supabase
-          .from('sessions')
+      if (setting?.setting_value && !list.some(c => c.id === setting.setting_value)) {
+        const { data: demo } = await supabase
+          .from('courses')
           .select('*')
-          .in('unit_id', unitIds)
-          .eq('is_active', true)
-          .order('session_number')
-
-        setSessions(sessionsData || [])
+          .eq('id', setting.setting_value)
+          .maybeSingle()
+        if (demo) list.push(demo)
       }
+
+      setGuestCourses(list)
+      if (list.length === 1) await loadCourse(list[0])
     } catch (err) {
-      console.error('Error fetching demo course:', err)
+      console.error('Error fetching guest courses:', err)
     } finally {
       setLoading(false)
+    }
+  }
+
+  const loadCourse = async (courseData) => {
+    setCourse(courseData)
+    setUnits([])
+    setSessions([])
+
+    // Fetch units for this course
+    const { data: unitsData } = await supabase
+      .from('units')
+      .select('*')
+      .eq('course_id', courseData.id)
+      .eq('is_active', true)
+      .order('unit_number')
+
+    setUnits(unitsData || [])
+
+    // Fetch all sessions for these units
+    if (unitsData?.length) {
+      const unitIds = unitsData.map(u => u.id)
+      const { data: sessionsData } = await supabase
+        .from('sessions')
+        .select('*')
+        .in('unit_id', unitIds)
+        .eq('is_active', true)
+        .order('session_number')
+
+      setSessions(sessionsData || [])
     }
   }
 
@@ -231,7 +243,22 @@ const GuestEntry = () => {
 
       {/* Content */}
       <div className="max-w-4xl mx-auto px-4 py-8">
-        {!course ? (
+        {!course && guestCourses.length > 1 ? (
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            {guestCourses.map(c => (
+              <button
+                key={c.id}
+                onClick={() => loadCourse(c)}
+                className="bg-white rounded-xl shadow-sm p-5 text-left hover:shadow-md hover:border-blue-300 border-2 border-transparent transition-all"
+              >
+                <h3 className="font-medium text-gray-900">{c.title}</h3>
+                {c.description && (
+                  <p className="text-sm text-gray-500 mt-1 line-clamp-2">{c.description}</p>
+                )}
+              </button>
+            ))}
+          </div>
+        ) : !course ? (
           <div className="bg-white rounded-2xl shadow-sm p-12 text-center">
             <div className="text-6xl mb-4">📚</div>
             <h3 className="text-lg font-medium text-gray-900 mb-2">Chua co khoa hoc demo</h3>
@@ -245,6 +272,16 @@ const GuestEntry = () => {
           </div>
         ) : (
           <div className="space-y-6">
+            {guestCourses.length > 1 && (
+              <button
+                onClick={() => setCourse(null)}
+                className="text-sm text-gray-500 hover:text-gray-700 flex items-center gap-1"
+              >
+                <ArrowLeft className="w-4 h-4" />
+                Chon khoa hoc khac
+              </button>
+            )}
+
             {/* Course description */}
             {course.description && (
               <div className="bg-white rounded-xl shadow-sm p-6">

@@ -175,6 +175,7 @@ CREATE TABLE public.courses (
   updated_at timestamp with time zone DEFAULT now(),
   teacher_id uuid,
   chest_enabled boolean DEFAULT false,
+  is_guest_accessible boolean DEFAULT false,
   CONSTRAINT courses_pkey PRIMARY KEY (id),
   CONSTRAINT courses_teacher_id_fkey FOREIGN KEY (teacher_id) REFERENCES public.users(id) ON DELETE SET NULL
 );
