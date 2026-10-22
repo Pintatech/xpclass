@@ -7,7 +7,7 @@ import { supabase } from '../../supabase/client'
 import { saveRecentExercise } from '../../utils/recentExercise'
 import Button from '../ui/Button'
 import LoadingSpinner from '../ui/LoadingSpinner'
-import RichTextRenderer from '../ui/RichTextRenderer'
+import { RichTextWithAudio } from '../ui/RichTextRenderer'
 import { Mic, Square, CheckCircle, XCircle, ArrowRight, ArrowLeft, Star } from 'lucide-react'
 import AudioPlayer from '../ui/AudioPlayer'
 import { assessPronunciation, stripHtml, normalizeWord } from '../../utils/assemblyPronunciationService'
@@ -525,7 +525,7 @@ const PronunciationExercise = () => {
                 <span className="flex-shrink-0 w-8 h-8 bg-blue-100 text-blue-700 rounded-full flex items-center justify-center font-bold text-sm">{idx + 1}</span>
                 <div className="flex-1">
                   <div className="text-lg font-medium text-gray-900">
-                    <RichTextRenderer content={q.text} allowImages={true} />
+                    <RichTextWithAudio content={q.text} allowImages={true} />
                   </div>
                   {q.phonetic && (
                     <p className="text-gray-500 mt-1">/{q.phonetic}/</p>
@@ -702,7 +702,7 @@ const PronunciationExercise = () => {
               <div className="mb-6">
                 <div className="text-center">
                   <div className="text-xl md:text-3xl font-bold text-gray-900 mb-4">
-                    <RichTextRenderer content={currentQuestion.text} />
+                    <RichTextWithAudio content={currentQuestion.text} />
                   </div>
                   {currentQuestion.phonetic && (
                     <p className="text-lg md:text-xl text-gray-600 mb-4">
