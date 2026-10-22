@@ -134,17 +134,10 @@ Rules:
       }
     }
 
-    // Open-ended with no AI available: can't judge content, accept a real attempt
+    // Open-ended needs a real AI judge. Return an error so the client falls back
+    // to its Groq scorer (which has an open-ended prompt) instead of guessing here.
     if (isOpenEnded) {
-      const words = cleanedAnswer.split(/\s+/).length
-      const ok = words >= 3
-      return jsonResponse(200, {
-        score: ok ? 80 : 30,
-        confidence: 40,
-        explanation: language === 'vi'
-          ? (ok ? 'Câu hỏi mở: câu trả lời của bạn đã được ghi nhận.' : 'Câu trả lời quá ngắn, hãy viết đầy đủ hơn.')
-          : (ok ? 'Open-ended question: your answer was accepted.' : 'Your answer is too short, please write more.')
-      })
+      return jsonResponse(503, { error: 'No AI scorer available for open-ended question' })
     }
 
     // Heuristic fallback: similarity + keywords
