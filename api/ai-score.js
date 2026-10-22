@@ -71,11 +71,27 @@ export default async function handler(req) {
       })
     }
 
+    // No expected answers = open-ended question: judge against the question itself
+    const isOpenEnded = cleanedExpected.length === 0
+
     // Prefer OpenAI if configured
     const OPENAI_API_KEY = process.env.OPENAI_API_KEY || process.env.REACT_APP_OPENAI_API_KEY
     if (OPENAI_API_KEY) {
       const system = 'You score short student answers fairly and explain briefly.'
-      const aiPrompt = `Question: "${question || ''}"
+      const aiPrompt = isOpenEnded
+        ? `Question: "${question || ''}"
+Student Answer: "${cleanedAnswer}"
+Context: ${context || 'educational assessment'}
+
+This is an open-ended question with NO fixed expected answer. Do not penalize the student for the lack of one.
+
+Rules:
+- Return JSON only: {"score":0-100,"confidence":0-100,"explanation":"..."}
+- Score how well the answer does what the question/instructions ask (topic, number of sentences, etc.).
+- An answer that is on-topic and meets the instructions should score 80-100. Minor typos/grammar errors should not penalize much.
+- An answer that is off-topic or ignores the instructions should score 0-30; say what the question asked for.
+- Write explanation in ${language === 'vi' ? 'Vietnamese' : 'English'}.`
+        : `Question: "${question || ''}"
 Student Answer: "${cleanedAnswer}"
 Expected Answers: ${JSON.stringify(cleanedExpected)}
 Context: ${context || 'educational assessment'}
@@ -116,6 +132,19 @@ Rules:
           // fallthrough to heuristic
         }
       }
+    }
+
+    // Open-ended with no AI available: can't judge content, accept a real attempt
+    if (isOpenEnded) {
+      const words = cleanedAnswer.split(/\s+/).length
+      const ok = words >= 3
+      return jsonResponse(200, {
+        score: ok ? 80 : 30,
+        confidence: 40,
+        explanation: language === 'vi'
+          ? (ok ? 'Câu hỏi mở: câu trả lời của bạn đã được ghi nhận.' : 'Câu trả lời quá ngắn, hãy viết đầy đủ hơn.')
+          : (ok ? 'Open-ended question: your answer was accepted.' : 'Your answer is too short, please write more.')
+      })
     }
 
     // Heuristic fallback: similarity + keywords

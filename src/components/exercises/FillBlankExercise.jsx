@@ -898,7 +898,12 @@ const FillBlankExercise = ({ testMode = false, exerciseData = null, onAnswersCol
 
         return (
           <span key={index} className="inline-block mx-1">
-            <div className="relative">
+            <div className="relative group">
+              {status === 'incorrect' && (
+                <div className="hidden group-hover:block absolute bottom-full left-1/2 -translate-x-1/2 mb-1 z-30 px-2 py-1 rounded bg-gray-900 text-white text-xs font-medium whitespace-nowrap shadow-lg pointer-events-none">
+                  {splitAnswers(blank.answer).join(' / ')}
+                </div>
+              )}
               <input
                 ref={(el) => {
                   if (!inputRefs.current[questionIndex]) {
@@ -926,7 +931,7 @@ const FillBlankExercise = ({ testMode = false, exerciseData = null, onAnswersCol
                     : status === 'incorrect'
                     ? 'border-b-red-500 text-red-700'
                     : 'border-b-gray-400 focus:border-b-blue-500'
-                } ${showResults ? 'cursor-not-allowed opacity-75' : ''}`}
+                } ${showResults ? `opacity-75 ${status === 'incorrect' ? 'cursor-pointer' : 'cursor-default'}` : ''}`}
                 placeholder=" "
               />
             </div>

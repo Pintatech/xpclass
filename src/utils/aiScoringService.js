@@ -23,6 +23,19 @@ const mockAIScoring = async (question, userAnswer, expectedAnswers, context, lan
   await new Promise(resolve => setTimeout(resolve, 1000 + Math.random() * 2000))
   
   const userAnswerLower = userAnswer.toLowerCase().trim()
+
+  // Open-ended question (no expected answers): accept a real attempt
+  if (!expectedAnswers || expectedAnswers.length === 0) {
+    const ok = userAnswerLower.split(/\s+/).length >= 3
+    return {
+      score: ok ? 80 : 30,
+      confidence: 40,
+      explanation: language === 'vi'
+        ? (ok ? 'Câu hỏi mở: câu trả lời của bạn đã được ghi nhận.' : 'Câu trả lời quá ngắn, hãy viết đầy đủ hơn.')
+        : (ok ? 'Open-ended question: your answer was accepted.' : 'Your answer is too short, please write more.')
+    }
+  }
+
   const expectedAnswersLower = expectedAnswers.map(answer => answer.toLowerCase().trim())
   
   // Check for exact matches first
@@ -140,7 +153,47 @@ const generateExplanation = (similarity, userAnswer, expected) => {
 
 // AI Scoring integration (via Groq proxy)
 export const callGroqScoring = async (question, userAnswer, expectedAnswers, context, language = 'en') => {
-  const prompt = language === 'vi'
+  const isOpenEnded = !expectedAnswers || expectedAnswers.length === 0
+  const openEndedPrompt = language === 'vi'
+    ? `
+Bạn là trợ lý AI giáo dục chấm điểm câu trả lời của học sinh.
+
+Câu hỏi/yêu cầu: "${question}"
+Câu trả lời của học sinh: "${userAnswer}"
+Ngữ cảnh: ${context}
+
+Đây là câu hỏi MỞ, KHÔNG có đáp án cố định. Không trừ điểm vì thiếu đáp án mong đợi.
+- Chấm điểm dựa trên việc câu trả lời có đáp ứng đúng yêu cầu của câu hỏi hay không (chủ đề, số câu, ...).
+- Đúng chủ đề và đáp ứng yêu cầu: 80-100 điểm. Lỗi chính tả/ngữ pháp nhỏ không bị phạt nặng.
+- Lạc đề hoặc bỏ qua yêu cầu: 0-30 điểm, nêu rõ câu hỏi yêu cầu gì.
+- Giải thích 2-4 câu bằng tiếng Việt, khuyến khích học sinh.
+
+Trả lời theo định dạng JSON:
+{
+  "score": number,
+  "explanation": "string"
+}
+`
+    : `
+You are an educational AI assistant scoring a student's answer.
+
+Question/instructions: "${question}"
+Student Answer: "${userAnswer}"
+Context: ${context}
+
+This is an OPEN-ENDED question with NO fixed expected answer. Do not penalize the student for the lack of one.
+- Score how well the answer does what the question asks (topic, number of sentences, etc.).
+- On-topic and meets the instructions: 80-100. Minor spelling/grammar errors should not heavily penalize.
+- Off-topic or ignores the instructions: 0-30, and say what the question asked for.
+- Explain in 2-4 sentences, encouraging the student.
+
+Respond in JSON format:
+{
+  "score": number,
+  "explanation": "string"
+}
+`
+  const prompt = isOpenEnded ? openEndedPrompt : language === 'vi'
     ? `
 Bạn là trợ lý AI giáo dục chấm điểm câu trả lời điền vào chỗ trống.
 
