@@ -2,10 +2,30 @@ import { useState, useRef, useEffect } from 'react'
 import { Play, Pause } from 'lucide-react'
 import Button from './Button'
 
+// "5" -> 5, "0:05" -> 5, "1:02.5" -> 62.5; empty/invalid -> null
+const toSeconds = (str) => {
+  if (!str) return null
+  const parts = str.split(':').map(Number)
+  if (parts.length > 3 || parts.some(n => !Number.isFinite(n) || n < 0)) return null
+  return parts.reduce((total, n) => total * 60 + n, 0)
+}
+
+// Split a media-fragment URL ("song.mp3#t=5,12") into the plain URL and the clip range
+const parseClipUrl = (url) => {
+  const hashIndex = url.indexOf('#')
+  if (hashIndex === -1) return { src: url, start: 0, end: null }
+  const match = url.slice(hashIndex + 1).match(/(?:^|&)t=([^,&]*)(?:,([^&]*))?/)
+  if (!match) return { src: url, start: 0, end: null }
+  const start = toSeconds(match[1]) ?? 0
+  const end = toSeconds(match[2])
+  return { src: url.slice(0, hashIndex), start, end: end !== null && end > start ? end : null }
+}
+
 /**
  * AudioPlayer component with optional play limit
  *
- * @param {string} audioUrl - URL of the audio file
+ * @param {string} audioUrl - URL of the audio file. Add "#t=5" or "#t=5,12" (seconds or m:ss)
+ *   to start at 0:05 and optionally stop at 0:12
  * @param {number} maxPlays - Maximum number of times audio can be played (0 = unlimited)
  * @param {string} variant - Button variant (default, outline, etc.)
  * @param {string} className - Additional CSS classes
@@ -32,6 +52,7 @@ const AudioPlayer = ({
   const [hasReachedLimit, setHasReachedLimit] = useState(false)
   const [progress, setProgress] = useState(0)
   const audioRef = useRef(null)
+  const clipRef = useRef({ start: 0, end: null })
 
   // Use external play count if provided, otherwise use internal
   const playCount = externalPlayCount !== undefined ? externalPlayCount : internalPlayCount
@@ -57,8 +78,15 @@ const AudioPlayer = ({
       return
     }
 
+    // Start from the clip start if we're before it or past the clip end
+    const audio = audioRef.current
+    const { start, end } = clipRef.current
+    if (audio.currentTime < start || (end !== null && audio.currentTime >= end)) {
+      audio.currentTime = start
+    }
+
     // Play the audio
-    audioRef.current.play()
+    audio.play()
       .then(() => {
         // If external play count is managed, call onPlay callback
         if (onPlay) {
@@ -94,26 +122,40 @@ const AudioPlayer = ({
   useEffect(() => {
     if (!audioUrl) return
 
-    const audio = new Audio(audioUrl)
+    const { src, start, end } = parseClipUrl(audioUrl)
+    clipRef.current = { start, end }
+    const audio = new Audio(src)
     audio.playbackRate = playbackRate
     audio.defaultPlaybackRate = playbackRate
     audioRef.current = audio
 
-    const handleEnded = () => {
+    const finishPlay = () => {
+      audio.pause()
+      audio.currentTime = start
       setIsPlaying(false)
       setProgress(0)
       if (onPlayComplete) {
         onPlayComplete()
       }
     }
+    const handleEnded = finishPlay
+    const handleLoadedMetadata = () => {
+      if (start > 0 && audio.currentTime < start) audio.currentTime = start
+    }
     const handlePauseEvent = () => setIsPlaying(false)
     const handlePlayEvent = () => setIsPlaying(true)
     const handleTimeUpdate = () => {
-      if (audio.duration) {
-        setProgress((audio.currentTime / audio.duration) * 100)
+      if (end !== null && audio.currentTime >= end) {
+        finishPlay()
+        return
+      }
+      const clipEnd = end ?? audio.duration
+      if (clipEnd && clipEnd > start) {
+        setProgress(Math.max(0, Math.min(100, ((audio.currentTime - start) / (clipEnd - start)) * 100)))
       }
     }
 
+    audio.addEventListener('loadedmetadata', handleLoadedMetadata)
     audio.addEventListener('ended', handleEnded)
     audio.addEventListener('pause', handlePauseEvent)
     audio.addEventListener('play', handlePlayEvent)
@@ -127,6 +169,7 @@ const AudioPlayer = ({
 
     return () => {
       audio.pause()
+      audio.removeEventListener('loadedmetadata', handleLoadedMetadata)
       audio.removeEventListener('ended', handleEnded)
       audio.removeEventListener('pause', handlePauseEvent)
       audio.removeEventListener('play', handlePlayEvent)
@@ -172,7 +215,9 @@ const AudioPlayer = ({
             if (!audio || !audio.duration || isNaN(audio.duration)) return
             const rect = e.currentTarget.getBoundingClientRect()
             const seekRatio = Math.max(0, Math.min(1, (e.clientX - rect.left) / rect.width))
-            audio.currentTime = seekRatio * audio.duration
+            const { start, end } = clipRef.current
+            const clipEnd = end ?? audio.duration
+            audio.currentTime = start + seekRatio * (clipEnd - start)
             setProgress(seekRatio * 100)
           } : undefined}
         >
