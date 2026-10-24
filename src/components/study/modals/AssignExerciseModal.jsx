@@ -287,7 +287,8 @@ const AssignExerciseModal = ({ sessionId, courseId, onClose, onAssigned }) => {
       image_hotspot: 'image-hotspot',
       pdf_worksheet: 'pdf-worksheet',
       speaking_assessment: 'speaking-assessment',
-      face_filter_video: 'filter-video'
+      face_filter_video: 'filter-video',
+      vibate: 'vibate'
     }
     const route = typeToRoute[exercise.exercise_type]
     if (route) {

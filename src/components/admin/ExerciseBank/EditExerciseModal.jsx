@@ -13,6 +13,7 @@ import ImageHotspotEditor from '../editors/ImageHotspotEditor'
 import PDFWorksheetEditor from '../editors/PDFWorksheetEditor'
 import SpeakingAssessmentEditor from '../editors/SpeakingAssessmentEditor'
 import VideoUploadEditor from '../editors/VideoUploadEditor'
+import VibateEditor from '../editors/VibateEditor'
 
 const EditExerciseModal = ({ isOpen, onClose, exercise, onUpdate }) => {
   const [formData, setFormData] = useState({
@@ -272,6 +273,8 @@ const EditExerciseModal = ({ isOpen, onClose, exercise, onUpdate }) => {
             onSkipScoringChange={(val) => handleContentChange({ ...content, skip_scoring: val })}
           />
         )
+      case 'vibate':
+        return <VibateEditor content={content} onContentChange={handleContentChange} />
       default:
         return (
           <div className="text-center py-8 text-gray-500">

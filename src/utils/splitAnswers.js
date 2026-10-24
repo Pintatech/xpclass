@@ -13,14 +13,25 @@ export function splitAnswers(answer) {
 
 /**
  * Check a user's answer against a blank's answer string.
- * Trims and collapses repeated whitespace on both sides before comparing.
+ * Trims and collapses repeated whitespace on both sides before comparing, and
+ * unifies curly quotes, dashes and unicode forms so pasted text still matches.
+ * The whole answer string also counts as one accepted answer, so answers that
+ * themselves contain "/", "|" or "," (e.g. "1/2") can be typed as written.
  */
 export function matchesAnswer(userAnswer, answer, caseSensitive = false) {
   const normalize = (s) => {
-    const collapsed = String(s || '').trim().replace(/\s+/g, ' ')
+    const collapsed = String(s || '')
+      .normalize('NFC')
+      .replace(/[‘’ʼ]/g, "'")
+      .replace(/[“”]/g, '"')
+      .replace(/[–—]/g, '-')
+      .trim()
+      .replace(/\s+/g, ' ')
     return caseSensitive ? collapsed : collapsed.toLowerCase()
   }
   const user = normalize(userAnswer)
+  if (!user) return false
+  if (normalize(answer) === user) return true
   return splitAnswers(answer).some(a => normalize(a) === user)
 }
 

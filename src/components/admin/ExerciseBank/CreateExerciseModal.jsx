@@ -13,6 +13,7 @@ import ImageHotspotEditor from '../editors/ImageHotspotEditor'
 import PDFWorksheetEditor from '../editors/PDFWorksheetEditor'
 import SpeakingAssessmentEditor from '../editors/SpeakingAssessmentEditor'
 import VideoUploadEditor from '../editors/VideoUploadEditor'
+import VibateEditor from '../editors/VibateEditor'
 
 const CreateExerciseModal = ({ folders, selectedFolder, onClose, onCreated, allowedTypes = null }) => {
   const [formData, setFormData] = useState({
@@ -43,6 +44,7 @@ const CreateExerciseModal = ({ folders, selectedFolder, onClose, onCreated, allo
     { value: 'speaking_assessment', label: 'Speaking Assessment', icon: Mic },
     { value: 'video_upload', label: 'Video Upload', icon: Video },
     { value: 'face_filter_video', label: 'Fun Filter Video', icon: Sparkles },
+    { value: 'vibate', label: 'Vibate', icon: Video },
   ]
   const exerciseTypes = allowedTypes
     ? allExerciseTypes.filter(t => allowedTypes.includes(t.value))
@@ -392,6 +394,13 @@ const CreateExerciseModal = ({ folders, selectedFolder, onClose, onCreated, allo
                 onQuestionsChange={(questions) => handleContentChange('questions', questions)}
                 onLevelChange={(level) => handleContentChange('level', level)}
                 onSkipScoringChange={(val) => handleContentChange('skip_scoring', val)}
+              />
+            )}
+
+            {formData.exercise_type === 'vibate' && (
+              <VibateEditor
+                content={formData.content}
+                onContentChange={(content) => setFormData(prev => ({ ...prev, content }))}
               />
             )}
           </div>

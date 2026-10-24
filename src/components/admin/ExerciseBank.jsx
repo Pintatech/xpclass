@@ -226,6 +226,7 @@ const ExerciseBank = ({ readOnly = false, allowedTypes = null, isAdmin = false }
     { value: 'ai_fill_blank', label: 'Fill in AI Score', icon: Brain },
     { value: 'video_upload', label: 'Video Upload', icon: Video },
     { value: 'face_filter_video', label: 'Fun Filter Video', icon: Sparkles },
+    { value: 'vibate', label: 'Vibate', icon: Video },
   ]
 
   const breadcrumbs = () => {

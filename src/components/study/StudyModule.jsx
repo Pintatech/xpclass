@@ -14,6 +14,7 @@ import PDFWorksheetExercise from '../exercises/PDFWorksheetExercise'
 import SpeakingAssessmentExercise from '../exercises/SpeakingAssessmentExercise'
 import VideoUploadExercise from '../exercises/VideoUploadExercise'
 import TestRunner from '../test/TestRunner'
+import VibateExercise from '../vibate/VibateExercise'
 
 const StudyModule = () => {
   return (
@@ -46,6 +47,7 @@ const StudyModule = () => {
       <Route path="speaking-assessment" element={<SpeakingAssessmentExercise />} />
       <Route path="video-upload" element={<VideoUploadExercise />} />
       <Route path="filter-video" element={<VideoUploadExercise key="face_filter_video" exerciseType="face_filter_video" />} />
+      <Route path="vibate" element={<VibateExercise />} />
     </Routes>
   )
 }

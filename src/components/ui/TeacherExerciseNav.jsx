@@ -14,7 +14,8 @@ const typeToRoute = {
   image_hotspot: '/study/image-hotspot',
   pdf_worksheet: '/study/pdf-worksheet',
   speaking_assessment: '/study/speaking-assessment',
-  face_filter_video: '/study/filter-video'
+  face_filter_video: '/study/filter-video',
+  vibate: '/study/vibate'
 }
 
 const typeIcons = {

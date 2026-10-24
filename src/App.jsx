@@ -1,4 +1,4 @@
-import React, { Suspense, lazy } from 'react'
+import React, { Suspense } from 'react'
 import { BrowserRouter as Router, Routes, Route, Outlet } from 'react-router-dom'
 import { AuthProvider } from './hooks/useAuth'
 import { ProgressProvider } from './hooks/useProgress'
@@ -9,45 +9,50 @@ import { BrandingProvider } from './hooks/useBranding'
 import Layout from './components/Layout'
 import Dashboard from './components/dashboard/Dashboard'
 import LoginPage from './components/auth/LoginPage'
-import RegisterPage from './components/auth/RegisterPage'
-import NiceTryPage from './components/auth/NiceTryPage'
-import StudyModule from './components/study/StudyModule'
-import Leaderboard from './components/leaderboard/Leaderboard'
-import Progress from './components/progress/Progress'
-import Profile from './components/profile/Profile'
-import Shop from './components/shop/Shop'
-import Inventory from './components/inventory/Inventory'
-import PetInventory from './components/pet/PetInventory'
-import TeacherDashboard from './components/teacher/TeacherDashboard'
-import TeacherExerciseBank from './components/teacher/TeacherExerciseBank'
-import CourseReport from './components/teacher/CourseReport'
-import TeacherClassReports from './components/teacher/rollcall/TeacherClassReports'
-import TeacherCourseOverview from './components/teacher/TeacherCourseOverview'
-import StudentLessonHistory from './components/teacher/reports/StudentLessonHistory'
 import ProtectedRoute from './components/auth/ProtectedRoute'
 import { TeacherCourseProvider } from './hooks/useTeacherCourseContext'
 import { MissionsProvider } from './hooks/useMissions'
 import { REGISTER_PATH } from './config/registration'
-import MissionBoard from './components/missions/MissionBoard'
-import LiveBattlePage from './components/livebattle/LiveBattlePage'
-import UnitReportPage from './components/teacher/reports/UnitReportPage'
-import WeaknessAnalysis from './components/teacher/WeaknessAnalysis'
-import GuestEntry from './components/guest/GuestEntry'
-import GuestSessionRunner from './components/guest/GuestSessionRunner'
-import FlashcardExercise from './components/exercises/FlashcardExercise'
-import PronunciationExercise from './components/exercises/PronunciationExercise'
-import MultipleChoiceExercise from './components/exercises/MultipleChoiceExercise'
-import FillBlankExercise from './components/exercises/FillBlankExercise'
-import SpriteLab from './components/event/SpriteLab'
 import { FEATURES } from './config/features'
+import lazyWithReload from './utils/lazyWithReload'
+import LoadingSpinner from './components/ui/LoadingSpinner'
+
+// Only the dashboard and login ship in the main bundle; every other page loads
+// when it's first opened, so the first visit downloads far less.
+const RegisterPage = lazyWithReload(() => import('./components/auth/RegisterPage'))
+const NiceTryPage = lazyWithReload(() => import('./components/auth/NiceTryPage'))
+const StudyModule = lazyWithReload(() => import('./components/study/StudyModule'))
+const Leaderboard = lazyWithReload(() => import('./components/leaderboard/Leaderboard'))
+const Progress = lazyWithReload(() => import('./components/progress/Progress'))
+const Profile = lazyWithReload(() => import('./components/profile/Profile'))
+const Shop = lazyWithReload(() => import('./components/shop/Shop'))
+const Inventory = lazyWithReload(() => import('./components/inventory/Inventory'))
+const PetInventory = lazyWithReload(() => import('./components/pet/PetInventory'))
+const TeacherDashboard = lazyWithReload(() => import('./components/teacher/TeacherDashboard'))
+const TeacherExerciseBank = lazyWithReload(() => import('./components/teacher/TeacherExerciseBank'))
+const CourseReport = lazyWithReload(() => import('./components/teacher/CourseReport'))
+const TeacherClassReports = lazyWithReload(() => import('./components/teacher/rollcall/TeacherClassReports'))
+const TeacherCourseOverview = lazyWithReload(() => import('./components/teacher/TeacherCourseOverview'))
+const StudentLessonHistory = lazyWithReload(() => import('./components/teacher/reports/StudentLessonHistory'))
+const MissionBoard = lazyWithReload(() => import('./components/missions/MissionBoard'))
+const LiveBattlePage = lazyWithReload(() => import('./components/livebattle/LiveBattlePage'))
+const UnitReportPage = lazyWithReload(() => import('./components/teacher/reports/UnitReportPage'))
+const WeaknessAnalysis = lazyWithReload(() => import('./components/teacher/WeaknessAnalysis'))
+const GuestEntry = lazyWithReload(() => import('./components/guest/GuestEntry'))
+const GuestSessionRunner = lazyWithReload(() => import('./components/guest/GuestSessionRunner'))
+const FlashcardExercise = lazyWithReload(() => import('./components/exercises/FlashcardExercise'))
+const PronunciationExercise = lazyWithReload(() => import('./components/exercises/PronunciationExercise'))
+const MultipleChoiceExercise = lazyWithReload(() => import('./components/exercises/MultipleChoiceExercise'))
+const FillBlankExercise = lazyWithReload(() => import('./components/exercises/FillBlankExercise'))
+const SpriteLab = lazyWithReload(() => import('./components/event/SpriteLab'))
 
 // Phaser is heavy (~1MB) — lazy-load the game routes so they never touch the main bundle.
-const EvoGame = lazy(() => import('./components/games/evo/EvoGame'))
-const PlatformerGame = lazy(() => import('./components/games/platformer/PlatformerGame'))
+const EvoGame = lazyWithReload(() => import('./components/games/evo/EvoGame'))
+const PlatformerGame = lazyWithReload(() => import('./components/games/platformer/PlatformerGame'))
 
 // The admin panel statically pulls in ~30 management screens that only admins
 // ever open — keep the whole subtree out of the main bundle.
-const AdminDashboard = lazy(() => import('./components/admin/AdminDashboard'))
+const AdminDashboard = lazyWithReload(() => import('./components/admin/AdminDashboard'))
 
 
 function App() {
@@ -60,6 +65,11 @@ function App() {
         <PetProvider>
         <StudentLevelsProvider>
           <Router future={{ v7_startTransition: true, v7_relativeSplatPath: true }}>
+            <Suspense fallback={
+              <div className="min-h-dvh flex items-center justify-center">
+                <LoadingSpinner size="lg" />
+              </div>
+            }>
             <Routes>
               <Route path="/login" element={<LoginPage />} />
               {/* /register is a decoy; the real form lives at REGISTER_PATH */}
@@ -129,6 +139,7 @@ function App() {
                 } />
               </Route>
             </Routes>
+            </Suspense>
           </Router>
         </StudentLevelsProvider>
         </PetProvider>

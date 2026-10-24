@@ -24,31 +24,39 @@ export const AuthProvider = ({ children }) => {
   const [loading, setLoading] = useState(true)
 
   useEffect(() => {
-    // Listen for auth changes - handles initial session automatically
+    // Listen for auth changes - handles initial session automatically.
+    // The callback must stay synchronous: supabase-js runs it while holding its
+    // auth lock, and any supabase query awaited in here waits on that same lock
+    // (deadlock until the fetch timeout fires). Defer the DB work with setTimeout.
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
-      async (event, session) => {
+      (event, session) => {
         console.log('🔐 Auth event:', event)
 
-        try {
-          if (session?.user) {
-            // Only update user state if the user actually changed
-            setUser(prev => prev?.id === session.user.id ? prev : session.user)
-            // INITIAL_SESSION: Fired on page load with existing session
-            // TOKEN_REFRESHED: Fired after user signs in successfully
-            if (event === 'INITIAL_SESSION' || event === 'TOKEN_REFRESHED') {
-              await fetchUserProfile(session.user.id)
-              // Update last_seen_at for online presence
-              supabase.from('users').update({ last_seen_at: new Date().toISOString() }).eq('id', session.user.id).then()
-            }
-          } else {
-            setUser(null)
-            setProfile(null)
+        if (session?.user) {
+          // Only update user state if the user actually changed
+          setUser(prev => prev?.id === session.user.id ? prev : session.user)
+          // INITIAL_SESSION: Fired on page load with existing session
+          // TOKEN_REFRESHED: Fired when the access token is refreshed
+          if (event === 'INITIAL_SESSION' || event === 'TOKEN_REFRESHED') {
+            const userId = session.user.id
+            setTimeout(async () => {
+              try {
+                await fetchUserProfile(userId)
+                // Update last_seen_at for online presence
+                supabase.from('users').update({ last_seen_at: new Date().toISOString() }).eq('id', userId).then()
+              } catch (error) {
+                console.error('❌ Error in auth state change:', error)
+              } finally {
+                setLoading(false)
+              }
+            }, 0)
+            return
           }
-        } catch (error) {
-          console.error('❌ Error in auth state change:', error)
-        } finally {
-          setLoading(false)
+        } else {
+          setUser(null)
+          setProfile(null)
         }
+        setLoading(false)
       }
     )
 
@@ -77,7 +85,21 @@ export const AuthProvider = ({ children }) => {
           .single()
       ])
 
-      const [userResult, equipResult] = await Promise.race([fetchPromise, timeoutPromise])
+      const applyResult = ([userResult, equipResult]) => {
+        if (userResult.error) return false
+        setProfile({ ...userResult.data, ...(equipResult.data || {}) })
+        return true
+      }
+
+      let results
+      try {
+        results = await Promise.race([fetchPromise, timeoutPromise])
+      } catch (timeoutError) {
+        // Stop blocking the UI, but still use the profile if it arrives late
+        fetchPromise.then(applyResult).catch(() => {})
+        throw timeoutError
+      }
+      const [userResult, equipResult] = results
 
       if (userResult.error) {
         console.error('❌ Error fetching user profile:', userResult.error)

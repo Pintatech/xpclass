@@ -64,6 +64,7 @@ const ExerciseBankCard = ({ exercise, viewMode, onUpdate, onEdit, readOnly = fal
       case 'pdf_worksheet':
         return FileText
       case 'face_filter_video':
+      case 'vibate':
       case 'video_upload':
         return Video
       default:
@@ -95,6 +96,8 @@ const ExerciseBankCard = ({ exercise, viewMode, onUpdate, onEdit, readOnly = fal
         return 'Speaking Assessment'
       case 'face_filter_video':
         return 'Fun Filter Video'
+      case 'vibate':
+        return 'Vibate'
       case 'video_upload':
         return 'Video Upload'
       default:
@@ -174,6 +177,8 @@ const ExerciseBankCard = ({ exercise, viewMode, onUpdate, onEdit, readOnly = fal
           return `/study/speaking-assessment?exerciseId=${exercise.id}`
         case 'face_filter_video':
           return `/study/filter-video?exerciseId=${exercise.id}`
+        case 'vibate':
+          return `/study/vibate?exerciseId=${exercise.id}`
         case 'video_upload':
           return `/study/video-upload?exerciseId=${exercise.id}`
         default:
