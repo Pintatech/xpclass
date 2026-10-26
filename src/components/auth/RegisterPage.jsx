@@ -10,6 +10,7 @@ const DEFAULT_LOGIN_IMAGE =
 
 const RegisterPage = () => {
   const [formData, setFormData] = useState({
+    inviteCode: '',
     fullName: '',
     username: '',
     password: '',
@@ -124,6 +125,31 @@ const RegisterPage = () => {
 
     if (formData.password.length < 6) {
       setError('Mat khau phai co it nhat 6 ky tu')
+      setLoading(false)
+      return
+    }
+
+    // Validate invite code
+    try {
+      const { data: codeSetting } = await supabase
+        .from('site_settings')
+        .select('setting_value')
+        .eq('setting_key', 'register_invite_codes')
+        .single()
+
+      const validCodes = codeSetting?.setting_value ? JSON.parse(codeSetting.setting_value) : []
+      if (!Array.isArray(validCodes) || validCodes.length === 0) {
+        setError('Dang ky hien tai khong kha dung')
+        setLoading(false)
+        return
+      }
+      if (!validCodes.includes(formData.inviteCode.trim())) {
+        setError('Ma moi khong hop le')
+        setLoading(false)
+        return
+      }
+    } catch (err) {
+      setError('Khong the xac thuc ma moi')
       setLoading(false)
       return
     }
@@ -347,6 +373,19 @@ const RegisterPage = () => {
               </div>
             )}
 
+            {/* Invite Code */}
+            <div className="neomorphic-input w-[280px]">
+              <input
+                type="text"
+                name="inviteCode"
+                required
+                value={formData.inviteCode}
+                onChange={handleChange}
+                className="custom-border-input"
+              />
+              <span>Invite code</span>
+            </div>
+
             {/* Full Name */}
             <div className="neomorphic-input w-[280px]">
               <input
@@ -357,7 +396,7 @@ const RegisterPage = () => {
                 onChange={handleChange}
                 className="custom-border-input"
               />
-              <span>Ho va ten</span>
+              <span>Full Name</span>
             </div>
 
             {/* Course / Grade */}
@@ -370,7 +409,7 @@ const RegisterPage = () => {
                   className="custom-border-input"
                   required
                 >
-                  <option value="">-- Chon lop --</option>
+                  <option value="">-- Select course --</option>
                   {courses.map(course => (
                     <option key={course.id} value={course.id}>
                       {course.title}
@@ -390,7 +429,7 @@ const RegisterPage = () => {
                 onChange={handleChange}
                 className="custom-border-input"
               />
-              <span>Ten dang nhap</span>
+              <span>Username</span>
             </div>
 
             {/* Password */}
@@ -403,7 +442,7 @@ const RegisterPage = () => {
                 onChange={handleChange}
                 className="custom-border-input"
               />
-              <span>Mat khau</span>
+              <span>Password</span>
               <button
                 type="button"
                 className="absolute right-2 top-2 text-blue-600"
@@ -423,7 +462,7 @@ const RegisterPage = () => {
                 onChange={handleChange}
                 className="custom-border-input"
               />
-              <span>Xac nhan</span>
+              <span>Confirm password</span>
               <button
                 type="button"
                 className="absolute right-2 top-2 text-blue-600"
@@ -439,7 +478,7 @@ const RegisterPage = () => {
               disabled={loading}
               className="neomorphic-button mb-4"
             >
-              {loading ? 'Loading...' : 'Dang ky'}
+              {loading ? 'Loading...' : 'Sign up'}
             </button>
           </form>
 
@@ -455,7 +494,7 @@ const RegisterPage = () => {
             to="/login"
             className="w-[280px] border-2 border-blue-600 hover:bg-blue-600 hover:text-white text-blue-700 rounded-lg px-4 py-2.5 text-center text-sm font-medium transition-all duration-300 mb-4"
           >
-            Da co tai khoan? Dang nhap
+            Log in
           </Link>
         </div>
       </div>

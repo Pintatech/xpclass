@@ -1,5 +1,6 @@
 import { useState, useEffect } from "react";
 import { Link, Navigate, useLocation } from "react-router-dom";
+import { REGISTER_PATH } from "../../config/registration";
 import { useAuth } from "../../hooks/useAuth";
 import Button from "../ui/Button";
 import { Eye, EyeOff, Mail, Lock } from "lucide-react";
@@ -329,7 +330,7 @@ const LoginPage = () => {
               disabled={loading}
               className="neomorphic-button mb-6"
             >
-              {loading ? "Loading..." : "Đăng nhập"}
+              {loading ? "Loading..." : "Log in"}
             </button>
           </form>
 
@@ -351,16 +352,16 @@ const LoginPage = () => {
           {/* Divider */}
           <div className="flex items-center w-[280px]">
             <div className="flex-1 border-t border-gray-300"></div>
-            <span className="px-3 text-xs text-gray-500">hoặc</span>
+            <span className="px-3 text-xs text-gray-500">or</span>
             <div className="flex-1 border-t border-gray-300"></div>
           </div>
 
-          {/* Guest Button */}
+          {/* Sign Up Button */}
           <Link
-            to="/guest"
-            className="w-[280px] border-2 border-blue-600 hover:bg-blue-600 hover:text-white text-blue-700 rounded-lg px-4 py-2.5 text-center text-sm font-medium transition-all duration-300 mb-4"
+            to={REGISTER_PATH}
+            className="w-[280px] border-2 border-purple-500 hover:bg-purple-500 hover:text-white text-purple-600 rounded-lg px-4 py-2.5 text-center text-sm font-medium transition-all duration-300 mb-4"
           >
-            Dùng thử miễn phí
+            Sign up
           </Link>
         </div>
       </div>
