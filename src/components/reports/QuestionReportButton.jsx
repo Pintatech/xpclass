@@ -23,6 +23,11 @@ const getQuestionPreview = (q) => {
 
 const fetchFolderPath = async (folderId) => {
   if (!folderId) return ''
+  // Server function: works for students, who cannot read folders once the Exercise Bank is locked
+  const { data, error } = await supabase.rpc('exercise_folder_path', { p_folder_id: folderId })
+  if (!error) return data || ''
+
+  // Before the SQL is run: walk up the folders one by one
   const parts = []
   let currentId = folderId
   let safety = 8

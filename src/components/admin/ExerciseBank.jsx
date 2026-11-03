@@ -1,5 +1,7 @@
-import React, { useState, useEffect } from 'react'
+import React, { useState, useEffect, useRef } from 'react'
+import { useSearchParams } from 'react-router-dom'
 import { supabase } from '../../supabase/client'
+import { useAuth } from '../../hooks/useAuth'
 import {
   FolderOpen,
   Plus,
@@ -13,178 +15,193 @@ import {
   Copy,
   Brain,
   Video,
-  Sparkles
+  Sparkles,
+  Lock,
+  ShieldCheck
 } from 'lucide-react'
 import FolderTree from './ExerciseBank/FolderTree'
 import ExerciseBankCard from './ExerciseBank/ExerciseBankCard'
 import CreateExerciseModal from './ExerciseBank/CreateExerciseModal'
 import CreateFolderModal from './ExerciseBank/CreateFolderModal'
 import EditExerciseModal from './ExerciseBank/EditExerciseModal'
+import FolderAccessManager from './ExerciseBank/FolderAccessManager'
+import { fetchOpenableFolderIds, fetchFolderExerciseCounts, queryBankExercises } from '../../utils/exerciseBankAccess'
+
+const PAGE_SIZE = 20
 
 const ExerciseBank = ({ readOnly = false, allowedTypes = null, isAdmin = false }) => {
+  const { isAdmin: isAdminAccount } = useAuth()
   const [folders, setFolders] = useState([])
+  const [openableFolderIds, setOpenableFolderIds] = useState(null) // null: every folder can be opened
   const [exercises, setExercises] = useState([])
+  const [totalExercises, setTotalExercises] = useState(0)
   const [folderCounts, setFolderCounts] = useState({})
   const [selectedFolder, _setSelectedFolder] = useState(null)
-  const savedFolderIdRef = React.useRef(localStorage.getItem('exerciseBank_selectedFolderId'))
-
-  const setSelectedFolder = (folder) => {
-    _setSelectedFolder(folder)
-    if (folder) {
-      localStorage.setItem('exerciseBank_selectedFolderId', folder.id)
-    } else {
-      localStorage.removeItem('exerciseBank_selectedFolderId')
-    }
-  }
   const [loading, setLoading] = useState(true)
+  const [searchInput, setSearchInput] = useState('')
   const [searchTerm, setSearchTerm] = useState('')
   const [viewMode, setViewMode] = useState('list') // 'grid' or 'list'
   const [filterType, setFilterType] = useState('all')
   const [showCreateExercise, setShowCreateExercise] = useState(false)
   const [showCreateFolder, setShowCreateFolder] = useState(false)
   const [showEditExercise, setShowEditExercise] = useState(false)
+  const [showAccessManager, setShowAccessManager] = useState(false)
   const [editingExercise, setEditingExercise] = useState(null)
-  const [selectedExercises, setSelectedExercises] = useState([])
   const [foldersLoaded, setFoldersLoaded] = useState(false)
   const [currentPage, setCurrentPage] = useState(0)
-  const PAGE_SIZE = 20
+  const savedFolderIdRef = useRef(localStorage.getItem('exerciseBank_selectedFolderId'))
+  const [searchParams, setSearchParams] = useSearchParams()
+  // A link can open a specific folder (?folder=<id>), e.g. the teacher dashboard shortcuts
+  const linkedFolderIdRef = useRef(searchParams.get('folder'))
+  const requestIdRef = useRef(0)
 
-  useEffect(() => {
-    fetchFolders()
-    fetchFolderCounts()
-  }, [])
+  const selectedFolderId = selectedFolder?.id ?? null
+  const canOpenFolder = (folderId) => !openableFolderIds || openableFolderIds.has(folderId)
+  // Teacher with no folders granted yet (only when the lock is on)
+  const hasNoFolders = openableFolderIds !== null && openableFolderIds.size === 0
 
-  useEffect(() => {
-    if (!foldersLoaded) return
+  const setSelectedFolder = (folder) => {
+    _setSelectedFolder(folder)
     setCurrentPage(0)
-  }, [selectedFolder, searchTerm, filterType])
-
-  useEffect(() => {
-    if (!foldersLoaded) return
-    fetchExercises()
-    fetchFolderCounts()
-  }, [selectedFolder, searchTerm, filterType, currentPage])
-
-  const fetchFolders = async () => {
-    try {
-      const { data, error } = await supabase
-        .from('exercise_folders')
-        .select('*')
-        .order('sort_order')
-
-      if (error) throw error
-      setFolders(data || [])
-      // Restore saved folder or default to the first root folder
-      if (data?.length > 0 && !selectedFolder) {
-        const savedId = savedFolderIdRef.current
-        const savedFolder = savedId ? data.find(f => f.id === savedId) : null
-        if (savedFolder) {
-          setSelectedFolder(savedFolder)
-        } else {
-          const rootFolders = data.filter(f => !f.parent_folder_id).sort((a, b) => a.sort_order - b.sort_order)
-          if (rootFolders.length > 0) {
-            setSelectedFolder(rootFolders[0])
-          }
-        }
-      }
-      setFoldersLoaded(true)
-    } catch (error) {
-      console.error('Error fetching folders:', error)
+    if (folder) {
+      localStorage.setItem('exerciseBank_selectedFolderId', folder.id)
+    } else {
+      localStorage.removeItem('exerciseBank_selectedFolderId')
     }
   }
 
-  const fetchFolderCounts = async () => {
-    try {
-      // Get total count
-      const { count: totalCount, error: totalError } = await supabase
-        .from('exercises')
-        .select('*', { count: 'exact', head: true })
-        .eq('is_in_bank', true)
-        .eq('is_active', true)
+  // Loads the folder list and keeps the selected folder up to date (e.g. after a rename)
+  const loadFolders = async () => {
+    const { data, error } = await supabase
+      .from('exercise_folders')
+      .select('*')
+      .order('sort_order')
+    if (error) {
+      console.error('Error fetching folders:', error)
+      return null
+    }
+    setFolders(data || [])
+    _setSelectedFolder(prev => (prev ? data.find(f => f.id === prev.id) || prev : prev))
+    return data || []
+  }
 
-      if (totalError) throw totalError
-
-      const counts = {}
-      if (totalCount) counts['all'] = totalCount
-
-      // Batch folder count queries (5 at a time to avoid 503)
-      for (let i = 0; i < folders.length; i += 5) {
-        const batch = folders.slice(i, i + 5)
-        const results = await Promise.all(
-          batch.map(folder =>
-            supabase
-              .from('exercises')
-              .select('*', { count: 'exact', head: true })
-              .eq('is_in_bank', true)
-              .eq('is_active', true)
-              .eq('folder_id', folder.id)
-              .then(({ count }) => ({ id: folder.id, count }))
-          )
-        )
-        results.forEach(({ id, count }) => {
-          if (count) counts[id] = count
-        })
+  // Linked folder, else the last folder viewed, else the first folder the user may open
+  const pickStartFolder = (data, openable) => {
+    const canOpen = (folder) => folder && (!openable || openable.has(folder.id))
+    const findById = (id) => (id ? data.find(f => f.id === id) : null)
+    // First folder inside folderId the user may open, in tree order
+    const firstOpenableInside = (folderId, depth = 0) => {
+      if (depth > 50) return null
+      const children = data
+        .filter(f => f.parent_folder_id === folderId)
+        .sort((a, b) => a.sort_order - b.sort_order)
+      for (const child of children) {
+        if (canOpen(child)) return child
+        const found = firstOpenableInside(child.id, depth + 1)
+        if (found) return found
       }
+      return null
+    }
+    const linked = findById(linkedFolderIdRef.current)
+    if (canOpen(linked)) return linked
+    // Link to a parent the user sees only by name: open the part inside it they may open
+    const insideLinked = linked ? firstOpenableInside(linked.id) : null
+    if (insideLinked) return insideLinked
+    const saved = findById(savedFolderIdRef.current)
+    if (canOpen(saved)) return saved
+    // Top of each branch the user may open (root folders when nothing is restricted)
+    const tops = openable
+      ? data.filter(f => openable.has(f.id) && !openable.has(f.parent_folder_id))
+      : data.filter(f => !f.parent_folder_id)
+    return tops.sort((a, b) => a.sort_order - b.sort_order)[0] || null
+  }
 
-      setFolderCounts(counts)
+  const refreshCounts = async () => {
+    try {
+      setFolderCounts(await fetchFolderExerciseCounts())
     } catch (error) {
       console.error('Error fetching folder counts:', error)
     }
   }
 
-  const fetchExercises = async () => {
-    try {
-      setLoading(true)
-      let query = supabase
-        .from('exercises')
-        .select('*')
-        .eq('is_in_bank', true)
-
-      // Filter by folder
-      if (selectedFolder) {
-        query = query.eq('folder_id', selectedFolder.id)
-      }
-
-      // Filter by type
-      if (filterType !== 'all') {
-        query = query.eq('exercise_type', filterType)
-      }
-
-      // Search
-      if (searchTerm) {
-        query = query.ilike('title', `%${searchTerm}%`)
-      }
-
-      query = query.order('created_at', { ascending: false })
-
-      const from = currentPage * PAGE_SIZE
-      const to = from + PAGE_SIZE - 1
-      query = query.range(from, to)
-
-      const { data, error } = await query
-
-      if (error) throw error
-      setExercises(data || [])
-    } catch (error) {
-      console.error('Error fetching exercises:', error)
-    } finally {
-      setLoading(false)
+  useEffect(() => {
+    const init = async () => {
+      const [openable, data] = await Promise.all([fetchOpenableFolderIds(), loadFolders()])
+      setOpenableFolderIds(openable)
+      const startFolder = data ? pickStartFolder(data, openable) : null
+      if (startFolder) setSelectedFolder(startFolder)
+      setFoldersLoaded(true)
+      refreshCounts()
     }
+    init()
+  }, [])
+
+  // Drop ?folder= once read, so a refresh keeps the folder the user moved to
+  useEffect(() => {
+    if (!searchParams.has('folder')) return
+    setSearchParams(prev => {
+      const next = new URLSearchParams(prev)
+      next.delete('folder')
+      return next
+    }, { replace: true })
+  }, [searchParams, setSearchParams])
+
+  // Search once the user stops typing
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      setSearchTerm(searchInput.trim())
+      setCurrentPage(0)
+    }, 300)
+    return () => clearTimeout(timer)
+  }, [searchInput])
+
+  useEffect(() => {
+    if (!foldersLoaded) return
+    fetchExercises()
+  }, [foldersLoaded, selectedFolderId, searchTerm, filterType, currentPage])
+
+  const fetchExercises = async () => {
+    const requestId = ++requestIdRef.current
+    setLoading(true)
+    const from = currentPage * PAGE_SIZE
+    const { data, count, error } = await queryBankExercises(source => {
+      let query = source
+        .select('*', { count: 'exact' })
+        .eq('is_in_bank', true)
+      if (selectedFolderId) query = query.eq('folder_id', selectedFolderId)
+      if (filterType !== 'all') query = query.eq('exercise_type', filterType)
+      if (searchTerm) query = query.ilike('title', `%${searchTerm}%`)
+      return query
+        .order('created_at', { ascending: false })
+        .range(from, from + PAGE_SIZE - 1)
+    })
+
+    // A newer request has started since; its result wins
+    if (requestId !== requestIdRef.current) return
+    // Page no longer exists (e.g. its last exercise was deleted): go back to the first page
+    if (error?.code === 'PGRST103' && currentPage > 0) {
+      setCurrentPage(0)
+      return
+    }
+    if (error) {
+      console.error('Error fetching exercises:', error)
+    } else {
+      setExercises(data || [])
+      setTotalExercises(count || 0)
+    }
+    setLoading(false)
   }
 
-  const getTypeIcon = (type) => {
-    switch (type) {
-      case 'flashcard':
-        return BookOpen
-      case 'pronunciation':
-        return Mic
-      case 'fill_blank':
-        return Edit3
-      case 'multiple_choice':
-        return HelpCircle
-      default:
-        return BookOpen
-    }
+  // After folders are created, renamed or deleted: reload them and which ones the user may open
+  const refreshFolders = async () => {
+    const [openable] = await Promise.all([fetchOpenableFolderIds(), loadFolders()])
+    setOpenableFolderIds(openable)
+  }
+
+  // After an exercise is created, edited, duplicated or deleted
+  const handleExercisesChanged = () => {
+    fetchExercises()
+    refreshCounts()
   }
 
   const handleCreateExercise = () => {
@@ -206,12 +223,12 @@ const ExerciseBank = ({ readOnly = false, allowedTypes = null, isAdmin = false }
   }
 
   const handleExerciseCreated = () => {
-    fetchExercises()
+    handleExercisesChanged()
     setShowCreateExercise(false)
   }
 
   const handleFolderCreated = () => {
-    fetchFolders()
+    refreshFolders()
     setShowCreateFolder(false)
   }
 
@@ -243,6 +260,11 @@ const ExerciseBank = ({ readOnly = false, allowedTypes = null, isAdmin = false }
     return path
   }
 
+  // Teachers limited to some folders create folders only inside a folder they may open
+  const canCreateFolder = !readOnly && (!openableFolderIds || (selectedFolder && canOpenFolder(selectedFolder.id)))
+  const canCreateExercise = (!readOnly || allowedTypes) && !hasNoFolders
+  const totalPages = Math.ceil(totalExercises / PAGE_SIZE)
+
   return (
     <div className="h-full bg-gray-50">
       <div className="flex h-full">
@@ -251,15 +273,27 @@ const ExerciseBank = ({ readOnly = false, allowedTypes = null, isAdmin = false }
           <div className="p-4 border-b border-gray-200">
             <div className="flex items-center justify-between mb-4">
               <h2 className="text-lg font-semibold text-gray-900">Exercise Bank</h2>
-              {!readOnly && (
-                <button
-                  onClick={handleCreateFolder}
-                  className="p-2 text-gray-500 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"
-                  title="Create Folder"
-                >
-                  <Plus className="w-4 h-4" />
-                </button>
-              )}
+              <div className="flex items-center gap-1">
+                {isAdminAccount() && (
+                  <button
+                    onClick={() => setShowAccessManager(true)}
+                    className="flex items-center gap-1 px-2 py-1.5 text-sm text-gray-600 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"
+                    title="Chọn giáo viên nào được xem thư mục nào"
+                  >
+                    <ShieldCheck className="w-4 h-4" />
+                    Phân quyền
+                  </button>
+                )}
+                {canCreateFolder && (
+                  <button
+                    onClick={handleCreateFolder}
+                    className="p-2 text-gray-500 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"
+                    title="Create Folder"
+                  >
+                    <Plus className="w-4 h-4" />
+                  </button>
+                )}
+              </div>
             </div>
           </div>
 
@@ -269,9 +303,10 @@ const ExerciseBank = ({ readOnly = false, allowedTypes = null, isAdmin = false }
               folderCounts={folderCounts}
               selectedFolder={selectedFolder}
               onSelectFolder={setSelectedFolder}
-              onFolderUpdate={fetchFolders}
+              onFolderUpdate={refreshFolders}
               readOnly={readOnly}
               isAdmin={isAdmin}
+              openableFolderIds={openableFolderIds}
             />
           </div>
         </div>
@@ -285,21 +320,25 @@ const ExerciseBank = ({ readOnly = false, allowedTypes = null, isAdmin = false }
                 <FolderOpen className="w-5 h-5 text-gray-500" />
                 <nav className="flex items-center space-x-2 text-sm">
                   <span className="text-gray-500">Exercise Bank</span>
-                  {breadcrumbs().map((folder, index) => (
+                  {breadcrumbs().map(folder => (
                     <React.Fragment key={folder.id}>
                       <span className="text-gray-400">/</span>
-                      <button
-                        onClick={() => setSelectedFolder(folder)}
-                        className="text-blue-600 hover:text-blue-800"
-                      >
-                        {folder.name}
-                      </button>
+                      {canOpenFolder(folder.id) ? (
+                        <button
+                          onClick={() => setSelectedFolder(folder)}
+                          className="text-blue-600 hover:text-blue-800"
+                        >
+                          {folder.name}
+                        </button>
+                      ) : (
+                        <span className="text-gray-400">{folder.name}</span>
+                      )}
                     </React.Fragment>
                   ))}
                 </nav>
               </div>
 
-              {(!readOnly || allowedTypes) && (
+              {canCreateExercise && (
                 <div className="flex items-center space-x-3">
                   <button
                     onClick={handleCreateExercise}
@@ -319,15 +358,18 @@ const ExerciseBank = ({ readOnly = false, allowedTypes = null, isAdmin = false }
                 <input
                   type="text"
                   placeholder="Search exercises..."
-                  value={searchTerm}
-                  onChange={(e) => setSearchTerm(e.target.value)}
+                  value={searchInput}
+                  onChange={(e) => setSearchInput(e.target.value)}
                   className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                 />
               </div>
 
               <select
                 value={filterType}
-                onChange={(e) => setFilterType(e.target.value)}
+                onChange={(e) => {
+                  setFilterType(e.target.value)
+                  setCurrentPage(0)
+                }}
                 className="px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
               >
                 {exerciseTypes.map(type => (
@@ -356,7 +398,13 @@ const ExerciseBank = ({ readOnly = false, allowedTypes = null, isAdmin = false }
 
           {/* Exercise Grid/List */}
           <div className="flex-1 overflow-auto p-4">
-            {loading ? (
+            {hasNoFolders ? (
+              <div className="text-center py-12">
+                <Lock className="w-12 h-12 text-gray-400 mx-auto mb-4" />
+                <h3 className="text-lg font-medium text-gray-900 mb-2">Bạn chưa được cấp thư mục nào</h3>
+                <p className="text-gray-500">Liên hệ admin để được cấp quyền xem thư mục trong Exercise Bank.</p>
+              </div>
+            ) : loading ? (
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
                 {[...Array(6)].map((_, i) => (
                   <div key={i} className="bg-white rounded-lg border p-4 animate-pulse">
@@ -376,12 +424,14 @@ const ExerciseBank = ({ readOnly = false, allowedTypes = null, isAdmin = false }
                     : 'Start by creating your first exercise'
                   }
                 </p>
-                <button
-                  onClick={handleCreateExercise}
-                  className="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition-colors"
-                >
-                  Create Exercise
-                </button>
+                {canCreateExercise && (
+                  <button
+                    onClick={handleCreateExercise}
+                    className="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition-colors"
+                  >
+                    Create Exercise
+                  </button>
+                )}
               </div>
             ) : (
               <>
@@ -395,7 +445,7 @@ const ExerciseBank = ({ readOnly = false, allowedTypes = null, isAdmin = false }
                       key={exercise.id}
                       exercise={exercise}
                       viewMode={viewMode}
-                      onUpdate={fetchExercises}
+                      onUpdate={handleExercisesChanged}
                       onEdit={handleEditExercise}
                       readOnly={(readOnly && !allowedTypes) || (!isAdmin && selectedFolder?.read_only === true)}
                       allowedTypes={allowedTypes}
@@ -404,34 +454,27 @@ const ExerciseBank = ({ readOnly = false, allowedTypes = null, isAdmin = false }
                 </div>
 
                 {/* Pagination */}
-                {(() => {
-                  const totalForFolder = selectedFolder
-                    ? (folderCounts[selectedFolder.id] || 0)
-                    : (folderCounts['all'] || 0)
-                  const totalPages = Math.ceil(totalForFolder / PAGE_SIZE)
-                  if (totalPages <= 1) return null
-                  return (
-                    <div className="flex items-center justify-center space-x-4 mt-6 pb-4">
-                      <button
-                        onClick={() => setCurrentPage(p => Math.max(0, p - 1))}
-                        disabled={currentPage === 0}
-                        className="px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
-                      >
-                        Previous
-                      </button>
-                      <span className="text-sm text-gray-600">
-                        Page {currentPage + 1} of {totalPages}
-                      </span>
-                      <button
-                        onClick={() => setCurrentPage(p => Math.min(totalPages - 1, p + 1))}
-                        disabled={currentPage >= totalPages - 1}
-                        className="px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
-                      >
-                        Next
-                      </button>
-                    </div>
-                  )
-                })()}
+                {totalPages > 1 && (
+                  <div className="flex items-center justify-center space-x-4 mt-6 pb-4">
+                    <button
+                      onClick={() => setCurrentPage(p => Math.max(0, p - 1))}
+                      disabled={currentPage === 0}
+                      className="px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
+                    >
+                      Previous
+                    </button>
+                    <span className="text-sm text-gray-600">
+                      Page {currentPage + 1} of {totalPages}
+                    </span>
+                    <button
+                      onClick={() => setCurrentPage(p => Math.min(totalPages - 1, p + 1))}
+                      disabled={currentPage >= totalPages - 1}
+                      className="px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
+                    >
+                      Next
+                    </button>
+                  </div>
+                )}
               </>
             )}
           </div>
@@ -446,6 +489,7 @@ const ExerciseBank = ({ readOnly = false, allowedTypes = null, isAdmin = false }
           onClose={() => setShowCreateExercise(false)}
           onCreated={handleExerciseCreated}
           allowedTypes={allowedTypes}
+          canSelectFolder={canOpenFolder}
         />
       )}
 
@@ -462,8 +506,12 @@ const ExerciseBank = ({ readOnly = false, allowedTypes = null, isAdmin = false }
           isOpen={showEditExercise}
           onClose={handleCloseEditExercise}
           exercise={editingExercise}
-          onUpdate={fetchExercises}
+          onUpdate={handleExercisesChanged}
         />
+      )}
+
+      {showAccessManager && (
+        <FolderAccessManager onClose={() => setShowAccessManager(false)} />
       )}
     </div>
   )

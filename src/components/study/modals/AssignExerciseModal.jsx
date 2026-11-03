@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react'
 import { supabase } from '../../../supabase/client'
 import { X, Search, BookOpen, Mic, Edit3, HelpCircle, Plus, Check, Copy, Brain, Image, FileText, Eye } from 'lucide-react'
 import FolderTree from '../../admin/ExerciseBank/FolderTree'
+import { fetchOpenableFolderIds, fetchFolderExerciseCounts } from '../../../utils/exerciseBankAccess'
 
 const AssignExerciseModal = ({ sessionId, courseId, onClose, onAssigned }) => {
   const [exercises, setExercises] = useState([])
@@ -18,6 +19,7 @@ const AssignExerciseModal = ({ sessionId, courseId, onClose, onAssigned }) => {
   const [folderCounts, setFolderCounts] = useState({})
   const [selectedExercises, setSelectedExercises] = useState(new Set())
   const [previewUrl, setPreviewUrl] = useState(null)
+  const [openableFolderIds, setOpenableFolderIds] = useState(null)
 
   const exerciseTypes = [
     { value: 'all', label: 'All Types' },
@@ -34,6 +36,7 @@ const AssignExerciseModal = ({ sessionId, courseId, onClose, onAssigned }) => {
   useEffect(() => {
     fetchFolders()
     fetchFolderCounts()
+    fetchOpenableFolderIds().then(setOpenableFolderIds)
     fetchAssignedExercises()
     if (courseId) fetchCourseAssignedExercises()
   }, [sessionId, courseId])
@@ -96,24 +99,7 @@ const AssignExerciseModal = ({ sessionId, courseId, onClose, onAssigned }) => {
 
   const fetchFolderCounts = async () => {
     try {
-      const { data, error } = await supabase
-        .from('exercises')
-        .select('folder_id')
-        .eq('is_in_bank', true)
-        .eq('is_active', true)
-
-      if (error) throw error
-
-      const counts = {}
-      let totalCount = 0
-      data?.forEach(exercise => {
-        totalCount++
-        if (exercise.folder_id) {
-          counts[exercise.folder_id] = (counts[exercise.folder_id] || 0) + 1
-        }
-      })
-      counts['all'] = totalCount
-      setFolderCounts(counts)
+      setFolderCounts(await fetchFolderExerciseCounts())
     } catch (err) {
       console.error('Error fetching folder counts:', err)
     }
@@ -332,6 +318,7 @@ const AssignExerciseModal = ({ sessionId, courseId, onClose, onAssigned }) => {
               selectedFolder={selectedFolder}
               onSelectFolder={setSelectedFolder}
               readOnly
+              openableFolderIds={openableFolderIds}
             />
           </div>
 

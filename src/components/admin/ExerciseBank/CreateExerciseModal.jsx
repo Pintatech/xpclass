@@ -15,7 +15,8 @@ import SpeakingAssessmentEditor from '../editors/SpeakingAssessmentEditor'
 import VideoUploadEditor from '../editors/VideoUploadEditor'
 import VibateEditor from '../editors/VibateEditor'
 
-const CreateExerciseModal = ({ folders, selectedFolder, onClose, onCreated, allowedTypes = null }) => {
+// canSelectFolder: false for folders the teacher sees only as part of a path (cannot save there)
+const CreateExerciseModal = ({ folders, selectedFolder, onClose, onCreated, allowedTypes = null, canSelectFolder = () => true }) => {
   const [formData, setFormData] = useState({
     title: '',
     exercise_type: allowedTypes?.length === 1 ? allowedTypes[0] : 'flashcard',
@@ -130,7 +131,7 @@ const CreateExerciseModal = ({ folders, selectedFolder, onClose, onCreated, allo
     return folders
       .filter(folder => folder.parent_folder_id === parentId)
       .flatMap(folder => [
-        <option key={folder.id} value={folder.id}>
+        <option key={folder.id} value={folder.id} disabled={!canSelectFolder(folder.id)}>
           {'  '.repeat(level) + folder.name}
         </option>,
         ...buildFolderOptions(folders, folder.id, level + 1)

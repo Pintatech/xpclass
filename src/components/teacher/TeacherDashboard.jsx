@@ -21,6 +21,7 @@ import {
   Swords
 } from 'lucide-react';
 import VideoSubmissionReview from './VideoSubmissionReview';
+import FolderShortcuts from './FolderShortcuts';
 
 const TeacherDashboard = () => {
   const { user, isAdmin, profile, loading: authLoading } = useAuth();
@@ -457,29 +458,32 @@ const TeacherDashboard = () => {
 
   return (
     <div className="space-y-6">
-      {/* Quick Actions */}
-      <div className="flex gap-2">
-        <button
-          onClick={() => navigate('/teacher/overview')}
-          className="flex items-center gap-2 px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors text-sm font-medium"
-        >
-          <Users className="w-4 h-4" />
-          Điểm danh
-        </button>
-        <button
-          onClick={() => navigate('/teacher/exercise-bank')}
-          className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors text-sm font-medium"
-        >
-          <BookOpen className="w-4 h-4" />
-          Exercise Bank
-        </button>
-        <button
-          onClick={() => navigate('/teacher/weakness-analysis')}
-          className="flex items-center gap-2 px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors text-sm font-medium"
-        >
-          <TrendingDown className="w-4 h-4" />
-          Weakness Analysis
-        </button>
+      {/* Quick Actions + Exercise Bank folder shortcuts (set by admin) */}
+      <div className="space-y-3">
+        <div className="flex gap-2">
+          <button
+            onClick={() => navigate('/teacher/overview')}
+            className="flex items-center gap-2 px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors text-sm font-medium"
+          >
+            <Users className="w-4 h-4" />
+            Điểm danh
+          </button>
+          <button
+            onClick={() => navigate('/teacher/exercise-bank')}
+            className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors text-sm font-medium"
+          >
+            <BookOpen className="w-4 h-4" />
+            Exercise Bank
+          </button>
+          <button
+            onClick={() => navigate('/teacher/weakness-analysis')}
+            className="flex items-center gap-2 px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors text-sm font-medium"
+          >
+            <TrendingDown className="w-4 h-4" />
+            Weakness Analysis
+          </button>
+        </div>
+        <FolderShortcuts isAdmin={isAdmin()} />
       </div>
 
       {/* Course Selection & View Toggle */}

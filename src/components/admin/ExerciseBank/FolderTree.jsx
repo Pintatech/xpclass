@@ -19,7 +19,9 @@ import {
 import CreateFolderModal from './CreateFolderModal'
 import EditFolderModal from './EditFolderModal'
 
-const FolderTree = ({ folders, folderCounts = {}, selectedFolder, onSelectFolder, onFolderUpdate, readOnly = false, isAdmin = false }) => {
+// openableFolderIds: Set of folders the user may open, or null when every folder can be opened.
+// Other folders are parents kept for the path: shown dimmed, they only expand and collapse.
+const FolderTree = ({ folders, folderCounts = {}, selectedFolder, onSelectFolder, onFolderUpdate, readOnly = false, isAdmin = false, openableFolderIds = null }) => {
   const [expandedFolders, setExpandedFolders] = useState(() => {
     try {
       const saved = JSON.parse(localStorage.getItem('exerciseBank_expandedFolders') || '[]')
@@ -105,18 +107,21 @@ const FolderTree = ({ folders, folderCounts = {}, selectedFolder, onSelectFolder
     const hasChildren = folder.children && folder.children.length > 0
     const isExpanded = expandedFolders.has(folder.id)
     const isSelected = selectedFolder?.id === folder.id
+    const canOpen = !openableFolderIds || openableFolderIds.has(folder.id)
 
     return (
       <div key={folder.id}>
         <div
           className={`
-            flex items-center px-2 py-2 mx-2 rounded-lg cursor-pointer group
-            ${isSelected ? 'bg-blue-50 text-blue-700' : 'hover:bg-gray-50'}
+            flex items-center px-2 py-2 mx-2 rounded-lg group
+            ${canOpen || hasChildren ? 'cursor-pointer' : 'cursor-default'}
+            ${isSelected ? 'bg-blue-50 text-blue-700' : canOpen ? 'hover:bg-gray-50' : 'text-gray-400 hover:bg-gray-50'}
           `}
           style={{ paddingLeft: `${level * 20 + 8}px` }}
+          title={canOpen ? undefined : 'Chưa được cấp quyền mở thư mục này'}
           onClick={() => {
             if (hasChildren) toggleFolder(folder.id)
-            onSelectFolder(folder)
+            if (canOpen) onSelectFolder(folder)
           }}
         >
           {/* Expand/Collapse Button */}
@@ -136,12 +141,12 @@ const FolderTree = ({ folders, folderCounts = {}, selectedFolder, onSelectFolder
           <div
             className="flex items-center flex-1 min-w-0"
           >
-            <Icon className={`w-4 h-4 mr-2 flex-shrink-0 ${getFolderColor(folder.color)}`} />
+            <Icon className={`w-4 h-4 mr-2 flex-shrink-0 ${canOpen ? getFolderColor(folder.color) : 'text-gray-300'}`} />
             <span className="text-sm font-medium truncate">{folder.name}</span>
             {folder.read_only && (
               <Lock className="w-3 h-3 ml-1 flex-shrink-0 text-gray-400" title="Read only" />
             )}
-            {folderCounts[folder.id] && (
+            {canOpen && folderCounts[folder.id] && (
               <span className="ml-auto text-xs text-gray-500 bg-gray-100 px-2 py-1 rounded-full">
                 {folderCounts[folder.id]}
               </span>
@@ -149,7 +154,7 @@ const FolderTree = ({ folders, folderCounts = {}, selectedFolder, onSelectFolder
           </div>
 
           {/* Context Menu Button */}
-          {!readOnly && (
+          {!readOnly && canOpen && (
             <button
               onClick={(e) => {
                 e.stopPropagation()
@@ -163,7 +168,7 @@ const FolderTree = ({ folders, folderCounts = {}, selectedFolder, onSelectFolder
         </div>
 
         {/* Context Menu */}
-        {!readOnly && contextMenu?.id === folder.id && (
+        {!readOnly && canOpen && contextMenu?.id === folder.id && (
           <div className="absolute right-4 bg-white rounded-lg shadow-lg border border-gray-200 py-1 z-10">
             <button
               onClick={() => {

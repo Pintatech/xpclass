@@ -111,7 +111,7 @@ const EditExerciseModal = ({ isOpen, onClose, exercise, onUpdate }) => {
       }
 
       // Update exercise in database
-      const { error } = await supabase
+      const { data: updatedRows, error } = await supabase
         .from('exercises')
         .update({
           title: formData.title.trim(),
@@ -128,8 +128,13 @@ const EditExerciseModal = ({ isOpen, onClose, exercise, onUpdate }) => {
           updated_at: new Date().toISOString()
         })
         .eq('id', exercise.id)
+        .select('id')
 
       if (error) throw error
+      // Nothing saved: the exercise is in a folder this teacher may not edit
+      if (!updatedRows?.length) {
+        throw new Error('Bạn không có quyền sửa bài này (thư mục chưa được cấp cho bạn).')
+      }
 
       // Refresh the exercise list
       onUpdate()
