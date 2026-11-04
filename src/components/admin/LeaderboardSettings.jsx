@@ -24,6 +24,7 @@ const GAME_TYPES = [
   { key: 'bossbattle', label: 'Boss Battle', icon: '⚔️' },
   { key: 'angrypet', label: 'Angry Pet', icon: '🏹' },
   { key: 'fishing', label: 'Fishing Frenzy', icon: '🎣' },
+  { key: 'petdash', label: 'Pet Dash', icon: '🐾' },
 ];
 
 const TRAINING_GAMES = [
@@ -39,6 +40,7 @@ const TRAINING_GAMES = [
   { key: 'bossbattle', label: 'Boss Battle', icon: '⚔️' },
   { key: 'angrypet', label: 'Angry Pet', icon: '🏹' },
   { key: 'fishing', label: 'Fishing Frenzy', icon: '🎣' },
+  { key: 'petdash', label: 'Pet Dash', icon: '🐾' },
 ];
 
 const LeaderboardSettings = () => {

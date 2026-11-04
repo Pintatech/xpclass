@@ -15,6 +15,7 @@ import PetSayItRight from '../pet/games/PetSayItRight'
 import PetQuizRush from '../pet/games/PetQuizRush'
 import PetAngryPet from '../pet/games/PetAngryPet'
 import PetFishingGame from '../pet/games/PetFishingGame'
+import PetDash from '../pet/games/PetDash'
 import PvPRealtimeWordType from './PvPRealtimeWordType'
 import PvPRealtimeWordScramble from './PvPRealtimeWordScramble'
 import PvPRealtimeMatchGame from './PvPRealtimeMatchGame'
@@ -167,6 +168,7 @@ const GAMES = [
   { id: 'quizrush', name: 'Quiz Rush', icon: null, emoji: '❓', description: 'Answer questions fast!' },
   { id: 'angrypet', name: 'Angry Pet', icon: assetUrl('/pet-game/angry/Slingshot.png'), description: 'Launch at the answer!' },
   { id: 'fishing', name: 'Fishing', icon: assetUrl('/pet-display/game-logo/fish.png'), description: 'Catch the right fish!' },
+  { id: 'petdash', name: 'Pet Dash', icon: null, emoji: '🐾', description: 'Run through the right gate!' },
 ]
 
 const PvPChallengeModal = ({ opponent, onClose }) => {
@@ -467,6 +469,8 @@ const PvPChallengeModal = ({ opponent, onClose }) => {
         return <PetAngryPet {...commonProps} onGameEnd={(s) => handleGameEnd(s)} questionBank={questionBank} />
       case 'fishing':
         return <PetFishingGame {...commonProps} onGameEnd={(s) => handleGameEnd(s)} wordBank={wordBank} boatSkinUrl={profile?.active_boat_url} />
+      case 'petdash':
+        return <PetDash {...commonProps} onGameEnd={(s) => handleGameEnd(s)} wordBank={wordBank} />
       default:
         return null
     }

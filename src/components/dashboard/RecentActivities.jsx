@@ -39,6 +39,7 @@ const GAME_TYPE_LABELS = {
   sayitright: 'Say It Right',
   catch: 'Hungry Pet',
   fishing: 'Fishing Frenzy',
+  petdash: 'Pet Dash',
 }
 
 /* Corner bracket decoration */

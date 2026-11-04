@@ -28,6 +28,13 @@ When adding a new mini-game, make sure to update ALL of the following:
 ## 5. Admin & Leaderboard
 - `LeaderboardSettings.jsx`: Add to `GAME_TYPES` array AND `TRAINING_GAMES` array
 - `Leaderboard.jsx`: Add to `GAME_LABELS` object
+- `admin/RecentActivities.jsx` and `dashboard/RecentActivities.jsx`: Add to `GAME_TYPE_LABELS`
+- After deploying, enable the game in Leaderboard Settings: the saved `pet_training_enabled_games` list replaces the default array in PetDisplay
+
+## 6. Optional: tournaments and missions
+- Tournaments: add to `GAME_TYPE_LABELS` in `admin/TournamentManagement.jsx` and `dashboard/TournamentWidget.jsx` (the students' widget). `tournaments.game_type` has a CHECK list, so ship a migration that adds the key (see `migrations/add_pet_dash_game.sql`)
+- Mission goal for the game's own counter: add it to `GOAL_TYPES` in `MissionManagement.jsx` and to `gameGoalMap` in PetDisplay's `handleGameEnd`. `missions.goal_type` has a CHECK list too, so it needs the same kind of migration
+- Chests: accept `chestEnabled` and pass `chestCollected` in the `onGameEnd` extra; PetDisplay awards the chest
 
 ## Key Notes
 - `scoreToBeat` is used by: PetWordScramble, PetAstroBlast, PetMatchGame

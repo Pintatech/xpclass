@@ -30,6 +30,7 @@ import PvPMatchmaking from "../pvp/PvPMatchmaking";
 import WildEncounterModal from "./WildEncounterModal";
 import PetMazeAdventure from "./games/PetMazeAdventure";
 import PetFishingGame from "./games/PetFishingGame";
+import PetDash from "./games/PetDash";
 
 import { assetUrl } from '../../hooks/useBranding';
 import { fetchPvpSchedule, checkPvpAvailability } from '../../utils/pvpSchedule';
@@ -114,11 +115,11 @@ const PetDisplay = ({ aside = null }) => {
   // Chat state
   const [playDisabled, setPlayDisabled] = useState(false);
   const [playCooldown, setPlayCooldown] = useState(0);
-  const [showGame, setShowGame] = useState(null); // null | 'picker' | 'catch' | 'flappy' | 'scramble' | 'whackmole' | 'astroblast' | 'matchgame' | 'quizrush' | 'bossbattle' | 'angrypet'
-  const [gameLeaderboards, setGameLeaderboards] = useState({ whackmole: [], scramble: [], astroblast: [], matchgame: [], wordtype: [], bombparty: [], sayitright: [], quizrush: [], bossbattle: [], angrypet: [], fishing: [] });
+  const [showGame, setShowGame] = useState(null); // null | 'picker' | 'catch' | 'flappy' | 'scramble' | 'whackmole' | 'astroblast' | 'matchgame' | 'quizrush' | 'bossbattle' | 'angrypet' | 'petdash'
+  const [gameLeaderboards, setGameLeaderboards] = useState({ whackmole: [], scramble: [], astroblast: [], matchgame: [], wordtype: [], bombparty: [], sayitright: [], quizrush: [], bossbattle: [], angrypet: [], fishing: [], petdash: [] });
   const [wordBank, setWordBank] = useState([]);
   const [questionBank, setQuestionBank] = useState([]);
-  const [enabledGames, setEnabledGames] = useState(['scramble', 'whackmole', 'astroblast', 'matchgame', 'wordtype', 'bombparty', 'sayitright', 'quizrush', 'bossbattle', 'angrypet', 'catch', 'fishing']);
+  const [enabledGames, setEnabledGames] = useState(['scramble', 'whackmole', 'astroblast', 'matchgame', 'wordtype', 'bombparty', 'sayitright', 'quizrush', 'bossbattle', 'angrypet', 'catch', 'fishing', 'petdash']);
   const [competitionGame, setCompetitionGame] = useState(null); // game type with active competition
   const [chestEnabled, setChestEnabled] = useState(false); // whether chest can appear in games
   const [mazeBlocked, setMazeBlocked] = useState(false); // whether maze adventure is blocked
@@ -861,6 +862,7 @@ const PetDisplay = ({ aside = null }) => {
         bossbattle: extra?.wordsCompleted && { goal_type: 'answer_questions', increment: extra.wordsCompleted },
         angrypet: extra?.wordsCompleted && { goal_type: 'answer_questions', increment: extra.wordsCompleted },
         fishing: extra?.wordsCompleted && { goal_type: 'catch_fish', increment: extra.wordsCompleted },
+        petdash: extra?.wordsCompleted && { goal_type: 'dash_words', increment: extra.wordsCompleted },
       }
       const gameGoal = gameGoalMap[gameType]
       if (gameGoal) {
@@ -2316,6 +2318,20 @@ const PetDisplay = ({ aside = null }) => {
               </button>
               )}
 
+              {(isStaff() || enabledGames.includes('petdash')) && (
+              <button
+                onClick={() => { drainPetEnergy(10); recordAttemptStart('petdash'); fetchGameLeaderboard('petdash'); setShowGame('petdash'); }}
+                className={`relative flex flex-col items-center gap-2 p-4 border-2 transition-all group overflow-hidden ${competitionGame === 'petdash' ? 'border-yellow-400 bg-yellow-50 ring-2 ring-yellow-300' : 'border-amber-200 hover:border-amber-400 hover:bg-amber-50'}`}
+              >
+                {competitionGame === 'petdash' && <span className="absolute -top-2 -right-2 text-lg">🏆</span>}
+                <div className="relative w-20 h-20 group-hover:scale-110 transition-transform">
+                  <img src={(activePet.evolution_stage > 0 && activePet.evolution_stages?.find(s => s.stage === activePet.evolution_stage)?.image_url) || activePet.image_url} alt="Pet Dash" className="w-20 h-20 object-contain" />
+                  <span className="absolute -bottom-1 -right-1 text-2xl">💨</span>
+                </div>
+                <span className="font-bold text-gray-800 text-xs">Pet Dash</span>
+              </button>
+              )}
+
               <button
                 onClick={() => setShowGame('quickmatch')}
                 className={`relative flex flex-col items-center gap-2 p-4 rounded-xl border-2 border-purple-200 hover:border-purple-400 hover:bg-purple-50 transition-all group ${isStaff() ? 'col-span-full' : 'col-span-2'}`}
@@ -2369,6 +2385,27 @@ const PetDisplay = ({ aside = null }) => {
           boatSkinUrl={profile?.active_boat_url}
           currentLevel={profile?.current_level || 1}
           onGameEnd={(score, extra) => handleGameEnd(score, 'fishing', extra)}
+          onClose={() => setShowGame(null)}
+        />
+      )}
+
+      {/* Pet Dash Mini-Game */}
+      {showGame === 'petdash' && (
+        <PetDash
+          petImageUrl={(() => {
+            let baseImage = activePet.image_url;
+            if (activePet.evolution_stages && activePet.evolution_stage > 0) {
+              const stage = activePet.evolution_stages.find(s => s.stage === activePet.evolution_stage);
+              if (stage?.image_url) baseImage = stage.image_url;
+            }
+            return baseImage;
+          })()}
+          petName={activePet.nickname || activePet.name}
+          wordBank={wordBank}
+          leaderboard={gameLeaderboards.petdash}
+          chestEnabled={chestEnabled}
+          currentLevel={profile?.current_level || 1}
+          onGameEnd={(score, extra) => handleGameEnd(score, 'petdash', extra)}
           onClose={() => setShowGame(null)}
         />
       )}

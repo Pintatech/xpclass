@@ -77,6 +77,7 @@ const Leaderboard = () => {
     quizrush: 'Quiz Rush',
     angrypet: 'Angry Pet',
     fishing: 'Fishing Frenzy',
+    petdash: 'Pet Dash',
   }
 
   // Fetch leaderboard settings on mount

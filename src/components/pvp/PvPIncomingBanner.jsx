@@ -635,6 +635,7 @@ import PetSayItRight from "../pet/games/PetSayItRight";
 import PetQuizRush from "../pet/games/PetQuizRush";
 import PetAngryPet from "../pet/games/PetAngryPet";
 import PetFishingGame from "../pet/games/PetFishingGame";
+import PetDash from "../pet/games/PetDash";
 import PvPRealtimeWordType from "./PvPRealtimeWordType";
 import PvPRealtimeWordScramble from "./PvPRealtimeWordScramble";
 import PvPRealtimeMatchGame from "./PvPRealtimeMatchGame";
@@ -904,6 +905,14 @@ const PvPResponseModal = ({ challenge, onClose }) => {
             onGameEnd={handleGameEnd}
             wordBank={wordBank}
             boatSkinUrl={profile?.active_boat_url}
+          />
+        );
+      case "petdash":
+        return (
+          <PetDash
+            {...commonProps}
+            onGameEnd={handleGameEnd}
+            wordBank={wordBank}
           />
         );
       default:

@@ -81,6 +81,7 @@ const GAME_TYPE_LABELS = {
   flappy: 'Flappy',
   sayitright: 'Say It Right',
   quizrush: 'Quiz Rush',
+  petdash: 'Pet Dash',
 }
 
 const STATUS_STYLES = {

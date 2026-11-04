@@ -21,7 +21,8 @@ const GAME_TYPE_LABELS = {
   wordtype: 'Word Type',
   sayitright: 'Say It Right',
   catch: 'Hungry Pet',
-  fishing: 'Fishing Frenzy'
+  fishing: 'Fishing Frenzy',
+  petdash: 'Pet Dash'
 }
 
 const RecentActivities = () => {
