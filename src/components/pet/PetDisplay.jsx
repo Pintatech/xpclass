@@ -2405,6 +2405,8 @@ const PetDisplay = ({ aside = null }) => {
           leaderboard={gameLeaderboards.petdash}
           chestEnabled={chestEnabled}
           currentLevel={profile?.current_level || 1}
+          showRecords
+          scoreBonusPercent={getLevelBonusPercent()}
           onGameEnd={(score, extra) => handleGameEnd(score, 'petdash', extra)}
           onClose={() => setShowGame(null)}
         />

@@ -23,6 +23,7 @@ import PvPRealtimeMatchGame from './PvPRealtimeMatchGame'
 import { assetUrl } from '../../hooks/useBranding'
 import { fetchPvpSchedule, checkPvpAvailability } from '../../utils/pvpSchedule'
 import { getSetting } from '../../utils/siteSettings'
+import { awardPvpWin } from '../../utils/pvpRewards'
 
 const TAUNT_GIF_BASE = assetUrl('/gif/taunt')
 
@@ -272,9 +273,9 @@ const PvPChallengeModal = ({ opponent, onClose }) => {
       }).eq('id', challengeId)
       // Subtract 10 XP from decliner (floors at 0)
       await supabase.rpc('increment_user_currency', { p_user_id: user.id, p_xp: -10, p_gems: 0 })
-      // Award 10 XP to challenger
+      // Award 10 XP to challenger (another player, so it goes through award_pvp_win)
       if (challengerId) {
-        await supabase.rpc('increment_user_currency', { p_user_id: challengerId, p_xp: 10, p_gems: 0 })
+        await awardPvpWin(supabase, challengeId, challengerId)
         supabase.rpc('update_mission_progress', {
           p_user_id: challengerId,
           p_goal_type: 'win_pvp',

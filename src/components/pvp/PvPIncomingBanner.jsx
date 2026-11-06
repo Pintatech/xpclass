@@ -641,6 +641,7 @@ import PvPRealtimeWordScramble from "./PvPRealtimeWordScramble";
 import PvPRealtimeMatchGame from "./PvPRealtimeMatchGame";
 import { createPortal } from "react-dom";
 import { Trophy } from "lucide-react";
+import { awardPvpWin } from "../../utils/pvpRewards";
 
 const PvPResponseModal = ({ challenge, onClose }) => {
   const { user, profile } = useAuth();
@@ -724,7 +725,8 @@ const PvPResponseModal = ({ challenge, onClose }) => {
 
       const winnerId = draw ? null : won ? user.id : challenge.challenger_id;
       if (winnerId) {
-        await supabase.rpc("increment_user_currency", { p_user_id: winnerId, p_xp: 10, p_gems: 0 });
+        // The winner may be the challenger: award_pvp_win pays them, once, from either player's side.
+        await awardPvpWin(supabase, challenge.id, winnerId);
         // Update mission progress for PvP win
         supabase
           .rpc("update_mission_progress", {

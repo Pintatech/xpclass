@@ -284,6 +284,27 @@
     width: 22px;
     font-style: normal;
     font-size: 17px;
+    flex-shrink: 0;
+}
+
+.pd-rules em[data-tone=heart] {
+    color: #ff4f70;
+}
+
+.pd-rules em[data-tone=star] {
+    color: #ffb400;
+}
+
+.pd-rules em[data-tone=turbo] {
+    color: #ff8a00;
+}
+
+.pd-rules em[data-tone=power] {
+    color: #5a37d1;
+}
+
+.pd-rules em[data-tone=chest] {
+    color: #d9622b;
 }
 
 .pd-rules li>span {
@@ -352,6 +373,454 @@
     height: 34px;
     object-fit: contain;
     font-size: 26px;
+}
+
+/* ------------------------------------------------------------ ready: records + leaderboards */
+.pd-topline-actions {
+    display: flex;
+    gap: 8px;
+}
+
+.pd-ready-card[data-lobby] {
+    padding: 14px;
+}
+
+.pd-lobby {
+    --pd-row: 38px;
+    --pd-panel: 204px;
+}
+
+.pd-records {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 8px;
+    margin-bottom: 10px;
+}
+
+.pd-record {
+    min-width: 0;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 2px;
+    padding: 8px 6px 7px;
+    border-radius: 16px;
+    background: #f1e9ff;
+    text-align: center;
+}
+
+.pd-record>span {
+    display: inline-flex;
+    align-items: center;
+    gap: 3px;
+    max-width: 100%;
+    font-size: 9px;
+    font-weight: 900;
+    letter-spacing: 1px;
+    color: #7a6fa6;
+    white-space: nowrap;
+}
+
+.pd-record>span svg {
+    flex-shrink: 0;
+}
+
+.pd-record>strong {
+    min-width: 40px;
+    font-size: 22px;
+    font-weight: 950;
+    line-height: 1.1;
+    letter-spacing: -.5px;
+    color: var(--pd-ink);
+    font-variant-numeric: tabular-nums;
+}
+
+.pd-record>small {
+    max-width: 100%;
+    min-height: 13px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    font-size: 10px;
+    font-weight: 800;
+    line-height: 13px;
+    color: #6c5fa0;
+}
+
+.pd-record[data-kind=record] {
+    background: linear-gradient(160deg, #fff4c9, #ffe08a);
+    box-shadow: inset 0 0 0 2px #ffc83d99;
+}
+
+.pd-record[data-kind=record]>span,
+.pd-record[data-kind=record]>small {
+    color: #8a5a00;
+}
+
+.pd-record[data-kind=record]>strong {
+    color: #5b3b00;
+}
+
+.pd-records[data-loading] .pd-record>strong {
+    color: transparent;
+    border-radius: 8px;
+    background: linear-gradient(90deg, #e6ddfb 0%, #f8f5ff 50%, #e6ddfb 100%) 0 0 / 200% 100%;
+    animation: pd-shimmer 1.2s linear infinite;
+}
+
+.pd-records[data-loading] .pd-record[data-kind=record]>strong {
+    background-image: linear-gradient(90deg, #ffe7a3 0%, #fff6d6 50%, #ffe7a3 100%);
+}
+
+.pd-tabs {
+    display: flex;
+    gap: 4px;
+    padding: 4px;
+    margin-bottom: 8px;
+    border-radius: 14px;
+    background: #ece4ff;
+}
+
+.pd-overlay .pd-tab {
+    flex: 1 1 0;
+    min-width: 0;
+    height: 30px;
+    padding: 0 6px;
+    border: 0;
+    border-radius: 10px;
+    background: transparent;
+    color: #6c5fa0;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 5px;
+    font-size: 12px;
+    font-weight: 900;
+    white-space: nowrap;
+    transition: background .15s, color .15s, box-shadow .15s;
+}
+
+.pd-overlay .pd-tab svg {
+    flex-shrink: 0;
+}
+
+.pd-overlay .pd-tab[aria-selected=true] {
+    background: #fff;
+    color: var(--pd-ink);
+    box-shadow: 0 2px 0 #241a4b1f, 0 4px 10px #241a4b14;
+}
+
+.pd-board-panel {
+    position: relative;
+    display: flex;
+    flex-direction: column;
+    height: var(--pd-panel);
+    border-radius: 18px;
+    background: #fff;
+    box-shadow: inset 0 0 0 2px #241a4b12;
+    overflow: hidden;
+}
+
+.pd-board-list,
+.pd-board-me {
+    margin: 0;
+    padding: 4px;
+    list-style: none;
+}
+
+/* The list scrolls inside the card; the page around it never does. Its bottom edge fades out, so a row cut off
+   there reads as "more below", and the extra bottom padding lets the last row scroll clear of the fade. */
+.pd-board-list,
+.pd-board-rules {
+    position: relative;
+    flex: 1;
+    min-height: 0;
+    overflow-y: auto;
+    overscroll-behavior: contain;
+    touch-action: pan-y;
+    scrollbar-width: thin;
+    -webkit-mask-image: linear-gradient(to bottom, #000 calc(100% - 18px), transparent);
+    mask-image: linear-gradient(to bottom, #000 calc(100% - 18px), transparent);
+}
+
+.pd-board-list {
+    padding-bottom: 18px;
+}
+
+.pd-board-me {
+    flex-shrink: 0;
+    border-top: 2px dashed #241a4b1a;
+}
+
+.pd-row {
+    display: grid;
+    grid-template-columns: 24px 30px minmax(0, 1fr) auto;
+    align-items: center;
+    gap: 8px;
+    height: var(--pd-row);
+    padding: 0 10px 0 6px;
+    border-radius: 12px;
+    font-size: 13px;
+    font-weight: 800;
+    color: var(--pd-ink);
+}
+
+.pd-row+.pd-row {
+    margin-top: 2px;
+}
+
+.pd-row[data-me] {
+    background: #fff1b8;
+    box-shadow: inset 0 0 0 2px #ffc83d;
+}
+
+.pd-row-rank {
+    width: 24px;
+    height: 24px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: #f1e9ff;
+    color: #6c5fa0;
+    font-size: 11px;
+    font-weight: 950;
+    font-variant-numeric: tabular-nums;
+}
+
+.pd-row[data-podium="1"] .pd-row-rank {
+    background: linear-gradient(180deg, #ffe066, #ffb21f);
+    color: #5b3b00;
+    box-shadow: 0 2px 0 #c98a0b;
+}
+
+.pd-row[data-podium="2"] .pd-row-rank {
+    background: linear-gradient(180deg, #f3f6fa, #b8c4d4);
+    color: #2f3a4a;
+    box-shadow: 0 2px 0 #8d9aab;
+}
+
+.pd-row[data-podium="3"] .pd-row-rank {
+    background: linear-gradient(180deg, #ffd3ad, #e08a4f);
+    color: #5a2a08;
+    box-shadow: 0 2px 0 #b0632f;
+}
+
+.pd-row-avatar {
+    width: 30px;
+    height: 30px;
+    border-radius: 50%;
+    object-fit: cover;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    overflow: hidden;
+    background: #ece4ff;
+    color: #5a37d1;
+    font-size: 14px;
+    font-weight: 900;
+    line-height: 1;
+}
+
+.pd-row-name {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    min-width: 0;
+}
+
+.pd-row-name>span {
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.pd-row-name>em {
+    flex-shrink: 0;
+    padding: 2px 6px;
+    border-radius: 99px;
+    background: var(--pd-ink);
+    color: #fff;
+    font-style: normal;
+    font-size: 8px;
+    font-weight: 900;
+    letter-spacing: 1px;
+}
+
+.pd-row-score {
+    font-size: 15px;
+    font-weight: 950;
+    font-variant-numeric: tabular-nums;
+}
+
+.pd-row-skeleton .pd-row-rank,
+.pd-row-skeleton .pd-row-avatar,
+.pd-sk-bar {
+    background: linear-gradient(90deg, #eee7fd 0%, #f9f6ff 50%, #eee7fd 100%) 0 0 / 200% 100%;
+    animation: pd-shimmer 1.2s linear infinite;
+}
+
+.pd-sk-bar {
+    height: 10px;
+    border-radius: 6px;
+}
+
+.pd-sk-score {
+    width: 34px;
+}
+
+.pd-board-empty {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    padding: 16px 24px;
+    text-align: center;
+    font-size: 13px;
+    font-weight: 800;
+    line-height: 1.4;
+    color: #6c5fa0;
+}
+
+.pd-board-empty>svg {
+    color: #ffb400;
+}
+
+.pd-overlay .pd-board-retry {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 8px 14px;
+    border: 0;
+    border-radius: 12px;
+    background: #f1e9ff;
+    color: #5a37d1;
+    font-size: 12px;
+    font-weight: 900;
+}
+
+.pd-board-foot {
+    flex-shrink: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 5px;
+    margin: 0;
+    padding: 3px 8px 6px;
+    font-size: 10px;
+    font-weight: 800;
+    color: #8a80b0;
+}
+
+.pd-board-rules {
+    padding: 8px 12px 18px;
+}
+
+/* In the tab the run facts shrink to one line of chips, so the rules themselves start higher up. */
+.pd-board-rules .pd-run-facts {
+    gap: 6px;
+    justify-content: space-between;
+    margin-bottom: 8px;
+    padding: 0;
+    background: none;
+}
+
+.pd-board-rules .pd-run-facts span {
+    flex: 1;
+    flex-direction: row;
+    justify-content: center;
+    align-items: baseline;
+    gap: 4px;
+    padding: 5px 4px;
+    border-radius: 10px;
+    background: #f1e9ff;
+    font-size: 9px;
+    white-space: nowrap;
+}
+
+.pd-board-rules .pd-run-facts b {
+    font-size: 15px;
+}
+
+.pd-board-rules .pd-rules {
+    gap: 7px;
+    margin-bottom: 8px;
+}
+
+.pd-board-rules .pd-rules li {
+    font-size: 12.5px;
+    line-height: 1.25;
+}
+
+.pd-board-rules .pd-control-hint {
+    margin: 0;
+}
+
+.pd-target {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
+    min-height: 36px;
+    margin: 0;
+    padding: 8px 4px;
+    font-size: 12px;
+    font-weight: 800;
+    line-height: 1.3;
+    color: #6c5fa0;
+    text-align: center;
+}
+
+.pd-target>svg {
+    flex-shrink: 0;
+    color: var(--pd-coral);
+}
+
+.pd-target[data-tone=lead]>svg {
+    color: #ffb400;
+}
+
+.pd-target strong {
+    font-size: 14px;
+    font-weight: 950;
+    color: var(--pd-ink);
+    font-variant-numeric: tabular-nums;
+}
+
+.pd-target b {
+    padding: 1px 6px;
+    border-radius: 99px;
+    background: #f1e9ff;
+    color: #5a37d1;
+    font-size: 10px;
+    font-weight: 900;
+    white-space: nowrap;
+}
+
+/* Results: a new personal best, weekly top score or game record. */
+.pd-new-best {
+    display: inline-flex;
+    align-items: center;
+    gap: 7px;
+    margin-top: 12px;
+    padding: 7px 16px;
+    border-radius: 999px;
+    background: linear-gradient(180deg, #ffe066, #ffb21f);
+    color: #5b3b00;
+    box-shadow: 0 3px 0 #c98a0b, 0 8px 18px #ffb21f55;
+    font-size: 14px;
+    font-weight: 950;
+    letter-spacing: .2px;
+    animation: pd-record-in .6s .45s cubic-bezier(.2, .9, .3, 1.5) both;
+}
+
+.pd-new-best[data-kind=personal] {
+    background: linear-gradient(180deg, #8ff0bd, #2fbf71);
+    color: #0b4a2a;
+    box-shadow: 0 3px 0 #1f8a56, 0 8px 18px #2fbf7155;
 }
 
 /* ------------------------------------------------------------ HUD */
@@ -1433,6 +1902,24 @@
     }
 }
 
+@keyframes pd-shimmer {
+    to {
+        background-position: -200% 0;
+    }
+}
+
+@keyframes pd-record-in {
+    from {
+        opacity: 0;
+        transform: scale(.6) rotate(-6deg);
+    }
+
+    to {
+        opacity: 1;
+        transform: none;
+    }
+}
+
 /* ------------------------------------------------------------ responsive */
 @media (min-width: 640px) {
 
@@ -1477,7 +1964,8 @@
         font-size: 12px;
     }
 
-    .pd-rules li:nth-child(n+3) {
+    /* The plain ready card (PvP) keeps two rules; the board's How to play tab scrolls instead. */
+    .pd-ready-card>.pd-rules li:nth-child(n+3) {
         display: none;
     }
 
@@ -1494,8 +1982,52 @@
         min-height: 50px;
     }
 
-    .pd-control-hint {
+    .pd-ready-card>.pd-control-hint {
         display: none;
+    }
+
+    .pd-ready-card[data-lobby] {
+        padding: 10px;
+    }
+
+    .pd-lobby {
+        --pd-row: 34px;
+        --pd-panel: 152px;
+    }
+
+    .pd-records {
+        gap: 6px;
+        margin-bottom: 8px;
+    }
+
+    .pd-record {
+        padding: 6px 4px 5px;
+    }
+
+    .pd-record>strong {
+        font-size: 19px;
+    }
+
+    .pd-tabs {
+        margin-bottom: 6px;
+    }
+
+    .pd-overlay .pd-tab {
+        height: 28px;
+    }
+
+    .pd-row-avatar {
+        width: 26px;
+        height: 26px;
+    }
+
+    .pd-board-foot {
+        display: none;
+    }
+
+    .pd-target {
+        min-height: 32px;
+        padding: 6px 4px;
     }
 
     .pd-hud {
@@ -1528,6 +2060,42 @@
 
     .pd-final-score>strong {
         font-size: 44px;
+    }
+}
+
+/* Small phones (iPhone SE and shorter): the board keeps three rows so the road still shows above it. */
+@media (max-height: 640px) {
+    .pd-title {
+        margin-top: 4px;
+        font-size: clamp(42px, 12vw, 52px);
+    }
+
+    .pd-tagline {
+        margin-top: 6px;
+    }
+
+    .pd-lobby {
+        --pd-panel: 120px;
+    }
+
+    .pd-record>span svg {
+        display: none;
+    }
+}
+
+/* 360-380px wide phones: the tile labels and tab icons would not fit beside their text. */
+@media (max-width: 380px) {
+    .pd-record>span {
+        letter-spacing: .4px;
+    }
+
+    .pd-record>span svg,
+    .pd-overlay .pd-tab svg {
+        display: none;
+    }
+
+    .pd-overlay .pd-tab {
+        font-size: 11px;
     }
 }
 

@@ -371,7 +371,11 @@ const TeacherClassReports = () => {
           const { error: xpError } = await supabase.rpc('add_xp_batch', {
             updates: xpUpdates
           });
-          if (xpError) console.error('[XP] Error awarding XP:', xpError);
+          if (xpError) {
+            console.error('[XP] Error awarding XP:', xpError);
+            // The page leaves right after saving, so an in-page notification would never be seen.
+            window.alert(`The lesson was saved, but the students' XP was not added:\n${xpError.message}\n\nPlease tell an admin.`);
+          }
         }
 
         // 4. Update mission progress for students with all-green lesson

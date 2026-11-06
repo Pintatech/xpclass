@@ -4,6 +4,7 @@ import { Save, RefreshCw, Play, Pause, Trophy, Settings, X, Gift, Compass } from
 
 import { assetUrl } from '../../hooks/useBranding';
 import { invalidateSiteSettings } from '../../utils/siteSettings';
+import { clearCompetitionScores, fetchCompetitionBests } from '../../utils/competitionScores';
 const ALL_TABS = [
   { key: 'week', label: 'Tuần này (Weekly XP)' },
   { key: 'month', label: 'Tháng này (Monthly XP)' },
@@ -26,6 +27,8 @@ const GAME_TYPES = [
   { key: 'fishing', label: 'Fishing Frenzy', icon: '🎣' },
   { key: 'petdash', label: 'Pet Dash', icon: '🐾' },
 ];
+
+const gameLabel = key => GAME_TYPES.find(game => game.key === key)?.label || key;
 
 const TRAINING_GAMES = [
   { key: 'scramble', label: 'Word Scramble', icon: '🔤' },
@@ -69,6 +72,11 @@ const LeaderboardSettings = () => {
   const [maxAttempts, setMaxAttempts] = useState(0); // 0 = unlimited
   const [competitionEndDate, setCompetitionEndDate] = useState(''); // ISO date string e.g. '2026-03-10'
   const [enabledTrainingGames, setEnabledTrainingGames] = useState(['scramble', 'whackmole', 'astroblast']);
+  // The competition as saved, i.e. the one running. End & Award ends this one, never an unsaved pick on screen.
+  const [savedCompetition, setSavedCompetition] = useState({ type: 'game', gameType: 'scramble' });
+  // Set when End & Award gave the rewards but could not delete the game's scores: the admin can retry the delete.
+  const [pendingClear, setPendingClear] = useState(null);
+  const [clearing, setClearing] = useState(false);
 
   // PvP Schedule
   const [pvpEnabled, setPvpEnabled] = useState(true);
@@ -237,6 +245,12 @@ const LeaderboardSettings = () => {
             break;
         }
       });
+      // Same defaults as the students' side (PetDisplay) when a setting was never saved.
+      const savedValue = key => data?.find(row => row.setting_key === key)?.setting_value;
+      setSavedCompetition({
+        type: savedValue('leaderboard_competition_type') || 'game',
+        gameType: savedValue('leaderboard_competition_game_type') || 'scramble',
+      });
     } catch (err) {
       console.error('Error fetching leaderboard settings:', err);
       showNotification('Error loading settings', 'error');
@@ -302,6 +316,7 @@ const LeaderboardSettings = () => {
 
       invalidateSiteSettings(); // students pick up new config on next read
       setDefaultTab(effectiveDefault);
+      setSavedCompetition({ type: competitionType, gameType: competitionGameType });
       showNotification('Settings saved successfully!');
     } catch (err) {
       console.error('Error saving settings:', err);
@@ -314,34 +329,24 @@ const LeaderboardSettings = () => {
   const [ending, setEnding] = useState(false);
 
   const handleEndCompetition = async () => {
-    if (!window.confirm('End competition and award top players? This will distribute rewards and pause the competition.')) return;
+    const { type, gameType } = savedCompetition;
+    const label = gameLabel(gameType);
+    let question = 'End the item competition? This pauses the competition.';
+    if (type === 'game') {
+      const unsavedPick = competitionType === 'game' && competitionGameType !== gameType
+        ? `\n\n${gameLabel(competitionGameType)} (picked below, not saved yet) is not touched.`
+        : '';
+      question = `End the ${label} competition?\n\n• Award the top students\n• Delete every ${label} score, so the next competition starts from 0 (all-time records are kept)\n• Pause the competition${unsavedPick}\n\nThis cannot be undone.`;
+    }
+    if (!window.confirm(question)) return;
 
     try {
       setEnding(true);
 
-      if (competitionType === 'game') {
-        // Find top scorers across all training_scores for this game type
-        const { data: scores } = await supabase
-          .from('training_scores')
-          .select('user_id, score')
-          .eq('game_type', competitionGameType)
-          .order('score', { ascending: false })
-          .limit(100);
-
-        if (!scores || scores.length === 0) {
-          showNotification('No players found — nobody played this competition.', 'error');
-          return;
-        }
-
-        // Get best score per user
-        const bestScores = {};
-        scores.forEach(s => {
-          if (!bestScores[s.user_id] || s.score > bestScores[s.user_id]) {
-            bestScores[s.user_id] = s.score;
-          }
-        });
-
-        const sorted = Object.entries(bestScores).sort((a, b) => b[1] - a[1]);
+      if (type === 'game') {
+        // Each student's best score, best first: the same students as the competition leaderboard
+        // (no teachers or admins, no unfinished 0-score attempts), and all of them, not only the top 100 rows.
+        const sorted = await fetchCompetitionBests(supabase, gameType);
 
         // Award XP to all qualifiers who passed the threshold
         const qualifiers = sorted.filter(([, score]) => rewardThreshold > 0 ? score >= rewardThreshold : false);
@@ -411,7 +416,7 @@ const LeaderboardSettings = () => {
             title: rankTitle,
             message: `Chúc mừng! Bạn đạt ${rankLabel} với ${userScore} điểm. ${parts.join(', ')}`,
             icon: rankNum <= 3 ? 'Trophy' : 'Medal',
-            data: { competition: 'game', game_type: competitionGameType, score: userScore, rank: rankNum, ...reward },
+            data: { competition: 'game', game_type: gameType, score: userScore, rank: rankNum, ...reward },
           }]);
 
           const { data: userData } = await supabase.from('users').select('full_name').eq('id', userId).single();
@@ -429,26 +434,42 @@ const LeaderboardSettings = () => {
               title: 'Phần thưởng Competition!',
               message: `Bạn đạt ${score} điểm và nhận ${rewardXP} XP!`,
               icon: 'Medal',
-              data: { competition: 'game', game_type: competitionGameType, score, xp: rewardXP },
+              data: { competition: 'game', game_type: gameType, score, xp: rewardXP },
             }));
           if (qualifierNotifs.length > 0) {
             await supabase.from('notifications').insert(qualifierNotifs);
           }
         }
 
-        // Clear training scores for this game type
-        await supabase.from('training_scores').delete().eq('game_type', competitionGameType);
+        // Delete the game's scores, so it starts from 0 the next time it is chosen. The rewards are out already, so
+        // a failure here still pauses the competition and offers to retry only the delete (pressing End & Award
+        // again would award twice).
+        let clearedMsg = '';
+        try {
+          const cleared = await clearCompetitionScores(supabase, gameType);
+          setPendingClear(null);
+          clearedMsg = ` Cleared ${cleared} ${label} score${cleared === 1 ? '' : 's'}.`;
+        } catch (clearError) {
+          console.error('Error clearing competition scores:', clearError);
+          setPendingClear({ gameType, message: clearError.message });
+        }
 
         // Pause competition
         setCompetitionActive(false);
-        await supabase.from('site_settings').upsert({
+        const { error: pauseError } = await supabase.from('site_settings').upsert({
           setting_key: 'leaderboard_competition_active',
           setting_value: 'false',
           description: 'Whether competition is active',
         }, { onConflict: 'setting_key' });
+        if (pauseError) {
+          console.error('Error pausing competition:', pauseError);
+          showNotification(`Rewards were given, but the competition could not be paused (${pauseError.message}). Set Status to Paused and press Save; do not press End & Award again.`, 'error');
+          return;
+        }
 
         const qualifierMsg = qualifiers.length > 0 ? ` ${qualifiers.length} qualifier${qualifiers.length > 1 ? 's' : ''} earned ${rewardXP} XP.` : '';
-        showNotification(`Competition ended! ${awardedNames.join(' | ')}${qualifierMsg}`);
+        const awardedMsg = sorted.length ? awardedNames.join(' | ') : `Nobody scored in ${label}, so no rewards were given.`;
+        showNotification(`Competition ended! ${awardedMsg}${qualifierMsg}${clearedMsg}`);
       } else {
         // Item competition — just pause, no score cleanup needed
         setCompetitionActive(false);
@@ -466,6 +487,23 @@ const LeaderboardSettings = () => {
     } finally {
       invalidateSiteSettings(); // competition_active changed — refresh students' cache
       setEnding(false);
+    }
+  };
+
+  // Retries only the delete after End & Award could not clear the scores (rewards are not given again).
+  const handleRetryClear = async () => {
+    if (!pendingClear) return;
+    const label = gameLabel(pendingClear.gameType);
+    try {
+      setClearing(true);
+      const cleared = await clearCompetitionScores(supabase, pendingClear.gameType);
+      setPendingClear(null);
+      showNotification(`Cleared ${cleared} ${label} score${cleared === 1 ? '' : 's'}.`);
+    } catch (err) {
+      console.error('Error clearing competition scores:', err);
+      setPendingClear(prev => (prev ? { ...prev, message: err.message } : prev));
+    } finally {
+      setClearing(false);
     }
   };
 
@@ -1175,6 +1213,27 @@ const LeaderboardSettings = () => {
         </div>
       </div>
 
+      {/* End & Award gave the rewards but could not delete the scores: retry only the delete. */}
+      {pendingClear && (
+        <div className="flex items-start gap-3 px-3 py-2 rounded-lg text-sm bg-red-50 text-red-700 border border-red-200" role="alert">
+          <div className="flex-1">
+            <p className="font-medium">Rewards were given, but the {gameLabel(pendingClear.gameType)} scores were not deleted.</p>
+            <p className="mt-0.5 text-red-600">{pendingClear.message}</p>
+          </div>
+          <button
+            onClick={handleRetryClear}
+            disabled={clearing}
+            className="flex items-center gap-1.5 px-3 py-1.5 bg-red-600 text-white rounded-lg font-medium whitespace-nowrap hover:bg-red-700 disabled:opacity-50 transition-all"
+          >
+            {clearing && <RefreshCw className="w-4 h-4 animate-spin" />}
+            {clearing ? 'Clearing...' : 'Clear scores again'}
+          </button>
+          <button onClick={() => setPendingClear(null)} className="p-1 text-red-400 hover:text-red-600" aria-label="Dismiss">
+            <X className="w-4 h-4" />
+          </button>
+        </div>
+      )}
+
       {/* Save + End Competition */}
       <div className="flex items-center justify-between">
         {competitionActive ? (
@@ -1184,7 +1243,8 @@ const LeaderboardSettings = () => {
             className="flex items-center gap-2 px-4 py-2 bg-red-600 text-white rounded-lg font-medium text-sm hover:bg-red-700 disabled:opacity-50 transition-all"
           >
             {ending ? <RefreshCw className="w-4 h-4 animate-spin" /> : <Trophy className="w-4 h-4" />}
-            {ending ? 'Ending...' : 'End & Award'}
+            {/* Names the saved game, the one this ends and whose scores it deletes. */}
+            {ending ? 'Ending...' : savedCompetition.type === 'game' ? `End & Award · ${gameLabel(savedCompetition.gameType)}` : 'End & Award'}
           </button>
         ) : <div />}
         <button

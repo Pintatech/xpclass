@@ -1,18 +1,20 @@
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import PropTypes from 'prop-types';
-import { AlertTriangle, ArrowRight, Clock, Flag, Flame, Gift, Heart, Pause, Play, Search, Shield, Star, Trophy, Volume2, VolumeX, X, Zap } from 'lucide-react';
+import { AlertTriangle, ArrowRight, Clock, Crown, Flag, Flame, Gift, Heart, Pause, Play, Search, Shield, Star, Trophy, Volume2, VolumeX, X, Zap } from 'lucide-react';
 import {
-  advanceDashRun, createDashRun, DASH_DURATION, DASH_FLAWLESS_BONUS, DASH_MAX_HP, DASH_STAGES, DASH_TURBO_SPEED,
+  advanceDashRun, createDashRun, DASH_DURATION, DASH_FLAWLESS_BONUS, DASH_MAX_HP, DASH_STAGE_SECONDS, DASH_STAGES, DASH_TURBO_SPEED,
   drainDashEvents, getDashPace, getDashPrompt, getDashRunSpeed, getDashScore, getDashStars, moveDashLane,
   normalizeDashWords, scoreDashGate, summarizeDashRun,
 } from '../../../utils/petDash';
 import { createDashAudio, readDashMuted, writeDashMuted } from '../../../utils/petDashAudio';
 import { assetUrl } from '../../../hooks/useBranding';
+import { forgetTrainingRecords, useTrainingRecords } from '../../../hooks/useTrainingRecords';
 import {
   applyDashEvents, createDashFx, DASH_LANE_COLORS, disposeDashFx, drawDash, getDashGeometry, isDashFxIdle, prepareDashSprites,
   updateDashFx,
 } from './petDashRenderer';
+import PetDashLobby from './PetDashLobby';
 import './PetDash.css';
 
 const COUNTDOWN_START = 3.2;
@@ -101,6 +103,27 @@ const useCanvasImage = src => {
   return ref;
 };
 
+// Icons rather than emoji: an emoji's first appearance can stall a frame while its font loads.
+const DashRules = ({ chestEnabled }) => (
+  <ul className="pd-rules">
+    <li><i style={{ background: DASH_LANE_COLORS[0].main }}>1</i><i style={{ background: DASH_LANE_COLORS[1].main }}>2</i><i style={{ background: DASH_LANE_COLORS[2].main }}>3</i><span>Run through the gate that matches the clue</span></li>
+    {/* A no-break space before each "·" keeps the dot at the end of a line instead of starting the next one. */}
+    <li><em data-tone="heart"><Heart size={15} fill="currentColor" /></em><span>A mistake costs a heart and slows the road&nbsp;· 5&nbsp;in&nbsp;a&nbsp;row heals one</span></li>
+    <li><em data-tone="star"><Star size={15} fill="currentColor" /></em><span>Clear each {DASH_STAGE_SECONDS}s stage to earn its star</span></li>
+    <li><em data-tone="turbo"><Zap size={15} fill="currentColor" /></em><span>The road speeds up every stage&nbsp;· stage 3 is turbo</span></li>
+    <li><em data-tone="power"><Search size={15} strokeWidth={2.6} /></em><span>Power-ups: shield, heart, +time, sniff out a wrong gate</span></li>
+    {chestEnabled && <li><em data-tone="chest"><Gift size={15} strokeWidth={2.6} /></em><span>Get the chest gate right to win a treasure chest</span></li>}
+  </ul>
+);
+DashRules.propTypes = { chestEnabled: PropTypes.bool };
+
+const RunFacts = () => (
+  <div className="pd-run-facts"><span><b>{DASH_DURATION}</b>seconds</span><span><b>{DASH_MAX_HP}</b>hearts</span><span><b>{DASH_STAGES}</b>stages = ★★★</span></div>
+);
+
+// Joined with a no-break space before each "·", so a dot ends a line instead of starting the next one.
+const CONTROL_HINT = ['← → / A D', 'keys 1 2 3', 'swipe or tap a lane', 'P to pause'].join(`${String.fromCharCode(160)}· `);
+
 // Counts the score up on the results card.
 const useCountUp = (target, active) => {
   const [value, setValue] = useState(0);
@@ -124,8 +147,11 @@ const useCountUp = (target, active) => {
 const PetDash = ({
   petImageUrl, petName = 'Your pet', wordBank = [], currentLevel = 1, onGameEnd, onClose,
   hideClose = false, scoreToBeat = null, leaderboard = [], pvpOpponentPetUrl, chestEnabled = false,
+  showRecords = false, scoreBonusPercent = 0,
 }) => {
   const words = useMemo(() => normalizeDashWords(wordBank), [wordBank]);
+  // Training mode only: PvP keeps its plain ready card.
+  const records = useTrainingRecords('petdash', { enabled: showRecords });
   const runRef = useRef(null);
   if (!runRef.current) runRef.current = createDashRun(currentLevel);
   const [banner, setBanner] = useState(null);
@@ -520,6 +546,7 @@ const PetDash = ({
     submittedRef.current = true;
     setSubmitting(true);
     setSubmitError('');
+    forgetTrainingRecords('petdash');
     try {
       await onGameEnd(result.score, {
         wordsCompleted: result.wordsCompleted,
@@ -561,6 +588,18 @@ const PetDash = ({
   const stars = result?.stars ?? 0;
   const nextStage = result ? result.stages.findIndex(stage => !stage.cleared) : -1;
 
+  // A new record, measured with the score that gets saved: PetDisplay adds the level bonus the same way.
+  // Only a run with a star is saved (Collect rewards), so only that one can claim a record.
+  let recordBadge = null;
+  const board = records.data;
+  if (phase === 'results' && result && showRecords && !hideClose && stars > 0 && board) {
+    const saved = result.score + Math.round(result.score * scoreBonusPercent / 100);
+    if (board.ranked && board.record?.scope === 'all' && saved > board.record.score) recordBadge = { kind: 'record', Icon: Crown, text: 'New game record!' };
+    else if (board.ranked && saved > (board.week.top?.score ?? 0)) recordBadge = { kind: 'week', Icon: Trophy, text: 'Top score this week!' };
+    else if (!board.best) recordBadge = { kind: 'personal', Icon: Star, text: 'Your first record!' };
+    else if (saved > board.best.score) recordBadge = { kind: 'personal', Icon: Star, text: board.best.scope === 'week' ? 'Best run this week!' : 'New personal best!' };
+  }
+
   const reviewList = (list, showChoice) => (
     <ul>
       {list.map(word => (
@@ -584,7 +623,11 @@ const PetDash = ({
               <div className="pd-ready-top">
                 <div className="pd-topline">
                   <span className="pd-pill"><Flag size={13} /> PET TRAINING</span>
-                  {(!hideClose || words.length < 3) && <button type="button" className="pd-icon-button" aria-label="Close Pet Dash" onClick={onClose}><X size={20} /></button>}
+                  <div className="pd-topline-actions">
+                    {/* Sound can be set before the run: the music starts with Let's run. */}
+                    <button type="button" className="pd-icon-button" aria-label={muted ? 'Turn sound on' : 'Turn sound off'} aria-pressed={!muted} onClick={toggleMute}>{muted ? <VolumeX size={18} /> : <Volume2 size={18} />}</button>
+                    {(!hideClose || words.length < 3) && <button type="button" className="pd-icon-button" aria-label="Close Pet Dash" onClick={onClose}><X size={20} /></button>}
+                  </div>
                 </div>
                 <h1 className="pd-title">Pet<span>Dash</span></h1>
                 <p className="pd-tagline">Read the clue. Run through the right gate.</p>
@@ -679,23 +722,17 @@ const PetDash = ({
 
           <div className="pd-bottom">
             {phase === 'ready' && (
-              <div className="pd-ready-card">
+              <div className="pd-ready-card" data-lobby={showRecords || undefined}>
                 {pvpOpponentPetUrl && <div className="pd-opponent"><PetAvatar src={pvpOpponentPetUrl} name="Opponent pet" /><span>Challenge accepted. Make every word count.</span></div>}
-                <ul className="pd-rules">
-                  <li><i style={{ background: DASH_LANE_COLORS[0].main }}>1</i><i style={{ background: DASH_LANE_COLORS[1].main }}>2</i><i style={{ background: DASH_LANE_COLORS[2].main }}>3</i><span>Run through the gate that matches the clue</span></li>
-                  <li><em>❤️</em><span>A mistake costs a heart and slows the road · 5 in a row heals one</span></li>
-                  <li><em>⭐</em><span>Clear each 25s stage to earn its star</span></li>
-                  <li><em>⚡</em><span>The road speeds up every stage · stage 3 is turbo</span></li>
-                  <li><em>🔍</em><span>Power-ups: shield, heart, +time, sniff out a wrong gate</span></li>
-                  {chestEnabled && <li><em>🎁</em><span>Get the chest gate right to win a treasure chest</span></li>}
-                </ul>
-                <div className="pd-run-facts"><span><b>75</b>seconds</span><span><b>3</b>hearts</span><span><b>3</b>stages = ★★★</span></div>
+                {showRecords
+                  ? <PetDashLobby records={records} rules={<><RunFacts /><DashRules chestEnabled={chestEnabled} /><p className="pd-control-hint">{CONTROL_HINT}</p></>} />
+                  : <><DashRules chestEnabled={chestEnabled} /><RunFacts /></>}
                 {words.length < 3
                   ? <div className="pd-bank-error" role="alert">This run needs at least 3 different words and meanings. Ask your teacher to add vocabulary, then try again.</div>
                   : <button type="button" className="pd-primary" onClick={startGame}>Let’s run <ArrowRight size={20} /></button>}
                 {words.length < 3 && <button type="button" className="pd-secondary" onClick={onClose}>Back to training</button>}
-                <p className="pd-control-hint">← → / A D · keys 1 2 3 · swipe or tap a lane · P to pause</p>
-                {nextToBeat && <div className="pd-ready-target"><Trophy size={14} /> Score to beat: <strong>{nextToBeat.score}</strong> · {nextToBeat.name}</div>}
+                {!showRecords && <p className="pd-control-hint">{CONTROL_HINT}</p>}
+                {!showRecords && nextToBeat && <div className="pd-ready-target"><Trophy size={14} /> Score to beat: <strong>{nextToBeat.score}</strong> · {nextToBeat.name}</div>}
               </div>
             )}
             {inRun && (
@@ -740,6 +777,7 @@ const PetDash = ({
               <div className="pd-result-stars">{[1, 2, 3].map(n => <Star key={n} size={40} fill={stars >= n ? 'currentColor' : 'none'} className={stars >= n ? 'pd-star-earned pd-star-pop' : 'pd-star-empty'} style={{ '--i': n }} />)}</div>
               <h2>{stars >= 3 ? 'Trail superstar!' : stars >= 1 ? 'What a run!' : result.reason === 'lives' ? 'Out of hearts!' : 'Keep practicing!'}</h2>
               <p className="pd-result-line">{petName} found <strong>{result.wordsCompleted}</strong> correct {result.wordsCompleted === 1 ? 'word' : 'words'}.</p>
+              {recordBadge && <div className="pd-new-best" data-kind={recordBadge.kind}><recordBadge.Icon size={16} fill="currentColor" />{recordBadge.text}</div>}
               <div className="pd-final-score"><span>RUN SCORE</span><strong>{shownScore}</strong>
                 <small>Play {result.baseScore}{result.timeBonus > 0 && ` · Time +${result.timeBonus}`}{result.heartBonus > 0 && ` · Hearts +${result.heartBonus}`}</small>
               </div>
@@ -795,5 +833,9 @@ PetDash.propTypes = {
   leaderboard: PropTypes.array,
   pvpOpponentPetUrl: PropTypes.string,
   chestEnabled: PropTypes.bool,
+  // Shows the records and leaderboards on the ready screen (training mode).
+  showRecords: PropTypes.bool,
+  // The level bonus PetDisplay adds to a saved score, so the results card can tell a new record.
+  scoreBonusPercent: PropTypes.number,
 };
 export default PetDash;
