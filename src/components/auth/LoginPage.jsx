@@ -1,75 +1,198 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useLayoutEffect, useRef } from "react";
 import { Link, Navigate, useLocation } from "react-router-dom";
 import { REGISTER_PATH } from "../../config/registration";
 import { useAuth } from "../../hooks/useAuth";
-import Button from "../ui/Button";
-import { Eye, EyeOff, Mail, Lock } from "lucide-react";
+import { Eye, EyeOff, Loader2, AlertCircle, ArrowBigUp } from "lucide-react";
 import { supabase } from "../../supabase/client";
+import { assetUrl, useBranding } from "../../hooks/useBranding";
+import LoginIllustration from "./LoginIllustration";
 
-import { assetUrl } from '../../hooks/useBranding';
 // Default fallback image (same as Dashboard/Profile)
 const DEFAULT_LOGIN_IMAGE =
   "https://images.unsplash.com/photo-1557683316-973673baf926?w=1200&h=400&fit=crop";
 
+// Remember the last background so repeat visits paint it without waiting for Supabase
+const BG_CACHE_KEY = "login_bg_url";
+
+const readCachedBg = () => {
+  try {
+    return localStorage.getItem(BG_CACHE_KEY);
+  } catch {
+    return null;
+  }
+};
+
+const writeCachedBg = (url) => {
+  try {
+    localStorage.setItem(BG_CACHE_KEY, url);
+  } catch {
+    // Private mode / blocked storage: just skip the cache
+  }
+};
+
+// Colours sampled from the login background and the Pinta emblem
+const BRAND_BLUE = "#0064b1";
+const PLACEHOLDER_BG = "linear-gradient(135deg, #0b3490 0%, #082076 50%, #04145f 100%)";
+const PANEL_BG = "linear-gradient(160deg, #0d3592 0%, #0a2a7e 45%, #061b63 100%)";
+
+// White organic shape on the card (desktop); its right edge is the S-curve
+const DESKTOP_BLOB = "M0 0H63C57 0 54 9 54 22C54 38 58 50 57 62C56 76 59 86 64 93C67 97 70 100 74 100H0Z";
+// Wave between the white top and the navy form (mobile)
+const MOBILE_WAVE = "M0 0H100V5C84 10 68 1 50 5C32 9 16 3 0 7Z";
+
+// ilike treats % and _ as wildcards: escape them so "minh_anh" only matches itself
+const escapeLike = (value) => value.replace(/[\\%_]/g, (c) => `\\${c}`);
+
+// Fade an <img> in once it has loaded. An image already in cache is shown at once
+// (checked before paint), so it never blinks on repeat visits.
+const useImageReady = (src) => {
+  const ref = useRef(null);
+  const [readySrc, setReadySrc] = useState(null);
+
+  useLayoutEffect(() => {
+    const el = ref.current;
+    if (src && el?.complete && el.naturalWidth > 0) setReadySrc(src);
+  }, [src]);
+
+  return { ref, ready: Boolean(src) && readySrc === src, onLoad: () => setReadySrc(src) };
+};
+
+// The logo file is white; on the white card it is drawn in brand blue through a CSS mask.
+// The mask needs CORS, so preload it that way: "failed" falls back to the branding logo.
+const useMaskImage = (src) => {
+  const [state, setState] = useState({ src: null, status: "loading" });
+
+  useLayoutEffect(() => {
+    if (!src) return undefined;
+    let cancelled = false;
+    const img = new Image();
+    img.crossOrigin = "anonymous";
+    img.onload = () => {
+      if (!cancelled) setState({ src, status: "ready" });
+    };
+    img.onerror = () => {
+      if (!cancelled) setState({ src, status: "failed" });
+    };
+    img.src = src;
+    if (img.complete && img.naturalWidth > 0) setState({ src, status: "ready" });
+    return () => {
+      cancelled = true;
+    };
+  }, [src]);
+
+  return state.src === src ? state.status : "loading";
+};
+
+const STYLES = `
+  .lp-root { min-height: 100vh; min-height: 100dvh; }
+
+  .lp-logo {
+    background-color: ${BRAND_BLUE};
+    -webkit-mask: var(--lp-logo) left center / contain no-repeat;
+            mask: var(--lp-logo) left center / contain no-repeat;
+  }
+
+  /* Keep Chrome's autofill from painting the dark fields yellow/blue */
+  .lp-input:-webkit-autofill {
+    -webkit-box-shadow: 0 0 0 1000px #061a55 inset;
+    -webkit-text-fill-color: #fff;
+    caret-color: #fff;
+  }
+  .lp-input:-webkit-autofill:focus {
+    -webkit-box-shadow: 0 0 0 1000px #061a55 inset, 0 0 0 4px rgba(125, 211, 252, .15);
+  }
+  .lp-input:-webkit-autofill ~ .lp-label { top: 17px; font-size: 12px; line-height: 16px; }
+
+  @media (prefers-reduced-motion: reduce) {
+    .lp-root * { transition-duration: .001ms !important; }
+  }
+`;
+
+// Floating label: sits inside the empty field, moves up once focused or filled
+const INPUT_CLASS =
+  "lp-input peer block h-14 w-full rounded-full border border-white/10 bg-[#061a55] pb-2 pl-6 pt-6 text-base text-white outline-none transition-[border-color,box-shadow] hover:border-white/25 focus:border-sky-300/70 focus:ring-4 focus:ring-sky-300/15";
+const LABEL_CLASS =
+  "lp-label pointer-events-none absolute left-6 top-[17px] -translate-y-1/2 text-xs font-medium text-sky-200/80 transition-all duration-150 peer-placeholder-shown:top-1/2 peer-placeholder-shown:text-[15px] peer-placeholder-shown:text-white/50 peer-focus:top-[17px] peer-focus:text-xs peer-focus:text-sky-200";
+
 const LoginPage = () => {
-  const [email, setEmail] = useState("");
+  const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
+  const [capsLock, setCapsLock] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
-  const [loginBgImage, setLoginBgImage] = useState(DEFAULT_LOGIN_IMAGE);
+  const [bgUrl, setBgUrl] = useState(readCachedBg);
+  const failedBgs = useRef(new Set());
 
   const { user, signIn } = useAuth();
+  const { branding } = useBranding();
   const location = useLocation();
+
+  const logoSrc = assetUrl("/image/Logo_Pinta.png");
+  const appName = branding?.appName || "Logo";
+  const bg = useImageReady(bgUrl);
+  const logoStatus = useMaskImage(logoSrc);
 
   const from = location.state?.from?.pathname || "/";
 
-  // Fetch login page background image from settings
+  // Background image from settings (cached value, if any, is already showing)
   useEffect(() => {
-    fetchLoginPageImage();
-  }, []);
+    let cancelled = false;
 
-  const fetchLoginPageImage = async () => {
-    try {
-      const { data, error } = await supabase
-        .from("site_settings")
-        .select("setting_value")
-        .eq("setting_key", "login_page_image")
-        .single();
+    (async () => {
+      try {
+        const { data, error: settingError } = await supabase
+          .from("site_settings")
+          .select("setting_value")
+          .eq("setting_key", "login_page_image")
+          .maybeSingle();
+        if (cancelled) return;
+        if (settingError) throw settingError;
 
-      if (data?.setting_value && !error) {
-        setLoginBgImage(data.setting_value);
+        const url = data?.setting_value || DEFAULT_LOGIN_IMAGE;
+        if (failedBgs.current.has(url)) return;
+        writeCachedBg(url);
+        setBgUrl(url);
+      } catch (err) {
+        console.error("Failed to load login image:", err);
+        if (!cancelled) setBgUrl((current) => current || DEFAULT_LOGIN_IMAGE);
       }
-    } catch (error) {
-      console.error("Failed to load login image:", error);
-      // Use default fallback - already set in state
-    }
-  };
+    })();
+
+    return () => {
+      cancelled = true;
+    };
+  }, []);
 
   if (user) {
     return <Navigate to={from} replace />;
   }
 
+  const handleBgError = () => {
+    if (bgUrl) failedBgs.current.add(bgUrl);
+    if (bgUrl !== DEFAULT_LOGIN_IMAGE) setBgUrl(DEFAULT_LOGIN_IMAGE);
+  };
+
   const handleSubmit = async (e) => {
     e.preventDefault();
+    if (loading) return;
     setLoading(true);
     setError("");
 
     try {
       // Check if input is email or username
-      let loginEmail = email.trim();
+      let loginEmail = username.trim();
 
       if (!loginEmail.includes("@")) {
         // It's a username, lookup the email from users table (case-insensitive)
         const { data, error: lookupError } = await supabase
           .from("users")
           .select("email")
-          .ilike("username", loginEmail)
+          .ilike("username", escapeLike(loginEmail))
           .single();
 
         if (lookupError || !data) {
           setError("Không tìm thấy tài khoản với username này");
-          setLoading(false);
           return;
         }
 
@@ -80,13 +203,15 @@ const LoginPage = () => {
       if (error) {
         setError("Email/Username hoặc mật khẩu không chính xác");
       }
-    } catch (err) {
+    } catch {
       setError("Có lỗi xảy ra, vui lòng thử lại");
     } finally {
       setLoading(false);
     }
   };
 
+  // Google sign-in is hidden for now (see commented button below)
+  // eslint-disable-next-line no-unused-vars
   const handleGoogleSignIn = async () => {
     setLoading(true);
     setError("");
@@ -95,275 +220,203 @@ const LoginPage = () => {
         provider: "google",
         options: { redirectTo: window.location.origin },
       });
-    } catch (err) {
+    } catch {
       setError("Không thể đăng nhập Google. Vui lòng thử lại");
       setLoading(false);
     }
   };
 
+  const handleCapsLock = (e) => {
+    if (e.getModifierState) setCapsLock(e.getModifierState("CapsLock"));
+  };
+
   return (
-    <div className="min-h-screen flex">
-      <style>{`
-        .neomorphic-card {
-          background: transparent;
-        }
+    <div className="lp-root relative isolate flex items-start justify-center px-3 py-3 sm:px-6 sm:py-8 md:items-center lg:p-8">
+      <style>{STYLES}</style>
 
-        @media (min-width: 768px) {
-          .neomorphic-card {
-            background: transparent;
-            border-radius: 15px;
-            box-shadow: none;
-          }
-        }
+      {/* Page background: the admin's login image */}
+      <div className="fixed inset-0 -z-10" style={{ background: PLACEHOLDER_BG }} aria-hidden="true">
+        {bgUrl && (
+          <img
+            ref={bg.ref}
+            src={bgUrl}
+            alt=""
+            decoding="async"
+            draggable={false}
+            onLoad={bg.onLoad}
+            onError={handleBgError}
+            className={`h-full w-full select-none object-cover transition-opacity duration-500 ${bg.ready ? "opacity-100" : "opacity-0"}`}
+          />
+        )}
+        <div className="absolute inset-0 bg-[#020a2e]/20" />
+      </div>
 
-        .neomorphic-input {
-          position: relative;
-          width: 100%;
-        }
+      {/* Card */}
+      <div
+        className="relative w-full max-w-[520px] overflow-hidden rounded-[28px] shadow-[0_30px_80px_-30px_rgba(0,0,0,0.65)] ring-1 ring-white/10 lg:grid lg:h-[min(640px,calc(100dvh-64px))] lg:min-h-[560px] lg:max-w-[1080px] lg:grid-cols-[56%_44%] lg:rounded-[40px]"
+        style={{ background: PANEL_BG }}
+      >
+        <svg
+          className="absolute inset-0 hidden h-full w-full lg:block"
+          viewBox="0 0 100 100"
+          preserveAspectRatio="none"
+          aria-hidden="true"
+        >
+          <path d={DESKTOP_BLOB} fill="#ffffff" />
+        </svg>
 
-        .custom-border-input {
-          width: 100%;
-          padding: 10px;
-          outline: none;
-          background: transparent;
-          color: #1e40af;
-          font-size: 1em;
-          border: none;
-          border-left: 2px solid #2b313849;
-          border-bottom: 2px solid #2b313849;
-          border-bottom-left-radius: 8px;
-          transition: border-color 0.3s ease;
-        }
+        {/* Brand side: logo + illustration */}
+        <section className="relative bg-white px-5 pt-5 lg:flex lg:items-center lg:justify-center lg:bg-transparent lg:p-10">
+          <div className="relative h-[76px] w-[103px] lg:absolute lg:left-10 lg:top-10 lg:h-[100px] lg:w-[135px]">
+            {logoStatus === "failed" ? (
+              branding?.logoUrl && (
+                <img src={branding.logoUrl} alt={appName} className="h-full w-auto object-contain" />
+              )
+            ) : (
+              <div
+                role="img"
+                aria-label={appName}
+                className={`lp-logo h-full w-full transition-opacity duration-300 ${logoStatus === "ready" ? "opacity-100" : "opacity-0"}`}
+                style={{ "--lp-logo": `url("${logoSrc}")` }}
+              />
+            )}
+          </div>
 
-        .custom-border-input:focus {
-          border-left-color: #2563eb;
-          border-bottom-color: #2563eb;
-        }
+          <div className="mx-auto w-[min(78%,270px)] pb-1 lg:w-[min(100%,470px)] lg:pb-0">
+            <LoginIllustration />
+          </div>
+        </section>
 
-        .neomorphic-input span {
-          position: absolute;
-          left: 0;
-          top: 0;
-          transform: translateY(-4px);
-          margin-left: 10px;
-          padding: 10px;
-          pointer-events: none;
-          font-size: 14px;
-          color: #1e40af;
-          text-transform: none;
-          transition: 0.5s;
-          letter-spacing: normal;
-          border-radius: 8px;
-          z-index: 2;
-        }
+        <svg className="block h-8 w-full lg:hidden" viewBox="0 0 100 10" preserveAspectRatio="none" aria-hidden="true">
+          <path d={MOBILE_WAVE} fill="#ffffff" />
+        </svg>
 
-        .neomorphic-input input:valid ~ span,
-        .neomorphic-input input:focus ~ span {
-          transform: translateX(156px) translateY(-15px);
-          font-size: 0.8em;
-          padding: 5px 10px;
-          background: #2563eb;
-          letter-spacing: 0.2em;
-          color: #fff;
-        }
-
-        .neomorphic-input.email-input input:valid ~ span,
-        .neomorphic-input.email-input input:focus ~ span {
-          transform: translateX(156px) translateY(-15px);
-        }
-
-        .neomorphic-button {
-          height: 45px;
-          width: 120px;
-          border-radius: 8px;
-          border: 2px solid #2563eb;
-          cursor: pointer;
-          background-color: #2563eb;
-          transition: 0.5s;
-          text-transform: none;
-          font-size: 14px;
-          letter-spacing: normal;
-          color: white;
-          font-weight: bold;
-        }
-
-        .neomorphic-button:hover:not(:disabled) {
-          background-color: #1d4ed8;
-        }
-
-        .neomorphic-button:disabled {
-          opacity: 0.5;
-          cursor: not-allowed;
-        }
-
-        .signup-title {
-          color: #1e40af;
-          text-transform: none;
-          letter-spacing: normal;
-          display: block;
-          font-weight: bold;
-          font-size: x-large;
-          margin-top: 1.5em;
-          margin-bottom: 1em;
-        }
-      `}</style>
-
-      {/* Left Side - Image (hidden on mobile) */}
-      <div className="hidden md:flex md:w-3/5 lg:w-3/5 relative overflow-hidden">
-        {/* Background Image */}
-        <div
-          className="absolute inset-0 bg-cover bg-center"
-          style={{ backgroundImage: `url('${loginBgImage}')` }}
-        />
-
-        {/* Content on top of image */}
-        <div className="relative z-10 flex flex-col justify-center items-center w-full p-12 text-white">
-          <div>
-            <img
-              src={assetUrl('/image/Logo_Pinta.png')}
-              alt="Pinta Logo"
-              className="mb-8 max-w-[200px] h-auto"
-            />
-
-            <h1 className="text-4xl lg:text-5xl font-bold mb-4">
+        {/* Form side */}
+        <main className="relative px-6 pb-9 pt-3 sm:px-10 lg:flex lg:items-center lg:justify-center lg:px-12 lg:py-10">
+          <div className="mx-auto w-full max-w-[340px]">
+            <h1 className="mb-7 text-[28px] font-bold tracking-tight text-white sm:text-[32px]">
               Welcome to XPClass
             </h1>
 
-            <p className="text-lg lg:text-xl text-blue-100 mb-8">
-              Level up your learning journey with gamified education
-            </p>
-            <div className="space-y-4">
-              <div className="flex items-center gap-3">
-                <div className="w-8 h-8 rounded-full bg-white/20 flex items-center justify-center">
-                  <span className="text-xl">🎯</span>
+            <form onSubmit={handleSubmit}>
+              {error && (
+                <div
+                  role="alert"
+                  className="mb-4 flex items-start gap-2 rounded-2xl border border-red-400/30 bg-red-500/15 px-4 py-3 text-sm text-red-100"
+                >
+                  <AlertCircle className="mt-0.5 h-4 w-4 shrink-0 text-red-300" />
+                  <span>{error}</span>
                 </div>
-                <p className="text-blue-50">Track your progress with XP</p>
-              </div>
-              <div className="flex items-center gap-3">
-                <div className="w-8 h-8 rounded-full bg-white/20 flex items-center justify-center">
-                  <span className="text-xl">🔥</span>
+              )}
+
+              <div className="space-y-3">
+                {/* Username Field */}
+                <div className="relative">
+                  <input
+                    id="login-username"
+                    name="username"
+                    type="text"
+                    required
+                    autoComplete="username"
+                    autoCapitalize="none"
+                    autoCorrect="off"
+                    spellCheck={false}
+                    placeholder=" "
+                    value={username}
+                    onChange={(e) => {
+                      setUsername(e.target.value);
+                      if (error) setError("");
+                    }}
+                    className={`${INPUT_CLASS} pr-6`}
+                  />
+                  <label htmlFor="login-username" className={LABEL_CLASS}>
+                    Username
+                  </label>
                 </div>
-                <p className="text-blue-50">Build streaks and stay motivated</p>
-              </div>
-              <div className="flex items-center gap-3">
-                <div className="w-8 h-8 rounded-full bg-white/20 flex items-center justify-center">
-                  <span className="text-xl">🏆</span>
+
+                {/* Password Field */}
+                <div>
+                  <div className="relative">
+                    <input
+                      id="login-password"
+                      name="password"
+                      type={showPassword ? "text" : "password"}
+                      required
+                      autoComplete="current-password"
+                      placeholder=" "
+                      value={password}
+                      onChange={(e) => {
+                        setPassword(e.target.value);
+                        if (error) setError("");
+                      }}
+                      onKeyDown={handleCapsLock}
+                      onKeyUp={handleCapsLock}
+                      onBlur={() => setCapsLock(false)}
+                      className={`${INPUT_CLASS} pr-14`}
+                    />
+                    <label htmlFor="login-password" className={LABEL_CLASS}>
+                      Password
+                    </label>
+                    <button
+                      type="button"
+                      onClick={() => setShowPassword((v) => !v)}
+                      aria-label={showPassword ? "Hide password" : "Show password"}
+                      className="absolute right-2.5 top-1/2 grid h-10 w-10 -translate-y-1/2 place-items-center rounded-full text-white/50 transition-colors hover:text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sky-300"
+                    >
+                      {showPassword ? <EyeOff className="h-5 w-5" /> : <Eye className="h-5 w-5" />}
+                    </button>
+                  </div>
+                  {capsLock && (
+                    <p className="mt-2 flex items-center gap-1 px-3 text-xs font-medium text-amber-300">
+                      <ArrowBigUp className="h-3.5 w-3.5" /> Caps Lock is on
+                    </p>
+                  )}
                 </div>
-                <p className="text-blue-50">Unlock achievements and rewards</p>
               </div>
-            </div>
-          </div>
-        </div>
-      </div>
 
-      {/* Right Side - Login Form */}
-      <div className="w-full md:w-2/5 lg:w-2/5 flex flex-col items-center justify-center min-h-screen px-4 bg-white">
-        {/* Neomorphic Card - no card on mobile, card on md+ */}
-        <div className="neomorphic-card flex flex-col items-center justify-center min-h-[550px] md:min-h-[650px] w-full md:w-[400px] lg:w-[400px] gap-8 p-8 pt-24 md:pt-32 relative">
-          {/* Logo - Top Left */}
-          <div className="absolute top-1 md:top-6 left-4">
-            <img
-              src={assetUrl('/Asset%205.png')}
-              alt="Logo"
-              width={64}
-              height={64}
-            />
-          </div>
-
-          {/* Top right dots */}
-          <div className="absolute top-4 md:top-8 right-4 flex gap-2">
-            <div className="w-3 h-3 rounded-full bg-blue-500"></div>
-            <div className="w-3 h-3 rounded-full bg-purple-500"></div>
-            <div className="w-3 h-3 rounded-full bg-pink-500"></div>
-          </div>
-
-          <a className="signup-title">Welcome back, player!</a>
-
-          <form
-            onSubmit={handleSubmit}
-            className="w-full flex flex-col items-center gap-8"
-          >
-            {error && (
-              <div className="bg-red-50 border-2 border-red-400 text-red-700 px-4 py-2 rounded-lg text-sm w-full">
-                {error}
-              </div>
-            )}
-
-            {/* Email/Username Field */}
-            <div className="neomorphic-input email-input w-[280px]">
-              <input
-                type="text"
-                required
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
-                className="custom-border-input"
-              />
-              <span>Username</span>
-            </div>
-
-            {/* Password Field */}
-            <div className="neomorphic-input w-[280px]">
-              <input
-                type={showPassword ? "text" : "password"}
-                required
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                className="custom-border-input"
-              />
-              <span>Password</span>
+              {/* Submit Button */}
               <button
-                type="button"
-                className="absolute right-2 top-2 text-blue-600"
-                onClick={() => setShowPassword(!showPassword)}
+                type="submit"
+                disabled={loading}
+                aria-busy={loading}
+                className="mt-6 flex h-14 w-full items-center justify-center gap-2 rounded-full bg-[#5cb3ff] text-[15px] font-bold text-[#061b63] shadow-[0_10px_24px_-10px_rgba(92,179,255,0.7)] transition hover:bg-[#7fc4ff] active:scale-[0.99] focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-sky-300/40 disabled:cursor-not-allowed disabled:opacity-70"
               >
-                {showPassword ? (
-                  <EyeOff className="h-5 w-5" />
+                {loading ? (
+                  <>
+                    <Loader2 className="h-5 w-5 animate-spin" /> Logging in...
+                  </>
                 ) : (
-                  <Eye className="h-5 w-5" />
+                  "Log in"
                 )}
               </button>
-            </div>
+            </form>
 
-            {/* Submit Button */}
-            <button
-              type="submit"
+            {/* Google Sign-In - Hidden */}
+            {/* <button
+              type="button"
+              onClick={handleGoogleSignIn}
               disabled={loading}
-              className="neomorphic-button mb-6"
+              className="mt-3 flex h-14 w-full items-center justify-center gap-2 rounded-full border border-white/15 text-[15px] font-semibold text-white transition hover:bg-white/10 disabled:opacity-50"
             >
-              {loading ? "Loading..." : "Log in"}
-            </button>
-          </form>
+              <img
+                src="https://www.gstatic.com/firebasejs/ui/2.0.0/images/auth/google.svg"
+                alt="Google"
+                className="h-5 w-5"
+              />
+              Google
+            </button> */}
 
-          {/* Google Sign-In - Hidden */}
-          {/* <button
-            type="button"
-            onClick={handleGoogleSignIn}
-            disabled={loading}
-            className="w-[280px] border-2 border-blue-600 hover:bg-blue-600 hover:text-white text-blue-700 rounded-lg px-4 py-2 flex items-center justify-center gap-2 disabled:opacity-50 transition-all duration-300"
-          >
-            <img
-              src="https://www.gstatic.com/firebasejs/ui/2.0.0/images/auth/google.svg"
-              alt="Google"
-              className="w-5 h-5"
-            />
-            <span className="text-sm font-medium">Google</span>
-          </button> */}
-
-          {/* Divider */}
-          <div className="flex items-center w-[280px]">
-            <div className="flex-1 border-t border-gray-300"></div>
-            <span className="px-3 text-xs text-gray-500">or</span>
-            <div className="flex-1 border-t border-gray-300"></div>
+            <p className="mt-7 text-center text-sm text-white/60">
+              New here?{" "}
+              <Link
+                to={REGISTER_PATH}
+                className="font-semibold text-sky-300 underline-offset-4 hover:text-sky-200 hover:underline"
+              >
+                Sign up
+              </Link>
+            </p>
           </div>
-
-          {/* Sign Up Button */}
-          <Link
-            to={REGISTER_PATH}
-            className="w-[280px] border-2 border-purple-500 hover:bg-purple-500 hover:text-white text-purple-600 rounded-lg px-4 py-2.5 text-center text-sm font-medium transition-all duration-300 mb-4"
-          >
-            Sign up
-          </Link>
-        </div>
+        </main>
       </div>
     </div>
   );
