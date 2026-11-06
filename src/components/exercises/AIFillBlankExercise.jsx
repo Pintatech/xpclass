@@ -7,7 +7,7 @@ import { useProgress } from '../../hooks/useProgress'
 import { useFeedback } from '../../hooks/useFeedback'
 import { ArrowLeft, CheckCircle, XCircle, Clock, RefreshCw } from 'lucide-react'
 import LoadingSpinner from '../ui/LoadingSpinner'
-import { callAIScoring as localAIScoring } from '../../utils/aiScoringService'
+import { callAIScoring as localAIScoring, clampScore } from '../../utils/aiScoringService'
 import RichTextRenderer from '../ui/RichTextRenderer'
 import ExerciseHeader from '../ui/ExerciseHeader'
 import AudioPlayer from '../ui/AudioPlayer'
@@ -196,7 +196,7 @@ const AIFillBlankExercise = ({ testMode = false, exerciseData = null, onAnswersC
       if (!response.ok) throw new Error(`AI API ${response.status}`)
       const result = await response.json()
       return {
-        score: result.score || 0,
+        score: clampScore(result.score),
         explanation: result.explanation || 'No explanation provided',
         confidence: result.confidence || 0
       }

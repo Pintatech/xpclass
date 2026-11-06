@@ -39,12 +39,23 @@ const similarityPct = (s1, s2) => {
   return Math.max(0, ((longer.length - dist) / longer.length) * 100)
 }
 
+const clampScore = (n) => Math.min(100, Math.max(0, Number(n) || 0))
+
+const tokenize = (s) => s.toLowerCase().replace(/[^\p{L}\p{N}'\s]/gu, ' ').split(/\s+/).filter(Boolean)
+
+// Exact word, or substring (plural/tense) when both words have 3+ letters,
+// so short words like "a" / "i" don't match inside every other word.
+const wordMatches = (w, x) =>
+  w === x || (Math.min(w.length, x.length) >= 3 && (w.includes(x) || x.includes(w)))
+
+// Share of the expected answer's words that appear in the student's answer.
+// Counts expected words (each at most once), so it can never exceed 100.
 const keywordScore = (userAns, expected) => {
-  const u = userAns.split(/\s+/).filter(Boolean)
-  const e = expected.split(/\s+/).filter(Boolean)
+  const u = tokenize(userAns)
+  const e = tokenize(expected)
   if (e.length === 0) return 0
-  const common = u.filter(w => e.some(x => x.includes(w) || w.includes(x)))
-  return (common.length / e.length) * 100
+  const matched = e.filter(x => u.some(w => wordMatches(w, x)))
+  return (matched.length / e.length) * 100
 }
 
 export default async function handler(req) {
@@ -124,8 +135,8 @@ Rules:
         try {
           const parsed = JSON.parse(content)
           // Basic sanitize
-          const score = Math.min(100, Math.max(0, Number(parsed.score) || 0))
-          const confidence = Math.min(100, Math.max(0, Number(parsed.confidence) || 0))
+          const score = clampScore(parsed.score)
+          const confidence = clampScore(parsed.confidence)
           const explanation = String(parsed.explanation || '').slice(0, 500)
           return jsonResponse(200, { score, confidence, explanation })
         } catch {
@@ -148,8 +159,8 @@ Rules:
       best = Math.max(best, Math.max(sim, key))
     }
 
-    const score = Math.round(best)
-    const confidence = Math.min(95, Math.round(best + 5))
+    const score = Math.round(clampScore(best))
+    const confidence = Math.min(95, Math.round(score + 5))
     const explanation = score >= minScore
       ? 'Your answer is sufficiently similar to expected answers.'
       : 'Your answer does not sufficiently match expected answers.'

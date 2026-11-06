@@ -1,19 +1,22 @@
 // AI Scoring Service for Fill-in-the-Blank Questions
 // This service handles AI-powered answer evaluation
 
+// Keep every score in 0-100 (AI may return >100 or a string)
+export const clampScore = (n) => Math.min(100, Math.max(0, Number(n) || 0))
+
 export const callAIScoring = async (question, userAnswer, expectedAnswers, context = 'educational assessment', language = 'en') => {
   try {
     console.log('🤖 Calling AI Scoring with language:', language)
     // Use Groq AI service for scoring
     const aiResponse = await callGroqScoring(question, userAnswer, expectedAnswers, context, language)
     console.log('✅ AI Response received:', aiResponse)
-    return aiResponse
+    return { ...aiResponse, score: clampScore(aiResponse?.score) }
   } catch (error) {
     console.error('❌ AI scoring error:', error)
     // Fallback to mock scoring if AI service fails
     console.warn('⚠️ Falling back to mock scoring')
     const mockResponse = await mockAIScoring(question, userAnswer, expectedAnswers, context, language)
-    return mockResponse
+    return { ...mockResponse, score: clampScore(mockResponse.score) }
   }
 }
 
@@ -117,22 +120,27 @@ const levenshteinDistance = (str1, str2) => {
 }
 
 // Check for keyword matches
+const tokenize = (s) => s.toLowerCase().replace(/[^\p{L}\p{N}'\s]/gu, ' ').split(/\s+/).filter(Boolean)
+
+// Exact word, or substring (plural/tense) when both words have 3+ letters,
+// so short words like "a" / "i" don't match inside every other word.
+const wordMatches = (w, x) =>
+  w === x || (Math.min(w.length, x.length) >= 3 && (w.includes(x) || x.includes(w)))
+
+// Share of the expected answer's words found in the student's answer.
+// Counts expected words (each at most once), so it can never exceed 100.
 const checkKeywordMatches = (userAnswer, expectedAnswers) => {
-  const userWords = userAnswer.split(/\s+/)
+  const userWords = tokenize(userAnswer)
   let maxKeywordScore = 0
-  
+
   for (const expected of expectedAnswers) {
-    const expectedWords = expected.split(/\s+/)
-    const commonWords = userWords.filter(word => 
-      expectedWords.some(expectedWord => 
-        word.includes(expectedWord) || expectedWord.includes(word)
-      )
-    )
-    
-    const keywordScore = (commonWords.length / expectedWords.length) * 100
+    const expectedWords = tokenize(expected)
+    if (expectedWords.length === 0) continue
+    const matched = expectedWords.filter(x => userWords.some(w => wordMatches(w, x)))
+    const keywordScore = (matched.length / expectedWords.length) * 100
     maxKeywordScore = Math.max(maxKeywordScore, keywordScore)
   }
-  
+
   return maxKeywordScore
 }
 
