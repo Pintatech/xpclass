@@ -13,7 +13,22 @@ const SETTING_FIELDS = [
   { key: 'branding_base_asset_url', label: 'Base Asset URL', type: 'url', icon: Globe, description: 'Base URL for all images, icons, and sounds (e.g. https://yourcdn.com/assets). Do not include trailing slash.', warning: true },
   { key: 'branding_base_site_url', label: 'Base Site URL', type: 'url', icon: Globe, description: 'Base domain URL for legacy assets. Do not include trailing slash.' },
   { key: 'branding_hero_image_url', label: 'Dashboard Hero Image', type: 'url', icon: Image, description: 'Background image for the dashboard header section', preview: true },
+  {
+    key: 'branding_login_mobile_image_url',
+    label: 'Login Mobile Image',
+    type: 'url',
+    icon: Image,
+    description: 'Picture in the white top part of the login page on phones and tablets (under 1024px wide). Leave empty to show the default ship. Best: transparent PNG/WebP, about 800×700px, under 300KB.',
+    placeholder: 'Empty = default ship illustration',
+    preview: true,
+    previewSize: 'large',
+  },
 ];
+
+const PREVIEW_IMG_CLASS = {
+  small: 'w-6 h-6 object-contain',
+  large: 'max-h-40 max-w-full object-contain',
+};
 
 const BrandingSettings = () => {
   const { BRANDING_DEFAULTS, refetch } = useBranding();
@@ -138,16 +153,23 @@ const BrandingSettings = () => {
               type="text"
               value={values[field.key] || ''}
               onChange={(e) => handleChange(field.key, e.target.value)}
-              placeholder={BRANDING_DEFAULTS[field.key]}
+              placeholder={field.placeholder || BRANDING_DEFAULTS[field.key]}
               className="w-full p-2.5 border border-gray-300 rounded-lg text-gray-900 text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
             />
 
             {field.preview && values[field.key] && (
-              <div className="mt-3 flex items-center gap-3 p-3 bg-gray-50 rounded-lg">
+              <div
+                className={`mt-3 flex items-center gap-3 p-3 rounded-lg ${
+                  // Large previews sit on white, like the login page they are shown on
+                  field.previewSize === 'large' ? 'bg-white border border-gray-200' : 'bg-gray-50'
+                }`}
+              >
+                {/* key: a fixed link gets a fresh <img>, so an earlier broken link doesn't keep it hidden */}
                 <img
+                  key={values[field.key]}
                   src={values[field.key]}
                   alt="Preview"
-                  className={field.previewSize === 'small' ? 'w-6 h-6 object-contain' : 'max-h-16 object-contain'}
+                  className={PREVIEW_IMG_CLASS[field.previewSize] || 'max-h-16 object-contain'}
                   onError={(e) => { e.target.style.display = 'none'; }}
                 />
                 <span className="text-xs text-gray-500">Preview</span>

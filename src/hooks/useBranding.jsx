@@ -10,6 +10,8 @@ const BRANDING_DEFAULTS = {
   branding_base_asset_url: "https://bhlpjvcplrofixogcrqp.supabase.co/storage/v1/object/public/ui-assets",
   branding_base_site_url: "https://xpclass.vn",
   branding_hero_image_url: "https://bhlpjvcplrofixogcrqp.supabase.co/storage/v1/object/public/ui-assets/image/dashboard/blue_dashboard_hero_section.jpeg",
+  // Empty = the login page shows its built-in ship illustration on phones/tablets
+  branding_login_mobile_image_url: "",
 }
 
 // Module-level state so assetUrl/siteUrl work outside React components
@@ -91,6 +93,7 @@ export const BrandingProvider = ({ children }) => {
     baseAssetUrl: settings.branding_base_asset_url,
     baseSiteUrl: settings.branding_base_site_url,
     heroImageUrl: settings.branding_hero_image_url,
+    loginMobileImageUrl: settings.branding_login_mobile_image_url,
   }
 
   const value = {

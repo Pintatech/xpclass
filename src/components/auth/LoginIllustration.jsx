@@ -2,6 +2,8 @@
 // with a book (learning), a star (achievement) and an XP coin around it.
 // Static on purpose (no animation) so the page stays calm.
 
+import PropTypes from "prop-types";
+
 const BLOB =
   "M282 48C372 44 462 98 484 186C506 274 456 372 362 404C268 436 150 418 96 346C42 274 62 160 128 102C168 66 222 50 282 48Z";
 
@@ -26,8 +28,9 @@ const PORTHOLES = [246, 272, 298, 324];
 
 const ripple = (x, y) => `M${x} ${y}c6-3 12-3 18 0`;
 
-const LoginIllustration = () => (
-  <svg viewBox="0 0 560 460" className="block h-auto w-full" role="img" aria-label="Pinta ship sailing">
+// className sizes the drawing: width-driven by default (PC); the phone layout fits it into a box
+const LoginIllustration = ({ className = "block h-auto w-full" }) => (
+  <svg viewBox="0 0 560 460" className={className} role="img" aria-label="Pinta ship sailing">
     <defs>
       <linearGradient id="lpi-blob" x1="0" y1="0" x2="0" y2="1">
         <stop offset="0" stopColor="#dcecfa" />
@@ -189,5 +192,9 @@ const LoginIllustration = () => (
     <path d={sparkle(400, 58, 5)} fill="#fbbf24" />
   </svg>
 );
+
+LoginIllustration.propTypes = {
+  className: PropTypes.string,
+};
 
 export default LoginIllustration;
