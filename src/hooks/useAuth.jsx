@@ -65,8 +65,6 @@ export const AuthProvider = ({ children }) => {
 
   const fetchUserProfile = async (userId) => {
     try {
-      console.log('📝 Fetching profile for user:', userId)
-
       // Add timeout to prevent infinite hanging
       const timeoutPromise = new Promise((_, reject) =>
         setTimeout(() => reject(new Error('Profile fetch timeout after 5s')), 5000)
@@ -106,9 +104,7 @@ export const AuthProvider = ({ children }) => {
         console.error('❌ Error details:', JSON.stringify(userResult.error))
         // Don't set profile to null - keep existing profile data
       } else {
-        const merged = { ...userResult.data, ...(equipResult.data || {}) }
-        console.log('✅ Profile fetched:', merged)
-        setProfile(merged)
+        setProfile({ ...userResult.data, ...(equipResult.data || {}) })
       }
     } catch (error) {
       console.error('❌ Error in fetchUserProfile:', error)
@@ -275,8 +271,9 @@ export const AuthProvider = ({ children }) => {
   }
 
   const isAdmin = () => {
-    // Check both profile role and user metadata as fallback
-    return profile?.role === 'admin' || user?.user_metadata?.role === 'admin'
+    // Only users.role counts. Never auth user_metadata: anyone can set their own with
+    // supabase.auth.updateUser({ data: { role: 'admin' } }), and no SQL check trusts it.
+    return profile?.role === 'admin'
   }
 
   const isTeacher = () => {

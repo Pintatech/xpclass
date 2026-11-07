@@ -7,7 +7,24 @@ const corsHeaders = {
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type, x-application-name',
 }
 
-serve(async (req) => {
+const ROLES = ['user', 'teacher', 'admin']
+const MAX_USERS_PER_CALL = 500
+
+const reply = (status: number, body: unknown) =>
+  new Response(JSON.stringify(body), {
+    headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+    status
+  })
+
+// Supabase errors (PostgrestError) are plain objects, not Error instances, so read .message from any object
+const errorMessage = (error: unknown): string =>
+  error && typeof error === 'object' && 'message' in error
+    ? String((error as { message: unknown }).message)
+    : String(error)
+
+type ImportRow = { email: string; name?: string; error?: string; rowNumber?: number }
+
+serve(async (req: Request) => {
   // Handle CORS preflight requests
   if (req.method === 'OPTIONS') {
     return new Response('ok', { headers: corsHeaders })
@@ -25,9 +42,25 @@ serve(async (req) => {
       }
     )
 
-    const { users } = await req.json()
+    // This function runs with the service role key and sets each new account's role, so only a signed-in admin
+    // may call it. Supabase's JWT check alone is not enough: the public anon key is a valid JWT too.
+    const token = (req.headers.get('Authorization') ?? '').replace(/^Bearer\s+/i, '')
+    const { data: authUser } = token ? await supabaseClient.auth.getUser(token) : { data: { user: null } }
+    const callerId = authUser?.user?.id
+    if (!callerId) {
+      return reply(401, { error: 'Sign in as an admin to create users' })
+    }
+    const { data: caller } = await supabaseClient.from('users').select('role, is_banned').eq('id', callerId).single()
+    if (caller?.role !== 'admin' || caller?.is_banned) {
+      return reply(403, { error: 'Only an admin can create users' })
+    }
 
-    const results = {
+    const { users } = await req.json()
+    if (!Array.isArray(users) || users.length > MAX_USERS_PER_CALL) {
+      return reply(400, { error: `Send a list of at most ${MAX_USERS_PER_CALL} users` })
+    }
+
+    const results: { success: ImportRow[]; failed: ImportRow[] } = {
       success: [],
       failed: []
     }
@@ -54,7 +87,7 @@ serve(async (req) => {
           username: user.username,
           full_name: user.full_name,
           real_name: user.real_name || user.full_name,
-          role: user.role || 'user'
+          role: ROLES.includes(user.role) ? user.role : 'user'
         }
 
         if (user.avatar_url) {
@@ -98,7 +131,7 @@ serve(async (req) => {
         console.error('Error creating user:', user.email, error)
         results.failed.push({
           email: user.email,
-          error: error.message,
+          error: errorMessage(error),
           rowNumber: user.rowNumber
         })
       }
@@ -113,7 +146,7 @@ serve(async (req) => {
     )
   } catch (error) {
     return new Response(
-      JSON.stringify({ error: error.message }),
+      JSON.stringify({ error: errorMessage(error) }),
       {
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
         status: 400

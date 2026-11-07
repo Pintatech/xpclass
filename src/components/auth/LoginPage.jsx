@@ -267,19 +267,30 @@ const LoginPage = () => {
       let loginEmail = username.trim();
 
       if (!loginEmail.includes("@")) {
-        // It's a username, lookup the email from users table (case-insensitive)
-        const { data, error: lookupError } = await supabase
-          .from("users")
-          .select("email")
-          .ilike("username", escapeLike(loginEmail))
-          .single();
+        // It's a username: ask the database for that one email (case-insensitive), so the users
+        // table does not have to be readable before login (hide_users_from_anon.sql)
+        let { data: foundEmail, error: lookupError } = await supabase.rpc(
+          "login_email_for_username",
+          { p_username: loginEmail }
+        );
 
-        if (lookupError || !data) {
+        // PGRST202: lock_users_table.sql has not been run yet, so read the table the old way
+        if (lookupError?.code === "PGRST202") {
+          const fallback = await supabase
+            .from("users")
+            .select("email")
+            .ilike("username", escapeLike(loginEmail))
+            .single();
+          foundEmail = fallback.data?.email;
+          lookupError = fallback.error;
+        }
+
+        if (lookupError || !foundEmail) {
           setError("Không tìm thấy tài khoản với username này");
           return;
         }
 
-        loginEmail = data.email;
+        loginEmail = foundEmail;
       }
 
       const { error } = await signIn(loginEmail, password);
