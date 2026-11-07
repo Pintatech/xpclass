@@ -8,6 +8,7 @@ import {
   Award, MessageSquare, History, Zap, X, GraduationCap,
   AlertTriangle, Brain, Sparkles, Target
 } from 'lucide-react';
+import { apiFetch } from '../../../utils/apiFetch'
 
 
 // ─── Preview Card (screenshot-friendly, matches mockup) ────────────────
@@ -455,7 +456,7 @@ const UnitReportPage = () => {
         { role: 'system', content: 'You are an English teacher writing a report card comment for a parent to read. Write in Vietnamese, professional but warm. No bullet points, no lists, no headings. Just 2-3 natural paragraphs. Mention what the student struggles with based on their wrong answers, give a couple of specific examples, acknowledge their effort, and recommend what they should practice at home. Keep it concise and suitable for a report card.' },
         { role: 'user', content: `Here are ${Math.min(wrongAnswers.length, 20)} wrong answers from this student. Write a report card comment:\n\n${wrongList}` }
       ];
-      const response = await fetch('/api/ai-analyze', {
+      const response = await apiFetch('/api/ai-analyze', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ messages })

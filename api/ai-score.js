@@ -1,5 +1,9 @@
 // Vercel Serverless Function: AI Scoring Endpoint
 // Path: /api/ai-score
+// Guests (guest page) may call it too. Only the OpenAI call is counted against the hourly limit (see _lib/guard.js);
+// past the limit the answer is scored by the free similarity check below instead.
+
+import { guard, readJson } from './_lib/guard.js'
 
 export const config = {
   runtime: 'edge'
@@ -64,7 +68,9 @@ export default async function handler(req) {
   }
 
   try {
-    const { question, userAnswer, expectedAnswers = [], context, minScore = 70, prompt, language = 'en' } = await req.json()
+    const { body, error } = await readJson(req, 20000)
+    if (error) return error
+    const { question, userAnswer, expectedAnswers = [], context, minScore = 70, prompt, language = 'en' } = body || {}
 
     if (typeof userAnswer !== 'string' || userAnswer.trim().length === 0) {
       return jsonResponse(400, { error: 'Missing userAnswer' })
@@ -87,7 +93,10 @@ export default async function handler(req) {
 
     // Prefer OpenAI if configured
     const OPENAI_API_KEY = process.env.OPENAI_API_KEY || process.env.REACT_APP_OPENAI_API_KEY
-    if (OPENAI_API_KEY) {
+    const gate = OPENAI_API_KEY
+      ? await guard(req, { name: 'ai-score', userPerHour: 400, guestPerHour: 100, guestsPerHour: 1000 })
+      : null
+    if (OPENAI_API_KEY && !gate.error) {
       const system = 'You score short student answers fairly and explain briefly.'
       const aiPrompt = isOpenEnded
         ? `Question: "${question || ''}"

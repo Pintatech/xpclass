@@ -10,6 +10,7 @@ import { RichTextWithAudio } from '../ui/RichTextRenderer'
 import { Mic, Square, ArrowRight, ArrowLeft, Star, RefreshCw, CheckCircle, XCircle, MessageSquare } from 'lucide-react'
 import { assetUrl } from '../../hooks/useBranding'
 import TeacherExerciseNav from '../ui/TeacherExerciseNav'
+import { apiFetch } from '../../utils/apiFetch'
 
 const themeSideImages = {
   blue: { left: assetUrl('/image/theme_question/ice_left.png'), right: assetUrl('/image/theme_question/ice_right.png') },
@@ -27,7 +28,7 @@ const isMobileDevice = () =>
 
 // Send recorded audio blob to AssemblyAI via the /api/transcribe proxy
 const transcribeWithAssembly = async (audioBlob) => {
-  const response = await fetch('/api/transcribe', {
+  const response = await apiFetch('/api/transcribe', {
     method: 'POST',
     headers: { 'Content-Type': audioBlob.type || 'audio/webm' },
     body: audioBlob,
@@ -112,7 +113,7 @@ Provide evaluation in JSON calibrated to the student's level:
   "sample_improvement": "One example sentence showing improvement appropriate for this level"
 }`
 
-  const response = await fetch('/api/pet-chat', {
+  const response = await apiFetch('/api/pet-chat', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({
@@ -165,7 +166,7 @@ Respond ONLY in valid JSON:
   "pronunciation_tip": "one short tip about pronunciation or phrasing, or an empty string"
 }`
 
-  const response = await fetch('/api/pet-chat', {
+  const response = await apiFetch('/api/pet-chat', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({

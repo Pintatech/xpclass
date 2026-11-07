@@ -1,15 +1,13 @@
 // Vercel Serverless Function: AssemblyAI transcription from a public video URL
 // Path: /api/transcribe-video
 
+// Signed-in users only (video exercise), and only for videos in the app's exercise-videos bucket; see _lib/guard.js.
+
+import { guard, jsonResponse, supabaseUrl } from './_lib/guard.js'
+
 export const config = {
   runtime: 'edge'
 }
-
-const jsonResponse = (status, body) =>
-  new Response(JSON.stringify(body), {
-    status,
-    headers: { 'Content-Type': 'application/json' }
-  })
 
 const sleep = (ms) => new Promise(resolve => setTimeout(resolve, ms))
 
@@ -23,11 +21,19 @@ export default async function handler(req) {
     return jsonResponse(500, { error: 'AssemblyAI API key not configured' })
   }
 
+  const gate = await guard(req, { name: 'transcribe-video', userPerHour: 30, login: true })
+  if (gate.error) return gate.error
+
   try {
     const { url } = await req.json()
 
     if (!url || typeof url !== 'string') {
       return jsonResponse(400, { error: 'Missing or invalid "url" field' })
+    }
+    // Only the app's own uploads (VideoUploadExercise sends the public URL of the file it just uploaded).
+    const allowedPrefix = `${supabaseUrl}/storage/v1/object/public/exercise-videos/`
+    if (!supabaseUrl || !url.startsWith(allowedPrefix) || url.includes('..')) {
+      return jsonResponse(400, { error: 'Only videos uploaded to the app can be transcribed' })
     }
 
     // Create transcript directly from public URL (AssemblyAI accepts video formats)

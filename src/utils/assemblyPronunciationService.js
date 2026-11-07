@@ -1,3 +1,4 @@
+import { apiFetch } from './apiFetch'
 // AssemblyAI-backed pronunciation assessment.
 // Replaces the former Azure Speech SDK service: the API key stays server-side
 // behind /api/transcribe, so nothing secret ships in the browser bundle.
@@ -105,7 +106,7 @@ export const assessPronunciation = async (referenceText, audioBlob) => {
 
   let payload;
   try {
-    const response = await fetch('/api/transcribe', {
+    const response = await apiFetch('/api/transcribe', {
       method: 'POST',
       headers: { 'Content-Type': audioBlob.type || 'audio/webm' },
       body: audioBlob

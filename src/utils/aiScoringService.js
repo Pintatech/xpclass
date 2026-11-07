@@ -1,3 +1,4 @@
+import { apiFetch } from './apiFetch'
 // AI Scoring Service for Fill-in-the-Blank Questions
 // This service handles AI-powered answer evaluation
 
@@ -261,7 +262,7 @@ Respond in JSON format:
     console.log('Language:', language)
     console.log('Prompt preview:', prompt.substring(0, 200) + '...')
 
-    const response = await fetch('/api/pet-chat', {
+    const response = await apiFetch('/api/pet-chat', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({

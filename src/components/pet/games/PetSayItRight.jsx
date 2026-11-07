@@ -3,6 +3,7 @@ import { createPortal } from 'react-dom'
 import { X, Trophy, Mic, Square, Loader2, Heart } from 'lucide-react'
 
 import { assetUrl } from '../../../hooks/useBranding'
+import { apiFetch } from '../../../utils/apiFetch'
 
 const ASSEMBLYAI_KEY = import.meta.env.VITE_ASSEMBLYAI_API_KEY || ''
 
@@ -13,7 +14,7 @@ const transcribeAudio = async (audioBlob) => {
   // If we have a client-side key, go direct (local dev)
   // Otherwise try the server proxy (production)
   if (!ASSEMBLYAI_KEY) {
-    const proxyRes = await fetch('/api/transcribe', {
+    const proxyRes = await apiFetch('/api/transcribe', {
       method: 'POST',
       headers: { 'Content-Type': audioBlob.type || 'audio/webm' },
       body: audioBlob,

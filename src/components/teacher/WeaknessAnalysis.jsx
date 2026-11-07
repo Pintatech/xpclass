@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom'
 import { supabase } from '../../supabase/client'
 import { useAuth } from '../../hooks/useAuth'
 import { ArrowLeft, ChevronDown, ChevronRight, AlertTriangle, Target, Brain, Sparkles } from 'lucide-react'
+import { apiFetch } from '../../utils/apiFetch'
 
 const WeaknessAnalysis = () => {
   const { user, isAdmin } = useAuth()
@@ -161,7 +162,7 @@ const WeaknessAnalysis = () => {
         { role: 'system', content: 'Bạn là giáo viên tiếng Anh chuyên phân tích lỗi sai của học sinh. Trả lời ngắn gọn bằng tiếng Việt, dùng bullet points.' },
         { role: 'user', content: `Phân tích ${Math.min(filtered.length, 20)} câu trả lời sai dưới đây. Tìm 3-5 pattern lỗi chính. Mỗi pattern: tên lỗi, 2 ví dụ, số lần mắc. Ngắn gọn.\n\n${wrongList}` }
       ]
-      const response = await fetch('/api/ai-analyze', {
+      const response = await apiFetch('/api/ai-analyze', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ messages })

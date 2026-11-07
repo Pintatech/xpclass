@@ -1,3 +1,4 @@
+import { apiFetch } from './apiFetch'
 /**
  * Speech-to-text scoring for spoken answers, on AssemblyAI.
  *
@@ -42,7 +43,7 @@ export const speechAvailable = () =>
  */
 export const transcribeSpeech = async (audioBlob) => {
   if (!ASSEMBLYAI_KEY) {
-    const res = await fetch('/api/transcribe', {
+    const res = await apiFetch('/api/transcribe', {
       method: 'POST',
       headers: { 'Content-Type': audioBlob.type || 'audio/webm' },
       body: audioBlob

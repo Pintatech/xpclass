@@ -1,15 +1,13 @@
 // Vercel Serverless Function: AssemblyAI Speech-to-Text proxy
 // Path: /api/transcribe
 
+// Guests (demo pages) may call it too, with a limit per hour; see _lib/guard.js.
+
+import { guard, jsonResponse } from './_lib/guard.js'
+
 export const config = {
   runtime: 'edge'
 }
-
-const jsonResponse = (status, body) =>
-  new Response(JSON.stringify(body), {
-    status,
-    headers: { 'Content-Type': 'application/json' }
-  })
 
 const sleep = (ms) => new Promise(resolve => setTimeout(resolve, ms))
 
@@ -23,11 +21,18 @@ export default async function handler(req) {
     return jsonResponse(500, { error: 'AssemblyAI API key not configured' })
   }
 
+  const gate = await guard(req, { name: 'transcribe', userPerHour: 300, guestPerHour: 60, guestsPerHour: 600 })
+  if (gate.error) return gate.error
+
   try {
     const audioData = await req.arrayBuffer()
 
     if (audioData.byteLength < 1000) {
       return jsonResponse(400, { error: 'Audio too short or empty' })
+    }
+    // A spoken answer is a few seconds of audio; 10 MB is several minutes.
+    if (audioData.byteLength > 10 * 1024 * 1024) {
+      return jsonResponse(413, { error: 'Audio too long' })
     }
 
     // Step 1: Upload audio to AssemblyAI

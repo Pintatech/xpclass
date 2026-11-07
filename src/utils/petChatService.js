@@ -1,9 +1,10 @@
+import { apiFetch } from './apiFetch'
 // Pet Chat Service - AI-powered pet conversations
 // Proxied through server-side /api/pet-chat (Groq API)
 
 // Helper to call Groq via server proxy
 const callGroq = async (messages, { model = 'openai/gpt-oss-120b', max_tokens = 500, temperature = 0.7 } = {}) => {
-  const response = await fetch('/api/pet-chat', {
+  const response = await apiFetch('/api/pet-chat', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ messages, model, max_tokens, temperature }),

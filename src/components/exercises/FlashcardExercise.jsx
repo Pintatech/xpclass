@@ -23,6 +23,7 @@ import { usePermissions } from '../../hooks/usePermissions'
 import TeacherExerciseNav from '../ui/TeacherExerciseNav'
 
 import { assetUrl } from '../../hooks/useBranding';
+import { apiFetch } from '../../utils/apiFetch'
 // Theme-based side decoration images for PC
 const themeSideImages = {
   blue: {
@@ -797,7 +798,7 @@ const FlashcardExercise = () => {
 
           try {
             console.log("🎤 Sending audio to AssemblyAI...", { blobSize: audioBlob.size, blobType: audioBlob.type });
-            const res = await fetch("/api/transcribe", {
+            const res = await apiFetch("/api/transcribe", {
               method: "POST",
               body: audioBlob,
             });

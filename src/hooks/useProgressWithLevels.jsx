@@ -116,27 +116,20 @@ export const ProgressProvider = ({ children }) => {
       const levelInfo = await calculateUserLevelFromXP(newXP)
       const newLevel = levelInfo?.level_number || 1
 
-      // Try update xp + level; if 'level' column is missing, retry with only xp
-      let { error } = await supabase
-        .from('users')
-        .update({
-          xp: newXP,
-          level: newLevel,
-          updated_at: new Date().toISOString()
-        })
-        .eq('id', user.id)
+      // Add the XP on the server: the database refuses XP written straight from the browser
+      // (migrations/lock_direct_currency_writes.sql). Then store the table-based level.
+      const { error } = await supabase.rpc('increment_user_currency', {
+        p_user_id: user.id,
+        p_xp: xpAmount,
+        p_gems: 0
+      })
+      if (error) throw error
 
-      if (error) {
-        console.warn('Primary users update failed, retrying without level:', error?.message)
-        const retry = await supabase
-          .from('users')
-          .update({
-            xp: newXP,
-            updated_at: new Date().toISOString()
-          })
-          .eq('id', user.id)
-        if (retry.error) throw retry.error
-      }
+      const { error: levelError } = await supabase
+        .from('users')
+        .update({ level: newLevel, updated_at: new Date().toISOString() })
+        .eq('id', user.id)
+      if (levelError) console.warn('Could not store the level:', levelError?.message)
 
       // Refresh profile
       await fetchUserProfile(user.id)

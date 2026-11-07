@@ -221,21 +221,14 @@ export const useAchievements = () => {
 
         if (insertError) throw insertError
 
-        // Award XP + gems to user profile
+        // Award XP + gems on the server: the database refuses XP/gems written straight from the browser
+        // (migrations/lock_direct_currency_writes.sql), and the call is logged in currency_ledger.
         if (xpReward > 0 || gemReward > 0) {
-          const { data: userData } = await supabase
-            .from('users')
-            .select('xp, gems')
-            .eq('id', user.id)
-            .single()
-
-          const { error: updateError } = await supabase
-            .from('users')
-            .update({
-              xp: (userData?.xp || 0) + xpReward,
-              gems: (userData?.gems || 0) + gemReward
-            })
-            .eq('id', user.id)
+          const { error: updateError } = await supabase.rpc('increment_user_currency', {
+            p_user_id: user.id,
+            p_xp: xpReward,
+            p_gems: gemReward
+          })
 
           if (updateError) throw updateError
         }

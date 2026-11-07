@@ -1006,25 +1006,17 @@ const ExerciseList = () => {
 
       if (claimError) throw claimError;
 
-      // Update user's totals (only the awarded currency)
-      const { data: currentUser, error: fetchError } = await supabase
-        .from("users")
-        .select("xp, gems")
-        .eq("id", user.id)
-        .single();
+      // Add the reward on the server: the database refuses XP/gems written straight from the browser
+      // (migrations/lock_direct_currency_writes.sql), and the call is logged in currency_ledger.
+      if (xp > 0 || gems > 0) {
+        const { error: updateError } = await supabase.rpc("increment_user_currency", {
+          p_user_id: user.id,
+          p_xp: xp > 0 ? xp : 0,
+          p_gems: gems > 0 ? gems : 0,
+        });
 
-      if (fetchError) throw fetchError;
-
-      const updateData = { updated_at: new Date().toISOString() };
-      if (xp > 0) updateData.xp = (currentUser?.xp || 0) + xp;
-      if (gems > 0) updateData.gems = (currentUser?.gems || 0) + gems;
-
-      const { error: updateError } = await supabase
-        .from("users")
-        .update(updateData)
-        .eq("id", user.id);
-
-      if (updateError) throw updateError;
+        if (updateError) throw updateError;
+      }
 
       // Reward is now shown until user clicks OK
     } catch (err) {

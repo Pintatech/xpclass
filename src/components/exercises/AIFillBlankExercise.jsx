@@ -16,6 +16,7 @@ import TeacherExerciseNav from '../ui/TeacherExerciseNav'
 import QuestionReportButton from '../reports/QuestionReportButton'
 
 import { assetUrl } from '../../hooks/useBranding';
+import { apiFetch } from '../../utils/apiFetch'
 // Theme-based side decoration images for PC
 const themeSideImages = {
   blue: {
@@ -186,7 +187,7 @@ const AIFillBlankExercise = ({ testMode = false, exerciseData = null, onAnswersC
     const controller = new AbortController()
     const timeout = setTimeout(() => controller.abort(), 8000)
     try {
-      const response = await fetch('/api/ai-score', {
+      const response = await apiFetch('/api/ai-score', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ question, userAnswer, expectedAnswers, context: 'educational assessment', language }),

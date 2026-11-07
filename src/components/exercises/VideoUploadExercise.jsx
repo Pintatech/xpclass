@@ -12,6 +12,7 @@ import { assetUrl } from '../../hooks/useBranding'
 import TeacherExerciseNav from '../ui/TeacherExerciseNav'
 import { LEVELS, scoreSpeechWithLLM } from './SpeakingAssessmentExercise'
 import FaceFilterRecorder from './FaceFilterRecorder'
+import { apiFetch } from '../../utils/apiFetch'
 
 const themeSideImages = {
   blue: { left: assetUrl('/image/theme_question/ice_left.png'), right: assetUrl('/image/theme_question/ice_right.png') },
@@ -321,7 +322,7 @@ const VideoUploadExercise = ({ exerciseType = 'video_upload' }) => {
       // Phase 2: Transcribe via AssemblyAI
       setUploadPhase('transcribing')
 
-      const transcribeRes = await fetch('/api/transcribe-video', {
+      const transcribeRes = await apiFetch('/api/transcribe-video', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ url: publicUrl }),
