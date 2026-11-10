@@ -1,5 +1,7 @@
 const TESTS = ['Unit Test', 'Pre Test', 'Midterm Test', 'Final Test'];
 const units = (n) => Array.from({ length: n + 1 }, (_, i) => `U${i}`).concat(TESTS);
+// OW levels: U1–U9 only (no U0, no tests)
+const owUnits = () => Array.from({ length: 9 }, (_, i) => `U${i + 1}`);
 
 const LEVEL_UNITS = {
   'F-0': units(10),
@@ -11,6 +13,9 @@ const LEVEL_UNITS = {
   'Time-0': units(6),
   'Time-1': units(12),
   'Time-2': units(12),
+  'OW1': owUnits(),
+  'OW2': owUnits(),
+  'OW3': owUnits(),
 };
 
 const LEVELS = Object.keys(LEVEL_UNITS);
