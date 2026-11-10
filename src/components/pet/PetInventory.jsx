@@ -1,855 +1,722 @@
-import React, { useState, useRef, useCallback, useEffect } from 'react'
-import { useNavigate } from 'react-router-dom'
-import { assetUrl } from '../../hooks/useBranding'
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import { createPortal } from 'react-dom'
+import { useLocation, useNavigate } from 'react-router-dom'
+import {
+  AlertTriangle,
+  Backpack,
+  CheckCircle2,
+  Hand,
+  Home,
+  MousePointerClick,
+  PackagePlus,
+  ShoppingBag,
+  Undo2,
+  X,
+} from 'lucide-react'
 import { usePet } from '../../hooks/usePet'
 import { useAuth } from '../../hooks/useAuth'
-import { supabase } from '../../supabase/client'
-import { Star, Check, Heart, Calendar, ShoppingBag, Book, X, Pencil, ChevronLeft, ChevronRight, Move, Image } from 'lucide-react'
+import HabitatWorld from './home/HabitatWorld'
+import PetBag from './home/PetBag'
+import HomeTopBar from './home/HomeTopBar'
+import PetDetailSheet from './home/PetDetailSheet'
+import PetDexModal from './home/PetDexModal'
+import BackgroundPicker from './home/BackgroundPicker'
+import PetImage from './home/PetImage'
+import { useHabitatLayout } from './home/useHabitatLayout'
+import { usePetDrag } from './home/usePetDrag'
+import {
+  BOUNDS,
+  LIGHTING_MODES,
+  arrangeRows,
+  arrangeScatter,
+  clamp,
+  clampToBounds,
+  defaultBackground,
+  depthScale,
+  findFreeSpot,
+  petImage,
+  petName,
+  readPref,
+  sortPets,
+  spriteSize,
+  timeOfDay,
+  writePref,
+} from './home/petHomeUtils'
+import './home/PetHome.css'
 
-const rarityGlow = {
-  common: 'rgba(156,163,175,0.4)',
-  uncommon: 'rgba(74,222,128,0.4)',
-  rare: 'rgba(96,165,250,0.4)',
-  epic: 'rgba(192,132,252,0.4)',
-  legendary: 'rgba(250,204,21,0.5)',
+const useMediaQuery = (query) => {
+  const read = () => typeof window !== 'undefined' && !!window.matchMedia?.(query).matches
+  const [matches, setMatches] = useState(read)
+  useEffect(() => {
+    const mq = window.matchMedia?.(query)
+    if (!mq) return undefined
+    const onChange = () => setMatches(mq.matches)
+    onChange()
+    if (mq.addEventListener) mq.addEventListener('change', onChange)
+    else mq.addListener(onChange)
+    return () => {
+      if (mq.removeEventListener) mq.removeEventListener('change', onChange)
+      else mq.removeListener(onChange)
+    }
+  }, [query])
+  return matches
 }
 
-const rarityBorder = {
-  common: 'border-gray-400',
-  uncommon: 'border-green-400',
-  rare: 'border-blue-400',
-  epic: 'border-purple-400',
-  legendary: 'border-yellow-400',
-}
+const LIGHT_TOAST = { auto: 'Light follows the clock', day: 'Always daytime', night: 'Always night-time' }
 
-const rarityBadge = {
-  common: 'text-gray-700 bg-gray-200',
-  uncommon: 'text-green-700 bg-green-200 border border-green-300',
-  rare: 'text-blue-700 bg-blue-200 border border-blue-300',
-  epic: 'text-purple-700 bg-purple-200 border border-purple-300',
-  legendary: 'text-yellow-800 bg-gradient-to-r from-yellow-200 to-amber-200 border border-yellow-400 shadow-sm shadow-yellow-300',
-}
+// How far around the PC bag button (list hidden) a dropped pet still goes into the bag, in px.
+const FLOAT_BAG_REACH = 22
 
-const rarityStars = {
-  common: '★',
-  uncommon: '★★',
-  rare: '★★★',
-  epic: '★★★★',
-  legendary: '★★★★★',
-}
+let toastSeq = 0
 
-const rarityRing = {
-  common: 'ring-gray-400',
-  uncommon: 'ring-green-400',
-  rare: 'ring-blue-400',
-  epic: 'ring-purple-400',
-  legendary: 'ring-yellow-400',
-}
-
+/**
+ * Pet Home (/pets): the pets you put out live in a scene you can rearrange by hand; the rest wait in the bag.
+ *
+ * - Drag a pet to move it, drop it on the bag to put it away; tap a pet in the bag (or drag it out) to bring it home.
+ * - Changes save by themselves (only the pets that changed) and can be undone.
+ * - The scene is one fixed 16:9 world, so a home looks the same on a phone and on a PC.
+ */
 const PetInventory = () => {
-  const { userPets, allPets, setActivePetById, renamePet, saveHabitatLayout } = usePet()
+  const { userPets, allPets, activePet, loading, setActivePetById, renamePet, savePetPlacements } = usePet()
   const { user, profile, updateProfile } = useAuth()
   const navigate = useNavigate()
-  const [selectedPet, setSelectedPet] = useState(null)
-  const [message, setMessage] = useState(null)
-  const [showPetDex, setShowPetDex] = useState(false)
-  const [isRenaming, setIsRenaming] = useState(false)
-  const [nicknameInput, setNicknameInput] = useState('')
-  const [showTray, setShowTray] = useState(false)
-  const [saving, setSaving] = useState(false)
-  const [showBgPicker, setShowBgPicker] = useState(false)
-  const [ownedBackgrounds, setOwnedBackgrounds] = useState([])
-  const [equippingBg, setEquippingBg] = useState(false)
+  const location = useLocation()
+  const isDesktop = useMediaQuery('(min-width: 1024px)')
 
-  // Local layout state — {[userPetId]: {x, y}} — init from DB
-  const [layout, setLayout] = useState({})
-  const [layoutDirty, setLayoutDirty] = useState(false)
+  // A pet whose species row is missing would break every picture and name; leave it out.
+  const pets = useMemo(() => (userPets || []).filter((up) => up.pet), [userPets])
+  const petsById = useMemo(() => new Map(pets.map((p) => [p.id, p])), [pets])
+  // The companion is the pet the dashboard shows (get_active_pet), not just any row flagged active.
+  const companionId = (activePet?.id && petsById.has(activePet.id) ? activePet.id : null) ?? pets.find((p) => p.is_active)?.id ?? null
 
-  // Sync from DB on load / when userPets change
+  const { layout, apply, undo, redo, canUndo, canRedo, status, retry } = useHabitatLayout({
+    userPets: pets,
+    savePlacements: savePetPlacements,
+  })
+  const layoutRef = useRef(layout)
+  layoutRef.current = layout
+
+  const worldApi = useRef(null)
+  const bagElRef = useRef(null)
+  const floatBagRef = useRef(null)
+  const setBagEl = useCallback((el) => {
+    bagElRef.current = el
+  }, [])
+  const quietExit = useRef(new Set())
+
+  const [selectedId, setSelectedId] = useState(null)
+  const [detail, setDetail] = useState(null) // { id, order: [ids] }
+  const [dexOpen, setDexOpen] = useState(false)
+  const [bgOpen, setBgOpen] = useState(false)
+  const [bgPreview, setBgPreview] = useState(undefined) // undefined = no preview, null = default meadow
+  const [sheetOpen, setSheetOpen] = useState(false)
+  const [panelOpen, setPanelOpen] = useState(() => readPref('panelOpen', typeof window !== 'undefined' && window.innerWidth >= 1280))
+  const [lighting, setLighting] = useState(() => {
+    const v = readPref('lighting', 'auto')
+    return LIGHTING_MODES.includes(v) ? v : 'auto'
+  })
+  const [clock, setClock] = useState(() => Date.now())
+  const [reaction, setReaction] = useState(null)
+  const [bump, setBump] = useState(0)
+  const [toasts, setToasts] = useState([])
+  const [showTips, setShowTips] = useState(() => !readPref('tipsSeen', false))
+
+  const homeCount = useMemo(() => pets.filter((p) => layout[p.id]).length, [pets, layout])
+  const storedCount = pets.length - homeCount
+
+  // Saved only when the user opens or closes the list, so a phone visit does not close it on the PC.
+  const togglePanel = useCallback((open) => {
+    setPanelOpen(open)
+    writePref('panelOpen', open)
+  }, [])
   useEffect(() => {
-    const dbLayout = {}
-    userPets.forEach(up => {
-      if (up.habitat_x != null && up.habitat_y != null) {
-        dbLayout[up.id] = { x: up.habitat_x, y: up.habitat_y, flip: up.habitat_flip || false }
+    const t = setInterval(() => setClock(Date.now()), 60 * 1000)
+    return () => clearInterval(t)
+  }, [])
+  const tod = timeOfDay(lighting, new Date(clock))
+
+  // ---- Toasts ----
+  const dismissToast = useCallback((id) => setToasts((t) => t.filter((x) => x.id !== id)), [])
+  const toast = useCallback(
+    (text, { type = 'success', action = null } = {}) => {
+      toastSeq += 1
+      const id = toastSeq
+      setToasts((t) => [...t.slice(-2), { id, text, type, action }])
+      setTimeout(() => dismissToast(id), action ? 5000 : 2600)
+    },
+    [dismissToast]
+  )
+  const undoAction = useMemo(() => ({ label: 'Undo', run: undo }), [undo])
+
+  // ---- Pet actions ----
+  const reveal = useCallback((id, opts) => {
+    const p = layoutRef.current[id]
+    if (p) worldApi.current?.reveal(p.x, p.y, opts)
+  }, [])
+
+  const selectPet = useCallback(
+    (id) => {
+      setSelectedId(id)
+      setReaction({ id, kind: 'love', n: Date.now() })
+      reveal(id, { onlyIfNeeded: true })
+    },
+    [reveal]
+  )
+
+  const placePets = useCallback(
+    (ids) => {
+      const want = ids.filter((id) => petsById.has(id) && !layoutRef.current[id])
+      if (!want.length) return
+      // One or two pets land where you are looking; a whole bag spreads over the floor.
+      const view = want.length <= 2 ? worldApi.current?.view() : null
+      apply((prev) => {
+        const next = { ...prev }
+        for (const id of want) {
+          if (!next[id]) next[id] = { ...findFreeSpot(next, { view }), flip: Math.random() < 0.5 }
+        }
+        return next
+      })
+      if (want.length === 1) {
+        requestAnimationFrame(() => reveal(want[0], { onlyIfNeeded: true }))
+        if (sheetOpen) toast(`${petName(petsById.get(want[0]))} came home`)
+      } else {
+        toast(`${want.length} pets came home`, { action: undoAction })
       }
-    })
-    setLayout(dbLayout)
-    setLayoutDirty(false)
-  }, [userPets])
+    },
+    [apply, petsById, reveal, sheetOpen, toast, undoAction]
+  )
 
-  // Fetch owned backgrounds
+  const storePets = useCallback(
+    (ids, { quiet = false } = {}) => {
+      const want = ids.filter((id) => layoutRef.current[id])
+      if (!want.length) return
+      if (quiet) {
+        // Dragged into the bag: no "poof" where it used to stand.
+        want.forEach((id) => quietExit.current.add(id))
+        setTimeout(() => want.forEach((id) => quietExit.current.delete(id)), 1000)
+      }
+      apply((prev) => {
+        const next = { ...prev }
+        want.forEach((id) => delete next[id])
+        return next
+      })
+      setBump((b) => b + 1)
+      setSelectedId((cur) => (cur && want.includes(cur) ? null : cur))
+      if (want.length > 1) toast(`${want.length} pets went into the bag`, { action: undoAction })
+    },
+    [apply, toast, undoAction]
+  )
+
+  const flipPet = useCallback(
+    (id) => apply((prev) => (prev[id] ? { ...prev, [id]: { ...prev[id], flip: !prev[id].flip } } : prev)),
+    [apply]
+  )
+
+  const movePet = useCallback(
+    (id, x, y, opts) =>
+      apply((prev) => ({ ...prev, [id]: { ...clampToBounds(x, y), flip: prev[id] ? prev[id].flip : Math.random() < 0.5 } }), opts),
+    [apply]
+  )
+
+  const homePetIds = useCallback(
+    (order = 'rarity') =>
+      sortPets(
+        pets.filter((p) => layoutRef.current[p.id]),
+        order,
+        companionId
+      ).map((p) => p.id),
+    [pets, companionId]
+  )
+
+  const tidyUp = useCallback(() => {
+    const ids = homePetIds('rarity')
+    if (ids.length < 2) return
+    const flips = Object.fromEntries(ids.map((id) => [id, layoutRef.current[id].flip]))
+    if (apply((prev) => ({ ...prev, ...arrangeRows(ids, flips) }))) toast('All tidy!', { action: undoAction })
+  }, [homePetIds, apply, toast, undoAction])
+
+  const shuffle = useCallback(() => {
+    const ids = homePetIds('newest')
+    if (ids.length < 2) return
+    if (apply((prev) => ({ ...prev, ...arrangeScatter(ids) }))) toast('Shuffled!', { action: undoAction })
+  }, [homePetIds, apply, toast, undoAction])
+
+  const makeCompanion = useCallback(
+    async (id) => {
+      const res = await setActivePetById(id)
+      if (res?.success) {
+        toast(`${petName(petsById.get(id))} is now your companion!`)
+        if (layoutRef.current[id]) setReaction({ id, kind: 'love', n: Date.now() })
+      } else {
+        toast(res?.error || 'Could not change your companion', { type: 'error' })
+      }
+    },
+    [setActivePetById, petsById, toast]
+  )
+
+  const rename = useCallback(
+    async (id, name) => {
+      await renamePet(name, id)
+      toast('Name saved')
+    },
+    [renamePet, toast]
+  )
+
+  const openDetails = useCallback(
+    (id) => {
+      const order = sortPets(pets, readPref('bagSort', 'newest'), companionId).map((p) => p.id)
+      setDetail({ id, order })
+    },
+    [pets, companionId]
+  )
+
+  const locatePet = useCallback(
+    (id) => {
+      setDetail(null)
+      setSheetOpen(false)
+      setSelectedId(id)
+      setReaction({ id, kind: 'love', n: Date.now() })
+      requestAnimationFrame(() => reveal(id, { smooth: true }))
+    },
+    [reveal]
+  )
+
+  // ---- Drag and drop ----
+  const drag = usePetDrag({
+    getZones: () => {
+      const bags = []
+      if (bagElRef.current) bags.push(bagElRef.current.getBoundingClientRect())
+      if (floatBagRef.current) {
+        // The button is small, so a drop near it counts too (the dashed ring shows how near).
+        const r = floatBagRef.current.getBoundingClientRect()
+        const m = FLOAT_BAG_REACH
+        bags.push({ left: r.left - m, top: r.top - m, right: r.right + m, bottom: r.bottom + m })
+      }
+      return {
+        stage: worldApi.current?.stageRect(),
+        bags,
+        bagEdge: isDesktop ? (panelOpen ? 'right' : null) : 'bottom',
+      }
+    },
+    onDragStart: (p) => {
+      const up = petsById.get(p.id)
+      const s = worldApi.current?.scale() || 0
+      if (!up || !s) return null
+      if (p.source === 'world') {
+        const pos = layoutRef.current[p.id]
+        const r = pos && worldApi.current.petElement(p.id)?.getBoundingClientRect()
+        if (!r) return null
+        setSelectedId((cur) => (cur === p.id ? cur : null))
+        return {
+          size: r.width,
+          grabX: p.startX - (r.left + r.width / 2),
+          grabY: p.startY - (r.top + r.height / 2),
+          lift: 0,
+          baseY: pos.y,
+          image: petImage(up),
+          flip: pos.flip,
+        }
+      }
+      if (layoutRef.current[p.id]) return null
+      const size = spriteSize(up) * s * depthScale(75)
+      // On touch the pet floats above the finger so it stays visible.
+      return { size, grabX: 0, grabY: 0, lift: p.pointerType === 'mouse' ? 0 : size * 0.55, baseY: 75, image: petImage(up), flip: false }
+    },
+    ghostScale: (cx, cy, over, p) => {
+      if (over === 'bag') return 0.55
+      if (over !== 'world') return 0.85
+      const pt = worldApi.current?.clientToWorld(cx, cy)
+      return pt ? depthScale(clamp(pt.y, BOUNDS.y0, BOUNDS.y1)) / depthScale(p?.baseY ?? 75) : 1
+    },
+    autoScroll: (dx, dy) => worldApi.current?.scrollBy(dx, dy),
+    onTap: ({ id, source }) => {
+      if (source === 'world') selectPet(id)
+    },
+    onDrop: ({ id, source, zone, x, y }) => {
+      if (zone === 'bag') {
+        if (source === 'world') storePets([id], { quiet: true })
+        return
+      }
+      if (zone !== 'world') return
+      const pt = worldApi.current?.clientToWorld(x, y)
+      if (!pt) return
+      movePet(id, pt.x, pt.y)
+      if (source === 'world') setReaction({ id, kind: 'land', n: Date.now() })
+    },
+  })
+  const { startPress } = drag
+  const worldDrag = drag.drag?.source === 'world'
+
+  const onPetPress = useCallback((e, id) => startPress(e, { id, source: 'world' }), [startPress])
+  const onBackgroundTap = useCallback(() => setSelectedId(null), [])
+
+  // Pets keep the same keydown function (they are memoized); it reads the latest state from a ref.
+  const petKeyRef = useRef(null)
+  petKeyRef.current = (e, id) => {
+    if (e.key === 'Enter' || e.key === ' ') {
+      e.preventDefault()
+      if (selectedId === id) openDetails(id)
+      else selectPet(id)
+    }
+  }
+  const onPetKeyDown = useCallback((e, id) => petKeyRef.current(e, id), [])
+
+  // ---- Keyboard: undo/redo, and moving the selected pet ----
   useEffect(() => {
-    if (!user) return
-    const fetchBgs = async () => {
-      const { data: purchases } = await supabase
-        .from('user_purchases')
-        .select('item_id')
-        .eq('user_id', user.id)
-      if (!purchases) return
-      const purchasedIds = purchases.map(p => p.item_id)
-      if (purchasedIds.length === 0) return
-      const { data: bgItems } = await supabase
-        .from('shop_items')
-        .select('*')
-        .eq('category', 'background')
-        .eq('is_active', true)
-        .in('id', purchasedIds)
-      setOwnedBackgrounds(bgItems || [])
+    const onKey = (e) => {
+      if (e.defaultPrevented || detail || dexOpen || bgOpen) return
+      if (e.target?.closest?.('input, textarea, select, [contenteditable="true"]')) return
+      const mod = e.ctrlKey || e.metaKey
+      const key = e.key.toLowerCase()
+      if (mod && key === 'z') {
+        e.preventDefault()
+        if (e.shiftKey) redo()
+        else undo()
+        return
+      }
+      if (mod && key === 'y') {
+        e.preventDefault()
+        redo()
+        return
+      }
+      if (mod || !selectedId || !layoutRef.current[selectedId]) return
+      const step = e.shiftKey ? 5 : 1
+      const nudge = (dx, dy) => {
+        e.preventDefault()
+        const p = layoutRef.current[selectedId]
+        movePet(selectedId, p.x + dx, p.y + dy, { coalesce: `nudge:${selectedId}` })
+      }
+      if (e.key === 'ArrowLeft') nudge(-step, 0)
+      else if (e.key === 'ArrowRight') nudge(step, 0)
+      else if (e.key === 'ArrowUp') nudge(0, -step)
+      else if (e.key === 'ArrowDown') nudge(0, step)
+      else if (key === 'f') flipPet(selectedId)
+      else if (key === 'i') openDetails(selectedId)
+      else if (e.key === 'Delete' || e.key === 'Backspace') {
+        e.preventDefault()
+        storePets([selectedId])
+      } else if (e.key === 'Escape') setSelectedId(null)
     }
-    fetchBgs()
-  }, [user])
+    window.addEventListener('keydown', onKey)
+    return () => window.removeEventListener('keydown', onKey)
+  }, [detail, dexOpen, bgOpen, selectedId, undo, redo, movePet, flipPet, openDetails, storePets])
 
-  const handleEquipBg = async (bgItem) => {
-    setEquippingBg(true)
-    try {
-      const bgUrl = bgItem ? (bgItem.item_data?.background_url || bgItem.image_url) : null
-      await updateProfile({ active_background_url: bgUrl })
-      setMessage({ type: 'success', text: bgItem ? 'Background equipped!' : 'Background removed!' })
-    } catch {
-      setMessage({ type: 'error', text: 'Failed to change background' })
-    }
-    setEquippingBg(false)
-    setTimeout(() => setMessage(null), 3000)
+  // ---- Background ----
+  const savedBg = profile?.active_background_url || null
+  const background = (bgPreview !== undefined ? bgPreview : savedBg) || defaultBackground()
+  const applyBackground = useCallback(
+    async (url) => {
+      const res = await updateProfile({ active_background_url: url })
+      // updateProfile reports a failed equipment write only by leaving the field out, so compare the result.
+      const ok = !res?.error && (res?.data?.active_background_url ?? null) === (url ?? null)
+      if (ok) toast(url ? 'New background on!' : 'Back to the meadow')
+      else toast('Could not change the background', { type: 'error' })
+      return ok
+    },
+    [updateProfile, toast]
+  )
+  const closeBackground = useCallback(() => {
+    setBgOpen(false)
+    setBgPreview(undefined)
+  }, [])
+
+  const cycleLighting = () => {
+    const next = LIGHTING_MODES[(LIGHTING_MODES.indexOf(lighting) + 1) % LIGHTING_MODES.length]
+    setLighting(next)
+    writePref('lighting', next)
+    toast(LIGHT_TOAST[next])
   }
 
-  const activeBackgroundUrl = profile?.active_background_url || null
+  const goBack = () => (location.key && location.key !== 'default' ? navigate(-1) : navigate('/'))
 
-  // Drag state for placing pets
-  const [draggingPet, setDraggingPet] = useState(null)
-  const [dragPos, setDragPos] = useState({ x: 0, y: 0 })
-  const habitatRef = useRef(null)
-  const dragStartPos = useRef(null)
-  const didDrag = useRef(false)
-
-  const ownedPetIds = userPets.map(up => up.pet?.id).filter(Boolean)
-
-  const placedPets = userPets.filter(up => layout[up.id])
-
-  const handleSetActive = async (petId) => {
-    const result = await setActivePetById(petId)
-    if (result.success) {
-      setMessage({ type: 'success', text: 'Pet activated!' })
-      setSelectedPet(null)
-      setTimeout(() => setMessage(null), 3000)
-    } else {
-      setMessage({ type: 'error', text: result.error || 'Failed to set active pet' })
-      setTimeout(() => setMessage(null), 3000)
-    }
+  const dismissTips = () => {
+    setShowTips(false)
+    writePref('tipsSeen', true)
   }
 
-  const handleSaveLayout = async () => {
-    setSaving(true)
-    const result = await saveHabitatLayout(layout)
-    setSaving(false)
-    if (result?.success) {
-      setLayoutDirty(false)
-      setMessage({ type: 'success', text: 'Layout saved!' })
-    } else {
-      setMessage({ type: 'error', text: 'Failed to save layout' })
-    }
-    setTimeout(() => setMessage(null), 3000)
+  const detailPet = detail ? petsById.get(detail.id) : null
+  const detailList = detail ? detail.order.map((id) => petsById.get(id)).filter(Boolean) : []
+
+  const worldActions = {
+    onInfo: openDetails,
+    onFlip: flipPet,
+    onStore: (id) => storePets([id]),
+    onCompanion: makeCompanion,
   }
 
-  const getPetImage = (userPet) => {
-    const pet = userPet.pet
-    if (userPet.evolution_stage > 0 && pet.evolution_stages) {
-      const stage = pet.evolution_stages.find(s => s.stage === userPet.evolution_stage)
-      if (stage?.image_url) return stage.image_url
-    }
-    return pet.image_url
-  }
-
-  const isEvolved = (userPet) => userPet.evolution_stage > 0
-
-  // Pets in tray (not placed yet)
-  const trayPets = userPets.filter(up => !layout[up.id])
-
-  // Handle drag start from tray or from habitat
-  const getPointerPos = (e) => {
-    if (e.touches?.length > 0) return { x: e.touches[0].clientX, y: e.touches[0].clientY }
-    return { x: e.clientX, y: e.clientY }
-  }
-
-  const handlePetDragStart = useCallback((e, userPet, fromHabitat = false) => {
-    if (!showTray) return
-    e.preventDefault()
-    e.stopPropagation()
-    const pos = getPointerPos(e)
-    dragStartPos.current = pos
-    didDrag.current = false
-    setDraggingPet({ ...userPet, fromHabitat })
-    setDragPos(pos)
-  }, [showTray])
-
-  const handlePetDragMove = useCallback((e) => {
-    if (!draggingPet) return
-    e.preventDefault()
-    const pos = getPointerPos(e)
-    if (dragStartPos.current) {
-      const dx = pos.x - dragStartPos.current.x
-      const dy = pos.y - dragStartPos.current.y
-      if (dx * dx + dy * dy > 64) didDrag.current = true
-    }
-    setDragPos(pos)
-  }, [draggingPet])
-
-  const handlePetDragEnd = useCallback((e) => {
-    if (!draggingPet) return
-    e.preventDefault()
-
-    const habitat = habitatRef.current
-    if (!habitat) { setDraggingPet(null); return }
-
-    const rect = habitat.getBoundingClientRect()
-    const x = ((dragPos.x - rect.left) / rect.width) * 100
-    const y = ((dragPos.y - rect.top) / rect.height) * 100
-
-    // Only place if within habitat bounds
-    if (x >= 0 && x <= 100 && y >= 5 && y <= 95) {
-      setLayout(prev => ({ ...prev, [draggingPet.id]: { ...prev[draggingPet.id], x: Math.max(5, Math.min(95, x)), y: Math.max(10, Math.min(90, y)) } }))
-      setLayoutDirty(true)
-    } else if (draggingPet.fromHabitat) {
-      // Dragged out of habitat — remove
-      setLayout(prev => { const next = { ...prev }; delete next[draggingPet.id]; return next })
-      setLayoutDirty(true)
-    }
-
-    setDraggingPet(null)
-  }, [draggingPet, dragPos])
-
-  useEffect(() => {
-    if (!draggingPet) return
-    const onMove = (e) => handlePetDragMove(e)
-    const onEnd = (e) => handlePetDragEnd(e)
-    window.addEventListener('mousemove', onMove, { passive: false })
-    window.addEventListener('mouseup', onEnd)
-    window.addEventListener('touchmove', onMove, { passive: false })
-    window.addEventListener('touchend', onEnd)
-    return () => {
-      window.removeEventListener('mousemove', onMove)
-      window.removeEventListener('mouseup', onEnd)
-      window.removeEventListener('touchmove', onMove)
-      window.removeEventListener('touchend', onEnd)
-    }
-  }, [draggingPet, handlePetDragMove, handlePetDragEnd])
+  const tips = isDesktop
+    ? [
+        { icon: PackagePlus, text: 'Drag a pet from My Pets into your home, or click its + button.' },
+        { icon: Hand, text: 'Drag pets around. Drop one on My Pets to put it away.' },
+        { icon: MousePointerClick, text: 'Click a pet for info and more. Ctrl+Z undoes.' },
+      ]
+    : [
+        { icon: PackagePlus, text: 'Tap a pet in your bag to bring it home, or drag it up.' },
+        { icon: Hand, text: 'Drag pets to move them. Drop one on the bag to put it away.' },
+        { icon: MousePointerClick, text: 'Tap a pet for info, turning around and more.' },
+      ]
 
   return (
-    <div className="min-h-screen relative overflow-hidden select-none" style={{ touchAction: 'none' }}>
-      {/* Background layers: mobile vs desktop defaults */}
-      {activeBackgroundUrl ? (
-        <div className="absolute inset-0 bg-cover bg-center" style={{ backgroundImage: `url(${activeBackgroundUrl})` }} />
-      ) : (
-        <>
-          <div className="absolute inset-0 bg-cover bg-center lg:hidden" style={{ backgroundImage: "url('https://imgcdn.stablediffusionweb.com/2025/2/6/3c42fbef-5900-4c3c-acb9-da0480c4b238.jpg')" }} />
-          <div className="absolute inset-0 bg-cover bg-center hidden lg:block" style={{ backgroundImage: `url(${assetUrl('/pet-habitat/pet-home.jpg')})` }} />
-        </>
-      )}
+    <div className="ph-root ph-noselect relative flex flex-col overflow-hidden bg-slate-900 lg:flex-row">
+      <HabitatWorld
+        ref={worldApi}
+        pets={pets}
+        layout={layout}
+        background={background}
+        companionId={companionId}
+        selectedId={selectedId}
+        draggingId={worldDrag ? drag.drag.id : null}
+        tod={tod}
+        reaction={reaction}
+        quietExitIds={quietExit.current}
+        onPetPress={onPetPress}
+        onPetKeyDown={onPetKeyDown}
+        onBackgroundTap={onBackgroundTap}
+        actions={worldActions}
+        miniMapClass="top-[68px]"
+      >
+        <HomeTopBar
+          compact={!isDesktop}
+          title="Pet Home"
+          subtitle={`${pets.length} pet${pets.length === 1 ? '' : 's'} · ${homeCount} at home`}
+          status={status}
+          onRetry={retry}
+          canUndo={canUndo}
+          canRedo={canRedo}
+          onUndo={undo}
+          onRedo={redo}
+          lighting={lighting}
+          onLighting={cycleLighting}
+          onBack={goBack}
+          onBackground={() => setBgOpen(true)}
+          onDex={() => setDexOpen(true)}
+          onShop={() => navigate('/shop?tab=ball')}
+        />
 
-      {/* ---- Sky Background (only when no custom bg) ---- */}
-      {!activeBackgroundUrl && (
-        <div className="absolute inset-0 pointer-events-none overflow-hidden">
-          {/* Clouds */}
-          {[
-            { top: '6%', size: 1, speed: 35, delay: 0 },
-            { top: '14%', size: 0.7, speed: 45, delay: -12 },
-            { top: '22%', size: 1.2, speed: 38, delay: -20 },
-            { top: '10%', size: 0.6, speed: 50, delay: -30 },
-            { top: '28%', size: 0.9, speed: 42, delay: -6 },
-          ].map((c, i) => (
-            <div
-              key={i}
-              className="absolute"
-              style={{
-                top: c.top,
-                left: '-15%',
-                transform: `scale(${c.size})`,
-                animation: `cloudDrift ${c.speed}s linear infinite`,
-                animationDelay: `${c.delay}s`,
-                opacity: 0.85 - c.size * 0.15,
-              }}
-            >
-              {/* Main body */}
-              <div className="relative" style={{ width: 140, height: 50 }}>
-                <div className="absolute rounded-full bg-white" style={{ width: 60, height: 40, bottom: 0, left: 10 }} />
-                <div className="absolute rounded-full bg-white" style={{ width: 80, height: 50, bottom: 0, left: 30 }} />
-                <div className="absolute rounded-full bg-white" style={{ width: 50, height: 35, bottom: 0, left: 85 }} />
-                {/* Top bumps */}
-                <div className="absolute rounded-full bg-white" style={{ width: 50, height: 40, bottom: 18, left: 25 }} />
-                <div className="absolute rounded-full bg-white" style={{ width: 60, height: 45, bottom: 15, left: 50 }} />
-                <div className="absolute rounded-full bg-white" style={{ width: 35, height: 28, bottom: 12, left: 80 }} />
-                {/* Soft shadow */}
-                <div className="absolute rounded-full bg-gray-200/40" style={{ width: 120, height: 15, bottom: -2, left: 10, filter: 'blur(4px)' }} />
+        {/* Empty home */}
+        {!loading && pets.length > 0 && homeCount === 0 && !drag.drag && (
+          <div className="pointer-events-none absolute inset-0 z-20 flex items-center justify-center p-6">
+            <div className="ph-modal-enter pointer-events-auto max-w-xs rounded-3xl bg-white/90 p-5 text-center shadow-2xl">
+              <div className="mx-auto mb-2 flex h-14 w-14 items-center justify-center rounded-2xl bg-emerald-100 text-emerald-600">
+                <Home className="h-7 w-7" />
               </div>
-            </div>
-          ))}
-          {/* Sun */}
-          <div className="absolute top-6 right-8 w-16 h-16 bg-yellow-300 rounded-full blur-sm opacity-80" />
-          <div className="absolute top-7 right-9 w-14 h-14 bg-yellow-200 rounded-full" />
-        </div>
-      )}
-
-      {/* ---- Ground (only when no custom bg) ---- */}
-      {!activeBackgroundUrl && (
-        <div className="absolute bottom-0 left-0 right-0 h-[35%] pointer-events-none">
-          <div className="absolute inset-0 bg-gradient-to-t from-green-600/40 via-green-500/20 to-transparent" />
-          {/* Grass tufts */}
-          {[...Array(12)].map((_, i) => (
-            <div
-              key={i}
-              className="absolute bottom-0"
-              style={{ left: `${i * 8.5}%` }}
-            >
-              <div className="w-8 h-6 bg-green-500/30 rounded-t-full" style={{ transform: 'scaleX(1.5)', animation: `grassSway ${2 + i * 0.2}s ease-in-out infinite alternate`, animationDelay: `${i * 0.15}s`, transformOrigin: 'bottom' }} />
-            </div>
-          ))}
-        </div>
-      )}
-
-      {/* ---- Habitat Area (droppable) ---- */}
-      <div ref={habitatRef} className="absolute inset-0">
-        {/* Placed pets */}
-        {placedPets.map((userPet, i) => {
-          const pos = layout[userPet.id]
-          const pet = userPet.pet
-          const rarity = pet.rarity || 'common'
-          const isActive = userPet.is_active
-          const isDraggingThis = draggingPet?.id === userPet.id
-
-          return (
-            <div
-              key={userPet.id}
-              className={`absolute group transition-transform ${isDraggingThis ? 'opacity-30 scale-75' : 'hover:scale-110'}`}
-              style={{
-                left: `${pos.x}%`,
-                top: `${pos.y}%`,
-                transform: 'translate(-50%, -50%)',
-                zIndex: isDraggingThis ? 0 : Math.round(pos.y),
-              }}
-            >
-              {/* Active indicator */}
-              {isActive && (
-                <div className="absolute -top-6 left-1/2 -translate-x-1/2 bg-green-500 text-white text-[9px] font-bold px-2 py-0.5 rounded-full whitespace-nowrap shadow-md">
-                  ACTIVE
-                </div>
-              )}
-
-              {/* Pet image */}
-              <div
-                className={showTray ? "cursor-grab active:cursor-grabbing" : "cursor-pointer"}
-                style={{ transform: pos.flip ? 'scaleX(-1)' : undefined }}
-                onMouseDown={(e) => handlePetDragStart(e, userPet, true)}
-                onTouchStart={(e) => handlePetDragStart(e, userPet, true)}
-                onClick={(e) => { if (!showTray && !didDrag.current) { e.stopPropagation(); setSelectedPet(userPet); setIsRenaming(false) } }}
-              >
-                <img
-                  src={getPetImage(userPet)}
-                  alt={pet.name}
-                  className={`object-contain pointer-events-none select-none ${isEvolved(userPet) ? 'w-24 h-24 sm:w-28 sm:h-28' : 'w-16 h-16 sm:w-20 sm:h-20'}`}
-                  style={{
-                    filter: `drop-shadow(0 0 6px ${rarityGlow[rarity]})`,
-                    animation: `petBob ${2.2 + (i % 5) * 0.3}s ease-in-out infinite`,
-                    animationDelay: `${(i % 5) * -0.6}s`,
-                  }}
-                  draggable={false}
-                  onContextMenu={(e) => e.preventDefault()}
-                />
-              </div>
-
-
-              {/* Flip button on hover */}
-              {showTray && (
-                <button
-                  className="absolute -top-2 -left-2 w-5 h-5 bg-blue-500 text-white rounded-full text-[9px] lg:opacity-0 lg:group-hover:opacity-100 transition-opacity flex items-center justify-center shadow-md hover:bg-blue-600"
-                  onClick={(e) => { e.stopPropagation(); setLayout(prev => ({ ...prev, [userPet.id]: { ...prev[userPet.id], flip: !prev[userPet.id]?.flip } })); setLayoutDirty(true) }}
-                >
-                  ↔
-                </button>
-              )}
-
-              {/* Remove button on hover */}
-              {showTray && (
-                <button
-                  className="absolute -top-2 -right-2 w-5 h-5 bg-red-500 text-white rounded-full text-xs lg:opacity-0 lg:group-hover:opacity-100 transition-opacity flex items-center justify-center shadow-md hover:bg-red-600"
-                  onClick={(e) => { e.stopPropagation(); setLayout(prev => { const next = { ...prev }; delete next[userPet.id]; return next }); setLayoutDirty(true) }}
-                >
-                  <X className="w-3 h-3" />
-                </button>
-              )}
-            </div>
-          )
-        })}
-      </div>
-
-      {/* ---- Dragging Ghost ---- */}
-      {draggingPet && (
-        <div
-          className="fixed z-[100] pointer-events-none"
-          style={{ left: dragPos.x - 32, top: dragPos.y - 32 }}
-        >
-          <img
-            src={getPetImage(draggingPet)}
-            alt=""
-            className={`object-contain opacity-80 ${isEvolved(draggingPet) ? 'w-24 h-24' : 'w-16 h-16'}`}
-            style={{ filter: `drop-shadow(0 0 10px ${rarityGlow[draggingPet.pet?.rarity || 'common']})` }}
-          />
-        </div>
-      )}
-
-      {/* ---- Top Bar ---- */}
-      <div className="absolute top-0 left-0 right-0 z-30 p-3 flex justify-between items-start">
-        <div className="flex items-center gap-2">
-          <button
-            onClick={() => navigate(-1)}
-            className="bg-white/20 hover:bg-white/30 backdrop-blur-md text-white p-2 rounded-lg transition-all shadow-lg border border-white/20"
-          >
-            <ChevronLeft className="w-5 h-5" />
-          </button>
-          <div>
-            <h1 className="text-xl font-black text-white drop-shadow-lg">My Pets</h1>
-            <p className="text-xs text-white/70 drop-shadow">{userPets.length} pets collected</p>
-          </div>
-        </div>
-        <div className="flex gap-2">
-          <button
-            onClick={() => setShowBgPicker(true)}
-            className="bg-white/20 hover:bg-white/30 backdrop-blur-md text-white font-bold py-2 px-3 rounded-lg transition-all text-sm flex items-center gap-1.5 shadow-lg border border-white/20"
-          >
-            <Image className="w-4 h-4" />
-            BG
-          </button>
-          <button
-            onClick={() => setShowPetDex(true)}
-            className="bg-white/20 hover:bg-white/30 backdrop-blur-md text-white font-bold py-2 px-3 rounded-lg transition-all text-sm flex items-center gap-1.5 shadow-lg border border-white/20"
-          >
-            <Book className="w-4 h-4" />
-            Dex
-          </button>
-          <button
-            onClick={() => navigate('/shop?tab=ball')}
-            className="bg-white/20 hover:bg-white/30 backdrop-blur-md text-white font-bold py-2 px-3 rounded-lg transition-all text-sm flex items-center gap-1.5 shadow-lg border border-white/20"
-          >
-            <ShoppingBag className="w-4 h-4" />
-            Shop
-          </button>
-          {layoutDirty && (
-            <button
-              onClick={handleSaveLayout}
-              disabled={saving}
-              className="bg-green-500 hover:bg-green-600 disabled:opacity-50 text-white font-bold py-2 px-3 rounded-lg transition-all text-sm flex items-center gap-1.5 shadow-lg animate-pulse"
-            >
-              <Check className="w-4 h-4" />
-              {saving ? 'Saving...' : 'Save'}
-            </button>
-          )}
-        </div>
-      </div>
-
-      {/* ---- Message Toast ---- */}
-      {message && (
-        <div className={`absolute top-16 left-1/2 -translate-x-1/2 z-40 px-4 py-2 rounded-full text-sm font-bold shadow-lg ${
-          message.type === 'success' ? 'bg-green-500 text-white' : 'bg-red-500 text-white'
-        }`}>
-          {message.text}
-        </div>
-      )}
-
-      {/* ---- Pet Tray: right side on mobile, bottom on lg+ ---- */}
-      {/* Mobile: right side panel */}
-      <div className={`lg:hidden absolute top-12 right-0 bottom-16 z-30 transition-transform duration-300 ${showTray ? 'translate-x-0' : 'translate-x-full'}`}>
-        {/* Toggle handle */}
-        <button
-          onClick={() => setShowTray(!showTray)}
-          className="absolute left-0 top-4 -translate-x-full flex items-center gap-1 bg-white/90 backdrop-blur-md px-2 py-3 rounded-l-xl shadow-lg border border-r-0 border-gray-200 text-gray-600 text-[10px] font-bold hover:bg-white transition-colors"
-          style={{ writingMode: 'vertical-lr' }}
-        >
-          <Move className="w-3 h-3" />
-          {showTray ? 'Hide' : 'Place'} ({trayPets.length})
-        </button>
-
-        {/* Side tray content */}
-        <div className="h-full bg-white/90 backdrop-blur-md border-l border-gray-200 p-2 shadow-xl overflow-y-auto w-[72px]">
-          {userPets.length === 0 ? (
-            <div className="text-center py-4">
-              <span className="text-2xl mb-1 block">🐾</span>
-              <p className="text-gray-500 text-[8px]">No pets yet!</p>
-            </div>
-          ) : trayPets.length === 0 ? (
-            <p className="text-center text-gray-400 text-[8px] py-2">All placed!</p>
-          ) : (
-            <div className="flex flex-col gap-2">
-              {trayPets.map(userPet => {
-                const pet = userPet.pet
-                const rarity = pet.rarity || 'common'
-                return (
-                  <div
-                    key={userPet.id}
-                    className={`w-full flex flex-col items-center cursor-grab active:cursor-grabbing rounded-lg p-1.5 border-2 transition-all ${
-                      userPet.is_active ? `${rarityBorder[rarity]} ${rarityRing[rarity]} ring-2 bg-white` : 'border-gray-200 bg-white'
-                    }`}
-                    onMouseDown={(e) => handlePetDragStart(e, userPet)}
-                    onTouchStart={(e) => handlePetDragStart(e, userPet)}
-                    onClick={() => { if (!didDrag.current) { setSelectedPet(userPet); setIsRenaming(false) } }}
-                  >
-                    <img
-                      src={getPetImage(userPet)}
-                      alt={pet.name}
-                      className={`object-contain pointer-events-none select-none ${isEvolved(userPet) ? 'w-14 h-14' : 'w-10 h-10'}`}
-                      draggable={false}
-                      onContextMenu={(e) => e.preventDefault()}
-                    />
-                    <span className="text-[7px] font-bold text-gray-600 truncate w-full text-center mt-0.5">
-                      {userPet.nickname || pet.name}
-                    </span>
-                  </div>
-                )
-              })}
-            </div>
-          )}
-        </div>
-      </div>
-
-      {/* Desktop: bottom tray */}
-      <div className={`hidden lg:block absolute bottom-0 left-0 right-0 z-30 transition-transform duration-300 ${showTray ? 'translate-y-0' : 'translate-y-[calc(100%-40px)]'}`}>
-        {/* Toggle handle */}
-        <button
-          onClick={() => setShowTray(!showTray)}
-          className="mx-auto -mt-1 flex items-center gap-1 bg-white/90 backdrop-blur-md px-4 py-1.5 rounded-t-xl shadow-lg border border-b-0 border-gray-200 text-gray-600 text-xs font-bold hover:bg-white transition-colors"
-        >
-          <Move className="w-3 h-3" />
-          {showTray ? 'Hide' : 'Place Pets'} ({trayPets.length})
-          {showTray ? <ChevronRight className="w-3 h-3 rotate-90" /> : <ChevronLeft className="w-3 h-3 -rotate-90" />}
-        </button>
-
-        {/* Tray content */}
-        <div className="bg-white/90 backdrop-blur-md border-t border-gray-200 p-3 shadow-xl">
-          {userPets.length === 0 ? (
-            <div className="text-center py-4">
-              <span className="text-3xl mb-2 block">🐾</span>
-              <p className="text-gray-500 text-sm">No pets yet! Catch some in the wild.</p>
-            </div>
-          ) : trayPets.length === 0 ? (
-            <p className="text-center text-gray-400 text-xs py-2">All pets placed! Drag them to rearrange.</p>
-          ) : (
-            <div className="flex gap-2 overflow-x-auto pb-1 px-1">
-              {trayPets.map(userPet => {
-                const pet = userPet.pet
-                const rarity = pet.rarity || 'common'
-                return (
-                  <div
-                    key={userPet.id}
-                    className={`flex-shrink-0 w-16 flex flex-col items-center cursor-grab active:cursor-grabbing rounded-lg p-1.5 border-2 transition-all hover:scale-105 ${
-                      userPet.is_active ? `${rarityBorder[rarity]} ${rarityRing[rarity]} ring-2 bg-white` : 'border-gray-200 bg-white hover:border-gray-300'
-                    }`}
-                    onMouseDown={(e) => handlePetDragStart(e, userPet)}
-                    onTouchStart={(e) => handlePetDragStart(e, userPet)}
-                    onClick={() => { if (!didDrag.current) { setSelectedPet(userPet); setIsRenaming(false) } }}
-                  >
-                    <img
-                      src={getPetImage(userPet)}
-                      alt={pet.name}
-                      className={`object-contain pointer-events-none select-none ${isEvolved(userPet) ? 'w-14 h-14' : 'w-10 h-10'}`}
-                      draggable={false}
-                      onContextMenu={(e) => e.preventDefault()}
-                    />
-                    <span className="text-[8px] font-bold text-gray-600 truncate w-full text-center mt-0.5">
-                      {userPet.nickname || pet.name}
-                    </span>
-                    <span className={`text-[8px] font-black px-1.5 py-0.5 rounded-full uppercase tracking-wide ${rarityBadge[rarity]}`}>
-                      {rarityStars[rarity]} {rarity.slice(0, 3)}
-                    </span>
-                  </div>
-                )
-              })}
-            </div>
-          )}
-        </div>
-      </div>
-
-      {/* ---- Pet Detail Modal ---- */}
-      {selectedPet && (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-[200] p-4" onClick={() => setSelectedPet(null)}>
-          <div className="bg-white rounded-2xl p-6 max-w-sm w-full shadow-2xl" onClick={(e) => e.stopPropagation()}>
-            {/* Name + rename */}
-            <div className="flex items-center gap-2 mb-4">
-              {isRenaming ? (
-                <form className="flex items-center gap-2 flex-1" onSubmit={async (e) => {
-                  e.preventDefault()
-                  await renamePet(nicknameInput, selectedPet.id)
-                  setSelectedPet(prev => ({ ...prev, nickname: nicknameInput.trim() || null }))
-                  setIsRenaming(false)
-                }}>
-                  <input
-                    autoFocus
-                    className="text-xl font-bold text-gray-800 border-b-2 border-purple-400 outline-none flex-1 bg-transparent"
-                    value={nicknameInput}
-                    onChange={(e) => setNicknameInput(e.target.value)}
-                    placeholder={selectedPet.pet.name}
-                  />
-                  <button type="submit" className="text-green-500 hover:text-green-700 text-sm font-semibold">Save</button>
-                  <button type="button" onClick={() => setIsRenaming(false)} className="text-gray-400 hover:text-gray-600 text-sm">Cancel</button>
-                </form>
-              ) : (
-                <>
-                  <h2 className="text-xl font-bold text-gray-800 flex-1">
-                    {selectedPet.nickname || selectedPet.pet.name}
-                  </h2>
-                  <button onClick={() => { setNicknameInput(selectedPet.nickname || ''); setIsRenaming(true) }} className="text-gray-400 hover:text-purple-500 transition-colors">
-                    <Pencil className="w-4 h-4" />
-                  </button>
-                </>
-              )}
-            </div>
-
-            {/* Pet image */}
-            <div className="relative bg-gradient-to-br from-sky-100 to-green-100 rounded-xl p-4 mb-4 flex items-center justify-center" onContextMenu={(e) => e.preventDefault()}>
-              <img
-                src={getPetImage(selectedPet)}
-                alt={selectedPet.pet.name}
-                className={`object-contain select-none pointer-events-none ${isEvolved(selectedPet) ? 'w-36 h-36' : 'w-28 h-28'}`}
-                style={{ filter: `drop-shadow(0 0 8px ${rarityGlow[selectedPet.pet.rarity]})` }}
-                draggable={false}
-              />
-              {selectedPet.is_active && (
-                <div className="absolute top-2 right-2 bg-green-500 text-white text-[10px] font-bold px-2 py-0.5 rounded-full flex items-center gap-1">
-                  <Check className="w-3 h-3" /> Active
-                </div>
-              )}
-            </div>
-
-            {/* Stats */}
-            <div className="space-y-2 mb-4 text-sm">
-              <div className="flex justify-between">
-                <span className="text-gray-500">Species</span>
-                <span className="font-semibold">{selectedPet.pet.name}</span>
-              </div>
-              <div className="flex justify-between">
-                <span className="text-gray-500">Rarity</span>
-                <span className={`px-3 py-1 rounded-full text-sm font-black uppercase tracking-wider ${rarityBadge[selectedPet.pet.rarity]}`}>
-                  {rarityStars[selectedPet.pet.rarity]} {selectedPet.pet.rarity}
-                </span>
-              </div>
-              <div className="flex justify-between">
-                <span className="text-gray-500">Level</span>
-                <span className="font-semibold flex items-center gap-1"><Star className="w-3.5 h-3.5 text-yellow-500" /> {selectedPet.level}</span>
-              </div>
-              <div className="flex justify-between">
-                <span className="text-gray-500">XP</span>
-                <span className="font-semibold">{selectedPet.xp}</span>
-              </div>
-              <div className="flex justify-between">
-                <span className="text-gray-500">Birthday</span>
-                <span className="font-semibold flex items-center gap-1"><Calendar className="w-3.5 h-3.5 text-gray-400" /> {new Date(selectedPet.obtained_at).toLocaleDateString()}</span>
-              </div>
-            </div>
-
-            {selectedPet.pet.description && (
-              <p className="text-xs text-gray-500 mb-4 italic">{selectedPet.pet.description}</p>
-            )}
-
-            {/* Actions */}
-            <div className="flex gap-2">
+              <p className="text-base font-black text-slate-800">Your home is empty</p>
+              <p className="mt-1 text-sm text-slate-500">
+                {isDesktop ? 'Drag pets in from My Pets, or bring them all at once.' : 'Tap pets in your bag below, or bring them all at once.'}
+              </p>
               <button
-                onClick={() => setSelectedPet(null)}
-                className="flex-1 px-4 py-2.5 bg-gray-100 hover:bg-gray-200 text-gray-700 font-bold rounded-xl transition-colors text-sm"
+                type="button"
+                onClick={() => placePets(pets.map((p) => p.id))}
+                className="mt-3 inline-flex items-center gap-2 rounded-2xl bg-gradient-to-b from-emerald-400 to-emerald-600 px-4 py-2.5 text-sm font-black text-white shadow-md active:scale-95"
               >
-                Close
+                <PackagePlus className="h-4 w-4" />
+                Bring everyone home
               </button>
-              {!selectedPet.is_active && (
-                <button
-                  onClick={() => handleSetActive(selectedPet.id)}
-                  className="flex-1 px-4 py-2.5 bg-blue-500 hover:bg-blue-600 text-white font-bold rounded-xl transition-colors text-sm"
-                >
-                  Set Active
-                </button>
-              )}
             </div>
           </div>
-        </div>
-      )}
-
-      {/* ---- Pet Dex Modal ---- */}
-      {showPetDex && (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-[200] p-4" onClick={() => setShowPetDex(false)}>
-          <div className="bg-white rounded-xl max-w-4xl w-full max-h-[90vh] overflow-hidden shadow-2xl" onClick={(e) => e.stopPropagation()}>
-            <div className="sticky top-0 bg-blue-500 text-white p-4 flex justify-between items-center">
-              <div>
-                <h2 className="text-xl font-bold flex items-center gap-2">
-                  <Book className="w-5 h-5" />
-                  Pet Dex
-                </h2>
-                <p className="text-blue-100 text-xs mt-0.5">
-                  {ownedPetIds.length} / {allPets.length} discovered
-                </p>
+        )}
+        {!loading && pets.length === 0 && (
+          <div className="pointer-events-none absolute inset-0 z-20 flex items-center justify-center p-6">
+            <div className="ph-modal-enter pointer-events-auto max-w-xs rounded-3xl bg-white/90 p-5 text-center shadow-2xl">
+              <div className="mx-auto mb-2 flex h-14 w-14 items-center justify-center rounded-2xl bg-amber-100 text-amber-600">
+                <Backpack className="h-7 w-7" />
               </div>
-              <button onClick={() => setShowPetDex(false)} className="text-white hover:bg-white/20 rounded-full p-2 transition-colors">
-                <X className="w-5 h-5" />
-              </button>
-            </div>
-
-            <div className="p-4 overflow-y-auto max-h-[calc(90vh-100px)]">
-              {['common', 'uncommon', 'rare', 'epic', 'legendary'].map(rarity => {
-                const petsOfRarity = allPets.filter(p => p.rarity === rarity)
-                if (petsOfRarity.length === 0) return null
-                return (
-                  <div key={rarity} className="mb-5">
-                    <h3 className={`text-sm font-black mb-2 uppercase tracking-wider flex items-center gap-2 ${
-                      rarity === 'common' ? 'text-gray-600' :
-                      rarity === 'uncommon' ? 'text-green-600' :
-                      rarity === 'rare' ? 'text-blue-600' :
-                      rarity === 'epic' ? 'text-purple-600' : 'text-yellow-600'
-                    }`}>
-                      <span className={`px-2 py-0.5 rounded-full text-xs ${rarityBadge[rarity]}`}>
-                        {rarityStars[rarity]} {rarity}
-                      </span>
-                      <span className="text-[10px] font-normal text-gray-400">({petsOfRarity.length} pets)</span>
-                    </h3>
-                    <div className="grid grid-cols-4 sm:grid-cols-5 md:grid-cols-6 lg:grid-cols-8 gap-3">
-                      {petsOfRarity.map(pet => {
-                        const isOwned = ownedPetIds.includes(pet.id)
-                        return (
-                          <div
-                            key={pet.id}
-                            className={`relative rounded-xl p-2 text-center transition-all ${
-                              isOwned ? `border-2 ${rarityBorder[pet.rarity]} bg-white` : 'border-2 border-gray-200 bg-gray-50'
-                            }`}
-                          >
-                            <div className="w-12 h-12 mx-auto mb-1 flex items-center justify-center">
-                              {pet.image_url ? (
-                                <img
-                                  src={pet.image_url}
-                                  alt={isOwned ? pet.name : '???'}
-                                  className={`w-full h-full object-contain select-none pointer-events-none ${!isOwned ? 'brightness-0' : ''}`}
-                                  style={!isOwned ? { filter: 'brightness(0)' } : undefined}
-                                  onContextMenu={(e) => e.preventDefault()}
-                                  draggable="false"
-                                />
-                              ) : (
-                                <span className="text-2xl opacity-50">?</span>
-                              )}
-                            </div>
-                            <p className={`text-[10px] font-semibold truncate ${isOwned ? 'text-gray-800' : 'text-gray-400'}`}>
-                              {isOwned ? pet.name : '???'}
-                            </p>
-                            {isOwned && (
-                              <div className="absolute -top-1 -right-1 bg-green-500 rounded-full p-0.5">
-                                <Check className="w-2.5 h-2.5 text-white" />
-                              </div>
-                            )}
-                          </div>
-                        )
-                      })}
-                    </div>
-                  </div>
-                )
-              })}
+              <p className="text-base font-black text-slate-800">No pets yet</p>
+              <p className="mt-1 text-sm text-slate-500">Catch pets in the Wild Area on your dashboard or hatch an egg, then they live here.</p>
+              <div className="mt-3 flex justify-center gap-2">
+                <button type="button" onClick={() => navigate('/')} className="rounded-2xl bg-sky-500 px-4 py-2 text-sm font-black text-white active:scale-95">
+                  Dashboard
+                </button>
+                <button
+                  type="button"
+                  onClick={() => navigate('/shop?tab=ball')}
+                  className="inline-flex items-center gap-1.5 rounded-2xl bg-slate-100 px-4 py-2 text-sm font-black text-slate-700 active:scale-95"
+                >
+                  <ShoppingBag className="h-4 w-4" />
+                  Shop
+                </button>
+              </div>
             </div>
           </div>
-        </div>
-      )}
+        )}
 
-      {/* ---- Background Picker Modal ---- */}
-      {showBgPicker && (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4" onClick={() => setShowBgPicker(false)}>
-          <div className="bg-white rounded-2xl max-w-md w-full shadow-2xl overflow-hidden" onClick={(e) => e.stopPropagation()}>
-            <div className="bg-indigo-500 text-white p-4 flex justify-between items-center">
-              <h2 className="text-lg font-bold flex items-center gap-2">
-                <Image className="w-5 h-5" />
-                Habitat Background
-              </h2>
-              <button onClick={() => setShowBgPicker(false)} className="text-white hover:bg-white/20 rounded-full p-2 transition-colors">
-                <X className="w-5 h-5" />
+        {/* First-visit tips */}
+        {showTips && pets.length > 0 && homeCount > 0 && !drag.drag && (
+          // Up in the sky, where it hides no pet.
+          <div className={`absolute z-20 ${isDesktop ? 'left-5 top-[76px] w-80' : 'inset-x-3 top-[104px]'}`}>
+            <div className="ph-modal-enter rounded-3xl bg-white/95 p-4 shadow-2xl ring-1 ring-black/5">
+              <div className="mb-2 flex items-center justify-between">
+                <p className="text-sm font-black text-slate-800">Your new Pet Home</p>
+                <button type="button" onClick={dismissTips} aria-label="Close tips" className="rounded-full p-1 text-slate-400 hover:text-slate-600">
+                  <X className="h-4 w-4" />
+                </button>
+              </div>
+              <ul className="space-y-1.5">
+                {tips.map(({ icon: Icon, text }) => (
+                  <li key={text} className="flex items-start gap-2 text-xs font-semibold text-slate-600">
+                    <Icon className="mt-0.5 h-4 w-4 shrink-0 text-sky-500" />
+                    {text}
+                  </li>
+                ))}
+              </ul>
+              <button type="button" onClick={dismissTips} className="mt-3 w-full rounded-2xl bg-sky-500 py-2 text-sm font-black text-white active:scale-[0.98]">
+                Got it
               </button>
             </div>
-            <div className="p-4 max-h-[60vh] overflow-y-auto">
-              {/* Remove background option */}
-              <button
-                onClick={() => { handleEquipBg(null); setShowBgPicker(false) }}
-                disabled={equippingBg}
-                className={`w-full mb-3 p-3 rounded-xl border-2 transition-all flex items-center gap-3 ${
-                  !activeBackgroundUrl ? 'border-indigo-400 ring-2 ring-indigo-300 bg-indigo-50' : 'border-gray-200 hover:border-gray-300 bg-gray-50'
+          </div>
+        )}
+
+        {/* Phones and tablets: the bottom corners of the home curve into the bag strip */}
+        {!isDesktop && (
+          <>
+            <span className="ph-corner ph-corner-l" aria-hidden="true" />
+            <span className="ph-corner ph-corner-r" aria-hidden="true" />
+          </>
+        )}
+
+        {/* PC with the list hidden: the bag button opens it and takes dropped pets (FLOAT_BAG_REACH px around it too) */}
+        {isDesktop && !panelOpen && (
+          <button
+            ref={floatBagRef}
+            type="button"
+            data-drop="bag"
+            onClick={() => togglePanel(true)}
+            aria-label={`My Pets: ${storedCount} in the bag`}
+            title="My Pets"
+            className={`absolute bottom-6 right-6 z-30 flex h-16 w-16 items-center justify-center rounded-[22px] text-white shadow-xl ring-4 transition ${
+              worldDrag && drag.drag.over === 'bag'
+                ? 'bg-gradient-to-b from-emerald-400 to-emerald-600 ring-white'
+                : `bg-gradient-to-b from-amber-300 to-orange-400 ${worldDrag ? 'ring-white' : 'ring-white/70 hover:-translate-y-0.5'}`
+            }`}
+          >
+            {worldDrag && (
+              <span
+                aria-hidden="true"
+                style={{ inset: -FLOAT_BAG_REACH }}
+                className={`ph-halo pointer-events-none absolute rounded-[34px] border-[3px] border-dashed ${
+                  drag.drag.over === 'bag' ? 'border-emerald-400 bg-emerald-400/20' : 'border-white bg-white/15'
                 }`}
-              >
-                <div className="w-16 h-12 rounded-lg bg-cover bg-center flex-shrink-0" style={{ backgroundImage: "url('https://cdn.vectorstock.com/i/500p/37/22/cozy-home-interior-collection-vector-40573722.jpg')" }} />
-                <div className="text-left">
-                  <p className="font-semibold text-sm text-gray-800">Default</p>
-                  <p className="text-xs text-gray-500">Cozy room</p>
-                </div>
-                {!activeBackgroundUrl && <Check className="w-5 h-5 text-indigo-500 ml-auto" />}
-              </button>
+              />
+            )}
+            <span key={bump} className={`flex transition-transform ${bump ? 'ph-bag-bump' : ''} ${worldDrag && drag.drag.over === 'bag' ? 'scale-125' : ''}`}>
+              <Backpack className="h-7 w-7" />
+            </span>
+            {storedCount > 0 && !worldDrag && (
+              <span className="absolute -right-2 -top-2 min-w-[24px] rounded-full bg-slate-800 px-1.5 py-0.5 text-center text-xs font-black text-white ring-2 ring-white tabular-nums">
+                {storedCount}
+              </span>
+            )}
+          </button>
+        )}
+      </HabitatWorld>
 
-              {ownedBackgrounds.length === 0 ? (
-                <div className="text-center py-6">
-                  <Image className="w-10 h-10 text-gray-300 mx-auto mb-2" />
-                  <p className="text-gray-500 text-sm">No backgrounds yet!</p>
-                  <button
-                    onClick={() => { setShowBgPicker(false); navigate('/shop?tab=background') }}
-                    className="mt-2 text-indigo-500 hover:text-indigo-600 text-sm font-semibold"
-                  >
-                    Browse Shop
-                  </button>
-                </div>
-              ) : (
-                <div className="grid grid-cols-2 gap-3">
-                  {ownedBackgrounds.map(bg => {
-                    const bgUrl = bg.item_data?.background_url || bg.image_url
-                    const isActive = activeBackgroundUrl === bgUrl
-                    return (
-                      <button
-                        key={bg.id}
-                        onClick={() => { handleEquipBg(bg); setShowBgPicker(false) }}
-                        disabled={equippingBg}
-                        className={`relative rounded-xl overflow-hidden border-2 transition-all aspect-video ${
-                          isActive ? 'border-indigo-400 ring-2 ring-indigo-300' : 'border-gray-200 hover:border-gray-300'
-                        }`}
-                      >
-                        <div
-                          className="w-full h-full bg-cover bg-center min-h-[80px]"
-                          style={{ backgroundImage: `url(${bgUrl})` }}
-                        />
-                        {isActive && (
-                          <div className="absolute top-1 right-1 bg-indigo-500 rounded-full p-0.5">
-                            <Check className="w-3 h-3 text-white" />
-                          </div>
-                        )}
-                        <div className="absolute bottom-0 left-0 right-0 bg-black/40 backdrop-blur-sm px-2 py-1">
-                          <p className="text-white text-[10px] font-semibold truncate">{bg.name}</p>
-                        </div>
-                      </button>
-                    )
-                  })}
-                </div>
-              )}
-            </div>
-          </div>
-        </div>
+      <PetBag
+        variant={isDesktop ? 'panel' : 'sheet'}
+        expanded={sheetOpen}
+        onExpandedChange={setSheetOpen}
+        panelOpen={panelOpen}
+        onPanelOpenChange={togglePanel}
+        pets={pets}
+        layout={layout}
+        companionId={companionId}
+        loading={loading}
+        drag={drag.drag}
+        bump={bump}
+        dropRef={setBagEl}
+        startPress={startPress}
+        onPlace={placePets}
+        onStore={storePets}
+        onInfo={openDetails}
+        onTidy={tidyUp}
+        onShuffle={shuffle}
+        onShop={() => navigate('/shop?tab=ball')}
+      />
+
+      {detailPet && (
+        <PetDetailSheet
+          up={detailPet}
+          list={detailList}
+          placed={!!layout[detailPet.id]}
+          isCompanion={detailPet.id === companionId}
+          onClose={() => setDetail(null)}
+          onNavigate={(id) => setDetail((d) => (d ? { ...d, id } : d))}
+          onMakeCompanion={makeCompanion}
+          onPlace={(id) => placePets([id])}
+          onStore={(id) => storePets([id])}
+          onFlip={flipPet}
+          onLocate={locatePet}
+          onRename={rename}
+        />
       )}
 
-      {/* Keyframes */}
-      <style>{`
-        @keyframes cloudDrift {
-          0% { transform: translateX(-20%); }
-          100% { transform: translateX(110vw); }
-        }
-        @keyframes petIdle {
-          0%, 100% { transform: translateY(0); }
-          50% { transform: translateY(-4px); }
-        }
-        @keyframes petBob {
-          0%, 100% { transform: translateY(0); }
-          50% { transform: translateY(-3px); }
-        }
-        @keyframes petWiggle {
-          0%, 85%, 100% { rotate: 0deg; }
-          88% { rotate: -4deg; }
-          91% { rotate: 4deg; }
-          94% { rotate: -3deg; }
-          97% { rotate: 0deg; }
-        }
-        @keyframes grassSway {
-          0% { transform: scaleX(1.5) rotate(-3deg); }
-          100% { transform: scaleX(1.5) rotate(3deg); }
-        }
-      `}</style>
+      {dexOpen && (
+        <PetDexModal
+          allPets={allPets}
+          userPets={pets}
+          onClose={() => setDexOpen(false)}
+          onOpenPet={(id) => {
+            setDexOpen(false)
+            openDetails(id)
+          }}
+        />
+      )}
+
+      {bgOpen && (
+        <BackgroundPicker
+          userId={user?.id}
+          currentUrl={savedBg}
+          previewUrl={bgPreview}
+          onPreview={setBgPreview}
+          onApply={applyBackground}
+          onClose={closeBackground}
+          onShop={() => navigate('/shop?tab=background')}
+        />
+      )}
+
+      {/* The pet under the finger while dragging */}
+      {drag.drag &&
+        createPortal(
+          <div ref={drag.ghostRef} className="ph-ghost" style={{ width: drag.drag.size, height: drag.drag.size }} aria-hidden="true">
+            <div className="ph-ghost-inner">
+              <div className="h-full w-full" style={{ transform: drag.drag.flip ? 'scaleX(-1)' : undefined }}>
+                <PetImage src={drag.drag.image} size={320} eager className="ph-ghost-img" />
+              </div>
+            </div>
+          </div>,
+          document.body
+        )}
+
+      {createPortal(
+        // Below the top bar and the mini map, so a toast never covers Undo or the menu.
+        <div className="pointer-events-none fixed inset-x-0 top-[104px] z-[300] flex flex-col items-center gap-2 px-3" aria-live="polite">
+          {toasts.map((t) => (
+            <div
+              key={t.id}
+              role="status"
+              className={`ph-toast pointer-events-auto flex max-w-sm items-center gap-2 rounded-2xl px-4 py-2.5 text-sm font-extrabold shadow-xl ${
+                t.type === 'error' ? 'bg-rose-500 text-white' : 'bg-slate-900/90 text-white'
+              }`}
+            >
+              {t.type === 'error' ? <AlertTriangle className="h-4 w-4 shrink-0" /> : <CheckCircle2 className="h-4 w-4 shrink-0 text-emerald-400" />}
+              <span className="min-w-0">{t.text}</span>
+              {t.action && (
+                <button
+                  type="button"
+                  onClick={() => {
+                    t.action.run()
+                    dismissToast(t.id)
+                  }}
+                  className="ml-1 flex shrink-0 items-center gap-1 rounded-lg bg-white/15 px-2 py-1 text-xs font-black hover:bg-white/25"
+                >
+                  <Undo2 className="h-3.5 w-3.5" />
+                  {t.action.label}
+                </button>
+              )}
+            </div>
+          ))}
+        </div>,
+        document.body
+      )}
     </div>
   )
 }

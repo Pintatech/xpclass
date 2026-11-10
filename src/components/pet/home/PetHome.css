@@ -1,0 +1,587 @@
+/* Pet Home (/pets). Every class starts with ph- so nothing leaks into the rest of the app. */
+
+/* Fills the screen above the phone bottom bar (below lg). That bar is 73px at the default font size: its paddings
+   and label line make 3.25rem, plus a 20px icon and a 1px top border. */
+.ph-root {
+  height: calc(100vh - 3.25rem - 21px);
+  height: calc(100dvh - 3.25rem - 21px);
+}
+@media (min-width: 1024px) {
+  .ph-root {
+    height: 100vh;
+    height: 100dvh;
+  }
+}
+
+.ph-noselect {
+  -webkit-user-select: none;
+  user-select: none;
+  -webkit-touch-callout: none;
+  -webkit-tap-highlight-color: transparent;
+}
+
+/* ---- World ---- */
+
+.ph-scroller {
+  overflow: auto;
+  overscroll-behavior: contain;
+  scrollbar-width: none;
+  -webkit-overflow-scrolling: touch;
+  touch-action: pan-x pan-y;
+}
+.ph-scroller::-webkit-scrollbar {
+  display: none;
+}
+.ph-scroller.ph-can-pan {
+  cursor: grab;
+}
+.ph-scroller.ph-panning {
+  cursor: grabbing;
+}
+
+.ph-bg {
+  position: absolute;
+  inset: 0;
+  background-size: cover;
+  background-position: center;
+  transition: opacity 0.45s ease;
+}
+
+.ph-tint-day {
+  background: radial-gradient(ellipse at 12% -10%, rgba(255, 248, 214, 0.5), rgba(255, 248, 214, 0) 45%);
+}
+.ph-tint-dusk {
+  background: linear-gradient(180deg, rgba(255, 128, 64, 0.38), rgba(255, 96, 96, 0.16) 48%, rgba(72, 36, 120, 0.3));
+}
+.ph-tint-night {
+  background: linear-gradient(180deg, rgba(8, 14, 46, 0.74), rgba(18, 26, 72, 0.5) 55%, rgba(6, 10, 34, 0.64));
+}
+
+/* The night sky: two SVG layers of stars twinkling out of step, so 30 stars cost two animations. */
+.ph-stars {
+  position: absolute;
+  left: 0;
+  top: 0;
+  filter: drop-shadow(0 0 3px rgba(255, 255, 255, 0.9));
+  animation: ph-twinkle var(--d, 3s) ease-in-out infinite;
+  animation-delay: var(--delay, 0s);
+}
+@keyframes ph-twinkle {
+  0%, 100% { opacity: 0.35; }
+  50% { opacity: 1; }
+}
+
+.ph-firefly {
+  position: absolute;
+  width: 6px;
+  height: 6px;
+  border-radius: 9999px;
+  background: #fef08a;
+  box-shadow: 0 0 10px 3px rgba(253, 224, 71, 0.75);
+  animation: ph-firefly var(--d, 7s) ease-in-out infinite;
+  animation-delay: var(--delay, 0s);
+}
+@keyframes ph-firefly {
+  0% { transform: translate(0, 0); opacity: 0; }
+  15% { opacity: 1; }
+  50% { transform: translate(var(--dx, 30px), var(--dy, -40px)); opacity: 0.85; }
+  85% { opacity: 1; }
+  100% { transform: translate(0, 0); opacity: 0; }
+}
+
+.ph-mote {
+  position: absolute;
+  width: 5px;
+  height: 5px;
+  border-radius: 9999px;
+  background: rgba(255, 255, 255, 0.85);
+  box-shadow: 0 0 6px rgba(255, 255, 255, 0.8);
+  animation: ph-mote var(--d, 9s) linear infinite;
+  animation-delay: var(--delay, 0s);
+}
+@keyframes ph-mote {
+  0% { transform: translate(0, 0); opacity: 0; }
+  20% { opacity: 0.9; }
+  80% { opacity: 0.7; }
+  100% { transform: translate(var(--dx, 40px), -120px); opacity: 0; }
+}
+
+/* ---- Pets ---- */
+
+.ph-pet {
+  position: absolute;
+  transform: translate(-50%, -50%);
+  touch-action: none;
+  cursor: grab;
+  outline: none;
+  -webkit-tap-highlight-color: transparent;
+}
+.ph-pet:active {
+  cursor: grabbing;
+}
+.ph-pet:focus-visible .ph-pet-depth {
+  outline: 3px solid #fff;
+  outline-offset: 2px;
+  border-radius: 18px;
+}
+.ph-pet-pop,
+.ph-pet-depth,
+.ph-pet-flip,
+.ph-pet-hop {
+  position: absolute;
+  inset: 0;
+}
+.ph-pet-depth {
+  transition: opacity 0.15s ease;
+}
+.ph-pet-flip {
+  transition: transform 0.3s cubic-bezier(0.3, 1.4, 0.5, 1);
+}
+.ph-pet-img {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+  pointer-events: none;
+  animation: ph-bob var(--bob, 3s) ease-in-out infinite;
+  animation-delay: var(--bob-delay, 0s);
+}
+@keyframes ph-bob {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(-5%); }
+}
+.ph-pet-shadow {
+  position: absolute;
+  left: 18%;
+  right: 18%;
+  bottom: 0;
+  height: 13%;
+  border-radius: 50%;
+  background: radial-gradient(closest-side, rgba(0, 0, 0, 0.34), rgba(0, 0, 0, 0));
+}
+
+/* Pets scrolled out of view (phones see about a third of the world) stop animating until they come back. */
+.ph-pet[data-off] .ph-pet-img,
+.ph-pet[data-off] .ph-aura,
+.ph-pet[data-off] .ph-crown,
+.ph-pet[data-off] .ph-zzz span {
+  animation-play-state: paused;
+}
+
+.ph-dim {
+  opacity: 0.25;
+}
+
+/* Pet tapped: a happy hop. Pet dropped after a move: a small landing squash. */
+.ph-hop {
+  animation: ph-hop 0.62s cubic-bezier(0.3, 0.7, 0.4, 1);
+  transform-origin: 50% 100%;
+}
+@keyframes ph-hop {
+  0% { transform: translateY(0) scale(1, 1); }
+  16% { transform: translateY(2%) scale(1.08, 0.9); }
+  45% { transform: translateY(-24%) scale(0.95, 1.06); }
+  70% { transform: translateY(0) scale(1.07, 0.93); }
+  86% { transform: translateY(-3%) scale(0.99, 1.01); }
+  100% { transform: translateY(0) scale(1, 1); }
+}
+.ph-land {
+  animation: ph-land 0.38s ease-out;
+  transform-origin: 50% 100%;
+}
+@keyframes ph-land {
+  0% { transform: scale(1.08, 0.88); }
+  55% { transform: scale(0.97, 1.04); }
+  100% { transform: scale(1, 1); }
+}
+
+.ph-pop-in {
+  animation: ph-pop-in 0.46s cubic-bezier(0.2, 1.5, 0.4, 1) both;
+}
+@keyframes ph-pop-in {
+  0% { transform: translateY(18%) scale(0.15); opacity: 0; }
+  55% { opacity: 1; }
+  100% { transform: translateY(0) scale(1); opacity: 1; }
+}
+.ph-pop-out {
+  animation: ph-pop-out 0.32s ease-in both;
+  pointer-events: none;
+}
+@keyframes ph-pop-out {
+  0% { transform: scale(1); opacity: 1; }
+  30% { transform: scale(1.08); opacity: 1; }
+  100% { transform: translateY(20%) scale(0.1); opacity: 0; }
+}
+
+/* Sparkle ring when a pet appears or leaves. */
+.ph-burst {
+  position: absolute;
+  left: 50%;
+  top: 55%;
+  width: 0;
+  height: 0;
+  pointer-events: none;
+}
+.ph-burst i {
+  position: absolute;
+  left: -4px;
+  top: -4px;
+  width: 8px;
+  height: 8px;
+  border-radius: 9999px;
+  background: #fff;
+  box-shadow: 0 0 8px 2px rgba(255, 255, 255, 0.85);
+  animation: ph-burst 0.6s ease-out forwards;
+}
+@keyframes ph-burst {
+  0% { transform: translate(0, 0) scale(1); opacity: 1; }
+  100% { transform: translate(var(--dx), var(--dy)) scale(0.2); opacity: 0; }
+}
+
+.ph-aura {
+  position: absolute;
+  left: 4%;
+  right: 4%;
+  bottom: -6%;
+  height: 26%;
+  border-radius: 50%;
+  background: radial-gradient(closest-side, rgba(253, 224, 71, 0.7), rgba(253, 224, 71, 0));
+  animation: ph-aura 2.4s ease-in-out infinite;
+}
+@keyframes ph-aura {
+  0%, 100% { transform: scale(0.9); opacity: 0.75; }
+  50% { transform: scale(1.12); opacity: 1; }
+}
+
+.ph-select-ring {
+  position: absolute;
+  left: 10%;
+  right: 10%;
+  bottom: -5%;
+  height: 22%;
+  border-radius: 50%;
+  border: 3px dashed rgba(255, 255, 255, 0.95);
+  box-shadow: 0 0 12px rgba(255, 255, 255, 0.6);
+  animation: ph-ring 6s linear infinite;
+}
+@keyframes ph-ring {
+  to { transform: rotate(360deg); }
+}
+
+.ph-crown {
+  position: absolute;
+  left: 50%;
+  top: -6%;
+  transform: translate(-50%, -100%);
+  animation: ph-crown 2.4s ease-in-out infinite;
+}
+@keyframes ph-crown {
+  0%, 100% { transform: translate(-50%, -100%); }
+  50% { transform: translate(-50%, -125%); }
+}
+
+.ph-name {
+  position: absolute;
+  left: 50%;
+  top: 100%;
+  transform: translate(-50%, 4px);
+  white-space: nowrap;
+  opacity: 0;
+  transition: opacity 0.18s ease;
+  pointer-events: none;
+}
+.ph-pet[data-selected='true'] .ph-name,
+.ph-pet:focus-visible .ph-name {
+  opacity: 1;
+}
+@media (hover: hover) {
+  .ph-pet:hover .ph-name {
+    opacity: 1;
+  }
+}
+
+.ph-heart {
+  position: absolute;
+  left: 50%;
+  top: 20%;
+  color: #f43f5e;
+  pointer-events: none;
+  animation: ph-heart 1s ease-out forwards;
+  animation-delay: var(--delay, 0s);
+  opacity: 0;
+}
+@keyframes ph-heart {
+  0% { transform: translate(-50%, 0) scale(0.4); opacity: 0; }
+  20% { opacity: 1; }
+  100% { transform: translate(calc(-50% + var(--dx, 0px)), -80px) scale(1.15); opacity: 0; }
+}
+
+.ph-zzz {
+  position: absolute;
+  right: 8%;
+  top: 4%;
+  pointer-events: none;
+}
+.ph-zzz span {
+  position: absolute;
+  display: flex;
+  align-items: flex-end;
+  gap: 1px;
+  font-size: 11px;
+  font-weight: 900;
+  line-height: 1;
+  color: #fff;
+  white-space: nowrap;
+  text-shadow: 0 1px 3px rgba(30, 41, 99, 0.8);
+  transform-origin: 0 100%;
+  animation: ph-z 3.4s ease-in-out infinite;
+}
+.ph-zzz small {
+  font-size: 14px;
+  margin-bottom: 4px;
+}
+.ph-zzz b {
+  font-size: 18px;
+  margin-bottom: 9px;
+}
+@keyframes ph-z {
+  0% { transform: translate(0, 6px) scale(0.7); opacity: 0; }
+  25% { opacity: 1; }
+  75% { opacity: 1; }
+  100% { transform: translate(8px, -14px) scale(1.05); opacity: 0; }
+}
+
+/* Floating toolbar over the selected pet. */
+.ph-bubble {
+  position: absolute;
+  z-index: 5000;
+  animation: ph-bubble 0.22s cubic-bezier(0.2, 1.4, 0.4, 1);
+}
+@keyframes ph-bubble {
+  0% { transform: translateY(6px) scale(0.85); opacity: 0; }
+  100% { transform: translateY(0) scale(1); opacity: 1; }
+}
+
+/* ---- Drag ghost ---- */
+
+.ph-ghost {
+  position: fixed;
+  left: 0;
+  top: 0;
+  z-index: 400;
+  pointer-events: none;
+  will-change: transform;
+}
+.ph-ghost-inner {
+  width: 100%;
+  height: 100%;
+  transition: transform 0.14s ease;
+}
+.ph-ghost-img {
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+  filter: drop-shadow(0 14px 12px rgba(0, 0, 0, 0.35));
+  animation: ph-wiggle 0.9s ease-in-out infinite;
+}
+@keyframes ph-wiggle {
+  0%, 100% { transform: rotate(-4deg); }
+  50% { transform: rotate(4deg); }
+}
+
+/* ---- Bag ---- */
+
+/* Phones: the home's bottom corners curve into the white bag strip. Painted on top rather than clipped, so nothing
+   inside the home (pets, the selection bubble) can bleed past them. */
+.ph-corner {
+  position: absolute;
+  bottom: 0;
+  z-index: 10;
+  width: 22px;
+  height: 22px;
+  pointer-events: none;
+}
+.ph-corner-l {
+  left: 0;
+  background: radial-gradient(circle at 100% 0, transparent 21.5px, #fff 22px);
+}
+.ph-corner-r {
+  right: 0;
+  background: radial-gradient(circle at 0 0, transparent 21.5px, #fff 22px);
+}
+
+.ph-strip {
+  touch-action: pan-x;
+  scrollbar-width: none;
+  overscroll-behavior-x: contain;
+}
+.ph-strip::-webkit-scrollbar {
+  display: none;
+}
+/* Chip rows that scroll sideways fade out at the right edge instead of cutting a chip in half. */
+.ph-fade-right {
+  -webkit-mask-image: linear-gradient(to right, #000 calc(100% - 28px), transparent);
+  mask-image: linear-gradient(to right, #000 calc(100% - 28px), transparent);
+}
+.ph-grid-scroll {
+  touch-action: pan-y;
+  overscroll-behavior: contain;
+}
+.ph-thin-scroll {
+  scrollbar-width: thin;
+}
+
+/* Pet tiles: a soft light behind the pet and a small shadow under its feet. */
+.ph-tile-glow,
+.ph-tile-floor {
+  position: absolute;
+  pointer-events: none;
+}
+.ph-tile-glow {
+  inset: 0;
+  background: radial-gradient(circle at 50% 40%, rgba(255, 255, 255, 0.95), rgba(255, 255, 255, 0) 62%);
+}
+.ph-tile-floor {
+  left: 26%;
+  right: 26%;
+  bottom: 13%;
+  height: 9%;
+  border-radius: 50%;
+  background: radial-gradient(closest-side, rgba(15, 23, 42, 0.2), rgba(15, 23, 42, 0));
+}
+/* Stars over a picture keep a light edge so they read on any tile. */
+.ph-ink-light {
+  text-shadow: 0 1px 0 rgba(255, 255, 255, 0.95), 0 0 3px rgba(255, 255, 255, 0.9);
+}
+
+.ph-card {
+  box-shadow: 0 2px 8px rgba(15, 23, 42, 0.06);
+  transition: transform 0.16s ease, box-shadow 0.16s ease;
+}
+.ph-card-img {
+  transition: transform 0.2s cubic-bezier(0.3, 1.4, 0.5, 1);
+}
+/* Only real pointers lift a card: on touch a hover would stick after the tap. */
+@media (hover: hover) {
+  .ph-card:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 10px 20px rgba(15, 23, 42, 0.12);
+  }
+  .ph-card:hover .ph-card-img {
+    transform: scale(1.1);
+  }
+}
+.ph-card:focus-visible {
+  outline: 3px solid #38bdf8;
+  outline-offset: 2px;
+}
+
+/* The arrow going into the bag while a pet is held over the home. */
+.ph-drop-arrow {
+  animation: ph-drop-arrow 0.9s ease-in-out infinite;
+}
+@keyframes ph-drop-arrow {
+  0%, 100% { transform: translateY(-3px); opacity: 0.6; }
+  50% { transform: translateY(3px); opacity: 1; }
+}
+
+/* Around the PC bag button during a drag: shows how far the drop area reaches. */
+.ph-halo {
+  animation: ph-halo 1.1s ease-in-out infinite;
+}
+@keyframes ph-halo {
+  0%, 100% { transform: scale(0.94); opacity: 0.7; }
+  50% { transform: scale(1); opacity: 1; }
+}
+
+.ph-drop-pulse {
+  animation: ph-drop-pulse 1.1s ease-in-out infinite;
+}
+@keyframes ph-drop-pulse {
+  0%, 100% { box-shadow: inset 0 0 0 2px rgba(255, 255, 255, 0.5); }
+  50% { box-shadow: inset 0 0 0 4px rgba(255, 255, 255, 0.95); }
+}
+
+.ph-bag-bump {
+  animation: ph-bag-bump 0.45s cubic-bezier(0.3, 1.6, 0.5, 1);
+}
+@keyframes ph-bag-bump {
+  0% { transform: scale(1); }
+  40% { transform: scale(1.3); }
+  100% { transform: scale(1); }
+}
+
+.ph-sheet-enter {
+  animation: ph-sheet-up 0.3s cubic-bezier(0.2, 0.9, 0.3, 1);
+}
+@keyframes ph-sheet-up {
+  0% { transform: translateY(100%); }
+  100% { transform: translateY(0); }
+}
+.ph-fade-enter {
+  animation: ph-fade 0.2s ease-out;
+}
+@keyframes ph-fade {
+  0% { opacity: 0; }
+  100% { opacity: 1; }
+}
+.ph-modal-enter {
+  animation: ph-modal 0.24s cubic-bezier(0.2, 1.2, 0.4, 1);
+}
+@keyframes ph-modal {
+  0% { transform: translateY(12px) scale(0.96); opacity: 0; }
+  100% { transform: translateY(0) scale(1); opacity: 1; }
+}
+
+.ph-hero-bob {
+  animation: ph-bob 3s ease-in-out infinite;
+}
+
+.ph-toast {
+  animation: ph-toast 0.25s cubic-bezier(0.2, 1.3, 0.4, 1);
+}
+@keyframes ph-toast {
+  0% { transform: translateY(-10px) scale(0.95); opacity: 0; }
+  100% { transform: translateY(0) scale(1); opacity: 1; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .ph-pet-img,
+  .ph-aura,
+  .ph-select-ring,
+  .ph-crown,
+  .ph-stars,
+  .ph-firefly,
+  .ph-mote,
+  .ph-zzz span,
+  .ph-ghost-img,
+  .ph-hero-bob,
+  .ph-drop-pulse,
+  .ph-drop-arrow,
+  .ph-halo {
+    animation: none !important;
+  }
+  .ph-card,
+  .ph-card-img {
+    transition: none;
+  }
+  /* Sleeping pets still show a still "zzZ". */
+  .ph-zzz span {
+    opacity: 0.9;
+    transform: translate(4px, -4px);
+  }
+  .ph-hop,
+  .ph-land,
+  .ph-pop-in,
+  .ph-pop-out,
+  .ph-burst i,
+  .ph-heart,
+  .ph-bubble,
+  .ph-sheet-enter,
+  .ph-modal-enter,
+  .ph-toast,
+  .ph-bag-bump {
+    animation-duration: 0.01s !important;
+  }
+}

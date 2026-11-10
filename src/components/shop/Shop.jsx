@@ -380,17 +380,15 @@ const Shop = () => {
         await updateProfile({ active_title: frameUrl, active_frame_ratio: frameRatio, hide_frame: false })
         alert('Đã trang bị khung!')
       } else if (item.category === 'background') {
-        const { data, error } = await supabase.rpc('equip_background', {
-          p_user_id: user.id,
-          p_item_id: item.id
-        })
-        if (error) throw error
-        if (data.success) {
-          await updateProfile({ active_background_url: data.background_url })
-          alert('Đã trang bị background!')
-        } else {
-          alert(data.error || 'Không thể trang bị background')
+        // Saved straight to the profile, like the other items and the Background button on /pets. The equip_background
+        // RPC only read item_data.background_url and refused a background with just image_url ("Invalid background item").
+        const backgroundUrl = item.item_data?.background_url || item.image_url
+        const res = await updateProfile({ active_background_url: backgroundUrl })
+        // updateProfile leaves out an equipment field it could not save, so check that it came back.
+        if (res?.error || res?.data?.active_background_url !== backgroundUrl) {
+          throw new Error(res?.error?.message || res?.error || 'Không lưu được background')
         }
+        alert('Đã trang bị background!')
       } else if (item.category === 'pet') {
         const bowlUrl = item.item_data?.bowl_url || item.image_url
         await updateProfile({ active_bowl_url: bowlUrl })

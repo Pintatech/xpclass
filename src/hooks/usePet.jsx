@@ -474,49 +474,74 @@ export const PetProvider = ({ children }) => {
     return () => window.removeEventListener('pet-encounter', handleEncounter)
   }, [])
 
+  // Rename one of your pets. Throws when nothing was saved: an update that RLS filters out returns no error, so the
+  // changed row is read back instead of trusting the empty reply.
   const renamePet = async (newNickname, petId) => {
     const targetId = petId || activePet?.id
-    if (!targetId) return
+    if (!targetId) throw new Error('No pet selected')
+    const nickname = (newNickname || '').trim() || null
     try {
-      const { error } = await supabase
+      const { data, error } = await supabase
         .from('user_pets')
-        .update({ nickname: newNickname.trim() || null })
+        .update({ nickname })
         .eq('id', targetId)
+        .select('id, nickname')
       if (error) throw error
-      await fetchActivePet()
-      await fetchUserPets()
+      if (!data?.length) throw new Error('The new name was not saved')
+      const saved = data[0].nickname ?? null
+      setUserPets(prev => prev.map(up => (up.id === targetId ? { ...up, nickname: saved } : up)))
+      setActivePet(prev => (prev && prev.id === targetId ? { ...prev, nickname: saved } : prev))
+      return saved
     } catch (error) {
       console.error('Error renaming pet:', error)
       throw error
     }
   }
 
-  // Batch save all habitat positions: layout = {[userPetId]: {x, y} | undefined}
-  const saveHabitatLayout = async (layout) => {
-    if (!user) return { success: false, error: 'No user logged in' }
-    try {
-      const updates = userPets.map(up => {
-        const pos = layout[up.id]
-        return supabase
-          .from('user_pets')
-          .update({ habitat_x: pos?.x ?? null, habitat_y: pos?.y ?? null, habitat_flip: pos?.flip ?? false })
-          .eq('id', up.id)
-          .eq('user_id', user.id)
-      })
-      const results = await Promise.all(updates)
-      const failed = results.find(r => r.error)
-      if (failed) throw failed.error
-
-      // Update local state to match
-      setUserPets(prev => prev.map(up => {
-        const pos = layout[up.id]
-        return { ...up, habitat_x: pos?.x ?? null, habitat_y: pos?.y ?? null, habitat_flip: pos?.flip ?? false }
-      }))
-      return { success: true }
-    } catch (error) {
-      console.error('Error saving habitat layout:', error)
-      return { success: false, error: error.message }
+  // Save pet home spots. `changes` holds only the pets that moved: [{ id, x, y, flip }], x = null puts the pet in the
+  // bag. Each row is checked to have really changed (see renamePet). Returns { saved: [ids], failed: [{ id, error }] }.
+  const savePetPlacements = async (changes) => {
+    if (!user) return { saved: [], failed: changes.map(c => ({ id: c.id, error: 'No user logged in' })) }
+    const saved = []
+    const failed = []
+    let next = 0
+    const worker = async () => {
+      while (next < changes.length) {
+        const c = changes[next]
+        next += 1
+        const row = c.x == null
+          ? { habitat_x: null, habitat_y: null, habitat_flip: false }
+          : { habitat_x: c.x, habitat_y: c.y, habitat_flip: !!c.flip }
+        try {
+          const { data, error } = await supabase
+            .from('user_pets')
+            .update(row)
+            .eq('id', c.id)
+            .eq('user_id', user.id)
+            .select('id')
+          if (error) throw error
+          if (!data?.length) throw new Error('Not saved')
+          saved.push(c)
+        } catch (error) {
+          failed.push({ id: c.id, error: error.message })
+        }
+      }
     }
+    // A few requests at a time, so "Place all" with many pets does not flood the connection.
+    await Promise.all(Array.from({ length: Math.min(6, changes.length) }, worker))
+
+    if (saved.length) {
+      const byId = new Map(saved.map(c => [c.id, c]))
+      setUserPets(prev => prev.map(up => {
+        const c = byId.get(up.id)
+        if (!c) return up
+        return c.x == null
+          ? { ...up, habitat_x: null, habitat_y: null, habitat_flip: false }
+          : { ...up, habitat_x: c.x, habitat_y: c.y, habitat_flip: !!c.flip }
+      }))
+    }
+    if (failed.length) console.error('Error saving pet home:', failed)
+    return { saved: saved.map(c => c.id), failed }
   }
 
   const value = {
@@ -540,7 +565,7 @@ export const PetProvider = ({ children }) => {
     playWithPet,
     evolvePet,
     renamePet,
-    saveHabitatLayout,
+    savePetPlacements,
     updatePetOnActivity,
     drainPetEnergy,
     restoreUserEnergy,
