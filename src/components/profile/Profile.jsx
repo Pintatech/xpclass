@@ -1,51 +1,43 @@
-import { useState, useEffect } from 'react'
-import { createPortal } from 'react-dom'
+import { useState, useEffect, useRef } from 'react'
 import { useParams, useNavigate, useSearchParams } from 'react-router-dom'
 import { useAuth } from '../../hooks/useAuth'
 import { useStudentLevels } from '../../hooks/useStudentLevels'
 import { useAchievements } from '../../hooks/useAchievements'
 import { usePet } from '../../hooks/usePet'
 import { supabase } from '../../supabase/client'
-import AvatarWithFrame from '../ui/AvatarWithFrame'
-import { assetUrl } from '../../hooks/useBranding';
-import {
-  Trophy,
-  Target,
-  BookOpen,
-  Clock,
-  Calendar,
-  Mail,
-  Edit3,
-  Award,
-  Crown,
-  Zap,
-  Shield,
-  Gem,
-  X,
-  Upload,
-  AlertCircle,
-  CheckCircle,
-  XCircle,
-  LogOut,
-  Gift,
-  RefreshCw
-} from 'lucide-react'
+import { LogOut } from 'lucide-react'
 import ClaimCelebration from '../ui/ClaimCelebration'
+import { levelInfoFor } from '../../utils/levelInfo'
+import { tierKey } from './profileUtils'
+import { Skel, Toast } from './parts/bits'
+import ProfileHero from './parts/ProfileHero'
+import StatTiles from './parts/StatTiles'
+import LevelRoad from './parts/LevelRoad'
+import AchievementShelf from './parts/AchievementShelf'
+import PetShelf from './parts/PetShelf'
+import AvatarPicker from './parts/AvatarPicker'
+import BadgeSheet from './parts/BadgeSheet'
+import AchievementSheet from './parts/AchievementSheet'
+import './Profile.css'
 
-const CLIP_CARD = 'polygon(10px 0, 100% 0, 100% calc(100% - 10px), calc(100% - 10px) 100%, 0 100%, 0 10px)'
-const CLIP_SM = 'polygon(6px 0, 100% 0, 100% calc(100% - 6px), calc(100% - 6px) 100%, 0 100%, 0 6px)'
-const CLIP_BTN = 'polygon(5px 0, 100% 0, 100% calc(100% - 5px), calc(100% - 5px) 100%, 0 100%, 0 5px)'
-
-const CornerBrackets = () => (
-  <>
-    <div className="absolute top-0 left-[10px] w-5 h-[1px] bg-gradient-to-r from-blue-300/40 to-transparent" />
-    <div className="absolute top-0 left-[10px] w-[1px] h-5 bg-gradient-to-b from-blue-300/40 to-transparent" />
-    <div className="absolute bottom-0 right-[10px] w-5 h-[1px] bg-gradient-to-l from-blue-300/40 to-transparent" />
-    <div className="absolute bottom-0 right-[10px] w-[1px] h-5 bg-gradient-to-t from-blue-300/40 to-transparent" />
-  </>
+// What the page looks like while a profile loads for the first time.
+const ProfileSkeleton = () => (
+  <div className="pf-root mx-auto max-w-5xl space-y-4 sm:space-y-5" aria-busy="true" aria-label="Loading" data-profile="loading">
+    <Skel className="h-[332px] rounded-[28px] md:h-[232px]" />
+    <div className="pf-tiles">
+      {[0, 1, 2, 3].map((i) => (
+        <Skel key={i} className="h-[72px] rounded-[22px] sm:h-20" />
+      ))}
+    </div>
+    <div className="pf-main">
+      <Skel className="pf-area-road h-[232px] rounded-3xl" />
+      <Skel className="pf-area-pets h-[232px] rounded-3xl" />
+      <Skel className="pf-area-ach h-[220px] rounded-3xl" />
+    </div>
+  </div>
 )
 
-const Profile = () => {
+const ProfileView = () => {
   const { userId } = useParams()
   const navigate = useNavigate()
   const [searchParams, setSearchParams] = useSearchParams()
@@ -55,12 +47,12 @@ const Profile = () => {
     nextLevel,
     levelProgress,
     currentBadge,
-    nextBadge,
-    hasUnlockedPerk,
-    isMaxLevel
+    isMaxLevel,
+    studentLevels,
+    loading: levelsLoading
   } = useStudentLevels()
-  const { getAchievementsWithProgress, userAchievements, challengeWinCounts, claimAchievementXP, checkAndAwardAchievements } = useAchievements()
-  const { userPets, allPets } = usePet()
+  const { userAchievements, challengeWinCounts, claimAchievementXP, checkAndAwardAchievements } = useAchievements()
+  const { userPets, loading: petsLoading } = usePet()
 
   // State for profile being viewed
   const [viewedProfile, setViewedProfile] = useState(null)
@@ -75,6 +67,8 @@ const Profile = () => {
   const isOwnProfile = !userId || userId === user?.id
   const currentProfile = isOwnProfile ? profile : viewedProfile
   const currentUser = isOwnProfile ? user : viewedUser
+  // Admins and teachers also see the email of the profile they open.
+  const viewerIsStaff = profile?.role === 'admin' || profile?.role === 'teacher'
 
   // Stats state
   const [stats, setStats] = useState({
@@ -87,9 +81,6 @@ const Profile = () => {
     unitsCompleted: 0,
     sessionsCompleted: 0
   })
-
-  // Recent activity state
-  const [recentActivity, setRecentActivity] = useState([])
 
   // Avatar state
   const [availableAvatars, setAvailableAvatars] = useState([])
@@ -108,26 +99,66 @@ const Profile = () => {
   const [achievements, setAchievements] = useState([])
   const [showAchievementModal, setShowAchievementModal] = useState(false)
   const [claimingAchievement, setClaimingAchievement] = useState({})
-  const [claimMessage, setClaimMessage] = useState('')
+  const [toastMessage, setToastMessage] = useState('')
   const [claimResult, setClaimResult] = useState(null)
+  const toastTimer = useRef(0)
+  // Only the newest load of stats / achievements may fill the page: several can be in flight at once (a claim
+  // refreshes the profile and the achievement rows), and an older one finishing last would show stale rows.
+  const statsRequest = useRef(0)
+  const achievementsRequest = useRef(0)
+
+  // A short message at the bottom of the screen (claim errors, a name or avatar that did not save).
+  const showToast = (message) => {
+    clearTimeout(toastTimer.current)
+    setToastMessage(message)
+    toastTimer.current = setTimeout(() => setToastMessage(''), 3000)
+  }
+  useEffect(() => () => clearTimeout(toastTimer.current), [])
 
   // Pet state for viewed user
   const [viewedUserPets, setViewedUserPets] = useState([])
 
+  // Display only: which parts have arrived, so a part still loading shows a placeholder instead of "nothing yet".
+  // The first load shows a placeholder page; later refreshes (after a claim, a new name) leave the page on screen.
+  const [everLoaded, setEverLoaded] = useState(false)
+  const [badgesReady, setBadgesReady] = useState(false)
+  const [achievementsReady, setAchievementsReady] = useState(false)
+  const [viewedPetsReady, setViewedPetsReady] = useState(false)
+
+  useEffect(() => {
+    if (!loading) setEverLoaded(true)
+  }, [loading])
+
+  // Own profile: name box and avatar follow the logged-in profile.
   useEffect(() => {
     if (isOwnProfile && profile) {
       setEditData({
         full_name: profile.full_name || ''
       })
       setSelectedAvatar(profile.avatar_url || '👤')
-      fetchUserStats()
-      fetchRecentActivity()
+    }
+  }, [profile, isOwnProfile])
+
+  // Own profile: the numbers reload when the XP or the streak changes (a claim, a finished exercise), not on every
+  // profile change, so a new name or avatar does not reload stats and achievements. XP and streak come from the
+  // profile the whole app shows.
+  useEffect(() => {
+    if (isOwnProfile && profile) fetchUserStats(null, profile)
+  }, [isOwnProfile, profile?.id, profile?.xp, profile?.streak_count])
+
+  // Own profile: the avatar picker's lists, once per visit.
+  useEffect(() => {
+    if (isOwnProfile && user?.id) {
       fetchAvailableAvatars()
       fetchCustomAvatars()
-    } else if (!isOwnProfile && userId) {
-      fetchOtherUserProfile()
     }
-  }, [profile, userId, isOwnProfile])
+  }, [isOwnProfile, user?.id])
+
+  // Another student's profile. Loaded again only if the viewer turns out to be staff after all (their own profile
+  // arrived late), so the email can be added.
+  useEffect(() => {
+    if (!isOwnProfile && userId) fetchOtherUserProfile()
+  }, [isOwnProfile, userId, viewerIsStaff])
 
   // Separate effect to fetch achievements after stats are loaded
   useEffect(() => {
@@ -141,9 +172,11 @@ const Profile = () => {
     try {
       setLoading(true)
 
-      // Fetch the other user's profile
+      // Fetch the other user's profile: only what the page shows. The email is shown to staff only, so a student's
+      // browser does not receive classmates' emails (or any other column) at all.
+      const columns = `id, full_name, avatar_url, xp, streak_count, created_at${viewerIsStaff ? ', email' : ''}`
       const [{ data: userData, error: userError }, { data: equipData }] = await Promise.all([
-        supabase.from('users').select('*').eq('id', userId).single(),
+        supabase.from('users').select(columns).eq('id', userId).single(),
         supabase.from('user_equipment').select('*').eq('user_id', userId).single()
       ])
 
@@ -158,12 +191,14 @@ const Profile = () => {
       setViewedProfile(merged)
       setSelectedAvatar(userData.avatar_url || '👤')
 
-      // Fetch stats for the viewed user
-      await fetchUserStats(userId)
-      await fetchRecentActivity(userId)
-      await fetchAvailableAvatars()
-      await processBadges(userData?.xp || 0)
-      await fetchUserPets(userId)
+      // Fetch stats, badges and pets for the viewed user side by side (the avatar picker is only on one's own profile).
+      // processBadges also runs here with the XP just loaded, so the badges (which the page waits for) are right even
+      // if the stats fail. The user row is handed on, so the stats do not ask for it again.
+      await Promise.all([
+        fetchUserStats(userId, userData),
+        processBadges(userData?.xp || 0),
+        fetchUserPets(userId)
+      ])
       // fetchAchievements will be called automatically via useEffect after stats are loaded
 
     } catch (error) {
@@ -197,43 +232,52 @@ const Profile = () => {
     } catch (error) {
       console.error('Error fetching user pets:', error)
       setViewedUserPets([])
+    } finally {
+      setViewedPetsReady(true)
     }
   }
 
-  const fetchUserStats = async (targetUserId = null) => {
+  // Every finished exercise of a student, with only the two numbers the tiles use. Supabase hands out at most 1000
+  // rows per request, so the rest is read in further pages (ordered by id, so no row is skipped or read twice).
+  const fetchCompletedProgress = async (targetUserId) => {
+    const rows = []
+    let total = null
+    while (total === null || rows.length < total) {
+      const { data, count, error } = await supabase
+        .from('user_progress')
+        .select('score, time_spent', total === null ? { count: 'exact' } : undefined)
+        .eq('user_id', targetUserId)
+        .eq('status', 'completed')
+        .order('id', { ascending: true })
+        .range(rows.length, rows.length + 999)
+      if (error) throw error
+      if (total === null) total = count ?? 0
+      if (!data?.length) break
+      rows.push(...data)
+    }
+    return rows
+  }
+
+  const fetchUserStats = async (targetUserId = null, knownUser = null) => {
     const userIdToFetch = targetUserId || user?.id
     if (!userIdToFetch) return
+    const request = ++statsRequest.current
 
     try {
       setLoading(true)
 
-      // Fetch user progress data
-      const { data: progressData, error: progressError } = await supabase
-        .from('user_progress')
-        .select(`
-          *,
-          exercises (
-            id,
-            title,
-            exercise_type,
-            xp_reward
-          )
-        `)
-        .eq('user_id', userIdToFetch)
-
-      if (progressError) throw progressError
-
-      // Fetch additional user data first
-      const { data: userData, error: userError } = await supabase
-        .from('users')
-        .select('*')
-        .eq('id', userIdToFetch)
-        .single()
+      // The finished exercises and the student's XP and streak, side by side (the user row is skipped when the
+      // caller already has it).
+      const [completed, { data: userData, error: userError }] = await Promise.all([
+        fetchCompletedProgress(userIdToFetch),
+        knownUser
+          ? { data: knownUser, error: null }
+          : supabase.from('users').select('xp, streak_count').eq('id', userIdToFetch).single()
+      ])
 
       if (userError) throw userError
+      if (request !== statsRequest.current) return
 
-      // Calculate stats from progress data
-      const completed = progressData?.filter(p => p.status === 'completed') || []
       const totalXP = userData?.xp || 0
       const exercisesCompleted = completed.length
       const averageScore = completed.length > 0
@@ -264,71 +308,10 @@ const Profile = () => {
 
     } catch (error) {
       console.error('Error fetching user stats:', error)
+      // Still lay out the badges (from the XP already known), or the badge card would wait forever.
+      if (request === statsRequest.current) processBadges()
     } finally {
-      setLoading(false)
-    }
-  }
-
-  const fetchRecentActivity = async (targetUserId = null) => {
-    const userIdToFetch = targetUserId || user?.id
-    if (!userIdToFetch) return
-
-    try {
-      // Fetch exercise completions
-      const { data: exerciseData, error: exerciseError } = await supabase
-        .from('user_progress')
-        .select(`
-          *,
-          exercises (
-            title,
-            exercise_type
-          )
-        `)
-        .eq('user_id', userIdToFetch)
-        .eq('status', 'completed')
-        .order('completed_at', { ascending: false })
-        .limit(10)
-
-      if (exerciseError) throw exerciseError
-
-      // Fetch achievement claims
-      const { data: achievementData, error: achievementError } = await supabase
-        .from('user_achievements')
-        .select(`
-          *,
-          achievements (
-            title,
-            xp_reward
-          )
-        `)
-        .eq('user_id', userIdToFetch)
-        .not('claimed_at', 'is', null)
-        .order('claimed_at', { ascending: false })
-        .limit(10)
-
-      if (achievementError) throw achievementError
-
-      // Combine and sort activities
-      const exerciseActivities = (exerciseData || []).map(item => ({
-        ...item,
-        type: 'exercise',
-        activity_date: item.completed_at
-      }))
-
-      const achievementActivities = (achievementData || []).map(item => ({
-        ...item,
-        type: 'achievement',
-        activity_date: item.claimed_at,
-        xp_earned: item.achievements?.xp_reward || 0
-      }))
-
-      const allActivities = [...exerciseActivities, ...achievementActivities]
-        .sort((a, b) => new Date(b.activity_date) - new Date(a.activity_date))
-        .slice(0, 10)
-
-      setRecentActivity(allActivities)
-    } catch (error) {
-      console.error('Error fetching recent activity:', error)
+      if (request === statsRequest.current) setLoading(false)
     }
   }
 
@@ -432,7 +415,7 @@ const Profile = () => {
       return
     }
     if (uploadCooldownDays > 0) {
-      alert(`Bạn chỉ được tải avatar 1 lần trong 7 ngày. Vui lòng chờ thêm ${uploadCooldownDays} ngày.`)
+      alert(`Bạn chỉ được tải avatar 1 lần trong 3 ngày. Vui lòng chờ thêm ${uploadCooldownDays} ngày.`)
       return
     }
 
@@ -473,20 +456,22 @@ const Profile = () => {
     }
   }
 
+  // Wear an avatar. Saved through useAuth, so the rest of the app (the dashboard, the top bar) shows it at once
+  // instead of after a reload, and a save the database refused (0 rows) is reported instead of looking done.
+  const applyAvatar = async (avatarUrl) => {
+    const { error } = await updateProfile({ avatar_url: avatarUrl })
+    if (error) {
+      console.error('Error updating avatar:', error)
+      showToast('Chưa đổi được avatar. Vui lòng thử lại.')
+      return
+    }
+    setSelectedAvatar(avatarUrl)
+    setShowAvatarSelector(false)
+  }
+
   const handleCustomAvatarSelect = async (upload) => {
     if (upload.status !== 'approved') return
-    try {
-      const { error } = await supabase
-        .from('users')
-        .update({ avatar_url: upload.image_url })
-        .eq('id', user.id)
-
-      if (error) throw error
-      setSelectedAvatar(upload.image_url)
-      setShowAvatarSelector(false)
-    } catch (error) {
-      console.error('Error setting custom avatar:', error)
-    }
+    await applyAvatar(upload.image_url)
   }
 
   const handleDeleteCustomAvatar = async (uploadId) => {
@@ -523,16 +508,18 @@ const Profile = () => {
       // Get user's current XP
       const currentXP = userXP !== null ? userXP : (stats.totalXP || currentProfile?.xp || 0)
 
-      // Fetch student levels from the existing admin system
-      const { data: studentLevels, error } = await supabase
-        .from('student_levels')
-        .select('*')
-        .eq('is_active', true)
-        .order('level_number', { ascending: true })
+      // The app already holds the active levels (useStudentLevels, same query); ask the server only when it has none.
+      let levels = studentLevels
+      if (!levels?.length) {
+        const { data, error } = await supabase
+          .from('student_levels')
+          .select('*')
+          .eq('is_active', true)
+          .order('level_number', { ascending: true })
 
-      if (error) throw error
-
-      const levels = studentLevels || []
+        if (error) throw error
+        levels = data || []
+      }
 
       // Convert student levels to badge format and separate earned vs upcoming
       const earned = levels.filter(level => currentXP >= level.xp_required)
@@ -542,38 +529,35 @@ const Profile = () => {
       setUpcomingBadges(upcoming)
     } catch (error) {
       console.error('Error processing badges:', error)
+    } finally {
+      setBadgesReady(true)
     }
   }
 
   const fetchAchievements = async (targetUserId = null) => {
+    const userIdToFetch = targetUserId || user?.id
+    if (!userIdToFetch) return
+    const request = ++achievementsRequest.current
+
     try {
-      const userIdToFetch = targetUserId || user?.id
-      if (!userIdToFetch) return
-
-      // Fetch all achievements directly from database
-      const { data: allAchievements, error: achievementsError } = await supabase
-        .from('achievements')
-        .select('*')
-        .eq('is_active', true)
-        .order('criteria_value', { ascending: true })
-
-      if (achievementsError) throw achievementsError
-
-      // Fetch user's specific achievements from database
-      const { data: userAchievements, error } = await supabase
-        .from('user_achievements')
-        .select('*')
-        .eq('user_id', userIdToFetch)
-
-      if (error) throw error
-
-      // Fetch auxiliary counts needed for pet/shop/wild-catch achievement criteria
+      // All achievements, the student's own rows, and the counts the pet/shop/wild-catch criteria need, side by side.
       const [
+        { data: allAchievements, error: achievementsError },
+        { data: userAchievements, error },
         { count: petCount },
         { count: petEvolvedCount },
         { count: wildCatchCount },
         { data: shopItemsOwned }
       ] = await Promise.all([
+        supabase
+          .from('achievements')
+          .select('*')
+          .eq('is_active', true)
+          .order('criteria_value', { ascending: true }),
+        supabase
+          .from('user_achievements')
+          .select('*')
+          .eq('user_id', userIdToFetch),
         supabase
           .from('user_pets')
           .select('id', { count: 'exact', head: true })
@@ -594,6 +578,11 @@ const Profile = () => {
           .eq('user_id', userIdToFetch)
       ])
 
+      if (achievementsError) throw achievementsError
+      if (error) throw error
+      // A newer load started meanwhile: let that one fill the list.
+      if (request !== achievementsRequest.current) return
+
       const shopCounts = { avatar: 0, frame: 0, spaceship: 0, hammer: 0, boat: 0 }
       ;(shopItemsOwned || []).forEach(p => {
         const cat = p.shop_items?.category
@@ -611,9 +600,6 @@ const Profile = () => {
         wildCatchCount: wildCatchCount || 0,
         shopCounts
       }
-
-      console.log('User stats for achievement calculation:', userStats)
-      console.log('User achievements from DB:', userAchievements)
 
       // Process achievements with proper unlock calculation
       const processedAchievements = allAchievements.map(achievement => {
@@ -681,46 +667,22 @@ const Profile = () => {
         }
       })
 
-      console.log('Processed achievements:', processedAchievements)
       setAchievements(processedAchievements)
     } catch (error) {
       console.error('Error fetching achievements:', error)
+    } finally {
+      // Only the newest load ends the placeholder, so an older one cannot show an empty list for a moment.
+      if (request === achievementsRequest.current) setAchievementsReady(true)
     }
   }
 
   const handleAvatarSelect = async (avatar) => {
     if (stats.totalXP < avatar.unlock_xp) return
-
-    try {
-      const { error } = await supabase
-        .from('users')
-        .update({ avatar_url: avatar.image_url })
-        .eq('id', user.id)
-
-      if (error) throw error
-
-      setSelectedAvatar(avatar.image_url)
-      setShowAvatarSelector(false)
-    } catch (error) {
-      console.error('Error updating avatar:', error)
-    }
+    await applyAvatar(avatar.image_url)
   }
 
   const handleShopAvatarSelect = async (item) => {
-    const avatarUrl = item.item_data?.avatar_url || item.image_url
-    try {
-      const { error } = await supabase
-        .from('users')
-        .update({ avatar_url: avatarUrl })
-        .eq('id', user.id)
-
-      if (error) throw error
-
-      setSelectedAvatar(avatarUrl)
-      setShowAvatarSelector(false)
-    } catch (error) {
-      console.error('Error updating avatar:', error)
-    }
+    await applyAvatar(item.item_data?.avatar_url || item.image_url)
   }
 
   const handleEditToggle = () => {
@@ -740,12 +702,15 @@ const Profile = () => {
     }
 
     setClaimingAchievement(prev => ({ ...prev, [achievementId]: true }))
-    setClaimMessage('')
+    setToastMessage('')
     try {
       // Ensure achievement is awarded in DB before claiming
       await checkAndAwardAchievements()
       const result = await claimAchievementXP(achievementId)
       if (result.success) {
+        // Shown as collected at once, so the button cannot come back for a second press while the list reloads.
+        const claimedDate = new Date().toLocaleDateString('vi-VN')
+        setAchievements(prev => prev.map(a => (a.id === achievementId ? { ...a, isClaimed: true, claimedDate } : a)))
         setClaimResult({
           xp: result.xpAwarded || 0,
           gems: result.gemsAwarded || 0,
@@ -754,12 +719,11 @@ const Profile = () => {
         // Refresh achievements list using Profile's own fetch
         await fetchAchievements()
       } else {
-        setClaimMessage(result.message)
-        setTimeout(() => setClaimMessage(''), 3000)
+        showToast(result.message)
       }
     } catch (error) {
-      setClaimMessage('Có lỗi xảy ra khi nhận XP')
-      setTimeout(() => setClaimMessage(''), 3000)
+      console.error('Error claiming achievement:', error)
+      showToast('Có lỗi xảy ra khi nhận XP')
     } finally {
       setClaimingAchievement(prev => ({ ...prev, [achievementId]: false }))
     }
@@ -800,54 +764,14 @@ const Profile = () => {
       if (nameChanged) {
         updates.name_changed_at = new Date().toISOString()
       }
-      await updateProfile(updates)
+      // updateProfile reports a failed save in its result (it does not throw): keep the box open and say so.
+      const { error } = await updateProfile(updates)
+      if (error) throw error
       setIsEditing(false)
     } catch (error) {
       console.error('Error updating profile:', error)
+      showToast('Chưa lưu được tên. Vui lòng thử lại.')
     }
-  }
-
-  const getExerciseTypeIcon = (type) => {
-    const IconImg = ({ src, className = '' }) => (
-      <img src={src} alt="" className={className} />
-    )
-
-    const icons = {
-      multiple_choice: (props) => (
-        <IconImg src={assetUrl('/icon/exercise_type/multiple_choice.svg')} {...props} />
-      ),
-      flashcard: BookOpen,
-      fill_blank: (props) => (
-        <IconImg src={assetUrl('/icon/exercise_type/fill_blank.svg')} {...props} />
-      ),
-      drag_drop: (props) => (
-        <IconImg src={assetUrl('/icon/exercise_type/drag_drop.svg')} {...props} />
-      ),
-      dropdown: (props) => (
-        <IconImg src={assetUrl('/icon/exercise_type/drop_down.svg')} {...props} />
-      )
-    }
-    return icons[type] || BookOpen
-  }
-
-  const getExerciseTypeLabel = (type) => {
-    const labels = {
-      multiple_choice: 'Multiple Choice',
-      flashcard: 'Flashcard',
-      fill_blank: 'Fill in the Blank'
-    }
-    return labels[type] || type
-  }
-
-  const formatTimeAgo = (dateString) => {
-    const date = new Date(dateString)
-    const now = new Date()
-    const diffInMinutes = Math.floor((now - date) / (1000 * 60))
-
-    if (diffInMinutes < 1) return 'Vừa xong'
-    if (diffInMinutes < 60) return `${diffInMinutes} phút trước`
-    if (diffInMinutes < 1440) return `${Math.floor(diffInMinutes / 60)} giờ trước`
-    return `${Math.floor(diffInMinutes / 1440)} ngày trước`
   }
 
   const formatPracticeTime = (minutes) => {
@@ -857,930 +781,157 @@ const Profile = () => {
     return remainingMinutes > 0 ? `${hours}h ${remainingMinutes}m` : `${hours} giờ`
   }
 
-  const getTierIcon = (tier) => {
-    const icons = {
-      bronze: Shield,
-      silver: Award,
-      gold: Crown,
-      platinum: Gem,
-      diamond: Zap
-    }
-    return icons[tier] || Shield
-  }
+  // ---- What the page shows. Nothing below loads or changes data. ----
 
-  const getTierColor = (tier) => {
-    const colors = {
-      bronze: 'text-amber-600',
-      silver: 'text-gray-500',
-      gold: 'text-yellow-500',
-      platinum: 'text-purple-500',
-      diamond: 'text-cyan-400'
-    }
-    return colors[tier] || 'text-gray-500'
-  }
+  // Pets: the active one first, then two more (as before).
+  const allUserPets = isOwnProfile ? userPets : viewedUserPets
+  const activePet = allUserPets.find(p => p.is_active)
+  const otherPets = allUserPets.filter(p => !p.is_active).slice(0, 2)
+  const displayPets = activePet ? [activePet, ...otherPets] : allUserPets.slice(0, 3)
+  // A pet whose kind the viewer does not own yet is shown as a mystery.
+  const viewerOwnsPet = (userPet) => isOwnProfile || userPets?.some(p => p.pet?.id === userPet.pet?.id)
+  // Another student's pets also wait for the viewer's own, or every pet shows as a mystery for a moment.
+  const viewerPetsReady = !petsLoading || userPets.length > 0
+  const petsReady = isOwnProfile ? viewerPetsReady : viewedPetsReady && viewerPetsReady
 
-  const getTierBgColor = (tier) => {
-    const colors = {
-      bronze: 'bg-yellow-100',
-      silver: 'bg-gray-300',
-      gold: 'bg-amber-300',
-      platinum: 'bg-purple-400',
-      diamond: 'bg-cyan-500'
-    }
-    return colors[tier] || 'bg-gray-100'
-  }
+  // Own profile: the level the whole app shows (useStudentLevels, which only knows the logged-in student).
+  // Another student's profile: that student's level, worked out from their XP with the same rules.
+  const level = isOwnProfile
+    ? { current: currentLevel, next: nextLevel || null, xpNeeded: levelProgress.xpNeeded, percent: levelProgress.progressPercentage, isMax: isMaxLevel }
+    : levelInfoFor(stats.totalXP, [...earnedBadges, ...upcomingBadges])
 
-  if (loading) {
-    return (
-      <div className="flex justify-center items-center min-h-64">
-        <div className="relative w-10 h-10">
-          <div className="absolute inset-0 border-2 border-blue-200 rounded-full animate-ping opacity-30" />
-          <RefreshCw className="w-10 h-10 animate-spin text-blue-400" />
-        </div>
-      </div>
-    )
+  const avatarFallback = currentProfile?.full_name?.[0]?.toUpperCase() || currentProfile?.email?.[0]?.toUpperCase() || 'U'
+  const frameUrl = currentProfile?.hide_frame ? null : currentProfile?.active_title
+  // The logged-in profile carries no created_at; the sign-in account does.
+  const joinedAt = currentProfile?.created_at || currentUser?.created_at
+  const unlockedAchievements = achievements.filter(a => a.isUnlocked)
+  const nameCooldown = getNameCooldownRemaining()
+
+  // Wait for the level too, so the top card does not change colour a moment after it appears.
+  // useStudentLevels works out currentLevel in an effect after the levels arrive, so wait for that as well.
+  const ownLevelPending = levelsLoading || (studentLevels.length > 0 && !currentLevel)
+  if (!everLoaded || !currentProfile || (isOwnProfile ? ownLevelPending : !badgesReady)) {
+    return <ProfileSkeleton />
   }
 
   return (
-    <div className="max-w-4xl mx-auto space-y-6">
-      {/* Profile Header */}
-      <div className="relative text-white overflow-hidden" style={{ clipPath: CLIP_CARD }}>
-        <CornerBrackets />
-        {/* Background Image */}
-        <div
-          className="absolute inset-0 bg-cover bg-center bg-no-repeat"
-          style={{ backgroundImage: `url(${assetUrl('/image/dashboard/blue_dashboard_hero_section.jpeg')})` }}
+    <div className="pf-root mx-auto max-w-5xl space-y-4 sm:space-y-5" data-tier={tierKey(level.current) || undefined} data-profile="ready">
+      <ProfileHero
+        isOwn={isOwnProfile}
+        name={currentProfile?.full_name || 'Người dùng'}
+        email={viewerIsStaff ? currentProfile?.email : null}
+        avatarUrl={selectedAvatar}
+        frameUrl={frameUrl}
+        frameRatio={currentProfile?.active_frame_ratio}
+        fallback={avatarFallback}
+        onAvatarClick={isOwnProfile ? () => setShowAvatarSelector(true) : undefined}
+        level={level}
+        totalXP={stats.totalXP}
+        joined={joinedAt ? new Date(joinedAt).toLocaleDateString('vi-VN') : null}
+        isEditing={isEditing}
+        editName={editData.full_name}
+        onEditName={(value) => setEditData(prev => ({ ...prev, full_name: value }))}
+        onSave={handleSaveProfile}
+        onToggleEdit={handleEditToggle}
+        nameLocked={nameCooldown > 0}
+        cooldownText={nameCooldown > 0 ? formatCooldown(nameCooldown) : null}
+        companion={petsReady && activePet ? { up: activePet, owned: viewerOwnsPet(activePet) } : null}
+        onCompanionClick={isOwnProfile ? () => navigate('/pets') : undefined}
+      />
+
+      <StatTiles stats={stats} formatPracticeTime={formatPracticeTime} />
+
+      <div className="pf-main">
+        <LevelRoad
+          earned={earnedBadges}
+          upcoming={upcomingBadges}
+          xp={stats.totalXP}
+          avatar={selectedAvatar}
+          fallback={avatarFallback}
+          ready={badgesReady}
+          onOpenAll={() => setShowBadgeModal(true)}
+          index={3}
+          className="pf-area-road"
         />
-        {/* Dark overlay for better text readability */}
-        <div className="absolute inset-0 bg-black/30" />
-        <div className="p-6 relative z-10">
-          <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-            <div className="flex items-center space-x-4 min-w-0">
-              <AvatarWithFrame
-                avatarUrl={selectedAvatar}
-                frameUrl={currentProfile?.hide_frame ? null : currentProfile?.active_title}
-                frameRatio={currentProfile?.active_frame_ratio}
-                size={80}
-                fallback={currentProfile?.full_name?.[0]?.toUpperCase() || currentProfile?.email?.[0]?.toUpperCase() || 'U'}
-                onClick={isOwnProfile ? () => setShowAvatarSelector(true) : undefined}
-              />
-              <div className="min-w-0 flex-1">
-                {isEditing ? (
-                  <div className="space-y-2">
-                    <input
-                      type="text"
-                      placeholder="Tên đầy đủ"
-                      value={editData.full_name}
-                      onChange={(e) => setEditData(prev => ({ ...prev, full_name: e.target.value }))}
-                      className="w-full max-w-xs px-3 py-1 text-gray-900 text-xl font-semibold border border-white/30"
-                      style={{ clipPath: CLIP_BTN }}
-                      disabled={getNameCooldownRemaining() > 0}
-                    />
-                    {getNameCooldownRemaining() > 0 && (
-                      <p className="text-yellow-200 text-xs mt-1">
-                        Đổi tên sau {formatCooldown(getNameCooldownRemaining())}
-                      </p>
-                    )}
-                    {(profile?.role === 'admin' || profile?.role === 'teacher') && (
-                      <p className="text-blue-100 flex items-center space-x-2">
-                        <Mail className="w-4 h-4" />
-                        <span>{currentProfile?.email}</span>
-                      </p>
-                    )}
-                  </div>
-                ) : (
-                  <div>
-                    <h1 className="text-3xl font-semibold">
-                      {currentProfile?.full_name || 'Người dùng'}
-                    </h1>
-                    {(profile?.role === 'admin' || profile?.role === 'teacher') && (
-                      <p className="text-blue-100 flex items-center space-x-2 mt-1">
-                        <Mail className="w-4 h-4" />
-                        <span>{currentProfile?.email}</span>
-                      </p>
-                    )}
-                  </div>
-                )}
-              </div>
-            </div>
-
-            {isOwnProfile && (
-              <div className="shrink-0 sm:text-right">
-                {isEditing ? (
-                  <div className="space-x-2">
-                    <button onClick={handleSaveProfile} className="px-4 py-2 text-sm font-medium text-white border border-white/50 hover:bg-white/20 transition-colors" style={{ clipPath: CLIP_BTN }}>
-                      Lưu
-                    </button>
-                    <button onClick={handleEditToggle} className="px-4 py-2 text-sm font-medium text-white hover:bg-white/20 transition-colors" style={{ clipPath: CLIP_BTN }}>
-                      Hủy
-                    </button>
-                  </div>
-                ) : (
-                  <button onClick={handleEditToggle} className="px-4 py-2 text-sm font-medium text-white hover:bg-white/20 transition-colors" style={{ clipPath: CLIP_BTN }}>
-                    <Edit3 className="w-4 h-4 mr-2 inline" />
-                    Edit
-                  </button>
-                )}
-              </div>
-            )}
-          </div>
-
-          {/* Level and XP Bar */}
-          <div className="mt-6">
-            <div className="flex items-center justify-between text-sm mb-2">
-              <div></div>
-              <span className="font-semibold">{stats.totalXP} XP</span>
-            </div>
-            
-            {!isMaxLevel && nextLevel ? (
-              <>
-                <div className="w-full bg-white/20 h-3" style={{ clipPath: CLIP_BTN }}>
-                  <div
-                    className="bg-white h-3 transition-all duration-300"
-                    style={{ width: `${levelProgress.progressPercentage}%` }}
-                  />
-                </div>
-                <div className="text-xs text-blue-100 mt-1 text-center">
-                  {levelProgress.xpNeeded} XP to unlock {nextBadge?.name}
-                </div>
-              </>
-            ) : (
-              <div className="w-full bg-white/20 h-3" style={{ clipPath: CLIP_BTN }}>
-                <div className="bg-white h-3 w-full" />
-              </div>
-            )}
-            
-            {isMaxLevel && (
-              <div className="text-xs text-blue-100 mt-1 text-center">
-                🎉 You've reached the highest level!
-              </div>
-            )}
-          </div>
-        </div>
+        <PetShelf
+          pets={displayPets}
+          count={allUserPets.length}
+          isOwn={isOwnProfile}
+          ownsKind={viewerOwnsPet}
+          ready={petsReady}
+          onViewAll={() => navigate('/pets')}
+          onEggShop={() => navigate('/shop?tab=egg')}
+          index={4}
+          className="pf-area-pets"
+        />
+        <AchievementShelf
+          unlocked={unlockedAchievements}
+          total={achievements.length}
+          isOwn={isOwnProfile}
+          claiming={claimingAchievement}
+          onClaim={handleClaimAchievementXP}
+          winCounts={challengeWinCounts}
+          ready={achievementsReady}
+          onOpenAll={() => setShowAchievementModal(true)}
+          index={5}
+          className="pf-area-ach"
+        />
       </div>
-
-
-
-      {/* Badge Collection */}
-      <div className="relative bg-white border border-gray-200 overflow-hidden" style={{ clipPath: CLIP_CARD }}>
-        <CornerBrackets />
-        <div className="px-5 pt-4 pb-1">
-          <div className="flex items-center justify-between">
-            <h3 className="text-base font-semibold flex items-center space-x-2 uppercase tracking-wide">
-              <Trophy className="w-5 h-5 text-yellow-600" />
-              <span>Badges ({earnedBadges.length})</span>
-            </h3>
-            <button
-              onClick={() => setShowBadgeModal(true)}
-              className="flex items-center space-x-1 px-3 py-1 text-sm text-blue-600 hover:text-blue-700 hover:bg-blue-50 transition-colors"
-              style={{ clipPath: CLIP_BTN }}
-            >
-              <Trophy className="w-4 h-4" />
-              <span>View All</span>
-            </button>
-          </div>
-          <div className="h-[2px] w-12 bg-gradient-to-r from-yellow-400 to-transparent mt-1" />
-        </div>
-
-        <div className="p-4">
-          {earnedBadges.length > 0 ? (
-            <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-4">
-              {earnedBadges.slice(0, 6).map((badge) => (
-                <div key={badge.id} className="text-center">
-                  <div className={`w-16 h-16 mx-auto mb-2 p-2 rounded-full ${getTierBgColor(badge.badge_tier)}`}>
-                    <img
-                      src={badge.badge_icon}
-                      alt={badge.badge_name}
-                      className="w-full h-full object-contain"
-                      onError={(e) => {
-                        e.target.style.display = 'none'
-                        e.target.nextSibling.style.display = 'inline'
-                      }}
-                    />
-                    <span className="text-2xl hidden">{badge.badge_icon}</span>
-                  </div>
-                  <div className="text-sm font-medium text-gray-900">{badge.badge_name}</div>
-                </div>
-              ))}
-              {earnedBadges.length > 6 && (
-                <div className="flex items-center justify-center">
-                  <button
-                    onClick={() => setShowBadgeModal(true)}
-                    className="w-16 h-16 mx-auto mb-2 p-2 rounded-full bg-gray-100 hover:bg-gray-200 transition-colors flex items-center justify-center"
-                  >
-                    <span className="text-sm text-gray-600">+{earnedBadges.length - 6}</span>
-                  </button>
-                  <div className="text-sm text-gray-600 text-center">More...</div>
-                </div>
-              )}
-            </div>
-          ) : (
-            <div className="text-center py-8 text-gray-500">
-              <Trophy className="w-16 h-16 mx-auto mb-4 opacity-50" />
-              <p>No badges earned yet. Keep learning to unlock your first badge!</p>
-              <button
-                onClick={() => setShowBadgeModal(true)}
-                className="mt-4 px-4 py-2 text-sm text-blue-600 hover:text-blue-700 hover:bg-blue-50 rounded-lg transition-colors"
-              >
-                View All Available Badges
-              </button>
-            </div>
-          )}
-        </div>
-      </div>
-
-      {/* Achievements Collection */}
-      <div className="relative bg-white border border-gray-200 overflow-hidden" style={{ clipPath: CLIP_CARD }}>
-        <CornerBrackets />
-        <div className="px-5 pt-4 pb-1">
-          <div className="flex items-center justify-between">
-            <h3 className="text-base font-semibold flex items-center space-x-2 uppercase tracking-wide">
-              <Award className="w-5 h-5 text-purple-600" />
-              <span>Achievements ({achievements.filter(a => a.isUnlocked).length})</span>
-            </h3>
-            <button
-              onClick={() => setShowAchievementModal(true)}
-              className="flex items-center space-x-1 px-3 py-1 text-sm text-purple-600 hover:text-purple-700 hover:bg-purple-50 transition-colors"
-              style={{ clipPath: CLIP_BTN }}
-            >
-              <Award className="w-4 h-4" />
-              <span>View All</span>
-            </button>
-          </div>
-          <div className="h-[2px] w-12 bg-gradient-to-r from-purple-400 to-transparent mt-1" />
-        </div>
-
-        <div className="p-4">
-          {achievements.filter(a => a.isUnlocked).length > 0 ? (
-            <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-4">
-              {achievements.filter(a => a.isUnlocked).slice(0, 6).map((achievement) => {
-                // Calculate win count for challenge achievements
-                const getWinCount = () => {
-                  if (!achievement.criteria_type?.startsWith('daily_challenge_rank_')) return 0
-                  const match = achievement.criteria_type.match(/rank_(\d)/)
-                  if (match) {
-                    const rankKey = `rank_${match[1]}`
-                    return challengeWinCounts[rankKey] || 0
-                  }
-                  return 0
-                }
-                const winCount = getWinCount()
-
-                return (
-                  <div key={achievement.id} className="text-center">
-                    {achievement.badge_image_url ? (
-                      <img
-                        src={achievement.badge_image_url}
-                        alt={achievement.title}
-                        className="w-20 h-20 mx-auto mb-2 object-contain"
-                      />
-                    ) : (
-                      <div className="text-4xl mx-auto mb-2">
-                        🏆
-                      </div>
-                    )}
-                    <div className="text-sm font-medium text-gray-900 flex items-center justify-center gap-1">
-                      {achievement.title}
-                      {winCount > 0 && (
-                        <span className="text-xs bg-yellow-100 text-yellow-800 px-1.5 py-0.5 rounded font-bold">
-                          ×{winCount}
-                        </span>
-                      )}
-                    </div>
-                    {achievement.isClaimed && (
-                      <div className="text-xs text-green-600 mt-1">✓ Đã nhận</div>
-                    )}
-                    {!achievement.isClaimed && isOwnProfile && (achievement.xp_reward > 0 || achievement.gem_reward > 0) && (
-                      <button
-                        onClick={() => handleClaimAchievementXP(achievement.id)}
-                        disabled={claimingAchievement[achievement.id]}
-                        className="mt-1 flex items-center justify-center gap-1 px-2 py-1 text-xs bg-green-600 hover:bg-green-700 text-white rounded transition-colors disabled:opacity-50"
-                      >
-                        <Gift className="w-3 h-3" />
-                        {claimingAchievement[achievement.id]
-                          ? '...'
-                          : `Nhận ${[
-                              achievement.xp_reward > 0 ? `${achievement.xp_reward} XP` : null,
-                              achievement.gem_reward > 0 ? `${achievement.gem_reward} 💎` : null,
-                            ].filter(Boolean).join(' + ')}`}
-                      </button>
-                    )}
-                  </div>
-                )
-              })}
-              {achievements.filter(a => a.isUnlocked).length > 6 && (
-                <div className="flex items-center justify-center">
-                  <button
-                    onClick={() => setShowAchievementModal(true)}
-                    className="w-16 h-16 mx-auto mb-2 p-2 rounded-full bg-gray-100 hover:bg-gray-200 transition-colors flex items-center justify-center"
-                  >
-                    <span className="text-sm text-gray-600">+{achievements.filter(a => a.isUnlocked).length - 6}</span>
-                  </button>
-                  <div className="text-sm text-gray-600 text-center">More...</div>
-                </div>
-              )}
-            </div>
-          ) : (
-            <div className="text-center py-8 text-gray-500">
-              <Award className="w-16 h-16 mx-auto mb-4 opacity-50" />
-              <p>No achievements unlocked yet. Keep learning to unlock your first achievement!</p>
-            </div>
-          )}
-        </div>
-      </div>
-
-      {/* Pet Collection */}
-      {(() => {
-        const allUserPets = isOwnProfile ? userPets : viewedUserPets
-        // Show active pet first, then others
-        const activePet = allUserPets.find(p => p.is_active)
-        const otherPets = allUserPets.filter(p => !p.is_active).slice(0, 2)
-        const displayPets = activePet ? [activePet, ...otherPets] : allUserPets.slice(0, 3)
-
-        return (
-          <div className="relative bg-white border border-gray-200 overflow-hidden" style={{ clipPath: CLIP_CARD }}>
-            <CornerBrackets />
-            <div className="px-5 pt-4 pb-1">
-              <div className="flex items-center justify-between">
-                <h3 className="text-base font-semibold flex items-center space-x-2 uppercase tracking-wide">
-                  <span className="text-2xl">🐾</span>
-                  <span>Pets ({allUserPets.length})</span>
-                </h3>
-                {isOwnProfile && (
-                  <button
-                    onClick={() => navigate('/pets')}
-                    className="flex items-center space-x-1 px-3 py-1 text-sm text-blue-600 hover:text-blue-700 hover:bg-blue-50 transition-colors"
-                    style={{ clipPath: CLIP_BTN }}
-                  >
-                    <span>View All</span>
-                  </button>
-                )}
-              </div>
-              <div className="h-[2px] w-12 bg-gradient-to-r from-blue-400 to-transparent mt-1" />
-            </div>
-
-            <div className="p-4">
-              {allUserPets.length > 0 ? (
-                <div className="grid grid-cols-3 md:grid-cols-5 lg:grid-cols-3 gap-4">
-                  {displayPets.map((userPet) => {
-                    const pet = userPet.pet
-                    const rarityColors = {
-                      common: 'bg-gray-100 border-gray-300',
-                      uncommon: 'bg-green-50 border-green-300',
-                      rare: 'bg-blue-50 border-blue-300',
-                      epic: 'bg-purple-50 border-purple-300',
-                      legendary: 'bg-yellow-50 border-yellow-300'
-                    }
-                    const viewerOwnsPet = isOwnProfile || userPets?.some(p => p.pet?.id === pet?.id)
-
-                    return (
-                      <div key={userPet.id} className="text-center">
-                        <div className={`w-24 h-24 mx-auto mb-2 rounded-full border-2 flex items-center justify-center overflow-hidden relative ${viewerOwnsPet ? (rarityColors[pet?.rarity] || rarityColors.common) : 'bg-gray-100 border-gray-300'}`}>
-                          {pet?.image_url ? (
-                            <img src={pet.image_url} alt={viewerOwnsPet ? pet.name : '???'} className={`w-full h-full object-contain select-none pointer-events-none ${!viewerOwnsPet ? 'filter brightness-0' : ''}`} draggable={false} />
-                          ) : (
-                            <span className={`text-2xl ${!viewerOwnsPet ? 'filter grayscale brightness-50' : ''}`}>
-                              {pet?.rarity === 'legendary' ? '🐉' :
-                               pet?.rarity === 'epic' ? '🦅' :
-                               pet?.rarity === 'rare' ? '🦊' :
-                               pet?.rarity === 'uncommon' ? '🐱' : '🐶'}
-                            </span>
-                          )}
-                          <div className="absolute inset-0 z-10" onContextMenu={(e) => e.preventDefault()} />
-                        </div>
-                        <div className="text-sm font-medium text-gray-900 truncate">
-                          {viewerOwnsPet ? (userPet.nickname || pet?.name) : '???'}
-                        </div>
-                        <div className="text-xs text-gray-500 capitalize">{pet?.rarity}</div>
-                        {userPet.is_active && (
-                          <div className="text-xs text-blue-600 font-medium">Active</div>
-                        )}
-                      </div>
-                    )
-                  })}
-                </div>
-              ) : (
-                <div className="text-center py-8 text-gray-500">
-                  <span className="text-5xl block mb-4">🐾</span>
-                  <p>{isOwnProfile ? 'No pets yet. Visit the Egg Shop to hatch your first companion!' : 'This user has no pets yet.'}</p>
-                  {isOwnProfile && (
-                    <button
-                      onClick={() => navigate('/shop?tab=egg')}
-                      className="mt-4 px-4 py-2 text-sm text-blue-600 hover:text-blue-700 hover:bg-blue-50 rounded-lg transition-colors"
-                    >
-                      Visit Egg Shop
-                    </button>
-                  )}
-                </div>
-              )}
-            </div>
-          </div>
-        )
-      })()}
-
-      {/* Stats Grid */}
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-        <div className="relative bg-white border border-gray-200 text-center p-4 overflow-hidden" style={{ clipPath: CLIP_SM }}>
-          <div className="w-12 h-12 flex items-center justify-center mx-auto mb-2">
-            <img src={assetUrl('/icon/profile/XP.svg')} alt="XP" className="w-12 h-12" />
-          </div>
-          <div className="text-2xl font-semibold text-gray-900">{stats.totalXP}</div>
-          <div className="text-sm text-gray-500">Total XP</div>
-          {currentBadge && (
-            <div className="text-xs text-gray-400 mt-1">
-              {currentBadge?.name}
-            </div>
-          )}
-        </div>
-
-        <div className="relative bg-white border border-gray-200 text-center p-4 overflow-hidden" style={{ clipPath: CLIP_SM }}>
-          <div className="w-12 h-12 flex items-center justify-center mx-auto mb-2">
-            <img src={assetUrl('/icon/profile/paper.svg')} alt="Exercises" className="w-12 h-12" />
-          </div>
-          <div className="text-2xl font-semibold text-gray-900">{stats.exercisesCompleted}</div>
-          <div className="text-sm text-gray-500">Bài tập hoàn thành</div>
-        </div>
-
-        <div className="relative bg-white border border-gray-200 text-center p-4 overflow-hidden" style={{ clipPath: CLIP_SM }}>
-          <div className="w-12 h-12 flex items-center justify-center mx-auto mb-2">
-            <img src={assetUrl('/icon/profile/streak.svg')} alt="Streak" className="w-12 h-12" />
-          </div>
-          <div className="text-2xl font-semibold text-gray-900">{stats.streakCount}</div>
-          <div className="text-sm text-gray-500">Chuỗi ngày học</div>
-        </div>
-
-        <div className="relative bg-white border border-gray-200 text-center p-4 overflow-hidden" style={{ clipPath: CLIP_SM }}>
-          <div className="w-12 h-12 flex items-center justify-center mx-auto mb-2">
-            <img src={assetUrl('/icon/profile/score%20metric.svg')} alt="Score" className="w-12 h-12" />
-          </div>
-          <div className="text-2xl font-semibold text-gray-900">{stats.averageScore}%</div>
-          <div className="text-sm text-gray-500">Điểm trung bình</div>
-        </div>
-      </div>
-
-      {/* Recent Activity - moved to Progress page */}
-
-      {/* Additional Stats */}
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-        <div className="relative bg-white border border-gray-200 overflow-hidden" style={{ clipPath: CLIP_CARD }}>
-          <CornerBrackets />
-          <div className="px-5 pt-4 pb-1">
-            <h3 className="text-base font-semibold flex items-center space-x-2 uppercase tracking-wide">
-              <Clock className="w-5 h-5" />
-              <span>Thời gian học tập</span>
-            </h3>
-            <div className="h-[2px] w-12 bg-gradient-to-r from-blue-400 to-transparent mt-1" />
-          </div>
-          <div className="p-4">
-            <div className="text-3xl font-semibold text-gray-900 mb-2">
-              {formatPracticeTime(stats.totalPracticeTime)}
-            </div>
-            <p className="text-gray-500 text-sm">Tổng thời gian luyện tập</p>
-          </div>
-        </div>
-
-        <div className="relative bg-white border border-gray-200 overflow-hidden" style={{ clipPath: CLIP_CARD }}>
-          <CornerBrackets />
-          <div className="px-5 pt-4 pb-1">
-            <h3 className="text-base font-semibold flex items-center space-x-2 uppercase tracking-wide">
-              <Calendar className="w-5 h-5" />
-              <span>Tham gia từ</span>
-            </h3>
-            <div className="h-[2px] w-12 bg-gradient-to-r from-blue-400 to-transparent mt-1" />
-          </div>
-          <div className="p-4">
-            <div className="text-lg font-medium text-gray-900 mb-2">
-              {currentProfile?.created_at ? new Date(currentProfile.created_at).toLocaleDateString('vi-VN') : 'N/A'}
-            </div>
-            <p className="text-gray-500 text-sm">Ngày đăng ký tài khoản</p>
-          </div>
-        </div>
-      </div>
-
-      {/* Avatar Selector Modal */}
-      {showAvatarSelector && isOwnProfile && (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
-          <div className="relative bg-white border border-gray-200 p-8 max-w-5xl w-full max-h-[90vh] overflow-y-auto" style={{ clipPath: CLIP_CARD }}>
-            <CornerBrackets />
-            <div className="flex items-center justify-between mb-4">
-              <h3 className="text-xl font-semibold">Chọn Avatar - Thu thập XP để mở khóa</h3>
-              <button
-                onClick={() => setShowAvatarSelector(false)}
-                className="p-2 hover:bg-gray-100 rounded-lg"
-              >
-                ✕
-              </button>
-            </div>
-
-            <div className="grid grid-cols-3 md:grid-cols-8 lg:grid-cols-10 gap-6">
-              {availableAvatars.map((avatar) => {
-                const isUnlocked = stats.totalXP >= avatar.unlock_xp
-                const isSelected = selectedAvatar === avatar.image_url
-
-                return (
-                  <div key={avatar.id} className="text-center">
-                    <div className="relative w-20 h-20">
-                      <div
-                        className={`w-full h-full rounded-full flex items-center justify-center text-2xl transition-all overflow-hidden border-2 ${
-                          isUnlocked
-                            ? isSelected
-                              ? 'bg-blue-500 text-white ring-4 ring-blue-300 border-blue-600 cursor-pointer'
-                              : 'bg-gray-100 hover:bg-gray-200 border-gray-300 cursor-pointer'
-                            : 'bg-gray-300 opacity-50 border-gray-400 cursor-not-allowed'
-                        }`}
-                        onClick={() => isUnlocked && handleAvatarSelect(avatar)}
-                        title={
-                          isUnlocked
-                            ? `${avatar.name} - ${avatar.description}`
-                            : `${avatar.name} - Cần ${avatar.unlock_xp} XP để mở khóa`
-                        }
-                      >
-                        {avatar.image_url.startsWith('http') ? (
-                          <img src={avatar.image_url} alt={avatar.name} className="w-full h-full object-cover rounded-full select-none pointer-events-none" draggable={false} onContextMenu={(e) => e.preventDefault()} />
-                        ) : (
-                          avatar.image_url
-                        )}
-                      </div>
-                      
-                      {/* Lock overlay for locked avatars - positioned absolutely over the entire container */}
-                      {!isUnlocked && (
-                        <div className="absolute inset-0 bg-black bg-opacity-60 rounded-full flex items-center justify-center">
-                          <svg className="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
-                          </svg>
-                        </div>
-                      )}
-                    </div>
-                    <div className="text-xs mt-2">
-                      <div className={`font-medium ${isUnlocked ? 'text-gray-800' : 'text-gray-500'}`}>
-                        {avatar.name}
-                      </div>
-                      {!isUnlocked ? (
-                        <div className="text-red-500 font-medium">
-                          {avatar.unlock_xp} XP
-                        </div>
-                      ) : (
-                        avatar.tier !== 'default' && (
-                          <div className="text-gray-500 capitalize">
-                            {avatar.tier}
-                          </div>
-                        )
-                      )}
-                    </div>
-                  </div>
-                )
-              })}
-            </div>
-
-            {/* Purchased Shop Avatars */}
-            {purchasedAvatars.length > 0 && (
-              <>
-                <div className="mt-6 mb-4 border-t pt-4">
-                  <h4 className="text-sm font-semibold text-gray-700 mb-3">Avatar đã mua</h4>
-                </div>
-                <div className="grid grid-cols-3 md:grid-cols-8 lg:grid-cols-10 gap-6">
-                  {purchasedAvatars.map((item) => {
-                    const avatarUrl = item.item_data?.avatar_url || item.image_url
-                    const isSelected = selectedAvatar === avatarUrl
-
-                    return (
-                      <div key={`shop-${item.id}`} className="text-center">
-                        <div className="relative w-20 h-20">
-                          <div
-                            className={`w-full h-full rounded-full flex items-center justify-center text-2xl transition-all overflow-hidden border-2 cursor-pointer ${
-                              isSelected
-                                ? 'bg-blue-500 text-white ring-4 ring-blue-300 border-blue-600'
-                                : 'bg-gray-100 hover:bg-gray-200 border-gray-300'
-                            }`}
-                            onClick={() => handleShopAvatarSelect(item)}
-                          >
-                            {avatarUrl.startsWith('http') ? (
-                              <img src={avatarUrl} alt={item.name} className="w-full h-full object-cover rounded-full select-none pointer-events-none" draggable={false} onContextMenu={(e) => e.preventDefault()} />
-                            ) : (
-                              avatarUrl
-                            )}
-                          </div>
-                        </div>
-                        <div className="text-xs mt-2">
-                          <div className="font-medium text-gray-800">{item.name}</div>
-                        </div>
-                      </div>
-                    )
-                  })}
-                </div>
-              </>
-            )}
-
-            {/* Custom Uploaded Avatars */}
-            <div className="mt-6 mb-4 border-t pt-4">
-              <div className="flex items-center justify-between mb-3">
-                <h4 className="text-sm font-semibold text-gray-700">Avatar tự tải lên</h4>
-                <label className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-sm font-medium cursor-pointer transition-colors ${
-                  uploadingAvatar || customAvatars.length >= 20 || uploadCooldownDays > 0
-                    ? 'bg-gray-200 text-gray-400 cursor-not-allowed'
-                    : 'bg-blue-600 text-white hover:bg-blue-700'
-                }`}>
-                  <Upload className="w-4 h-4" />
-                  {uploadingAvatar ? 'Đang tải...' : customAvatars.length >= 20 ? 'Tối đa 20 avatar' : uploadCooldownDays > 0 ? `Chờ ${uploadCooldownDays} ngày` : 'Tải ảnh lên'}
-                  <input
-                    type="file"
-                    accept="image/*"
-                    onChange={handleAvatarUpload}
-                    disabled={uploadingAvatar || customAvatars.length >= 20 || uploadCooldownDays > 0}
-                    className="hidden"
-                  />
-                </label>
-              </div>
-
-              {customAvatars.length > 0 ? (
-                <div className="grid grid-cols-3 md:grid-cols-8 lg:grid-cols-10 gap-6">
-                  {customAvatars.map((upload) => {
-                    const isApproved = upload.status === 'approved'
-                    const isPending = upload.status === 'pending'
-                    const isRejected = upload.status === 'rejected'
-                    const isSelected = selectedAvatar === upload.image_url
-
-                    return (
-                      <div key={`custom-${upload.id}`} className="text-center">
-                        <div className="relative w-20 h-20">
-                          <div
-                            className={`w-full h-full rounded-full flex items-center justify-center text-2xl transition-all overflow-hidden border-2 ${
-                              isApproved
-                                ? isSelected
-                                  ? 'bg-blue-500 ring-4 ring-blue-300 border-blue-600 cursor-pointer'
-                                  : 'bg-gray-100 hover:bg-gray-200 border-gray-300 cursor-pointer'
-                                : isPending
-                                  ? 'border-yellow-400 opacity-70 cursor-not-allowed'
-                                  : 'border-red-400 opacity-50 cursor-not-allowed'
-                            }`}
-                            onClick={() => isApproved && handleCustomAvatarSelect(upload)}
-                            title={
-                              isApproved ? 'Nhấn để chọn'
-                              : isPending ? 'Đang chờ admin duyệt'
-                              : `Bị từ chối${upload.reject_reason ? ': ' + upload.reject_reason : ''}`
-                            }
-                          >
-                            <img src={upload.image_url} alt="Custom avatar" className="w-full h-full object-cover rounded-full select-none pointer-events-none" draggable={false} onContextMenu={(e) => e.preventDefault()} />
-                          </div>
-
-                          {/* Status badge */}
-                          <div className={`absolute -top-1 -right-1 w-6 h-6 rounded-full flex items-center justify-center ${
-                            isApproved ? 'bg-green-500' : isPending ? 'bg-yellow-500' : 'bg-red-500'
-                          }`}>
-                            {isApproved && <CheckCircle className="w-4 h-4 text-white" />}
-                            {isPending && <AlertCircle className="w-4 h-4 text-white" />}
-                            {isRejected && <XCircle className="w-4 h-4 text-white" />}
-                          </div>
-
-                          {/* Delete button for pending/rejected */}
-                          {(isPending || isRejected) && (
-                            <button
-                              onClick={(e) => { e.stopPropagation(); handleDeleteCustomAvatar(upload.id) }}
-                              className="absolute -bottom-1 -right-1 w-5 h-5 bg-gray-600 hover:bg-gray-700 rounded-full flex items-center justify-center"
-                              title="Xóa"
-                            >
-                              <X className="w-3 h-3 text-white" />
-                            </button>
-                          )}
-                        </div>
-                        <div className="text-xs mt-2">
-                          <div className={`font-medium ${
-                            isApproved ? 'text-green-600' : isPending ? 'text-yellow-600' : 'text-red-500'
-                          }`}>
-                            {isApproved ? 'Đã duyệt' : isPending ? 'Chờ duyệt' : 'Từ chối'}
-                          </div>
-                        </div>
-                      </div>
-                    )
-                  })}
-                </div>
-              ) : (
-                <p className="text-sm text-gray-400 text-center py-4">
-                  Tải ảnh lên để sử dụng làm avatar. Ảnh sẽ cần được admin duyệt trước khi sử dụng.
-                </p>
-              )}
-            </div>
-
-            <div className="mt-6 p-4 bg-blue-50 border border-blue-200" style={{ clipPath: CLIP_SM }}>
-              <div className="text-center">
-                <span className="text-lg font-semibold text-blue-900">
-                  XP hiện tại: {stats.totalXP}
-                </span>
-                {currentLevel && (
-                  <div className="text-sm text-blue-700 mt-1">
-                    Cấp {currentLevel.level_number} • {currentBadge?.name}
-                  </div>
-                )}
-
-              </div>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* Badge Modal */}
-      {showBadgeModal && createPortal(
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
-          <div className="relative bg-white border border-gray-200 max-w-4xl w-full max-h-[90vh] overflow-y-auto" style={{ clipPath: CLIP_CARD }}>
-            <CornerBrackets />
-            <div className="sticky top-0 bg-white border-b border-gray-200 p-4 z-10">
-              <div className="flex items-center justify-between">
-                <h2 className="text-xl font-semibold text-gray-900 uppercase tracking-wide">Badge Collection</h2>
-                <button
-                  onClick={() => setShowBadgeModal(false)}
-                  className="p-2 hover:bg-gray-100 transition-colors"
-                  style={{ clipPath: CLIP_BTN }}
-                >
-                  <X className="w-5 h-5" />
-                </button>
-              </div>
-              <div className="h-[2px] w-16 bg-gradient-to-r from-yellow-400 to-transparent mt-1" />
-            </div>
-
-            <div className="p-6 space-y-8">
-              {/* Earned Badges */}
-              {earnedBadges.length > 0 && (
-                <div>
-                  <h3 className="text-lg font-semibold text-gray-900 mb-4 flex items-center space-x-2">
-                    <Trophy className="w-5 h-5 text-yellow-600" />
-                    <span>Earned Badges ({earnedBadges.length})</span>
-                  </h3>
-                  <div className="grid grid-cols-3 md:grid-cols-5 lg:grid-cols-6 gap-4">
-                    {earnedBadges.map((badge) => (
-                      <div key={badge.id} className="text-center">
-                        <div className={`w-16 h-16 mx-auto mb-2 p-2 rounded-full ${getTierBgColor(badge.badge_tier)}`}>
-                          <img
-                            src={badge.badge_icon}
-                            alt={badge.badge_name}
-                            className="w-full h-full object-contain"
-                            onError={(e) => {
-                              e.target.style.display = 'none'
-                              e.target.nextSibling.style.display = 'inline'
-                            }}
-                          />
-                          <span className="text-2xl hidden">{badge.badge_icon}</span>
-                        </div>
-                        <div className="text-sm font-medium text-gray-900">{badge.badge_name}</div>
-                        <div className="text-xs text-gray-500">{badge.xp_required} XP</div>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              )}
-
-              {/* Upcoming Badges */}
-              {upcomingBadges.length > 0 && (
-                <div>
-                  <h3 className="text-lg font-semibold text-gray-900 mb-4 flex items-center space-x-2">
-                    <Target className="w-5 h-5 text-gray-600" />
-                    <span>Upcoming Badges ({upcomingBadges.length})</span>
-                  </h3>
-                  <div className="grid grid-cols-3 md:grid-cols-5 lg:grid-cols-6 gap-4">
-                    {upcomingBadges.map((badge) => (
-                      <div key={badge.id} className="text-center relative">
-                        <div className="w-16 h-16 mx-auto mb-2 p-2 rounded-full bg-gray-100 relative">
-                          <img
-                            src={badge.badge_icon}
-                            alt={badge.badge_name}
-                            className="w-full h-full object-contain opacity-30 grayscale"
-                            onError={(e) => {
-                              e.target.style.display = 'none'
-                              e.target.nextSibling.style.display = 'inline'
-                            }}
-                          />
-                          <span className="text-2xl hidden opacity-30 grayscale">{badge.badge_icon}</span>
-                          {/* Lock overlay */}
-                          <div className="absolute inset-0 bg-black bg-opacity-30 rounded-full flex items-center justify-center">
-                            <svg className="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
-                            </svg>
-                          </div>
-                        </div>
-                        <div className="text-sm font-medium text-gray-600">{badge.badge_name}</div>
-                        <div className="text-xs text-gray-500">{badge.xp_required} XP</div>
-
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              )}
-
-              {/* Empty state */}
-              {earnedBadges.length === 0 && upcomingBadges.length === 0 && (
-                <div className="text-center py-12 text-gray-500">
-                  <Trophy className="w-16 h-16 mx-auto mb-4 opacity-50" />
-                  <h3 className="text-lg font-medium mb-2">No badges available</h3>
-                  <p>Badge system is not configured yet.</p>
-                </div>
-              )}
-            </div>
-          </div>
-        </div>,
-        document.body
-      )}
-
-      {/* Achievement Modal */}
-      {showAchievementModal && createPortal(
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
-          <div className="relative bg-white border border-gray-200 max-w-4xl w-full max-h-[90vh] overflow-y-auto" style={{ clipPath: CLIP_CARD }}>
-            <CornerBrackets />
-            <div className="sticky top-0 bg-white border-b border-gray-200 p-4 z-10">
-              <div className="flex items-center justify-between">
-                <h2 className="text-xl font-semibold text-gray-900 uppercase tracking-wide">Achievement Collection</h2>
-                <button
-                  onClick={() => setShowAchievementModal(false)}
-                  className="p-2 hover:bg-gray-100 transition-colors"
-                  style={{ clipPath: CLIP_BTN }}
-                >
-                  <X className="w-5 h-5" />
-                </button>
-              </div>
-              <div className="h-[2px] w-16 bg-gradient-to-r from-purple-400 to-transparent mt-1" />
-            </div>
-
-            <div className="p-6">
-              {/* Claim Message */}
-              {claimMessage && (
-                <div className={`mb-4 p-3 ${
-                  claimMessage.includes('+')
-                    ? 'bg-green-100 text-green-800 border border-green-200'
-                    : 'bg-red-100 text-red-800 border border-red-200'
-                }`} style={{ clipPath: CLIP_SM }}>
-                  {claimMessage}
-                </div>
-              )}
-
-              {/* Unlocked Achievements */}
-              {achievements.filter(a => a.isUnlocked).length > 0 ? (
-                <div>
-                  <h3 className="text-lg font-semibold text-gray-900 mb-4 flex items-center space-x-2">
-                    <Trophy className="w-5 h-5 text-purple-600" />
-                    <span>Đã đạt được ({achievements.filter(a => a.isUnlocked).length})</span>
-                  </h3>
-                  <div className="grid grid-cols-3 md:grid-cols-5 lg:grid-cols-6 gap-4">
-                    {achievements.filter(a => a.isUnlocked).map((achievement) => (
-                      <div key={achievement.id} className="text-center">
-                        {achievement.badge_image_url ? (
-                          <img
-                            src={achievement.badge_image_url}
-                            alt={achievement.title}
-                            className="w-20 h-20 mx-auto mb-2 object-contain"
-                          />
-                        ) : (
-                          <div className="text-4xl mx-auto mb-2">
-                            🏆
-                          </div>
-                        )}
-                        <div className="text-sm font-medium text-gray-900">{achievement.title}</div>
-                        <div className="text-xs text-gray-500">{achievement.description}</div>
-                        {achievement.isClaimed && (
-                          <div className="text-xs text-green-600 mt-1">✓ Đã nhận</div>
-                        )}
-                        {!achievement.isClaimed && isOwnProfile && (achievement.xp_reward > 0 || achievement.gem_reward > 0) && (
-                          <button
-                            onClick={() => handleClaimAchievementXP(achievement.id)}
-                            disabled={claimingAchievement[achievement.id]}
-                            className="mt-1 mx-auto flex items-center gap-1 px-2 py-1 text-xs bg-green-600 hover:bg-green-700 text-white rounded transition-colors disabled:opacity-50"
-                          >
-                            <Gift className="w-3 h-3" />
-                            {claimingAchievement[achievement.id]
-                              ? '...'
-                              : `Nhận ${[
-                                  achievement.xp_reward > 0 ? `${achievement.xp_reward} XP` : null,
-                                  achievement.gem_reward > 0 ? `${achievement.gem_reward} 💎` : null,
-                                ].filter(Boolean).join(' + ')}`}
-                          </button>
-                        )}
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              ) : (
-                <div className="text-center py-12 text-gray-500">
-                  <Award className="w-16 h-16 mx-auto mb-4 opacity-50" />
-                  <h3 className="text-lg font-medium mb-2">No achievements unlocked yet</h3>
-                  <p>Keep learning to unlock your first achievement!</p>
-                </div>
-              )}
-            </div>
-          </div>
-        </div>,
-        document.body
-      )}
 
       {/* Log Out Button */}
       {isOwnProfile && (
-        <div className="mt-6 mb-8 flex justify-center">
+        <div className="flex justify-center pb-6 pt-2">
           <button
             onClick={async () => { await signOut(); navigate('/login'); }}
-            className="flex items-center gap-2 px-6 py-3 bg-red-50 text-red-600 font-medium hover:bg-red-100 transition-colors border border-red-200"
-            style={{ clipPath: CLIP_SM }}
+            className="pf-press inline-flex items-center gap-2 rounded-full bg-rose-50 px-6 py-3 text-sm font-black text-rose-600 ring-1 ring-inset ring-rose-200 transition-colors hover:bg-rose-100"
           >
-            <LogOut className="w-5 h-5" />
+            <LogOut className="h-5 w-5" />
             Log Out
           </button>
         </div>
       )}
+
+      {/* Avatar Selector */}
+      {showAvatarSelector && isOwnProfile && (
+        <AvatarPicker
+          onClose={() => setShowAvatarSelector(false)}
+          selectedAvatar={selectedAvatar}
+          frameUrl={frameUrl}
+          frameRatio={currentProfile?.active_frame_ratio}
+          fallback={avatarFallback}
+          totalXP={stats.totalXP}
+          levelText={currentLevel ? `Cấp ${currentLevel.level_number} • ${currentBadge?.name}` : null}
+          avatars={availableAvatars}
+          onPickAvatar={handleAvatarSelect}
+          purchased={purchasedAvatars}
+          onPickPurchased={handleShopAvatarSelect}
+          uploads={customAvatars}
+          onPickUpload={handleCustomAvatarSelect}
+          onDeleteUpload={handleDeleteCustomAvatar}
+          onUpload={handleAvatarUpload}
+          uploading={uploadingAvatar}
+          cooldownDays={uploadCooldownDays}
+        />
+      )}
+
+      {showBadgeModal && (
+        <BadgeSheet earned={earnedBadges} upcoming={upcomingBadges} onClose={() => setShowBadgeModal(false)} />
+      )}
+
+      {showAchievementModal && (
+        <AchievementSheet
+          achievements={achievements}
+          isOwn={isOwnProfile}
+          claiming={claimingAchievement}
+          onClaim={handleClaimAchievementXP}
+          winCounts={challengeWinCounts}
+          // Esc still reaches the sheet while the claim celebration covers it: close the celebration, not the list.
+          onClose={() => (claimResult ? setClaimResult(null) : setShowAchievementModal(false))}
+        />
+      )}
+
+      {toastMessage && <Toast message={toastMessage} good={toastMessage.includes('+')} />}
+
       {claimResult && (
         <ClaimCelebration
           result={claimResult}
@@ -1789,6 +940,17 @@ const Profile = () => {
       )}
     </div>
   )
+}
+
+// Each student gets a fresh page, so nothing of the profile shown before is left on screen while the next one loads:
+// going from one profile to another loads it exactly as opening that profile directly does.
+const Profile = () => {
+  const { userId } = useParams()
+  const { user } = useAuth()
+  // Logging out clears the user a moment before the page leaves; the last known id keeps "my profile" in place.
+  const myId = useRef(user?.id)
+  if (user?.id) myId.current = user.id
+  return <ProfileView key={!userId || userId === myId.current ? 'me' : userId} />
 }
 
 export default Profile

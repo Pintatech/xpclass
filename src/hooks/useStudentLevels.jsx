@@ -1,6 +1,7 @@
-import React, { createContext, useContext, useEffect, useState } from 'react'
+import { createContext, useContext, useEffect, useState } from 'react'
 import { useAuth } from './useAuth'
 import { supabase } from '../supabase/client'
+import { levelInfoFor } from '../utils/levelInfo'
 
 const StudentLevelsContext = createContext({})
 
@@ -54,40 +55,12 @@ export const StudentLevelsProvider = ({ children }) => {
   const calculateUserLevel = (userXp) => {
     if (studentLevels.length === 0) return
 
-    // Find current level (highest level where xp_required <= userXp)
-    const current = studentLevels
-      .filter(level => userXp >= level.xp_required)
-      .sort((a, b) => b.level_number - a.level_number)[0]
-
-    if (!current) {
-      // Fallback to first level if user has no XP
-      setCurrentLevel(studentLevels[0])
-      setNextLevel(studentLevels[1] || null)
-      setLevelProgress({ 
-        xpNeeded: studentLevels[1]?.xp_required || 0, 
-        progressPercentage: 0 
-      })
-      return
-    }
-
-    const next = studentLevels.find(level => level.level_number === current.level_number + 1)
-
-    setCurrentLevel(current)
-    setNextLevel(next)
-
-    if (next) {
-      const xpNeeded = next.xp_required - userXp
-      const progressRange = next.xp_required - current.xp_required
-      const progressMade = userXp - current.xp_required
-      const progressPercentage = Math.round((progressMade / progressRange) * 100)
-
-      setLevelProgress({
-        xpNeeded: Math.max(0, xpNeeded),
-        progressPercentage: Math.min(100, Math.max(0, progressPercentage))
-      })
-    } else {
-      setLevelProgress({ xpNeeded: 0, progressPercentage: 100 })
-    }
+    // Same rules as every other screen (utils/levelInfo.js): current = highest level reached, next = the nearest
+    // higher level_number (a level switched off by the admin is skipped instead of showing "Max").
+    const info = levelInfoFor(userXp, studentLevels)
+    setCurrentLevel(info.current)
+    setNextLevel(info.next)
+    setLevelProgress({ xpNeeded: info.xpNeeded, progressPercentage: info.percent })
   }
 
   // Get level info using database function (alternative method)
