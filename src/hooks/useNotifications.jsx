@@ -1,186 +1,141 @@
-import { useState, useEffect, useCallback, useRef } from 'react'
+import { createContext, useContext, useState, useEffect, useCallback, useMemo, useRef } from 'react'
 import { supabase } from '../supabase/client'
 import { useAuth } from './useAuth'
 
-export const useNotifications = () => {
+// One notification list for the whole app. The sidebar, the bottom bar and the popup all read this provider, so there
+// is one fetch every 2 minutes instead of one per component, and marking a notification read in one place updates the
+// badge everywhere at once. Sending announcements lives on the admin page (admin/NotificationManagement.jsx).
+//
+// Server side (src/supabase/migrations/add_notification_targets.sql):
+//   get_my_notifications()        the signed-in user's list (personal, whole site, teachers, students, classes, people)
+//   mark_notifications_read(ids)  marks read for the signed-in user
+// Until that SQL is live (or after its undo) the server answers PGRST202 "function not found", and this falls back to
+// the old get_notifications / direct writes, so the app keeps working in either order of deploy.
+
+const NotificationsContext = createContext(null)
+
+// Poll every 2 minutes, and only while the tab is visible. Idle background tabs used to be a top source of PostgREST
+// egress; a fetch on becoming visible again catches up.
+const POLL_MS = 120000
+
+const isMissingFunction = (error) => error?.code === 'PGRST202'
+
+// ---- Old server path, used only while the new functions are missing.
+const legacyMarkRead = async (userId, items) => {
+  const ownIds = items.filter(n => n.user_id === userId).map(n => n.id)
+  const sharedIds = items.filter(n => n.user_id !== userId).map(n => n.id)
+  if (ownIds.length > 0) {
+    const { error } = await supabase
+      .from('notifications')
+      .update({ is_read: true })
+      .in('id', ownIds)
+      .eq('user_id', userId)
+    if (error) throw error
+  }
+  if (sharedIds.length > 0) {
+    const { error } = await supabase
+      .from('notification_reads')
+      .upsert(sharedIds.map(id => ({ notification_id: id, user_id: userId })),
+        { onConflict: 'notification_id,user_id', ignoreDuplicates: true })
+    if (error) throw error
+  }
+}
+
+export const NotificationsProvider = ({ children }) => {
   const { user } = useAuth()
+  const userId = user?.id ?? null
+
   const [notifications, setNotifications] = useState([])
-  const [unreadCount, setUnreadCount] = useState(0)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState(null)
-  const pollInterval = useRef(null)
+
+  // Ids marked read in this session. A fetch that left before the mark reached the server must not show them unread.
+  const readIdsRef = useRef(new Set())
+  // Each fetch takes a number; only the newest one may write the list, so a slow old answer (or one for the account
+  // that just signed out) is dropped.
+  const fetchSeqRef = useRef(0)
+  // Set once the server says the new functions are missing; then the old ones are used directly.
+  const legacyRef = useRef(false)
+  const notificationsRef = useRef(notifications)
+  notificationsRef.current = notifications
 
   const fetchNotifications = useCallback(async () => {
-    if (!user) return
-
+    if (!userId) return
+    const seq = ++fetchSeqRef.current
     try {
-      // Single server-side call: get_notifications merges user-specific,
-      // broadcast, and cohort-targeted notifications, resolves read status,
-      // dedupes, filters mission_reward, and caps at 50 — replacing the
-      // 3-4 round-trips this used to make every poll.
-      const { data, error } = await supabase.rpc('get_notifications', {
-        p_user_id: user.id,
-      })
-
-      if (error) throw error
-
-      const merged = data || []
-      setNotifications(merged)
-      setUnreadCount(merged.filter(n => !n.is_read).length)
+      let result = legacyRef.current ? null : await supabase.rpc('get_my_notifications')
+      if (!result || isMissingFunction(result.error)) {
+        legacyRef.current = true
+        result = await supabase.rpc('get_notifications', { p_user_id: userId })
+      }
+      if (result.error) throw result.error
+      if (seq !== fetchSeqRef.current) return
+      const read = readIdsRef.current
+      setNotifications((result.data || []).map(n => (!n.is_read && read.has(n.id) ? { ...n, is_read: true } : n)))
+      setError(null)
     } catch (err) {
       console.error('Error fetching notifications:', err)
-      setError(err.message)
+      if (seq === fetchSeqRef.current) setError(err.message)
     } finally {
-      setLoading(false)
+      if (seq === fetchSeqRef.current) setLoading(false)
     }
-  }, [user])
+  }, [userId])
 
-  const markAsRead = async (notificationId) => {
-    if (!user) return
-
-    const notif = notifications.find(n => n.id === notificationId)
-    if (!notif || notif.is_read) return
-
+  // Shows the ids as read at once, then saves. If saving fails, the list is fetched again to show the real state.
+  const markIdsRead = useCallback(async (ids) => {
+    if (!userId || ids.length === 0) return
+    const items = notificationsRef.current.filter(n => ids.includes(n.id))
+    ids.forEach(id => readIdsRef.current.add(id))
+    setNotifications(prev => prev.map(n => (ids.includes(n.id) && !n.is_read ? { ...n, is_read: true } : n)))
     try {
-      if (notif.user_id === user.id) {
-        // User-specific notification: update is_read directly
-        await supabase
-          .from('notifications')
-          .update({ is_read: true })
-          .eq('id', notificationId)
-      } else {
-        // Broadcast/cohort notification: insert into notification_reads
-        await supabase
-          .from('notification_reads')
-          .upsert({ notification_id: notificationId, user_id: user.id })
+      if (!legacyRef.current) {
+        const { error: rpcError } = await supabase.rpc('mark_notifications_read', { p_ids: ids })
+        if (!rpcError) return
+        if (!isMissingFunction(rpcError)) throw rpcError
+        legacyRef.current = true
       }
-
-      setNotifications(prev =>
-        prev.map(n => n.id === notificationId ? { ...n, is_read: true } : n)
-      )
-      setUnreadCount(prev => Math.max(0, prev - 1))
+      await legacyMarkRead(userId, items)
     } catch (err) {
-      console.error('Error marking notification as read:', err)
+      console.error('Error marking notifications as read:', err)
+      ids.forEach(id => readIdsRef.current.delete(id))
+      fetchNotifications()
     }
-  }
+  }, [userId, fetchNotifications])
 
-  const markAllAsRead = async () => {
-    if (!user) return
+  const markAsRead = useCallback((notificationId) => {
+    const notif = notificationsRef.current.find(n => n.id === notificationId)
+    if (!notif || notif.is_read) return Promise.resolve()
+    return markIdsRead([notificationId])
+  }, [markIdsRead])
 
-    try {
-      const unreadNotifs = notifications.filter(n => !n.is_read)
+  const markAllAsRead = useCallback(() => {
+    return markIdsRead(notificationsRef.current.filter(n => !n.is_read).map(n => n.id))
+  }, [markIdsRead])
 
-      // Mark user-specific ones
-      const userSpecific = unreadNotifs.filter(n => n.user_id === user.id)
-      if (userSpecific.length > 0) {
-        await supabase
-          .from('notifications')
-          .update({ is_read: true })
-          .eq('user_id', user.id)
-          .eq('is_read', false)
-      }
 
-      // Mark broadcast/cohort ones
-      const broadcastOnes = unreadNotifs.filter(n => n.user_id !== user.id)
-      if (broadcastOnes.length > 0) {
-        const inserts = broadcastOnes.map(n => ({
-          notification_id: n.id,
-          user_id: user.id
-        }))
-        await supabase
-          .from('notification_reads')
-          .upsert(inserts)
-      }
-
-      setNotifications(prev => prev.map(n => ({ ...n, is_read: true })))
-      setUnreadCount(0)
-    } catch (err) {
-      console.error('Error marking all as read:', err)
-    }
-  }
-
-  // Admin: create announcement
-  const createAdminAnnouncement = async (title, message, cohortId = null) => {
-    try {
-      const { data, error } = await supabase
-        .from('notifications')
-        .insert([{
-          user_id: null,
-          type: 'admin_announcement',
-          title,
-          message,
-          icon: 'Megaphone',
-          cohort_id: cohortId || null
-        }])
-        .select()
-        .single()
-
-      if (error) throw error
-      return data
-    } catch (err) {
-      console.error('Error creating announcement:', err)
-      throw err
-    }
-  }
-
-  // Fetch admin announcements list
-  const fetchAnnouncements = async () => {
-    try {
-      const { data, error } = await supabase
-        .from('notifications')
-        .select('*')
-        .eq('type', 'admin_announcement')
-        .order('created_at', { ascending: false })
-        .limit(50)
-
-      if (error) throw error
-      return data || []
-    } catch (err) {
-      console.error('Error fetching announcements:', err)
-      return []
-    }
-  }
-
-  // Delete notification (admin)
-  const deleteNotification = async (notificationId) => {
-    try {
-      const { error } = await supabase
-        .from('notifications')
-        .delete()
-        .eq('id', notificationId)
-
-      if (error) throw error
-      setNotifications(prev => prev.filter(n => n.id !== notificationId))
-    } catch (err) {
-      console.error('Error deleting notification:', err)
-      throw err
-    }
-  }
-
+  // New account or signed out: start clean, so nothing of the previous account shows, then poll for this one.
   useEffect(() => {
-    if (!user) return
+    fetchSeqRef.current += 1
+    readIdsRef.current = new Set()
+    setNotifications([])
+    setError(null)
+    setLoading(Boolean(userId))
+    if (!userId) return undefined
 
-    // Poll every 2 minutes, and only while the tab is actually visible.
-    // Idle/backgrounded tabs were firing 3-4 notification queries per minute
-    // each — a top source of PostgREST egress. Pausing on hidden tabs and
-    // halving the interval cuts that dramatically with no UX cost (we do an
-    // immediate catch-up fetch whenever the tab becomes visible again).
-    const POLL_MS = 120000
-
-    const startPolling = () => {
-      if (pollInterval.current) clearInterval(pollInterval.current)
-      pollInterval.current = setInterval(fetchNotifications, POLL_MS)
-    }
+    let timer = null
     const stopPolling = () => {
-      if (pollInterval.current) {
-        clearInterval(pollInterval.current)
-        pollInterval.current = null
+      if (timer) {
+        clearInterval(timer)
+        timer = null
       }
     }
-
+    const startPolling = () => {
+      stopPolling()
+      timer = setInterval(fetchNotifications, POLL_MS)
+    }
     const handleVisibility = () => {
       if (document.visibilityState === 'visible') {
-        fetchNotifications() // catch up on anything missed while hidden
+        fetchNotifications()
         startPolling()
       } else {
         stopPolling()
@@ -190,23 +145,35 @@ export const useNotifications = () => {
     fetchNotifications()
     if (document.visibilityState === 'visible') startPolling()
     document.addEventListener('visibilitychange', handleVisibility)
-
     return () => {
       stopPolling()
       document.removeEventListener('visibilitychange', handleVisibility)
     }
-  }, [user, fetchNotifications])
+  }, [userId, fetchNotifications])
 
-  return {
+  const unreadCount = useMemo(() => notifications.filter(n => !n.is_read).length, [notifications])
+
+  const value = useMemo(() => ({
     notifications,
     unreadCount,
     loading,
     error,
     fetchNotifications,
     markAsRead,
-    markAllAsRead,
-    createAdminAnnouncement,
-    fetchAnnouncements,
-    deleteNotification
+    markAllAsRead
+  }), [notifications, unreadCount, loading, error, fetchNotifications, markAsRead, markAllAsRead])
+
+  return (
+    <NotificationsContext.Provider value={value}>
+      {children}
+    </NotificationsContext.Provider>
+  )
+}
+
+export const useNotifications = () => {
+  const context = useContext(NotificationsContext)
+  if (!context) {
+    throw new Error('useNotifications must be used within a NotificationsProvider')
   }
+  return context
 }

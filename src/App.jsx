@@ -12,6 +12,7 @@ import LoginPage from './components/auth/LoginPage'
 import ProtectedRoute from './components/auth/ProtectedRoute'
 import { TeacherCourseProvider } from './hooks/useTeacherCourseContext'
 import { MissionsProvider } from './hooks/useMissions'
+import { NotificationsProvider } from './hooks/useNotifications'
 import { REGISTER_PATH } from './config/registration'
 import { FEATURES } from './config/features'
 import lazyWithReload from './utils/lazyWithReload'
@@ -61,6 +62,7 @@ function App() {
     <AuthProvider>
       <ProgressProvider>
         <MissionsProvider>
+        <NotificationsProvider>
         <InventoryProvider>
         <PetProvider>
         <StudentLevelsProvider>
@@ -144,6 +146,7 @@ function App() {
         </StudentLevelsProvider>
         </PetProvider>
         </InventoryProvider>
+        </NotificationsProvider>
         </MissionsProvider>
       </ProgressProvider>
     </AuthProvider>

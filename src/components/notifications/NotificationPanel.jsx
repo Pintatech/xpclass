@@ -1,6 +1,7 @@
 import { useState } from 'react'
-import { CheckCheck, Trophy, TrendingUp, Flame, Megaphone, Gift, Package, Star } from 'lucide-react'
+import { CheckCheck, Trophy, TrendingUp, Flame, Megaphone, Gift, Package, Star, Medal, Crown } from 'lucide-react'
 
+// Names stored in notifications.icon. Medal: competition places after 3rd and qualifiers; Crown: monthly XP ranks.
 const iconMap = {
   Trophy: Trophy,
   TrendingUp: TrendingUp,
@@ -8,7 +9,9 @@ const iconMap = {
   Megaphone: Megaphone,
   Gift: Gift,
   Package: Package,
-  Star: Star
+  Star: Star,
+  Medal: Medal,
+  Crown: Crown
 }
 
 const typeColors = {
