@@ -1,8 +1,28 @@
-import { useState } from 'react'
+import { useState, useEffect, useMemo } from 'react'
 import { supabase } from '../../supabase/client'
-import { Upload, X, AlertCircle, CheckCircle, Download, Users, UserPlus } from 'lucide-react'
+import { Upload, X, AlertCircle, CheckCircle, Download, Users, UserPlus, Squirrel } from 'lucide-react'
 import Button from '../ui/Button'
 import Card from '../ui/Card'
+import PetImage from '../pet/home/PetImage'
+import { RARITY_ORDER } from '../pet/home/petHomeUtils'
+
+const rarityRank = (rarity) => {
+  const i = RARITY_ORDER.indexOf(rarity)
+  return i === -1 ? RARITY_ORDER.length : i
+}
+
+// functions.invoke only says "Edge Function returned a non-2xx status code"; the function's own reason
+// ({ error: '...' }) is in the response body, which the error keeps as `context`.
+const invokeError = async (error) => {
+  const status = error?.context?.status
+  try {
+    const body = await error?.context?.json?.()
+    if (body?.error) return new Error(`${body.error} (HTTP ${status})`)
+  } catch {
+    // body was not JSON
+  }
+  return new Error(status ? `${error.message} (HTTP ${status})` : error?.message || 'Request failed')
+}
 
 const BulkUserImport = ({ onClose, onSuccess }) => {
   const [mode, setMode] = useState('single') // 'single' or 'csv'
@@ -21,13 +41,64 @@ const BulkUserImport = ({ onClose, onSuccess }) => {
     real_name: '',
     avatar_url: '',
     role: 'user',
-    cohort: ''
+    cohort: '',
+    pet_id: '' // a pet to gift once the account exists; never sent to the edge function
   })
   const [singleErrors, setSingleErrors] = useState([])
+  const [pets, setPets] = useState([])
+
+  useEffect(() => {
+    supabase
+      .from('pets')
+      .select('id, name, rarity, image_url')
+      .eq('is_active', true)
+      .order('name')
+      .then(({ data, error }) => {
+        if (error) console.error('Error fetching pets:', error)
+        else setPets(data || [])
+      })
+  }, [])
+
+  // [rarity, pets[]] pairs, common first, for the <optgroup>s of the pet picker
+  const petGroups = useMemo(() => {
+    const groups = new Map()
+    for (const pet of pets) {
+      const key = pet.rarity || 'other'
+      if (!groups.has(key)) groups.set(key, [])
+      groups.get(key).push(pet)
+    }
+    return [...groups.entries()].sort((a, b) => rarityRank(a[0]) - rarityRank(b[0]))
+  }, [pets])
+
+  const selectedPet = pets.find(p => p.id === singleUser.pet_id)
 
   const handleSingleUserChange = (field, value) => {
     setSingleUser(prev => ({ ...prev, [field]: value }))
     setSingleErrors([])
+  }
+
+  // The edge function returns no ids, so find the new account by the email it was saved with, then add the pet
+  // the same way the Gift modal in UserManagement does (admins may insert into user_pets).
+  const giftPet = async (email, pet) => {
+    try {
+      const { data: created, error: findError } = await supabase
+        .from('users')
+        .select('id')
+        .eq('email', email)
+        .maybeSingle()
+      if (findError) throw findError
+      if (!created) throw new Error('New account not found')
+
+      const { error: petError } = await supabase
+        .from('user_pets')
+        .insert({ user_id: created.id, pet_id: pet.id, is_active: true })
+      if (petError) throw petError
+
+      return { giftedPet: pet }
+    } catch (err) {
+      console.error('Gift pet error:', err)
+      return { petError: err.message || 'Failed to gift pet' }
+    }
   }
 
   const handleSingleUserSubmit = async () => {
@@ -52,13 +123,16 @@ const BulkUserImport = ({ onClose, onSuccess }) => {
 
     setImporting(true)
     try {
+      const newUser = { ...singleUser }
+      delete newUser.pet_id
       const { data, error } = await supabase.functions.invoke('bulk-create-users', {
-        body: { users: [singleUser] }
+        body: { users: [newUser] }
       })
 
-      if (error) throw error
+      if (error) throw await invokeError(error)
 
-      setResults(data)
+      const petGift = selectedPet && data.success.length > 0 ? await giftPet(newUser.email, selectedPet) : null
+      setResults({ ...data, ...petGift })
       if (data.success.length > 0 && onSuccess) {
         onSuccess()
       }
@@ -173,7 +247,7 @@ const BulkUserImport = ({ onClose, onSuccess }) => {
         body: { users }
       })
 
-      if (error) throw error
+      if (error) throw await invokeError(error)
 
       setResults(data)
 
@@ -328,6 +402,42 @@ const BulkUserImport = ({ onClose, onSuccess }) => {
                         className="input w-full"
                         placeholder="Class A (optional)"
                       />
+                    </div>
+                    <div>
+                      <label htmlFor="single-user-pet" className="block text-sm font-medium text-gray-700 mb-1">Tặng Pet</label>
+                      <div className="flex items-center gap-2">
+                        <div
+                          className="w-10 h-10 shrink-0 rounded-md border border-gray-300 bg-gray-50 flex items-center justify-center overflow-hidden"
+                          title={selectedPet?.name || 'Không tặng pet'}
+                        >
+                          {selectedPet?.image_url ? (
+                            <PetImage
+                              src={selectedPet.image_url}
+                              size={80}
+                              eager
+                              alt={selectedPet.name}
+                              className="w-9 h-9 object-contain"
+                            />
+                          ) : (
+                            <Squirrel className="w-5 h-5 text-gray-300" aria-hidden="true" />
+                          )}
+                        </div>
+                        <select
+                          id="single-user-pet"
+                          value={singleUser.pet_id}
+                          onChange={(e) => handleSingleUserChange('pet_id', e.target.value)}
+                          className="input w-full min-w-0"
+                        >
+                          <option value="">-- Không tặng --</option>
+                          {petGroups.map(([rarity, list]) => (
+                            <optgroup key={rarity} label={rarity}>
+                              {list.map(pet => (
+                                <option key={pet.id} value={pet.id}>{pet.name}</option>
+                              ))}
+                            </optgroup>
+                          ))}
+                        </select>
+                      </div>
                     </div>
                     <div className="col-span-2">
                       <label className="block text-sm font-medium text-gray-700 mb-1">Avatar URL</label>
@@ -534,6 +644,34 @@ const BulkUserImport = ({ onClose, onSuccess }) => {
                     <div className="text-sm text-red-800">Failed</div>
                   </div>
                 </div>
+
+                {results.giftedPet && (
+                  <div className="flex items-center gap-3 bg-amber-50 border border-amber-200 rounded-lg p-3 mb-4">
+                    <div className="w-10 h-10 shrink-0 flex items-center justify-center">
+                      {results.giftedPet.image_url ? (
+                        <PetImage
+                          src={results.giftedPet.image_url}
+                          size={80}
+                          eager
+                          alt={results.giftedPet.name}
+                          className="w-10 h-10 object-contain"
+                        />
+                      ) : (
+                        <Squirrel className="w-6 h-6 text-amber-500" aria-hidden="true" />
+                      )}
+                    </div>
+                    <div className="text-sm text-amber-900">
+                      Đã tặng pet <strong>{results.giftedPet.name}</strong>
+                    </div>
+                  </div>
+                )}
+
+                {results.petError && (
+                  <div className="flex items-start gap-2 bg-red-50 border border-red-200 rounded-lg p-3 mb-4 text-sm text-red-800">
+                    <AlertCircle className="w-5 h-5 text-red-600 shrink-0" />
+                    <span>Đã tạo user nhưng chưa tặng được pet: {results.petError}</span>
+                  </div>
+                )}
 
                 {results.failed.length > 0 && (
                   <div className="bg-red-50 border border-red-200 rounded-lg p-4 mb-4">
