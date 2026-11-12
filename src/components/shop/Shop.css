@@ -1,0 +1,871 @@
+/* Shop page (/shop). Every class starts with sh- so nothing leaks into the rest of the app.
+   The sheet, toast, loading placeholders, press effect and entrance come from Profile.css (pf- classes, imported by
+   Shop.jsx), so the two pages look alike. Phone sizes first; the page follows the room it really has (container
+   queries), and browsers without them keep the phone layout. Only transform and opacity are animated. */
+
+.sh-root {
+  container-type: inline-size;
+  container-name: shroot;
+}
+
+/* ---- Top bar: logo, title, XP and gems ---- */
+
+.sh-top {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-height: 40px;
+}
+.sh-top-logo {
+  flex: none;
+  width: 34px;
+  height: 34px;
+}
+.sh-top-title {
+  font-size: 22px;
+  font-weight: 900;
+  line-height: 1;
+  letter-spacing: -0.02em;
+  color: #1e293b;
+}
+.sh-wallet {
+  display: flex;
+  gap: 6px;
+  margin-left: auto;
+  min-width: 0;
+}
+.sh-coin {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  height: 34px;
+  padding: 0 10px 0 4px;
+  border-radius: 9999px;
+  background: #fff;
+  font-size: 14px;
+  font-weight: 900;
+  color: #1e293b;
+  white-space: nowrap;
+  box-shadow:
+    0 0 0 1px rgba(15, 23, 42, 0.07),
+    0 8px 18px -12px rgba(15, 23, 42, 0.35);
+}
+.sh-coin-icon {
+  width: 24px;
+  height: 24px;
+}
+@container shroot (min-width: 420px) {
+  .sh-top {
+    gap: 10px;
+    min-height: 44px;
+  }
+  .sh-top-logo {
+    width: 40px;
+    height: 40px;
+  }
+  .sh-top-title {
+    font-size: 26px;
+  }
+  .sh-wallet {
+    gap: 8px;
+  }
+  .sh-coin {
+    gap: 6px;
+    height: 40px;
+    padding: 0 14px 0 6px;
+    font-size: 15px;
+  }
+  .sh-coin-icon {
+    width: 28px;
+    height: 28px;
+  }
+}
+
+/* ---- Tabs: one row of pills that scrolls sideways on phones; one row of tiles, all in view, with room ---- */
+
+/* The padding leaves room for the chosen tab's shadow, which the scrolling row would otherwise cut off. */
+.sh-tabs {
+  display: flex;
+  gap: 8px;
+  margin: -6px -8px -12px;
+  padding: 6px 8px 18px;
+  overflow-x: auto;
+  overscroll-behavior-x: contain;
+  scrollbar-width: none;
+  -webkit-overflow-scrolling: touch;
+}
+.sh-tabs::-webkit-scrollbar {
+  display: none;
+}
+.sh-tab {
+  flex: none;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  height: 44px;
+  padding: 0 16px 0 6px;
+  border-radius: 9999px;
+  background: #fff;
+  font-size: 14px;
+  font-weight: 900;
+  color: #475569;
+  white-space: nowrap;
+  -webkit-tap-highlight-color: transparent;
+  box-shadow:
+    0 0 0 1px rgba(15, 23, 42, 0.07),
+    0 6px 14px -10px rgba(15, 23, 42, 0.35);
+  transition:
+    color 0.15s ease,
+    transform 0.14s ease;
+}
+.sh-tab-icon {
+  display: grid;
+  place-items: center;
+  width: 32px;
+  height: 32px;
+  border-radius: 9999px;
+  background: var(--sh-tint);
+  color: var(--sh-ink);
+}
+.sh-tab[aria-selected='true'] {
+  color: #fff;
+  background: linear-gradient(180deg, var(--sh-a), var(--sh-b));
+  box-shadow:
+    0 10px 18px -10px var(--sh-b),
+    inset 0 1px 0 rgba(255, 255, 255, 0.35);
+}
+.sh-tab[aria-selected='true'] .sh-tab-icon {
+  background: rgba(255, 255, 255, 0.24);
+  color: #fff;
+}
+@container shroot (min-width: 700px) {
+  .sh-tabs {
+    display: grid;
+    grid-auto-flow: column;
+    grid-auto-columns: minmax(0, 1fr);
+    margin: 0;
+    padding: 0;
+    overflow: visible;
+  }
+  .sh-tab {
+    flex-direction: column;
+    justify-content: center;
+    gap: 6px;
+    height: 88px;
+    min-width: 0;
+    padding: 8px 4px;
+    border-radius: 22px;
+    font-size: 12px;
+  }
+  .sh-tab-icon {
+    width: 40px;
+    height: 40px;
+  }
+  .sh-tab-label {
+    max-width: 100%;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+}
+@container shroot (min-width: 900px) {
+  .sh-tab {
+    font-size: 13px;
+  }
+}
+@media (hover: hover) {
+  .sh-tab:not([aria-selected='true']):hover {
+    color: #0f172a;
+  }
+}
+.sh-tab:focus-visible,
+.sh-chip:focus-visible,
+.sh-pic:focus-visible,
+.sh-step:focus-visible,
+.sh-price:focus-visible,
+.sh-equip:focus-visible,
+.sh-eye:focus-visible {
+  outline: 3px solid #38bdf8;
+  outline-offset: 2px;
+}
+
+/* Collections of the chosen tab */
+.sh-chips {
+  display: flex;
+  gap: 6px;
+  margin: -2px;
+  padding: 2px;
+  overflow-x: auto;
+  scrollbar-width: none;
+}
+.sh-chips::-webkit-scrollbar {
+  display: none;
+}
+.sh-chip {
+  flex: none;
+  height: 32px;
+  padding: 0 14px;
+  border-radius: 9999px;
+  background: #fff;
+  font-size: 13px;
+  font-weight: 800;
+  color: #64748b;
+  box-shadow: inset 0 0 0 1px #e2e8f0;
+}
+.sh-chip[aria-pressed='true'] {
+  background: #334155;
+  color: #fff;
+  box-shadow: none;
+}
+
+/* ---- Grid of cards ---- */
+
+.sh-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+}
+@container shroot (min-width: 540px) {
+  .sh-grid {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 14px;
+  }
+}
+@container shroot (min-width: 720px) {
+  .sh-grid {
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    gap: 16px;
+  }
+}
+@container shroot (min-width: 940px) {
+  .sh-grid {
+    grid-template-columns: repeat(5, minmax(0, 1fr));
+  }
+}
+
+/* The cards rise in with pf-rise, whose end state holds `transform`, so hover only changes the shadow and the
+   picture, not the card's position. */
+.sh-card {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  border-radius: 22px;
+  background: #fff;
+  box-shadow:
+    0 0 0 1px rgba(15, 23, 42, 0.06),
+    0 1px 2px rgba(15, 23, 42, 0.04),
+    0 14px 26px -18px rgba(15, 23, 42, 0.28);
+  transition: box-shadow 0.18s ease;
+}
+@media (hover: hover) {
+  .sh-card:hover {
+    box-shadow:
+      0 0 0 1px rgba(15, 23, 42, 0.08),
+      0 20px 32px -16px rgba(15, 23, 42, 0.34);
+  }
+}
+
+/* The picture: tinted by rarity, with a soft light behind the item. */
+.sh-pic {
+  position: relative;
+  isolation: isolate;
+  display: grid;
+  place-items: center;
+  aspect-ratio: 1 / 1;
+  margin: 8px 8px 0;
+  padding: 13%;
+  border-radius: 16px;
+  overflow: hidden;
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+  box-shadow: inset 0 0 0 1px rgba(15, 23, 42, 0.05);
+}
+.sh-pic::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  background: radial-gradient(closest-side at 50% 46%, rgba(255, 255, 255, 0.95), rgba(255, 255, 255, 0) 78%);
+}
+.sh-pic[data-bg] {
+  padding: 0;
+}
+.sh-pic[data-bg]::before {
+  display: none;
+}
+/* --sh-rot turns a hammer on its side, also while the picture grows on hover. */
+.sh-art {
+  transform: rotate(var(--sh-rot, 0deg));
+  transition: transform 0.2s cubic-bezier(0.3, 1.4, 0.5, 1);
+}
+@media (hover: hover) {
+  .sh-card:hover .sh-art {
+    transform: rotate(var(--sh-rot, 0deg)) scale(1.07);
+  }
+}
+.sh-stars {
+  position: absolute;
+  left: 8px;
+  top: 6px;
+  font-size: 11px;
+  line-height: 1;
+  letter-spacing: -0.1em;
+}
+.sh-mark {
+  position: absolute;
+  right: 6px;
+  top: 6px;
+  display: flex;
+  width: 22px;
+  height: 22px;
+  align-items: center;
+  justify-content: center;
+  border-radius: 9999px;
+  background: #10b981;
+  color: #fff;
+  box-shadow:
+    0 0 0 2px #fff,
+    0 3px 6px rgba(15, 23, 42, 0.2);
+}
+.sh-mark[data-worn] {
+  background: #0ea5e9;
+}
+.sh-bonus {
+  position: absolute;
+  left: 6px;
+  bottom: 6px;
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+  padding: 2px 6px;
+  border-radius: 9999px;
+  background: #fef3c7;
+  font-size: 10px;
+  font-weight: 900;
+  color: #b45309;
+  box-shadow: 0 0 0 1.5px #fff;
+}
+.sh-qty {
+  position: absolute;
+  right: 6px;
+  top: 6px;
+  padding: 2px 8px;
+  border-radius: 9999px;
+  background: rgba(15, 23, 42, 0.78);
+  font-size: 11px;
+  font-weight: 900;
+  color: #fff;
+}
+
+/* Arrows and dots between the variants of an avatar group */
+.sh-variants {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 2px;
+  height: 30px;
+  margin-top: 4px;
+}
+.sh-step {
+  display: flex;
+  flex: none;
+  width: 26px;
+  height: 26px;
+  align-items: center;
+  justify-content: center;
+  border-radius: 9999px;
+  background: #fff;
+  color: #64748b;
+  box-shadow:
+    0 0 0 1px rgba(15, 23, 42, 0.1),
+    0 2px 4px rgba(15, 23, 42, 0.08);
+}
+.sh-dot {
+  display: grid;
+  place-items: center;
+  width: 14px;
+  height: 14px;
+}
+.sh-dot::before {
+  content: '';
+  width: 7px;
+  height: 7px;
+  border-radius: 9999px;
+  background: #cbd5e1;
+  transition: transform 0.15s ease;
+}
+.sh-dot[data-owned='true']::before {
+  background: #6ee7b7;
+}
+.sh-dot[data-on='true']::before {
+  background: #0ea5e9;
+  transform: scale(1.4);
+}
+
+/* The name and the line under it sit at the bottom, so they line up across a row even when a card has variant
+   arrows. */
+.sh-card-body {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  justify-content: flex-end;
+  gap: 6px;
+  padding: 8px 10px 10px;
+}
+.sh-name {
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+  text-align: center;
+  font-size: 13px;
+  font-weight: 800;
+  color: #334155;
+}
+
+/* The line under the name: full-width white pills that stand up a little, like the XP and gem chips in the top
+   bar. The colour is only in the number (orange XP, blue gems) and the words, so the picture stays what catches
+   the eye. States ("Đang dùng", "Đã có") are flat and lightly tinted. The one strong green button is "Mua" in the
+   sheet. */
+.sh-act {
+  display: flex;
+  min-height: 34px;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+}
+.sh-price,
+.sh-equip,
+.sh-worn,
+.sh-have,
+.sh-off {
+  display: inline-flex;
+  flex: 1 1 auto;
+  min-width: 0;
+  height: 34px;
+  align-items: center;
+  justify-content: center;
+  gap: 5px;
+  padding: 0 12px;
+  border-radius: 9999px;
+  font-size: 14px;
+  font-weight: 900;
+  white-space: nowrap;
+}
+.sh-price,
+.sh-equip,
+.sh-eye {
+  background: #fff;
+  box-shadow:
+    0 0 0 1px rgba(15, 23, 42, 0.08),
+    0 6px 12px -8px rgba(15, 23, 42, 0.4);
+}
+.sh-price {
+  color: #334155;
+}
+.sh-price[data-coin='xp'] {
+  color: #c2410c;
+}
+.sh-price[data-coin='gems'] {
+  color: #0369a1;
+}
+.sh-price[data-can='false'] {
+  color: #94a3b8;
+  background: #f8fafc;
+  box-shadow: inset 0 0 0 1px #e2e8f0;
+}
+.sh-price[data-can='false'] img,
+.sh-buy:disabled .sh-buy-price img {
+  opacity: 0.55;
+  filter: grayscale(0.6);
+}
+/* Two prices side by side (a ball sold for gems or XP) */
+.sh-price:not(:only-child) {
+  padding: 0 10px;
+  font-size: 13px;
+}
+.sh-equip {
+  color: #0369a1;
+}
+.sh-eye {
+  display: flex;
+  flex: none;
+  width: 34px;
+  height: 34px;
+  align-items: center;
+  justify-content: center;
+  border-radius: 9999px;
+  color: #64748b;
+}
+@media (hover: hover) {
+  .sh-step:hover,
+  .sh-price:not([data-can='false']):hover,
+  .sh-equip:not(:disabled):hover,
+  .sh-eye:not(:disabled):hover {
+    background: #f8fafc;
+  }
+}
+.sh-equip:disabled,
+.sh-eye:disabled {
+  opacity: 0.6;
+}
+.sh-worn {
+  gap: 4px;
+  padding: 0;
+  color: #0369a1;
+  background: #f0f9ff;
+}
+.sh-worn[data-hidden] {
+  color: #94a3b8;
+  background: #f8fafc;
+}
+.sh-have {
+  gap: 4px;
+  color: #047857;
+  background: #ecfdf5;
+}
+.sh-off {
+  color: #cbd5e1;
+  background: #f8fafc;
+}
+/* The smallest phones (320 wide): two prices, or "Đang dùng" with the eye, still fit on one line. */
+@container shroot (max-width: 300px) {
+  .sh-act {
+    gap: 4px;
+  }
+  .sh-price:not(:only-child) {
+    gap: 3px;
+    padding: 0 7px;
+  }
+  .sh-worn {
+    gap: 3px;
+    font-size: 12px;
+  }
+  .sh-eye {
+    width: 30px;
+    height: 30px;
+  }
+}
+
+/* ---- Item sheet ---- */
+
+.sh-lead {
+  display: flex;
+  flex: none;
+  width: 40px;
+  height: 40px;
+  align-items: center;
+  justify-content: center;
+  border-radius: 14px;
+  color: #fff;
+  background: linear-gradient(180deg, var(--sh-a), var(--sh-b));
+  box-shadow: 0 6px 14px -6px var(--sh-b);
+}
+.sh-stage {
+  position: relative;
+  isolation: isolate;
+  display: grid;
+  place-items: center;
+  height: 228px;
+  border-radius: 24px;
+  overflow: hidden;
+  box-shadow: inset 0 0 0 1px rgba(15, 23, 42, 0.05);
+}
+.sh-stage::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  background: radial-gradient(55% 60% at 50% 46%, rgba(255, 255, 255, 0.9), rgba(255, 255, 255, 0) 72%);
+}
+.sh-stage[data-bg] {
+  height: auto;
+  aspect-ratio: 16 / 9;
+}
+.sh-stage[data-bg]::before {
+  display: none;
+}
+.sh-stage-art {
+  display: grid;
+  place-items: center;
+  width: 172px;
+  height: 172px;
+}
+.sh-try-ring {
+  border-radius: 9999px;
+  box-shadow:
+    0 0 0 5px #fff,
+    0 14px 28px -10px rgba(15, 23, 42, 0.45);
+}
+.sh-stage-tag {
+  position: absolute;
+  left: 12px;
+  top: 12px;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 4px 10px;
+  border-radius: 9999px;
+  background: #10b981;
+  font-size: 12px;
+  font-weight: 900;
+  color: #fff;
+  box-shadow: 0 4px 10px -4px rgba(5, 150, 105, 0.7);
+}
+.sh-stage-tag[data-worn] {
+  background: #0ea5e9;
+  box-shadow: 0 4px 10px -4px rgba(2, 132, 199, 0.7);
+}
+
+.sh-strip {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 8px;
+  margin-top: 12px;
+}
+.sh-strip-item {
+  position: relative;
+  display: grid;
+  place-items: center;
+  width: 52px;
+  height: 52px;
+  padding: 6px;
+  border-radius: 16px;
+  box-shadow: inset 0 0 0 1px rgba(15, 23, 42, 0.07);
+}
+.sh-strip-item[aria-pressed='true'] {
+  box-shadow:
+    0 0 0 2px #fff,
+    0 0 0 4px #0ea5e9;
+}
+.sh-strip-dot {
+  position: absolute;
+  right: -3px;
+  top: -3px;
+  width: 12px;
+  height: 12px;
+  border-radius: 9999px;
+  background: #10b981;
+  box-shadow: 0 0 0 2px #fff;
+}
+.sh-strip-dot[data-worn] {
+  background: #0ea5e9;
+}
+
+.sh-tag {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 4px 10px;
+  border-radius: 9999px;
+  background: #f1f5f9;
+  font-size: 12px;
+  font-weight: 800;
+  color: #475569;
+}
+.sh-tag[data-bonus] {
+  background: #fffbeb;
+  color: #b45309;
+  box-shadow: inset 0 0 0 1px #fde68a;
+}
+
+/* Price, balance and the big buttons stay at the bottom of the sheet while its content scrolls. */
+.sh-foot {
+  position: sticky;
+  bottom: 0;
+  z-index: 2;
+  margin: 16px -16px 0;
+  padding: 14px 16px 2px;
+  background: linear-gradient(to top, #fff 80%, rgba(255, 255, 255, 0));
+}
+@media (min-width: 640px) {
+  .sh-foot {
+    margin-inline: -24px;
+    padding-inline: 24px;
+  }
+}
+.sh-balance,
+.sh-have-row {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  margin-bottom: 10px;
+  font-size: 14px;
+  font-weight: 900;
+  color: #64748b;
+}
+.sh-balance[data-short] {
+  color: #e11d48;
+}
+.sh-have-row {
+  width: fit-content;
+  margin-inline: auto;
+  padding: 5px 14px 5px 10px;
+  border-radius: 9999px;
+  background: #f1f5f9;
+  font-size: 15px;
+  color: #334155;
+}
+.sh-need-track {
+  position: relative;
+  flex: 1;
+  height: 10px;
+  max-width: 220px;
+  border-radius: 9999px;
+  background: #f1f5f9;
+  overflow: hidden;
+  box-shadow: inset 0 1px 2px rgba(15, 23, 42, 0.12);
+}
+.sh-need-track > span {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  left: 0;
+  width: var(--p, 0%);
+  border-radius: inherit;
+  background: linear-gradient(90deg, #fbbf24, #f97316);
+}
+.sh-buy {
+  display: flex;
+  flex: 1;
+  width: 100%;
+  min-width: 0;
+  height: 52px;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 0 14px;
+  border-radius: 18px;
+  font-size: 16px;
+  font-weight: 900;
+  color: #fff;
+  white-space: nowrap;
+  background: linear-gradient(180deg, #34d399, #059669);
+  box-shadow:
+    0 10px 20px -10px rgba(5, 150, 105, 0.8),
+    inset 0 1px 0 rgba(255, 255, 255, 0.35);
+}
+.sh-buy[data-kind='equip'] {
+  background: linear-gradient(180deg, #38bdf8, #2563eb);
+  box-shadow:
+    0 10px 20px -10px rgba(37, 99, 235, 0.85),
+    inset 0 1px 0 rgba(255, 255, 255, 0.35);
+}
+.sh-buy[data-kind='worn'] {
+  color: #0369a1;
+  background: #e0f2fe;
+  box-shadow: none;
+}
+.sh-buy[data-kind='frame'] {
+  flex: none;
+  width: auto;
+  color: #475569;
+  background: #f1f5f9;
+  box-shadow: inset 0 0 0 1px #e2e8f0;
+}
+.sh-buy:disabled,
+.sh-buy[data-off] {
+  color: #94a3b8;
+  background: #f1f5f9;
+  box-shadow: inset 0 0 0 1px #e2e8f0;
+  cursor: not-allowed;
+}
+.sh-buy-price {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  margin-left: 2px;
+  padding: 3px 10px 3px 6px;
+  border-radius: 9999px;
+  background: rgba(255, 255, 255, 0.22);
+}
+.sh-buy:disabled .sh-buy-price {
+  background: #fff;
+}
+
+/* ---- Empty and error cards ---- */
+
+.sh-state {
+  align-items: center;
+  padding: 40px 24px;
+  text-align: center;
+}
+.sh-state-icon {
+  display: flex;
+  width: 56px;
+  height: 56px;
+  margin-bottom: 12px;
+  align-items: center;
+  justify-content: center;
+  border-radius: 24px;
+}
+
+/* ---- After a purchase: the picture bounces and a few stars fly out, once ---- */
+
+.sh-pop {
+  animation: sh-pop 0.55s cubic-bezier(0.2, 1.5, 0.4, 1) both;
+}
+@keyframes sh-pop {
+  0% {
+    transform: scale(0.92);
+  }
+  45% {
+    transform: scale(1.05);
+  }
+  100% {
+    transform: scale(1);
+  }
+}
+/* --sh-fly: how far the stars go (further on the big picture of the sheet). */
+.sh-burst {
+  --sh-fly: 58px;
+  position: absolute;
+  inset: 0;
+  z-index: 3;
+  pointer-events: none;
+}
+.sh-stage .sh-burst {
+  --sh-fly: 104px;
+}
+.sh-burst > span {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  width: 16px;
+  height: 16px;
+  margin: -8px;
+  background: #fbbf24;
+  clip-path: polygon(50% 0, 62% 38%, 100% 50%, 62% 62%, 50% 100%, 38% 62%, 0 50%, 38% 38%);
+  opacity: 0;
+  animation: sh-burst 0.8s ease-out both;
+}
+.sh-burst > span:nth-child(even) {
+  background: #34d399;
+}
+@keyframes sh-burst {
+  0% {
+    opacity: 1;
+    transform: rotate(calc(var(--n) * 60deg)) translateY(0) scale(0.5);
+  }
+  100% {
+    opacity: 0;
+    transform: rotate(calc(var(--n) * 60deg)) translateY(calc(var(--sh-fly) * -1)) scale(1.1);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .sh-pop {
+    animation: none !important;
+  }
+  .sh-burst {
+    display: none;
+  }
+  .sh-tab,
+  .sh-card,
+  .sh-art,
+  .sh-dot::before {
+    transition: none;
+  }
+}
