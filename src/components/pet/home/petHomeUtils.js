@@ -89,11 +89,15 @@ export const isNew = (up, now = Date.now()) => {
   return Number.isFinite(t) && now - t < NEW_FOR_MS
 }
 
-// Smaller copies of Supabase Storage images (pet art is often 1024px). Only for this kind of URL; GIF and SVG keep
-// the original. Callers fall back to the original URL if the resized one fails to load.
+// Smaller copies of Supabase Storage images. Only for this kind of URL; GIF and SVG keep the original. Callers fall
+// back to the original URL if the resized one fails to load.
+// OFF (2026-11-16): Supabase bills every picture-and-size pair past 100 a month (the quota hit 367/100), and the
+// original pet files are only about 30-40 KB, so the small copies saved little. Set to true to turn resizing back on.
+const USE_STORAGE_RESIZE = false
 const OBJECT_PATH = '/storage/v1/object/public/'
 const RENDER_PATH = '/storage/v1/render/image/public/'
 export const thumbUrl = (url, size) => {
+  if (!USE_STORAGE_RESIZE) return url
   if (!url || !size || !url.includes(OBJECT_PATH) || /\.(gif|svg)(\?|#|$)/i.test(url)) return url
   const [base, query = ''] = url.split('?')
   const params = new URLSearchParams(query)
