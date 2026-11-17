@@ -2,9 +2,9 @@ import { useState } from 'react'
 import { Link } from 'react-router-dom'
 import { ArrowLeft } from 'lucide-react'
 
-// Decoy page mounted at /register. The real sign-up form moved to the secret
-// path in src/config/registration.js, so anyone who lands here typed the
-// obvious URL on purpose. They get a joke instead of a form.
+// Decoy page mounted at /register. There is no sign-up form (accounts are made
+// by an admin), so anyone who lands here typed the obvious URL on purpose.
+// They get a joke instead of a form.
 
 const MEME_IMAGE =
   'https://media.licdn.com/dms/image/v2/C5612AQEPXYvuzJ9baA/article-cover_image-shrink_600_2000/article-cover_image-shrink_600_2000/0/1520181432190?e=2147483647&v=beta&t=45tX8Oj5VMKx3qu7Gw9RTMWgoEONn7Po8xK7r6IR5o0'

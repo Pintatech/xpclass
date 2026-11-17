@@ -1,6 +1,5 @@
 import { useState, useEffect, useLayoutEffect, useRef } from "react";
-import { Link, Navigate, useLocation } from "react-router-dom";
-import { REGISTER_PATH } from "../../config/registration";
+import { Navigate, useLocation } from "react-router-dom";
 import { useAuth } from "../../hooks/useAuth";
 import { Eye, EyeOff, Loader2, AlertCircle, ArrowBigUp } from "lucide-react";
 import { supabase } from "../../supabase/client";
@@ -146,7 +145,6 @@ const STYLES = `
     .lp-m .lp-m-curve { height: 44px; }
     .lp-m .lp-m-form { padding-bottom: 24px; }
     .lp-m .lp-title { margin-bottom: 20px; font-size: 26px; }
-    .lp-m .lp-signup { margin-top: 18px; }
   }
   /* No room for a picture (landscape phone, keyboard open in some in-app browsers) */
   @media (max-height: 520px) {
@@ -336,7 +334,7 @@ const LoginPage = () => {
       />
     );
 
-  // Title + the two fields + Log in + Sign up: the very same block on PC and on phones
+  // Title + the two fields + Log in: the very same block on PC and on phones (no Sign up: accounts are made by an admin)
   const formBlock = (
     <div className="mx-auto w-full max-w-[340px]">
       <h1 className="lp-title mb-7 text-[28px] font-bold tracking-tight text-white sm:text-[32px]">
@@ -450,16 +448,6 @@ const LoginPage = () => {
         />
         Google
       </button> */}
-
-      <p className="lp-signup mt-7 text-center text-sm text-white/60">
-        New here?{" "}
-        <Link
-          to={REGISTER_PATH}
-          className="font-semibold text-sky-300 underline-offset-4 hover:text-sky-200 hover:underline"
-        >
-          Sign up
-        </Link>
-      </p>
     </div>
   );
 

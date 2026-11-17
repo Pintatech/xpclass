@@ -13,14 +13,12 @@ import ProtectedRoute from './components/auth/ProtectedRoute'
 import { TeacherCourseProvider } from './hooks/useTeacherCourseContext'
 import { MissionsProvider } from './hooks/useMissions'
 import { NotificationsProvider } from './hooks/useNotifications'
-import { REGISTER_PATH } from './config/registration'
 import { FEATURES } from './config/features'
 import lazyWithReload from './utils/lazyWithReload'
 import LoadingSpinner from './components/ui/LoadingSpinner'
 
 // Only the dashboard and login ship in the main bundle; every other page loads
 // when it's first opened, so the first visit downloads far less.
-const RegisterPage = lazyWithReload(() => import('./components/auth/RegisterPage'))
 const NiceTryPage = lazyWithReload(() => import('./components/auth/NiceTryPage'))
 const StudyModule = lazyWithReload(() => import('./components/study/StudyModule'))
 const Leaderboard = lazyWithReload(() => import('./components/leaderboard/Leaderboard'))
@@ -74,9 +72,8 @@ function App() {
             }>
             <Routes>
               <Route path="/login" element={<LoginPage />} />
-              {/* /register is a decoy; the real form lives at REGISTER_PATH */}
+              {/* No self sign-up (accounts are made by an admin; Supabase has sign-up off). /register is a decoy. */}
               <Route path="/register" element={<NiceTryPage />} />
-              <Route path={REGISTER_PATH} element={<RegisterPage />} />
               <Route path="/guest" element={<GuestEntry />} />
               <Route path="/guest/session" element={<GuestSessionRunner />} />
               {/* Public demo links: the same exercise screens, no login and no

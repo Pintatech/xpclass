@@ -126,85 +126,6 @@ export const AuthProvider = ({ children }) => {
     return { data, error }
   }
 
-  const signUp = async (email, password, fullName, username, courseId) => {
-    const { data, error } = await supabase.auth.signUp({
-      email,
-      password,
-      options: {
-        emailRedirectTo: `${window.location.origin}/`,
-        data: {
-          full_name: fullName
-        }
-      }
-    })
-
-    if (data.user && !error) {
-      // Create user profile ngay lập tức
-      try {
-        const { error: profileError } = await supabase.from('users').insert({
-          id: data.user.id,
-          email: data.user.email,
-          full_name: fullName,
-          username: username || null,
-          role: 'user',
-          current_level: 1,
-          xp: 0,
-          streak_count: 0
-        })
-
-        if (profileError) {
-          console.error('Error creating user profile:', profileError)
-        }
-
-        // Auto-enroll in selected course (or fallback to demo_course_id)
-        try {
-          let enrollCourseId = courseId
-          if (!enrollCourseId) {
-            const { data: setting } = await supabase
-              .from('site_settings')
-              .select('setting_value')
-              .eq('setting_key', 'demo_course_id')
-              .single()
-            enrollCourseId = setting?.setting_value
-          }
-
-          if (enrollCourseId) {
-            await supabase.from('course_enrollments').insert({
-              course_id: enrollCourseId,
-              student_id: data.user.id
-            })
-          }
-        } catch (enrollErr) {
-          console.error('Error auto-enrolling in course:', enrollErr)
-        }
-
-        // Give a random common/uncommon pet
-        try {
-          const { data: pets } = await supabase
-            .from('pets')
-            .select('id')
-            .in('rarity', ['common', 'uncommon'])
-            .eq('is_active', true)
-
-          if (pets && pets.length > 0) {
-            const randomPet = pets[Math.floor(Math.random() * pets.length)]
-            await supabase.from('user_pets').insert({
-              user_id: data.user.id,
-              pet_id: randomPet.id,
-              is_active: true
-            })
-          }
-        } catch (petErr) {
-          console.error('Error giving starter pet:', petErr)
-        }
-      } catch (profileError) {
-        console.error('Error creating user profile:', profileError)
-      }
-    }
-
-    return { data, error }
-  }
-
   const signOut = async () => {
     const { error } = await supabase.auth.signOut()
     if (!error) {
@@ -285,7 +206,6 @@ export const AuthProvider = ({ children }) => {
     profile,
     loading,
     signIn,
-    signUp,
     signOut,
     updateProfile,
     isAdmin,
