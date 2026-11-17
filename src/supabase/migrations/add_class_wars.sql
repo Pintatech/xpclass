@@ -33,8 +33,8 @@ ALTER TABLE public.class_wars ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.class_war_members ENABLE ROW LEVEL SECURITY;
 
 -- Everyone can read class wars
-CREATE POLICY "class_wars_select" ON public.class_wars FOR SELECT USING (true);
-CREATE POLICY "class_war_members_select" ON public.class_war_members FOR SELECT USING (true);
+CREATE POLICY "class_wars_select" ON public.class_wars FOR SELECT TO authenticated USING (true);
+CREATE POLICY "class_war_members_select" ON public.class_war_members FOR SELECT TO authenticated USING (true);
 
 -- Only admins/teachers can manage
 CREATE POLICY "class_wars_insert" ON public.class_wars FOR INSERT WITH CHECK (

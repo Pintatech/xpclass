@@ -32,7 +32,7 @@ ALTER TABLE public.event_character_stats ENABLE ROW LEVEL SECURITY;
 -- Readable by anyone signed in, so a profile page or leaderboard can show a
 -- student's fighter later without another policy.
 CREATE POLICY "event_character_stats_select" ON public.event_character_stats
-  FOR SELECT USING (true);
+  FOR SELECT TO authenticated USING (true);
 
 -- Writes are the owner's only. The RPCs below are SECURITY DEFINER and do the
 -- arithmetic themselves, so these exist for the initial row and nothing else.

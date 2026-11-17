@@ -27,7 +27,7 @@ ALTER TABLE public.event_stage_clears ENABLE ROW LEVEL SECURITY;
 -- student has climbed without needing another policy.
 DROP POLICY IF EXISTS "event_stage_clears_select" ON public.event_stage_clears;
 CREATE POLICY "event_stage_clears_select" ON public.event_stage_clears
-  FOR SELECT USING (true);
+  FOR SELECT TO authenticated USING (true);
 
 -- Writes go through the RPC below, which is SECURITY DEFINER and enforces the
 -- ladder order. These exist so nothing else has to be granted.
