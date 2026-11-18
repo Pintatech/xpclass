@@ -3,7 +3,7 @@ import { supabase } from '../../supabase/client';
 import { useAuth } from '../../hooks/useAuth';
 import { X, Shuffle, Swords, ArrowLeftRight, Users, StopCircle } from 'lucide-react';
 
-const ClassWarSetupModal = ({ courseId, onClose, onStarted, existingWar, teamAXP: propTeamAXP, teamBXP: propTeamBXP, teamAMembers: propTeamA, teamBMembers: propTeamB }) => {
+const ClassWarSetupModal = ({ courseId, onClose, onStarted, existingWar, teamAXP: propTeamAXP, teamBXP: propTeamBXP }) => {
   const { user } = useAuth();
   const [enrolledStudents, setEnrolledStudents] = useState([]);
   const [teamAMembers, setTeamAMembers] = useState([]);
@@ -243,58 +243,13 @@ const ClassWarSetupModal = ({ courseId, onClose, onStarted, existingWar, teamAXP
                 if (!window.confirm('End this Class War and distribute rewards?')) return;
                 setEnding(true);
                 try {
-                  const { data: settings } = await supabase
-                    .from('site_settings')
-                    .select('setting_key, setting_value')
-                    .in('setting_key', ['class_war_winner_rewards', 'class_war_loser_rewards']);
-                  const emptyR = { xp: 0, gems: 0, items: [] };
-                  let winR = emptyR, losR = emptyR;
-                  (settings || []).forEach(s => {
-                    try {
-                      const v = JSON.parse(s.setting_value);
-                      if (s.setting_key === 'class_war_winner_rewards') winR = { ...emptyR, ...v };
-                      if (s.setting_key === 'class_war_loser_rewards') losR = { ...emptyR, ...v };
-                    } catch {}
-                  });
-
-                  const aWins = propTeamAXP >= propTeamBXP;
-                  const winnerIds = (aWins ? propTeamA : propTeamB).filter(m => !m.isSupporter).map(m => m.id);
-                  const loserIds = (aWins ? propTeamB : propTeamA).filter(m => !m.isSupporter).map(m => m.id);
-
-                  const giveRewards = async (ids, reward) => {
-                    if (ids.length === 0 || (!reward.xp && !reward.gems && !(reward.items?.length))) return;
-                    for (const uid of ids) {
-                      if (reward.xp > 0 || reward.gems > 0) {
-                        const { data: u } = await supabase.from('users').select('xp, gems').eq('id', uid).single();
-                        if (u) {
-                          const upd = { updated_at: new Date().toISOString() };
-                          if (reward.xp > 0) upd.xp = (u.xp || 0) + reward.xp;
-                          if (reward.gems > 0) upd.gems = (u.gems || 0) + reward.gems;
-                          await supabase.from('users').update(upd).eq('id', uid);
-                        }
-                      }
-                      if (reward.items?.length > 0) {
-                        const { data: u } = await supabase.from('users').select('full_name').eq('id', uid).single();
-                        for (const item of reward.items) {
-                          const addQty = item.quantity || 1;
-                          const { data: existing } = await supabase.from('user_inventory')
-                            .select('quantity').eq('user_id', uid).eq('item_id', item.item_id).single();
-                          await supabase.from('user_inventory').upsert({
-                            user_id: uid, user_name: u?.full_name || '', item_id: item.item_id,
-                            item_name: item.item_name, quantity: (existing?.quantity || 0) + addQty,
-                          }, { onConflict: 'user_id,item_id' });
-                        }
-                      }
-                    }
-                  };
-
-                  await giveRewards(winnerIds, winR);
-                  await giveRewards(loserIds, losR);
-
-                  await supabase
-                    .from('class_wars')
-                    .update({ status: 'ended', ended_at: new Date().toISOString() })
-                    .eq('id', existingWar.id);
+                  // The server ends the war and gives the rewards the admin set, once (add_end_class_war.sql).
+                  // A tie goes to team A, as before.
+                  const winner = propTeamAXP >= propTeamBXP ? 'A' : 'B';
+                  const { data, error } = await supabase.rpc('end_class_war', { p_war_id: existingWar.id, p_winner: winner });
+                  if (error) throw error;
+                  // Ended already, from another tab: nothing was given twice.
+                  if (data?.success === false) alert(data.error || 'This Class War has already ended');
 
                   onStarted?.();
                   onClose();

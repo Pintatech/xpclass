@@ -1597,8 +1597,6 @@ const UnitList = () => {
           existingWar={activeWar}
           teamAXP={teamAXP}
           teamBXP={teamBXP}
-          teamAMembers={teamA}
-          teamBMembers={teamB}
           onClose={() => { setShowWarSetup(false); }}
           onStarted={() => refreshWar()}
         />
