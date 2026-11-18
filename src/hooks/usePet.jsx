@@ -223,6 +223,8 @@ export const PetProvider = ({ children }) => {
       if (error) throw error
 
       if (data.success) {
+        // feed_pet adds the food's energy on the server and returns the new total.
+        if (typeof data.energy === 'number') setUserEnergy(data.energy)
         await fetchActivePet()
         await fetchUserPets()
       }
@@ -327,28 +329,6 @@ export const PetProvider = ({ children }) => {
       return { success: true, newEnergy }
     } catch (error) {
       console.error('Error draining energy:', error)
-      return { success: false, error: error.message }
-    }
-  }
-
-  // Restore user energy (used when feeding pet)
-  const restoreUserEnergy = async (amount = 5) => {
-    if (!user) return
-
-    try {
-      const newEnergy = Math.min(100, (userEnergy ?? 100) + amount)
-
-      const { error } = await supabase
-        .from('users')
-        .update({ energy: newEnergy })
-        .eq('id', user.id)
-
-      if (error) throw error
-
-      setUserEnergy(newEnergy)
-      return { success: true, newEnergy }
-    } catch (error) {
-      console.error('Error restoring energy:', error)
       return { success: false, error: error.message }
     }
   }
@@ -568,7 +548,6 @@ export const PetProvider = ({ children }) => {
     savePetPlacements,
     updatePetOnActivity,
     drainPetEnergy,
-    restoreUserEnergy,
     getActiveBonuses,
     fetchActivePet,
     fetchUserPets,

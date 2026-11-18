@@ -81,7 +81,6 @@ const PetDisplay = ({ aside = null }) => {
     playWithPet,
     evolvePet,
     drainPetEnergy,
-    restoreUserEnergy,
     getActiveBonuses,
     userEnergy,
     rollWildAreaEncounter,
@@ -607,12 +606,9 @@ const PetDisplay = ({ aside = null }) => {
     if (result.success) {
       // Find the food item image
       const foodItem = itemId ? petFoodItems.find(i => i.item.id === itemId) : null;
-      // Get energy gained from result or calculate from item rarity
-      const energyGained = result.energy_gained || (foodItem ? getFoodStats(foodItem.item.rarity).energy : 15);
+      // feed_pet already added the energy on the server (usePet shows the new total); energy_change is what it added.
+      const energyGained = result.energy_change ?? (foodItem ? getFoodStats(foodItem.item.rarity).energy : 15);
       const foodImageUrl = foodItem?.item?.image_url || null;
-
-      // Restore user-level energy
-      await restoreUserEnergy(energyGained);
 
       // Play chomp sound
       const chompSound = new Audio(assetUrl('/sound/chomp.mp3'));
