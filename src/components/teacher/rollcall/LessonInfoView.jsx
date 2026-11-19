@@ -2,6 +2,8 @@ const TESTS = ['Unit Test', 'Pre Test', 'Midterm Test', 'Final Test'];
 const units = (n) => Array.from({ length: n + 1 }, (_, i) => `U${i}`).concat(TESTS);
 // OW levels: U1–U9 only (no U0, no tests)
 const owUnits = () => Array.from({ length: 9 }, (_, i) => `U${i + 1}`);
+// Genki: lesson 1–lesson 25 only (no U0, no tests)
+const genkiLessons = () => Array.from({ length: 25 }, (_, i) => `lesson ${i + 1}`);
 
 const LEVEL_UNITS = {
   'F-0': units(10),
@@ -16,6 +18,7 @@ const LEVEL_UNITS = {
   'OW1': owUnits(),
   'OW2': owUnits(),
   'OW3': owUnits(),
+  'Genki': genkiLessons(),
 };
 
 const LEVELS = Object.keys(LEVEL_UNITS);
