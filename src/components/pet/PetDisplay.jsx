@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from "react";
+import React, { useState, useEffect, useRef, Suspense } from "react";
 import { createPortal } from "react-dom";
 import { supabase } from "../../supabase/client";
 import { usePet, getPetLevelFromXp } from "../../hooks/usePet";
@@ -31,8 +31,10 @@ import WildEncounterModal from "./WildEncounterModal";
 import PetMazeAdventure from "./games/PetMazeAdventure";
 import PetFishingGame from "./games/PetFishingGame";
 import PetDash from "./games/PetDash";
+import lazyWithReload from "../../utils/lazyWithReload";
 
 import { assetUrl } from '../../hooks/useBranding';
+import { getVietnamWeek } from '../../hooks/useTrainingRecords';
 import { fetchPvpSchedule, checkPvpAvailability } from '../../utils/pvpSchedule';
 import { getSettings, getSetting } from '../../utils/siteSettings';
 // Pet chat messages - replace with your own!
@@ -67,6 +69,14 @@ const PET_MESSAGES = [
   "Mistakes help us grow! Don't be afraid to try!",
   "I believe in you! Let's learn together! 📚",
 ];
+
+// Energy one training game takes (the pet info card lists "Training -10 energy"). Quick Match takes none.
+const TRAINING_ENERGY_COST = 10;
+
+// The training game picker loads on its own, not with every page (its CSS would otherwise join the CSS every page
+// waits for). PetDisplay fetches it in the background soon after it shows, so Train opens it at once.
+const loadTrainingGamePicker = () => import("./games/picker/TrainingGamePicker");
+const TrainingGamePicker = lazyWithReload(loadTrainingGamePicker);
 
 /**
  * `aside` fills the right-hand half, which otherwise stands empty: the column was
@@ -126,6 +136,14 @@ const PetDisplay = ({ aside = null }) => {
   const [trainingBlocked, setTrainingBlocked] = useState(false); // true when outside allowed schedule
   const [trainingBlockedReason, setTrainingBlockedReason] = useState('');
   const [pvpWaitingCount, setPvpWaitingCount] = useState(0);
+  // Training picker: the game being started (spinner on it) and whether the last start failed.
+  const [startingGame, setStartingGame] = useState(null);
+  const [pickerFailed, setPickerFailed] = useState(false);
+  const startingRef = useRef(false); // a start is running: further taps wait
+  const openingRef = useRef(false); // Train was tapped and the picker is opening
+  const banksRef = useRef(null); // the word + question bank load started when the picker opened
+  const attemptRunRef = useRef(0); // counts game starts, so a late attempt row can't attach to a newer game
+  const showGameRef = useRef(null); // showGame for async code that resumes later
   const [showWildArea, setShowWildArea] = useState(false);
   const [wildAreaLoading, setWildAreaLoading] = useState(false);
   const [mazeAdventure, setMazeAdventure] = useState(null); // { mode: 'encounter'|'standalone', pet: object|null, rarity: string }
@@ -311,18 +329,36 @@ const PetDisplay = ({ aside = null }) => {
     checkTrainingSchedule()
   }, [])
 
-  // Poll PvP matchmaking waiting count
+  // Poll PvP matchmaking waiting count, for the game Quick Match is set to (PvPMatchmaking uses wordtype when unset)
   useEffect(() => {
     const fetchWaitingCount = async () => {
+      let gameType = 'wordtype'
+      try {
+        gameType = (await getSetting('quickmatch_game_type')) || 'wordtype'
+      } catch {
+        /* settings unreachable: count the default game */
+      }
       const { count } = await supabase.from('pvp_matchmaking')
         .select('id', { count: 'exact', head: true })
-        .eq('game_type', 'wordtype')
+        .eq('game_type', gameType)
         .eq('status', 'waiting')
       setPvpWaitingCount(count || 0)
     }
     fetchWaitingCount()
     const interval = setInterval(fetchWaitingCount, 10000)
     return () => clearInterval(interval)
+  }, [])
+
+  useEffect(() => {
+    showGameRef.current = showGame
+  }, [showGame])
+
+  // Fetch the training picker's code in the background once the pet card has settled.
+  useEffect(() => {
+    const id = setTimeout(() => {
+      loadTrainingGamePicker().catch(() => {})
+    }, 2000)
+    return () => clearTimeout(id)
   }, [])
 
   // Scroll chat to bottom when new messages arrive (only inside chat container)
@@ -493,6 +529,12 @@ const PetDisplay = ({ aside = null }) => {
 
   const bonuses = getActiveBonuses();
 
+  // The pet as the games draw it: the picture of its evolution stage, else its base picture.
+  const gamePetImage =
+    (activePet.evolution_stage > 0 &&
+      activePet.evolution_stages?.find((s) => s.stage === activePet.evolution_stage)?.image_url) ||
+    activePet.image_url;
+
   const petFoodItems = inventory.filter(
     (item) => item.item?.item_type === "pet_food" && item.quantity > 0 && !item.item?.name?.toLowerCase().includes('evolution'),
   );
@@ -632,24 +674,78 @@ const PetDisplay = ({ aside = null }) => {
     }
   };
 
+  // Word + question banks, loaded side by side in the background while the picker is open. A game (or Quick Match)
+  // waits for them before it opens, because the games pick their words when they start.
+  const loadGameBanks = () => {
+    banksRef.current = Promise.all([fetchWordBank(), fetchQuestionBank()]).catch(() => {});
+    return banksRef.current;
+  };
+
+  // Training hours can pass while the page stays open, so every tap on Train checks them again (cached settings).
+  const refreshTrainingBlocked = async () => {
+    try {
+      const { available, reason } = checkPvpAvailability(await fetchPvpSchedule());
+      const blocked = !available && !isStaff();
+      setTrainingBlocked(blocked);
+      setTrainingBlockedReason(blocked ? reason : '');
+      return blocked;
+    } catch {
+      return trainingBlocked; // settings unreachable: keep the last answer
+    }
+  };
+
+  // Train button: open the picker at once. Not enough energy is shown inside it (games locked, Feed button).
   const handlePlay = async () => {
-    if (trainingBlocked) {
+    if (openingRef.current) return;
+    openingRef.current = true;
+    loadTrainingGamePicker().catch(() => {}); // usually already loaded in the background
+    try {
+      const blocked = await refreshTrainingBlocked();
+      if (!blocked) loadGameBanks();
+      setPickerFailed(false);
       setShowGame('picker');
-      return;
+    } finally {
+      openingRef.current = false;
     }
-    if ((userEnergy ?? 100) < 5) {
-      setMessage({ type: 'error', text: `${activePet.nickname || activePet.name} is too tired to train! Feed your pet first. 😴` });
-      setTimeout(() => setMessage(null), 3000);
-      return;
+  };
+
+  // A tap on a game (or Quick Match) in the picker. One start at a time, so a double tap never pays twice.
+  // A game opens only after its energy is taken; Quick Match takes none.
+  const startFromPicker = async (gameType) => {
+    if (startingRef.current) return;
+    const quickMatch = gameType === 'quickmatch';
+    if (!quickMatch && !isAdmin() && (userEnergy ?? 100) < TRAINING_ENERGY_COST) return; // picker shows Feed
+    startingRef.current = true;
+    setStartingGame(gameType);
+    setPickerFailed(false);
+    try {
+      await (banksRef.current || loadGameBanks());
+      if (showGameRef.current !== 'picker') return; // closed while loading: nothing taken, nothing started
+
+      if (!quickMatch) {
+        const paid = await drainPetEnergy(TRAINING_ENERGY_COST);
+        if (!paid?.success) {
+          // Too tired: the picker shows the Feed bar. Anything else (network): ask to try again.
+          if (paid?.currentEnergy == null) setPickerFailed(true);
+          return;
+        }
+        // A new run: an attempt row still on its way for an earlier game must not take this game's score.
+        attemptRunRef.current += 1;
+        pendingAttemptId.current = null;
+        recordAttemptStart(gameType, attemptRunRef.current);
+        if (gameType !== 'catch') fetchGameLeaderboard(gameType); // Hungry Pet has no leaderboard
+      }
+      setShowGame(gameType);
+    } finally {
+      startingRef.current = false;
+      setStartingGame(null);
     }
-    await fetchWordBank();
-    await fetchQuestionBank();
-    setShowGame('picker');
   };
 
   // Record attempt at game START (score 0), update with real score on end.
   // This way refresh/quit still counts as an attempt.
-  const recordAttemptStart = async (gameType) => {
+  // `run` is the start this row belongs to: if another game started meanwhile, the row is left alone.
+  const recordAttemptStart = async (gameType, run = attemptRunRef.current) => {
     if (!gameType || !user?.id) return;
 
     // Check attempt limit during active competition (shared cache)
@@ -672,22 +768,16 @@ const PetDisplay = ({ aside = null }) => {
       && !(endDate && new Date() > new Date(endDate + 'T23:59:59+07:00'));
 
     if (isCompetitionGame && maxAttempts > 0) {
-      const now = new Date();
-      const day = now.getDay();
-      const daysFromMonday = day === 0 ? 6 : day - 1;
-      const weekStart = new Date(now);
-      weekStart.setDate(weekStart.getDate() - daysFromMonday);
-      const weekStartISO = weekStart.toISOString().split('T')[0] + 'T00:00:00+07:00';
-
+      // Attempts this week, from Monday 00:00 Vietnam time (as the competition and the weekly boards count).
       const { count } = await supabase
         .from('training_scores')
         .select('*', { count: 'exact', head: true })
         .eq('user_id', user.id)
         .eq('game_type', gameType)
-        .gte('played_at', weekStartISO);
+        .gte('played_at', getVietnamWeek().start);
 
       if (count >= maxAttempts) {
-        pendingAttemptId.current = null;
+        if (attemptRunRef.current === run) pendingAttemptId.current = null;
         return;
       }
     }
@@ -699,7 +789,7 @@ const PetDisplay = ({ aside = null }) => {
       score: 0
     }).select('id').single();
 
-    pendingAttemptId.current = data?.id || null;
+    if (attemptRunRef.current === run) pendingAttemptId.current = data?.id || null;
   };
 
   const fetchGameLeaderboard = async (gameType) => {
@@ -2152,210 +2242,30 @@ const PetDisplay = ({ aside = null }) => {
         document.body
       )}
 
-      {/* Game Picker Modal */}
-      {showGame === 'picker' && createPortal(
-        <div className="fixed inset-0 bg-black/30 backdrop-blur-sm flex items-center justify-center z-50 px-4"
-          onClick={() => setShowGame(null)}
-        >
-          <div className={`relative bg-white border-2 border-blue-200 shadow-xl w-full p-6 text-center overflow-hidden ${isStaff() ? 'max-w-2xl' : 'max-w-sm'}`}
-            style={{ clipPath: 'polygon(12px 0, 100% 0, 100% calc(100% - 12px), calc(100% - 12px) 100%, 0 100%, 0 12px)' }}
-            onClick={e => e.stopPropagation()}
-          >
-            {/* Corner brackets */}
-            <div className="absolute top-0 left-[12px] w-5 h-[1px] bg-gradient-to-r from-blue-300/40 to-transparent" />
-            <div className="absolute top-0 left-[12px] w-[1px] h-5 bg-gradient-to-b from-blue-300/40 to-transparent" />
-            <div className="absolute bottom-0 right-[12px] w-5 h-[1px] bg-gradient-to-l from-blue-300/40 to-transparent" />
-            <div className="absolute bottom-0 right-[12px] w-[1px] h-5 bg-gradient-to-t from-blue-300/40 to-transparent" />
-
-            <h3 className="text-xl font-semibold text-gray-800 mb-1 uppercase tracking-wide">Choose Training Game</h3>
-            <div className="h-[2px] w-24 bg-gradient-to-r from-transparent via-blue-400 to-transparent mx-auto mb-1" />
-            {trainingBlocked ? (
-              <div className="py-8">
-                <div className="text-5xl mb-3">🚫</div>
-                <p className="text-base font-semibold text-gray-700 mb-1">Training Unavailable</p>
-                <p className="text-sm text-gray-500 mb-4">{trainingBlockedReason}</p>
-                <button
-                  onClick={() => setShowGame(null)}
-                  className="px-6 py-2 bg-gray-100 text-gray-600 font-medium hover:bg-gray-200 transition"
-                  style={{ clipPath: 'polygon(8px 0, 100% 0, calc(100% - 8px) 100%, 0 100%)' }}
-                >
-                  OK
-                </button>
-              </div>
-            ) : (
-            <>
-            <p className="text-sm text-gray-500 mb-5">Earn +5 <img src={assetUrl('/image/study/xp.png')} alt="XP" className="w-4 h-4 inline" /> on success!</p>
-            <style>{`.game-grid > button { clip-path: polygon(8px 0, 100% 0, 100% calc(100% - 8px), calc(100% - 8px) 100%, 0 100%, 0 8px); }`}</style>
-            <div className={`game-grid grid gap-3 ${isStaff() ? 'grid-cols-3 md:grid-cols-4' : 'grid-cols-2'}`}>
-              {(isStaff() || enabledGames.includes('scramble')) && (
-              <button
-                onClick={() => { drainPetEnergy(10); recordAttemptStart('scramble'); fetchGameLeaderboard('scramble'); setShowGame('scramble'); }}
-                className={`relative flex flex-col items-center gap-2 p-4 border-2 transition-all group overflow-hidden ${competitionGame === 'scramble' ? 'border-yellow-400 bg-yellow-50 ring-2 ring-yellow-300' : 'border-purple-200 hover:border-purple-400 hover:bg-purple-50'}`}
-              >
-                {competitionGame === 'scramble' && <span className="absolute -top-2 -right-2 text-lg">🏆</span>}
-                <img src={assetUrl('/image/dashboard/pet-scramble.jpg')} alt="Word Scramble" className="w-20 h-20 object-cover rounded-lg group-hover:scale-110 transition-transform" />
-                <span className="font-bold text-gray-800 text-xs">Word Scramble</span>
-              </button>
-              )}
-              {(isStaff() || enabledGames.includes('whackmole')) && (
-              <button
-                onClick={() => { drainPetEnergy(10); recordAttemptStart('whackmole'); fetchGameLeaderboard('whackmole'); setShowGame('whackmole'); }}
-                className={`relative flex flex-col items-center gap-2 p-4 border-2 transition-all group overflow-hidden ${competitionGame === 'whackmole' ? 'border-yellow-400 bg-yellow-50 ring-2 ring-yellow-300' : 'border-green-200 hover:border-green-400 hover:bg-green-50'}`}
-              >
-                {competitionGame === 'whackmole' && <span className="absolute -top-2 -right-2 text-lg">🏆</span>}
-                <img src={assetUrl('/pet-game/whack/mole-normal.png')} alt="Whack-a-Mole" className="w-20 h-20 object-contain group-hover:scale-110 transition-transform" />
-                <span className="font-bold text-gray-800 text-xs">Whack-a-Mole</span>
-              </button>
-              )}
-              {(isStaff() || enabledGames.includes('astroblast')) && (
-              <button
-                onClick={() => { drainPetEnergy(10); recordAttemptStart('astroblast'); fetchGameLeaderboard('astroblast'); setShowGame('astroblast'); }}
-                className={`relative flex flex-col items-center gap-2 p-4 border-2 transition-all group overflow-hidden ${competitionGame === 'astroblast' ? 'border-yellow-400 bg-yellow-50 ring-2 ring-yellow-300' : 'border-red-200 hover:border-red-400 hover:bg-red-50'}`}
-              >
-                {competitionGame === 'astroblast' && <span className="absolute -top-2 -right-2 text-lg">🏆</span>}
-                <img src={assetUrl('/image/inventory/spaceships/phantom-voyager.png')} alt="Astro Blast" className="w-20 h-20 object-contain group-hover:scale-110 transition-transform" />
-                <span className="font-bold text-gray-800 text-xs">Astro Blast</span>
-              </button>
-              )}
-              {(isStaff() || enabledGames.includes('flappy')) && (
-              <button
-                onClick={() => { drainPetEnergy(10); recordAttemptStart('flappy'); fetchGameLeaderboard('flappy'); setShowGame('flappy'); }}
-                className={`relative flex flex-col items-center gap-2 p-4 border-2 transition-all group overflow-hidden ${competitionGame === 'flappy' ? 'border-yellow-400 bg-yellow-50 ring-2 ring-yellow-300' : 'border-sky-200 hover:border-sky-400 hover:bg-sky-50'}`}
-              >
-                {competitionGame === 'flappy' && <span className="absolute -top-2 -right-2 text-lg">🏆</span>}
-                <img src={assetUrl('/image/dashboard/flap.png')} alt="Flappy Pet" className="w-20 h-20 object-contain group-hover:scale-110 transition-transform" />
-                <span className="font-bold text-gray-800 text-xs">Flappy Pet</span>
-              </button>
-              )}
-              {(isStaff() || enabledGames.includes('matchgame')) && (
-              <button
-                onClick={() => { drainPetEnergy(10); recordAttemptStart('matchgame'); fetchGameLeaderboard('matchgame'); setShowGame('matchgame'); }}
-                className={`relative flex flex-col items-center gap-2 p-4 border-2 transition-all group overflow-hidden ${competitionGame === 'matchgame' ? 'border-yellow-400 bg-yellow-50 ring-2 ring-yellow-300' : 'border-indigo-200 hover:border-indigo-400 hover:bg-indigo-50'}`}
-              >
-                {competitionGame === 'matchgame' && <span className="absolute -top-2 -right-2 text-lg">🏆</span>}
-                <img src={assetUrl('/image/dashboard/match1.png')} alt="Match Up" className="w-20 h-20 object-contain group-hover:scale-110 transition-transform" />
-                <span className="font-bold text-gray-800 text-xs">Match Up</span>
-              </button>
-              )}
-              {(isStaff() || enabledGames.includes('wordtype')) && (
-              <button
-                onClick={() => { drainPetEnergy(10); recordAttemptStart('wordtype'); fetchGameLeaderboard('wordtype'); setShowGame('wordtype'); }}
-                className={`relative flex flex-col items-center gap-2 p-4 border-2 transition-all group overflow-hidden ${competitionGame === 'wordtype' ? 'border-yellow-400 bg-yellow-50 ring-2 ring-yellow-300' : 'border-cyan-200 hover:border-cyan-400 hover:bg-cyan-50'}`}
-              >
-                {competitionGame === 'wordtype' && <span className="absolute -top-2 -right-2 text-lg">🏆</span>}
-                <img src={assetUrl('/image/dashboard/pet-type.webp')} alt="Word Type" className="w-20 h-20 object-cover rounded-lg group-hover:scale-110 transition-transform" />
-                <span className="font-bold text-gray-800 text-xs">Word Type</span>
-              </button>
-              )}
-              {(isStaff() || enabledGames.includes('bombparty')) && (
-              <button
-                onClick={() => { drainPetEnergy(10); recordAttemptStart('bombparty'); fetchGameLeaderboard('bombparty'); setShowGame('bombparty'); }}
-                className={`relative flex flex-col items-center gap-2 p-4 border-2 transition-all group overflow-hidden ${competitionGame === 'bombparty' ? 'border-yellow-400 bg-yellow-50 ring-2 ring-yellow-300' : 'border-purple-200 hover:border-purple-400 hover:bg-purple-50'}`}
-              >
-                {competitionGame === 'bombparty' && <span className="absolute -top-2 -right-2 text-lg">🏆</span>}
-                <img src={assetUrl('/pet-game/bomb/bomb.png')} alt="Bomb Defuse" className="w-20 h-20 object-contain group-hover:scale-110 transition-transform" />
-                <span className="font-bold text-gray-800 text-xs">Bomb Defuse</span>
-              </button>
-              )}
-              {/* Say It Right is hidden from the training picker. The game itself
-                  is still wired up (PvP, leaderboards, admin toggle) — only this
-                  entry point is removed. */}
-              {(isStaff() || enabledGames.includes('quizrush')) && (
-              <button
-                onClick={() => { drainPetEnergy(10); recordAttemptStart('quizrush'); fetchGameLeaderboard('quizrush'); setShowGame('quizrush'); }}
-                className={`relative flex flex-col items-center gap-2 p-4 border-2 transition-all group overflow-hidden ${competitionGame === 'quizrush' ? 'border-yellow-400 bg-yellow-50 ring-2 ring-yellow-300' : 'border-violet-200 hover:border-violet-400 hover:bg-violet-50'}`}
-              >
-                {competitionGame === 'quizrush' && <span className="absolute -top-2 -right-2 text-lg">🏆</span>}
-                <img src={assetUrl('/pet-display/game-logo/quiz.png')} alt="Quiz Rush" className="w-20 h-20 object-contain rounded-lg group-hover:scale-110 transition-transform" />
-                <span className="font-bold text-gray-800 text-xs">Quiz Rush</span>
-              </button>
-              )}
-              {(isStaff() || enabledGames.includes('bossbattle')) && (
-              <button
-                onClick={() => { drainPetEnergy(10); recordAttemptStart('bossbattle'); fetchGameLeaderboard('bossbattle'); setShowGame('bossbattle'); }}
-                className={`relative flex flex-col items-center gap-2 p-4 border-2 transition-all group overflow-hidden ${competitionGame === 'bossbattle' ? 'border-yellow-400 bg-yellow-50 ring-2 ring-yellow-300' : 'border-red-200 hover:border-red-400 hover:bg-red-50'}`}
-              >
-                {competitionGame === 'bossbattle' && <span className="absolute -top-2 -right-2 text-lg">🏆</span>}
-                <img src={assetUrl('/pet-game/boss/boss1.png')} alt="Boss Battle" className="w-20 h-20 object-contain group-hover:scale-110 transition-transform" />
-                <span className="font-bold text-gray-800 text-xs">Boss Battle</span>
-              </button>
-              )}
-
-              {(isStaff() || enabledGames.includes('angrypet')) && (
-              <button
-                onClick={() => { drainPetEnergy(10); recordAttemptStart('angrypet'); fetchGameLeaderboard('angrypet'); setShowGame('angrypet'); }}
-                className={`relative flex flex-col items-center gap-2 p-4 border-2 transition-all group overflow-hidden ${competitionGame === 'angrypet' ? 'border-yellow-400 bg-yellow-50 ring-2 ring-yellow-300' : 'border-orange-200 hover:border-orange-400 hover:bg-orange-50'}`}
-              >
-                {competitionGame === 'angrypet' && <span className="absolute -top-2 -right-2 text-lg">🏆</span>}
-                <img src={assetUrl('/pet-game/angry/Slingshot.png')} alt="Angry Pet" className="w-20 h-20 object-contain group-hover:scale-110 transition-transform" />
-                <span className="font-bold text-gray-800 text-xs">Angry Pet</span>
-              </button>
-              )}
-
-              {(isStaff() || enabledGames.includes('catch')) && (
-              <button
-                onClick={() => { drainPetEnergy(10); recordAttemptStart('catch'); setShowGame('catch'); }}
-                className={`relative flex flex-col items-center gap-2 p-4 border-2 transition-all group overflow-hidden ${competitionGame === 'catch' ? 'border-yellow-400 bg-yellow-50 ring-2 ring-yellow-300' : 'border-teal-200 hover:border-teal-400 hover:bg-teal-50'}`}
-              >
-                {competitionGame === 'catch' && <span className="absolute -top-2 -right-2 text-lg">🏆</span>}
-                <img src={assetUrl('/image/pet/catch-game.png')} alt="Hungry Pet" className="w-20 h-20 object-contain group-hover:scale-110 transition-transform" />
-                <span className="font-bold text-gray-800 text-xs">Hungry Pet</span>
-              </button>
-              )}
-
-              {(isStaff() || enabledGames.includes('fishing')) && (
-              <button
-                onClick={() => { drainPetEnergy(10); recordAttemptStart('fishing'); fetchGameLeaderboard('fishing'); setShowGame('fishing'); }}
-                className={`relative flex flex-col items-center gap-2 p-4 border-2 transition-all group overflow-hidden ${competitionGame === 'fishing' ? 'border-yellow-400 bg-yellow-50 ring-2 ring-yellow-300' : 'border-cyan-200 hover:border-cyan-400 hover:bg-cyan-50'}`}
-              >
-                {competitionGame === 'fishing' && <span className="absolute -top-2 -right-2 text-lg">🏆</span>}
-                <img src={assetUrl('/pet-display/game-logo/fish.png')} alt="Fishing Frenzy" className="w-20 h-20 object-contain rounded-lg group-hover:scale-110 transition-transform" />
-                <span className="font-bold text-gray-800 text-xs">Fishing Frenzy</span>
-              </button>
-              )}
-
-              {(isStaff() || enabledGames.includes('petdash')) && (
-              <button
-                onClick={() => { drainPetEnergy(10); recordAttemptStart('petdash'); fetchGameLeaderboard('petdash'); setShowGame('petdash'); }}
-                className={`relative flex flex-col items-center gap-2 p-4 border-2 transition-all group overflow-hidden ${competitionGame === 'petdash' ? 'border-yellow-400 bg-yellow-50 ring-2 ring-yellow-300' : 'border-amber-200 hover:border-amber-400 hover:bg-amber-50'}`}
-              >
-                {competitionGame === 'petdash' && <span className="absolute -top-2 -right-2 text-lg">🏆</span>}
-                <div className="relative w-20 h-20 group-hover:scale-110 transition-transform">
-                  <img src={(activePet.evolution_stage > 0 && activePet.evolution_stages?.find(s => s.stage === activePet.evolution_stage)?.image_url) || activePet.image_url} alt="Pet Dash" className="w-20 h-20 object-contain" />
-                  <span className="absolute -bottom-1 -right-1 text-2xl">💨</span>
-                </div>
-                <span className="font-bold text-gray-800 text-xs">Pet Dash</span>
-              </button>
-              )}
-
-              <button
-                onClick={() => setShowGame('quickmatch')}
-                className={`relative flex flex-col items-center gap-2 p-4 rounded-xl border-2 border-purple-200 hover:border-purple-400 hover:bg-purple-50 transition-all group ${isStaff() ? 'col-span-full' : 'col-span-2'}`}
-              >
-                <img src={assetUrl('/icon/dashboard/pvp.png')} alt="PvP" className="w-12 h-12 object-contain group-hover:scale-110 transition-transform" />
-                <div className="flex items-center gap-1">
-                  <span className="font-bold text-purple-700 text-xs">Quick Match</span>
-                  <span className="text-[10px] bg-purple-500 text-white px-1.5 py-0.5 rounded font-bold">LIVE</span>
-                </div>
-                {pvpWaitingCount > 0 && (
-                  <span className="text-[11px] text-purple-500 font-semibold animate-pulse">{pvpWaitingCount} waiting</span>
-                )}
-              </button>
-
-            </div>
-            <button
-              onClick={() => setShowGame(null)}
-              className="mt-4 px-6 py-1.5 text-sm text-gray-400 hover:text-gray-600 border border-gray-200 hover:border-gray-300 transition-colors font-medium tracking-wide"
-              style={{ clipPath: 'polygon(6px 0, 100% 0, calc(100% - 6px) 100%, 0 100%)' }}
-            >
-              Cancel
-            </button>
-            </>
-            )}
-          </div>
-
-        </div>,
-        document.body
+      {/* Training game picker (games/picker/TrainingGamePicker.jsx): looks there, start logic in startFromPicker */}
+      {showGame === 'picker' && (
+        <Suspense fallback={null}>
+          <TrainingGamePicker
+            enabledGames={enabledGames}
+            showAll={isStaff()}
+            competitionGame={competitionGame}
+            petImage={gamePetImage}
+            closedReason={trainingBlocked ? trainingBlockedReason || 'Training is closed right now.' : ''}
+            energy={userEnergy ?? 100}
+            energyCost={TRAINING_ENERGY_COST}
+            tired={!isAdmin() && (userEnergy ?? 100) < TRAINING_ENERGY_COST}
+            pvpWaiting={pvpWaitingCount}
+            starting={startingGame}
+            failed={pickerFailed}
+            onPlay={startFromPicker}
+            onQuickMatch={() => startFromPicker('quickmatch')}
+            onFeed={() => {
+              setShowGame(null);
+              setShowFeedMenu(true);
+            }}
+            onClose={() => setShowGame(null)}
+          />
+        </Suspense>
       )}
 
       {/* Quick Match */}

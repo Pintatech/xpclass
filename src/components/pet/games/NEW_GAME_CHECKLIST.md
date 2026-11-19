@@ -12,7 +12,7 @@ When adding a new mini-game, make sure to update ALL of the following:
 - Import the game component
 - Add game key to `gameLeaderboards` initial state (line ~89)
 - Add game key to `enabledGames` default array (line ~91)
-- Add game picker button in the grid (with `fetchGameLeaderboard('yourgame')` in onClick)
+- Add one line to `TRAINING_GAMES` in `games/picker/TrainingGamePicker.jsx` (key, name, art, tint). The picker's start (`startFromPicker` in PetDisplay) already takes the energy, records the attempt and calls `fetchGameLeaderboard('yourgame')`
 - Add `showGame === 'yourgame'` render block with `scoreToBeat` prop
 - Wire `onGameEnd={(score) => handleGameEnd(score, 'yourgame')}` (this saves to `training_scores` table)
 

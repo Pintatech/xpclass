@@ -1,0 +1,878 @@
+/* Training game picker (TrainingGamePicker.jsx). Every class starts with tgp-.
+   The sheet around it (slides up on phones, dialog on PC, scrolling, Esc) is the profile's Sheet: pf- classes in
+   Profile.css. Layout follows the width of the sheet (container "tgp"): 3 game columns on phones, 4 on small
+   tablets, 6 on PC.
+   Motion: transform and opacity only. Decoration plays a few times and stops; reduced motion turns it all off. */
+
+.tgp-body {
+  container: tgp / inline-size;
+  /* Room for the competition art, which pops out above its card. */
+  padding-top: 18px;
+  /* The white plate behind every game picture: a disc with a soft ring. */
+  --tgp-disc: radial-gradient(
+    circle closest-side,
+    rgba(255, 255, 255, 0.96) 0 70%,
+    rgba(255, 255, 255, 0.5) 71% 79%,
+    rgba(255, 255, 255, 0) 80%
+  );
+}
+
+/* ---- Header pieces (inside the Sheet header) ---- */
+
+.tgp-lead {
+  display: grid;
+  flex-shrink: 0;
+  place-items: center;
+  width: 46px;
+  height: 46px;
+  border-radius: 16px;
+  background: linear-gradient(150deg, #fef3c7, #fde68a);
+  box-shadow: 0 3px 0 #fcd34d;
+}
+.tgp-lead img {
+  width: 34px;
+  height: 34px;
+  object-fit: contain;
+}
+.tgp-xp {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  margin-top: 2px;
+  color: #ea580c;
+  font-size: 12px;
+  font-weight: 900;
+}
+.tgp-xp img {
+  width: 15px;
+  height: 15px;
+}
+
+/* ---- Top row: competition card + Quick Match (side by side when there is room) ---- */
+
+.tgp-top {
+  display: grid;
+  gap: 12px;
+  margin-bottom: 18px;
+}
+@container tgp (min-width: 470px) {
+  .tgp-top.has-hero {
+    grid-template-columns: minmax(0, 1.6fr) minmax(0, 1fr);
+  }
+}
+
+.tgp-hero,
+.tgp-qm,
+.tgp-tile {
+  -webkit-tap-highlight-color: transparent;
+  touch-action: manipulation;
+  transition:
+    transform 0.14s ease,
+    box-shadow 0.14s ease,
+    opacity 0.2s ease;
+}
+
+/* Competition: a gold ticket, the game's picture popping out of its top edge. */
+.tgp-hero {
+  --t500: #f59e0b;
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  min-height: 96px;
+  padding: 12px 118px 12px 12px;
+  border: 2px solid #fcd34d;
+  border-radius: 24px;
+  background: linear-gradient(115deg, #fbbf24 0%, #f59e0b 48%, #f97316 100%);
+  box-shadow: 0 5px 0 #c2410c;
+  color: #fff;
+  text-align: left;
+}
+.tgp-hero::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  border-radius: 22px;
+  background:
+    radial-gradient(circle at 82% 30%, rgba(255, 255, 255, 0.5), rgba(255, 255, 255, 0) 42%),
+    repeating-linear-gradient(135deg, rgba(255, 255, 255, 0.14) 0 12px, rgba(255, 255, 255, 0) 12px 24px);
+  pointer-events: none;
+}
+.tgp-hero-shine {
+  position: absolute;
+  inset: 0;
+  overflow: hidden;
+  border-radius: 22px;
+  pointer-events: none;
+}
+.tgp-hero-shine::after {
+  content: '';
+  position: absolute;
+  top: -30%;
+  bottom: -30%;
+  left: 0;
+  width: 34%;
+  background: linear-gradient(100deg, rgba(255, 255, 255, 0), rgba(255, 255, 255, 0.55), rgba(255, 255, 255, 0));
+  transform: translateX(-140%) skewX(-14deg);
+  animation: tgp-shine 2.8s 0.6s ease-in-out 2;
+}
+.tgp-cup {
+  position: relative;
+  display: grid;
+  flex-shrink: 0;
+  place-items: center;
+  width: 48px;
+  height: 48px;
+  border-radius: 16px;
+  background: #fff;
+  box-shadow: 0 3px 0 rgba(194, 65, 12, 0.45);
+  color: #f59e0b;
+}
+.tgp-cup svg {
+  width: 26px;
+  height: 26px;
+  stroke-width: 2.4;
+}
+.tgp-hero-text {
+  position: relative;
+  display: flex;
+  min-width: 0;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 7px;
+}
+.tgp-hero-name {
+  font-size: 19px;
+  font-weight: 900;
+  line-height: 1.1;
+  letter-spacing: -0.01em;
+  text-shadow: 0 2px 0 rgba(194, 65, 12, 0.45);
+}
+.tgp-hero-go {
+  display: inline-flex;
+  min-width: 44px;
+  height: 28px;
+  align-items: center;
+  justify-content: center;
+  padding: 0 12px;
+  border-radius: 999px;
+  background: #fff;
+  box-shadow: 0 2px 0 rgba(194, 65, 12, 0.35);
+  color: #ea580c;
+}
+.tgp-hero-go svg {
+  width: 16px;
+  height: 16px;
+}
+.tgp-hero-go .lucide-play,
+.tgp-qm-go .lucide-play {
+  fill: currentColor;
+}
+.tgp-hero-art {
+  position: absolute;
+  right: 8px;
+  bottom: 4px;
+  width: 108px;
+  height: 108px;
+  object-fit: contain;
+  filter: drop-shadow(0 8px 6px rgba(124, 45, 18, 0.35));
+  transform-origin: 50% 85%;
+  animation: tgp-bob 3.2s 0.5s ease-in-out 3;
+}
+/* A square picture with its own background: a tilted icon with a white edge. */
+.tgp-hero-art.is-cover {
+  right: 14px;
+  bottom: 10px;
+  width: 84px;
+  height: 84px;
+  border-radius: 22px;
+  object-fit: cover;
+  filter: none;
+  box-shadow:
+    0 0 0 4px #fff,
+    0 8px 14px rgba(124, 45, 18, 0.3);
+  transform: rotate(6deg);
+  animation: none;
+}
+.tgp-hero-art.tgp-art-missing {
+  right: 20px;
+  bottom: 14px;
+  width: 68px;
+  height: 68px;
+  color: #fff;
+  animation: none;
+}
+
+/* Quick Match: a purple bar, LIVE and the number of players waiting. */
+.tgp-qm {
+  --t500: #8b5cf6;
+  position: relative;
+  display: flex;
+  min-height: 66px;
+  align-items: center;
+  gap: 12px;
+  padding: 10px 12px;
+  border: 2px solid #a78bfa;
+  border-radius: 22px;
+  background: linear-gradient(115deg, #8b5cf6 0%, #6366f1 100%);
+  box-shadow: 0 4px 0 #4338ca;
+  color: #fff;
+  text-align: left;
+}
+.tgp-qm-icon {
+  display: grid;
+  flex-shrink: 0;
+  place-items: center;
+  width: 44px;
+  height: 44px;
+  border-radius: 14px;
+  background: rgba(255, 255, 255, 0.18);
+  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.25);
+}
+.tgp-qm-icon img {
+  width: 32px;
+  height: 32px;
+  object-fit: contain;
+}
+.tgp-qm-text {
+  display: flex;
+  min-width: 0;
+  flex-direction: column;
+  gap: 5px;
+}
+.tgp-qm-name {
+  font-size: 16px;
+  font-weight: 900;
+  line-height: 1.1;
+  white-space: nowrap;
+}
+.tgp-qm-meta {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.tgp-live {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 2px 8px 2px 6px;
+  border-radius: 999px;
+  background: #fff;
+  color: #e11d48;
+  font-size: 10px;
+  font-weight: 900;
+  letter-spacing: 0.06em;
+  line-height: 1.2;
+}
+.tgp-live-dot {
+  position: relative;
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: #f43f5e;
+}
+.tgp-live-dot::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  border-radius: 50%;
+  background: #f43f5e;
+  animation: tgp-ping 1.8s ease-out 3;
+}
+.tgp-wait {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  color: #ede9fe;
+  font-size: 12px;
+  font-weight: 900;
+  font-variant-numeric: tabular-nums;
+}
+.tgp-wait svg {
+  width: 14px;
+  height: 14px;
+}
+.tgp-qm-go {
+  display: grid;
+  flex-shrink: 0;
+  place-items: center;
+  width: 36px;
+  height: 36px;
+  margin-left: auto;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.2);
+}
+.tgp-qm-go svg {
+  width: 18px;
+  height: 18px;
+}
+
+/* ---- Game grid ---- */
+
+.tgp-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 14px 10px;
+  padding-bottom: 6px;
+}
+@container tgp (min-width: 470px) {
+  .tgp-grid {
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    gap: 16px 12px;
+  }
+}
+@container tgp (min-width: 660px) {
+  .tgp-grid {
+    grid-template-columns: repeat(6, minmax(0, 1fr));
+  }
+}
+
+/* One game: a chunky button in the game's colour. Colours come from the tint variables below. */
+.tgp-tile {
+  --t50: #f8fafc;
+  --t100: #f1f5f9;
+  --t200: #e2e8f0;
+  --t300: #cbd5e1;
+  --t500: #64748b;
+  --t700: #334155;
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 5px 5px 8px;
+  border: 2px solid var(--t200);
+  border-radius: 22px;
+  background: linear-gradient(180deg, #fff 35%, var(--t50) 100%);
+  box-shadow: 0 4px 0 var(--t300);
+  text-align: center;
+}
+.tgp-art {
+  position: relative;
+  display: grid;
+  place-items: center;
+  aspect-ratio: 1 / 0.88;
+  overflow: hidden;
+  border-radius: 17px;
+  background:
+    var(--tgp-disc),
+    linear-gradient(150deg, var(--t100) 0%, var(--t200) 100%);
+}
+.tgp-img {
+  position: relative;
+  z-index: 1;
+  width: 64%;
+  height: 64%;
+  object-fit: contain;
+  filter: drop-shadow(0 5px 4px rgba(15, 23, 42, 0.2));
+  transform: scale(var(--zoom, 1));
+  transition: transform 0.25s cubic-bezier(0.2, 0.9, 0.3, 1.4);
+}
+.tgp-img.is-cover {
+  width: 60%;
+  height: auto;
+  aspect-ratio: 1;
+  border-radius: 14px;
+  object-fit: cover;
+  filter: none;
+  box-shadow:
+    0 0 0 3px #fff,
+    0 5px 10px rgba(15, 23, 42, 0.22);
+  transform: rotate(-4deg) scale(var(--zoom, 1));
+}
+.tgp-img.tgp-art-missing {
+  width: 44%;
+  height: 44%;
+  color: var(--t500);
+  filter: none;
+  stroke-width: 1.6;
+}
+/* Pet Dash: the student's own pet with speed lines behind it. */
+.tgp-art.is-pet::before {
+  content: '';
+  position: absolute;
+  top: 36%;
+  left: 9%;
+  width: 22%;
+  height: 30%;
+  border-radius: 3px;
+  background: repeating-linear-gradient(180deg, var(--t500) 0 3px, rgba(0, 0, 0, 0) 3px 9px);
+  opacity: 0.55;
+  -webkit-mask-image: linear-gradient(90deg, transparent, #000);
+  mask-image: linear-gradient(90deg, transparent, #000);
+}
+.tgp-name {
+  display: -webkit-box;
+  overflow: hidden;
+  padding: 0 2px;
+  color: var(--t700);
+  font-size: 12.5px;
+  font-weight: 900;
+  line-height: 1.15;
+  text-wrap: balance;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+  line-clamp: 2;
+}
+/* Small phones (3 narrow columns) and PC (6 columns) have the least room per name. */
+@container tgp (max-width: 339px) {
+  .tgp-name {
+    font-size: 11.5px;
+  }
+}
+@container tgp (min-width: 470px) {
+  .tgp-name {
+    font-size: 13px;
+  }
+}
+@container tgp (min-width: 660px) {
+  .tgp-name {
+    font-size: 12px;
+  }
+}
+
+.tgp-tint-purple {
+  --t50: #faf5ff;
+  --t100: #f3e8ff;
+  --t200: #e9d5ff;
+  --t300: #d8b4fe;
+  --t500: #a855f7;
+  --t700: #7e22ce;
+}
+.tgp-tint-green {
+  --t50: #f0fdf4;
+  --t100: #dcfce7;
+  --t200: #bbf7d0;
+  --t300: #86efac;
+  --t500: #22c55e;
+  --t700: #15803d;
+}
+.tgp-tint-red {
+  --t50: #fef2f2;
+  --t100: #fee2e2;
+  --t200: #fecaca;
+  --t300: #fca5a5;
+  --t500: #ef4444;
+  --t700: #b91c1c;
+}
+.tgp-tint-sky {
+  --t50: #f0f9ff;
+  --t100: #e0f2fe;
+  --t200: #bae6fd;
+  --t300: #7dd3fc;
+  --t500: #0ea5e9;
+  --t700: #0369a1;
+}
+.tgp-tint-indigo {
+  --t50: #eef2ff;
+  --t100: #e0e7ff;
+  --t200: #c7d2fe;
+  --t300: #a5b4fc;
+  --t500: #6366f1;
+  --t700: #4338ca;
+}
+.tgp-tint-cyan {
+  --t50: #ecfeff;
+  --t100: #cffafe;
+  --t200: #a5f3fc;
+  --t300: #67e8f9;
+  --t500: #06b6d4;
+  --t700: #0e7490;
+}
+.tgp-tint-violet {
+  --t50: #f5f3ff;
+  --t100: #ede9fe;
+  --t200: #ddd6fe;
+  --t300: #c4b5fd;
+  --t500: #8b5cf6;
+  --t700: #6d28d9;
+}
+.tgp-tint-orange {
+  --t50: #fff7ed;
+  --t100: #ffedd5;
+  --t200: #fed7aa;
+  --t300: #fdba74;
+  --t500: #f97316;
+  --t700: #c2410c;
+}
+.tgp-tint-teal {
+  --t50: #f0fdfa;
+  --t100: #ccfbf1;
+  --t200: #99f6e4;
+  --t300: #5eead4;
+  --t500: #14b8a6;
+  --t700: #0f766e;
+}
+.tgp-tint-amber {
+  --t50: #fffbeb;
+  --t100: #fef3c7;
+  --t200: #fde68a;
+  --t300: #fcd34d;
+  --t500: #f59e0b;
+  --t700: #b45309;
+}
+
+/* ---- Press and hover ---- */
+
+@media (hover: hover) {
+  .tgp-tile:hover:not(:disabled):not([aria-disabled='true']) {
+    box-shadow: 0 6px 0 var(--t300);
+    transform: translateY(-2px);
+  }
+  .tgp-tile:hover:not(:disabled):not([aria-disabled='true']) .tgp-img {
+    transform: translateY(-5px) rotate(-6deg) scale(calc(var(--zoom, 1) * 1.08));
+  }
+  .tgp-tile:hover:not(:disabled):not([aria-disabled='true']) .tgp-img.is-cover {
+    transform: translateY(-4px) rotate(3deg) scale(calc(var(--zoom, 1) * 1.06));
+  }
+  .tgp-hero:hover:not(:disabled):not([aria-disabled='true']) {
+    box-shadow: 0 7px 0 #c2410c;
+    transform: translateY(-2px);
+  }
+  .tgp-qm:hover:not(:disabled) {
+    box-shadow: 0 6px 0 #4338ca;
+    transform: translateY(-2px);
+  }
+}
+.tgp-tile:active:not(:disabled):not([aria-disabled='true']) {
+  box-shadow: 0 1px 0 var(--t300);
+  transform: translateY(3px);
+}
+.tgp-hero:active:not(:disabled):not([aria-disabled='true']) {
+  box-shadow: 0 2px 0 #c2410c;
+  transform: translateY(3px);
+}
+.tgp-qm:active:not(:disabled) {
+  box-shadow: 0 1px 0 #4338ca;
+  transform: translateY(3px);
+}
+.tgp-tile:focus-visible,
+.tgp-hero:focus-visible,
+.tgp-qm:focus-visible,
+.tgp-feed:focus-visible,
+.tgp-ok:focus-visible {
+  outline: 3px solid var(--t500, #6366f1);
+  outline-offset: 3px;
+}
+.tgp-body button:disabled {
+  cursor: default;
+}
+
+/* ---- Not enough energy: games turn grey with a lock, the Feed bar shows ---- */
+
+.tgp-tile[aria-disabled='true'] {
+  --t50: #f8fafc;
+  --t100: #f1f5f9;
+  --t200: #e2e8f0;
+  --t300: #e2e8f0;
+  --t500: #94a3b8;
+  --t700: #94a3b8;
+  cursor: not-allowed;
+}
+.tgp-tile[aria-disabled='true'] .tgp-img {
+  filter: grayscale(1);
+  opacity: 0.45;
+}
+.tgp-hero[aria-disabled='true'] {
+  filter: grayscale(0.85);
+  cursor: not-allowed;
+}
+.tgp-lock {
+  position: absolute;
+  right: 5px;
+  bottom: 5px;
+  z-index: 2;
+  display: inline-flex;
+  align-items: center;
+  gap: 1px;
+  padding: 2px 6px 2px 4px;
+  border-radius: 999px;
+  background: #fff;
+  box-shadow:
+    0 0 0 1px #e2e8f0,
+    0 2px 0 #e2e8f0;
+  color: #64748b;
+  font-size: 11px;
+  font-weight: 900;
+  line-height: 1;
+}
+.tgp-lock svg {
+  width: 11px;
+  height: 11px;
+  margin-right: 1px;
+  stroke-width: 3;
+}
+.tgp-lock img {
+  width: 13px;
+  height: 13px;
+}
+.tgp-hero-go .tgp-lock {
+  position: static;
+  padding: 0;
+  background: none;
+  box-shadow: none;
+  color: #ea580c;
+  font-size: 12px;
+}
+
+.tgp-tired {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 16px;
+  padding: 8px 8px 8px 10px;
+  border: 2px solid #fde68a;
+  border-radius: 20px;
+  background: linear-gradient(115deg, #fffbeb, #fef3c7);
+}
+.tgp-tired-pet {
+  position: relative;
+  flex-shrink: 0;
+  width: 46px;
+  height: 46px;
+}
+.tgp-tired-pet img {
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+  filter: saturate(0.55) drop-shadow(0 2px 2px rgba(0, 0, 0, 0.15));
+}
+.tgp-zz {
+  position: absolute;
+  top: -4px;
+  right: -6px;
+  display: grid;
+  place-items: center;
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
+  background: #6366f1;
+  box-shadow: 0 2px 0 #4338ca;
+  color: #fff;
+}
+.tgp-zz svg {
+  width: 12px;
+  height: 12px;
+  fill: currentColor;
+}
+.tgp-energy {
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+  color: #b45309;
+  font-size: 20px;
+  font-weight: 900;
+  font-variant-numeric: tabular-nums;
+}
+.tgp-energy img {
+  width: 24px;
+  height: 24px;
+  margin-right: 2px;
+}
+.tgp-energy span {
+  color: #d97706;
+  font-size: 14px;
+  opacity: 0.8;
+}
+.tgp-feed {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  margin-left: auto;
+  padding: 9px 16px;
+  border: 2px solid #86efac;
+  border-radius: 999px;
+  background: linear-gradient(180deg, #4ade80, #22c55e);
+  box-shadow: 0 3px 0 #15803d;
+  color: #fff;
+  font-size: 15px;
+  font-weight: 900;
+  transition:
+    transform 0.12s ease,
+    box-shadow 0.12s ease;
+}
+.tgp-feed svg {
+  width: 17px;
+  height: 17px;
+}
+.tgp-feed:active {
+  box-shadow: 0 1px 0 #15803d;
+  transform: translateY(2px);
+}
+.tgp-nudge {
+  animation: tgp-nudge 0.45s ease-in-out 1;
+}
+
+/* ---- Busy, error, closed, empty ---- */
+
+.tgp-body.is-busy .tgp-tile:not([aria-busy='true']),
+.tgp-body.is-busy .tgp-hero:not([aria-busy='true']),
+.tgp-body.is-busy .tgp-qm:not([aria-busy='true']) {
+  opacity: 0.55;
+}
+.tgp-spin {
+  position: absolute;
+  inset: 0;
+  z-index: 3;
+  display: grid;
+  place-items: center;
+  background: rgba(255, 255, 255, 0.6);
+  color: var(--t700);
+}
+.tgp-spin svg {
+  width: 30px;
+  height: 30px;
+}
+.tgp-hero-go .animate-spin,
+.tgp-qm-go .animate-spin {
+  width: 16px;
+  height: 16px;
+}
+
+.tgp-note {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin: 0 0 14px;
+  padding: 8px 12px;
+  border: 1px solid #fecdd3;
+  border-radius: 14px;
+  background: #fff1f2;
+  color: #be123c;
+  font-size: 13px;
+  font-weight: 800;
+}
+.tgp-note svg {
+  flex-shrink: 0;
+  width: 16px;
+  height: 16px;
+}
+
+.tgp-closed {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 12px;
+  padding: 16px 8px 4px;
+  text-align: center;
+}
+.tgp-closed-icon {
+  display: grid;
+  place-items: center;
+  width: 76px;
+  height: 76px;
+  border-radius: 26px;
+  background: linear-gradient(150deg, #e0e7ff, #c7d2fe);
+  box-shadow: 0 5px 0 #a5b4fc;
+  color: #4338ca;
+}
+.tgp-closed-icon svg {
+  width: 38px;
+  height: 38px;
+  stroke-width: 2.2;
+}
+.tgp-closed p {
+  max-width: 280px;
+  color: #475569;
+  font-size: 15px;
+  font-weight: 800;
+  line-height: 1.35;
+}
+.tgp-ok {
+  min-width: 120px;
+  padding: 10px 28px;
+  border: 2px solid #e2e8f0;
+  border-radius: 999px;
+  background: #fff;
+  box-shadow: 0 3px 0 #e2e8f0;
+  color: #334155;
+  font-size: 15px;
+  font-weight: 900;
+  transition:
+    transform 0.12s ease,
+    box-shadow 0.12s ease;
+}
+.tgp-ok:active {
+  box-shadow: 0 1px 0 #e2e8f0;
+  transform: translateY(2px);
+}
+
+.tgp-empty {
+  padding: 18px 0 6px;
+  color: #94a3b8;
+  font-size: 14px;
+  font-weight: 800;
+  text-align: center;
+}
+
+/* ---- Motion ---- */
+
+/* Entrance: the top row, then the grid (two animations; one per card cost a slow phone ~0.2 s of work). */
+.tgp-rise {
+  animation: tgp-rise 0.42s cubic-bezier(0.2, 0.8, 0.2, 1) backwards;
+  animation-delay: calc(var(--i, 0) * 30ms + 80ms);
+}
+@keyframes tgp-rise {
+  from {
+    opacity: 0;
+    transform: translateY(14px) scale(0.96);
+  }
+}
+@keyframes tgp-shine {
+  to {
+    transform: translateX(360%) skewX(-14deg);
+  }
+}
+@keyframes tgp-bob {
+  0%,
+  100% {
+    transform: none;
+  }
+  30% {
+    transform: translateY(-6px) rotate(-3deg);
+  }
+  70% {
+    transform: translateY(-2px) rotate(3deg);
+  }
+}
+@keyframes tgp-ping {
+  from {
+    opacity: 0.75;
+    transform: scale(1);
+  }
+  to {
+    opacity: 0;
+    transform: scale(2.8);
+  }
+}
+@keyframes tgp-nudge {
+  20% {
+    transform: translateX(-6px);
+  }
+  40% {
+    transform: translateX(6px);
+  }
+  60% {
+    transform: translateX(-4px);
+  }
+  80% {
+    transform: translateX(3px);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .tgp-rise,
+  .tgp-hero-art,
+  .tgp-hero-shine::after,
+  .tgp-live-dot::after,
+  .tgp-nudge {
+    animation: none !important;
+  }
+  .tgp-hero,
+  .tgp-qm,
+  .tgp-tile,
+  .tgp-img,
+  .tgp-feed,
+  .tgp-ok {
+    transition: none !important;
+  }
+}
